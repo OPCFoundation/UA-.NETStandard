@@ -47,7 +47,10 @@ HostApplicationBuilder builder = Host.CreateApplicationBuilder(normalizedArgs);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-int port = int.TryParse(builder.Configuration["port"], NumberStyles.Integer, CultureInfo.InvariantCulture,
+int port = int.TryParse(
+    builder.Configuration["port"],
+    NumberStyles.Integer,
+    CultureInfo.InvariantCulture,
     out int configuredPort)
     ? configuredPort
     : 62865;
@@ -92,54 +95,66 @@ builder.Services.AddSingleton<VisualInspectionFeedbackSink>();
 builder.Services.AddSingleton<OperatorDialogController>();
 builder.Services.AddSingleton<VisualInspectionCell>();
 builder.Services.AddSingleton<AINodeManagerRegistry>();
-builder.Services.AddSingleton(services => new InferenceBackends(
-    new VisualInspectionInferenceBackend(
-        services.GetRequiredService<VisualInspectionAnalysisService>(),
-        services.GetRequiredService<VisualInspectionCellOptions>())));
-builder.Services.AddSingleton<IServerStartupTask>(services =>
-    services.GetRequiredService<AINodeManagerRegistry>());
+builder.Services.AddSingleton(
+    services => new InferenceBackends(
+        new VisualInspectionInferenceBackend(
+            services.GetRequiredService<VisualInspectionAnalysisService>(),
+            services.GetRequiredService<VisualInspectionCellOptions>())));
+builder.Services.AddSingleton<IServerStartupTask>(
+    services =>
+        services.GetRequiredService<AINodeManagerRegistry>());
 builder.Services.AddSingleton<InspectionJobControlProvider>();
-builder.Services.AddSingleton<IIsa95JobOrderReceiverV2>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobResponseProviderV2>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobResponseReceiverV2>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobStatusSourceV2>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobExecutionController>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobOrderCatalog>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
-builder.Services.AddSingleton<IIsa95JobOrderCatalogChangeSource>(services =>
-    services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobOrderReceiverV2>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobResponseProviderV2>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobResponseReceiverV2>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobStatusSourceV2>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobExecutionController>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobOrderCatalog>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
+builder.Services.AddSingleton<IIsa95JobOrderCatalogChangeSource>(
+    services =>
+        services.GetRequiredService<InspectionJobControlProvider>());
 builder.Services.AddHostedService<InspectionJobSeeder>();
 
 IOpcUaServerBuilder opcUa = builder.Services
     .AddOpcUa()
-    .AddServer(options =>
-    {
-        options.ApplicationName = "VisualInspectionCell";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:VisualInspectionCell";
-        options.ProductUri = "uri:opcfoundation.org:VisualInspectionCell";
-        options.AutoAcceptUntrustedCertificates = insecure;
-        if (pkiRoot is not null)
+    .AddServer(
+        options =>
         {
-            options.PkiRoot = pkiRoot;
-        }
-        options.EndpointUrls.Add($"opc.tcp://{host}:{port}/VisualInspectionCell");
-    })
-    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
-    {
-        Name = BrowseNames.WellKnownRole_Operator,
-        Identities =
-        {
-            new RoleIdentityMappingOptions
+            options.ApplicationName = "VisualInspectionCell";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:VisualInspectionCell";
+            options.ProductUri = "uri:opcfoundation.org:VisualInspectionCell";
+            options.AutoAcceptUntrustedCertificates = insecure;
+            if (pkiRoot is not null)
             {
-                CriteriaType = IdentityCriteriaType.Anonymous
+                options.PkiRoot = pkiRoot;
             }
-        }
-    }));
+            options.EndpointUrls.Add($"opc.tcp://{host}:{port}/VisualInspectionCell");
+        })
+    .ConfigureRoles(
+        options => options.Roles.Add(
+            new RoleDefinitionOptions
+            {
+                Name = BrowseNames.WellKnownRole_Operator,
+                Identities =
+                {
+                    new RoleIdentityMappingOptions
+                    {
+                        CriteriaType = IdentityCriteriaType.Anonymous
+                    }
+                }
+            }));
 
 opcUa.AddAI(
     ai =>
@@ -160,27 +175,32 @@ opcUa.AddAI(
         backend.Models.Add(VisualInspectionInferenceBackend.Model);
     },
     fallback => fallback.Enabled = false);
-opcUa.AddIsa95Server(options =>
-{
-    options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:isa95:instances";
-    options.RootBrowseName = "VisualInspectionISA95";
-    options.EnableJobControlV1 = false;
-    options.EnableJobControlV2 = true;
-});
-opcUa
-    .AddVision(options =>
-        options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:vision:instances")
-    .ConfigureVision(async (context, cancellationToken) =>
+opcUa.AddIsa95Server(
+    options =>
     {
-        VisualInspectionCell cell = context.GetRequiredService<VisualInspectionCell>();
-        await cell.ConfigureAsync(context, cancellationToken).ConfigureAwait(false);
+        options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:isa95:instances";
+        options.RootBrowseName = "VisualInspectionISA95";
+        options.EnableJobControlV1 = false;
+        options.EnableJobControlV2 = true;
     });
+opcUa
+    .AddVision(
+        options =>
+            options.InstanceNamespaceUri = "urn:opcfoundation:VisualInspectionCell:vision:instances")
+    .ConfigureVision(
+        async (context, cancellationToken) =>
+        {
+            VisualInspectionCell cell = context.GetRequiredService<VisualInspectionCell>();
+            await cell.ConfigureAsync(context, cancellationToken).ConfigureAwait(false);
+        });
 
 using IHost app = builder.Build();
-Console.WriteLine(FormattableString.Invariant(
-    $"VisualInspectionCell listening at opc.tcp://{host}:{port}/VisualInspectionCell"));
-Console.WriteLine(FormattableString.Invariant(
-    $"InferenceLocation={inferenceLocation}; fixtures=bracket-ok.png, bracket-not-ok.png, bracket-ambiguous.png"));
+Console.WriteLine(
+    FormattableString.Invariant(
+        $"VisualInspectionCell listening at opc.tcp://{host}:{port}/VisualInspectionCell"));
+Console.WriteLine(
+    FormattableString.Invariant(
+        $"InferenceLocation={inferenceLocation}; fixtures=bracket-ok.png, bracket-not-ok.png, bracket-ambiguous.png"));
 VisualInspectionAnalysisService analysis = app.Services.GetRequiredService<VisualInspectionAnalysisService>();
 foreach (string fixture in analysis.FixtureNames)
 {
@@ -190,8 +210,9 @@ foreach (string fixture in analysis.FixtureNames)
     {
         double low = characteristic.Actual - characteristic.Uncertainty;
         double high = characteristic.Actual + characteristic.Uncertainty;
-        Console.WriteLine(FormattableString.Invariant(
-            $"  {characteristic.CharacteristicId}: {characteristic.Actual:0.00} mm [{low:0.00}, {high:0.00}], {characteristic.Status}"));
+        Console.WriteLine(
+            FormattableString.Invariant(
+                $"  {characteristic.CharacteristicId}: {characteristic.Actual:0.00} mm [{low:0.00}, {high:0.00}], {characteristic.Status}"));
     }
 }
 using var runLifetime = new CancellationTokenSource();

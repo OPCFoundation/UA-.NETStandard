@@ -82,19 +82,20 @@ builder.Services.AddHostedService<ScaleSimulation>();
 
 builder.Services
     .AddOpcUa()
-    .AddServer(options =>
-    {
-        options.ApplicationName = "ScalesServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:ScalesServer";
-        options.ProductUri = "uri:opcfoundation.org:ScalesServer";
-        // Sample convenience only; never auto-accept untrusted certificates in production.
-        options.AutoAcceptUntrustedCertificates = autoAccept;
-        if (pkiRoot is not null)
+    .AddServer(
+        options =>
         {
-            options.PkiRoot = pkiRoot;
-        }
-        options.EndpointUrls.Add(endpointUrl);
-    })
+            options.ApplicationName = "ScalesServer";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:ScalesServer";
+            options.ProductUri = "uri:opcfoundation.org:ScalesServer";
+            // Sample convenience only; never auto-accept untrusted certificates in production.
+            options.AutoAcceptUntrustedCertificates = autoAccept;
+            if (pkiRoot is not null)
+            {
+                options.PkiRoot = pkiRoot;
+            }
+            options.EndpointUrls.Add(endpointUrl);
+        })
     // AddScales loads DI, IA, Machinery, PackML and Scales into one node
     // manager and claims the Device Integration address space.
     .AddScales()

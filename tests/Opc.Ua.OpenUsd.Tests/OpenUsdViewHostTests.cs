@@ -238,30 +238,36 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             var failure = new InvalidOperationException("Owned callback failure.");
             var logger = new Mock<ILogger>(MockBehavior.Strict);
             logger.Setup(value => value.IsEnabled(LogLevel.Warning)).Returns(true);
-            logger.Setup(value => value.Log(
-                LogLevel.Warning,
-                It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
-                It.IsAny<It.IsAnyType>(),
-                failure,
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()));
+            logger.Setup(
+                value => value.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
+                    It.IsAny<It.IsAnyType>(),
+                    failure,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()));
             var options = new UsdViewOptions
             {
                 PickMode = UsdViewPickMode.Renderer,
                 PrimPicked = (_, _) => throw failure
             };
             Func<ViewerPickEventArgs, CancellationToken, Task>? callback = ViewerPickCallback.CreateHandler(
-                options, static () => null, logger.Object, CancellationToken.None);
+                options,
+                static () => null,
+                logger.Object,
+                CancellationToken.None);
             Assert.That(callback, Is.Not.Null);
 
             await callback!(CreatePickArgs(Hit("/World/Target")), CancellationToken.None).ConfigureAwait(false);
 
             logger.Verify(value => value.IsEnabled(LogLevel.Warning), Times.Once);
-            logger.Verify(value => value.Log(
-                LogLevel.Warning,
-                It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
-                It.IsAny<It.IsAnyType>(),
-                failure,
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
+            logger.Verify(
+                value => value.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
+                    It.IsAny<It.IsAnyType>(),
+                    failure,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
             logger.VerifyNoOtherCalls();
         }
 
@@ -287,7 +293,10 @@ namespace Opc.Ua.OpenUsd.Client.Tests
                 }
             };
             Func<ViewerPickEventArgs, CancellationToken, Task>? callback = ViewerPickCallback.CreateHandler(
-                options, static () => null, logger.Object, host.Token);
+                options,
+                static () => null,
+                logger.Object,
+                host.Token);
             Assert.That(callback, Is.Not.Null);
             Task pending = callback!(CreatePickArgs(Hit("/World/Target")), pick.Token);
             try
@@ -316,11 +325,15 @@ namespace Opc.Ua.OpenUsd.Client.Tests
             int reports = 0;
             int starts = 0;
             var controller = new RendererPickFallbackController(
-                UsdViewPickMode.Auto, true, _ => reports++, () => starts++);
+                UsdViewPickMode.Auto,
+                true,
+                _ => reports++,
+                () => starts++);
             controller.MarkCommandPrimWatcherStarted();
 
             Assert.That(controller.DisableRenderer(null), Is.EqualTo(RendererPickFailureFallback.None));
-            Assert.That(controller.DisableRenderer(new InvalidOperationException("Repeated failure.")),
+            Assert.That(
+                controller.DisableRenderer(new InvalidOperationException("Repeated failure.")),
                 Is.EqualTo(RendererPickFailureFallback.None));
             Assert.That(reports, Is.EqualTo(1));
             Assert.That(starts, Is.Zero);

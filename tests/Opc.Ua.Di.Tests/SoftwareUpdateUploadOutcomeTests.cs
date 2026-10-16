@@ -53,7 +53,9 @@ namespace Opc.Ua.Di.Tests
             };
             using var stream = new MemoryStream(s_payload, writable: false);
             SoftwareUpdateUploadResult result = await fixture.Client.UploadPackageWithResultAsync(
-                stream, "package", 2).ConfigureAwait(false);
+                stream,
+                "package",
+                2).ConfigureAwait(false);
 
             Assert.That(result.BytesUploaded, Is.EqualTo(5));
             Assert.That(result.CompletionStateMachine, Is.EqualTo(fixture.CompletionId));
@@ -71,7 +73,8 @@ namespace Opc.Ua.Di.Tests
         {
             var fixture = new UploadResponses { HeaderFailure = method };
             using var stream = new MemoryStream(s_payload, writable: false);
-            await Assert.ThatAsync(() => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
+            await Assert.ThatAsync(
+                () => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadUserAccessDenied)).ConfigureAwait(false);
             if (method != "CloseAndCommit")
@@ -88,7 +91,8 @@ namespace Opc.Ua.Di.Tests
         {
             var fixture = new UploadResponses { InvalidCommit = invalid };
             using var stream = new MemoryStream(s_payload, writable: false);
-            await Assert.ThatAsync(() => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
+            await Assert.ThatAsync(
+                () => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadDecodingError)).ConfigureAwait(false);
             Assert.That(fixture.Payload, Is.EqualTo(s_payload));
@@ -100,7 +104,8 @@ namespace Opc.Ua.Di.Tests
         {
             var fixture = new UploadResponses { TranslationFailure = true };
             using var stream = new MemoryStream(s_payload, writable: false);
-            await Assert.ThatAsync(() => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
+            await Assert.ThatAsync(
+                () => fixture.Client.UploadPackageWithResultAsync(stream).AsTask(),
                 Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadTimeout)).ConfigureAwait(false);
             Assert.That(fixture.Methods, Is.Empty);
@@ -112,8 +117,11 @@ namespace Opc.Ua.Di.Tests
             using var cancellation = new CancellationTokenSource();
             var fixture = new UploadResponses { CancelOnWrite = cancellation };
             using var stream = new MemoryStream(s_payload, writable: false);
-            await Assert.ThatAsync(() => fixture.Client.UploadPackageWithResultAsync(
-                stream, ct: cancellation.Token).AsTask(), Throws.InstanceOf<OperationCanceledException>())
+            await Assert.ThatAsync(
+                () => fixture.Client.UploadPackageWithResultAsync(
+                    stream,
+                    ct: cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>())
                 .ConfigureAwait(false);
             Assert.That(fixture.Methods, Is.EqualTo(s_canceledMethods));
             Assert.That(fixture.CloseWasCanceled, Is.False);
@@ -126,17 +134,24 @@ namespace Opc.Ua.Di.Tests
         {
             var fixture = new UploadResponses();
             using var stream = new MemoryStream(s_payload, writable: false);
-            await Assert.ThatAsync(() => fixture.Client.UploadPackageWithResultAsync(
-                stream, ct: new CancellationToken(true)).AsTask(), Throws.InstanceOf<OperationCanceledException>())
+            await Assert.ThatAsync(
+                () => fixture.Client.UploadPackageWithResultAsync(
+                    stream,
+                    ct: new CancellationToken(true)).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>())
                 .ConfigureAwait(false);
-            fixture.Session.Verify(value => value.TranslateBrowsePathsToNodeIdsAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()),
+            fixture.Session.Verify(
+                value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Never);
             Assert.That(fixture.Methods, Is.Empty);
         }
 
         private static readonly byte[] s_payload = [1, 3, 5, 7, 9];
         private static readonly string[] s_canceledMethods = ["GenerateFileForWrite", "Open", "Write", "Close"];
+
         private static readonly string[] s_successfulMethods =
             ["GenerateFileForWrite", "Open", "Write", "Write", "Write", "Close", "CloseAndCommit"];
 
@@ -147,88 +162,106 @@ namespace Opc.Ua.Di.Tests
                 var namespaces = new NamespaceTable();
                 namespaces.GetIndexOrAppend(Namespaces.OpcUaDi);
                 Session.SetupGet(value => value.NamespaceUris).Returns(namespaces);
-                Session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
-                    .Returns((RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
-                    {
-                        var results = new BrowsePathResult[paths.Count];
-                        for (int i = 0; i < paths.Count; i++)
+                Session.Setup(
+                    value => value.TranslateBrowsePathsToNodeIdsAsync(
+                        It.IsAny<RequestHeader?>(),
+                        It.IsAny<ArrayOf<BrowsePath>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(
+                        (RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
                         {
-                            string name = paths[i].RelativePath.Elements[^1].TargetName.Name!;
-                            results[i] = new BrowsePathResult
+                            var results = new BrowsePathResult[paths.Count];
+                            for (int i = 0; i < paths.Count; i++)
                             {
-                                Targets =
-                                [
-                                    new BrowsePathTarget
-                                    {
-                                        TargetId = new ExpandedNodeId(new NodeId(name, 1)),
-                                        RemainingPathIndex = uint.MaxValue
-                                    }
-                                ]
-                            };
-                        }
-                        return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
-                            new TranslateBrowsePathsToNodeIdsResponse
-                            {
-                                ResponseHeader = new ResponseHeader
+                                string name = paths[i].RelativePath.Elements[^1].TargetName.Name!;
+                                results[i] = new BrowsePathResult
                                 {
-                                    ServiceResult = TranslationFailure ? StatusCodes.BadTimeout : StatusCodes.Good
-                                },
-                                Results = results
-                            });
-                    });
-                Session.Setup(value => value.CallAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
-                    .Returns((RequestHeader? _, ArrayOf<CallMethodRequest> calls, CancellationToken token) =>
-                    {
-                        Assert.That(calls.Count, Is.EqualTo(1));
-                        CallMethodRequest call = calls[0];
-                        Assert.That(call.MethodId.TryGetValue(out string method), Is.True);
-                        Methods.Add(method);
-                        ArrayOf<Variant> output = [];
-                        switch (method)
-                        {
-                            case "GenerateFileForWrite":
-                                output = [Variant.From(new NodeId("upload", 1)), Variant.From(0u)];
-                                break;
-                            case "Open":
-                                output = [Variant.From(17u)];
-                                break;
-                            case "Write":
-                                if (CancelOnWrite is { } cancellation)
-                                {
-                                    cancellation.Cancel();
-                                    throw new OperationCanceledException(cancellation.Token);
-                                }
-                                Assert.That(call.InputArguments[1].TryGetValue(out ByteString bytes), Is.True);
-                                Payload.AddRange(bytes.Span.ToArray());
-                                break;
-                            case "Close":
-                                CloseWasCanceled = token.IsCancellationRequested;
-                                break;
-                            case "CloseAndCommit":
-                                output = InvalidCommit switch
-                                {
-                                    "empty" => [],
-                                    "type" => [Variant.From("not a NodeId")],
-                                    "extra" => [Variant.From(CompletionId), Variant.From(1u)],
-                                    _ => [Variant.From(CompletionId)]
+                                    Targets =
+                                    [
+                                        new BrowsePathTarget
+                                        {
+                                            TargetId = new ExpandedNodeId(new NodeId(name, 1)),
+                                            RemainingPathIndex = uint.MaxValue
+                                        }
+                                    ]
                                 };
-                                break;
-                            default:
-                                throw new InvalidOperationException("Unexpected method " + call.MethodId);
-                        }
-                        return new ValueTask<CallResponse>(new CallResponse
-                        {
-                            ResponseHeader = new ResponseHeader
-                            {
-                                ServiceResult = method == HeaderFailure
-                                    ? StatusCodes.BadUserAccessDenied : StatusCodes.Good
-                            },
-                            Results = [new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = output }]
+                            }
+                            return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                                new TranslateBrowsePathsToNodeIdsResponse
+                                {
+                                    ResponseHeader = new ResponseHeader
+                                    {
+                                        ServiceResult = TranslationFailure ? StatusCodes.BadTimeout : StatusCodes.Good
+                                    },
+                                    Results = results
+                                });
                         });
-                    });
-                Client = new SoftwareUpdateClient(Session.Object, new NodeId("software", 1),
+                Session.Setup(
+                    value => value.CallAsync(
+                        It.IsAny<RequestHeader?>(),
+                        It.IsAny<ArrayOf<CallMethodRequest>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(
+                        (RequestHeader? _, ArrayOf<CallMethodRequest> calls, CancellationToken token) =>
+                        {
+                            Assert.That(calls.Count, Is.EqualTo(1));
+                            CallMethodRequest call = calls[0];
+                            Assert.That(call.MethodId.TryGetValue(out string method), Is.True);
+                            Methods.Add(method);
+                            ArrayOf<Variant> output = [];
+                            switch (method)
+                            {
+                                case "GenerateFileForWrite":
+                                    output = [Variant.From(new NodeId("upload", 1)), Variant.From(0u)];
+                                    break;
+                                case "Open":
+                                    output = [Variant.From(17u)];
+                                    break;
+                                case "Write":
+                                    if (CancelOnWrite is { } cancellation)
+                                    {
+                                        cancellation.Cancel();
+                                        throw new OperationCanceledException(cancellation.Token);
+                                    }
+                                    Assert.That(call.InputArguments[1].TryGetValue(out ByteString bytes), Is.True);
+                                    Payload.AddRange(bytes.Span.ToArray());
+                                    break;
+                                case "Close":
+                                    CloseWasCanceled = token.IsCancellationRequested;
+                                    break;
+                                case "CloseAndCommit":
+                                    output = InvalidCommit switch
+                                    {
+                                        "empty" => [],
+                                        "type" => [Variant.From("not a NodeId")],
+                                        "extra" => [Variant.From(CompletionId), Variant.From(1u)],
+                                        _ => [Variant.From(CompletionId)]
+                                    };
+                                    break;
+                                default:
+                                    throw new InvalidOperationException("Unexpected method " + call.MethodId);
+                            }
+                            return new ValueTask<CallResponse>(
+                                new CallResponse
+                                {
+                                    ResponseHeader = new ResponseHeader
+                                    {
+                                        ServiceResult = method == HeaderFailure
+                                            ? StatusCodes.BadUserAccessDenied : StatusCodes.Good
+                                    },
+                                    Results =
+                                    [
+                                        new CallMethodResult
+                                        {
+                                            StatusCode = StatusCodes.Good,
+                                            OutputArguments = output
+                                        }
+                                    ]
+                                });
+                        });
+                Client = new SoftwareUpdateClient(
+                    Session.Object,
+                    new NodeId("software", 1),
                     DefaultTelemetry.Create(static _ => { }));
             }
 

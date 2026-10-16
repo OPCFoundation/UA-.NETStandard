@@ -56,10 +56,12 @@ by default. Override with `--host localhost`, `--port 62550`, and
 `--pumps N` (or the matching `host`, `port`, and `pumps` environment
 variables). `--pumps` defaults to `2` and accepts values from 1 to 100.
 For bounded local experiments, `--run-seconds N` requests graceful shutdown after
-1–3600 seconds. `--pki-root` selects an absolute private certificate-store root;
+1–3600 seconds. `--pki-root` selects a fully qualified, absolute private certificate-store root;
 `--autoaccept false` disables the sample's default untrusted-certificate convenience.
 `--include-unsecure true` adds a `None/None` endpoint for explicit local
 development scenarios; it defaults to `false`.
+On Windows, drive-relative paths such as `C:pki` and current-drive-rooted paths
+such as `\pki` are rejected.
 
 Sample console output:
 
@@ -95,7 +97,7 @@ dotnet run --project samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegratio
 ```
 
 Connect to `opc.tcp://localhost:62550/PumpDeviceIntegrationServer`.
-The sample retains its secure endpoints. Explicitly establish peer-certificate
+The sample exposes secure endpoints. Explicitly establish peer-certificate
 trust on both sides before connecting; disabling auto-accept does not install a
 client certificate in the sample's trust list. Do not change to an insecure
 profile or enable blanket trust to bypass this prerequisite.

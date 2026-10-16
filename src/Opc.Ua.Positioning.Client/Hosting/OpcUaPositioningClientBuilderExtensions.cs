@@ -71,42 +71,44 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.ThrowIfNull(nameof(builder));
 
             builder.Services.TryAddSingleton<
-                Func<CancellationToken, Task<RelativeSpatialLocationClient>>>(sp =>
-            {
-                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
-                    sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
-                    throw new InvalidOperationException(
-                        "AddPositioningClient requires AddClient to be called first.");
-                ITelemetryContext telemetry =
-                    sp.GetRequiredService<ITelemetryContext>();
-                return async cancellationToken =>
+                Func<CancellationToken, Task<RelativeSpatialLocationClient>>>(
+                    sp =>
                 {
-                    ManagedSession session = await sessionFactory(cancellationToken)
-                        .ConfigureAwait(false);
-                    return options is null
-                        ? new RelativeSpatialLocationClient(session, telemetry)
-                        : new RelativeSpatialLocationClient(session, telemetry, options);
-                };
-            });
+                    Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                        sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
+                        throw new InvalidOperationException(
+                            "AddPositioningClient requires AddClient to be called first.");
+                    ITelemetryContext telemetry =
+                        sp.GetRequiredService<ITelemetryContext>();
+                    return async cancellationToken =>
+                    {
+                        ManagedSession session = await sessionFactory(cancellationToken)
+                            .ConfigureAwait(false);
+                        return options is null
+                            ? new RelativeSpatialLocationClient(session, telemetry)
+                            : new RelativeSpatialLocationClient(session, telemetry, options);
+                    };
+                });
 
             builder.Services.TryAddSingleton<
-                Func<CancellationToken, Task<GlobalPositioningClient>>>(sp =>
-            {
-                Func<CancellationToken, Task<ManagedSession>> sessionFactory =
-                    sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
-                    throw new InvalidOperationException(
-                        "AddPositioningClient requires AddClient to be called first.");
-                ITelemetryContext telemetry =
-                    sp.GetRequiredService<ITelemetryContext>();
-                return async cancellationToken =>
+                Func<CancellationToken, Task<GlobalPositioningClient>>>(
+                    sp =>
                 {
-                    ManagedSession session = await sessionFactory(cancellationToken)
-                        .ConfigureAwait(false);
-                    return options is null
-                        ? new GlobalPositioningClient(session, telemetry)
-                        : new GlobalPositioningClient(session, telemetry, options);
-                };
-            });
+                    Func<CancellationToken, Task<ManagedSession>> sessionFactory =
+                        sp.GetService<Func<CancellationToken, Task<ManagedSession>>>() ??
+                        throw new InvalidOperationException(
+                            "AddPositioningClient requires AddClient to be called first.");
+                    ITelemetryContext telemetry =
+                        sp.GetRequiredService<ITelemetryContext>();
+                    return async cancellationToken =>
+                    {
+                        ManagedSession session = await sessionFactory(cancellationToken)
+                            .ConfigureAwait(false);
+                        return options is null
+                            ? new GlobalPositioningClient(session, telemetry)
+                            : new GlobalPositioningClient(session, telemetry, options);
+                    };
+                });
 
             return builder;
         }

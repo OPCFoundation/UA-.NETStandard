@@ -54,9 +54,12 @@ namespace Opc.Ua.Vision.Tests
         [SetUp]
         public async Task SetUpAsync()
         {
-            m_root = Path.GetFullPath(Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "TestResults", nameof(OpenUsdNativeCaptureTests),
-                Guid.NewGuid().ToString("N")));
+            m_root = Path.GetFullPath(
+                Path.Combine(
+                    TestContext.CurrentContext.WorkDirectory,
+                    "TestResults",
+                    nameof(OpenUsdNativeCaptureTests),
+                    Guid.NewGuid().ToString("N")));
             Directory.CreateDirectory(m_root);
             string core = Path.Combine(AppContext.BaseDirectory, "usd", "plugInfo.json");
             string imaging = Path.Combine(AppContext.BaseDirectory, "plugin", "usd", "plugInfo.json");
@@ -87,7 +90,8 @@ namespace Opc.Ua.Vision.Tests
         public async Task CaptureAsyncRetainsRepeatedSceneAndReplacesItWhenStageChanges(bool namedCamera)
         {
             using var provider = new OpenUsdSceneCameraCaptureProvider(
-                new OpenUsdSceneCaptureOptions { PreferSoftware = true }, telemetry: null);
+                new OpenUsdSceneCaptureOptions { PreferSoftware = true },
+                telemetry: null);
             Assert.That(provider.Backend.IsAvailable, Is.True, provider.Backend.UnavailableReason);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc);
@@ -101,16 +105,22 @@ namespace Opc.Ua.Vision.Tests
                 .ConfigureAwait(false);
             AssertFrame(repeated, provider.Backend, timestamp);
             SceneCameraCaptureResult changed = await provider.CaptureAsync(
-                CreateRequest("blue.usda", camera, timestamp.AddSeconds(1)), deadline.Token).ConfigureAwait(false);
+                CreateRequest("blue.usda", camera, timestamp.AddSeconds(1)),
+                deadline.Token).ConfigureAwait(false);
             AssertFrame(changed, provider.Backend, timestamp.AddSeconds(1));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(repeated.Image, Is.EqualTo(first.Image),
-                    "A retained scene must not become an empty frame on its second capture.");
-                Assert.That(changed.Image, Is.Not.EqualTo(first.Image),
-                    "Changing the stage must replace the retained scene and its rendered color.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        repeated.Image,
+                        Is.EqualTo(first.Image),
+                        "A retained scene must not become an empty frame on its second capture.");
+                    Assert.That(
+                        changed.Image,
+                        Is.Not.EqualTo(first.Image),
+                        "Changing the stage must replace the retained scene and its rendered color.");
+                });
             provider.Dispose();
             Assert.That(
                 async () => await provider.CaptureAsync(firstRequest, deadline.Token).ConfigureAwait(false),
@@ -124,45 +134,56 @@ namespace Opc.Ua.Vision.Tests
         public async Task CaptureAsyncRecoversAfterAnUnknownCameraIsRejected()
         {
             using var provider = new OpenUsdSceneCameraCaptureProvider(
-                new OpenUsdSceneCaptureOptions { PreferSoftware = true }, telemetry: null);
+                new OpenUsdSceneCaptureOptions { PreferSoftware = true },
+                telemetry: null);
             Assert.That(provider.Backend.IsAvailable, Is.True, provider.Backend.UnavailableReason);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var timestamp = new DateTime(2026, 2, 3, 4, 5, 6, DateTimeKind.Utc);
 
             SceneCameraCaptureResult rejected = await provider.CaptureAsync(
-                CreateRequest("red.usda", "/World/MissingCamera", timestamp), deadline.Token).ConfigureAwait(false);
+                CreateRequest("red.usda", "/World/MissingCamera", timestamp),
+                deadline.Token).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(rejected.Status, Is.EqualTo(SceneCameraCaptureStatus.CameraResolveFailed), rejected.Reason);
-                Assert.That(rejected.Reason, Does.Contain("/World/MissingCamera"));
-                Assert.That(rejected.Image.IsNull, Is.True);
-                Assert.That(rejected.TimestampUtc, Is.EqualTo(timestamp));
-                Assert.That(rejected.Backend, Is.SameAs(provider.Backend));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        rejected.Status,
+                        Is.EqualTo(SceneCameraCaptureStatus.CameraResolveFailed),
+                        rejected.Reason);
+                    Assert.That(rejected.Reason, Does.Contain("/World/MissingCamera"));
+                    Assert.That(rejected.Image.IsNull, Is.True);
+                    Assert.That(rejected.TimestampUtc, Is.EqualTo(timestamp));
+                    Assert.That(rejected.Backend, Is.SameAs(provider.Backend));
+                });
             SceneCameraCaptureResult recovered = await provider.CaptureAsync(
-                CreateRequest("red.usda", "/World/Camera", timestamp), deadline.Token).ConfigureAwait(false);
+                CreateRequest("red.usda", "/World/Camera", timestamp),
+                deadline.Token).ConfigureAwait(false);
             AssertFrame(recovered, provider.Backend, timestamp);
         }
 
         private static void AssertFrame(
-            SceneCameraCaptureResult result, SceneCameraCaptureBackend backend, DateTime timestamp)
+            SceneCameraCaptureResult result,
+            SceneCameraCaptureBackend backend,
+            DateTime timestamp)
         {
             Assert.That(result.Status, Is.EqualTo(SceneCameraCaptureStatus.Succeeded), result.Reason);
             Assert.That(result.Image.Span.Length, Is.GreaterThan(33));
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Reason, Is.Null);
-                Assert.That(result.Backend, Is.SameAs(backend));
-                Assert.That(result.TimestampUtc, Is.EqualTo(timestamp));
-                Assert.That(result.Width, Is.EqualTo(64));
-                Assert.That(result.Height, Is.EqualTo(48));
-                Assert.That(result.Format, Is.EqualTo(SceneCameraImageFormat.Png));
-                Assert.That(result.Image.Span[..8].ToArray(),
-                    Is.EqualTo(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }));
-                Assert.That(BinaryPrimitives.ReadUInt32BigEndian(result.Image.Span.Slice(16, 4)), Is.EqualTo(64u));
-                Assert.That(BinaryPrimitives.ReadUInt32BigEndian(result.Image.Span.Slice(20, 4)), Is.EqualTo(48u));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.Reason, Is.Null);
+                    Assert.That(result.Backend, Is.SameAs(backend));
+                    Assert.That(result.TimestampUtc, Is.EqualTo(timestamp));
+                    Assert.That(result.Width, Is.EqualTo(64));
+                    Assert.That(result.Height, Is.EqualTo(48));
+                    Assert.That(result.Format, Is.EqualTo(SceneCameraImageFormat.Png));
+                    Assert.That(
+                        result.Image.Span[..8].ToArray(),
+                        Is.EqualTo(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 }));
+                    Assert.That(BinaryPrimitives.ReadUInt32BigEndian(result.Image.Span.Slice(16, 4)), Is.EqualTo(64u));
+                    Assert.That(BinaryPrimitives.ReadUInt32BigEndian(result.Image.Span.Slice(20, 4)), Is.EqualTo(48u));
+                });
         }
 
         private SceneCameraCaptureRequest CreateRequest(string name, string? camera, DateTime timestamp)

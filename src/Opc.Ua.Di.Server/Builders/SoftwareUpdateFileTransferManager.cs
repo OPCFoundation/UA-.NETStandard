@@ -167,7 +167,10 @@ namespace Opc.Ua.Di.Server.Builders
 
                 fileHandle = ++m_nextHandle;
                 slot = new UploadSlot(
-                    fileHandle, sessionId, generateOptions, m_logger);
+                    fileHandle,
+                    sessionId,
+                    generateOptions,
+                    m_logger);
 
                 try
                 {
@@ -188,7 +191,8 @@ namespace Opc.Ua.Di.Server.Builders
                     fileNodeId = NodeId.Null;
                     fileHandle = 0;
                     return ServiceResult.Create(
-                        ex, StatusCodes.BadInternalError,
+                        ex,
+                        StatusCodes.BadInternalError,
                         "Failed to create transient upload FileState.");
                 }
 
@@ -244,7 +248,8 @@ namespace Opc.Ua.Di.Server.Builders
                 slot.Dispose();
                 completionStateMachine = NodeId.Null;
                 return ServiceResult.Create(
-                    ex, StatusCodes.BadUserAccessDenied,
+                    ex,
+                    StatusCodes.BadUserAccessDenied,
                     "Failed to persist the uploaded package.");
             }
             finally
@@ -448,7 +453,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 slot = null!;
                 error = ServiceResult.Create(
-                    StatusCodes.BadInvalidArgument, "Unknown file handle.");
+                    StatusCodes.BadInvalidArgument,
+                    "Unknown file handle.");
                 return false;
             }
             NodeId? expected = SessionIdOf(context);
@@ -484,7 +490,8 @@ namespace Opc.Ua.Di.Server.Builders
         }
 
         private static SoftwarePackage BuildPackageMetadata(
-            UploadSlot slot, byte[] payload)
+            UploadSlot slot,
+            byte[] payload)
         {
             string suggestedId = slot.ExtractSuggestedId();
             return new SoftwarePackage(
@@ -543,7 +550,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 ServerSystemContext ctx = manager.SystemContext;
                 var browseName = new QualifiedName(
-                    $"UploadFile_{Handle}", manager.DiNamespaceIndex);
+                    $"UploadFile_{Handle}",
+                    manager.DiNamespaceIndex);
 
                 FileState file = ctx.CreateInstanceOfFileType(parent, browseName);
                 file.SymbolicName = browseName.Name ?? string.Empty;
@@ -662,11 +670,15 @@ namespace Opc.Ua.Di.Server.Builders
 
     internal static partial class SoftwareUpdateFileTransferManagerLog
     {
-        [LoggerMessage(EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 0, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 0,
+            Level = LogLevel.Error,
             Message = "Failed to create transient FileState for upload handle {Handle}.")]
         public static partial void FailedToCreateTransientFileState(this ILogger logger, Exception ex, uint handle);
 
-        [LoggerMessage(EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 1, Level = LogLevel.Information,
+        [LoggerMessage(
+            EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 1,
+            Level = LogLevel.Information,
             Message = "Committed upload handle {Handle} ({Bytes} bytes) as package {PackageId}.")]
         public static partial void CommittedUploadHandle(
             this ILogger logger,
@@ -674,11 +686,15 @@ namespace Opc.Ua.Di.Server.Builders
             int bytes,
             string packageId);
 
-        [LoggerMessage(EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 2, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 2,
+            Level = LogLevel.Error,
             Message = "Failed to commit upload handle {Handle} to the package store.")]
         public static partial void FailedToCommitUploadHandle(this ILogger logger, Exception ex, uint handle);
 
-        [LoggerMessage(EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 3, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = DiServerEventIds.SoftwareUpdateFileTransferManager + 3,
+            Level = LogLevel.Debug,
             Message = "Failed to delete transient upload FileState {NodeId}; will rely on dispose to release " +
                 "the buffer.")]
         public static partial void FailedToDeleteTransientUploadFileState(

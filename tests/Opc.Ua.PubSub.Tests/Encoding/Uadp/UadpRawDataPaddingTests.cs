@@ -73,7 +73,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(4 + 10),
+            Assert.That(
+                writer.Position,
+                Is.EqualTo(4 + 10),
                 "RawData padded String must emit the Int32 length and MaxStringLength bytes.");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             Assert.That(BinaryPrimitives.ReadInt32LittleEndian(written), Is.EqualTo(payloadLength));
@@ -83,7 +85,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             }
             for (int i = 4 + payloadLength; i < 4 + 10; i++)
             {
-                Assert.That(written[i], Is.Zero,
+                Assert.That(
+                    written[i],
+                    Is.Zero,
                     $"Padding byte at index {i} must be NUL.");
             }
         }
@@ -262,7 +266,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded.TryGetValue(out ByteString result), Is.True);
             Assert.That(result.IsNull, Is.False);
             byte[] resultBytes = result.Span.ToArray();
-            Assert.That(resultBytes, Is.EqualTo(payload),
+            Assert.That(
+                resultBytes,
+                Is.EqualTo(payload),
                 "ByteString round-trip must skip the zero padding.");
         }
 
@@ -298,7 +304,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 context);
             if (builtInType == BuiltInType.String)
             {
-                Assert.That(decoded.IsNull, Is.True);
+                Assert.That(decoded.TypeInfo, Is.EqualTo(TypeInfo.Scalars.String));
+                Assert.That(decoded.TryGetValue(out string? text), Is.True);
+                Assert.That(text, Is.Null);
             }
             else
             {
@@ -463,7 +471,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: new ArrayOf<uint>(arrayDimensions),
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(4 + 12),
+            Assert.That(
+                writer.Position,
+                Is.EqualTo(4 + 12),
                 "RawData padded Int32 array must emit the Int32 length and 3 * sizeof(Int32) bytes.");
             Assert.That(BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()), Is.EqualTo(2));
 
@@ -610,14 +620,19 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             {
                 ReadOnlyMemory<byte> encoded =
                     await EncodeSingleStringFieldRawDataAsync(
-                        payloads[i], maxStringLength: 10).ConfigureAwait(false);
+                        payloads[i],
+                        maxStringLength: 10).ConfigureAwait(false);
                 sizes[i] = encoded.Length;
             }
 
-            Assert.That(sizes[0], Is.EqualTo(sizes[1]),
+            Assert.That(
+                sizes[0],
+                Is.EqualTo(sizes[1]),
                 $"Issue #3566: encoded payload sizes differ between '{payloads[0]}' " +
                 $"({sizes[0]}) and '{payloads[1]}' ({sizes[1]}).");
-            Assert.That(sizes[1], Is.EqualTo(sizes[2]),
+            Assert.That(
+                sizes[1],
+                Is.EqualTo(sizes[2]),
                 $"Issue #3566: encoded payload sizes differ between '{payloads[1]}' " +
                 $"({sizes[1]}) and '{payloads[2]}' ({sizes[2]}).");
         }
@@ -638,7 +653,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(6),
+            Assert.That(
+                writer.Position,
+                Is.EqualTo(6),
                 "Legacy fallback writes 4-byte length prefix + UTF-8 payload.");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             Assert.That(written[0], Is.EqualTo((byte)2));
@@ -666,7 +683,9 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 arrayDimensions: default,
                 context);
 
-            Assert.That(writer.Position, Is.EqualTo(4 + (2 * 4)),
+            Assert.That(
+                writer.Position,
+                Is.EqualTo(4 + (2 * 4)),
                 "Legacy fallback writes 4-byte length prefix + N * sizeof(Int32).");
             ReadOnlySpan<byte> written = writer.WrittenSpan();
             Assert.That(written[0], Is.EqualTo((byte)2));
@@ -709,8 +728,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ]
             };
             registry.Register(
-                new DataSetMetaDataKey(publisherId, writerGroupId, writerId,
-                    classId, majorVer),
+                new DataSetMetaDataKey(
+                    publisherId,
+                    writerGroupId,
+                    writerId,
+                    classId,
+                    majorVer),
                 meta);
 
             var msg = new UadpNetworkMessage
@@ -752,7 +775,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 
         private static async Task<ReadOnlyMemory<byte>>
             EncodeSingleStringFieldRawDataAsync(
-                string payload, uint maxStringLength)
+                string payload,
+                uint maxStringLength)
         {
             var registry = new DataSetMetaDataRegistry();
             PubSubNetworkMessageContext context =
@@ -784,8 +808,12 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 ]
             };
             registry.Register(
-                new DataSetMetaDataKey(publisherId, writerGroupId, writerId,
-                    classId, majorVer),
+                new DataSetMetaDataKey(
+                    publisherId,
+                    writerGroupId,
+                    writerId,
+                    classId,
+                    majorVer),
                 meta);
 
             var msg = new UadpNetworkMessage

@@ -182,10 +182,13 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         {
             PubSubConfigurationValidationResult result = NewValidator()
                 .Validate(NewMinimalValidConfig());
-            Assert.That(result.IsValid, Is.True, () => string.Join(
-                "; ",
-                (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
-                    .Select(static i => $"{i.Code} {i.Path}: {i.Message}")));
+            Assert.That(
+                result.IsValid,
+                Is.True,
+                () => string.Join(
+                    "; ",
+                    (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
+                        .Select(static i => $"{i.Code} {i.Path}: {i.Message}")));
         }
 
         [Test]
@@ -814,7 +817,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData encoding requires MaxStringLength / ArrayDimensions")]
         public void Validate_RawDataWithMaxStringLength_NoPaddingWarning()
         {
@@ -825,16 +829,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 10
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 10
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -851,7 +856,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData String field without MaxStringLength must warn")]
         public void Validate_RawDataStringFieldWithoutMaxStringLength_EmitsWarning()
         {
@@ -862,16 +868,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 0
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 0
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -885,7 +892,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationIssue? issue = (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
                 .FirstOrDefault(static i => i.Code == "PSC0025");
             Assert.That(issue, Is.Not.Null);
-            Assert.That(issue!.Severity,
+            Assert.That(
+                issue!.Severity,
                 Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
             Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
             Assert.That(issue.Message, Does.Contain("RawData"));
@@ -893,7 +901,8 @@ namespace Opc.Ua.PubSub.Tests.Configuration
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "RawData array field without ArrayDimensions must warn")]
         public void Validate_RawDataArrayFieldWithoutArrayDimensions_EmitsWarning()
         {
@@ -904,15 +913,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "intArrayField",
-                            BuiltInType = (byte)BuiltInType.Int32,
-                            ValueRank = ValueRanks.OneDimension
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "intArrayField",
+                                BuiltInType = (byte)BuiltInType.Int32,
+                                ValueRank = ValueRanks.OneDimension
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =
@@ -926,14 +936,16 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationIssue? issue = (((PubSubConfigurationIssue[]?)result.Issues) ?? [])
                 .FirstOrDefault(static i => i.Code == "PSC0025");
             Assert.That(issue, Is.Not.Null);
-            Assert.That(issue!.Severity,
+            Assert.That(
+                issue!.Severity,
                 Is.EqualTo(PubSubConfigurationIssueSeverity.Warning));
             Assert.That(issue.SpecClause, Is.EqualTo("7.2.4.5.11"));
             Assert.That(issue.Message, Does.Contain("intArrayField"));
         }
 
         [Test]
-        [TestSpec("7.2.4.5.11",
+        [TestSpec(
+            "7.2.4.5.11",
             Summary = "Non-RawData encoding suppresses PSC0025")]
         public void Validate_VariantEncodingWithoutBounds_NoPaddingWarning()
         {
@@ -944,16 +956,17 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 DataSetMetaData = new DataSetMetaDataType
                 {
                     Name = "DS1",
-                    Fields = new ArrayOf<FieldMetaData>(new[]
-                    {
-                        new FieldMetaData
+                    Fields = new ArrayOf<FieldMetaData>(
+                        new[]
                         {
-                            Name = "stringField",
-                            BuiltInType = (byte)BuiltInType.String,
-                            ValueRank = ValueRanks.Scalar,
-                            MaxStringLength = 0
-                        }
-                    })
+                            new FieldMetaData
+                            {
+                                Name = "stringField",
+                                BuiltInType = (byte)BuiltInType.String,
+                                ValueRank = ValueRanks.Scalar,
+                                MaxStringLength = 0
+                            }
+                        })
                 }
             };
             config.PublishedDataSets =

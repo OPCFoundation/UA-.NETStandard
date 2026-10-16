@@ -89,7 +89,8 @@ namespace Pumps
                 if (++inspected > 128)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadTooManyOperations, "The sample supports at most 128 staged packages.");
+                        StatusCodes.BadTooManyOperations,
+                        "The sample supports at most 128 staged packages.");
                 }
                 if (string.Equals(candidate.Hash, requested.Hash, StringComparison.OrdinalIgnoreCase))
                 {
@@ -100,7 +101,8 @@ namespace Pumps
             if (staged is null)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNotFound, "Upload a package with the requested digest before installation.");
+                    StatusCodes.BadNotFound,
+                    "Upload a package with the requested digest before installation.");
             }
             using Stream source = await context.PackageStore.OpenReadAsync(staged.Id, cancellationToken)
                 .ConfigureAwait(false);

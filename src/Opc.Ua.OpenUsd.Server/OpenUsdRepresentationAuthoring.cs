@@ -77,7 +77,8 @@ namespace Opc.Ua.OpenUsd.Server
             _ = context.RequireNodeIdFactory();
             OpenUsdRepresentationState rep = context
                 .CreateInstanceOfOpenUsdRepresentationType(
-                    owner, new QualifiedName("OpenUsdRepresentation", ns));
+                    owner,
+                    new QualifiedName("OpenUsdRepresentation", ns));
             // The instance factory leaves ReferenceTypeId = Null. The representation is
             // an AddIn, so it is mounted with HasAddIn rather than plain HasComponent:
             // HasAddIn is a subtype of HasComponent, so it stays browsable and still
@@ -264,43 +265,50 @@ namespace Opc.Ua.OpenUsd.Server
 
             if (!componentRepresentation.IsNull)
             {
-                b.CreateOrReplaceComponentRepresentation(context,
+                b.CreateOrReplaceComponentRepresentation(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ComponentRepresentation(b, forInstance: true))
                     .Value = componentRepresentation;
             }
             if (!string.IsNullOrEmpty(assetReference))
             {
-                b.CreateOrReplaceComponentAssetReference(context,
+                b.CreateOrReplaceComponentAssetReference(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ComponentAssetReference(b, forInstance: true))
                     .Value = assetReference;
             }
             if (dynamic)
             {
-                b.CreateOrReplaceDynamic(context,
+                b.CreateOrReplaceDynamic(
+                    context,
                     context.CreateOpenUsdComponentBindingType_Dynamic(b, forInstance: true))
                     .Value = true;
             }
             if (!changeEventSource.IsNull)
             {
-                b.CreateOrReplaceChangeEventSource(context,
+                b.CreateOrReplaceChangeEventSource(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ChangeEventSource(b, forInstance: true))
                     .Value = changeEventSource;
             }
             if (!string.IsNullOrEmpty(componentServerUri))
             {
-                b.CreateOrReplaceComponentServerUri(context,
+                b.CreateOrReplaceComponentServerUri(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ComponentServerUri(b, forInstance: true))
                     .Value = componentServerUri;
             }
             if (!string.IsNullOrEmpty(componentEndpointUrl))
             {
-                b.CreateOrReplaceComponentEndpointUrl(context,
+                b.CreateOrReplaceComponentEndpointUrl(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ComponentEndpointUrl(b, forInstance: true))
                     .Value = componentEndpointUrl;
             }
             if (!componentTypeDefinition.IsNull)
             {
-                b.CreateOrReplaceComponentTypeDefinition(context,
+                b.CreateOrReplaceComponentTypeDefinition(
+                    context,
                     context.CreateOpenUsdComponentBindingType_ComponentTypeDefinition(b, forInstance: true))
                     .Value = componentTypeDefinition;
             }

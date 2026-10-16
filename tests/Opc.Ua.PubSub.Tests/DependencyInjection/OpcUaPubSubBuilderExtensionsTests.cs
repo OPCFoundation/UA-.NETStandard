@@ -170,13 +170,14 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
             bool configureApplicationInvoked = false;
-            services.AddOpcUa().AddPubSub(pubsub =>
-                pubsub.AddPublisher().ConfigureApplication(
-                    app =>
-                    {
-                        configureApplicationInvoked = true;
-                        app.WithApplicationId("urn:test:application");
-                    }));
+            services.AddOpcUa().AddPubSub(
+                pubsub =>
+                    pubsub.AddPublisher().ConfigureApplication(
+                        app =>
+                        {
+                            configureApplicationInvoked = true;
+                            app.WithApplicationId("urn:test:application");
+                        }));
             ServiceProvider sp = services.BuildServiceProvider();
             _ = sp.GetRequiredService<IPubSubApplication>();
             Assert.That(configureApplicationInvoked, Is.True);
@@ -189,8 +190,9 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             var services = new ServiceCollection();
             services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
-            services.AddOpcUa().AddPubSub(pubsub =>
-                pubsub.AddSubscriber().AddSecurityKeyProvider(keyProvider.Object));
+            services.AddOpcUa().AddPubSub(
+                pubsub =>
+                    pubsub.AddSubscriber().AddSecurityKeyProvider(keyProvider.Object));
             ServiceProvider sp = services.BuildServiceProvider();
             Assert.That(
                 sp.GetService<IPubSubSecurityKeyProvider>(),
@@ -217,9 +219,10 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddLogging();
             services.AddPubSubTransportFactory(_ => new StubTransportFactory());
 
-            services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .UseConfiguration(CreateSecuredConfiguration())
-                .AddSecurityKeyProvider(keyProvider.Object));
+            services.AddOpcUa().AddPubSub(
+                pubsub => pubsub
+                    .UseConfiguration(CreateSecuredConfiguration())
+                    .AddSecurityKeyProvider(keyProvider.Object));
 
             ServiceProvider sp = services.BuildServiceProvider();
             await using (sp.ConfigureAwait(false))
@@ -238,7 +241,8 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
                 ReadOnlyMemory<byte> encoded = await security.Wrapper.WrapAsync(prefix, plaintext)
                     .ConfigureAwait(false);
                 UadpSecurityWrapper.UnwrapResult result = await security.Wrapper.TryUnwrapAsync(
-                    prefix, encoded[prefix.Length..]).ConfigureAwait(false);
+                    prefix,
+                    encoded[prefix.Length..]).ConfigureAwait(false);
 
                 Assert.That(result.IsSuccess, Is.True, result.Reason);
                 Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(plaintext));
@@ -258,11 +262,12 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             IServiceCollection? captured = null;
             IOpcUaBuilder root = services.AddOpcUa();
-            root.AddPubSub(pubsub =>
-            {
-                captured = pubsub.Services;
-                Assert.That(pubsub.OpcUaBuilder, Is.SameAs(root));
-            });
+            root.AddPubSub(
+                pubsub =>
+                {
+                    captured = pubsub.Services;
+                    Assert.That(pubsub.OpcUaBuilder, Is.SameAs(root));
+                });
             Assert.That(captured, Is.SameAs(services));
         }
 
@@ -278,11 +283,12 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
-            services.AddOpcUa().AddPubSub(pubsub => pubsub
-                .WithConfigurationStore(configurationStore)
-                .WithIdAllocator(idAllocator)
-                .WithRuntimeStateStore(runtimeStateStore)
-                .WithSecurityKeyStore(securityKeyStore));
+            services.AddOpcUa().AddPubSub(
+                pubsub => pubsub
+                    .WithConfigurationStore(configurationStore)
+                    .WithIdAllocator(idAllocator)
+                    .WithRuntimeStateStore(runtimeStateStore)
+                    .WithSecurityKeyStore(securityKeyStore));
 
             ServiceProvider sp = services.BuildServiceProvider();
 
@@ -299,26 +305,31 @@ namespace Opc.Ua.PubSub.Tests.DependencyInjection
             services.AddSingleton(NUnitTelemetryContext.Create());
             services.AddLogging();
 
-            services.AddOpcUa().AddPubSub(pubsub => pubsub.ConfigureConfiguration(configuration =>
-                configuration
-                    .Enabled(false)
-                    .AddConnection("udp-connection", connection =>
-                        connection.WithTransportProfile(Profiles.PubSubUdpUadpTransport))));
+            services.AddOpcUa().AddPubSub(
+                pubsub => pubsub.ConfigureConfiguration(
+                    configuration =>
+                        configuration
+                            .Enabled(false)
+                            .AddConnection(
+                                "udp-connection",
+                                connection =>
+                                    connection.WithTransportProfile(Profiles.PubSubUdpUadpTransport))));
 
             await using ServiceProvider serviceProvider = services.BuildServiceProvider();
             PubSubConfigurationDataType configuration = serviceProvider
                 .GetRequiredService<IPubSubApplication>()
                 .GetConfiguration();
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(configuration.Enabled, Is.False);
-                Assert.That(configuration.Connections, Has.Count.EqualTo(1));
-                Assert.That(configuration.Connections[0].Name, Is.EqualTo("udp-connection"));
-                Assert.That(
-                    configuration.Connections[0].TransportProfileUri,
-                    Is.EqualTo(Profiles.PubSubUdpUadpTransport));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(configuration.Enabled, Is.False);
+                    Assert.That(configuration.Connections, Has.Count.EqualTo(1));
+                    Assert.That(configuration.Connections[0].Name, Is.EqualTo("udp-connection"));
+                    Assert.That(
+                        configuration.Connections[0].TransportProfileUri,
+                        Is.EqualTo(Profiles.PubSubUdpUadpTransport));
+                });
         }
 
         [Test]

@@ -50,22 +50,24 @@ namespace Opc.Ua.Positioning.Tests
             SetupRead(session, GlobalValue);
             GlobalPositionValue result = await Global(session).ReadGlobalPositionAsync(s_position)
                 .ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.NodeId, Is.EqualTo(s_position));
-                Assert.That(result.Position.Longitude, Is.EqualTo(8));
-                Assert.That(result.Position.Latitude, Is.EqualTo(47));
-                Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
-                Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(result.SourceTimestamp, Is.EqualTo(s_timestamp));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.NodeId, Is.EqualTo(s_position));
+                    Assert.That(result.Position.Longitude, Is.EqualTo(8));
+                    Assert.That(result.Position.Latitude, Is.EqualTo(47));
+                    Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
+                    Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(result.SourceTimestamp, Is.EqualTo(s_timestamp));
+                });
             VerifyBorrowed(session);
         }
 
         [TestCaseSource(nameof(GlobalQualityCases))]
         public async Task GlobalStructuresAndMetadataRequireGoodQualityBeforeDecodingAsync(
-            string component, StatusCode status)
+            string component,
+            StatusCode status)
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
@@ -77,32 +79,36 @@ namespace Opc.Ua.Positioning.Tests
                 "gcp" => s_gcps,
                 _ => s_position
             };
-            SetupRead(session, node =>
-            {
-                DataValue value = node == s_gcps ? PointsValue(ControlPoints()) : GlobalValue(node);
-                if (node == badNode)
+            SetupRead(
+                session,
+                node =>
                 {
-                    value = value.WithStatus(status);
-                }
-                return value;
-            });
+                    DataValue value = node == s_gcps ? PointsValue(ControlPoints()) : GlobalValue(node);
+                    if (node == badNode)
+                    {
+                        value = value.WithStatus(status);
+                    }
+                    return value;
+                });
             GlobalPositioningClient client = Global(session);
-            await AssertStatusAsync(async () =>
-            {
-                switch (component)
+            await AssertStatusAsync(
+                async () =>
                 {
-                    case "location":
-                    case "position-component":
-                        await client.ReadGlobalLocationAsync(s_location).ConfigureAwait(false);
-                        break;
-                    case "gcp":
-                        await client.ReadZoneTransformAsync(s_zone).ConfigureAwait(false);
-                        break;
-                    default:
-                        await client.ReadGlobalPositionAsync(s_position).ConfigureAwait(false);
-                        break;
-                }
-            }, status).ConfigureAwait(false);
+                    switch (component)
+                    {
+                        case "location":
+                        case "position-component":
+                            await client.ReadGlobalLocationAsync(s_location).ConfigureAwait(false);
+                            break;
+                        case "gcp":
+                            await client.ReadZoneTransformAsync(s_zone).ConfigureAwait(false);
+                            break;
+                        default:
+                            await client.ReadGlobalPositionAsync(s_position).ConfigureAwait(false);
+                            break;
+                    }
+                },
+                status).ConfigureAwait(false);
             VerifyBorrowed(session);
         }
 
@@ -111,11 +117,15 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node => node == s_crs
-                ? new DataValue(new Variant(new StatusCode(4326u)))
-                : GlobalValue(node));
-            await AssertStatusAsync(async () => await Global(session).ReadGlobalPositionAsync(s_position)
-                .ConfigureAwait(false), StatusCodes.BadTypeMismatch).ConfigureAwait(false);
+            SetupRead(
+                session,
+                node => node == s_crs
+                    ? new DataValue(new Variant(new StatusCode(4326u)))
+                    : GlobalValue(node));
+            await AssertStatusAsync(
+                async () => await Global(session).ReadGlobalPositionAsync(s_position)
+                    .ConfigureAwait(false),
+                StatusCodes.BadTypeMismatch).ConfigureAwait(false);
             var legacy = new GlobalPositioningClient(session.Object, Mock.Of<ITelemetryContext>());
             GlobalPositionValue result = await legacy.ReadGlobalPositionAsync(s_position).ConfigureAwait(false);
             Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
@@ -126,17 +136,20 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node => node == s_crs
-                ? new DataValue(new Variant(3857u))
-                : node == s_position ? Structure(Position(1000, 2000)) : GlobalValue(node));
+            SetupRead(
+                session,
+                node => node == s_crs
+                    ? new DataValue(new Variant(3857u))
+                    : node == s_position ? Structure(Position(1000, 2000)) : GlobalValue(node));
             GlobalPositionValue result = await Global(session).ReadGlobalPositionAsync(s_position)
                 .ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(3857u));
-                Assert.That(result.Position.Longitude, Is.EqualTo(1000));
-                Assert.That(result.Position.Latitude, Is.EqualTo(2000));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(3857u));
+                    Assert.That(result.Position.Longitude, Is.EqualTo(1000));
+                    Assert.That(result.Position.Latitude, Is.EqualTo(2000));
+                });
         }
 
         [TestCase(double.NaN, 47)]
@@ -150,10 +163,14 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node => node == s_position
-                ? Structure(Position(longitude, latitude)) : GlobalValue(node));
-            await AssertStatusAsync(async () => await Global(session).ReadGlobalPositionAsync(s_position)
-                .ConfigureAwait(false), StatusCodes.BadInvalidArgument).ConfigureAwait(false);
+            SetupRead(
+                session,
+                node => node == s_position
+                    ? Structure(Position(longitude, latitude)) : GlobalValue(node));
+            await AssertStatusAsync(
+                async () => await Global(session).ReadGlobalPositionAsync(s_position)
+                    .ConfigureAwait(false),
+                StatusCodes.BadInvalidArgument).ConfigureAwait(false);
         }
 
         [TestCase(-180, -90)]
@@ -163,8 +180,10 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node => node == s_position
-                ? Structure(Position(longitude, latitude)) : GlobalValue(node));
+            SetupRead(
+                session,
+                node => node == s_position
+                    ? Structure(Position(longitude, latitude)) : GlobalValue(node));
             GlobalPositionValue result = await Global(session).ReadGlobalPositionAsync(s_position)
                 .ConfigureAwait(false);
             Assert.That(result.Position.Longitude, Is.EqualTo(longitude));
@@ -190,8 +209,10 @@ namespace Opc.Ua.Positioning.Tests
             position.Accuracy = field == "negative-accuracy" ? -1 : double.NaN;
             position.Floor = float.NaN;
             SetupRead(session, node => node == s_position ? Structure(position) : GlobalValue(node));
-            await AssertStatusAsync(async () => await Global(session).ReadGlobalPositionAsync(s_position)
-                .ConfigureAwait(false), StatusCodes.BadInvalidArgument).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () => await Global(session).ReadGlobalPositionAsync(s_position)
+                    .ConfigureAwait(false),
+                StatusCodes.BadInvalidArgument).ConfigureAwait(false);
         }
 
         [Test]
@@ -220,32 +241,36 @@ namespace Opc.Ua.Positioning.Tests
             SetupGlobalMetadata(session);
             int aggregateReads = 0;
             int componentReads = 0;
-            SetupRead(session, node =>
-            {
-                if (node == s_location)
+            SetupRead(
+                session,
+                node =>
                 {
-                    aggregateReads++;
-                    return Structure(new GlobalLocationDataType
+                    if (node == s_location)
                     {
-                        Position = Position(aggregateReads < attempts ? 7 : 8)
-                    });
-                }
-                if (node == s_position)
-                {
-                    componentReads++;
-                }
-                return GlobalValue(node);
-            });
+                        aggregateReads++;
+                        return Structure(
+                            new GlobalLocationDataType
+                            {
+                                Position = Position(aggregateReads < attempts ? 7 : 8)
+                            });
+                    }
+                    if (node == s_position)
+                    {
+                        componentReads++;
+                    }
+                    return GlobalValue(node);
+                });
             GlobalLocationValue result = await Global(session).ReadGlobalLocationAsync(s_location)
                 .ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(aggregateReads, Is.EqualTo(attempts));
-                Assert.That(componentReads, Is.EqualTo(attempts));
-                Assert.That(result.Location.Position.Longitude, Is.EqualTo(8));
-                Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
-                Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(aggregateReads, Is.EqualTo(attempts));
+                    Assert.That(componentReads, Is.EqualTo(attempts));
+                    Assert.That(result.Location.Position.Longitude, Is.EqualTo(8));
+                    Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
+                    Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
+                });
         }
 
         [Test]
@@ -255,19 +280,23 @@ namespace Opc.Ua.Positioning.Tests
             SetupGlobalMetadata(session);
             int aggregateReads = 0;
             int componentReads = 0;
-            SetupRead(session, node =>
-            {
-                if (node == s_location)
+            SetupRead(
+                session,
+                node =>
                 {
-                    aggregateReads++;
-                    return Structure(new GlobalLocationDataType { Position = Position(7) });
-                }
-                Assert.That(node, Is.EqualTo(s_position));
-                componentReads++;
-                return Structure(Position());
-            });
-            await AssertStatusAsync(async () => await Global(session).ReadGlobalLocationAsync(s_location)
-                .ConfigureAwait(false), StatusCodes.BadDataEncodingInvalid).ConfigureAwait(false);
+                    if (node == s_location)
+                    {
+                        aggregateReads++;
+                        return Structure(new GlobalLocationDataType { Position = Position(7) });
+                    }
+                    Assert.That(node, Is.EqualTo(s_position));
+                    componentReads++;
+                    return Structure(Position());
+                });
+            await AssertStatusAsync(
+                async () => await Global(session).ReadGlobalLocationAsync(s_location)
+                    .ConfigureAwait(false),
+                StatusCodes.BadDataEncodingInvalid).ConfigureAwait(false);
             Assert.That(aggregateReads, Is.EqualTo(3));
             Assert.That(componentReads, Is.EqualTo(3));
         }
@@ -277,16 +306,21 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node => node == s_location
-                ? Structure(new GlobalLocationDataType
-                {
-                    Position = Position(),
-                    EncodingMask = (uint)GlobalLocationDataTypeFields.Orientation,
-                    Orientation = new ThreeDOrientation { B = double.NaN }
-                })
-                : GlobalValue(node));
-            await AssertStatusAsync(async () => await Global(session).ReadGlobalLocationAsync(s_location)
-                .ConfigureAwait(false), StatusCodes.BadInvalidArgument).ConfigureAwait(false);
+            SetupRead(
+                session,
+                node => node == s_location
+                    ? Structure(
+                        new GlobalLocationDataType
+                        {
+                            Position = Position(),
+                            EncodingMask = (uint)GlobalLocationDataTypeFields.Orientation,
+                            Orientation = new ThreeDOrientation { B = double.NaN }
+                        })
+                    : GlobalValue(node));
+            await AssertStatusAsync(
+                async () => await Global(session).ReadGlobalLocationAsync(s_location)
+                    .ConfigureAwait(false),
+                StatusCodes.BadInvalidArgument).ConfigureAwait(false);
         }
 
         [Test]
@@ -296,31 +330,40 @@ namespace Opc.Ua.Positioning.Tests
             SetupGlobalMetadata(session);
             ArrayOf<GroundControlPointDataType> points = ControlPoints();
             SetupRead(session, _ => PointsValue(points));
-            GlobalPositioningClient client = Global(session, new PositioningClientReadOptions
-            {
-                MaximumReadArrayItems = 2
-            });
+            GlobalPositioningClient client = Global(
+                session,
+                new PositioningClientReadOptions
+                {
+                    MaximumReadArrayItems = 2
+                });
             GroundControlPointFitResult actual = await client.ReadZoneTransformAsync(s_zone).ConfigureAwait(false);
             GroundControlPointFitResult expected = new GroundControlPointFitter().Fit(points);
             ThreeDCartesianCoordinates local = await client.GlobalToLocalAsync(
-                s_zone, points[0].GlobalPosition, AngleUnit.Degrees).ConfigureAwait(false);
+                s_zone,
+                points[0].GlobalPosition,
+                AngleUnit.Degrees).ConfigureAwait(false);
             S3DGeographicCoordinateDataType global = await client.LocalToGlobalAsync(
-                s_zone, points[0].LocalPosition, AngleUnit.Degrees).ConfigureAwait(false);
+                s_zone,
+                points[0].LocalPosition,
+                AngleUnit.Degrees).ConfigureAwait(false);
             ThreeDCartesianCoordinates expectedLocal = expected.GlobalToLocal(
-                points[0].GlobalPosition, AngleUnit.Degrees);
+                points[0].GlobalPosition,
+                AngleUnit.Degrees);
             S3DGeographicCoordinateDataType expectedGlobal = expected.LocalToGlobal(
-                points[0].LocalPosition, AngleUnit.Degrees);
-            Assert.Multiple(() =>
-            {
-                Assert.That(actual.IsInvertible, Is.True);
-                Assert.That(actual.Dimension, Is.EqualTo(2));
-                Assert.That(actual.Determinant, Is.EqualTo(expected.Determinant).Within(1e-12));
-                Assert.That(actual.RootMeanSquareError, Is.EqualTo(expected.RootMeanSquareError).Within(1e-12));
-                Assert.That(local.X, Is.EqualTo(expectedLocal.X).Within(1e-8));
-                Assert.That(local.Y, Is.EqualTo(expectedLocal.Y).Within(1e-8));
-                Assert.That(global.Longitude, Is.EqualTo(expectedGlobal.Longitude).Within(1e-10));
-                Assert.That(global.Latitude, Is.EqualTo(expectedGlobal.Latitude).Within(1e-10));
-            });
+                points[0].LocalPosition,
+                AngleUnit.Degrees);
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(actual.IsInvertible, Is.True);
+                    Assert.That(actual.Dimension, Is.EqualTo(2));
+                    Assert.That(actual.Determinant, Is.EqualTo(expected.Determinant).Within(1e-12));
+                    Assert.That(actual.RootMeanSquareError, Is.EqualTo(expected.RootMeanSquareError).Within(1e-12));
+                    Assert.That(local.X, Is.EqualTo(expectedLocal.X).Within(1e-8));
+                    Assert.That(local.Y, Is.EqualTo(expectedLocal.Y).Within(1e-8));
+                    Assert.That(global.Longitude, Is.EqualTo(expectedGlobal.Longitude).Within(1e-10));
+                    Assert.That(global.Latitude, Is.EqualTo(expectedGlobal.Latitude).Within(1e-10));
+                });
         }
 
         [Test]
@@ -336,12 +379,16 @@ namespace Opc.Ua.Positioning.Tests
             ];
             SetupRead(session, _ => new DataValue(new Variant(raw)));
             var transformer = new Mock<ICoordinateReferenceSystemTransformer>(MockBehavior.Strict);
-            await AssertStatusAsync(async () =>
-                await Global(session, new PositioningClientReadOptions { MaximumReadArrayItems = 2 })
-                    .ReadZoneTransformAsync(s_zone, new GroundControlPointFitOptions
-                    {
-                        CoordinateReferenceSystem = transformer.Object
-                    }).ConfigureAwait(false), StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () =>
+                    await Global(session, new PositioningClientReadOptions { MaximumReadArrayItems = 2 })
+                        .ReadZoneTransformAsync(
+                            s_zone,
+                            new GroundControlPointFitOptions
+                            {
+                                CoordinateReferenceSystem = transformer.Object
+                            }).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded).ConfigureAwait(false);
             transformer.VerifyNoOtherCalls();
         }
 
@@ -378,8 +425,10 @@ namespace Opc.Ua.Positioning.Tests
                 points[0].GlobalPosition.Latitude = 91;
             }
             SetupRead(session, _ => PointsValue(points));
-            await AssertStatusAsync(async () => await Global(session).ReadZoneTransformAsync(s_zone)
-                .ConfigureAwait(false), StatusCodes.BadInvalidArgument).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () => await Global(session).ReadZoneTransformAsync(s_zone)
+                    .ConfigureAwait(false),
+                StatusCodes.BadInvalidArgument).ConfigureAwait(false);
         }
 
         [Test]
@@ -387,20 +436,23 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupGlobalMetadata(session);
-            SetupRead(session, node =>
-            {
-                DataValue value = node == s_position ? Structure(Position(double.NaN)) : GlobalValue(node);
-                return value.WithStatus(StatusCodes.Uncertain);
-            });
+            SetupRead(
+                session,
+                node =>
+                {
+                    DataValue value = node == s_position ? Structure(Position(double.NaN)) : GlobalValue(node);
+                    return value.WithStatus(StatusCodes.Uncertain);
+                });
             var client = new GlobalPositioningClient(session.Object, Mock.Of<ITelemetryContext>());
             GlobalPositionValue result = await client.ReadGlobalPositionAsync(s_position).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
-                Assert.That(result.Position.Longitude, Is.NaN);
-                Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
-                Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                    Assert.That(result.Position.Longitude, Is.NaN);
+                    Assert.That(result.SourceNodeId, Is.EqualTo(s_zone));
+                    Assert.That(result.CoordinateReferenceSystem, Is.EqualTo(4326u));
+                });
         }
 
         [TestCase("scalar")]
@@ -417,8 +469,10 @@ namespace Opc.Ua.Positioning.Tests
                 _ => new Variant(ArrayOf.Create<ExtensionObject>([ExtensionObject.Null]))
             };
             SetupRead(session, _ => new DataValue(value));
-            await AssertStatusAsync(async () => await Global(session).ReadZoneTransformAsync(s_zone)
-                .ConfigureAwait(false), StatusCodes.BadTypeMismatch).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () => await Global(session).ReadZoneTransformAsync(s_zone)
+                    .ConfigureAwait(false),
+                StatusCodes.BadTypeMismatch).ConfigureAwait(false);
         }
 
         [Test]
@@ -428,12 +482,15 @@ namespace Opc.Ua.Positioning.Tests
             SetupGlobalMetadata(session);
             SetupRead(session, _ => PointsValue(ControlPoints()));
             var transformer = new Mock<ICoordinateReferenceSystemTransformer>(MockBehavior.Strict);
-            await AssertStatusAsync(async () => await Global(session).ReadZoneTransformAsync(
-                s_zone, new GroundControlPointFitOptions
-                {
-                    Mode = (GroundControlPointFitMode)99,
-                    CoordinateReferenceSystem = transformer.Object
-                }).ConfigureAwait(false), StatusCodes.BadInvalidArgument).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () => await Global(session).ReadZoneTransformAsync(
+                    s_zone,
+                    new GroundControlPointFitOptions
+                    {
+                        Mode = (GroundControlPointFitMode)99,
+                        CoordinateReferenceSystem = transformer.Object
+                    }).ConfigureAwait(false),
+                StatusCodes.BadInvalidArgument).ConfigureAwait(false);
             transformer.VerifyNoOtherCalls();
         }
 
@@ -442,17 +499,24 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             using var cancellation = new System.Threading.CancellationTokenSource();
-            SetupRead(session, node =>
-            {
-                cancellation.Cancel();
-                return GlobalValue(node);
-            });
-            await Assert.ThatAsync(async () => await Global(session).ReadGlobalPositionAsync(
-                    s_position, cancellation.Token).ConfigureAwait(false),
+            SetupRead(
+                session,
+                node =>
+                {
+                    cancellation.Cancel();
+                    return GlobalValue(node);
+                });
+            await Assert.ThatAsync(
+                async () => await Global(session).ReadGlobalPositionAsync(
+                    s_position,
+                    cancellation.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(),
-                It.IsAny<System.Threading.CancellationToken>()), Times.Never);
+            session.Verify(
+                s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<System.Threading.CancellationToken>()),
+                Times.Never);
             VerifyBorrowed(session);
         }
 

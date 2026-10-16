@@ -96,9 +96,9 @@ namespace Opc.Ua.Pumps.Client
             }
 
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    ports,
-                    NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                ports,
+                NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (!nodeId.IsNull)
@@ -127,9 +127,9 @@ namespace Opc.Ua.Pumps.Client
         {
             var ports = new List<PumpPortDescriptor>();
             await foreach (PumpPortDescriptor port in EnumeratePortsAsync(
-                    pump,
-                    options,
-                    cancellationToken).ConfigureAwait(false))
+                pump,
+                options,
+                cancellationToken).ConfigureAwait(false))
             {
                 ports.Add(port);
             }
@@ -158,9 +158,15 @@ namespace Opc.Ua.Pumps.Client
                 cancellationToken).ConfigureAwait(false);
 
             PumpValueSet design = await ReadPumpsChildSetAsync(
-                port, BrowseNames.Design, options, cancellationToken).ConfigureAwait(false);
+                port,
+                BrowseNames.Design,
+                options,
+                cancellationToken).ConfigureAwait(false);
             PumpValueSet measurements = await ReadPumpsChildSetAsync(
-                port, BrowseNames.Measurements, options, cancellationToken)
+                port,
+                BrowseNames.Measurements,
+                options,
+                cancellationToken)
                 .ConfigureAwait(false);
 
             // A drive port has neither of these; resolving them costs one
@@ -170,10 +176,16 @@ namespace Opc.Ua.Pumps.Client
             if (kind != PumpPortKind.Drive)
             {
                 implementation = await ReadPumpsChildSetAsync(
-                    port, BrowseNames.Implementation, options, cancellationToken)
+                    port,
+                    BrowseNames.Implementation,
+                    options,
+                    cancellationToken)
                     .ConfigureAwait(false);
                 requirements = await ReadPumpsChildSetAsync(
-                    port, BrowseNames.SystemRequirements, options, cancellationToken)
+                    port,
+                    BrowseNames.SystemRequirements,
+                    options,
+                    cancellationToken)
                     .ConfigureAwait(false);
             }
 

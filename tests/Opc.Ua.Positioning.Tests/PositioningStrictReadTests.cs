@@ -53,17 +53,18 @@ namespace Opc.Ua.Positioning.Tests
             var options = new PositioningClientReadOptions();
             Mock<ISession> session = CreateSession();
             var legacy = new PositioningClientOperations(session.Object, Mock.Of<ITelemetryContext>());
-            Assert.Multiple(() =>
-            {
-                Assert.That(options.MaximumBrowseReferences, Is.EqualTo(1024));
-                Assert.That(options.MaximumBrowsePages, Is.EqualTo(128));
-                Assert.That(options.MaximumFrameChainLength, Is.EqualTo(128));
-                Assert.That(options.MaximumReadArrayItems, Is.EqualTo(1024));
-                Assert.That(legacy.Strict, Is.False);
-                Assert.That(legacy.MaximumFrameChainLength, Is.EqualTo(1024));
-                Assert.That(Operations(session).Strict, Is.True);
-                Assert.That(Operations(session).MaximumFrameChainLength, Is.EqualTo(128));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(options.MaximumBrowseReferences, Is.EqualTo(1024));
+                    Assert.That(options.MaximumBrowsePages, Is.EqualTo(128));
+                    Assert.That(options.MaximumFrameChainLength, Is.EqualTo(128));
+                    Assert.That(options.MaximumReadArrayItems, Is.EqualTo(1024));
+                    Assert.That(legacy.Strict, Is.False);
+                    Assert.That(legacy.MaximumFrameChainLength, Is.EqualTo(1024));
+                    Assert.That(Operations(session).Strict, Is.True);
+                    Assert.That(Operations(session).MaximumFrameChainLength, Is.EqualTo(128));
+                });
         }
 
         [TestCase("references", 0)]
@@ -86,14 +87,19 @@ namespace Opc.Ua.Positioning.Tests
             Mock<ISession> session = CreateSession();
             ITelemetryContext telemetry = Mock.Of<ITelemetryContext>();
             IOpcUaClientBuilder builder = new ServiceCollection().AddOpcUa().AddClient(_ => { });
-            Assert.Multiple(() =>
-            {
-                Assert.That(() => new RelativeSpatialLocationClient(session.Object, telemetry, options),
-                    Throws.TypeOf<ArgumentOutOfRangeException>());
-                Assert.That(() => new GlobalPositioningClient(session.Object, telemetry, options),
-                    Throws.TypeOf<ArgumentOutOfRangeException>());
-                Assert.That(() => builder.AddPositioningClient(options), Throws.TypeOf<ArgumentOutOfRangeException>());
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        () => new RelativeSpatialLocationClient(session.Object, telemetry, options),
+                        Throws.TypeOf<ArgumentOutOfRangeException>());
+                    Assert.That(
+                        () => new GlobalPositioningClient(session.Object, telemetry, options),
+                        Throws.TypeOf<ArgumentOutOfRangeException>());
+                    Assert.That(
+                        () => builder.AddPositioningClient(options),
+                        Throws.TypeOf<ArgumentOutOfRangeException>());
+                });
         }
 
         [Test]
@@ -104,25 +110,32 @@ namespace Opc.Ua.Positioning.Tests
             var options = new PositioningClientReadOptions();
             var relative = new RelativeSpatialLocationClient(session.Object, telemetry, options);
             var global = new GlobalPositioningClient(session.Object, telemetry, options);
-            Assert.Multiple(() =>
-            {
-                Assert.That(relative.Session, Is.SameAs(session.Object));
-                Assert.That(global.Session, Is.SameAs(session.Object));
-                Assert.That(relative.Telemetry, Is.SameAs(telemetry));
-                Assert.That(global.Telemetry, Is.SameAs(telemetry));
-                Assert.That(() => new RelativeSpatialLocationClient(session.Object, telemetry, null!),
-                    Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => new GlobalPositioningClient(session.Object, telemetry, null!),
-                    Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => new RelativeSpatialLocationClient(null!, telemetry, options),
-                    Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => new GlobalPositioningClient(null!, telemetry, options),
-                    Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => new RelativeSpatialLocationClient(session.Object, null!, options),
-                    Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => new GlobalPositioningClient(session.Object, null!, options),
-                    Throws.TypeOf<ArgumentNullException>());
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(relative.Session, Is.SameAs(session.Object));
+                    Assert.That(global.Session, Is.SameAs(session.Object));
+                    Assert.That(relative.Telemetry, Is.SameAs(telemetry));
+                    Assert.That(global.Telemetry, Is.SameAs(telemetry));
+                    Assert.That(
+                        () => new RelativeSpatialLocationClient(session.Object, telemetry, null!),
+                        Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => new GlobalPositioningClient(session.Object, telemetry, null!),
+                        Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => new RelativeSpatialLocationClient(null!, telemetry, options),
+                        Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => new GlobalPositioningClient(null!, telemetry, options),
+                        Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => new RelativeSpatialLocationClient(session.Object, null!, options),
+                        Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => new GlobalPositioningClient(session.Object, null!, options),
+                        Throws.TypeOf<ArgumentNullException>());
+                });
             VerifyBorrowed(session);
         }
 
@@ -133,17 +146,22 @@ namespace Opc.Ua.Positioning.Tests
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(_ => { });
             Assert.That(builder.AddPositioningClient(new PositioningClientReadOptions()), Is.SameAs(builder));
             using ServiceProvider provider = services.BuildServiceProvider();
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    provider.GetRequiredService<Func<CancellationToken, Task<RelativeSpatialLocationClient>>>(),
-                    Is.Not.Null);
-                Assert.That(provider.GetRequiredService<Func<CancellationToken, Task<GlobalPositioningClient>>>(),
-                    Is.Not.Null);
-                Assert.That(() => builder.AddPositioningClient(null!), Throws.TypeOf<ArgumentNullException>());
-                Assert.That(() => OpcUaPositioningClientBuilderExtensions.AddPositioningClient(
-                    null!, new PositioningClientReadOptions()), Throws.TypeOf<ArgumentNullException>());
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        provider.GetRequiredService<Func<CancellationToken, Task<RelativeSpatialLocationClient>>>(),
+                        Is.Not.Null);
+                    Assert.That(
+                        provider.GetRequiredService<Func<CancellationToken, Task<GlobalPositioningClient>>>(),
+                        Is.Not.Null);
+                    Assert.That(() => builder.AddPositioningClient(null!), Throws.TypeOf<ArgumentNullException>());
+                    Assert.That(
+                        () => OpcUaPositioningClientBuilderExtensions.AddPositioningClient(
+                            null!,
+                            new PositioningClientReadOptions()),
+                        Throws.TypeOf<ArgumentNullException>());
+                });
         }
 
         private static IEnumerable<TestCaseData> NonGoodStatuses()
@@ -170,10 +188,14 @@ namespace Opc.Ua.Positioning.Tests
             session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
             session.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
             var cache = new Mock<INodeCache>();
-            cache.Setup(c => c.IsTypeOfAsync(
-                    It.IsAny<ExpandedNodeId>(), It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()))
-                .Returns((ExpandedNodeId actual, ExpandedNodeId expected, CancellationToken _) =>
-                    new ValueTask<bool>(actual == expected));
+            cache.Setup(
+                c => c.IsTypeOfAsync(
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (ExpandedNodeId actual, ExpandedNodeId expected, CancellationToken _) =>
+                        new ValueTask<bool>(actual == expected));
             session.SetupGet(s => s.NodeCache).Returns(cache.Object);
             return session;
         }
@@ -183,7 +205,9 @@ namespace Opc.Ua.Positioning.Tests
             PositioningClientReadOptions? options = null)
         {
             return new PositioningClientOperations(
-                session.Object, Mock.Of<ITelemetryContext>(), options ?? new PositioningClientReadOptions());
+                session.Object,
+                Mock.Of<ITelemetryContext>(),
+                options ?? new PositioningClientReadOptions());
         }
 
         private static RelativeSpatialLocationClient Relative(
@@ -191,7 +215,9 @@ namespace Opc.Ua.Positioning.Tests
             PositioningClientReadOptions? options = null)
         {
             return new RelativeSpatialLocationClient(
-                session.Object, Mock.Of<ITelemetryContext>(), options ?? new PositioningClientReadOptions());
+                session.Object,
+                Mock.Of<ITelemetryContext>(),
+                options ?? new PositioningClientReadOptions());
         }
 
         private static GlobalPositioningClient Global(
@@ -199,7 +225,9 @@ namespace Opc.Ua.Positioning.Tests
             PositioningClientReadOptions? options = null)
         {
             return new GlobalPositioningClient(
-                session.Object, Mock.Of<ITelemetryContext>(), options ?? new PositioningClientReadOptions());
+                session.Object,
+                Mock.Of<ITelemetryContext>(),
+                options ?? new PositioningClientReadOptions());
         }
 
         private static ReferenceDescription Reference(string name = "frame")
@@ -226,18 +254,22 @@ namespace Opc.Ua.Positioning.Tests
             Mock<ISession> session,
             Func<BrowsePath, BrowsePathResult> result)
         {
-            session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
-                {
-                    Assert.That(paths.Count, Is.EqualTo(1));
-                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
-                        new TranslateBrowsePathsToNodeIdsResponse
-                        {
-                            ResponseHeader = new ResponseHeader(),
-                            Results = [result(paths[0])]
-                        });
-                });
+            session.Setup(
+                s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (RequestHeader? _, ArrayOf<BrowsePath> paths, CancellationToken _) =>
+                    {
+                        Assert.That(paths.Count, Is.EqualTo(1));
+                        return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                            new TranslateBrowsePathsToNodeIdsResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [result(paths[0])]
+                            });
+                    });
         }
 
         private static void SetupRead(
@@ -245,79 +277,113 @@ namespace Opc.Ua.Positioning.Tests
             Func<NodeId, DataValue> result,
             Action<ArrayOf<ReadValueId>>? inspect = null)
         {
-            session.Setup(s => s.ReadAsync(
-                    It.IsAny<RequestHeader?>(), 0, It.IsAny<TimestampsToReturn>(),
-                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> reads,
-                    CancellationToken _) =>
-                {
-                    inspect?.Invoke(reads);
-                    var values = new DataValue[reads.Count];
-                    for (int ii = 0; ii < reads.Count; ii++)
+            session.Setup(
+                s => s.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    0,
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (
+                        RequestHeader? _,
+                        double _,
+                        TimestampsToReturn _,
+                        ArrayOf<ReadValueId> reads,
+                        CancellationToken _) =>
                     {
-                        Assert.That(reads[ii].AttributeId, Is.EqualTo(Attributes.Value));
-                        values[ii] = result(reads[ii].NodeId);
-                    }
-                    return new ValueTask<ReadResponse>(new ReadResponse
-                    {
-                        ResponseHeader = new ResponseHeader(),
-                        Results = values.ToArrayOf()
+                        inspect?.Invoke(reads);
+                        var values = new DataValue[reads.Count];
+                        for (int ii = 0; ii < reads.Count; ii++)
+                        {
+                            Assert.That(reads[ii].AttributeId, Is.EqualTo(Attributes.Value));
+                            values[ii] = result(reads[ii].NodeId);
+                        }
+                        return new ValueTask<ReadResponse>(
+                            new ReadResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = values.ToArrayOf()
+                            });
                     });
-                });
         }
 
         private static void SetupBrowse(Mock<ISession> session, Func<BrowseResult> result)
         {
-            session.Setup(s => s.BrowseAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ViewDescription?>(), It.IsAny<uint>(),
-                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, ViewDescription? _, uint maximum, ArrayOf<BrowseDescription> requests,
-                    CancellationToken _) =>
-                {
-                    Assert.That(requests.Count, Is.EqualTo(1));
-                    Assert.That(maximum, Is.InRange(1u, 64u));
-                    return new ValueTask<BrowseResponse>(new BrowseResponse
+            session.Setup(
+                s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (
+                        RequestHeader? _,
+                        ViewDescription? _,
+                        uint maximum,
+                        ArrayOf<BrowseDescription> requests,
+                        CancellationToken _) =>
                     {
-                        ResponseHeader = new ResponseHeader(),
-                        Results = [result()]
+                        Assert.That(requests.Count, Is.EqualTo(1));
+                        Assert.That(maximum, Is.InRange(1u, 64u));
+                        return new ValueTask<BrowseResponse>(
+                            new BrowseResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [result()]
+                            });
                     });
-                });
         }
 
         private static void SetupNext(
             Mock<ISession> session,
             Func<bool, ByteString, CancellationToken, BrowseResult> result)
         {
-            session.Setup(s => s.BrowseNextAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<bool>(), It.IsAny<ArrayOf<ByteString>>(),
+            session.Setup(
+                s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ArrayOf<ByteString>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, bool release, ArrayOf<ByteString> points, CancellationToken token) =>
-                {
-                    Assert.That(points.Count, Is.EqualTo(1));
-                    return new ValueTask<BrowseNextResponse>(new BrowseNextResponse
+                .Returns(
+                    (RequestHeader? _, bool release, ArrayOf<ByteString> points, CancellationToken token) =>
                     {
-                        ResponseHeader = new ResponseHeader(),
-                        Results = [result(release, points[0], token)]
+                        Assert.That(points.Count, Is.EqualTo(1));
+                        return new ValueTask<BrowseNextResponse>(
+                            new BrowseNextResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [result(release, points[0], token)]
+                            });
                     });
-                });
         }
 
-        private static void SetupRelease(Mock<ISession> session, List<ByteString> released)
+        private static void SetupRelease(
+            Mock<ISession> session,
+            List<ByteString> released,
+            bool emptyResults = false)
         {
-            session.Setup(s => s.BrowseNextAsync(
-                    It.IsAny<RequestHeader?>(), true, It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, bool _, ArrayOf<ByteString> points, CancellationToken token) =>
-                {
-                    Assert.That(points.Count, Is.EqualTo(1));
-                    Assert.That(token.CanBeCanceled, Is.True);
-                    Assert.That(token.IsCancellationRequested, Is.False);
-                    released.Add(points[0]);
-                    return new ValueTask<BrowseNextResponse>(new BrowseNextResponse
+            session.Setup(
+                s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    true,
+                    It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (RequestHeader? _, bool _, ArrayOf<ByteString> points, CancellationToken token) =>
                     {
-                        ResponseHeader = new ResponseHeader(),
-                        Results = [new BrowseResult()]
+                        Assert.That(points.Count, Is.EqualTo(1));
+                        Assert.That(token.CanBeCanceled, Is.True);
+                        Assert.That(token.IsCancellationRequested, Is.False);
+                        released.Add(points[0]);
+                        return new ValueTask<BrowseNextResponse>(
+                            new BrowseNextResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = emptyResults ? [] : [new BrowseResult()]
+                            });
                     });
-                });
         }
 
         private static ThreeDFrame Frame(double x = 1, double roll = 0)
@@ -339,25 +405,32 @@ namespace Opc.Ua.Positioning.Tests
             return new DataValue(Variant.From(new ExtensionObject(value)), status, s_timestamp, s_timestamp);
         }
 
-        private static void SetupFrame(Mock<ISession> session, StatusCode frameStatus = default,
+        private static void SetupFrame(
+            Mock<ISession> session,
+            StatusCode frameStatus = default,
             StatusCode baseStatus = default)
         {
             SetupTranslate(session, _ => Resolved(s_base));
-            SetupRead(session, node => node == s_frame
-                ? Structure(Frame(), frameStatus)
-                : new DataValue(new Variant(NodeId.Null), baseStatus));
+            SetupRead(
+                session,
+                node => node == s_frame
+                    ? Structure(Frame(), frameStatus)
+                    : new DataValue(new Variant(NodeId.Null), baseStatus));
         }
 
         private static void SetupGlobalMetadata(Mock<ISession> session)
         {
-            SetupTranslate(session, path => Resolved(path.RelativePath.Elements[0].TargetName.Name switch
-            {
-                "SourceId" => s_source,
-                "CoordinateReferenceSystem" => s_crs,
-                "Position" => s_position,
-                "GroundControlPoints" => s_gcps,
-                _ => throw new AssertionException("Unexpected metadata path.")
-            }));
+            SetupTranslate(
+                session,
+                path => Resolved(
+                    path.RelativePath.Elements[0].TargetName.Name switch
+                    {
+                        "SourceId" => s_source,
+                        "CoordinateReferenceSystem" => s_crs,
+                        "Position" => s_position,
+                        "GroundControlPoints" => s_gcps,
+                        _ => throw new AssertionException("Unexpected metadata path.")
+                    }));
         }
 
         private static DataValue GlobalValue(NodeId node)
@@ -379,8 +452,10 @@ namespace Opc.Ua.Positioning.Tests
 
         private static async Task AssertStatusAsync(Func<Task> operation, StatusCode expected)
         {
-            await Assert.ThatAsync(operation, Throws.InstanceOf<ServiceResultException>()
-                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected)).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                operation,
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected)).ConfigureAwait(false);
         }
 
         private static async Task<T> FailureAsync<T>(Func<Task> operation)
@@ -412,19 +487,30 @@ namespace Opc.Ua.Positioning.Tests
         private static void VerifyBorrowed(Mock<ISession> session)
         {
             session.Verify(s => s.Dispose(), Times.Never);
-            session.Verify(s => s.WriteAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+            session.Verify(
+                s => s.WriteAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<WriteValue>>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Never);
-            session.Verify(s => s.CallAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+            session.Verify(
+                s => s.CallAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()),
                 Times.Never);
         }
 
         private static void VerifyNoRead(Mock<ISession> session)
         {
-            session.Verify(s => s.ReadAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
-                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(
+                s => s.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         private const string kInstanceNamespace = "urn:positioning:strict:instances";

@@ -82,19 +82,20 @@ builder.Services.AddHostedService<PumpSimulation>();
 
 builder.Services
     .AddOpcUa()
-    .AddServer(options =>
-    {
-        options.ApplicationName = "PumpsServer";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:PumpsServer";
-        options.ProductUri = "uri:opcfoundation.org:PumpsServer";
-        // Sample convenience only; never auto-accept untrusted certificates in production.
-        options.AutoAcceptUntrustedCertificates = autoAccept;
-        if (pkiRoot is not null)
+    .AddServer(
+        options =>
         {
-            options.PkiRoot = pkiRoot;
-        }
-        options.EndpointUrls.Add(endpointUrl);
-    })
+            options.ApplicationName = "PumpsServer";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:PumpsServer";
+            options.ProductUri = "uri:opcfoundation.org:PumpsServer";
+            // Sample convenience only; never auto-accept untrusted certificates in production.
+            options.AutoAcceptUntrustedCertificates = autoAccept;
+            if (pkiRoot is not null)
+            {
+                options.PkiRoot = pkiRoot;
+            }
+            options.EndpointUrls.Add(endpointUrl);
+        })
     // AddPumps loads DI, IA, Machinery and Pumps into one node manager and
     // claims the Device Integration address space. A server that already owns
     // DI loads the model into its own manager with nodes.AddOpcUaPumps(context)

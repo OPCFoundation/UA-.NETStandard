@@ -75,7 +75,8 @@ namespace Opc.Ua.Pumps.Client
         /// <param name="cancellationToken">Cancels session acquisition.</param>
         /// <exception cref="ArgumentOutOfRangeException">The reference limit is outside its bounds.</exception>
         public async Task<PumpsClient> CreateAsync(
-            int maximumBrowseReferences, CancellationToken cancellationToken = default)
+            int maximumBrowseReferences,
+            CancellationToken cancellationToken = default)
         {
             if (maximumBrowseReferences is < 1 or > 65536)
             {

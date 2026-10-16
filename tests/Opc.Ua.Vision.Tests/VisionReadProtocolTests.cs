@@ -43,8 +43,20 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         [Combinatorial]
         public async Task PresentNonGoodOrWrongTypedMembersCannotBecomeSuccessfulDefaults(
-            [Values("identity", "reality", "image", "depth", "optics", "illumination", "intrinsic", "extrinsic",
-                "pipeline", "state", "detection", "inspection", "segmentation")] string method,
+            [Values(
+                "identity",
+                "reality",
+                "image",
+                "depth",
+                "optics",
+                "illumination",
+                "intrinsic",
+                "extrinsic",
+                "pipeline",
+                "state",
+                "detection",
+                "inspection",
+                "segmentation")] string method,
             [Values("bad", "uncertain", "wrong-type", "status-code")] string fault)
         {
             var harness = new VisionSessionHarness();
@@ -55,20 +67,26 @@ namespace Opc.Ua.Vision.Tests
                 "uncertain" => StatusCodes.Uncertain,
                 _ => StatusCodes.Good
             };
-            DataValue data = new(fault switch
-            {
-                "wrong-type" => Variant.From(ByteString.From(1, 2)),
-                "status-code" => Variant.From(new StatusCode(1u)),
-                _ => value
-            });
+            DataValue data = new(
+                fault switch
+                {
+                    "wrong-type" => Variant.From(ByteString.From(1, 2)),
+                    "status-code" => Variant.From(new StatusCode(1u)),
+                    _ => value
+                });
             data = data.WithStatus(status);
-            SetRead(harness, node, new ReadResponse
-            {
-                ResponseHeader = new ResponseHeader(),
-                Results = [data]
-            });
-            await Assert.ThatAsync(read, Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                .EqualTo(fault is "wrong-type" or "status-code" ? StatusCodes.BadTypeMismatch : status))
+            SetRead(
+                harness,
+                node,
+                new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [data]
+                });
+            await Assert.ThatAsync(
+                read,
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                    .EqualTo(fault is "wrong-type" or "status-code" ? StatusCodes.BadTypeMismatch : status))
                 .ConfigureAwait(false);
         }
 
@@ -77,7 +95,10 @@ namespace Opc.Ua.Vision.Tests
         public async Task PipelineEnumerationPreservesSupportedNumericRepresentations(bool unsigned)
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.State, new NodeId(5200u, 3),
+            harness.AddValueChild(
+                harness.PipelineNodeId,
+                Perception.BrowseNames.State,
+                new NodeId(5200u, 3),
                 unsigned ? Variant.From((uint)VisionEndpointStateEnum.Ready) :
                     Variant.From((int)VisionEndpointStateEnum.Ready));
 
@@ -139,19 +160,30 @@ namespace Opc.Ua.Vision.Tests
             Func<Task> read = inspection
                 ? () => absent.Client.Result(absent.ResultNodeId).ReadInspectionAsync()
                 : () => absent.Client.Result(absent.ResultNodeId).ReadDetectionAsync();
-            await Assert.ThatAsync(read, Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
-                .EqualTo(StatusCodes.BadNotFound)).ConfigureAwait(false);
+            await Assert.ThatAsync(
+                read,
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                    .EqualTo(StatusCodes.BadNotFound)).ConfigureAwait(false);
         }
 
         [Test]
         public async Task ExplicitNullNodeIdsRemainTypedAbsenceInsteadOfMalformedValues()
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.Sensor, new NodeId(5101u, 3),
+            harness.AddValueChild(
+                harness.PipelineNodeId,
+                Perception.BrowseNames.Sensor,
+                new NodeId(5101u, 3),
                 Variant.From(NodeId.Null));
-            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.Deployment, new NodeId(5102u, 3),
+            harness.AddValueChild(
+                harness.PipelineNodeId,
+                Perception.BrowseNames.Deployment,
+                new NodeId(5102u, 3),
                 Variant.From(NodeId.Null));
-            harness.AddValueChild(harness.PipelineNodeId, Perception.BrowseNames.LearningJob, new NodeId(5103u, 3),
+            harness.AddValueChild(
+                harness.PipelineNodeId,
+                Perception.BrowseNames.LearningJob,
+                new NodeId(5103u, 3),
                 Variant.From(NodeId.Null));
             VisionPipelineSnapshot pipeline = await harness.Client.Pipeline(harness.PipelineNodeId).ReadAsync()
                 .ConfigureAwait(false);
@@ -159,14 +191,22 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(pipeline.DeploymentId.IsNull, Is.True);
             Assert.That(pipeline.LearningJobId.IsNull, Is.True);
             harness.AddValueChild(
-                harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.SourceFrame,
-                new NodeId(5104u, 3), Variant.From(NodeId.Null));
+                harness.ExtrinsicCalibrationNodeId,
+                Perception.BrowseNames.SourceFrame,
+                new NodeId(5104u, 3),
+                Variant.From(NodeId.Null));
             VisionExtrinsicCalibrationSnapshot calibration = await harness.Client.Sensor(harness.SensorNodeId)
                 .ReadExtrinsicCalibrationAsync(harness.ExtrinsicCalibrationNodeId).ConfigureAwait(false);
             Assert.That(calibration.SourceFrameId.IsNull, Is.True);
-            harness.AddValueChild(harness.ResultNodeId, Perception.BrowseNames.Sensor, new NodeId(5105u, 3),
+            harness.AddValueChild(
+                harness.ResultNodeId,
+                Perception.BrowseNames.Sensor,
+                new NodeId(5105u, 3),
                 Variant.From(NodeId.Null));
-            harness.AddValueChild(harness.ResultNodeId, Perception.BrowseNames.Detections, new NodeId(5106u, 3),
+            harness.AddValueChild(
+                harness.ResultNodeId,
+                Perception.BrowseNames.Detections,
+                new NodeId(5106u, 3),
                 Variant.FromStructure(ArrayOf<VisionDetectionDataType>.Empty));
             VisionDetectionResultSnapshot result = await harness.Client.Result(harness.ResultNodeId)
                 .ReadDetectionAsync()
@@ -177,7 +217,8 @@ namespace Opc.Ua.Vision.Tests
         }
 
         private static (NodeId Node, Variant Value, Func<Task> Read) Configure(
-            VisionSessionHarness harness, string method)
+            VisionSessionHarness harness,
+            string method)
         {
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
@@ -186,33 +227,71 @@ namespace Opc.Ua.Vision.Tests
             harness.AddChild(harness.SensorNodeId, Perception.BrowseNames.Illumination, harness.IlluminationNodeId);
             (NodeId Owner, string Name, Variant Value, Func<Task> Read) selection = method switch
             {
-                "identity" => (harness.SensorNodeId, Perception.BrowseNames.SensorId, Variant.From("sensor"),
+                "identity" => (
+                    harness.SensorNodeId,
+                    Perception.BrowseNames.SensorId,
+                    Variant.From("sensor"),
                     () => sensor.ReadIdentityAsync()),
-                "reality" => (harness.SensorNodeId, Perception.BrowseNames.RealityKind,
-                    Variant.From((int)VisionRealityKindEnum.Simulated), () => sensor.ReadIdentityAsync()),
-                "image" => (harness.SensorNodeId, Perception.BrowseNames.Width, Variant.From(640u),
+                "reality" => (
+                    harness.SensorNodeId,
+                    Perception.BrowseNames.RealityKind,
+                    Variant.From((int)VisionRealityKindEnum.Simulated),
+                    () => sensor.ReadIdentityAsync()),
+                "image" => (
+                    harness.SensorNodeId,
+                    Perception.BrowseNames.Width,
+                    Variant.From(640u),
                     () => sensor.ReadImageMembersAsync()),
-                "depth" => (harness.SensorNodeId, Perception.BrowseNames.MinDepth, Variant.From(0.1),
+                "depth" => (
+                    harness.SensorNodeId,
+                    Perception.BrowseNames.MinDepth,
+                    Variant.From(0.1),
                     () => sensor.ReadDepthMembersAsync()),
-                "optics" => (harness.OpticsNodeId, Perception.BrowseNames.FocalLength, Variant.From(0.03),
+                "optics" => (
+                    harness.OpticsNodeId,
+                    Perception.BrowseNames.FocalLength,
+                    Variant.From(0.03),
                     () => sensor.ReadOpticsAsync()),
-                "illumination" => (harness.IlluminationNodeId, Perception.BrowseNames.Wavelength, Variant.From(500d),
+                "illumination" => (
+                    harness.IlluminationNodeId,
+                    Perception.BrowseNames.Wavelength,
+                    Variant.From(500d),
                     () => sensor.ReadIlluminationAsync()),
-                "intrinsic" => (harness.IntrinsicCalibrationNodeId, Perception.BrowseNames.Valid, Variant.From(false),
+                "intrinsic" => (
+                    harness.IntrinsicCalibrationNodeId,
+                    Perception.BrowseNames.Valid,
+                    Variant.From(false),
                     () => sensor.ReadIntrinsicCalibrationAsync(harness.IntrinsicCalibrationNodeId)),
-                "extrinsic" => (harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.Valid, Variant.From(false),
+                "extrinsic" => (
+                    harness.ExtrinsicCalibrationNodeId,
+                    Perception.BrowseNames.Valid,
+                    Variant.From(false),
                     () => sensor.ReadExtrinsicCalibrationAsync(harness.ExtrinsicCalibrationNodeId)),
-                "pipeline" => (harness.PipelineNodeId, Perception.BrowseNames.Continuous, Variant.From(false),
+                "pipeline" => (
+                    harness.PipelineNodeId,
+                    Perception.BrowseNames.Continuous,
+                    Variant.From(false),
                     () => pipeline.ReadAsync()),
-                "state" => (harness.PipelineNodeId, Perception.BrowseNames.State,
-                    Variant.From((int)VisionEndpointStateEnum.Ready), () => pipeline.ReadStateAsync()),
-                "detection" => (harness.ResultNodeId, Perception.BrowseNames.Detections,
-                    Variant.FromStructure(ArrayOf<VisionDetectionDataType>.Empty), () => result.ReadDetectionAsync()),
-                "inspection" => (harness.ResultNodeId, Perception.BrowseNames.Characteristics,
+                "state" => (
+                    harness.PipelineNodeId,
+                    Perception.BrowseNames.State,
+                    Variant.From((int)VisionEndpointStateEnum.Ready),
+                    () => pipeline.ReadStateAsync()),
+                "detection" => (
+                    harness.ResultNodeId,
+                    Perception.BrowseNames.Detections,
+                    Variant.FromStructure(ArrayOf<VisionDetectionDataType>.Empty),
+                    () => result.ReadDetectionAsync()),
+                "inspection" => (
+                    harness.ResultNodeId,
+                    Perception.BrowseNames.Characteristics,
                     Variant.FromStructure(ArrayOf<VisionCharacteristicDataType>.Empty),
                     () => result.ReadInspectionAsync()),
-                "segmentation" => (harness.ResultNodeId, Perception.BrowseNames.LabelClasses,
-                    Variant.From(["background"]), () => result.ReadSegmentationAsync()),
+                "segmentation" => (
+                    harness.ResultNodeId,
+                    Perception.BrowseNames.LabelClasses,
+                    Variant.From(["background"]),
+                    () => result.ReadSegmentationAsync()),
                 _ => throw new ArgumentOutOfRangeException(nameof(method))
             };
             var node = new NodeId(5200u, 3);
@@ -222,16 +301,25 @@ namespace Opc.Ua.Vision.Tests
 
         private static void SetRead(VisionSessionHarness harness, NodeId node, ReadResponse response)
         {
-            harness.Session.Setup(session => session.ReadAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
-                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> reads,
-                    CancellationToken _) =>
-                {
-                    Assert.That(reads.Count, Is.EqualTo(1));
-                    Assert.That(reads[0].NodeId, Is.EqualTo(node));
-                    return new ValueTask<ReadResponse>(response);
-                });
+            harness.Session.Setup(
+                session => session.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (
+                        RequestHeader? _,
+                        double _,
+                        TimestampsToReturn _,
+                        ArrayOf<ReadValueId> reads,
+                        CancellationToken _) =>
+                    {
+                        Assert.That(reads.Count, Is.EqualTo(1));
+                        Assert.That(reads[0].NodeId, Is.EqualTo(node));
+                        return new ValueTask<ReadResponse>(response);
+                    });
         }
     }
 }

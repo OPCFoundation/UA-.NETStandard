@@ -164,21 +164,22 @@ namespace Opc.Ua.Tools.Tests
                 $results | ConvertTo-Json -Depth 3 -AsArray
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetArrayLength(), Is.EqualTo(cases.Length));
-                for (int i = 0; i < cases.Length; i++)
+            Assert.Multiple(
+                () =>
                 {
-                    JsonElement entry = result[i];
-                    Assert.That(
-                        entry.GetProperty("id").GetString(),
-                        Is.EqualTo(cases[i].Id));
-                    Assert.That(
-                        entry.GetProperty("isPreview").GetBoolean(),
-                        Is.EqualTo(cases[i].ExpectedPreview),
-                        $"Package id '{cases[i].Id}' classified incorrectly.");
-                }
-            });
+                    Assert.That(result.GetArrayLength(), Is.EqualTo(cases.Length));
+                    for (int i = 0; i < cases.Length; i++)
+                    {
+                        JsonElement entry = result[i];
+                        Assert.That(
+                            entry.GetProperty("id").GetString(),
+                            Is.EqualTo(cases[i].Id));
+                        Assert.That(
+                            entry.GetProperty("isPreview").GetBoolean(),
+                            Is.EqualTo(cases[i].ExpectedPreview),
+                            $"Package id '{cases[i].Id}' classified incorrectly.");
+                    }
+                });
         }
 
         /// <summary>
@@ -330,16 +331,17 @@ namespace Opc.Ua.Tools.Tests
                     $results | ConvertTo-Json -AsArray
                     """).ConfigureAwait(false);
 
-                Assert.Multiple(() =>
-                {
-                    for (int i = 0; i < cases.Length; i++)
+                Assert.Multiple(
+                    () =>
                     {
-                        (string input, string expected) = cases[i];
-                        Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
-                        Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
-                        Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
-                    }
-                });
+                        for (int i = 0; i < cases.Length; i++)
+                        {
+                            (string input, string expected) = cases[i];
+                            Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
+                            Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
+                            Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
+                        }
+                    });
             }
             finally
             {
@@ -362,25 +364,26 @@ namespace Opc.Ua.Tools.Tests
                 """).ConfigureAwait(false);
 
             string previewBuildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    result.GetProperty("preview").GetString(),
-                    Is.EqualTo($"2.0.0-preview.{previewBuildNumber}"),
-                    "A selected family with a stable base version must get the committed numbered preview suffix.");
-                Assert.That(
-                    result.GetProperty("core").GetString(),
-                    Is.EqualTo("2.0.0"),
-                    "An unaffected package must keep the exact stable base version.");
-                Assert.That(
-                    result.GetProperty("previewDev").GetString(),
-                    Is.EqualTo("2.0.0-preview.9"),
-                    "A selected family with an already-preview base version reuses it unchanged.");
-                Assert.That(
-                    result.GetProperty("coreDev").GetString(),
-                    Is.EqualTo("2.0.0-preview.9"),
-                    "An unaffected package with a preview base version also reuses it unchanged (everyone shares the root version while it is prerelease).");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("preview").GetString(),
+                        Is.EqualTo($"2.0.0-preview.{previewBuildNumber}"),
+                        "A selected family with a stable base version must get the committed numbered preview suffix.");
+                    Assert.That(
+                        result.GetProperty("core").GetString(),
+                        Is.EqualTo("2.0.0"),
+                        "An unaffected package must keep the exact stable base version.");
+                    Assert.That(
+                        result.GetProperty("previewDev").GetString(),
+                        Is.EqualTo("2.0.0-preview.9"),
+                        "A selected family with an already-preview base version reuses it unchanged.");
+                    Assert.That(
+                        result.GetProperty("coreDev").GetString(),
+                        Is.EqualTo("2.0.0-preview.9"),
+                        "An unaffected package with a preview base version also reuses it unchanged (everyone shares the root version while it is prerelease).");
+                });
         }
 
         [TestCase("2.0.0", true)]
@@ -504,14 +507,15 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
-                Assert.That(
-                    result.GetProperty("stableOnly").GetBoolean(),
-                    Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
-                    "Without -AllowPreview the stable gate must keep rejecting every preview.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
+                    Assert.That(
+                        result.GetProperty("stableOnly").GetBoolean(),
+                        Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
+                        "Without -AllowPreview the stable gate must keep rejecting every preview.");
+                });
         }
 
         [Test]
@@ -523,29 +527,30 @@ namespace Opc.Ua.Tools.Tests
             // for one, and require the candidate's recorded channel to agree.
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflow,
-                    Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
-                    "The channel input must default to 'stable'.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
-                    "Only a preview dispatch may relax the release-branch version gate.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
-                    "A preview dispatch must require a public release-line preview version.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$manifest.channel -cne $channel"),
-                    "The candidate's recorded channel must match the dispatched channel.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
-                    "A preview must come from a manifest that records its channel.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflow,
+                        Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
+                        "The channel input must default to 'stable'.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
+                        "Only a preview dispatch may relax the release-branch version gate.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
+                        "A preview dispatch must require a public release-line preview version.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$manifest.channel -cne $channel"),
+                        "The candidate's recorded channel must match the dispatched channel.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
+                        "A preview must come from a manifest that records its channel.");
+                });
         }
 
         [Test]
@@ -555,39 +560,40 @@ namespace Opc.Ua.Tools.Tests
             int tagStep = workflow.IndexOf("- name: Tag published package candidate", StringComparison.Ordinal);
             int lastPostCheck = workflow.LastIndexOf("-RequirePresent", StringComparison.Ordinal);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
-                Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
-                Assert.That(
-                    workflow,
-                    Does.Contain("$releaseObject.draft"),
-                    "A recovered draft release must not be accepted as published.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
-                    "Preview promotions must produce a prerelease GitHub Release.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("contents: write"),
-                    "The promotion workflow needs permission to create the immutable release tag.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("- name: Tag published package candidate"),
-                    "Every published candidate must be tagged after both feeds have accepted its packages.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
-                    "The package version must create a Git tag through the GitHub API.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("Existing tag '$tag' does not point to candidate commit"),
-                    "A retry must reject a tag that points away from the candidate.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("gh @arguments"),
-                    "The package version must also get a corresponding GitHub Release.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
+                    Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$releaseObject.draft"),
+                        "A recovered draft release must not be accepted as published.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
+                        "Preview promotions must produce a prerelease GitHub Release.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("contents: write"),
+                        "The promotion workflow needs permission to create the immutable release tag.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("- name: Tag published package candidate"),
+                        "Every published candidate must be tagged after both feeds have accepted its packages.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
+                        "The package version must create a Git tag through the GitHub API.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("Existing tag '$tag' does not point to candidate commit"),
+                        "A retry must reject a tag that points away from the candidate.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("gh @arguments"),
+                        "The package version must also get a corresponding GitHub Release.");
+                });
         }
 
         [Test]
@@ -653,17 +659,18 @@ namespace Opc.Ua.Tools.Tests
             // against, not a bare substring: "Opc.Ua.AI" also occurs inside
             // "Opc.Ua.AI." and would keep passing long after the condition
             // this is meant to pin had been deleted.
-            Assert.Multiple(() =>
-            {
-                foreach (string token in expectedFamilyTokens)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        versionTargets.Contains($"'$(PackagePrefix).{token}'", StringComparison.Ordinal),
-                        Is.True,
-                        $"version.targets no longer pins '{token}'; keep it and package-version-policy.ps1's " +
-                        "Test-PreviewPackageId in sync (see docs/ReleaseProcess.md).");
-                }
-            });
+                    foreach (string token in expectedFamilyTokens)
+                    {
+                        Assert.That(
+                            versionTargets.Contains($"'$(PackagePrefix).{token}'", StringComparison.Ordinal),
+                            Is.True,
+                            $"version.targets no longer pins '{token}'; keep it and package-version-policy.ps1's " +
+                            "Test-PreviewPackageId in sync (see docs/ReleaseProcess.md).");
+                    }
+                });
 
             string[] probeIds =
             [
@@ -681,18 +688,19 @@ namespace Opc.Ua.Tools.Tests
                 $results | ConvertTo-Json -Depth 3 -AsArray
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetArrayLength(), Is.EqualTo(probeIds.Length));
-                for (int i = 0; i < probeIds.Length; i++)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        result[i].GetProperty("isPreview").GetBoolean(),
-                        Is.True,
-                        $"package-version-policy.ps1 does not classify '{probeIds[i]}' as a preview " +
-                        "package, but version.targets pins it; the two classifiers must agree.");
-                }
-            });
+                    Assert.That(result.GetArrayLength(), Is.EqualTo(probeIds.Length));
+                    for (int i = 0; i < probeIds.Length; i++)
+                    {
+                        Assert.That(
+                            result[i].GetProperty("isPreview").GetBoolean(),
+                            Is.True,
+                            $"package-version-policy.ps1 does not classify '{probeIds[i]}' as a preview " +
+                            "package, but version.targets pins it; the two classifiers must agree.");
+                    }
+                });
         }
 
         [Test]
@@ -889,23 +897,24 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    result.GetProperty("pagedCount").GetInt32(),
-                    Is.EqualTo(101),
-                    "Every page must be collected, not just the first.");
-                Assert.That(result.GetProperty("pagedLast").GetString(), Is.EqualTo("2.0.0-preview.101"));
-                Assert.That(
-                    result.GetProperty("missingCount").GetInt32(),
-                    Is.Zero,
-                    "A 404 means the package was never published, which blocks nothing.");
-                Assert.That(
-                    result.GetProperty("forbiddenThrew").GetBoolean(),
-                    Is.True,
-                    "A 403 must fail the release rather than being read as 'nothing published'.");
-                Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("pagedCount").GetInt32(),
+                        Is.EqualTo(101),
+                        "Every page must be collected, not just the first.");
+                    Assert.That(result.GetProperty("pagedLast").GetString(), Is.EqualTo("2.0.0-preview.101"));
+                    Assert.That(
+                        result.GetProperty("missingCount").GetInt32(),
+                        Is.Zero,
+                        "A 404 means the package was never published, which blocks nothing.");
+                    Assert.That(
+                        result.GetProperty("forbiddenThrew").GetBoolean(),
+                        Is.True,
+                        "A 403 must fail the release rather than being read as 'nothing published'.");
+                    Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
+                });
         }
 
         [TestCase(200, 1, Description = "Success is returned at once")]
@@ -935,11 +944,12 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
-                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
+                    Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
+                });
         }
 
         [Test]
@@ -960,11 +970,12 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
-                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                    Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
+                });
         }
 
         [Test]
@@ -992,12 +1003,13 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; threw = $threw; message = $message } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
-                Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
-                Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                    Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
+                    Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
+                });
         }
 
         [Test]
@@ -1015,14 +1027,15 @@ namespace Opc.Ua.Tools.Tests
                 @{ outFile = $response.OutFile; passThru = $response.PassThru } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
-                Assert.That(
-                    result.GetProperty("passThru").GetBoolean(),
-                    Is.True,
-                    "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
+                    Assert.That(
+                        result.GetProperty("passThru").GetBoolean(),
+                        Is.True,
+                        "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
+                });
         }
 
         [TestCase("2.0.0", "2.0.0-preview.10", Description = "Stable follows its greatest preview, not preview.2")]
@@ -1156,19 +1169,23 @@ namespace Opc.Ua.Tools.Tests
             // it exists so a version.json change cannot break every build.
             string workflow = File.ReadAllText(
                 Path.Combine(
-                    FindRepositoryRoot(), ".github", "workflows", "docker-image.yml"));
+                    FindRepositoryRoot(),
+                    ".github",
+                    "workflows",
+                    "docker-image.yml"));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflow,
-                    Does.Contain("${NBGV_NuGetPackageVersion%%+*}"),
-                    "docker-image.yml must strip SemVer build metadata from the image version.");
-                Assert.That(
-                    workflow,
-                    Does.Not.Contain("IMAGE_VERSION=${NBGV_NuGetPackageVersion}"),
-                    "The raw NuGet package version must not be used as a Docker tag.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflow,
+                        Does.Contain("${NBGV_NuGetPackageVersion%%+*}"),
+                        "docker-image.yml must strip SemVer build metadata from the image version.");
+                    Assert.That(
+                        workflow,
+                        Does.Not.Contain("IMAGE_VERSION=${NBGV_NuGetPackageVersion}"),
+                        "The raw NuGet package version must not be used as a Docker tag.");
+                });
         }
 
         /// <summary>
@@ -1219,18 +1236,19 @@ namespace Opc.Ua.Tools.Tests
                     .Select(m => m.Groups[1].Value)
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflowMatches,
-                    Has.Length.EqualTo(1),
-                    "release.yml must inline exactly one canonical release-branch expression.");
-                Assert.That(
-                    workflowMatches,
-                    Is.EqualTo([expression]),
-                    "The inlined bootstrap check in release.yml and " +
-                    "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflowMatches,
+                        Has.Length.EqualTo(1),
+                        "release.yml must inline exactly one canonical release-branch expression.");
+                    Assert.That(
+                        workflowMatches,
+                        Is.EqualTo([expression]),
+                        "The inlined bootstrap check in release.yml and " +
+                        "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
+                });
 
             // PowerShell's -match is .NET regex, so the inlined expression can
             // be exercised directly against the same refs that
@@ -1252,20 +1270,21 @@ namespace Opc.Ua.Tools.Tests
                 ("refs/heads/release/2.00", false),
                 ("refs/heads/release/00.0", false)
             ];
-            Assert.Multiple(() =>
-            {
-                foreach ((string reference, bool canonical) in cases)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        System.Text.RegularExpressions.Regex.IsMatch(
-                            reference,
-                            workflowMatches[0],
-                            System.Text.RegularExpressions.RegexOptions.None,
-                            TimeSpan.FromSeconds(1)),
-                        Is.EqualTo(canonical),
-                        $"release.yml must classify '{reference}' exactly as the policy does.");
-                }
-            });
+                    foreach ((string reference, bool canonical) in cases)
+                    {
+                        Assert.That(
+                            System.Text.RegularExpressions.Regex.IsMatch(
+                                reference,
+                                workflowMatches[0],
+                                System.Text.RegularExpressions.RegexOptions.None,
+                                TimeSpan.FromSeconds(1)),
+                            Is.EqualTo(canonical),
+                            $"release.yml must classify '{reference}' exactly as the policy does.");
+                    }
+                });
         }
 
         [Test]
@@ -1291,25 +1310,26 @@ namespace Opc.Ua.Tools.Tests
                     .Where(l => !l.TrimStart().StartsWith('#'))
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    executableLines,
-                    Has.None.Contains(".azurepipelines/"),
-                    "No repository script may run before the candidate checkout.");
-                Assert.That(
-                    workflow[checkout..],
-                    Does.StartWith("uses: actions/checkout@v6"),
-                    "The candidate checkout must be the first checkout in the job.");
-                Assert.That(
-                    workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
-                    Does.Contain("ref: ${{ steps.source.outputs.commit }}"),
-                    "The first checkout must bind the workspace to the candidate commit.");
-                Assert.That(
-                    executableLines,
-                    Has.Some.Contains("id: source"),
-                    "The candidate SHA must be resolved before the checkout that uses it.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        executableLines,
+                        Has.None.Contains(".azurepipelines/"),
+                        "No repository script may run before the candidate checkout.");
+                    Assert.That(
+                        workflow[checkout..],
+                        Does.StartWith("uses: actions/checkout@v6"),
+                        "The candidate checkout must be the first checkout in the job.");
+                    Assert.That(
+                        workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
+                        Does.Contain("ref: ${{ steps.source.outputs.commit }}"),
+                        "The first checkout must bind the workspace to the candidate commit.");
+                    Assert.That(
+                        executableLines,
+                        Has.Some.Contains("id: source"),
+                        "The candidate SHA must be resolved before the checkout that uses it.");
+                });
         }
 
         [Test]
@@ -1320,10 +1340,11 @@ namespace Opc.Ua.Tools.Tests
             // the protocol: after each feed push, every package must be present
             // and byte-identical to the candidate.
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
-            string verifier = File.ReadAllText(Path.Combine(
-                FindRepositoryRoot(),
-                ".azurepipelines",
-                "assert-published-packages-match.ps1"));
+            string verifier = File.ReadAllText(
+                Path.Combine(
+                    FindRepositoryRoot(),
+                    ".azurepipelines",
+                    "assert-published-packages-match.ps1"));
 
             int nugetPush = workflow.IndexOf("dotnet nuget push $package.FullName", StringComparison.Ordinal);
             int nugetPostCheck = workflow.IndexOf("-RequirePresent", nugetPush, StringComparison.Ordinal);
@@ -1333,19 +1354,20 @@ namespace Opc.Ua.Tools.Tests
                 StringComparison.Ordinal);
             int githubPostCheck = workflow.IndexOf("-RequirePresent", githubPush, StringComparison.Ordinal);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(nugetPush, Is.GreaterThanOrEqualTo(0));
-                Assert.That(nugetPostCheck, Is.GreaterThan(nugetPush));
-                Assert.That(githubPush, Is.GreaterThan(nugetPostCheck));
-                Assert.That(githubPostCheck, Is.GreaterThan(githubPush));
-                Assert.That(
-                    workflow.Split("-RequirePresent", StringSplitOptions.None),
-                    Has.Length.EqualTo(3),
-                    "Exactly the two post-push feed checks must require presence.");
-                Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
-                Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(nugetPush, Is.GreaterThanOrEqualTo(0));
+                    Assert.That(nugetPostCheck, Is.GreaterThan(nugetPush));
+                    Assert.That(githubPush, Is.GreaterThan(nugetPostCheck));
+                    Assert.That(githubPostCheck, Is.GreaterThan(githubPush));
+                    Assert.That(
+                        workflow.Split("-RequirePresent", StringSplitOptions.None),
+                        Has.Length.EqualTo(3),
+                        "Exactly the two post-push feed checks must require presence.");
+                    Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
+                    Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
+                });
         }
 
         [Test]
@@ -1355,31 +1377,33 @@ namespace Opc.Ua.Tools.Tests
             var packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
             string? version = packages
                 .Descendants("PackageVersion")
-                .SingleOrDefault(element =>
-                    string.Equals(
-                        (string?)element.Attribute("Include"),
-                        "Nerdbank.GitVersioning",
-                        StringComparison.Ordinal))?
+                .SingleOrDefault(
+                    element =>
+                        string.Equals(
+                            (string?)element.Attribute("Include"),
+                            "Nerdbank.GitVersioning",
+                            StringComparison.Ordinal))?
                 .Attribute("Version")?
                 .Value;
             string script = File.ReadAllText(Path.Combine(root, ".azurepipelines", "set-version.ps1"));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(version, Is.EqualTo("3.10.94"));
-                Assert.That(
-                    script,
-                    Does.Contain("$centralPackages.Project.ItemGroup.PackageVersion"),
-                    "The CLI must derive its exact version from central package management.");
-                Assert.That(script, Does.Contain("'--framework'"));
-                Assert.That(script, Does.Contain("'net10.0'"));
-                Assert.That(script, Does.Not.Contain("3.7.115"));
-                Assert.That(
-                    script,
-                    Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
-                    "The script must stay runnable from Windows PowerShell 5.1, which does not define $IsWindows.");
-                Assert.That(script, Does.Not.Contain("$IsWindows"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(version, Is.EqualTo("3.10.94"));
+                    Assert.That(
+                        script,
+                        Does.Contain("$centralPackages.Project.ItemGroup.PackageVersion"),
+                        "The CLI must derive its exact version from central package management.");
+                    Assert.That(script, Does.Contain("'--framework'"));
+                    Assert.That(script, Does.Contain("'net10.0'"));
+                    Assert.That(script, Does.Not.Contain("3.7.115"));
+                    Assert.That(
+                        script,
+                        Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
+                        "The script must stay runnable from Windows PowerShell 5.1, which does not define $IsWindows.");
+                    Assert.That(script, Does.Not.Contain("$IsWindows"));
+                });
         }
 
         [Test]
@@ -1390,17 +1414,19 @@ namespace Opc.Ua.Tools.Tests
             [
                 .. packages
                     .Descendants("PackageVersion")
-                    .Where(element =>
-                        ((string?)element.Attribute("Include"))?.StartsWith("OpenUsd", StringComparison.Ordinal) == true)
+                    .Where(
+                        element =>
+                            ((string?)element.Attribute("Include"))?.StartsWith("OpenUsd", StringComparison.Ordinal) == true)
                     .Select(element => (string?)element.Attribute("Version"))
                     .OfType<string>()
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(versions, Has.Length.EqualTo(8));
-                Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(versions, Has.Length.EqualTo(8));
+                    Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
+                });
         }
 
         private static string CreateTestPackage(string name, Dictionary<string, string> entries)
@@ -1575,12 +1601,15 @@ namespace Opc.Ua.Tools.Tests
             string[] suffixes = [string.Empty, ".Debug"];
             PackageVersionCase[] cases =
             [
-                .. packages.SelectMany(package => suffixes.SelectMany(suffix =>
-                    versions.Select(version => new PackageVersionCase(
-                        package.Id + suffix,
-                        version.Root,
-                        package.Preview,
-                        package.Preview ? version.Preview : version.Root))))
+                .. packages.SelectMany(
+                    package => suffixes.SelectMany(
+                        suffix =>
+                            versions.Select(
+                                version => new PackageVersionCase(
+                                    package.Id + suffix,
+                                    version.Root,
+                                    package.Preview,
+                                    package.Preview ? version.Preview : version.Root))))
             ];
 
             await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
@@ -1599,8 +1628,12 @@ namespace Opc.Ua.Tools.Tests
                 ("2.0.0-ge78c648295", "2.0.0-ge78c648295")
             ];
             PackageVersionCase[] cases = [.. PromotedVisionPackageIds.SelectMany(
-                id => versions.Select(version => new PackageVersionCase(
-                    id, version.Root, false, version.Expected)))];
+                id => versions.Select(
+                    version => new PackageVersionCase(
+                        id,
+                        version.Root,
+                        false,
+                        version.Expected)))];
 
             string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
             await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
@@ -1617,20 +1650,41 @@ namespace Opc.Ua.Tools.Tests
                 new("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.0", false, "2.0.0"),
                 new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.0", true, $"2.0.0-preview.{buildNumber}"),
                 new("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0", false, "2.0.0"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", "2.0.0", true,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug",
+                    "2.0.0",
+                    true,
                     $"2.0.0-preview.{buildNumber}"),
                 new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra.Debug", "2.0.0", false, "2.0.0"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.0-rc.1+build5", true,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                    "2.0.0-rc.1+build5",
+                    true,
                     "2.0.0-preview.rc.1+build5"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug", "2.0.0-rc.1+build5", false,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug",
+                    "2.0.0-rc.1+build5",
+                    false,
                     "2.0.0-rc.1+build5"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug", "2.0.0-gabc123def0+build5", true,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug",
+                    "2.0.0-gabc123def0+build5",
+                    true,
                     "2.0.0-preview.0.gabc123def0+build5"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision.Server", "2.0.0-gabc123def0+build5", false,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
+                    "2.0.0-gabc123def0+build5",
+                    false,
                     "2.0.0-gabc123def0+build5"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.1-preview.3+build5", false,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision",
+                    "2.0.1-preview.3+build5",
+                    false,
                     "2.0.1-preview.3+build5"),
-                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.1-preview.3+build5", true,
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                    "2.0.1-preview.3+build5",
+                    true,
                     "2.0.1-preview.3+build5")
             ];
 
@@ -1658,8 +1712,12 @@ namespace Opc.Ua.Tools.Tests
                 ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295")
             ];
             PackageVersionCase[] cases = [.. ids.SelectMany(
-                id => versions.Select(version => new PackageVersionCase(
-                    id, version.Root, true, version.Expected)))];
+                id => versions.Select(
+                    version => new PackageVersionCase(
+                        id,
+                        version.Root,
+                        true,
+                        version.Expected)))];
 
             await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
         }
@@ -1728,11 +1786,12 @@ namespace Opc.Ua.Tools.Tests
                 ("2.0.0-rc.1+gabc123def0", "2.0.0-rc.1+gabc123def0", "2.0.0-preview.rc.1+gabc123def0")
             ];
             PackageVersionCase[] cases = [.. packages.SelectMany(
-                package => versions.Select(version => new PackageVersionCase(
-                    package.Id,
-                    version.Root,
-                    package.Preview,
-                    package.Preview ? version.Preview : version.Unchanged)))];
+                package => versions.Select(
+                    version => new PackageVersionCase(
+                        package.Id,
+                        version.Root,
+                        package.Preview,
+                        package.Preview ? version.Preview : version.Unchanged)))];
 
             await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
         }
@@ -1770,20 +1829,24 @@ namespace Opc.Ua.Tools.Tests
             ];
 
             JsonElement result = await RunVisionPreviewOrderingAsync(
-                archives, expectedRequests).ConfigureAwait(false);
+                archives,
+                expectedRequests).ConfigureAwait(false);
             string[] requests =
                 [.. result.GetProperty("requests").EnumerateArray().Select(request => request.GetString()!)];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("completed").GetBoolean(), Is.True,
-                    result.GetProperty("error").GetString());
-                Assert.That(result.GetProperty("error").GetString(), Is.Empty);
-                Assert.That(requests, Has.Length.EqualTo(6));
-                Assert.That(requests, Is.Unique);
-                Assert.That(requests, Is.EquivalentTo(expectedRequests));
-                Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("completed").GetBoolean(),
+                        Is.True,
+                        result.GetProperty("error").GetString());
+                    Assert.That(result.GetProperty("error").GetString(), Is.Empty);
+                    Assert.That(requests, Has.Length.EqualTo(6));
+                    Assert.That(requests, Is.Unique);
+                    Assert.That(requests, Is.EquivalentTo(expectedRequests));
+                    Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+                });
         }
 
         [Test]
@@ -1793,20 +1856,22 @@ namespace Opc.Ua.Tools.Tests
                 [.. PromotedVisionPackageIds.Select(id => (id, "2.0.0", "package"))];
 
             JsonElement result = await RunVisionPreviewOrderingAsync(
-                archives, []).ConfigureAwait(false);
+                archives,
+                []).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("completed").GetBoolean(), Is.False);
-                Assert.That(
-                    result.GetProperty("error").GetString(),
-                    Is.EqualTo(
-                        "The stable package set for '2.0.0' contains no preview-family packages at all. " +
-                        "Either version.targets no longer pins them or the package set is incomplete; " +
-                        "see docs/ReleaseProcess.md."));
-                Assert.That(result.GetProperty("requests").GetArrayLength(), Is.Zero);
-                Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("completed").GetBoolean(), Is.False);
+                    Assert.That(
+                        result.GetProperty("error").GetString(),
+                        Is.EqualTo(
+                            "The stable package set for '2.0.0' contains no preview-family packages at all. " +
+                            "Either version.targets no longer pins them or the package set is incomplete; " +
+                            "see docs/ReleaseProcess.md."));
+                    Assert.That(result.GetProperty("requests").GetArrayLength(), Is.Zero);
+                    Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+                });
         }
 
         private static string[] PromotedVisionPackageIds =>
@@ -1845,8 +1910,9 @@ namespace Opc.Ua.Tools.Tests
             string projectPath = Path.Combine(fixtureDirectory, "versions.proj");
             string resultPath = Path.Combine(fixtureDirectory, "versions.txt");
             string versionTargetsPath = Path.Combine(FindRepositoryRoot(), "version.targets");
-            string items = string.Concat(cases.Select(
-                c => $"<Case Include=\"{c.Id}|{c.Root}\" Id=\"{c.Id}\" Root=\"{c.Root}\" />"));
+            string items = string.Concat(
+                cases.Select(
+                    c => $"<Case Include=\"{c.Id}|{c.Root}\" Id=\"{c.Id}\" Root=\"{c.Root}\" />"));
 
             try
             {
@@ -1918,10 +1984,12 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(actualKeys, Is.Unique);
                 Assert.That(actualKeys, Is.EquivalentTo(expectedKeys));
                 Dictionary<string, string[]> actual = rows.ToDictionary(
-                    row => $"{row[0]}|{row[1]}", StringComparer.Ordinal);
+                    row => $"{row[0]}|{row[1]}",
+                    StringComparer.Ordinal);
 
                 string policyInputs = string.Join(
-                    ",", cases.Select(c => $"@{{ id = '{c.Id}'; root = '{c.Root}' }}"));
+                    ",",
+                    cases.Select(c => $"@{{ id = '{c.Id}'; root = '{c.Root}' }}"));
                 JsonElement policy = await RunPolicyScriptAsync(
                     $$"""
                     . '{{PolicyScriptPath}}'
@@ -1945,25 +2013,32 @@ namespace Opc.Ua.Tools.Tests
                     row => $"{row.GetProperty("id").GetString()}|{row.GetProperty("root").GetString()}",
                     StringComparer.Ordinal);
 
-                Assert.Multiple(() =>
-                {
-                    foreach (PackageVersionCase c in cases)
+                Assert.Multiple(
+                    () =>
                     {
-                        string key = $"{c.Id}|{c.Root}";
-                        string[] mapped = actual[key];
-                        JsonElement classified = policyRows[key];
-                        Assert.That(mapped[2], Is.EqualTo(c.Preview ? "true" : string.Empty),
-                            $"{key}: MSBuild classification");
-                        Assert.That(mapped[3], Is.EqualTo(c.Expected), $"{key}: Version");
-                        Assert.That(mapped[4], Is.EqualTo(c.Expected), $"{key}: PackageVersion");
-                        Assert.That(mapped[5], Is.EqualTo(c.Expected), $"{key}: NuGetPackageVersion");
-                        Assert.That(mapped[6], Is.EqualTo(c.Expected), $"{key}: NBGV_NuGetPackageVersion");
-                        Assert.That(classified.GetProperty("isPreview").GetBoolean(), Is.EqualTo(c.Preview),
-                            $"{key}: PowerShell classification");
-                        Assert.That(classified.GetProperty("version").GetString(), Is.EqualTo(c.Expected),
-                            $"{key}: Get-ExpectedPackageVersion");
-                    }
-                });
+                        foreach (PackageVersionCase c in cases)
+                        {
+                            string key = $"{c.Id}|{c.Root}";
+                            string[] mapped = actual[key];
+                            JsonElement classified = policyRows[key];
+                            Assert.That(
+                                mapped[2],
+                                Is.EqualTo(c.Preview ? "true" : string.Empty),
+                                $"{key}: MSBuild classification");
+                            Assert.That(mapped[3], Is.EqualTo(c.Expected), $"{key}: Version");
+                            Assert.That(mapped[4], Is.EqualTo(c.Expected), $"{key}: PackageVersion");
+                            Assert.That(mapped[5], Is.EqualTo(c.Expected), $"{key}: NuGetPackageVersion");
+                            Assert.That(mapped[6], Is.EqualTo(c.Expected), $"{key}: NBGV_NuGetPackageVersion");
+                            Assert.That(
+                                classified.GetProperty("isPreview").GetBoolean(),
+                                Is.EqualTo(c.Preview),
+                                $"{key}: PowerShell classification");
+                            Assert.That(
+                                classified.GetProperty("version").GetString(),
+                                Is.EqualTo(c.Expected),
+                                $"{key}: Get-ExpectedPackageVersion");
+                        }
+                    });
             }
             finally
             {
@@ -1975,18 +2050,20 @@ namespace Opc.Ua.Tools.Tests
             (string Id, string Version, string Type)[] archives,
             string[] allowedRequests)
         {
-            string manifest = JsonSerializer.Serialize(new
-            {
-                schemaVersion = 2,
-                channel = "stable",
-                basePackageVersion = "2.0.0",
-                archives = archives.Select(archive => new
+            string manifest = JsonSerializer.Serialize(
+                new
                 {
-                    id = archive.Id,
-                    version = archive.Version,
-                    type = archive.Type
-                })
-            });
+                    schemaVersion = 2,
+                    channel = "stable",
+                    basePackageVersion = "2.0.0",
+                    archives = archives.Select(
+                        archive => new
+                        {
+                            id = archive.Id,
+                            version = archive.Version,
+                            type = archive.Type
+                        })
+                });
             // Each fixture uses its own process; globals bridge the invoked script's separate scope.
             // Keep shell comments outside raw literals: inactive C# branches still parse a leading '#'.
             return RunPolicyScriptAsync(

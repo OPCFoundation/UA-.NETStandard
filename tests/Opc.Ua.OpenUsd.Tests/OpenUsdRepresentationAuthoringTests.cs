@@ -49,17 +49,33 @@ namespace Opc.Ua.OpenUsd.Server.Tests
         public void NamedBindingsHaveDistinctRootsAndMemberIdentifiers(bool component)
         {
             OpenUsdRepresentationState representation = NewRepresentation(
-                out SystemContext context, out ushort ns);
+                out SystemContext context,
+                out ushort ns);
             var identifiers = new HashSet<NodeId>();
             for (int index = 0; index < 2; index++)
             {
                 string name = index == 0 ? "First" : "Second";
                 NodeState binding = component
-                    ? representation.AddComponentBinding(context, ns, name, Guid.NewGuid(),
-                        OpenUsdCardinalityEnum.One, OpenUsdCompositionArcEnum.Reference, "/Cell/" + name)
-                    : representation.AddLiveBinding(context, ns, new NodeId(4242u, ns), name, Guid.NewGuid(),
-                        new NodeId((uint)(77 + index), ns), "/Cell/" + name, "value", "double",
-                        OpenUsdRenderTargetKindEnum.Custom, 1);
+                    ? representation.AddComponentBinding(
+                        context,
+                        ns,
+                        name,
+                        Guid.NewGuid(),
+                        OpenUsdCardinalityEnum.One,
+                        OpenUsdCompositionArcEnum.Reference,
+                        "/Cell/" + name)
+                    : representation.AddLiveBinding(
+                        context,
+                        ns,
+                        new NodeId(4242u, ns),
+                        name,
+                        Guid.NewGuid(),
+                        new NodeId((uint)(77 + index), ns),
+                        "/Cell/" + name,
+                        "value",
+                        "double",
+                        OpenUsdRenderTargetKindEnum.Custom,
+                        1);
                 Assert.That(binding.NodeId.IsNull, Is.False);
                 Assert.That(identifiers.Add(binding.NodeId), Is.True, binding.BrowseName.ToString());
                 var members = new List<BaseInstanceState>();
@@ -83,7 +99,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
 
             OpenUsdRepresentationState rep = context.CreateRepresentation(
-                owner, stage.NodeId, "/Cell/Robots/R1", ns);
+                owner,
+                stage.NodeId,
+                "/Cell/Robots/R1",
+                ns);
 
             Assert.That(rep.BrowseName.Name, Is.EqualTo("OpenUsdRepresentation"));
             Assert.That(rep.BrowseName.NamespaceIndex, Is.EqualTo(ns));
@@ -123,9 +142,15 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             BaseObjectState secondOwner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot2");
 
             OpenUsdRepresentationState first = context.CreateRepresentation(
-                firstOwner, stage.NodeId, "/Cell/Robots/R1", ns);
+                firstOwner,
+                stage.NodeId,
+                "/Cell/Robots/R1",
+                ns);
             OpenUsdRepresentationState second = context.CreateRepresentation(
-                secondOwner, stage.NodeId, "/Cell/Robots/R2", ns);
+                secondOwner,
+                stage.NodeId,
+                "/Cell/Robots/R2",
+                ns);
 
             Assert.That(first.NodeId, Is.Not.EqualTo(second.NodeId));
         }
@@ -139,7 +164,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => context.CreateRepresentation(
-                    owner, new NodeId(1u, ns), "/Cell/Robots/R1", ns),
+                    owner,
+                    new NodeId(1u, ns),
+                    "/Cell/Robots/R1",
+                    ns),
                 Throws.InvalidOperationException);
         }
 
@@ -151,7 +179,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => ((ISystemContext)null!).CreateRepresentation(
-                    owner, new NodeId(1u, ns), "/Cell", ns),
+                    owner,
+                    new NodeId(1u, ns),
+                    "/Cell",
+                    ns),
                 Throws.ArgumentNullException);
         }
 
@@ -173,15 +204,20 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
             BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
             OpenUsdRepresentationState rep = context.CreateRepresentation(
-                owner, stage.NodeId, "/Cell/Robots/R1", ns);
+                owner,
+                stage.NodeId,
+                "/Cell/Robots/R1",
+                ns);
             FolderState registry = root.Representations!;
 
             rep.RegisterInDiscovery(registry);
 
             Assert.That(
-                registry.ReferenceExists(ReferenceTypeIds.Organizes, false, rep.NodeId), Is.True);
+                registry.ReferenceExists(ReferenceTypeIds.Organizes, false, rep.NodeId),
+                Is.True);
             Assert.That(
-                rep.ReferenceExists(ReferenceTypeIds.Organizes, true, registry.NodeId), Is.True);
+                rep.ReferenceExists(ReferenceTypeIds.Organizes, true, registry.NodeId),
+                Is.True);
         }
 
         [Test]
@@ -192,7 +228,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             OpenUsdStageState stage = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
             BaseObjectState owner = OpenUsdAuthoringHarness.NewOwner(context, ns, "Robot1");
             OpenUsdRepresentationState rep = context.CreateRepresentation(
-                owner, stage.NodeId, "/Cell/Robots/R1", ns);
+                owner,
+                stage.NodeId,
+                "/Cell/Robots/R1",
+                ns);
 
             Assert.That(() => rep.RegisterInDiscovery(null!), Throws.Nothing);
 
@@ -219,9 +258,17 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => ((OpenUsdRepresentationState)null!).AddLiveBinding(
-                    context, ns, new NodeId(1u, ns), "Pose", Guid.NewGuid(), new NodeId(2u, ns),
-                    "/Cell/Robots/R1", "xformOp:rotateZ", "double",
-                    OpenUsdRenderTargetKindEnum.Rotation, 1.0),
+                    context,
+                    ns,
+                    new NodeId(1u, ns),
+                    "Pose",
+                    Guid.NewGuid(),
+                    new NodeId(2u, ns),
+                    "/Cell/Robots/R1",
+                    "xformOp:rotateZ",
+                    "double",
+                    OpenUsdRenderTargetKindEnum.Rotation,
+                    1.0),
                 Throws.ArgumentNullException);
         }
 
@@ -232,9 +279,17 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => rep.AddLiveBinding(
-                    null!, ns, new NodeId(1u, ns), "Pose", Guid.NewGuid(), new NodeId(2u, ns),
-                    "/Cell/Robots/R1", "xformOp:rotateZ", "double",
-                    OpenUsdRenderTargetKindEnum.Rotation, 1.0),
+                    null!,
+                    ns,
+                    new NodeId(1u, ns),
+                    "Pose",
+                    Guid.NewGuid(),
+                    new NodeId(2u, ns),
+                    "/Cell/Robots/R1",
+                    "xformOp:rotateZ",
+                    "double",
+                    OpenUsdRenderTargetKindEnum.Rotation,
+                    1.0),
                 Throws.ArgumentNullException);
         }
 
@@ -245,8 +300,13 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => ((OpenUsdRepresentationState)null!).AddComponentBinding(
-                    context, ns, "Tool", Guid.NewGuid(), OpenUsdCardinalityEnum.One,
-                    OpenUsdCompositionArcEnum.Reference, "/Cell/Robots/R1/Tool"),
+                    context,
+                    ns,
+                    "Tool",
+                    Guid.NewGuid(),
+                    OpenUsdCardinalityEnum.One,
+                    OpenUsdCompositionArcEnum.Reference,
+                    "/Cell/Robots/R1/Tool"),
                 Throws.ArgumentNullException);
         }
 
@@ -257,8 +317,13 @@ namespace Opc.Ua.OpenUsd.Server.Tests
 
             Assert.That(
                 () => rep.AddComponentBinding(
-                    null!, ns, "Tool", Guid.NewGuid(), OpenUsdCardinalityEnum.One,
-                    OpenUsdCompositionArcEnum.Reference, "/Cell/Robots/R1/Tool"),
+                    null!,
+                    ns,
+                    "Tool",
+                    Guid.NewGuid(),
+                    OpenUsdCardinalityEnum.One,
+                    OpenUsdCompositionArcEnum.Reference,
+                    "/Cell/Robots/R1/Tool"),
                 Throws.ArgumentNullException);
         }
 
@@ -266,15 +331,24 @@ namespace Opc.Ua.OpenUsd.Server.Tests
         public void AddLiveBindingAuthorsTheMandatoryBaseMembers()
         {
             OpenUsdRepresentationState rep = NewRepresentation(
-                out SystemContext context, out ushort ns);
+                out SystemContext context,
+                out ushort ns);
             var stageId = new NodeId(4242u, ns);
             var sourceId = new NodeId(77u, ns);
             Guid definition = Guid.NewGuid();
 
             OpenUsdLiveBindingState binding = rep.AddLiveBinding(
-                context, ns, stageId, "Pose", definition, sourceId,
-                "/Cell/Robots/R1", "xformOp:rotateZ", "double",
-                OpenUsdRenderTargetKindEnum.Rotation, 2.5);
+                context,
+                ns,
+                stageId,
+                "Pose",
+                definition,
+                sourceId,
+                "/Cell/Robots/R1",
+                "xformOp:rotateZ",
+                "double",
+                OpenUsdRenderTargetKindEnum.Rotation,
+                2.5);
 
             Assert.That(binding.BindingDefinitionId!.Value, Is.EqualTo(new Uuid(definition)));
             Assert.That(binding.Enabled!.Value, Is.True);
@@ -285,36 +359,48 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             Assert.That(binding.SourceNodeId!.Value, Is.EqualTo(sourceId));
             Assert.That(binding.Scale!.Value, Is.EqualTo(2.5).Within(1e-12));
             Assert.That(
-                binding.RenderTargetKind!.Value, Is.EqualTo(OpenUsdRenderTargetKindEnum.Rotation));
+                binding.RenderTargetKind!.Value,
+                Is.EqualTo(OpenUsdRenderTargetKindEnum.Rotation));
             Assert.That(
-                binding.BadQualityAction!.Value, Is.EqualTo(OpenUsdBadQualityActionEnum.Skip));
+                binding.BadQualityAction!.Value,
+                Is.EqualTo(OpenUsdBadQualityActionEnum.Skip));
         }
 
         [Test]
         public void AddComponentBindingAuthorsTheMandatoryBaseMembers()
         {
             OpenUsdRepresentationState rep = NewRepresentation(
-                out SystemContext context, out ushort ns);
+                out SystemContext context,
+                out ushort ns);
             Guid definition = Guid.NewGuid();
 
             OpenUsdComponentBindingState binding = rep.AddComponentBinding(
-                context, ns, "Tool", definition, OpenUsdCardinalityEnum.Many,
-                OpenUsdCompositionArcEnum.Reference, "/Cell/Robots/R1/Tool",
-                assetReference: "@tool.usda@</Tool>", dynamic: true);
+                context,
+                ns,
+                "Tool",
+                definition,
+                OpenUsdCardinalityEnum.Many,
+                OpenUsdCompositionArcEnum.Reference,
+                "/Cell/Robots/R1/Tool",
+                assetReference: "@tool.usda@</Tool>",
+                dynamic: true);
 
             Assert.That(binding.BindingDefinitionId!.Value, Is.EqualTo(new Uuid(definition)));
             Assert.That(binding.Enabled!.Value, Is.True);
             Assert.That(binding.Cardinality!.Value, Is.EqualTo(OpenUsdCardinalityEnum.Many));
             Assert.That(
-                binding.CompositionArc!.Value, Is.EqualTo(OpenUsdCompositionArcEnum.Reference));
+                binding.CompositionArc!.Value,
+                Is.EqualTo(OpenUsdCompositionArcEnum.Reference));
             Assert.That(binding.TargetPrimPath!.Value, Is.EqualTo("/Cell/Robots/R1/Tool"));
             Assert.That(
-                binding.ComponentAssetReference!.Value, Is.EqualTo("@tool.usda@</Tool>"));
+                binding.ComponentAssetReference!.Value,
+                Is.EqualTo("@tool.usda@</Tool>"));
             Assert.That(binding.Dynamic!.Value, Is.True);
         }
 
         private static OpenUsdRepresentationState NewRepresentation(
-            out SystemContext context, out ushort ns)
+            out SystemContext context,
+            out ushort ns)
         {
             (SystemContext created, ushort companionNs) = OpenUsdAuthoringHarness.NewContext();
             context = created;
@@ -325,7 +411,10 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             BaseObjectState owner =
                 OpenUsdAuthoringHarness.NewOwner(created, companionNs, "Robot1");
             return created.CreateRepresentation(
-                owner, stage.NodeId, "/Cell/Robots/R1", companionNs);
+                owner,
+                stage.NodeId,
+                "/Cell/Robots/R1",
+                companionNs);
         }
     }
 }

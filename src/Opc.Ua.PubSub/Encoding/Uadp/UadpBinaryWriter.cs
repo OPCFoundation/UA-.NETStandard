@@ -229,7 +229,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (byteCount > 0)
             {
                 SysText.Encoding.UTF8.GetBytes(
-                    value, 0, value.Length, Buffer, Origin + m_position);
+                    value,
+                    0,
+                    value.Length,
+                    Buffer,
+                    Origin + m_position);
                 m_position += byteCount;
             }
         }
@@ -352,7 +356,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             try
             {
                 using var encoder = new BinaryEncoder(
-                    Buffer, Origin + m_position, available, context);
+                    Buffer,
+                    Origin + m_position,
+                    available,
+                    context);
                 encoder.WriteVariant(null, value);
                 written = encoder.Close();
             }
@@ -388,7 +395,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             try
             {
                 using var encoder = new BinaryEncoder(
-                    Buffer, Origin + m_position, available, context);
+                    Buffer,
+                    Origin + m_position,
+                    available,
+                    context);
                 encoder.WriteDataValue(null, value);
                 written = encoder.Close();
             }
@@ -415,7 +425,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             IServiceMessageContext context)
         {
             WriteRawScalar(
-                value, builtInType, valueRank,
+                value,
+                builtInType,
+                valueRank,
                 maxStringLength: 0,
                 arrayDimensions: default,
                 context);
@@ -475,7 +487,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             if (valueRank > 1)
             {
-                UadpRawMatrix.Write(ref this, value, builtInType, valueRank, maxStringLength, arrayDimensions, context);
+                EnsureCapacity(sizeof(int));
+                try
+                {
+                    UadpRawMatrix.Write(
+                        ref this,
+                        value,
+                        builtInType,
+                        valueRank,
+                        maxStringLength,
+                        arrayDimensions,
+                        context);
+                }
+                catch (NotSupportedException ex)
+                {
+                    throw new UadpBufferFullException("UADP writer buffer is full.", ex);
+                }
                 return;
             }
 
@@ -489,7 +516,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (valueRank != ValueRanks.Scalar &&
                 TryComputePaddedArrayCount(arrayDimensions, out int expectedCount) &&
                 TryWritePaddedArray(
-                    value, builtInType, arrayDimensions, expectedCount, maxStringLength))
+                    value,
+                    builtInType,
+                    arrayDimensions,
+                    expectedCount,
+                    maxStringLength))
             {
                 return;
             }
@@ -498,7 +529,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             try
             {
                 using var encoder = new BinaryEncoder(
-                    Buffer, Origin + m_position, available, context);
+                    Buffer,
+                    Origin + m_position,
+                    available,
+                    context);
                 if (valueRank == ValueRanks.Scalar)
                 {
                     WriteRawScalarCore(encoder, value, builtInType);
@@ -518,7 +552,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private static bool TryComputePaddedArrayCount(
-            ArrayOf<uint> arrayDimensions, out int count)
+            ArrayOf<uint> arrayDimensions,
+            out int count)
         {
             count = 0;
             if (arrayDimensions.IsNull || arrayDimensions.Count == 0)
@@ -546,7 +581,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private bool TryWritePaddedScalar(
-            in Variant value, BuiltInType builtInType, uint maxStringLength)
+            in Variant value,
+            BuiltInType builtInType,
+            uint maxStringLength)
         {
             switch (builtInType)
             {
@@ -595,7 +632,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if (byteCount > 0)
             {
                 SysText.Encoding.UTF8.GetBytes(
-                    value!, 0, value!.Length, Buffer, Origin + m_position + 4);
+                    value!,
+                    0,
+                    value!.Length,
+                    Buffer,
+                    Origin + m_position + 4);
             }
             int padCount = total - 4 - byteCount;
             if (padCount > 0)
@@ -792,7 +833,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 short v = i < actual ? arr[i] : (short)0;
                 BinaryPrimitives.WriteInt16LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 2), v);
+                    new Span<byte>(Buffer, Origin + m_position, 2),
+                    v);
                 m_position += 2;
             }
             return arr.IsNull ? -1 : actual;
@@ -808,7 +850,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ushort v = i < actual ? arr[i] : (ushort)0;
                 BinaryPrimitives.WriteUInt16LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 2), v);
+                    new Span<byte>(Buffer, Origin + m_position, 2),
+                    v);
                 m_position += 2;
             }
             return arr.IsNull ? -1 : actual;
@@ -824,7 +867,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 int v = i < actual ? arr[i] : 0;
                 BinaryPrimitives.WriteInt32LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 4), v);
+                    new Span<byte>(Buffer, Origin + m_position, 4),
+                    v);
                 m_position += 4;
             }
             return arr.IsNull ? -1 : actual;
@@ -840,7 +884,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 uint v = i < actual ? arr[i] : 0u;
                 BinaryPrimitives.WriteUInt32LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 4), v);
+                    new Span<byte>(Buffer, Origin + m_position, 4),
+                    v);
                 m_position += 4;
             }
             return arr.IsNull ? -1 : actual;
@@ -856,7 +901,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 long v = i < actual ? arr[i] : 0L;
                 BinaryPrimitives.WriteInt64LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 8), v);
+                    new Span<byte>(Buffer, Origin + m_position, 8),
+                    v);
                 m_position += 8;
             }
             return arr.IsNull ? -1 : actual;
@@ -872,7 +918,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 ulong v = i < actual ? arr[i] : 0UL;
                 BinaryPrimitives.WriteUInt64LittleEndian(
-                    new Span<byte>(Buffer, Origin + m_position, 8), v);
+                    new Span<byte>(Buffer, Origin + m_position, 8),
+                    v);
                 m_position += 8;
             }
             return arr.IsNull ? -1 : actual;
@@ -909,7 +956,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private int WritePaddedStringArray(
-            in Variant value, int expectedCount, uint maxStringLength)
+            in Variant value,
+            int expectedCount,
+            uint maxStringLength)
         {
             value.TryGetValue(out ArrayOf<string> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -924,7 +973,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private int WritePaddedByteStringArray(
-            in Variant value, int expectedCount, uint maxStringLength)
+            in Variant value,
+            int expectedCount,
+            uint maxStringLength)
         {
             value.TryGetValue(out ArrayOf<ByteString> arr);
             int actual = arr.IsNull ? 0 : arr.Count;
@@ -952,11 +1003,13 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
 #if NET5_0_OR_GREATER
             BinaryPrimitives.WriteSingleLittleEndian(
-                new Span<byte>(buffer, offset, 4), value);
+                new Span<byte>(buffer, offset, 4),
+                value);
 #else
             int bits = BitConverter.ToInt32(BitConverter.GetBytes(value), 0);
             BinaryPrimitives.WriteInt32LittleEndian(
-                new Span<byte>(buffer, offset, 4), bits);
+                new Span<byte>(buffer, offset, 4),
+                bits);
 #endif
         }
 
@@ -964,16 +1017,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
 #if NET5_0_OR_GREATER
             BinaryPrimitives.WriteDoubleLittleEndian(
-                new Span<byte>(buffer, offset, 8), value);
+                new Span<byte>(buffer, offset, 8),
+                value);
 #else
             long bits = BitConverter.DoubleToInt64Bits(value);
             BinaryPrimitives.WriteInt64LittleEndian(
-                new Span<byte>(buffer, offset, 8), bits);
+                new Span<byte>(buffer, offset, 8),
+                bits);
 #endif
         }
 
         private static void WriteRawScalarCore(
-            BinaryEncoder encoder, Variant value, BuiltInType builtInType)
+            BinaryEncoder encoder,
+            Variant value,
+            BuiltInType builtInType)
         {
             switch (builtInType)
             {
@@ -1021,8 +1078,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     encoder.WriteDouble(null, d);
                     break;
                 case BuiltInType.String:
-                    value.TryGetValue(out string s);
-                    encoder.WriteString(null, s ?? string.Empty);
+                    value.TryGetValue(out string? s);
+                    encoder.WriteString(null, s);
                     break;
                 case BuiltInType.DateTime:
                     value.TryGetValue(out DateTimeUtc dt);
@@ -1078,7 +1135,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private static void WriteRawArrayCore(
-            BinaryEncoder encoder, Variant value, BuiltInType builtInType)
+            BinaryEncoder encoder,
+            Variant value,
+            BuiltInType builtInType)
         {
             if (builtInType is BuiltInType.DateTime or BuiltInType.Guid or BuiltInType.ByteString or
                 BuiltInType.XmlElement or BuiltInType.NodeId or BuiltInType.ExpandedNodeId or
@@ -1092,7 +1151,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 if (value.TypeInfo.ValueRank != ValueRanks.OneDimension || value.TypeInfo.BuiltInType != builtInType)
                 {
-                    throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                    throw new ServiceResultException(
+                        StatusCodes.BadTypeMismatch,
                         "The RawData array does not match its declared element type.");
                 }
                 encoder.WriteVariantValue(null, value);

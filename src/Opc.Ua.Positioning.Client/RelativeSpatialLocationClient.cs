@@ -225,14 +225,16 @@ namespace Opc.Ua.Positioning.Client
             if (m_operations.Strict)
             {
                 ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                    [frameId, baseId], cancellationToken).ConfigureAwait(false);
+                    [frameId, baseId],
+                    cancellationToken).ConfigureAwait(false);
                 frameValue = values[0];
                 baseValue = values[1];
             }
             else
             {
                 frameValue = await Session.ReadValueAsync(
-                    frameId, cancellationToken).ConfigureAwait(false);
+                    frameId,
+                    cancellationToken).ConfigureAwait(false);
             }
             ThreeDFrame frame = m_operations.DecodeStructure<ThreeDFrame>(frameValue);
             m_operations.ValidateFrame(frame);

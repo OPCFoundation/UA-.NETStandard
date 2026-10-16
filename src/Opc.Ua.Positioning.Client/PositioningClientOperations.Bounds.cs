@@ -52,7 +52,9 @@ namespace Opc.Ua.Positioning.Client
             try
             {
                 BrowseResponse response = await Session.BrowseAsync(
-                    null, null, (uint)Math.Min(64, m_options!.MaximumBrowseReferences),
+                    null,
+                    null,
+                    (uint)Math.Min(64, m_options!.MaximumBrowseReferences),
                     [
                         new BrowseDescription
                         {
@@ -87,7 +89,8 @@ namespace Opc.Ua.Positioning.Client
                         if (reference is null)
                         {
                             throw new ServiceResultException(
-                                StatusCodes.BadDecodingError, "A Positioning browse reference is missing.");
+                                StatusCodes.BadDecodingError,
+                                "A Positioning browse reference is missing.");
                         }
                         LocalNodeId(reference.NodeId);
                         if (!reference.TypeDefinition.IsNull)
@@ -105,7 +108,10 @@ namespace Opc.Ua.Positioning.Client
                         throw LimitExceeded("The Positioning browse page limit was exceeded.");
                     }
                     BrowseNextResponse next = await Session.BrowseNextAsync(
-                        null, false, [owned], cancellationToken).ConfigureAwait(false);
+                        null,
+                        false,
+                        [owned],
+                        cancellationToken).ConfigureAwait(false);
                     pending = next.Results;
                     ValidateResponse(next.ResponseHeader, pending.Count, 1, next.DiagnosticInfos.Count);
                 }
@@ -119,7 +125,9 @@ namespace Opc.Ua.Positioning.Client
             if (failure is not null && cleanupFailure is not null)
             {
                 throw new AggregateException(
-                    "The Positioning browse and continuation cleanup both failed.", failure, cleanupFailure);
+                    "The Positioning browse and continuation cleanup both failed.",
+                    failure,
+                    cleanupFailure);
             }
             if (cleanupFailure is not null)
             {
@@ -155,9 +163,19 @@ namespace Opc.Ua.Positioning.Client
                         continue;
                     }
                     BrowseNextResponse response = await Session.BrowseNextAsync(
-                        null, true, [token], cleanup.Token).ConfigureAwait(false);
+                        null,
+                        true,
+                        [token],
+                        cleanup.Token).ConfigureAwait(false);
                     ValidateResponse(
-                        response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
+                        response.ResponseHeader,
+                        response.Results.Count,
+                        response.Results.Count == 0 ? 0 : 1,
+                        response.DiagnosticInfos.Count);
+                    if (response.Results.Count == 0)
+                    {
+                        continue;
+                    }
                     BrowseResult result = response.Results[0] ??
                         throw new ServiceResultException(StatusCodes.BadDecodingError, "A release result is missing.");
                     if (result.StatusCode != StatusCodes.BadContinuationPointInvalid)
@@ -167,7 +185,8 @@ namespace Opc.Ua.Positioning.Client
                     if (!result.ContinuationPoint.IsEmpty || result.References.Count != 0)
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadDecodingError, "Continuation cleanup returned unexpected browse data.");
+                            StatusCodes.BadDecodingError,
+                            "Continuation cleanup returned unexpected browse data.");
                     }
                 }
                 catch (Exception exception)
@@ -231,7 +250,8 @@ namespace Opc.Ua.Positioning.Client
             if (Strict && target.ServerIndex != 0)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNotSupported, "A remote Positioning target cannot be read through this session.");
+                    StatusCodes.BadNotSupported,
+                    "A remote Positioning target cannot be read through this session.");
             }
             NodeId nodeId = ExpandedNodeId.ToNodeId(target, Session.NamespaceUris);
             ValidateNodeId(nodeId);
@@ -243,7 +263,8 @@ namespace Opc.Ua.Positioning.Client
             if (Strict && (nodeId.IsNull || Session.NamespaceUris.GetString(nodeId.NamespaceIndex) is null))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown, "A non-null local NodeId in an existing namespace is required.");
+                    StatusCodes.BadNodeIdUnknown,
+                    "A non-null local NodeId in an existing namespace is required.");
             }
         }
 

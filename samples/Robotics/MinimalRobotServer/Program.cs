@@ -92,26 +92,28 @@ builder.Services.AddSingleton<CellChoreographer>();
 
 IPositioningServerBuilder positioning = builder.Services
     .AddOpcUa()
-    .AddServer(o =>
-    {
-        o.ApplicationName = "MinimalRobotServer";
-        o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalRobotServer";
-        o.ProductUri = "uri:opcfoundation.org:MinimalRobotServer";
-        o.AutoAcceptUntrustedCertificates = autoAccept;
-        if (pkiRoot is not null)
+    .AddServer(
+        o =>
         {
-            o.PkiRoot = pkiRoot;
-        }
-        o.EndpointUrls.Add(new UriBuilder("opc.tcp", host, port, "/MinimalRobotServer").Uri.AbsoluteUri);
-    })
+            o.ApplicationName = "MinimalRobotServer";
+            o.ApplicationUri = "urn:localhost:OPCFoundation:MinimalRobotServer";
+            o.ProductUri = "uri:opcfoundation.org:MinimalRobotServer";
+            o.AutoAcceptUntrustedCertificates = autoAccept;
+            if (pkiRoot is not null)
+            {
+                o.PkiRoot = pkiRoot;
+            }
+            o.EndpointUrls.Add(new UriBuilder("opc.tcp", host, port, "/MinimalRobotServer").Uri.AbsoluteUri);
+        })
     .AddRobotics()
     .AddRoboticsModel<OpenUsdModelProvider>()
     .AddRoboticsModel<RslModelProvider>()
     .AddRoboticsModel<GposModelProvider>()
     .ConfigureRobotics<RobotCell>()
-    .ConfigureRobotics(async context =>
-        await context.GetRequiredService<IPositioningPostSetupRunner>()
-            .RunAsync(context.Manager, context.CancellationToken).ConfigureAwait(false))
+    .ConfigureRobotics(
+        async context =>
+            await context.GetRequiredService<IPositioningPostSetupRunner>()
+                .RunAsync(context.Manager, context.CancellationToken).ConfigureAwait(false))
     .AddPositioningFor<Opc.Ua.Robotics.Server.RoboticsNodeManager>();
 
 positioning

@@ -943,6 +943,8 @@ in full:
   Matrices carry their actual dimensions followed by elements, without
   an extra element count or Variant envelope. Their shape survives
   decoding even when the declared maxima require additional padding.
+  Null String elements remain distinct from empty strings in both padded
+  and unpadded matrices, including their Part 6 length prefixes.
   Supply a typed `MatrixOf<T>` for a multi-dimensional field; a flattened
   array cannot supply the missing shape. Typed nonnumeric one-dimensional
   arrays likewise retain their Part 6 length-prefixed representation.

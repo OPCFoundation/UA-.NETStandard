@@ -52,7 +52,8 @@ namespace Vision.VisualInspectionCell
         public AINodeManager? NodeManager => Volatile.Read(ref m_nodeManager);
 
         public ValueTask OnServerStartedAsync(
-            IServerContext server, CancellationToken cancellationToken = default)
+            IServerContext server,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (server is IServerInternal internalServer)
@@ -114,14 +115,16 @@ namespace Vision.VisualInspectionCell
 
     internal static partial class AINodeManagerRegistryLog
     {
-        [LoggerMessage(EventId = VisualInspectionCellEventIds.AI + 1,
+        [LoggerMessage(
+            EventId = VisualInspectionCellEventIds.AI + 1,
             Level = LogLevel.Information,
             Message = "Captured AI node manager; LearningJob={LearningJobNodeId}.")]
         public static partial void AIManagerCaptured(
             this ILogger<AINodeManagerRegistry> logger,
             string learningJobNodeId);
 
-        [LoggerMessage(EventId = VisualInspectionCellEventIds.AI + 2,
+        [LoggerMessage(
+            EventId = VisualInspectionCellEventIds.AI + 2,
             Level = LogLevel.Information,
             Message = "Bound Vision pipeline to Deployment={DeploymentNodeId}, LearningJob={LearningJobNodeId}.")]
         public static partial void VisionPipelineBound(

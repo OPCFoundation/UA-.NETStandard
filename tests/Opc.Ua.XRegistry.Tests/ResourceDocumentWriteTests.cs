@@ -65,13 +65,24 @@ namespace Opc.Ua.XRegistry.Tests
             fixture.VerifyBorrowed();
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task FailedWritesCloseOnceWithoutReplacingTheOriginalFailure(bool closeFails)
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, true)]
+        public async Task FailedWritesCloseOnceWithoutReplacingTheOriginalFailure(
+            bool closeFails,
+            bool writeTimesOut,
+            bool closeTimesOut)
         {
             var fixture = new WriteFixture();
-            var writeFailure = new ServiceResultException(StatusCodes.BadTimeout, "write failure");
-            var closeFailure = new IOException("close failure");
+            Exception writeFailure = writeTimesOut
+                ? new TimeoutException("write timeout")
+                : new ServiceResultException(StatusCodes.BadTimeout, "write failure");
+            Exception closeFailure = closeTimesOut
+                ? new TimeoutException("close timeout")
+                : new IOException("close failure");
             fixture.Write = _ => new ValueTask(Task.FromException(writeFailure));
             fixture.Close = _ => closeFails ? new ValueTask(Task.FromException(closeFailure)) : default;
 
@@ -93,8 +104,11 @@ namespace Opc.Ua.XRegistry.Tests
             }
             else
             {
-                await Assert.ThatAsync(() => fixture.Resource.WriteDocumentAsync(
-                    73, ByteString.From([1, 2]), 1).AsTask(),
+                await Assert.ThatAsync(
+                    () => fixture.Resource.WriteDocumentAsync(
+                        73,
+                        ByteString.From([1, 2]),
+                        1).AsTask(),
                     Throws.Exception.SameAs(writeFailure)).ConfigureAwait(false);
             }
             Assert.That(fixture.Chunks, Has.Count.EqualTo(1));
@@ -122,8 +136,12 @@ namespace Opc.Ua.XRegistry.Tests
                 return default;
             };
 
-            await Assert.ThatAsync(() => fixture.Resource.WriteDocumentAsync(
-                73, ByteString.From([1, 2]), 1, cancellation.Token).AsTask(),
+            await Assert.ThatAsync(
+                () => fixture.Resource.WriteDocumentAsync(
+                    73,
+                    ByteString.From([1, 2]),
+                    1,
+                    cancellation.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
 
             Assert.That(fixture.Closes, Is.EqualTo(1));
@@ -162,8 +180,11 @@ namespace Opc.Ua.XRegistry.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            await Assert.ThatAsync(() => fixture.Resource.WriteDocumentAsync(
-                73, ByteString.Empty, ct: cancellation.Token).AsTask(),
+            await Assert.ThatAsync(
+                () => fixture.Resource.WriteDocumentAsync(
+                    73,
+                    ByteString.Empty,
+                    ct: cancellation.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
 
             Assert.That(fixture.Chunks, Is.Empty);
@@ -181,35 +202,38 @@ namespace Opc.Ua.XRegistry.Tests
                 context.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri);
                 Session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
                 Session.SetupGet(value => value.MessageContext).Returns(context);
-                Session.Setup(value => value.CallAsync(
-                        It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                Session.Setup(
+                    value => value.CallAsync(
+                        It.IsAny<RequestHeader?>(),
+                        It.IsAny<ArrayOf<CallMethodRequest>>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(async (RequestHeader? _, ArrayOf<CallMethodRequest> requests, CancellationToken token) =>
-                    {
-                        Assert.That(requests, Has.Count.EqualTo(1));
-                        CallMethodRequest request = requests[0];
-                        Assert.That(request.ObjectId, Is.EqualTo(sNode));
-                        Assert.That(request.InputArguments[0].TryGetValue(out uint handle), Is.True);
-                        Assert.That(handle, Is.EqualTo(73));
-                        if (request.MethodId == Opc.Ua.MethodIds.FileType_Write)
+                    .Returns(
+                        async (RequestHeader? _, ArrayOf<CallMethodRequest> requests, CancellationToken token) =>
                         {
-                            Assert.That(request.InputArguments[1].TryGetValue(out ByteString bytes), Is.True);
-                            Chunks.Add(bytes.Copy());
-                            await Write(token).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            Assert.That(request.MethodId, Is.EqualTo(Opc.Ua.MethodIds.FileType_Close));
-                            Closes++;
-                            CloseToken = token;
-                            await Close(token).ConfigureAwait(false);
-                        }
-                        return new CallResponse
-                        {
-                            ResponseHeader = new ResponseHeader(),
-                            Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
-                        };
-                    });
+                            Assert.That(requests, Has.Count.EqualTo(1));
+                            CallMethodRequest request = requests[0];
+                            Assert.That(request.ObjectId, Is.EqualTo(sNode));
+                            Assert.That(request.InputArguments[0].TryGetValue(out uint handle), Is.True);
+                            Assert.That(handle, Is.EqualTo(73));
+                            if (request.MethodId == Opc.Ua.MethodIds.FileType_Write)
+                            {
+                                Assert.That(request.InputArguments[1].TryGetValue(out ByteString bytes), Is.True);
+                                Chunks.Add(bytes.Copy());
+                                await Write(token).ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                Assert.That(request.MethodId, Is.EqualTo(Opc.Ua.MethodIds.FileType_Close));
+                                Closes++;
+                                CloseToken = token;
+                                await Close(token).ConfigureAwait(false);
+                            }
+                            return new CallResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                            };
+                        });
                 Resource = new ResourceTypeClient(Session.Object, sNode, telemetry);
             }
 
@@ -224,8 +248,12 @@ namespace Opc.Ua.XRegistry.Tests
             public void VerifyBorrowed()
             {
                 Session.Verify(session => session.Dispose(), Times.Never);
-                Session.Verify(session => session.CloseAsync(
-                    It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never);
+                Session.Verify(
+                    session => session.CloseAsync(
+                        It.IsAny<int>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()),
+                    Times.Never);
             }
 
             private static readonly NodeId sNode = new("resource-version", 1);

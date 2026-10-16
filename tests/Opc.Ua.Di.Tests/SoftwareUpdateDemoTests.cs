@@ -57,9 +57,12 @@ namespace Opc.Ua.Di.Tests
                 ushort di = fixture.Manager.DiNamespaceIndex;
                 var update = (SoftwareUpdateState)device.FindChild(system, new QualifiedName("SoftwareUpdate", di))!;
                 var install = (InstallationStateMachineState)update.FindChild(
-                    system, new QualifiedName("Installation", di))!;
+                    system,
+                    new QualifiedName("Installation", di))!;
                 var client = new SoftwareUpdateClient(
-                    DiInProcessSessionBridge.Build(fixture).Object, update.NodeId, fixture.Manager.Server.Telemetry);
+                    DiInProcessSessionBridge.Build(fixture).Object,
+                    update.NodeId,
+                    fixture.Manager.Server.Telemetry);
                 byte[] content = [2, 4, 6, 8, 10];
                 ByteString hash = new(SHA256.HashData(content));
                 ArrayOf<Variant> input =
@@ -71,14 +74,20 @@ namespace Opc.Ua.Di.Tests
                 ];
                 MethodState method = install.InstallSoftwarePackage!;
                 ServiceResult missing = await method.OnCallMethod2Async!(
-                    system, method, install.NodeId, input, new List<Variant>(), CancellationToken.None)
+                    system,
+                    method,
+                    install.NodeId,
+                    input,
+                    new List<Variant>(),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
                 Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Error"));
 
                 using var payload = new MemoryStream(content, writable: false);
                 SoftwareUpdateUploadResult uploaded = await client.UploadPackageWithResultAsync(
-                    payload, "ualens-sample-demo").ConfigureAwait(false);
+                    payload,
+                    "ualens-sample-demo").ConfigureAwait(false);
                 Assert.That(uploaded.BytesUploaded, Is.EqualTo(5));
                 Assert.That(uploaded.CompletionStateMachine.IsNull, Is.True);
                 SoftwarePackage? staged = await packages.GetAsync("ualens-sample-demo").ConfigureAwait(false);
@@ -88,14 +97,24 @@ namespace Opc.Ua.Di.Tests
 
                 MethodState resume = install.Resume!;
                 ServiceResult resumed = await resume.OnCallMethod2Async!(
-                    system, resume, install.NodeId, ArrayOf<Variant>.Empty, new List<Variant>(), CancellationToken.None)
+                    system,
+                    resume,
+                    install.NodeId,
+                    ArrayOf<Variant>.Empty,
+                    new List<Variant>(),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Idle"));
                 Assert.That(install.LastTransition!.Value.Text, Is.EqualTo("ErrorToIdle"));
 
                 ServiceResult installed = await method.OnCallMethod2Async!(
-                    system, method, install.NodeId, input, new List<Variant>(), CancellationToken.None)
+                    system,
+                    method,
+                    install.NodeId,
+                    input,
+                    new List<Variant>(),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(installed.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Idle"));
@@ -104,7 +123,12 @@ namespace Opc.Ua.Di.Tests
                 using var replacement = new MemoryStream(new byte[] { 99 });
                 await packages.AddAsync(staged, replacement).ConfigureAwait(false);
                 ServiceResult changed = await method.OnCallMethod2Async!(
-                    system, method, install.NodeId, input, new List<Variant>(), CancellationToken.None)
+                    system,
+                    method,
+                    install.NodeId,
+                    input,
+                    new List<Variant>(),
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(changed.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Error"));

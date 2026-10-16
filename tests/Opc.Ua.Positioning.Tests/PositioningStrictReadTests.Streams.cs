@@ -53,7 +53,8 @@ namespace Opc.Ua.Positioning.Tests
             Mock<IStreamingSubscription> streaming = Streaming(StreamValue(kind, status));
             var observed = new List<StatusCode>();
             await AssertStatusAsync(
-                () => ObserveAsync(kind, session, streaming.Object, observed), status).ConfigureAwait(false);
+                () => ObserveAsync(kind, session, streaming.Object, observed),
+                status).ConfigureAwait(false);
             Assert.That(observed, Is.Empty);
             streaming.Verify(s => s.DisposeAsync(), Times.Never);
             VerifyBorrowed(session);
@@ -83,18 +84,21 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             SetupStreamMetadata(session);
-            SetupRead(session, node =>
-            {
-                DataValue value = node == s_base ? new DataValue(new Variant(NodeId.Null)) : GlobalValue(node);
-                if (node == s_base || node == s_crs)
+            SetupRead(
+                session,
+                node =>
                 {
-                    value = value.WithStatus(StatusCodes.Uncertain);
-                }
-                return value;
-            });
+                    DataValue value = node == s_base ? new DataValue(new Variant(NodeId.Null)) : GlobalValue(node);
+                    if (node == s_base || node == s_crs)
+                    {
+                        value = value.WithStatus(StatusCodes.Uncertain);
+                    }
+                    return value;
+                });
             Mock<IStreamingSubscription> streaming = Streaming(StreamValue(kind, StatusCodes.Good));
             var observed = new List<StatusCode>();
-            await AssertStatusAsync(() => ObserveAsync(kind, session, streaming.Object, observed),
+            await AssertStatusAsync(
+                () => ObserveAsync(kind, session, streaming.Object, observed),
                 StatusCodes.Uncertain).ConfigureAwait(false);
             Assert.That(observed, Is.Empty);
             streaming.Verify(s => s.DisposeAsync(), Times.Never);
@@ -125,16 +129,19 @@ namespace Opc.Ua.Positioning.Tests
 
         private static void SetupStreamMetadata(Mock<ISession> session)
         {
-            SetupTranslate(session, path => Resolved(path.RelativePath.Elements[0].TargetName.Name switch
-            {
-                "Base" => s_base,
-                "PositionFrame" => s_frame,
-                "Position" => s_position,
-                "SourceId" => s_source,
-                "CoordinateReferenceSystem" => s_crs,
-                "NodeVersion" => s_zone,
-                _ => throw new AssertionException("Unexpected stream metadata path.")
-            }));
+            SetupTranslate(
+                session,
+                path => Resolved(
+                    path.RelativePath.Elements[0].TargetName.Name switch
+                    {
+                        "Base" => s_base,
+                        "PositionFrame" => s_frame,
+                        "Position" => s_position,
+                        "SourceId" => s_source,
+                        "CoordinateReferenceSystem" => s_crs,
+                        "NodeVersion" => s_zone,
+                        _ => throw new AssertionException("Unexpected stream metadata path.")
+                    }));
             SetupRead(session, node => node == s_base ? new DataValue(new Variant(NodeId.Null)) : GlobalValue(node));
         }
 
@@ -152,8 +159,11 @@ namespace Opc.Ua.Positioning.Tests
         private static Mock<IStreamingSubscription> Streaming(DataValue value)
         {
             var streaming = new Mock<IStreamingSubscription>(MockBehavior.Strict);
-            streaming.Setup(s => s.SubscribeDataChangesAsync(
-                    It.IsAny<NodeId>(), It.IsAny<MonitoringOptions?>(), It.IsAny<CancellationToken>()))
+            streaming.Setup(
+                s => s.SubscribeDataChangesAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<MonitoringOptions?>(),
+                    It.IsAny<CancellationToken>()))
                 .Returns((NodeId _, MonitoringOptions? _, CancellationToken token) => ChangesAsync(value, token));
             return streaming;
         }
@@ -183,15 +193,25 @@ namespace Opc.Ua.Positioning.Tests
             return kind switch
             {
                 "frame" => ObserveStatusesAsync(
-                    relative.ObserveFrameAsync(s_frame, streaming), value => value.StatusCode, observed),
+                    relative.ObserveFrameAsync(s_frame, streaming),
+                    value => value.StatusCode,
+                    observed),
                 "position-frame" => ObserveStatusesAsync(
-                    relative.ObservePositionFrameAsync(s_zone, streaming), value => value.StatusCode, observed),
+                    relative.ObservePositionFrameAsync(s_zone, streaming),
+                    value => value.StatusCode,
+                    observed),
                 "position" => ObserveStatusesAsync(
-                    global.ObserveGlobalPositionAsync(s_position, streaming), value => value.StatusCode, observed),
+                    global.ObserveGlobalPositionAsync(s_position, streaming),
+                    value => value.StatusCode,
+                    observed),
                 "location" => ObserveStatusesAsync(
-                    global.ObserveGlobalLocationAsync(s_location, streaming), value => value.StatusCode, observed),
+                    global.ObserveGlobalLocationAsync(s_location, streaming),
+                    value => value.StatusCode,
+                    observed),
                 _ => ObserveStatusesAsync(
-                    relative.ObserveNodeVersionAsync(s_zone, streaming), value => value.StatusCode, observed)
+                    relative.ObserveNodeVersionAsync(s_zone, streaming),
+                    value => value.StatusCode,
+                    observed)
             };
         }
 

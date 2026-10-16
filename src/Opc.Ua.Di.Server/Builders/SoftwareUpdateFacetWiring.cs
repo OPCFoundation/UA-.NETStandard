@@ -91,7 +91,10 @@ namespace Opc.Ua.Di.Server.Builders
                 ?? new MemorySoftwareFolder(device.NodeId);
 
             var callbackContext = new SoftwareUpdateContext(
-                device.NodeId, context, packageStore, folder);
+                device.NodeId,
+                context,
+                packageStore,
+                folder);
 
             // Materialise the SoftwareUpdate node itself.
             SoftwareUpdateState su = context.CreateInstanceOfSoftwareUpdateType(
@@ -114,25 +117,48 @@ namespace Opc.Ua.Di.Server.Builders
             // Loading subtype (the address-space slot is non-abstract;
             // pick the concrete type per the builder's LoadingMode).
             su.Loading = CreateLoadingChild(
-                manager, context, su, config.LoadingMode, diNs, packageStore, logger);
+                manager,
+                context,
+                su,
+                config.LoadingMode,
+                diNs,
+                packageStore,
+                logger);
 
             // State machines — all four are present but only Installation
             // and Confirmation have method handlers wired by default;
             // PrepareForUpdate.Prepare/Abort/Resume also wired.
             var transitions = new SoftwareUpdateTransitions(diNs, context);
             PrepareForUpdateStateMachineState prepareForUpdate = CreatePrepareForUpdate(
-                context, su, diNs, config, callbackContext, transitions, logger);
+                context,
+                su,
+                diNs,
+                config,
+                callbackContext,
+                transitions,
+                logger);
             su.PrepareForUpdate = prepareForUpdate;
 
             InstallationStateMachineState installation = CreateInstallation(
-                context, su, diNs, config, callbackContext, transitions, logger);
+                context,
+                su,
+                diNs,
+                config,
+                callbackContext,
+                transitions,
+                logger);
             su.Installation = installation;
 
             PowerCycleStateMachineState powerCycle = CreatePowerCycle(context, su, diNs);
             su.PowerCycle = powerCycle;
 
             ConfirmationStateMachineState confirmation = CreateConfirmation(
-                context, su, diNs, config, callbackContext, logger);
+                context,
+                su,
+                diNs,
+                config,
+                callbackContext,
+                logger);
             su.Confirmation = confirmation;
 
             // The subtree is fully assembled, so complete the create
@@ -146,7 +172,12 @@ namespace Opc.Ua.Di.Server.Builders
             su.CreateAsPredefinedNode(context);
 
             SeedStateMachines(
-                prepareForUpdate, installation, powerCycle, confirmation, diNs, context);
+                prepareForUpdate,
+                installation,
+                powerCycle,
+                confirmation,
+                diNs,
+                context);
 
             // Link the SU node into the device subtree and register
             // recursively with the manager. Per-instance NodeIds for the SU
@@ -231,8 +262,13 @@ namespace Opc.Ua.Di.Server.Builders
             // it to the package store. Subtype-specific behaviour
             // (Direct/Cached) is layered on top by the application's
             // OnInstall handler.
-            AttachFileTransfer(manager, context, (PackageLoadingState)loading, diNs,
-                packageStore, logger);
+            AttachFileTransfer(
+                manager,
+                context,
+                (PackageLoadingState)loading,
+                diNs,
+                packageStore,
+                logger);
 
             return loading;
         }
@@ -258,7 +294,8 @@ namespace Opc.Ua.Di.Server.Builders
             TemporaryFileTransferState fileTransfer =
                 packageLoading.FileTransfer
                 ?? context.CreateInstanceOfTemporaryFileTransferType(
-                    packageLoading, browseName);
+                    packageLoading,
+                    browseName);
 
             FinaliseChild(context, fileTransfer, browseName);
             packageLoading.FileTransfer = fileTransfer;
@@ -273,7 +310,10 @@ namespace Opc.Ua.Di.Server.Builders
             // shutdown path when the SU facet adds a managed disposal API.
 #pragma warning disable CA2000 // see comment above re: lifetime anchored by OnCall delegates
             _ = new SoftwareUpdateFileTransferManager(
-                fileTransfer, manager, packageStore, logger);
+                fileTransfer,
+                manager,
+                packageStore,
+                logger);
 #pragma warning restore CA2000
         }
 
@@ -296,19 +336,24 @@ namespace Opc.Ua.Di.Server.Builders
             // it carries the correct in-type MethodDeclarationId (i=230) and
             // per-instance NodeIds for its subtree.
             sm.Resume ??= context.CreatePrepareForUpdateStateMachineType_Resume(
-                sm, forInstance: true);
+                sm,
+                forInstance: true);
             FinaliseChild(context, sm.Resume, new QualifiedName("Resume", diNs));
 
             if (sm.Prepare != null)
             {
-                FinaliseChild(context, sm.Prepare,
+                FinaliseChild(
+                    context,
+                    sm.Prepare,
                     new QualifiedName("Prepare", diNs));
                 sm.Prepare.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
                     InvokePrepareAsync(config, callbackContext, sm, transitions, logger, ct);
             }
             if (sm.Abort != null)
             {
-                FinaliseChild(context, sm.Abort,
+                FinaliseChild(
+                    context,
+                    sm.Abort,
                     new QualifiedName("Abort", diNs));
                 sm.Abort.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
                     InvokeAbortAsync(config, callbackContext, sm, transitions, logger, ct);
@@ -340,19 +385,27 @@ namespace Opc.Ua.Di.Server.Builders
             var installPkgBn = new QualifiedName("InstallSoftwarePackage", diNs);
             InstallSoftwarePackageMethodState installPkg =
                 context.CreateInstallationStateMachineType_InstallSoftwarePackage(
-                    sm, forInstance: true);
+                    sm,
+                    forInstance: true);
             FinaliseChild(context, installPkg, installPkgBn);
             sm.AddChild(installPkg);
             sm.InstallSoftwarePackage = installPkg;
             installPkg.OnCallMethod2Async =
                 (ctx, m, oid, ins, outs, ct) =>
                     InvokeInstallSoftwarePackageAsync(
-                        config, callbackContext, sm, transitions, logger, ins, ct);
+                        config,
+                        callbackContext,
+                        sm,
+                        transitions,
+                        logger,
+                        ins,
+                        ct);
 
             var installFilesBn = new QualifiedName("InstallFiles", diNs);
             InstallFilesMethodState installFiles =
                 context.CreateInstallationStateMachineType_InstallFiles(
-                    sm, forInstance: true);
+                    sm,
+                    forInstance: true);
             FinaliseChild(context, installFiles, installFilesBn);
             sm.AddChild(installFiles);
             sm.InstallFiles = installFiles;
@@ -371,12 +424,15 @@ namespace Opc.Ua.Di.Server.Builders
 
             if (sm.Resume != null)
             {
-                FinaliseChild(context, sm.Resume,
+                FinaliseChild(
+                    context,
+                    sm.Resume,
                     new QualifiedName("Resume", diNs));
                 sm.Resume.OnCallMethod2Async = (ctx, m, oid, ins, outs, ct) =>
-                    new ValueTask<ServiceResult>(transitions.TryResumeInstallation(sm)
-                        ? ServiceResult.Good
-                        : new ServiceResult(StatusCodes.BadInvalidState));
+                    new ValueTask<ServiceResult>(
+                        transitions.TryResumeInstallation(sm)
+                            ? ServiceResult.Good
+                            : new ServiceResult(StatusCodes.BadInvalidState));
             }
 
             return sm;
@@ -410,7 +466,9 @@ namespace Opc.Ua.Di.Server.Builders
 
             if (sm.Confirm != null)
             {
-                FinaliseChild(context, sm.Confirm,
+                FinaliseChild(
+                    context,
+                    sm.Confirm,
                     new QualifiedName("Confirm", diNs));
                 sm.Confirm.OnCallMethod2Async =
                     (ctx, m, oid, ins, outs, ct) =>
@@ -468,7 +526,8 @@ namespace Opc.Ua.Di.Server.Builders
             try
             {
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.PrepareStateChanged, context,
+                    config.PrepareStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -500,7 +559,8 @@ namespace Opc.Ua.Di.Server.Builders
             if (failure != null)
             {
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.PrepareStateChanged, context,
+                    config.PrepareStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, failure.Message, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -509,7 +569,8 @@ namespace Opc.Ua.Di.Server.Builders
             }
 
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.PrepareStateChanged, context,
+                config.PrepareStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -534,7 +595,8 @@ namespace Opc.Ua.Di.Server.Builders
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.PrepareStateChanged, context,
+                config.PrepareStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, "Aborted", null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -561,12 +623,14 @@ namespace Opc.Ua.Di.Server.Builders
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.PrepareStateChanged, context,
+                config.PrepareStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.PrepareStateChanged, context,
+                config.PrepareStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -600,7 +664,8 @@ namespace Opc.Ua.Di.Server.Builders
             }
             SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 0, sys);
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.InstallationStateChanged, context,
+                config.InstallationStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, 0),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -651,7 +716,8 @@ namespace Opc.Ua.Di.Server.Builders
                 SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 100, sys);
                 transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, 100),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -662,7 +728,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -686,7 +753,8 @@ namespace Opc.Ua.Di.Server.Builders
             }
             SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 0, sys);
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.InstallationStateChanged, context,
+                config.InstallationStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, 0),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -715,7 +783,8 @@ namespace Opc.Ua.Di.Server.Builders
                 SoftwareUpdateStateMachineDispatcher.SetPercentComplete(sm, 100, sys);
                 transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, 100),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -726,7 +795,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -745,7 +815,8 @@ namespace Opc.Ua.Di.Server.Builders
         {
             ISystemContext sys = context.SystemContext;
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.ConfirmStateChanged, context,
+                config.ConfirmStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, string.Empty, null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -765,7 +836,8 @@ namespace Opc.Ua.Di.Server.Builders
                     diNs,
                     sys);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.ConfirmStateChanged, context,
+                    config.ConfirmStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, string.Empty, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -775,7 +847,8 @@ namespace Opc.Ua.Di.Server.Builders
             catch (Exception ex)
             {
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.ConfirmStateChanged, context,
+                    config.ConfirmStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -797,7 +870,8 @@ namespace Opc.Ua.Di.Server.Builders
                 return new ServiceResult(StatusCodes.BadInvalidState);
             }
             await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                config.InstallationStateChanged, context,
+                config.InstallationStateChanged,
+                context,
                 new SoftwareUpdateStateChange(SoftwareUpdatePhase.Started, "Uninstall", null),
                 logger,
                 cancellationToken).ConfigureAwait(false);
@@ -812,7 +886,8 @@ namespace Opc.Ua.Di.Server.Builders
 
                 transitions.EndInstall(sm, succeeded: true);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Completed, "Uninstall", null),
                     logger,
                     cancellationToken).ConfigureAwait(false);
@@ -823,7 +898,8 @@ namespace Opc.Ua.Di.Server.Builders
             {
                 transitions.EndInstall(sm, succeeded: false);
                 await SoftwareUpdateStateMachineDispatcher.FireAsync(
-                    config.InstallationStateChanged, context,
+                    config.InstallationStateChanged,
+                    context,
                     new SoftwareUpdateStateChange(SoftwareUpdatePhase.Failed, ex.Message, null),
                     logger,
                     cancellationToken).ConfigureAwait(false);

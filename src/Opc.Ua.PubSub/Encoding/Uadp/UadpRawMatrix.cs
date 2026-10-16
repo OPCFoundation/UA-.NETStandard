@@ -42,15 +42,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public static void Write(
-            ref UadpBinaryWriter writer, in Variant value, BuiltInType type, int rank,
-            uint maxStringLength, ArrayOf<uint> maxima, IServiceMessageContext context)
+            ref UadpBinaryWriter writer,
+            in Variant value,
+            BuiltInType type,
+            int rank,
+            uint maxStringLength,
+            ArrayOf<uint> maxima,
+            IServiceMessageContext context)
         {
             bool nullMatrix = value.IsNull ||
                 (value.TypeInfo.ValueRank == ValueRanks.OneOrMoreDimensions && value.ValueIsDefaultOrNull);
             if (!value.IsNull && ((!nullMatrix && !value.TypeInfo.IsMatrix) || value.TypeInfo.BuiltInType != type))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadTypeMismatch, "RawData requires the declared matrix type.");
+                    StatusCodes.BadTypeMismatch,
+                    "RawData requires the declared matrix type.");
             }
             int capacity = Capacity(writer.Remaining, context);
             byte[] buffer = ArrayPool<byte>.Shared.Rent(capacity);
@@ -92,13 +98,20 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Reads the actual dimensions and retains matrix shape while skipping only trailing padding.
         /// </summary>
         public static Variant Read(
-            ref UadpBinaryReader reader, BuiltInType type, int rank, uint maxStringLength,
-            ArrayOf<uint> maxima, IServiceMessageContext context)
+            ref UadpBinaryReader reader,
+            BuiltInType type,
+            int rank,
+            uint maxStringLength,
+            ArrayOf<uint> maxima,
+            IServiceMessageContext context)
         {
             int capacity = Capacity(reader.Remaining, context);
             ArrayOf<int> dimensions;
             using (var header = new BinaryDecoder(
-                reader.Buffer, reader.Origin + reader.Position, reader.Remaining, context))
+                reader.Buffer,
+                reader.Origin + reader.Position,
+                reader.Remaining,
+                context))
             {
                 dimensions = header.ReadInt32Array(null);
                 reader.Advance(header.Position);
@@ -114,7 +127,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     for (int index = 0; index < count; index++)
                     {
                         Variant element = reader.ReadRawScalar(
-                            type, ValueRanks.Scalar, maxStringLength, default, context);
+                            type,
+                            ValueRanks.Scalar,
+                            maxStringLength,
+                            default,
+                            context);
                         encoder.WriteVariantValue(null, element);
                     }
                     length = encoder.Close();
@@ -130,14 +147,18 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         private static int Validate(
-            ArrayOf<int> dimensions, ArrayOf<uint> maxima, int rank, IServiceMessageContext context)
+            ArrayOf<int> dimensions,
+            ArrayOf<uint> maxima,
+            int rank,
+            IServiceMessageContext context)
         {
             if (rank is < 2 or > 32 ||
                 (!maxima.IsEmpty && maxima.Count != rank) ||
                 (!dimensions.IsNull && dimensions.Count != rank))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadDecodingError, "RawData matrix rank does not match metadata.");
+                    StatusCodes.BadDecodingError,
+                    "RawData matrix rank does not match metadata.");
             }
             long count = dimensions.IsNull ? 0 : 1;
             for (int index = 0; index < dimensions.Count; index++)
@@ -145,7 +166,8 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 int dimension = dimensions[index];
                 if (dimension < 0 || (!maxima.IsEmpty && maxima[index] != 0 && dimension > maxima[index]))
                 {
-                    throw new ServiceResultException(StatusCodes.BadOutOfRange,
+                    throw new ServiceResultException(
+                        StatusCodes.BadOutOfRange,
                         "A RawData matrix dimension exceeds its declared maximum.");
                 }
                 count *= dimension;

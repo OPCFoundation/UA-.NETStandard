@@ -28,14 +28,154 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
+using Opc.Ua.PubSub.MetaData;
 
 namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
 {
     [TestFixture]
     public sealed class UadpRawMatrixTests
     {
+        /// <summary>
+        /// Null matrix cells keep their String type and remain distinct from empty strings with either wire layout.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StringMatrixPreservesNullAndEmptyCells(bool padded)
+        {
+            byte[] buffer = new byte[256];
+            var context = ServiceMessageContext.CreateEmpty(null!);
+            string[] values = [null!, "x", string.Empty, null!];
+            var expected = Variant.From(values.ToMatrixOf([2, 2]));
+            uint maximum = padded ? 8u : 0u;
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            writer.WriteRawScalar(
+                expected,
+                BuiltInType.String,
+                2,
+                maximum,
+                [2u, 2u],
+                context);
+            writer.WriteUInt32Le(0x12345678u);
+            var reader = new UadpBinaryReader(buffer, 0, writer.Position);
+
+            Variant actual = reader.ReadRawScalar(
+                BuiltInType.String,
+                2,
+                maximum,
+                [2u, 2u],
+                context);
+
+            Assert.That(actual, Is.EqualTo(expected));
+            Assert.That(reader.TryReadUInt32Le(out uint following), Is.True);
+            Assert.That(following, Is.EqualTo(0x12345678u));
+            Assert.That(reader.Remaining, Is.Zero);
+        }
+
+        /// <summary>
+        /// Matrix overflow uses the same retry signal as other RawData fields.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(4096)]
+        public void MatrixOverflowReportsTheWriterBufferLimit(int capacity)
+        {
+            byte[] buffer = new byte[capacity];
+            var context = ServiceMessageContext.CreateEmpty(null!);
+            var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
+            int[] values = Enumerable.Range(0, 2048).ToArray();
+            var matrix = Variant.From(values.ToMatrixOf([32, 64]));
+
+            Assert.That(
+                () => writer.WriteRawScalar(
+                    matrix,
+                    BuiltInType.Int32,
+                    2,
+                    context),
+                Throws.TypeOf<UadpBufferFullException>());
+        }
+
+        /// <summary>
+        /// The NetworkMessage encoder grows its initial buffer and preserves the complete matrix payload.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LargeMatrixGrowsTheNetworkBufferAndRoundTripsAsync(bool padded)
+        {
+            var registry = new DataSetMetaDataRegistry();
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext(registry);
+            var publisherId = PublisherId.FromByte(1);
+            var version = new ConfigurationVersionDataType { MajorVersion = 1, MinorVersion = 0 };
+            registry.Register(
+                new DataSetMetaDataKey(publisherId, 1, 100, Uuid.Empty, 1),
+                new DataSetMetaDataType
+                {
+                    Name = "LargeMatrix",
+                    ConfigurationVersion = version,
+                    Fields =
+                    [
+                        new FieldMetaData
+                        {
+                            Name = "Matrix",
+                            BuiltInType = (byte)BuiltInType.Int32,
+                            ValueRank = 2,
+                            ArrayDimensions = padded ? [33u, 64u] : []
+                        },
+                        new FieldMetaData
+                        {
+                            Name = "Following",
+                            BuiltInType = (byte)BuiltInType.UInt32,
+                            ValueRank = ValueRanks.Scalar
+                        }
+                    ]
+                });
+            int[] values = Enumerable.Range(0, 2048).ToArray();
+            var matrix = Variant.From(values.ToMatrixOf([32, 64]));
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.GroupHeader |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = publisherId,
+                WriterGroupId = 1,
+                DataSetMessages =
+                [
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 100,
+                        ContentMask = UadpDataSetMessageContentMask.MajorVersion,
+                        MetaDataVersion = version,
+                        FieldEncoding = PubSubFieldEncoding.RawData,
+                        Fields =
+                        [
+                            new DataSetField { Value = matrix },
+                            new DataSetField { Value = Variant.From(0x12345678u) }
+                        ]
+                    }
+                ]
+            };
+
+            ReadOnlyMemory<byte> encoded = await new UadpEncoder().EncodeAsync(message, context)
+                .ConfigureAwait(false);
+            Assert.That(encoded.Length, Is.GreaterThan(4096));
+            var decoded = UadpDecoder.Decode(encoded, context) as UadpNetworkMessage;
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages.Count, Is.EqualTo(1));
+            Assert.That(decoded.DataSetMessages[0].Fields.Count, Is.EqualTo(2));
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(decoded.DataSetMessages[0].Fields[0].Value, Is.EqualTo(matrix));
+                    Assert.That(decoded.DataSetMessages[0].Fields[1].Value, Is.EqualTo(Variant.From(0x12345678u)));
+                });
+        }
+
         [TestCase(BuiltInType.DateTime)]
         [TestCase(BuiltInType.Guid)]
         [TestCase(BuiltInType.ByteString)]
@@ -59,8 +199,10 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 _ => throw new ArgumentOutOfRangeException(nameof(type))
             };
             writer.WriteRawScalar(value, type, ValueRanks.OneDimension, context);
-            Assert.That(System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()),
-                Is.EqualTo(2), "The first bytes must be the array length, not a Variant type tag.");
+            Assert.That(
+                System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(writer.WrittenSpan()),
+                Is.EqualTo(2),
+                "The first bytes must be the array length, not a Variant type tag.");
             var reader = new UadpBinaryReader(buffer, 0, writer.Position);
             Assert.That(reader.ReadRawScalar(type, ValueRanks.OneDimension, context), Is.EqualTo(value));
             Assert.That(reader.Remaining, Is.Zero);
@@ -133,13 +275,25 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             byte[] buffer = new byte[128];
             var context = ServiceMessageContext.CreateEmpty(null!);
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
-            Assert.That(() => writer.WriteRawScalar(
-                Variant.From([1, 2, 3, 4]), BuiltInType.Int32, 2, 0, [2u, 2u], context),
+            Assert.That(
+                () => writer.WriteRawScalar(
+                    Variant.From([1, 2, 3, 4]),
+                    BuiltInType.Int32,
+                    2,
+                    0,
+                    [2u, 2u],
+                    context),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(writer.Position, Is.Zero);
             double[] values = [1, 2, 3, 4];
-            Assert.That(() => writer.WriteRawScalar(
-                Variant.From(values.ToMatrixOf([2, 2])), BuiltInType.Int32, 2, 0, [2u, 2u], context),
+            Assert.That(
+                () => writer.WriteRawScalar(
+                    Variant.From(values.ToMatrixOf([2, 2])),
+                    BuiltInType.Int32,
+                    2,
+                    0,
+                    [2u, 2u],
+                    context),
                 Throws.TypeOf<ServiceResultException>());
             Assert.That(writer.Position, Is.Zero);
         }
@@ -166,7 +320,8 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                     break;
             }
             var reader = new UadpBinaryReader(buffer, 0, fault == "truncated" ? 15 : buffer.Length);
-            Assert.That(() => reader.ReadRawScalar(BuiltInType.Int32, 2, 0, [2u, 3u], context),
+            Assert.That(
+                () => reader.ReadRawScalar(BuiltInType.Int32, 2, 0, [2u, 3u], context),
                 Throws.TypeOf<ServiceResultException>());
         }
 

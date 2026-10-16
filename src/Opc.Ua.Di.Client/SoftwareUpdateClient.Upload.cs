@@ -101,7 +101,10 @@ namespace Opc.Ua.Di.Client
             CancellationToken ct = default)
         {
             SoftwareUpdateUploadResult result = await UploadPackageWithResultAsync(
-                payload, suggestedPackageId, chunkSizeBytes, ct).ConfigureAwait(false);
+                payload,
+                suggestedPackageId,
+                chunkSizeBytes,
+                ct).ConfigureAwait(false);
             return result.BytesUploaded;
         }
 
@@ -128,7 +131,8 @@ namespace Opc.Ua.Di.Client
             if (chunk <= 0)
             {
                 throw new ArgumentOutOfRangeException(
-                    nameof(chunkSizeBytes), "Chunk size must be positive.");
+                    nameof(chunkSizeBytes),
+                    "Chunk size must be positive.");
             }
             ct.ThrowIfCancellationRequested();
 
@@ -140,7 +144,10 @@ namespace Opc.Ua.Di.Client
                 ? Variant.Null
                 : new Variant(suggestedPackageId);
             (NodeId fileNodeId, uint commitHandle) = await CallGenerateFileForWriteAsync(
-                fileTransferId, generateForWriteId, generateOptions, ct)
+                fileTransferId,
+                generateForWriteId,
+                generateOptions,
+                ct)
                 .ConfigureAwait(false);
 
             // 2) Resolve Open / Write / Close on the transient FileState.
@@ -149,7 +156,10 @@ namespace Opc.Ua.Di.Client
 
             // 3) Open(mode=6) → openHandle
             uint openHandle = await CallOpenAsync(
-                fileNodeId, openId, OpenModeWriteEraseExisting, ct)
+                fileNodeId,
+                openId,
+                OpenModeWriteEraseExisting,
+                ct)
                 .ConfigureAwait(false);
 
             // 4) Chunked Write
@@ -164,10 +174,14 @@ namespace Opc.Ua.Di.Client
                     ct.ThrowIfCancellationRequested();
 #if NET6_0_OR_GREATER
                     int read = await payload.ReadAsync(
-                        buffer.AsMemory(0, chunk), ct).ConfigureAwait(false);
+                        buffer.AsMemory(0, chunk),
+                        ct).ConfigureAwait(false);
 #else
                     int read = await payload.ReadAsync(
-                        buffer, 0, chunk, ct).ConfigureAwait(false);
+                        buffer,
+                        0,
+                        chunk,
+                        ct).ConfigureAwait(false);
 #endif
                     if (read <= 0)
                     {
@@ -177,14 +191,21 @@ namespace Opc.Ua.Di.Client
                         ? buffer
                         : buffer.AsSpan(0, read).ToArray();
                     await CallWriteAsync(
-                        fileNodeId, writeId, openHandle, toSend, ct)
+                        fileNodeId,
+                        writeId,
+                        openHandle,
+                        toSend,
+                        ct)
                         .ConfigureAwait(false);
                     totalWritten += read;
                 }
 
                 // 5) Close(openHandle)
                 await CallCloseAsync(
-                    fileNodeId, closeId, openHandle, ct).ConfigureAwait(false);
+                    fileNodeId,
+                    closeId,
+                    openHandle,
+                    ct).ConfigureAwait(false);
                 closed = true;
             }
             catch (Exception exception)
@@ -206,7 +227,8 @@ namespace Opc.Ua.Di.Client
                             InvalidOperationException or TimeoutException)
                     {
                         SoftwareUpdateClientLog.UploadCleanupFailed(
-                            Telemetry.CreateLogger<SoftwareUpdateClient>(), exception);
+                            Telemetry.CreateLogger<SoftwareUpdateClient>(),
+                            exception);
                     }
                 }
             }
@@ -214,7 +236,10 @@ namespace Opc.Ua.Di.Client
             // 6) CloseAndCommit(commitHandle)
             ct.ThrowIfCancellationRequested();
             NodeId completion = await CallCloseAndCommitAsync(
-                fileTransferId, closeAndCommitId, commitHandle, ct)
+                fileTransferId,
+                closeAndCommitId,
+                commitHandle,
+                ct)
                 .ConfigureAwait(false);
 
             return new SoftwareUpdateUploadResult(totalWritten, completion);
@@ -252,67 +277,67 @@ namespace Opc.Ua.Di.Client
                 Opc.Ua.Di.Namespaces.OpcUaDi);
 
             var paths = ArrayOf.Wrapped(
-            [
-                BuildBrowsePath(
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("Loading", diNs)
-                    },
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("FileTransfer", diNs)
-                    }),
-                BuildBrowsePath(
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("Loading", diNs)
-                    },
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("FileTransfer", diNs)
-                    },
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("GenerateFileForWrite")
-                    }),
-                BuildBrowsePath(
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("Loading", diNs)
-                    },
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("FileTransfer", diNs)
-                    },
-                    new RelativePathElement
-                    {
-                        ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                        IsInverse = false,
-                        IncludeSubtypes = true,
-                        TargetName = new QualifiedName("CloseAndCommit")
-                    })
-            ]);
+                [
+                    BuildBrowsePath(
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("Loading", diNs)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("FileTransfer", diNs)
+                        }),
+                    BuildBrowsePath(
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("Loading", diNs)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("FileTransfer", diNs)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("GenerateFileForWrite")
+                        }),
+                    BuildBrowsePath(
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("Loading", diNs)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("FileTransfer", diNs)
+                        },
+                        new RelativePathElement
+                        {
+                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                            IsInverse = false,
+                            IncludeSubtypes = true,
+                            TargetName = new QualifiedName("CloseAndCommit")
+                        })
+                ]);
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
@@ -320,9 +345,13 @@ namespace Opc.Ua.Di.Client
             ValidateTranslation(response, paths.Count);
 
             NodeId ftId = ExpectSingleTarget(response.Results, 0, "Loading.FileTransfer");
-            NodeId genId = ExpectSingleTarget(response.Results, 1,
+            NodeId genId = ExpectSingleTarget(
+                response.Results,
+                1,
                 "Loading.FileTransfer.GenerateFileForWrite");
-            NodeId cmtId = ExpectSingleTarget(response.Results, 2,
+            NodeId cmtId = ExpectSingleTarget(
+                response.Results,
+                2,
                 "Loading.FileTransfer.CloseAndCommit");
 
             m_cachedFileTransferNodeId = ftId;
@@ -336,11 +365,11 @@ namespace Opc.Ua.Di.Client
             ResolveFileMethodsAsync(NodeId fileNodeId, CancellationToken ct)
         {
             var paths = ArrayOf.Wrapped(
-            [
-                MakeBrowsePathFromFile(fileNodeId, "Open"),
-                MakeBrowsePathFromFile(fileNodeId, "Write"),
-                MakeBrowsePathFromFile(fileNodeId, "Close")
-            ]);
+                [
+                    MakeBrowsePathFromFile(fileNodeId, "Open"),
+                    MakeBrowsePathFromFile(fileNodeId, "Write"),
+                    MakeBrowsePathFromFile(fileNodeId, "Close")
+                ]);
 
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
@@ -364,14 +393,14 @@ namespace Opc.Ua.Di.Client
             CallResponse response = await Session.CallAsync(
                 null,
                 ArrayOf.Wrapped(
-                [
-                    new CallMethodRequest
-                    {
-                        ObjectId = fileTransferId,
-                        MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped([generateOptions])
-                    }
-                ]),
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = fileTransferId,
+                            MethodId = methodId,
+                            InputArguments = ArrayOf.Wrapped([generateOptions])
+                        }
+                    ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "GenerateFileForWrite");
@@ -393,19 +422,22 @@ namespace Opc.Ua.Di.Client
         }
 
         private async ValueTask<uint> CallOpenAsync(
-            NodeId fileNodeId, NodeId openMethodId, byte mode, CancellationToken ct)
+            NodeId fileNodeId,
+            NodeId openMethodId,
+            byte mode,
+            CancellationToken ct)
         {
             CallResponse response = await Session.CallAsync(
                 null,
                 ArrayOf.Wrapped(
-                [
-                    new CallMethodRequest
-                    {
-                        ObjectId = fileNodeId,
-                        MethodId = openMethodId,
-                        InputArguments = ArrayOf.Wrapped([new Variant(mode)])
-                    }
-                ]),
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = fileNodeId,
+                            MethodId = openMethodId,
+                            InputArguments = ArrayOf.Wrapped([new Variant(mode)])
+                        }
+                    ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "FileState.Open");
@@ -420,64 +452,71 @@ namespace Opc.Ua.Di.Client
         }
 
         private async ValueTask CallWriteAsync(
-            NodeId fileNodeId, NodeId writeMethodId,
-            uint fileHandle, byte[] data, CancellationToken ct)
+            NodeId fileNodeId,
+            NodeId writeMethodId,
+            uint fileHandle,
+            byte[] data,
+            CancellationToken ct)
         {
             CallResponse response = await Session.CallAsync(
                 null,
                 ArrayOf.Wrapped(
-                [
-                    new CallMethodRequest
-                    {
-                        ObjectId = fileNodeId,
-                        MethodId = writeMethodId,
-                        InputArguments = ArrayOf.Wrapped(
-                        [
-                            new Variant(fileHandle),
-                            new Variant(ByteString.From(data))
-                        ])
-                    }
-                ]),
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = fileNodeId,
+                            MethodId = writeMethodId,
+                            InputArguments = ArrayOf.Wrapped(
+                                [
+                                    new Variant(fileHandle),
+                                    new Variant(ByteString.From(data))
+                                ])
+                        }
+                    ]),
                 ct).ConfigureAwait(false);
 
             _ = ExpectSingleCallResult(response, "FileState.Write");
         }
 
         private async ValueTask CallCloseAsync(
-            NodeId fileNodeId, NodeId closeMethodId,
-            uint fileHandle, CancellationToken ct)
+            NodeId fileNodeId,
+            NodeId closeMethodId,
+            uint fileHandle,
+            CancellationToken ct)
         {
             CallResponse response = await Session.CallAsync(
                 null,
                 ArrayOf.Wrapped(
-                [
-                    new CallMethodRequest
-                    {
-                        ObjectId = fileNodeId,
-                        MethodId = closeMethodId,
-                        InputArguments = ArrayOf.Wrapped([new Variant(fileHandle)])
-                    }
-                ]),
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = fileNodeId,
+                            MethodId = closeMethodId,
+                            InputArguments = ArrayOf.Wrapped([new Variant(fileHandle)])
+                        }
+                    ]),
                 ct).ConfigureAwait(false);
 
             _ = ExpectSingleCallResult(response, "FileState.Close");
         }
 
         private async ValueTask<NodeId> CallCloseAndCommitAsync(
-            NodeId fileTransferId, NodeId methodId,
-            uint commitHandle, CancellationToken ct)
+            NodeId fileTransferId,
+            NodeId methodId,
+            uint commitHandle,
+            CancellationToken ct)
         {
             CallResponse response = await Session.CallAsync(
                 null,
                 ArrayOf.Wrapped(
-                [
-                    new CallMethodRequest
-                    {
-                        ObjectId = fileTransferId,
-                        MethodId = methodId,
-                        InputArguments = ArrayOf.Wrapped([new Variant(commitHandle)])
-                    }
-                ]),
+                    [
+                        new CallMethodRequest
+                        {
+                            ObjectId = fileTransferId,
+                            MethodId = methodId,
+                            InputArguments = ArrayOf.Wrapped([new Variant(commitHandle)])
+                        }
+                    ]),
                 ct).ConfigureAwait(false);
 
             CallMethodResult result = ExpectSingleCallResult(response, "CloseAndCommit");
@@ -485,7 +524,8 @@ namespace Opc.Ua.Di.Client
                 !result.OutputArguments[0].TryGetValue(out NodeId completion))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadDecodingError, "CloseAndCommit did not return a completion state-machine NodeId.");
+                    StatusCodes.BadDecodingError,
+                    "CloseAndCommit did not return a completion state-machine NodeId.");
             }
             return completion;
         }
@@ -503,7 +543,8 @@ namespace Opc.Ua.Di.Client
         }
 
         private static BrowsePath MakeBrowsePathFromFile(
-            NodeId fileNodeId, string browseName)
+            NodeId fileNodeId,
+            string browseName)
         {
             return new BrowsePath
             {
@@ -511,21 +552,23 @@ namespace Opc.Ua.Di.Client
                 RelativePath = new RelativePath
                 {
                     Elements = ArrayOf.Wrapped(
-                    [
-                        new RelativePathElement
-                        {
-                            ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
-                            IsInverse = false,
-                            IncludeSubtypes = true,
-                            TargetName = new QualifiedName(browseName)
-                        }
-                    ])
+                        [
+                            new RelativePathElement
+                            {
+                                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HasComponent,
+                                IsInverse = false,
+                                IncludeSubtypes = true,
+                                TargetName = new QualifiedName(browseName)
+                            }
+                        ])
                 }
             };
         }
 
         private NodeId ExpectSingleTarget(
-            ArrayOf<BrowsePathResult> results, int index, string description)
+            ArrayOf<BrowsePathResult> results,
+            int index,
+            string description)
         {
             if (results.Count <= index)
             {
@@ -540,15 +583,18 @@ namespace Opc.Ua.Di.Client
                     (uint)result.StatusCode,
                     $"Could not resolve {description}.");
             }
-            if (result.Targets.Count != 1 || result.Targets[0].RemainingPathIndex != uint.MaxValue ||
+            if (result.Targets.Count != 1 ||
+                result.Targets[0].RemainingPathIndex != uint.MaxValue ||
                 result.Targets[0].TargetId.ServerIndex != 0)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadDecodingError, $"Could not resolve an unambiguous local {description}.");
+                    StatusCodes.BadDecodingError,
+                    $"Could not resolve an unambiguous local {description}.");
             }
             NodeId nodeId = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
             return !nodeId.IsNull ? nodeId : throw new ServiceResultException(
-                StatusCodes.BadNodeIdUnknown, $"Could not resolve {description} in the current namespace table.");
+                StatusCodes.BadNodeIdUnknown,
+                $"Could not resolve {description} in the current namespace table.");
         }
 
         private static void ValidateTranslation(TranslateBrowsePathsToNodeIdsResponse response, int count)
@@ -560,12 +606,14 @@ namespace Opc.Ua.Di.Client
             if (response.Results.Count != count)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadDecodingError, "The file-transfer translation returned an invalid result count.");
+                    StatusCodes.BadDecodingError,
+                    "The file-transfer translation returned an invalid result count.");
             }
         }
 
         private static CallMethodResult ExpectSingleCallResult(
-            CallResponse response, string description)
+            CallResponse response,
+            string description)
         {
             if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult))
             {
@@ -590,7 +638,9 @@ namespace Opc.Ua.Di.Client
 
     internal static partial class SoftwareUpdateClientLog
     {
-        [LoggerMessage(EventId = DiClientEventIds.UploadCleanupFailed, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = DiClientEventIds.UploadCleanupFailed,
+            Level = LogLevel.Warning,
             Message = "Closing a failed software-update upload failed; server-side cleanup may be required.")]
         public static partial void UploadCleanupFailed(ILogger logger, Exception exception);
     }

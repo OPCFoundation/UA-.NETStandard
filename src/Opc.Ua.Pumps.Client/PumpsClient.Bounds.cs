@@ -49,7 +49,9 @@ namespace Opc.Ua.Pumps.Client
             try
             {
                 BrowseResponse response = await Session.BrowseAsync(
-                    null, null, (uint)Math.Min(64, m_maximumBrowseReferences),
+                    null,
+                    null,
+                    (uint)Math.Min(64, m_maximumBrowseReferences),
                     [
                         new BrowseDescription
                         {
@@ -72,7 +74,8 @@ namespace Opc.Ua.Pumps.Client
                     if (result.References.Count > m_maximumBrowseReferences - references.Count)
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadEncodingLimitsExceeded, "The pump browse reference limit was exceeded.");
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "The pump browse reference limit was exceeded.");
                     }
                     references.AddRange(result.References);
                     if (result.ContinuationPoint.IsNull || result.ContinuationPoint.Length == 0)
@@ -85,7 +88,10 @@ namespace Opc.Ua.Pumps.Client
                         break;
                     }
                     BrowseNextResponse next = await Session.BrowseNextAsync(
-                        null, false, [result.ContinuationPoint], cancellationToken).ConfigureAwait(false);
+                        null,
+                        false,
+                        [result.ContinuationPoint],
+                        cancellationToken).ConfigureAwait(false);
                     RememberContinuations(next.Results, outstanding);
                     ValidateBoundedResponse(next.ResponseHeader, next.Results.Count, 1);
                     RequireGoodResponse(next.Results[0].StatusCode);
@@ -96,7 +102,8 @@ namespace Opc.Ua.Pumps.Client
                 if (!complete)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadEncodingLimitsExceeded, "The pump browse exceeded 128 pages.");
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The pump browse exceeded 128 pages.");
                 }
             }
             catch (Exception exception)
@@ -109,8 +116,14 @@ namespace Opc.Ua.Pumps.Client
                 try
                 {
                     BrowseNextResponse released = await Session.BrowseNextAsync(
-                        null, true, outstanding.ToArrayOf(), cleanup.Token).ConfigureAwait(false);
-                    ValidateBoundedResponse(released.ResponseHeader, released.Results.Count, outstanding.Count);
+                        null,
+                        true,
+                        outstanding.ToArrayOf(),
+                        cleanup.Token).ConfigureAwait(false);
+                    ValidateBoundedResponse(
+                        released.ResponseHeader,
+                        released.Results.Count,
+                        released.Results.Count == 0 ? 0 : outstanding.Count);
                     foreach (BrowseResult result in released.Results)
                     {
                         if (result.StatusCode != StatusCodes.BadContinuationPointInvalid)
@@ -123,7 +136,8 @@ namespace Opc.Ua.Pumps.Client
                 {
                     throw new AggregateException(
                         "The pump browse failed and its continuation points could not be released.",
-                        failure, cleanupFailure);
+                        failure,
+                        cleanupFailure);
                 }
             }
             if (failure is not null)
@@ -142,13 +156,15 @@ namespace Opc.Ua.Pumps.Client
             if (header is null || actual != expected)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadDecodingError, "An incomplete pump service response was returned.");
+                    StatusCodes.BadDecodingError,
+                    "An incomplete pump service response was returned.");
             }
             RequireGoodResponse(header.ServiceResult);
         }
 
         private static void RememberContinuations(
-            ArrayOf<BrowseResult> results, HashSet<ByteString> outstanding)
+            ArrayOf<BrowseResult> results,
+            HashSet<ByteString> outstanding)
         {
             foreach (BrowseResult result in results)
             {
@@ -181,7 +197,8 @@ namespace Opc.Ua.Pumps.Client
                 if (maximum != 0 && count > maximum - m_count)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadEncodingLimitsExceeded, "The pump value-set limit was exceeded.");
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "The pump value-set limit was exceeded.");
                 }
                 m_count = checked(m_count + count);
             }

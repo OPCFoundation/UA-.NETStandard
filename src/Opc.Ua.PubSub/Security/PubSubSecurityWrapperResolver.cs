@@ -284,16 +284,24 @@ namespace Opc.Ua.PubSub.Security
             {
                 foreach (WriterGroupDataType group in connection.WriterGroups)
                 {
-                    Consider(group.SecurityMode, group.SecurityGroupId,
-                        ref mode, ref securityGroupId, ref bestRank);
+                    Consider(
+                        group.SecurityMode,
+                        group.SecurityGroupId,
+                        ref mode,
+                        ref securityGroupId,
+                        ref bestRank);
                 }
             }
             if (!connection.ReaderGroups.IsNull)
             {
                 foreach (ReaderGroupDataType group in connection.ReaderGroups)
                 {
-                    Consider(group.SecurityMode, group.SecurityGroupId,
-                        ref mode, ref securityGroupId, ref bestRank);
+                    Consider(
+                        group.SecurityMode,
+                        group.SecurityGroupId,
+                        ref mode,
+                        ref securityGroupId,
+                        ref bestRank);
                 }
             }
 
@@ -333,7 +341,9 @@ namespace Opc.Ua.PubSub.Security
     /// </summary>
     internal static partial class PubSubSecurityWrapperResolverLog
     {
-        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 0, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 0,
+            Level = LogLevel.Warning,
             Message = "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
                 "required by secured connection '{Connection}'.")]
         public static partial void NoKeyProviderRegistered(
@@ -341,7 +351,9 @@ namespace Opc.Ua.PubSub.Security
             string securityGroupId,
             string? connection);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 1,
+            Level = LogLevel.Warning,
             Message = "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
                 "required by secured connection '{Connection}'.")]
         public static partial void NoUsableSecurityPolicy(

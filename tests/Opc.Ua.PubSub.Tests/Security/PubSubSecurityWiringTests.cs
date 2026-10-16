@@ -80,9 +80,10 @@ namespace Opc.Ua.PubSub.Tests.Security
             services.AddSingleton(NUnitTelemetryContext.Create());
             services
                 .AddOpcUa()
-                .AddCryptoProvider(builder => builder
-                    .For(CryptoPurpose.ChannelSymmetric)
-                    .Use(provider))
+                .AddCryptoProvider(
+                    builder => builder
+                        .For(CryptoPurpose.ChannelSymmetric)
+                        .Use(provider))
                 .AddPubSub();
             services.AddSingleton<IPubSubSecurityKeyProvider>(CreateKeyProvider(DemoGroup));
 
@@ -104,26 +105,32 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .WrapAsync(prefix, plaintext, context.WrapOptions)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(provider.EncryptCount, Is.GreaterThan(0),
-                    "A container-registered provider must perform the PubSub encryption.");
-                Assert.That(provider.SignCount, Is.GreaterThan(0),
-                    "A container-registered provider must produce the PubSub signature.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        provider.EncryptCount,
+                        Is.GreaterThan(0),
+                        "A container-registered provider must perform the PubSub encryption.");
+                    Assert.That(
+                        provider.SignCount,
+                        Is.GreaterThan(0),
+                        "A container-registered provider must produce the PubSub signature.");
+                });
         }
 
         [Test]
         public void BuildSecuredConnectionWithoutKeySourceThrows()
         {
             PubSubApplicationBuilder builder = new PubSubApplicationBuilder(
-                    NUnitTelemetryContext.Create())
+                NUnitTelemetryContext.Create())
                 .WithApplicationId("secured-no-keys")
                 .UseConfiguration(SecuredConfiguration())
                 .UseAllStandardEncoders()
                 .AddTransportFactory(new StubTransportFactory());
 
-            Assert.That(() => builder.Build(),
+            Assert.That(
+                () => builder.Build(),
                 Throws.TypeOf<PubSubConfigurationException>());
         }
 
@@ -131,7 +138,7 @@ namespace Opc.Ua.PubSub.Tests.Security
         public async Task BuildSecuredConnectionWithKeyProviderSucceedsAsync()
         {
             await using IPubSubApplication app = new PubSubApplicationBuilder(
-                    NUnitTelemetryContext.Create())
+                NUnitTelemetryContext.Create())
                 .WithApplicationId("secured-with-keys")
                 .UseConfiguration(SecuredConfiguration())
                 .UseAllStandardEncoders()
@@ -181,7 +188,8 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .AddSecurityKeyProvider(CreateKeyProvider("another-group"));
 
             Assert.That(() => builder.Build(), Throws.TypeOf<PubSubConfigurationException>());
-            Assert.That(configuration.Connections[0].WriterGroups[0].SecurityMode,
+            Assert.That(
+                configuration.Connections[0].WriterGroups[0].SecurityMode,
                 Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
         }
 
@@ -380,7 +388,13 @@ namespace Opc.Ua.PubSub.Tests.Security
                 ReadOnlySpan<byte> associatedData)
             {
                 PlatformSymmetricCryptoProvider.Instance.EncryptAuthenticated(
-                    algorithm, key, nonce, plaintext, ciphertext, tag, associatedData);
+                    algorithm,
+                    key,
+                    nonce,
+                    plaintext,
+                    ciphertext,
+                    tag,
+                    associatedData);
             }
 
             public bool DecryptAuthenticated(
@@ -393,7 +407,13 @@ namespace Opc.Ua.PubSub.Tests.Security
                 ReadOnlySpan<byte> associatedData)
             {
                 return PlatformSymmetricCryptoProvider.Instance.DecryptAuthenticated(
-                    algorithm, key, nonce, ciphertext, tag, plaintext, associatedData);
+                    algorithm,
+                    key,
+                    nonce,
+                    ciphertext,
+                    tag,
+                    plaintext,
+                    associatedData);
             }
 
             public int GetSignatureLength(SymmetricSignatureAlgorithm algorithm)

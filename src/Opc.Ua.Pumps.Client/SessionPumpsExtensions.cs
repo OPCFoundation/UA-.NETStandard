@@ -64,7 +64,9 @@ namespace Opc.Ua.Pumps.Client
         /// <param name="telemetry">The telemetry context.</param>
         /// <param name="maximumBrowseReferences">An inclusive limit from one through 65536.</param>
         public static PumpsClient Pumps(
-            this ISession session, ITelemetryContext telemetry, int maximumBrowseReferences)
+            this ISession session,
+            ITelemetryContext telemetry,
+            int maximumBrowseReferences)
         {
             return new PumpsClient(session, telemetry, maximumBrowseReferences);
         }

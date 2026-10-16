@@ -15,8 +15,8 @@ clients decode generated structured values without boxed APIs and expose
 
 ## Opt-in strict reads
 
-The existing two-argument constructors and `AddPositioningClient()` retain their
-tolerant behavior. Supply immutable read options to opt into strict validation:
+The two-argument constructors and `AddPositioningClient()` use tolerant reads.
+Supply immutable read options to enable strict validation:
 
 ```csharp
 var options = new PositioningClientReadOptions
@@ -35,11 +35,11 @@ clientBuilder.AddPositioningClient(options);
 
 All limits must be positive. Discovery counts every raw reference and every
 page (including empty pages), before accumulating references. Each discovery
-enumeration currently browses one parent. Exceeding a limit fails with
+enumeration browses one parent. Exceeding a limit fails with
 `BadEncodingLimitsExceeded`; it never returns a truncated result. RSL resolution
 checks the frame-chain limit before reading another frame. Structure arrays,
 including GroundControlPoints, are bounded before allocating typed arrays or
-fitting. Incoming message bytes and initial protocol decoding remain governed
+fitting. Incoming message bytes and initial protocol decoding are governed
 by the session's transport quotas, not these options.
 
 Strict reads require Good service and value quality, exact response counts, and
@@ -50,14 +50,14 @@ errors preserve their status; CRS must be an actual UInt32, not a StatusCode.
 Strict streams reject non-Good values rather than emit a successful projection.
 
 Strict RSL reads request the frame and Base together; one request reduces skew
-but does not promise an atomic server snapshot. GlobalLocation retains its
+but does not promise an atomic server snapshot. GlobalLocation performs a
 three-attempt aggregate/component coherence check. Geometry validation rejects
-non-finite inputs and results, reusing the existing RSL, GCP-fitting, and WGS84
+non-finite inputs and results, using the shared RSL, GCP-fitting, and WGS84
 math. WGS84 ranges are applied only for EPSG:4326 (or a WGS84 fitter); other CRS
 identifiers remain uninterpreted rather than being silently treated as WGS84.
 
 Clients borrow sessions and streaming subscriptions. Browse cleanup releases
 only acquired continuation points, with a fresh five-second cleanup token.
-Primary and cleanup failures are both retained. Generated proxies returned by
-the `Open...` methods retain their original contracts; the read options govern
-the high-level clients, not arbitrary session or proxy operations.
+Primary and cleanup failures are both reported. The read options govern
+the high-level clients, not arbitrary session operations or generated proxies
+returned by the `Open...` methods.

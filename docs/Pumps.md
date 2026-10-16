@@ -512,12 +512,14 @@ groups. Exceeding it fails instead of truncating the result. This mode also
 rejects incomplete value-set responses, ambiguous member resolution, duplicate
 value names and invalid engineering metadata. Denied or uncertain service
 responses are not treated as optional absence. The same overload is available
-on the injected `PumpsClientFactory.CreateAsync`. The original constructor and
-factory overload retain their existing behavior.
+on the injected `PumpsClientFactory.CreateAsync`. Constructor and factory
+overloads without an explicit limit do not enable this bounded-read mode.
+Continuation cleanup accepts an empty successful release response without masking
+the original limit error or cancellation. A failed release preserves both failures.
 
 `EnumeratePortEntriesAsync` returns port identities without reading every
 engineering group. Use it to select a port before fetching its values with
-`ReadValueSetAsync`; `EnumeratePortsAsync` continues to return complete port
+`ReadValueSetAsync`; `EnumeratePortsAsync` returns complete port
 descriptors.
 
 ### Creating the client
@@ -754,9 +756,9 @@ The rows below follow the specification's structure.
 
 `PumpsServer` accepts `--host`, `--port`, `--pki-root`, `--autoaccept` and
 `--run-seconds`. The PKI path must be absolute; a supplied runtime must be from
-1 through 3600 seconds. Omitting the runtime preserves the ordinary interactive
-server lifetime. The sample retains its existing certificate auto-accept convenience default;
-disable it when testing explicit peer trust.
+1 through 3600 seconds. Without the runtime option, the server runs until
+stopped interactively. Certificate auto-accept is enabled by default for sample
+convenience; disable it when testing explicit peer trust.
 
 | Sample | Shows |
 | --- | --- |

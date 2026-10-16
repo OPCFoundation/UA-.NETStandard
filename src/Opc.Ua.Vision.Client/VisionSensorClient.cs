@@ -55,11 +55,14 @@ namespace Opc.Ua.Vision.Client
             if (sensorNodeId.IsNull)
             {
                 throw new ArgumentException(
-                    "Sensor NodeId must not be null.", nameof(sensorNodeId));
+                    "Sensor NodeId must not be null.",
+                    nameof(sensorNodeId));
             }
             SensorNodeId = sensorNodeId;
             m_proxy = new VisionSensorTypeClient(
-                m_operations.Session, sensorNodeId, m_operations.Telemetry);
+                m_operations.Session,
+                sensorNodeId,
+                m_operations.Telemetry);
         }
 
         /// <summary>
@@ -88,9 +91,12 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.FrameId
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                SensorNodeId, members, cancellationToken).ConfigureAwait(false);
+                SensorNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -99,9 +105,15 @@ namespace Opc.Ua.Vision.Client
             int cursor = 0;
             string? sensorId = TakeString(buffer, nodes, 0, ref cursor);
             VisionRealityKindEnum reality = TakeEnum<VisionRealityKindEnum>(
-                buffer, nodes, 1, ref cursor);
+                buffer,
+                nodes,
+                1,
+                ref cursor);
             VisionSensorModalityEnum modality = TakeEnum<VisionSensorModalityEnum>(
-                buffer, nodes, 2, ref cursor);
+                buffer,
+                nodes,
+                2,
+                ref cursor);
             LocalizedText manufacturer = TakeLocalizedText(buffer, nodes, 3, ref cursor);
             LocalizedText model = TakeLocalizedText(buffer, nodes, 4, ref cursor);
             string? serialNumber = TakeString(buffer, nodes, 5, ref cursor);
@@ -143,13 +155,16 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.Intrinsics
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                SensorNodeId, members, cancellationToken).ConfigureAwait(false);
+                SensorNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             if (nodes[0].IsNull && nodes[1].IsNull && nodes[2].IsNull)
             {
                 return null;
             }
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -163,7 +178,10 @@ namespace Opc.Ua.Vision.Client
             double? gain = TakeDoubleOrNull(buffer, nodes, 4, ref cursor);
             double? frameRate = TakeDoubleOrNull(buffer, nodes, 5, ref cursor);
             VisionIntrinsicsDataType? intrinsics = TakeIntrinsics(
-                buffer, nodes, 6, ref cursor);
+                buffer,
+                nodes,
+                6,
+                ref cursor);
             return new VisionImageSensorSnapshot
             {
                 Width = width,
@@ -196,7 +214,9 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.PointsPerFrame
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                SensorNodeId, members, cancellationToken).ConfigureAwait(false);
+                SensorNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             bool anyPresent = false;
             for (int ii = 0; ii < nodes.Count; ii++)
             {
@@ -211,7 +231,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -243,7 +264,8 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             OpticsTypeClient? optics = await m_proxy.GetOpticsAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             if (optics is null || optics.ObjectId.IsNull)
             {
                 return null;
@@ -255,9 +277,12 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.MinimumWorkingDistance
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                optics.ObjectId, members, cancellationToken).ConfigureAwait(false);
+                optics.ObjectId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -286,7 +311,8 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             IlluminationTypeClient? illumination = await m_proxy.GetIlluminationAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             if (illumination is null || illumination.ObjectId.IsNull)
             {
                 return null;
@@ -297,9 +323,12 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.RelativeIntensity
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                illumination.ObjectId, members, cancellationToken).ConfigureAwait(false);
+                illumination.ObjectId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -335,7 +364,8 @@ namespace Opc.Ua.Vision.Client
             for (int ii = 0; ii < refs.Count; ii++)
             {
                 var target = ExpandedNodeId.ToNodeId(
-                    refs[ii].NodeId, m_operations.Session.NamespaceUris);
+                    refs[ii].NodeId,
+                    m_operations.Session.NamespaceUris);
                 if (!target.IsNull)
                 {
                     return target;
@@ -355,7 +385,8 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             VisionMediaManagementTypeClient? media = await m_proxy.GetMediaAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             if (media is null || media.ObjectId.IsNull)
             {
                 return null;
@@ -391,7 +422,8 @@ namespace Opc.Ua.Vision.Client
                 refs.Add(direct[ii]);
             }
             FolderTypeClient? folder = await m_proxy.GetCalibrationsAsync(
-                m_operations.Telemetry, cancellationToken).ConfigureAwait(false);
+                m_operations.Telemetry,
+                cancellationToken).ConfigureAwait(false);
             if (folder is not null && !folder.ObjectId.IsNull)
             {
                 ArrayOf<ReferenceDescription> nested = await m_operations
@@ -406,20 +438,27 @@ namespace Opc.Ua.Vision.Client
             for (int ii = 0; ii < refs.Count; ii++)
             {
                 var nodeId = ExpandedNodeId.ToNodeId(
-                    refs[ii].NodeId, m_operations.Session.NamespaceUris);
+                    refs[ii].NodeId,
+                    m_operations.Session.NamespaceUris);
                 var typeDef = ExpandedNodeId.ToNodeId(
-                    refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
+                    refs[ii].TypeDefinition,
+                    m_operations.Session.NamespaceUris);
                 if (nodeId.IsNull || typeDef.IsNull || !seen.Add(nodeId))
                 {
                     continue;
                 }
                 if (!await m_operations.Session.NodeCache.IsTypeOfAsync(
-                        typeDef, calibrationType, cancellationToken).ConfigureAwait(false))
+                    typeDef,
+                    calibrationType,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     continue;
                 }
                 yield return new VisionNodeEntry(
-                    nodeId, refs[ii].BrowseName, refs[ii].DisplayName, typeDef);
+                    nodeId,
+                    refs[ii].BrowseName,
+                    refs[ii].DisplayName,
+                    typeDef);
             }
         }
 
@@ -441,7 +480,8 @@ namespace Opc.Ua.Vision.Client
             if (calibrationNodeId.IsNull)
             {
                 throw new ArgumentException(
-                    "Calibration NodeId must not be null.", nameof(calibrationNodeId));
+                    "Calibration NodeId must not be null.",
+                    nameof(calibrationNodeId));
             }
             string[] members =
             [
@@ -453,9 +493,12 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.Intrinsics
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                calibrationNodeId, members, cancellationToken).ConfigureAwait(false);
+                calibrationNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -468,7 +511,10 @@ namespace Opc.Ua.Vision.Client
             double residual = TakeDouble(buffer, nodes, 3, ref cursor);
             string? method = TakeString(buffer, nodes, 4, ref cursor);
             VisionIntrinsicsDataType? intrinsics = TakeIntrinsics(
-                buffer, nodes, 5, ref cursor);
+                buffer,
+                nodes,
+                5,
+                ref cursor);
             return new VisionIntrinsicCalibrationSnapshot
             {
                 NodeId = calibrationNodeId,
@@ -499,7 +545,8 @@ namespace Opc.Ua.Vision.Client
             if (calibrationNodeId.IsNull)
             {
                 throw new ArgumentException(
-                    "Calibration NodeId must not be null.", nameof(calibrationNodeId));
+                    "Calibration NodeId must not be null.",
+                    nameof(calibrationNodeId));
             }
             string[] members =
             [
@@ -514,9 +561,12 @@ namespace Opc.Ua.Vision.Client
                 Perception.BrowseNames.Transform
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
-                calibrationNodeId, members, cancellationToken).ConfigureAwait(false);
+                calibrationNodeId,
+                members,
+                cancellationToken).ConfigureAwait(false);
             ArrayOf<DataValue> values = await m_operations.ReadValuesAsync(
-                ToList(nodes), cancellationToken).ConfigureAwait(false);
+                ToList(nodes),
+                cancellationToken).ConfigureAwait(false);
             var buffer = new List<DataValue>(values.Count);
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -529,11 +579,17 @@ namespace Opc.Ua.Vision.Client
             double residual = TakeDouble(buffer, nodes, 3, ref cursor);
             string? method = TakeString(buffer, nodes, 4, ref cursor);
             VisionCalibrationMountEnum mount = TakeEnum<VisionCalibrationMountEnum>(
-                buffer, nodes, 5, ref cursor);
+                buffer,
+                nodes,
+                5,
+                ref cursor);
             NodeId source = TakeNodeId(buffer, nodes, 6, ref cursor);
             NodeId target = TakeNodeId(buffer, nodes, 7, ref cursor);
             VisionPose3DDataType? transform = TakePose(
-                buffer, nodes, 8, ref cursor);
+                buffer,
+                nodes,
+                8,
+                ref cursor);
             return new VisionExtrinsicCalibrationSnapshot
             {
                 NodeId = calibrationNodeId,
@@ -715,8 +771,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             return value.WrappedValue.TryGetValue<VisionIntrinsicsDataType>(
-                    out VisionIntrinsicsDataType? structure,
-                    m_operations.Session.MessageContext)
+                out VisionIntrinsicsDataType? structure,
+                m_operations.Session.MessageContext)
                 ? structure
                 : throw VisionClientOperations.InvalidMember();
         }
@@ -738,8 +794,8 @@ namespace Opc.Ua.Vision.Client
                 return null;
             }
             return value.WrappedValue.TryGetValue<VisionPose3DDataType>(
-                    out VisionPose3DDataType? structure,
-                    m_operations.Session.MessageContext)
+                out VisionPose3DDataType? structure,
+                m_operations.Session.MessageContext)
                 ? structure
                 : throw VisionClientOperations.InvalidMember();
         }

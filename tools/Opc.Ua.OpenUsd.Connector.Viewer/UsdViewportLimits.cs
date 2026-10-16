@@ -83,11 +83,14 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// </summary>
         public int RequireFrame(ViewportDimensions size)
         {
-            if (size.Width < 1 || size.Height < 1 ||
-                size.Width > MaximumDimension || size.Height > MaximumDimension ||
+            if (size.Width < 1 ||
+                size.Height < 1 ||
+                size.Width > MaximumDimension ||
+                size.Height > MaximumDimension ||
                 (long)size.Width * size.Height * 4 > MaximumFrameBytes)
             {
-                throw new ArgumentOutOfRangeException(nameof(size),
+                throw new ArgumentOutOfRangeException(
+                    nameof(size),
                     "The viewport exceeds its physical-pixel or RGBA8 byte limit.");
             }
             return checked(size.Width * size.Height * 4);

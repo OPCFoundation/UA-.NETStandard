@@ -159,8 +159,8 @@ namespace Opc.Ua.Pumps.Client
                     continue;
                 }
                 await foreach (PumpEntry entry in EnumeratePumpsUnderAsync(
-                        root,
-                        cancellationToken).ConfigureAwait(false))
+                    root,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     if (seen.Add(entry.NodeId))
                     {
@@ -195,9 +195,9 @@ namespace Opc.Ua.Pumps.Client
             }
 
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    root,
-                    NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                root,
+                NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 var typeDefinition = ExpandedNodeId.ToNodeId(
@@ -462,7 +462,9 @@ namespace Opc.Ua.Pumps.Client
             if (m_maximumBrowseReferences != 0)
             {
                 ArrayOf<ReferenceDescription> boundedReferences = await BrowseBoundedAsync(
-                    parent, nodeClassMask, cancellationToken).ConfigureAwait(false);
+                    parent,
+                    nodeClassMask,
+                    cancellationToken).ConfigureAwait(false);
                 for (int index = 0; index < boundedReferences.Count; index++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -471,14 +473,16 @@ namespace Opc.Ua.Pumps.Client
                 yield break;
             }
 
-            var browser = new Browser(Session, new BrowserOptions
-            {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = (int)nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
-            });
+            var browser = new Browser(
+                Session,
+                new BrowserOptions
+                {
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                    IncludeSubtypes = true,
+                    NodeClassMask = (int)nodeClassMask,
+                    ResultMask = (uint)BrowseResultMask.All
+                });
 
             // The managed overload reports a bad status for the node in
             // Errors and throws only when the service call itself fails.

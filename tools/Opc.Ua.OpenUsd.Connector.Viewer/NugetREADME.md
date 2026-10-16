@@ -56,16 +56,19 @@ allocations. Initial, resized and newly selected-camera targets must contain non
 
 The stage scheduler, `IUsdSink`, native render source and retained mesh renderer share the same stage identity.
 `PickAsync` returns a prim selection only: there is no command callback or command-prim watcher in this API.
-Live transform targets must be active in `xformOpOrder`. Vector translate/rotate/scale bindings use the existing
+Live transform targets must be active in `xformOpOrder`. Vector translate/rotate/scale bindings use the
 connector asset contract: one active `xformOp:transform` matrix (an optional reset-stack marker is preserved).
 The embedded sink refuses missing or inactive targets rather than silently counting invisible writes as updates.
 `IRetainedSceneFrameSource` lets `RetainedSceneCameraCaptureProvider` capture the active camera through the same renderer
 without another stage, file-export loop, or application lifetime. Capture must use the active camera, time and physical
 dimensions; cancellation drains an in-progress readback before the owner releases its device.
+The requested camera must match both the selected camera and the prepared frame's camera.
+Preparation, rendering and device-loss failures fault queued captures. An already-started readback drains before
+reporting failure or cancellation, so its caller cannot release the device while capture still uses it.
 
 The typed backend branches use D3D12 on Windows, Vulkan on Linux, and Metal on macOS. Unsupported interop/device/scene
 conditions remain explicit failures. NativeAOT, driver, and visual qualification are per RID; a Windows result does not
-qualify Linux or macOS. The older reflective `IUsdViewHost` shell is not an assembly-wide AOT compatibility promise.
+qualify Linux or macOS. The reflective `IUsdViewHost` shell has no assembly-wide AOT compatibility promise.
 
 ## Requirements
 

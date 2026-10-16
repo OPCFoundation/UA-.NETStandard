@@ -299,7 +299,7 @@ access is rejected with `BadUserAccessDenied`.
 Committed package metadata contains the SHA-256 digest of the uploaded bytes.
 The `InstallSoftwarePackage` Hash argument is forwarded as hexadecimal
 `SoftwarePackage.Hash` to the application's install callback. A digest records
-content identity, not publisher authenticity: production applications still need
+content identity, not publisher authenticity: production applications need
 their own signature, publisher, device and deployment authorization checks.
 
 > **Note** — `DirectLoadingType` and `CachedLoadingType` inherit
@@ -364,8 +364,8 @@ if (!result.CompletionStateMachine.IsNull)
 }
 ```
 
-The result preserves both the byte count and `CompletionStateMachine`. The
-existing `UploadPackageAsync` overloads retain their byte-count return type.
+The result includes both the byte count and `CompletionStateMachine`.
+The `UploadPackageAsync` overloads return only the byte count.
 Malformed/ambiguous translations, bad service headers and malformed commit
 outputs are reported instead of becoming successful uploads. Cancellation stops
 transmission and does not send `CloseAndCommit`; cleanup of an opened handle uses

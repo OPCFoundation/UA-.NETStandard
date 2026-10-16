@@ -85,7 +85,10 @@ namespace Opc.Ua.Positioning.Client
             if (Strict)
             {
                 return await BrowseBoundedAsync(
-                    nodeId, referenceTypeId, nodeClassMask, cancellationToken).ConfigureAwait(false);
+                    nodeId,
+                    referenceTypeId,
+                    nodeClassMask,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             (
@@ -162,7 +165,8 @@ namespace Opc.Ua.Positioning.Client
                     result.Targets[0] is not { RemainingPathIndex: uint.MaxValue } target)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadDecodingError, "A Positioning path must have one complete target.");
+                        StatusCodes.BadDecodingError,
+                        "A Positioning path must have one complete target.");
                 }
                 return LocalNodeId(target.TargetId);
             }
@@ -235,7 +239,8 @@ namespace Opc.Ua.Positioning.Client
                     !dataValue.WrappedValue.TryGetValue(out ArrayOf<ExtensionObject> raw))
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadTypeMismatch, "A one-dimensional structure array is required.");
+                        StatusCodes.BadTypeMismatch,
+                        "A one-dimensional structure array is required.");
                 }
                 if (raw.Count > m_options!.MaximumReadArrayItems)
                 {
@@ -258,7 +263,8 @@ namespace Opc.Ua.Positioning.Client
                     if (value[ii] is null)
                     {
                         throw new ServiceResultException(
-                            StatusCodes.BadTypeMismatch, "A Positioning structure array contains a null element.");
+                            StatusCodes.BadTypeMismatch,
+                            "A Positioning structure array contains a null element.");
                     }
                 }
             }
@@ -288,7 +294,8 @@ namespace Opc.Ua.Positioning.Client
             DataValue dataValue = await ReadValueAsync(
                 nodeId,
                 cancellationToken).ConfigureAwait(false);
-            if ((Strict && (dataValue.WrappedValue.TypeInfo.BuiltInType != BuiltInType.UInt32 ||
+            if ((Strict &&
+                (dataValue.WrappedValue.TypeInfo.BuiltInType != BuiltInType.UInt32 ||
                     !dataValue.WrappedValue.TypeInfo.IsScalar)) ||
                 !dataValue.WrappedValue.TryGetValue(out uint value))
             {
@@ -327,7 +334,8 @@ namespace Opc.Ua.Positioning.Client
             if (index < 0 || index > ushort.MaxValue)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown, $"The server does not expose namespace '{namespaceUri}'.");
+                    StatusCodes.BadNodeIdUnknown,
+                    $"The server does not expose namespace '{namespaceUri}'.");
             }
             return (ushort)index;
         }
@@ -359,10 +367,15 @@ namespace Opc.Ua.Positioning.Client
                 ValidateNodeId(nodeIds[ii]);
             }
             ReadResponse response = await Session.ReadAsync(
-                null, 0, TimestampsToReturn.Both,
+                null,
+                0,
+                TimestampsToReturn.Both,
                 nodeIds.ConvertAll(nodeId => new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }),
                 cancellationToken).ConfigureAwait(false);
-            ValidateResponse(response.ResponseHeader, response.Results.Count, nodeIds.Count,
+            ValidateResponse(
+                response.ResponseHeader,
+                response.Results.Count,
+                nodeIds.Count,
                 response.DiagnosticInfos.Count);
             cancellationToken.ThrowIfCancellationRequested();
             foreach (DataValue value in response.Results)
@@ -384,7 +397,8 @@ namespace Opc.Ua.Positioning.Client
                 (Strict && value is null))
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadTypeMismatch, $"A {typeof(T).Name} value is required.");
+                    StatusCodes.BadTypeMismatch,
+                    $"A {typeof(T).Name} value is required.");
             }
             return value!;
         }

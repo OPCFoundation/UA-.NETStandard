@@ -50,13 +50,15 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             Func<ViewportDimensions, CancellationToken, ValueTask> prepare,
             Action disposeRenderer,
             Action<Exception> failed,
-            Func<(int Generations, int Frames)>? nativeStatistics = null)
+            Func<(int Generations, int Frames)>? nativeStatistics = null,
+            UsdViewportCaptureQueue? captures = null)
         {
             m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
             m_limits = limits ?? throw new ArgumentNullException(nameof(limits));
             m_prepare = prepare ?? throw new ArgumentNullException(nameof(prepare));
             m_disposeRenderer = disposeRenderer ?? throw new ArgumentNullException(nameof(disposeRenderer));
             m_failed = failed ?? throw new ArgumentNullException(nameof(failed));
+            m_captures = captures ?? new UsdViewportCaptureQueue();
             m_nativeStatistics = nativeStatistics;
             limits.Validate();
         }
@@ -95,7 +97,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         /// <inheritdoc/>
         public async ValueTask<CompositionPresenterProbeResult> ProbeAsync(
-            CompositionPresentationTarget target, CancellationToken cancellationToken)
+            CompositionPresentationTarget target,
+            CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(m_stopping.IsCancellationRequested, this);
             CompositionPresenterProbeResult probe;
@@ -105,19 +108,21 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
-                m_failed(error);
+                ReportFailure(error);
                 throw;
             }
             if (!probe.IsAvailable)
             {
-                m_failed(new PlatformNotSupportedException(probe.Status));
+                ReportFailure(new PlatformNotSupportedException(probe.Status));
             }
             return probe;
         }
 
         /// <inheritdoc/>
         public async ValueTask<ICompositionPresentationGeneration> CreateGenerationAsync(
-            ViewportDimensions size, int frameCount, CancellationToken cancellationToken)
+            ViewportDimensions size,
+            int frameCount,
+            CancellationToken cancellationToken)
         {
             int bytes = m_limits.RequireFrame(size);
             if (frameCount is < 2 or > 3)
@@ -126,7 +131,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             long reserved = (long)bytes * 2 * frameCount;
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken, m_stopping.Token);
+                cancellationToken,
+                m_stopping.Token);
             await m_operations.WaitAsync(linked.Token).ConfigureAwait(false);
             try
             {
@@ -138,7 +144,9 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     }
                 }
                 ICompositionPresentationGeneration generation = await m_inner.CreateGenerationAsync(
-                    size, frameCount, linked.Token).ConfigureAwait(false);
+                    size,
+                    frameCount,
+                    linked.Token).ConfigureAwait(false);
                 var owned = new Generation(this, generation, reserved);
                 lock (m_state)
                 {
@@ -155,7 +163,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
-                m_failed(error);
+                ReportFailure(error);
                 throw;
             }
             finally
@@ -166,11 +174,13 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         /// <inheritdoc/>
         public async ValueTask<CompositionFrameRenderResult> RenderAsync(
-            ICompositionPresentationFrame frame, CancellationToken cancellationToken)
+            ICompositionPresentationFrame frame,
+            CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(frame);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken, m_stopping.Token);
+                cancellationToken,
+                m_stopping.Token);
             await m_operations.WaitAsync(linked.Token).ConfigureAwait(false);
             try
             {
@@ -180,7 +190,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     .ConfigureAwait(false);
                 if (result.Status == CompositionFrameRenderStatus.DeviceLost)
                 {
-                    m_failed(new InvalidOperationException("The embedded graphics device was lost."));
+                    ReportFailure(new InvalidOperationException("The embedded graphics device was lost."));
                 }
                 // A retained viewport must also observe later stage edits and queued captures.
                 return result.Status == CompositionFrameRenderStatus.Presented
@@ -189,7 +199,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
-                m_failed(error);
+                ReportFailure(error);
                 throw;
             }
             finally
@@ -232,11 +242,18 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
             finally
             {
+                m_captures.Dispose();
                 m_disposeRenderer();
                 m_operations.Release();
                 m_operations.Dispose();
                 m_stopping.Dispose();
             }
+        }
+
+        private void ReportFailure(Exception error)
+        {
+            m_captures.Fail(error);
+            m_failed(error);
         }
 
         private void Released(Generation generation, long bytes, int frames)
@@ -256,6 +273,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         private readonly Func<ViewportDimensions, CancellationToken, ValueTask> m_prepare;
         private readonly Action m_disposeRenderer;
         private readonly Action<Exception> m_failed;
+        private readonly UsdViewportCaptureQueue m_captures;
         private readonly Func<(int Generations, int Frames)>? m_nativeStatistics;
         private readonly SemaphoreSlim m_operations = new(1, 1);
         private readonly CancellationTokenSource m_stopping = new();

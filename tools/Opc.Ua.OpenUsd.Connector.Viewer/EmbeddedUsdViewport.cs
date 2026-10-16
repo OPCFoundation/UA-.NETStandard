@@ -144,7 +144,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             {
                 await m_scheduler.EditAsync(
                     static stage => stage.SetEditTargetToSessionLayer(),
-                    UsdStageInvalidationKind.Full, cancellationToken).ConfigureAwait(true);
+                    UsdStageInvalidationKind.Full,
+                    cancellationToken).ConfigureAwait(true);
                 m_source = await m_scheduler.AcquireRenderSourceAsync(cancellationToken).ConfigureAwait(true);
                 await SetCameraAsync(cameraPath, cancellationToken).ConfigureAwait(true);
                 m_sink = new UsdStageSink(m_scheduler, OnFailure, requireActiveTargets: true);
@@ -187,10 +188,12 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 throw new InvalidOperationException("Start the retained stage before selecting a camera.");
             if (camera.Length != 0)
             {
-                await scheduler.InvokeAsync(stage =>
-                {
-                    _ = CameraState.FromStageCamera(stage, camera, 0, 128, 128);
-                }, cancellationToken).ConfigureAwait(false);
+                await scheduler.InvokeAsync(
+                    stage =>
+                    {
+                        _ = CameraState.FromStageCamera(stage, camera, 0, 128, 128);
+                    },
+                    cancellationToken).ConfigureAwait(false);
             }
             cancellationToken.ThrowIfCancellationRequested();
             Volatile.Write(ref m_cameraPath, camera);
@@ -207,7 +210,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         /// <inheritdoc/>
         public ValueTask<RetainedSceneFrame> CaptureFrameAsync(
-            SceneCameraCaptureRequest request, CancellationToken cancellationToken)
+            SceneCameraCaptureRequest request,
+            CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);
             if (!string.Equals(request.StageIdentifier, StageIdentifier, StringComparison.Ordinal))
@@ -249,6 +253,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 }
                 finally
                 {
+                    m_captures.Dispose();
                     m_source?.Dispose();
                     if (m_scheduler is not null)
                     {
@@ -273,19 +278,24 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     UsdViewportRenderer renderer = CreateRenderer();
                     try
                     {
-                        var native = VulkanCompositionViewportPresenter.Create(context =>
-                            renderer.Render(context.Renderer, context.ColorTarget, context.DepthTarget),
+                        var native = VulkanCompositionViewportPresenter.Create(
+                            context =>
+                                renderer.Render(context.Renderer, context.ColorTarget, context.DepthTarget),
                             required: true);
-                        return Wrap(native, renderer, new SceneCameraCaptureBackend
-                        {
-                            Name = "Vulkan",
-                            DeviceName = "Backend-owned compositor device; adapter classification unavailable",
-                            IsSoftwareKnown = false
-                        }, () =>
-                        {
-                            VulkanCompositionPresenterDiagnostics statistics = native.GetDiagnostics();
-                            return (statistics.ActiveGenerations, statistics.ActiveFrames);
-                        });
+                        return Wrap(
+                            native,
+                            renderer,
+                            new SceneCameraCaptureBackend
+                            {
+                                Name = "Vulkan",
+                                DeviceName = "Backend-owned compositor device; adapter classification unavailable",
+                                IsSoftwareKnown = false
+                            },
+                            () =>
+                            {
+                                VulkanCompositionPresenterDiagnostics statistics = native.GetDiagnostics();
+                                return (statistics.ActiveGenerations, statistics.ActiveFrames);
+                            });
                     }
                     catch
                     {
@@ -315,13 +325,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             {
                 renderer = CreateRenderer(device);
                 var native = new D3D12CompositionViewportPresenter(device, renderer);
-                return Wrap(native, renderer,
+                return Wrap(
+                    native,
+                    renderer,
                     new SceneCameraCaptureBackend
                     {
                         Name = "D3D12",
                         DeviceName = device.Capabilities.DeviceName,
                         IsSoftware = device.Capabilities.IsSoftware
-                    }, () =>
+                    },
+                    () =>
                     {
                         D3D12CompositionPresenterStatistics statistics = native.GetStatistics();
                         return (statistics.ActiveGenerations, statistics.ActiveFrames);
@@ -347,23 +360,29 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             UsdViewportRenderer renderer = CreateRenderer();
             try
             {
-                var native = new MetalCompositionViewportPresenter(context =>
-                {
-                    context.CancellationToken.ThrowIfCancellationRequested();
-                    SilkMeshRenderResult frame =
-                        renderer.Render(context.Renderer, context.ColorTarget, context.DepthTarget);
-                    return new MetalCompositionRenderResult(renderer.Statistics.SceneRevision, frame);
-                }, required: true);
-                return Wrap(native, renderer, new SceneCameraCaptureBackend
-                {
-                    Name = "Metal",
-                    DeviceName = "Backend-owned compositor device; adapter classification unavailable",
-                    IsSoftwareKnown = false
-                }, () =>
-                {
-                    MetalCompositionPresenterDiagnostics statistics = native.GetDiagnostics();
-                    return (statistics.ActiveGenerations, statistics.ActiveFrames);
-                });
+                var native = new MetalCompositionViewportPresenter(
+                    context =>
+                    {
+                        context.CancellationToken.ThrowIfCancellationRequested();
+                        SilkMeshRenderResult frame =
+                            renderer.Render(context.Renderer, context.ColorTarget, context.DepthTarget);
+                        return new MetalCompositionRenderResult(renderer.Statistics.SceneRevision, frame);
+                    },
+                    required: true);
+                return Wrap(
+                    native,
+                    renderer,
+                    new SceneCameraCaptureBackend
+                    {
+                        Name = "Metal",
+                        DeviceName = "Backend-owned compositor device; adapter classification unavailable",
+                        IsSoftwareKnown = false
+                    },
+                    () =>
+                    {
+                        MetalCompositionPresenterDiagnostics statistics = native.GetDiagnostics();
+                        return (statistics.ActiveGenerations, statistics.ActiveFrames);
+                    });
             }
             catch
             {
@@ -378,17 +397,29 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 m_scheduler ?? throw new InvalidOperationException("The stage is not open."),
                 m_source ?? throw new InvalidOperationException("The retained stage source is unavailable."),
                 Path.Combine(AppContext.BaseDirectory, "plugin", "usd"),
-                m_limits, () => CameraPath, OnFrame, device);
+                m_limits,
+                () => CameraPath,
+                OnFrame,
+                device,
+                m_captures);
         }
 
         private BoundedCompositionViewportPresenter Wrap(
-            ICompositionViewportPresenter presenter, UsdViewportRenderer renderer, SceneCameraCaptureBackend backend,
+            ICompositionViewportPresenter presenter,
+            UsdViewportRenderer renderer,
+            SceneCameraCaptureBackend backend,
             Func<(int Generations, int Frames)> statistics)
         {
             m_renderer = renderer;
             Volatile.Write(ref m_backend, backend);
             m_presenter = new BoundedCompositionViewportPresenter(
-                presenter, m_limits, renderer.PrepareAsync, renderer.Dispose, OnFailure, statistics);
+                presenter,
+                m_limits,
+                renderer.PrepareAsync,
+                renderer.Dispose,
+                OnFailure,
+                statistics,
+                m_captures);
             return m_presenter;
         }
 
@@ -408,11 +439,14 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         private void OnFailure(Exception error)
         {
-            Volatile.Write(ref m_backend, Backend with
-            {
-                IsAvailable = false,
-                UnavailableReason = "The embedded renderer failed; inspect its explicit diagnostic."
-            });
+            m_captures.Fail(error);
+            Volatile.Write(
+                ref m_backend,
+                Backend with
+                {
+                    IsAvailable = false,
+                    UnavailableReason = "The embedded renderer failed; inspect its explicit diagnostic."
+                });
             EmbeddedUsdViewportLog.RendererFailed(m_logger, error);
             m_firstFrame.TrySetException(error);
             Failed?.Invoke(this, error);
@@ -422,8 +456,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         private readonly Border m_surface = new();
         private readonly UsdViewportLimits m_limits;
         private readonly ILogger m_logger;
+        private readonly UsdViewportCaptureQueue m_captures = new();
+
         private readonly TaskCompletionSource<UsdViewportStatistics> m_firstFrame =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private UsdStageScheduler? m_scheduler;
         private UsdStageRenderSource? m_source;
         private UsdStageSink? m_sink;
@@ -439,7 +476,9 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
     /// </summary>
     internal static partial class EmbeddedUsdViewportLog
     {
-        [LoggerMessage(EventId = OpenUsdViewerEventIds.ViewHost + 4, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = OpenUsdViewerEventIds.ViewHost + 4,
+            Level = LogLevel.Error,
             Message = "The embedded OpenUSD renderer failed.")]
         public static partial void RendererFailed(ILogger logger, Exception exception);
     }

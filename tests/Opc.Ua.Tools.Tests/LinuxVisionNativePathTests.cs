@@ -58,22 +58,25 @@ namespace Opc.Ua.Tools.Tests
         {
             string source = await File.ReadAllTextAsync(FindActionPath()).ConfigureAwait(false);
             string step = FindStep(source.ReplaceLineEndings("\n"));
-            Assert.Multiple(() =>
-            {
-                Assert.That(step, Does.Contain("runner.os == 'Linux'"));
-                Assert.That(step, Does.Contain("contains(inputs.projects, 'Opc.Ua.Vision.Tests')"));
-                Assert.That(step, Does.Not.Contain("Opc.Ua.Lens"));
-                Assert.That(step, Does.Contain("shell: pwsh"));
-                Assert.That(step, Does.Contain("CI_NATIVE_CONFIGURATION: ${{ inputs.configuration }}"));
-                Assert.That(step, Does.Contain("CI_NATIVE_FRAMEWORK: ${{ inputs.framework }}"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(step, Does.Contain("runner.os == 'Linux'"));
+                    Assert.That(step, Does.Contain("contains(inputs.projects, 'Opc.Ua.Vision.Tests')"));
+                    Assert.That(step, Does.Not.Contain("Opc.Ua.Lens"));
+                    Assert.That(step, Does.Contain("shell: pwsh"));
+                    Assert.That(step, Does.Contain("CI_NATIVE_CONFIGURATION: ${{ inputs.configuration }}"));
+                    Assert.That(step, Does.Contain("CI_NATIVE_FRAMEWORK: ${{ inputs.framework }}"));
+                });
 
             string[] lines = step.Split('\n');
             int run = Array.IndexOf(lines, "    run: |");
             Assert.That(run, Is.GreaterThanOrEqualTo(0), "The action must execute its search-path script.");
-            string script = string.Join("\n", lines.Skip(run + 1)
-                .TakeWhile(line => line.Length == 0 || line.StartsWith("      ", StringComparison.Ordinal))
-                .Select(line => line.Length == 0 ? line : line[6..]));
+            string script = string.Join(
+                "\n",
+                lines.Skip(run + 1)
+                    .TakeWhile(line => line.Length == 0 || line.StartsWith("      ", StringComparison.Ordinal))
+                    .Select(line => line.Length == 0 ? line : line[6..]));
             string environmentFile = Path.Combine(Path.GetTempPath(), $"vision-native-env-{Guid.NewGuid():N}.txt");
             try
             {
@@ -138,7 +141,9 @@ namespace Opc.Ua.Tools.Tests
         {
             const string marker = "  - name: Configure Linux Vision native library search path\n";
             int start = source.IndexOf(marker, StringComparison.Ordinal);
-            Assert.That(start, Is.GreaterThanOrEqualTo(0),
+            Assert.That(
+                start,
+                Is.GreaterThanOrEqualTo(0),
                 "Linux Vision hosts need the packaged transitive libraries on their loader search path.");
             int end = source.IndexOf("\n  - name:", start + marker.Length, StringComparison.Ordinal);
             return end < 0 ? source[start..] : source[start..end];

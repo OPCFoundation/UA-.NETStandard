@@ -990,8 +990,8 @@ following behaviour explicitly:
   bytes. Other requested formats return `InvalidRequest`.
 - When every graphics backend probe fails, `Backend.IsAvailable` is
   false, `Backend.UnavailableReason` explains the failure, and capture
-  returns `SceneCameraCaptureStatus.NoRenderingBackend`. The sensor still
-  exists in the address space and every browse still works; only the
+  returns `SceneCameraCaptureStatus.NoRenderingBackend`. The sensor
+  exists in the address space and supports browsing; only the
   pixel bytes are absent.
 
 Initialize the bundled OpenUSD resolver and imaging registries before
@@ -1112,8 +1112,8 @@ quality on members that were returned by a read; an unreadable member is not
 replaced by a successful default. Present members with an incompatible
 data type also fail. In particular, absent or wrongly typed `Detections` and
 `Characteristics` do not become empty observations. An explicitly empty detection
-array is still a valid empty result, and absent optional members remain absent.
-Media status-classification reads retain their separate inline-delivery status
+array is a valid empty result, and absent optional members remain absent.
+Media status-classification reads use their separate inline-delivery status
 semantics described in [media gating](#64-media-gating).
 
 ### Discovery

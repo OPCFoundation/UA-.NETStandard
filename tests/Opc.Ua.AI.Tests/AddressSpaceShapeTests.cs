@@ -73,9 +73,10 @@ namespace Opc.Ua.AI.Tests
 
             Assert.That(
                 nm.RootId,
-                Is.EqualTo(new NodeId(
-                    Opc.Ua.AI.Objects.AiModelManagement,
-                    nm.NamespaceIndex)),
+                Is.EqualTo(
+                    new NodeId(
+                        Opc.Ua.AI.Objects.AiModelManagement,
+                        nm.NamespaceIndex)),
                 "the entry point must be the one the model declares");
         }
 
@@ -171,7 +172,8 @@ namespace Opc.Ua.AI.Tests
             // absent from the index, so browsing IT returned BadNodeIdUnknown. The
             // collection the specification defines was unreachable.
             Assert.That(
-                nm.IndexedNode(root.Jobs!.NodeId), Is.Not.Null,
+                nm.IndexedNode(root.Jobs!.NodeId),
+                Is.Not.Null,
                 "the Jobs folder must be indexed, not only present on the tree");
 
             Assert.That(nm.IndexedNode(begun.Transfer), Is.Not.Null);
@@ -225,7 +227,8 @@ namespace Opc.Ua.AI.Tests
             // Method can grow it. Transfers already had a cap; jobs did not.
             Assert.That(live, Is.LessThanOrEqualTo(3));
             Assert.That(
-                nm.IndexedNode(started[^1]), Is.Not.Null,
+                nm.IndexedNode(started[^1]),
+                Is.Not.Null,
                 "the most recent job must survive");
         }
 

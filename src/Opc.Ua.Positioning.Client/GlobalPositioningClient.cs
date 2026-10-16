@@ -261,7 +261,9 @@ namespace Opc.Ua.Positioning.Client
         {
             globalPosition.ThrowIfNull(nameof(globalPosition));
             m_operations.ValidateGeographic(
-                globalPosition, angleUnit, options?.CoordinateReferenceSystem is null ||
+                globalPosition,
+                angleUnit,
+                options?.CoordinateReferenceSystem is null ||
                 options.CoordinateReferenceSystem is Wgs84CoordinateReferenceSystemTransformer);
             GroundControlPointFitResult transform = await ReadZoneTransformAsync(
                 zoneId,
@@ -291,7 +293,9 @@ namespace Opc.Ua.Positioning.Client
                 cancellationToken).ConfigureAwait(false);
             S3DGeographicCoordinateDataType result = transform.LocalToGlobal(localPosition, angleUnit);
             m_operations.ValidateGeographic(
-                result, angleUnit, options?.CoordinateReferenceSystem is null ||
+                result,
+                angleUnit,
+                options?.CoordinateReferenceSystem is null ||
                 options.CoordinateReferenceSystem is Wgs84CoordinateReferenceSystemTransformer);
             return result;
         }

@@ -94,34 +94,38 @@ if (runSeconds == 0)
 
 builder.Services
     .AddOpcUa()
-    .AddServer(options =>
-    {
-        options.ApplicationName = "IntentEnabledRobot";
-        options.ApplicationUri = "urn:localhost:OPCFoundation:IntentEnabledRobot";
-        options.ProductUri = "uri:opcfoundation.org:IntentEnabledRobot";
-        options.AutoAcceptUntrustedCertificates = autoAccept;
-        if (pkiRoot is not null)
+    .AddServer(
+        options =>
         {
-            options.PkiRoot = pkiRoot;
-        }
-        options.EndpointUrls.Add(new UriBuilder("opc.tcp", host, port, "/IntentEnabledRobot").Uri.AbsoluteUri);
-    })
-    .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
-    {
-        Name = BrowseNames.WellKnownRole_Operator,
-        Identities =
-        {
-            new RoleIdentityMappingOptions
+            options.ApplicationName = "IntentEnabledRobot";
+            options.ApplicationUri = "urn:localhost:OPCFoundation:IntentEnabledRobot";
+            options.ProductUri = "uri:opcfoundation.org:IntentEnabledRobot";
+            options.AutoAcceptUntrustedCertificates = autoAccept;
+            if (pkiRoot is not null)
             {
-                CriteriaType = IdentityCriteriaType.Anonymous
+                options.PkiRoot = pkiRoot;
             }
-        }
-    }))
+            options.EndpointUrls.Add(new UriBuilder("opc.tcp", host, port, "/IntentEnabledRobot").Uri.AbsoluteUri);
+        })
+    .ConfigureRoles(
+        options => options.Roles.Add(
+            new RoleDefinitionOptions
+            {
+                Name = BrowseNames.WellKnownRole_Operator,
+                Identities =
+                {
+                    new RoleIdentityMappingOptions
+                    {
+                        CriteriaType = IdentityCriteriaType.Anonymous
+                    }
+                }
+            }))
     .AddRobotIntent()
     .AddRobotIntentExecutor<SafetyAwareArmExecutor>()
-    .ConfigureRobotIntent(async (context, cancellationToken) =>
-        await context.GetRequiredService<IntentRobotCell>()
-            .ConfigureAsync(context, cancellationToken).ConfigureAwait(false));
+    .ConfigureRobotIntent(
+        async (context, cancellationToken) =>
+            await context.GetRequiredService<IntentRobotCell>()
+                .ConfigureAsync(context, cancellationToken).ConfigureAwait(false));
 
 using IHost app = builder.Build();
 using var runLifetime = new CancellationTokenSource();

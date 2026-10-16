@@ -64,11 +64,13 @@ namespace Opc.Ua.PubSub.Tests.Security
                 completion.SetResult(key);
                 ReadOnlyMemory<byte> encoded = await send.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 UadpSecurityWrapper.UnwrapResult result = await context.Wrapper.TryUnwrapAsync(
-                    s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                    s_prefix,
+                    encoded[s_prefix.Length..]).ConfigureAwait(false);
                 Assert.That(result.IsSuccess, Is.True, result.Reason);
                 Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(s_plaintext));
                 provider.Verify(value => value.GetCurrentKeyAsync(It.IsAny<CancellationToken>()), Times.Once);
-                provider.VerifyAdd(value => value.KeyRotated += It.IsAny<EventHandler<PubSubKeyRotatedEventArgs>>(),
+                provider.VerifyAdd(
+                    value => value.KeyRotated += It.IsAny<EventHandler<PubSubKeyRotatedEventArgs>>(),
                     Times.Never);
             }
             finally
@@ -86,9 +88,14 @@ namespace Opc.Ua.PubSub.Tests.Security
             PubSubSecurityKey future = receiverRing.TryGetByTokenId(2) ??
                 throw new AssertionException("Missing pre-fetched token.");
             using var senderRing = new PubSubSecurityKeyRing("group");
-            senderRing.SetCurrent(new PubSubSecurityKey(
-                future.TokenId, ByteString.From(future.SigningKey.Span), ByteString.From(future.EncryptingKey.Span),
-                ByteString.From(future.KeyNonce.Span), future.IssuedAt, future.Lifetime));
+            senderRing.SetCurrent(
+                new PubSubSecurityKey(
+                    future.TokenId,
+                    ByteString.From(future.SigningKey.Span),
+                    ByteString.From(future.EncryptingKey.Span),
+                    ByteString.From(future.KeyNonce.Span),
+                    future.IssuedAt,
+                    future.Lifetime));
             PubSubSecurityContext sender = Resolve(new StaticSecurityKeyProvider("group", senderRing));
             PubSubSecurityContext receiver = Resolve(new StaticSecurityKeyProvider("group", receiverRing));
             ReadOnlyMemory<byte> encoded = await sender.Wrapper.WrapAsync(s_prefix, s_plaintext).ConfigureAwait(false);
@@ -98,17 +105,20 @@ namespace Opc.Ua.PubSub.Tests.Security
                 .ConfigureAwait(false);
             Assert.That(invalid.IsSuccess, Is.False);
             UadpSecurityWrapper.UnwrapResult first = await receiver.Wrapper.TryUnwrapAsync(
-                s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                s_prefix,
+                encoded[s_prefix.Length..]).ConfigureAwait(false);
             Assert.That(first.IsSuccess, Is.True, first.Reason);
             Assert.That(first.InnerPayload!.Value.ToArray(), Is.EqualTo(s_plaintext));
             Assert.That(receiverRing.Current!.TokenId, Is.EqualTo(1u));
             UadpSecurityWrapper.UnwrapResult replay = await receiver.Wrapper.TryUnwrapAsync(
-                s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                s_prefix,
+                encoded[s_prefix.Length..]).ConfigureAwait(false);
             Assert.That(replay.IsSuccess, Is.False);
             Assert.That(replay.Reason, Does.Contain("Replay"));
             Assert.That(receiverRing.RotateToNextFuture(), Is.True);
             UadpSecurityWrapper.UnwrapResult replayAfterRotation = await receiver.Wrapper.TryUnwrapAsync(
-                s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                s_prefix,
+                encoded[s_prefix.Length..]).ConfigureAwait(false);
             Assert.That(replayAfterRotation.IsSuccess, Is.False);
         }
 
@@ -116,9 +126,13 @@ namespace Opc.Ua.PubSub.Tests.Security
         public async Task MatchingKeyBytesCannotAuthorizeADifferentReturnedTokenIdentityAsync()
         {
             using PubSubSecurityKey key = CreateKey(1);
-            using var mismatched = new PubSubSecurityKey(9, ByteString.From(key.SigningKey.Span),
-                ByteString.From(key.EncryptingKey.Span), ByteString.From(key.KeyNonce.Span),
-                key.IssuedAt, key.Lifetime);
+            using var mismatched = new PubSubSecurityKey(
+                9,
+                ByteString.From(key.SigningKey.Span),
+                ByteString.From(key.EncryptingKey.Span),
+                ByteString.From(key.KeyNonce.Span),
+                key.IssuedAt,
+                key.Lifetime);
             var provider = new Mock<IPubSubSecurityKeyProvider>(MockBehavior.Strict);
             provider.SetupGet(value => value.SecurityGroupId).Returns("group");
             provider.Setup(value => value.GetCurrentKeyAsync(It.IsAny<CancellationToken>())).ReturnsAsync(key);
@@ -126,7 +140,8 @@ namespace Opc.Ua.PubSub.Tests.Security
             PubSubSecurityContext context = Resolve(provider.Object);
             ReadOnlyMemory<byte> encoded = await context.Wrapper.WrapAsync(s_prefix, s_plaintext).ConfigureAwait(false);
             UadpSecurityWrapper.UnwrapResult result = await context.Wrapper.TryUnwrapAsync(
-                s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                s_prefix,
+                encoded[s_prefix.Length..]).ConfigureAwait(false);
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(result.InnerPayload, Is.Null);
         }
@@ -147,11 +162,12 @@ namespace Opc.Ua.PubSub.Tests.Security
             if (receive)
             {
                 provider.Setup(value => value.TryGetKeyAsync(1, It.IsAny<CancellationToken>()))
-                    .Returns(async (uint _, CancellationToken _) =>
-                    {
-                        PubSubSecurityKey result = await release.Task.ConfigureAwait(false);
-                        return result;
-                    });
+                    .Returns(
+                        async (uint _, CancellationToken _) =>
+                        {
+                            PubSubSecurityKey result = await release.Task.ConfigureAwait(false);
+                            return result;
+                        });
             }
             else
             {
@@ -163,12 +179,16 @@ namespace Opc.Ua.PubSub.Tests.Security
             if (receive)
             {
                 pending = context.Wrapper.TryUnwrapAsync(
-                    s_prefix, encoded[s_prefix.Length..], cancellation.Token).AsTask();
+                    s_prefix,
+                    encoded[s_prefix.Length..],
+                    cancellation.Token).AsTask();
             }
             else
             {
                 pending = context.Wrapper.WrapAsync(
-                    s_prefix, s_plaintext, cancellationToken: cancellation.Token).AsTask();
+                    s_prefix,
+                    s_plaintext,
+                    cancellationToken: cancellation.Token).AsTask();
             }
             try
             {
@@ -179,7 +199,8 @@ namespace Opc.Ua.PubSub.Tests.Security
                     .ConfigureAwait(false);
                 provider.Setup(value => value.TryGetKeyAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(key);
                 UadpSecurityWrapper.UnwrapResult result = await context.Wrapper.TryUnwrapAsync(
-                    s_prefix, encoded[s_prefix.Length..]).ConfigureAwait(false);
+                    s_prefix,
+                    encoded[s_prefix.Length..]).ConfigureAwait(false);
                 Assert.That(result.IsSuccess, Is.True, result.Reason);
                 Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(s_plaintext));
             }
@@ -192,23 +213,29 @@ namespace Opc.Ua.PubSub.Tests.Security
         private static PubSubSecurityContext Resolve(IPubSubSecurityKeyProvider provider)
         {
             var resolver = new PubSubSecurityWrapperResolver([provider], NUnitTelemetryContext.Create());
-            return resolver.Resolve(new PubSubConnectionDataType
-            {
-                Name = "Owned token test",
-                PublisherId = Variant.From((ushort)2),
-                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
-                ReaderGroups = [new ReaderGroupDataType
+            return resolver.Resolve(
+                new PubSubConnectionDataType
                 {
-                    SecurityMode = MessageSecurityMode.SignAndEncrypt, SecurityGroupId = "group"
-                }]
-            }) ?? throw new AssertionException("The configured security context is missing.");
+                    Name = "Owned token test",
+                    PublisherId = Variant.From((ushort)2),
+                    TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                    ReaderGroups = [new ReaderGroupDataType
+                    {
+                        SecurityMode = MessageSecurityMode.SignAndEncrypt, SecurityGroupId = "group"
+                    }]
+                }) ??
+                throw new AssertionException("The configured security context is missing.");
         }
 
         private static PubSubSecurityKey CreateKey(uint token)
         {
-            return new PubSubSecurityKey(token, ByteString.From(RandomNumberGenerator.GetBytes(32)),
-                ByteString.From(RandomNumberGenerator.GetBytes(32)), ByteString.From(RandomNumberGenerator.GetBytes(4)),
-                new DateTimeUtc(2026, 1, 1), TimeSpan.FromMinutes(5));
+            return new PubSubSecurityKey(
+                token,
+                ByteString.From(RandomNumberGenerator.GetBytes(32)),
+                ByteString.From(RandomNumberGenerator.GetBytes(32)),
+                ByteString.From(RandomNumberGenerator.GetBytes(4)),
+                new DateTimeUtc(2026, 1, 1),
+                TimeSpan.FromMinutes(5));
         }
 
         private static readonly byte[] s_prefix = [0xb1, 0x10, 0, 1, 0, 0, 0, 0];

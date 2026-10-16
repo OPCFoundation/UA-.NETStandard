@@ -57,6 +57,7 @@
     <Compile Remove="OpenUsdSceneCameraCaptureServiceCollectionExtensionsTests.cs" />
     <Compile Remove="OpenUsdCaptureLogTests.cs" />
     <Compile Remove="OpenUsdNativeCaptureTests.cs" />
+    <Compile Remove="RetainedSceneCameraCaptureProviderTests.cs" />
     <Compile Remove="VisionOpenUsdCoverageTests.cs" />
   </ItemGroup>
 </Project>

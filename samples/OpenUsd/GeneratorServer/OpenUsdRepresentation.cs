@@ -86,7 +86,8 @@ namespace Generators
                 ushort ns = (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
 
                 OpenUsdRootState root = SystemContext.CreateInstanceOfOpenUsdRootType(
-                    null!, new QualifiedName("OpenUSD", ns));
+                    null!,
+                    new QualifiedName("OpenUSD", ns));
                 root.NodeId = new NodeId("OpenUSD", ns);
 
                 FolderState stages = root.Stages
@@ -95,7 +96,8 @@ namespace Generators
                     ?? root.CreateOrReplaceRepresentations(SystemContext, null!);
 
                 m_powerhouseStage = SystemContext.CreateInstanceOfOpenUsdStageType(
-                    stages, new QualifiedName("PowerhouseStage", ns));
+                    stages,
+                    new QualifiedName("PowerhouseStage", ns));
                 stages.AddChild(m_powerhouseStage);
                 m_powerhouseStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = PowerhouseRootLayerIdentifier;
@@ -200,13 +202,17 @@ namespace Generators
                 return;
             }
             if (!externalReferences.TryGetValue(
-                Opc.Ua.ObjectIds.Server, out IList<IReference>? references))
+                Opc.Ua.ObjectIds.Server,
+                out IList<IReference>? references))
             {
                 references = new List<IReference>();
                 externalReferences[Opc.Ua.ObjectIds.Server] = references;
             }
-            references.Add(new NodeStateReference(
-                ReferenceTypeIds.HasComponent, false, m_openUsdRoot.NodeId));
+            references.Add(
+                new NodeStateReference(
+                    ReferenceTypeIds.HasComponent,
+                    false,
+                    m_openUsdRoot.NodeId));
         }
 
         /// <summary>
@@ -227,7 +233,10 @@ namespace Generators
             var twin = new GeneratorTwin(primPath, setNumber);
 
             OpenUsdRepresentationState rep = SystemContext.CreateRepresentation(
-                set, m_powerhouseStage.NodeId, primPath, ns);
+                set,
+                m_powerhouseStage.NodeId,
+                primPath,
+                ns);
 
             CreateSignals(set, twin);
             CreateBindings(rep, ns, twin);
@@ -258,40 +267,74 @@ namespace Generators
                 set,
                 "BayPosition",
                 Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
-                Variant.From(new ExtensionObject(new ThreeDCartesianCoordinates
-                {
-                    X = 0.0,
-                    Y = (twin.SetNumber - 1) * BaySpacingMetres,
-                    Z = 0.0,
-                })));
+                Variant.From(
+                    new ExtensionObject(
+                        new ThreeDCartesianCoordinates
+                        {
+                            X = 0.0,
+                            Y = (twin.SetNumber - 1) * BaySpacingMetres,
+                            Z = 0.0,
+                        })));
 
             twin.FanAngle = CreateVariable(
-                set, "CoolingFanAngle", Opc.Ua.DataTypeIds.Double, Variant.From(0.0));
+                set,
+                "CoolingFanAngle",
+                Opc.Ua.DataTypeIds.Double,
+                Variant.From(0.0));
             twin.LoadNeedle = CreateVariable(
-                set, "LoadGaugeAngle", Opc.Ua.DataTypeIds.Double, Variant.From(0.0));
+                set,
+                "LoadGaugeAngle",
+                Opc.Ua.DataTypeIds.Double,
+                Variant.From(0.0));
             twin.TempNeedle = CreateVariable(
-                set, "CoolantGaugeAngle", Opc.Ua.DataTypeIds.Double, Variant.From(0.0));
+                set,
+                "CoolantGaugeAngle",
+                Opc.Ua.DataTypeIds.Double,
+                Variant.From(0.0));
             twin.ExhaustCelsius = CreateVariable(
-                set, "ExhaustSurfaceTemperature", Opc.Ua.DataTypeIds.Double, Variant.From(25.0));
+                set,
+                "ExhaustSurfaceTemperature",
+                Opc.Ua.DataTypeIds.Double,
+                Variant.From(25.0));
             twin.RadiatorCelsius = CreateVariable(
-                set, "RadiatorSurfaceTemperature", Opc.Ua.DataTypeIds.Double, Variant.From(25.0));
+                set,
+                "RadiatorSurfaceTemperature",
+                Opc.Ua.DataTypeIds.Double,
+                Variant.From(25.0));
             twin.FuelSurface = CreateVariable(
                 set,
                 "FuelSurfacePosition",
                 Opc.Ua.DataTypeIds.ThreeDCartesianCoordinates,
-                Variant.From(new ExtensionObject(FuelSurfaceAt(
-                    GeneratorDatasheet.Simulation.InitialFuelPercent))));
+                Variant.From(
+                    new ExtensionObject(
+                        FuelSurfaceAt(
+                            GeneratorDatasheet.Simulation.InitialFuelPercent))));
 
             twin.ProtectionTripped = CreateVariable(
-                set, "ProtectionTripped", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
+                set,
+                "ProtectionTripped",
+                Opc.Ua.DataTypeIds.Boolean,
+                Variant.From(false));
             twin.CoolantOverTemperature = CreateVariable(
-                set, "CoolantOverTemperature", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
+                set,
+                "CoolantOverTemperature",
+                Opc.Ua.DataTypeIds.Boolean,
+                Variant.From(false));
             twin.LowOilPressure = CreateVariable(
-                set, "LowOilPressure", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
+                set,
+                "LowOilPressure",
+                Opc.Ua.DataTypeIds.Boolean,
+                Variant.From(false));
             twin.Running = CreateVariable(
-                set, "Running", Opc.Ua.DataTypeIds.Boolean, Variant.From(false));
+                set,
+                "Running",
+                Opc.Ua.DataTypeIds.Boolean,
+                Variant.From(false));
             twin.OperatingStateName = CreateVariable(
-                set, "OperatingStateName", Opc.Ua.DataTypeIds.String, Variant.From("Off"));
+                set,
+                "OperatingStateName",
+                Opc.Ua.DataTypeIds.String,
+                Variant.From("Off"));
         }
 
         /// <summary>
@@ -325,7 +368,10 @@ namespace Generators
         /// <param name="initialValue">Initial value.</param>
         /// <returns>The created Variable.</returns>
         private BaseDataVariableState CreateVariable(
-            GeneratorSetState set, string name, NodeId dataType, Variant initialValue)
+            GeneratorSetState set,
+            string name,
+            NodeId dataType,
+            Variant initialValue)
         {
             var v = new BaseDataVariableState(set)
             {
@@ -359,7 +405,8 @@ namespace Generators
         /// and publish the first one N times per tick.
         /// </remarks>
         private async ValueTask RegisterOpenUsdSignalsAsync(
-            GeneratorSetState set, CancellationToken cancellationToken)
+            GeneratorSetState set,
+            CancellationToken cancellationToken)
         {
             if (!m_twins.TryGetValue(set.NodeId, out GeneratorTwin? twin))
             {
@@ -416,10 +463,11 @@ namespace Generators
             {
                 return;
             }
-            NodeState? deviceSet = FindPredefinedNode<NodeState>(NodeId.Create(
-                Opc.Ua.Di.Objects.DeviceSet,
-                DiNamespaceUri,
-                Server.NamespaceUris));
+            NodeState? deviceSet = FindPredefinedNode<NodeState>(
+                NodeId.Create(
+                    Opc.Ua.Di.Objects.DeviceSet,
+                    DiNamespaceUri,
+                    Server.NamespaceUris));
             if (deviceSet == null)
             {
                 return;
@@ -427,7 +475,10 @@ namespace Generators
 
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(Opc.Ua.OpenUsd.Namespaces.OpenUSD);
             OpenUsdRepresentationState plant = SystemContext.CreateRepresentation(
-                deviceSet, m_powerhouseStage.NodeId, GeneratorsScopePrimPath, ns);
+                deviceSet,
+                m_powerhouseStage.NodeId,
+                GeneratorsScopePrimPath,
+                ns);
 
             plant.AddComponentBinding(
                 SystemContext,
@@ -689,17 +740,20 @@ namespace Generators
         /// Gets the load-gauge needle angle, in degrees.
         /// </summary>
         public double LoadNeedleDegrees =>
-            -(GaugeSweepDegrees / 2.0) + (GaugeSweepDegrees *
+            -(GaugeSweepDegrees / 2.0) +
+            (GaugeSweepDegrees *
                 Numeric.Clamp((Simulation?.LoadFraction ?? 0.0) / 1.2, 0.0, 1.0));
 
         /// <summary>
         /// Gets the coolant-gauge needle angle, in degrees.
         /// </summary>
         public double TempNeedleDegrees =>
-            -(GaugeSweepDegrees / 2.0) + (GaugeSweepDegrees * Numeric.Clamp(
-                (Simulation?.CoolantCelsius ?? 0.0) / GeneratorDatasheet.Ranges.CoolantMaxCelsius,
-                0.0,
-                1.0));
+            -(GaugeSweepDegrees / 2.0) +
+            (GaugeSweepDegrees *
+                Numeric.Clamp(
+                    (Simulation?.CoolantCelsius ?? 0.0) / GeneratorDatasheet.Ranges.CoolantMaxCelsius,
+                    0.0,
+                    1.0));
 
         /// <summary>
         /// Degrees per second the fan is *shown* turning at rated speed.

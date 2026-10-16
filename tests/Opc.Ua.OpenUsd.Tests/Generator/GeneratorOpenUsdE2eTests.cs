@@ -98,21 +98,23 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
                 });
             hostBuilder.Services
                 .AddOpcUa()
-                .AddServer(o =>
-                {
-                    o.ApplicationName = "GeneratorE2eServer";
-                    o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorE2eServer";
-                    o.AutoAcceptUntrustedCertificates = true;
-                    o.EndpointUrls.Add(serverUrl);
-                })
-                .ConfigureDevicesFor<global::Generators.GeneratorNodeManager>(_ =>
-                {
-                    // No topology work needed here; registering the hook is what puts
-                    // the post-setup runner in the container, which is what lets the
-                    // node-manager factory receive the configured options. Without it
-                    // GeneratorCount is silently ignored and the set count below would
-                    // not be what this fixture asked for.
-                })
+                .AddServer(
+                    o =>
+                    {
+                        o.ApplicationName = "GeneratorE2eServer";
+                        o.ApplicationUri = "urn:localhost:OPCFoundation:GeneratorE2eServer";
+                        o.AutoAcceptUntrustedCertificates = true;
+                        o.EndpointUrls.Add(serverUrl);
+                    })
+                .ConfigureDevicesFor<global::Generators.GeneratorNodeManager>(
+                    _ =>
+                    {
+                        // No topology work needed here; registering the hook is what puts
+                        // the post-setup runner in the container, which is what lets the
+                        // node-manager factory receive the configured options. Without it
+                        // GeneratorCount is silently ignored and the set count below would
+                        // not be what this fixture asked for.
+                    })
                 .AddNodeManager<global::Generators.GeneratorNodeManagerFactory>();
 
             m_host = hostBuilder.Build();
@@ -124,7 +126,8 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             var appInstance = new Opc.Ua.Configuration.ApplicationInstance(m_clientConfig, m_telemetry);
             await appInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false);
             m_clientConfig.CertificateManager ??= CertificateManagerFactory.Create(
-                m_clientConfig.SecurityConfiguration, m_telemetry);
+                m_clientConfig.SecurityConfiguration,
+                m_telemetry);
             m_clientConfig.CertificateManager.AcceptError = static (cert, err) => true;
 
             // 90 attempts (~45s): this fixture materialises two full generator sets
@@ -140,7 +143,10 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
                 try
                 {
                     endpointDescription = await CoreClientUtils.SelectEndpointAsync(
-                        m_clientConfig, serverUrl, useSecurity: false, m_telemetry,
+                        m_clientConfig,
+                        serverUrl,
+                        useSecurity: false,
+                        m_telemetry,
                         CancellationToken.None).ConfigureAwait(false);
                 }
 #pragma warning disable CA1031 // The endpoint opens asynchronously after the host starts.
@@ -153,13 +159,19 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
             Assert.That(endpointDescription, Is.Not.Null, "Server endpoint did not become available.");
 
             var endpoint = new ConfiguredEndpoint(
-                null, endpointDescription!, EndpointConfiguration.Create(m_clientConfig));
+                null,
+                endpointDescription!,
+                EndpointConfiguration.Create(m_clientConfig));
             var sessionFactory = new DefaultSessionFactory(m_telemetry);
             m_session = await sessionFactory.CreateAsync(
-                m_clientConfig, endpoint, updateBeforeConnect: false,
-                sessionName: "GeneratorE2e", sessionTimeout: 60000,
+                m_clientConfig,
+                endpoint,
+                updateBeforeConnect: false,
+                sessionName: "GeneratorE2e",
+                sessionTimeout: 60000,
                 identity: new UserIdentity(new AnonymousIdentityToken()),
-                preferredLocales: default, ct: CancellationToken.None).ConfigureAwait(false);
+                preferredLocales: default,
+                ct: CancellationToken.None).ConfigureAwait(false);
         }
 
         [OneTimeTearDown]
@@ -235,17 +247,18 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
 
                 OpenUsdConnector.ComponentInfo binding = aggregation!.Components[0];
 
-                Assert.Multiple(() =>
-                {
-                    Assert.That(binding.Enabled, Is.True);
-                    Assert.That(
-                        binding.ComponentAssetReference,
-                        Does.Contain("generator.usda"),
-                        "The binding must name the asset the composed prims reference.");
-                    Assert.That(
-                        binding.TargetPrimPath,
-                        Is.EqualTo("/Powerhouse/Generators"));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(binding.Enabled, Is.True);
+                        Assert.That(
+                            binding.ComponentAssetReference,
+                            Does.Contain("generator.usda"),
+                            "The binding must name the asset the composed prims reference.");
+                        Assert.That(
+                            binding.TargetPrimPath,
+                            Is.EqualTo("/Powerhouse/Generators"));
+                    });
             }
         }
 
@@ -317,7 +330,12 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
                         throw new AssertionException("The advertised root asset is not served.");
                     Assert.That(root.DigestVerified, Is.True);
                     using var stream = new FileStream(
-                        root.LocalPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+                        root.LocalPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        4096,
+                        useAsync: true);
                     using var buffer = new MemoryStream();
                     await stream.CopyToAsync(buffer).ConfigureAwait(false);
                     byte[] bytes = buffer.ToArray();
@@ -343,7 +361,9 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
         private ApplicationConfiguration CreateClientConfiguration()
         {
             string pkiRoot = Path.Combine(
-                Path.GetTempPath(), "GeneratorOpenUsdE2e", Path.GetRandomFileName());
+                Path.GetTempPath(),
+                "GeneratorOpenUsdE2e",
+                Path.GetRandomFileName());
             return new ApplicationConfiguration(m_telemetry!)
             {
                 ApplicationName = "GeneratorE2eClient",

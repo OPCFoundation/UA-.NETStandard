@@ -73,8 +73,11 @@ namespace Opc.Ua.Pumps.Client
             CancellationToken cancellationToken = default)
         {
             return ReadValueSetAsync(
-                group, options ?? PumpReadOptions.Default, 0,
-                new ValueReadBudget(m_maximumBrowseReferences), cancellationToken);
+                group,
+                options ?? PumpReadOptions.Default,
+                0,
+                new ValueReadBudget(m_maximumBrowseReferences),
+                cancellationToken);
         }
 
         private async ValueTask<PumpValueSet> ReadValueSetAsync(
@@ -152,9 +155,9 @@ namespace Opc.Ua.Pumps.Client
             ushort pumpsNamespace = NamespaceIndexOf(Namespaces.Pumps);
 
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    group,
-                    NodeClass.Variable | NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                group,
+                NodeClass.Variable | NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (nodeId.IsNull)
@@ -169,7 +172,8 @@ namespace Opc.Ua.Pumps.Client
                 if (m_maximumBrowseReferences != 0 && !names.Add(name))
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadBrowseNameDuplicated, "A pump group contains ambiguous value names.");
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "A pump group contains ambiguous value names.");
                 }
                 var target = new ValueTarget(name, nodeId)
                 {
@@ -348,19 +352,20 @@ namespace Opc.Ua.Pumps.Client
                     continue;
                 }
                 DateTimeUtc timestamp = value.SourceTimestamp;
-                values.Add(new PumpValue
-                {
-                    NodeId = target.ValueNodeId,
-                    Name = target.Name,
-                    Value = value.WrappedValue,
-                    StatusCode = value.StatusCode,
-                    SourceTimestamp = options.IncludeTimestamps &&
-                        timestamp.ToDateTime() != System.DateTime.MinValue
-                            ? timestamp.ToDateTime()
-                            : null,
-                    EngineeringUnits = Decode<EUInformation>(response, target.UnitsIndex),
-                    EuRange = Decode<Range>(response, target.RangeIndex)
-                });
+                values.Add(
+                    new PumpValue
+                    {
+                        NodeId = target.ValueNodeId,
+                        Name = target.Name,
+                        Value = value.WrappedValue,
+                        StatusCode = value.StatusCode,
+                        SourceTimestamp = options.IncludeTimestamps &&
+                            timestamp.ToDateTime() != System.DateTime.MinValue
+                                ? timestamp.ToDateTime()
+                                : null,
+                        EngineeringUnits = Decode<EUInformation>(response, target.UnitsIndex),
+                        EuRange = Decode<Range>(response, target.RangeIndex)
+                    });
             }
             return new PumpValueSet(group, values);
         }
@@ -410,13 +415,15 @@ namespace Opc.Ua.Pumps.Client
                     result.Targets[0].TargetId.ServerIndex != 0)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadDecodingError, "A pump member did not resolve to one local node.");
+                        StatusCodes.BadDecodingError,
+                        "A pump member did not resolve to one local node.");
                 }
                 NodeId target = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
                 if (target.IsNull)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadNodeIdInvalid, "The pump member namespace could not be resolved.");
+                        StatusCodes.BadNodeIdInvalid,
+                        "The pump member namespace could not be resolved.");
                 }
                 return target;
             }
@@ -456,11 +463,13 @@ namespace Opc.Ua.Pumps.Client
             {
                 RequireGoodResponse(response.Results[index].StatusCode);
                 if (!response.Results[index].WrappedValue.TryGetValue<T>(
-                    out T? metadata, Session.MessageContext) ||
+                    out T? metadata,
+                    Session.MessageContext) ||
                     metadata is null)
                 {
                     throw new ServiceResultException(
-                        StatusCodes.BadTypeMismatch, "Pump engineering metadata has an unexpected data type.");
+                        StatusCodes.BadTypeMismatch,
+                        "Pump engineering metadata has an unexpected data type.");
                 }
                 return metadata;
             }

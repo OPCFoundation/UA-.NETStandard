@@ -90,17 +90,18 @@ namespace Opc.Ua.AI.Tests
             AIDeploymentSnapshot snapshot = await harness.Client.Deployment(deploymentId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.NodeId, Is.EqualTo(deploymentId));
-                Assert.That(snapshot.DeploymentId, Is.EqualTo("dep-1"));
-                Assert.That(snapshot.InferenceLocation, Is.EqualTo(InferenceLocationEnum.Cloud));
-                Assert.That(snapshot.State, Is.EqualTo(DeploymentStateEnum.Degraded));
-                Assert.That(snapshot.DataJurisdiction, Is.EqualTo("EU"));
-                Assert.That(snapshot.EgressPermitted, Is.True);
-                Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo(1024ul));
-                Assert.That(snapshot.EndpointUri, Is.EqualTo("https://example.com"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.NodeId, Is.EqualTo(deploymentId));
+                    Assert.That(snapshot.DeploymentId, Is.EqualTo("dep-1"));
+                    Assert.That(snapshot.InferenceLocation, Is.EqualTo(InferenceLocationEnum.Cloud));
+                    Assert.That(snapshot.State, Is.EqualTo(DeploymentStateEnum.Degraded));
+                    Assert.That(snapshot.DataJurisdiction, Is.EqualTo("EU"));
+                    Assert.That(snapshot.EgressPermitted, Is.True);
+                    Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo(1024ul));
+                    Assert.That(snapshot.EndpointUri, Is.EqualTo("https://example.com"));
+                });
         }
 
         [TestCase(0u)]
@@ -109,8 +110,11 @@ namespace Opc.Ua.AI.Tests
         public async Task PublishedUInt32InlineLimitIsReadWithoutNarrowingOrDefault(uint maximum)
         {
             var harness = new AISessionHarness();
-            harness.AddValueChild(harness.DeploymentNodeId, BrowseNames.MaxInlinePayloadSize,
-                new NodeId(3006u, 3), Variant.From(maximum));
+            harness.AddValueChild(
+                harness.DeploymentNodeId,
+                BrowseNames.MaxInlinePayloadSize,
+                new NodeId(3006u, 3),
+                Variant.From(maximum));
 
             AIDeploymentSnapshot snapshot = await harness.Client.Deployment(harness.DeploymentNodeId).ReadAsync()
                 .ConfigureAwait(false);
@@ -139,22 +143,33 @@ namespace Opc.Ua.AI.Tests
                 "status-code" => Variant.From(StatusCodes.BadNotFound),
                 _ => Variant.From(1024u)
             };
-            harness.Session.Setup(session => session.ReadAsync(
-                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
-                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
-                .Returns((RequestHeader? _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> reads,
-                    CancellationToken _) =>
-                {
-                    Assert.That(reads.Count, Is.EqualTo(1));
-                    Assert.That(reads[0].NodeId, Is.EqualTo(node));
-                    return new ValueTask<ReadResponse>(new ReadResponse
+            harness.Session.Setup(
+                session => session.ReadAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(
+                    (
+                        RequestHeader? _,
+                        double _,
+                        TimestampsToReturn _,
+                        ArrayOf<ReadValueId> reads,
+                        CancellationToken _) =>
                     {
-                        ResponseHeader = new ResponseHeader(),
-                        Results = [new DataValue(payload).WithStatus(status)]
+                        Assert.That(reads.Count, Is.EqualTo(1));
+                        Assert.That(reads[0].NodeId, Is.EqualTo(node));
+                        return new ValueTask<ReadResponse>(
+                            new ReadResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [new DataValue(payload).WithStatus(status)]
+                            });
                     });
-                });
 
-            await Assert.ThatAsync(() => harness.Client.Deployment(harness.DeploymentNodeId).ReadAsync().AsTask(),
+            await Assert.ThatAsync(
+                () => harness.Client.Deployment(harness.DeploymentNodeId).ReadAsync().AsTask(),
                 Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
                     .EqualTo(fault is "wrong-type" or "status-code" ? StatusCodes.BadTypeMismatch : status))
                 .ConfigureAwait(false);
@@ -169,14 +184,15 @@ namespace Opc.Ua.AI.Tests
                 .Deployment(harness.DeploymentNodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.DeploymentId, Is.Null);
-                Assert.That(snapshot.EndpointUri, Is.Null);
-                Assert.That(snapshot.EgressPermitted, Is.False);
-                Assert.That(snapshot.ModelId, Is.EqualTo(NodeId.Null));
-                Assert.That(snapshot.FallbackDeploymentId, Is.EqualTo(NodeId.Null));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.DeploymentId, Is.Null);
+                    Assert.That(snapshot.EndpointUri, Is.Null);
+                    Assert.That(snapshot.EgressPermitted, Is.False);
+                    Assert.That(snapshot.ModelId, Is.EqualTo(NodeId.Null));
+                    Assert.That(snapshot.FallbackDeploymentId, Is.EqualTo(NodeId.Null));
+                });
         }
 
         [Test]
@@ -233,18 +249,19 @@ namespace Opc.Ua.AI.Tests
                     5.0)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ResponsePayload.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
-                Assert.That(result.ResponseContentType, Is.EqualTo("application/json"));
-                Assert.That(result.ModelUsed, Is.EqualTo(modelId));
-                Assert.That(result.Usage, Is.Not.Null);
-                Assert.That(result.FinishReason, Is.EqualTo(FinishReasonEnum.Filtered));
-                Assert.That(result.SafetyAssessment, Has.Count.EqualTo(1));
-                Assert.That(result.RetryAfter, Is.EqualTo(0.25));
-                Assert.That(result.TransferRequired, Is.True);
-                Assert.That(result.TransferId, Is.EqualTo(transferId));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ResponsePayload.Span.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+                    Assert.That(result.ResponseContentType, Is.EqualTo("application/json"));
+                    Assert.That(result.ModelUsed, Is.EqualTo(modelId));
+                    Assert.That(result.Usage, Is.Not.Null);
+                    Assert.That(result.FinishReason, Is.EqualTo(FinishReasonEnum.Filtered));
+                    Assert.That(result.SafetyAssessment, Has.Count.EqualTo(1));
+                    Assert.That(result.RetryAfter, Is.EqualTo(0.25));
+                    Assert.That(result.TransferRequired, Is.True);
+                    Assert.That(result.TransferId, Is.EqualTo(transferId));
+                });
         }
 
         [Test]
@@ -288,22 +305,23 @@ namespace Opc.Ua.AI.Tests
                     null!)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(calls, Has.Count.EqualTo(2));
-                Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
-                Assert.That(calls[1].InputArguments[1].GetString(), Is.EqualTo(string.Empty));
-                Assert.That(calls[1].InputArguments[2].GetString(), Is.EqualTo(string.Empty));
-                Assert.That(result.ResponsePayload.Span.ToArray(), Is.EqualTo(new byte[] { 4, 5 }));
-                Assert.That(result.ResponseContentType, Is.EqualTo("application/octet-stream"));
-                Assert.That(result.ModelUsed, Is.EqualTo(modelId));
-                Assert.That(result.Usage, Is.Not.Null);
-                Assert.That(result.FinishReason, Is.EqualTo(FinishReasonEnum.ToolCall));
-                Assert.That(result.SafetyAssessment, Has.Count.EqualTo(1));
-                Assert.That(result.RetryAfter, Is.EqualTo(1.5));
-                Assert.That(result.TransferRequired, Is.True);
-                Assert.That(result.TransferId, Is.EqualTo(transferId));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                    Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
+                    Assert.That(calls[1].InputArguments[1].GetString(), Is.EqualTo(string.Empty));
+                    Assert.That(calls[1].InputArguments[2].GetString(), Is.EqualTo(string.Empty));
+                    Assert.That(result.ResponsePayload.Span.ToArray(), Is.EqualTo(new byte[] { 4, 5 }));
+                    Assert.That(result.ResponseContentType, Is.EqualTo("application/octet-stream"));
+                    Assert.That(result.ModelUsed, Is.EqualTo(modelId));
+                    Assert.That(result.Usage, Is.Not.Null);
+                    Assert.That(result.FinishReason, Is.EqualTo(FinishReasonEnum.ToolCall));
+                    Assert.That(result.SafetyAssessment, Has.Count.EqualTo(1));
+                    Assert.That(result.RetryAfter, Is.EqualTo(1.5));
+                    Assert.That(result.TransferRequired, Is.True);
+                    Assert.That(result.TransferId, Is.EqualTo(transferId));
+                });
         }
 
         [Test]
@@ -329,18 +347,19 @@ namespace Opc.Ua.AI.Tests
                     0)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ResponsePayload, Is.EqualTo(ByteString.Empty));
-                Assert.That(result.ResponseContentType, Is.Null);
-                Assert.That(result.ModelUsed, Is.EqualTo(NodeId.Null));
-                Assert.That(result.Usage, Is.Null);
-                Assert.That(result.SafetyAssessment, Is.Empty);
-                Assert.That(result.RetryAfter, Is.Zero);
-                Assert.That(result.TransferRequired, Is.False);
-                Assert.That(result.TransferId, Is.EqualTo(NodeId.Null));
-                Assert.That(calls, Has.Count.EqualTo(2));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ResponsePayload, Is.EqualTo(ByteString.Empty));
+                    Assert.That(result.ResponseContentType, Is.Null);
+                    Assert.That(result.ModelUsed, Is.EqualTo(NodeId.Null));
+                    Assert.That(result.Usage, Is.Null);
+                    Assert.That(result.SafetyAssessment, Is.Empty);
+                    Assert.That(result.RetryAfter, Is.Zero);
+                    Assert.That(result.TransferRequired, Is.False);
+                    Assert.That(result.TransferId, Is.EqualTo(NodeId.Null));
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                });
         }
 
         [Test]
@@ -365,12 +384,13 @@ namespace Opc.Ua.AI.Tests
                 .GetCapabilitiesAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(calls, Has.Count.EqualTo(2));
-                Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
-                Assert.That(result, Has.Count.EqualTo(1));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                    Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
+                    Assert.That(result, Has.Count.EqualTo(1));
+                });
         }
 
         [Test]
@@ -393,11 +413,12 @@ namespace Opc.Ua.AI.Tests
                 .GetCapabilitiesAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result, Is.Empty);
-                Assert.That(calls, Has.Count.EqualTo(2));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result, Is.Empty);
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                });
         }
 
         [Test]
@@ -424,14 +445,15 @@ namespace Opc.Ua.AI.Tests
                 .BeginTransferAsync(null!, 123)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(calls, Has.Count.EqualTo(2));
-                Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
-                Assert.That(calls[1].InputArguments[0].GetString(), Is.EqualTo(string.Empty));
-                Assert.That(result.TransferId, Is.EqualTo(transferId));
-                Assert.That(result.Accepted, Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                    Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
+                    Assert.That(calls[1].InputArguments[0].GetString(), Is.EqualTo(string.Empty));
+                    Assert.That(result.TransferId, Is.EqualTo(transferId));
+                    Assert.That(result.Accepted, Is.True);
+                });
         }
 
         [Test]
@@ -459,14 +481,15 @@ namespace Opc.Ua.AI.Tests
                     null!)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(calls, Has.Count.EqualTo(2));
-                Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
-                Assert.That(calls[1].InputArguments[1].GetString(), Is.EqualTo(string.Empty));
-                Assert.That(calls[1].InputArguments[2].GetString(), Is.EqualTo(string.Empty));
-                Assert.That(result, Is.EqualTo(jobId));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(calls, Has.Count.EqualTo(2));
+                    Assert.That(calls[1].MethodId, Is.EqualTo(instanceMethodId));
+                    Assert.That(calls[1].InputArguments[1].GetString(), Is.EqualTo(string.Empty));
+                    Assert.That(calls[1].InputArguments[2].GetString(), Is.EqualTo(string.Empty));
+                    Assert.That(result, Is.EqualTo(jobId));
+                });
         }
 
         private static List<CallMethodRequest> SetupCallResults(
@@ -476,21 +499,23 @@ namespace Opc.Ua.AI.Tests
             int index = 0;
             var calls = new List<CallMethodRequest>();
             harness.Session
-                .Setup(s => s.CallAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<ArrayOf<CallMethodRequest>>(),
-                    It.IsAny<CancellationToken>()))
+                .Setup(
+                    s => s.CallAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<ArrayOf<CallMethodRequest>>(),
+                        It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>(
                     (_, requests, _) =>
                     {
                         calls.Add(requests[0]);
                         CallMethodResult result = results[Math.Min(index++, results.Length - 1)];
-                        return new ValueTask<CallResponse>(new CallResponse
-                        {
-                            ResponseHeader = new ResponseHeader(),
-                            Results = [result],
-                            DiagnosticInfos = []
-                        });
+                        return new ValueTask<CallResponse>(
+                            new CallResponse
+                            {
+                                ResponseHeader = new ResponseHeader(),
+                                Results = [result],
+                                DiagnosticInfos = []
+                            });
                     });
             return calls;
         }
@@ -504,10 +529,11 @@ namespace Opc.Ua.AI.Tests
         {
             int callCount = 0;
             harness.Session
-                .Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<ArrayOf<BrowsePath>>(),
-                    It.IsAny<CancellationToken>()))
+                .Setup(
+                    s => s.TranslateBrowsePathsToNodeIdsAsync(
+                        It.IsAny<RequestHeader>(),
+                        It.IsAny<ArrayOf<BrowsePath>>(),
+                        It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, ArrayOf<BrowsePath>, CancellationToken>(
                     (_, paths, _) =>
                     {
@@ -516,13 +542,16 @@ namespace Opc.Ua.AI.Tests
                         Assert.That(path.StartingNode, Is.EqualTo(startingNode));
                         Assert.That(path.RelativePath.Elements, Has.Count.EqualTo(1));
                         RelativePathElement element = path.RelativePath.Elements[0];
-                        Assert.That(element.TargetName, Is.EqualTo(
-                            new QualifiedName(browseName, namespaceIndex)));
+                        Assert.That(
+                            element.TargetName,
+                            Is.EqualTo(
+                                new QualifiedName(browseName, namespaceIndex)));
                         Assert.That(
                             element.ReferenceTypeId,
-                            Is.EqualTo(callCount == 0
-                                ? global::Opc.Ua.ReferenceTypeIds.HasComponent
-                                : global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences));
+                            Is.EqualTo(
+                                callCount == 0
+                                    ? global::Opc.Ua.ReferenceTypeIds.HasComponent
+                                    : global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences));
                         bool found = callCount++ > 0;
                         return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
                             new TranslateBrowsePathsToNodeIdsResponse

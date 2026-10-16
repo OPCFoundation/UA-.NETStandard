@@ -57,17 +57,19 @@ namespace Opc.Ua.Vision.Tests
             {
                 await fixture.StartAsync().ConfigureAwait(false);
                 IVisionBuildContext context = fixture.CreateBuildContext();
-                context.Nodes.AddImageSensor("FixtureCamera", sensor =>
-                {
-                    sensor.WithSensorId("fixture-camera")
-                        .WithRealityKind(VisionRealityKindEnum.Simulated)
-                        .UseMediaProvider(new Mock<IVisionMediaProvider>().Object);
-                    if (addEndpoints)
+                context.Nodes.AddImageSensor(
+                    "FixtureCamera",
+                    sensor =>
                     {
-                        sensor.AddClipEndpoint("FixtureClip", endpoint => endpoint.WithEndpointId("clip-1"))
-                            .AddStreamEndpoint("FixtureStream", endpoint => endpoint.WithEndpointId("stream-1"));
-                    }
-                });
+                        sensor.WithSensorId("fixture-camera")
+                            .WithRealityKind(VisionRealityKindEnum.Simulated)
+                            .UseMediaProvider(new Mock<IVisionMediaProvider>().Object);
+                        if (addEndpoints)
+                        {
+                            sensor.AddClipEndpoint("FixtureClip", endpoint => endpoint.WithEndpointId("clip-1"))
+                                .AddStreamEndpoint("FixtureStream", endpoint => endpoint.WithEndpointId("stream-1"));
+                        }
+                    });
                 var camera = FindChild(fixture.Manager.Root.Sensors!, "FixtureCamera") as ImageSensorState;
                 Assert.That(camera, Is.Not.Null);
                 Assert.That(camera!.Media, Is.Not.Null);
@@ -77,7 +79,9 @@ namespace Opc.Ua.Vision.Tests
                     Assert.That(folder, Is.Not.Null);
                     var references = new List<IReference>();
                     folder.GetReferences(context.Context, references, Opc.Ua.ReferenceTypeIds.HasComponent, false);
-                    Assert.That(references, Is.Empty,
+                    Assert.That(
+                        references,
+                        Is.Empty,
                         "An instance folder must not link back to the model's uninstantiated endpoint declarations.");
                     var children = new List<BaseInstanceState>();
                     folder.GetChildren(context.Context, children);
@@ -86,7 +90,8 @@ namespace Opc.Ua.Vision.Tests
                     {
                         var endpoint = children[0] as MediaEndpointState;
                         Assert.That(endpoint, Is.Not.Null);
-                        Assert.That(endpoint!.EndpointId!.Value,
+                        Assert.That(
+                            endpoint!.EndpointId!.Value,
                             Is.EqualTo(folder == folders[0] ? "clip-1" : "stream-1"));
                     }
                 }
@@ -103,63 +108,77 @@ namespace Opc.Ua.Vision.Tests
             VisionPose3DDataType extrinsic = CreatePose();
             VisionIntrinsicsDataType intrinsics = CreateIntrinsics();
 
-            context.Nodes.AddImageSensor("Camera1", sensor => sensor
-                .WithSensorId("SN-CAM-1")
-                .WithRealityKind(VisionRealityKindEnum.Physical)
-                .WithModality(VisionSensorModalityEnum.Area2D)
-                .WithManufacturer("Contoso")
-                .WithModel("ContosoCam 4K")
-                .WithSerialNumber("SN-42")
-                .WithDeviceUri("opc.tcp://cam-1")
-                .WithFrameId("cam1")
-                .WithResolution(1920, 1080)
-                .WithPixelFormat("Mono8")
-                .WithIntrinsics(intrinsics)
-                .WithOptics(o => o
-                    .WithFocalLength(0.008)
-                    .WithAperture(1.4)
-                    .WithWorkingDistance(0.5)
-                    .WithMagnification(2.0)
-                    .WithMountType("C-Mount")
-                    .WithLensType("Fixed"))
-                .WithIllumination(i => i
-                    .WithLampType(VisionLampTypeEnum.Led)
-                    .WithWavelength(525)
-                    .WithRelativeIntensity(0.8)
-                    .WithLightingMode(VisionLightingModeEnum.Continuous))
-                .AddIntrinsicCalibration("Intr", calib => calib
-                    .WithCalibrationId("intrinsic-1")
+            context.Nodes.AddImageSensor(
+                "Camera1",
+                sensor => sensor
+                    .WithSensorId("SN-CAM-1")
+                    .WithRealityKind(VisionRealityKindEnum.Physical)
+                    .WithModality(VisionSensorModalityEnum.Area2D)
+                    .WithManufacturer("Contoso")
+                    .WithModel("ContosoCam 4K")
+                    .WithSerialNumber("SN-42")
+                    .WithDeviceUri("opc.tcp://cam-1")
+                    .WithFrameId("cam1")
+                    .WithResolution(1920, 1080)
+                    .WithPixelFormat("Mono8")
                     .WithIntrinsics(intrinsics)
-                    .WithResidualError(0.25)
-                    .WithMethod("Zhang"))
-                .AddExtrinsicCalibration("Extr", calib => calib
-                    .WithCalibrationId("extrinsic-1")
-                    .WithMount(VisionCalibrationMountEnum.EyeToHand)
-                    .WithFrames("world", "cam1")
-                    .WithTransform(extrinsic)
-                    .WithResidualError(0.1))
-                .AddStreamEndpoint("Rtsp", ep => ep
-                    .WithEndpointId("stream-1")
-                    .WithEndpointUri("rtsp://cam-1/stream")
-                    .WithProtocol(VisionStreamProtocolEnum.Rtsp)
-                    .WithCodec(VisionVideoCodecEnum.H264)
-                    .WithResolution(1920, 1080)
-                    .WithFrameRate(30.0)
-                    .WithBitrate(8_000_000)
-                    .WithDefaultProfileName("main"))
-                .AddClipEndpoint("Snap", ep => ep
-                    .WithEndpointId("clip-1")
-                    .WithEndpointUri("clip://cam-1/snap")
-                    .WithClipFormat(VisionClipFormatEnum.Jpeg)
-                    .WithQuality(90)
-                    .WithResolution(1920, 1080)
-                    .WithInlineDelivery(true, 1_048_576)
-                    .WithDefaultProfileName("thumb"))
-                .UseMediaProvider(mediaProvider));
+                    .WithOptics(
+                        o => o
+                            .WithFocalLength(0.008)
+                            .WithAperture(1.4)
+                            .WithWorkingDistance(0.5)
+                            .WithMagnification(2.0)
+                            .WithMountType("C-Mount")
+                            .WithLensType("Fixed"))
+                    .WithIllumination(
+                        i => i
+                            .WithLampType(VisionLampTypeEnum.Led)
+                            .WithWavelength(525)
+                            .WithRelativeIntensity(0.8)
+                            .WithLightingMode(VisionLightingModeEnum.Continuous))
+                    .AddIntrinsicCalibration(
+                        "Intr",
+                        calib => calib
+                            .WithCalibrationId("intrinsic-1")
+                            .WithIntrinsics(intrinsics)
+                            .WithResidualError(0.25)
+                            .WithMethod("Zhang"))
+                    .AddExtrinsicCalibration(
+                        "Extr",
+                        calib => calib
+                            .WithCalibrationId("extrinsic-1")
+                            .WithMount(VisionCalibrationMountEnum.EyeToHand)
+                            .WithFrames("world", "cam1")
+                            .WithTransform(extrinsic)
+                            .WithResidualError(0.1))
+                    .AddStreamEndpoint(
+                        "Rtsp",
+                        ep => ep
+                            .WithEndpointId("stream-1")
+                            .WithEndpointUri("rtsp://cam-1/stream")
+                            .WithProtocol(VisionStreamProtocolEnum.Rtsp)
+                            .WithCodec(VisionVideoCodecEnum.H264)
+                            .WithResolution(1920, 1080)
+                            .WithFrameRate(30.0)
+                            .WithBitrate(8_000_000)
+                            .WithDefaultProfileName("main"))
+                    .AddClipEndpoint(
+                        "Snap",
+                        ep => ep
+                            .WithEndpointId("clip-1")
+                            .WithEndpointUri("clip://cam-1/snap")
+                            .WithClipFormat(VisionClipFormatEnum.Jpeg)
+                            .WithQuality(90)
+                            .WithResolution(1920, 1080)
+                            .WithInlineDelivery(true, 1_048_576)
+                            .WithDefaultProfileName("thumb"))
+                    .UseMediaProvider(mediaProvider));
 
             Assert.That(fixture.Manager.Root.Sensors, Is.Not.Null);
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Camera1"),
-                Is.Not.Null, "Camera1 must be added to the sensors folder.");
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Camera1"),
+                Is.Not.Null,
+                "Camera1 must be added to the sensors folder.");
         }
 
         [Test]
@@ -169,13 +188,15 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddDepth3DSensor("Depth1", sensor => sensor
-                .WithSensorId("SN-DEP-1")
-                .WithModality(VisionSensorModalityEnum.Depth3D)
-                .WithRealityKind(VisionRealityKindEnum.Simulated)
-                .WithDepthRange(0.2, 5.0)
-                .WithDepthScale(0.001)
-                .WithBaseline(0.075));
+            context.Nodes.AddDepth3DSensor(
+                "Depth1",
+                sensor => sensor
+                    .WithSensorId("SN-DEP-1")
+                    .WithModality(VisionSensorModalityEnum.Depth3D)
+                    .WithRealityKind(VisionRealityKindEnum.Simulated)
+                    .WithDepthRange(0.2, 5.0)
+                    .WithDepthScale(0.001)
+                    .WithBaseline(0.075));
 
             NodeState? added = FindChild(fixture.Manager.Root.Sensors!, "Depth1");
             Assert.That(added, Is.Not.Null);
@@ -188,14 +209,17 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddSensor("Thermal1", sensor => sensor
-                .WithSensorId("SN-TH-1")
-                .WithModality(VisionSensorModalityEnum.Thermal)
-                .WithRealityKind(VisionRealityKindEnum.Hybrid)
-                .HasScenePrim(new NodeId("scene:cam1", 1))
-                .MountedOn(new NodeId("mount:cam1", 1)));
+            context.Nodes.AddSensor(
+                "Thermal1",
+                sensor => sensor
+                    .WithSensorId("SN-TH-1")
+                    .WithModality(VisionSensorModalityEnum.Thermal)
+                    .WithRealityKind(VisionRealityKindEnum.Hybrid)
+                    .HasScenePrim(new NodeId("scene:cam1", 1))
+                    .MountedOn(new NodeId("mount:cam1", 1)));
 
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Thermal1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Thermal1"),
                 Is.Not.Null);
         }
 
@@ -209,20 +233,26 @@ namespace Opc.Ua.Vision.Tests
             VisionPose3DDataType camPose = CreatePose();
 
             context.Nodes
-                .AddFrame("World", f => f
-                    .WithFrameId("world")
-                    .WithRole(VisionFrameRoleEnum.World)
-                    .WithTransform(worldPose))
-                .AddFrame("Cam1", f => f
-                    .WithFrameId("cam1")
-                    .WithRole(VisionFrameRoleEnum.Camera)
-                    .WithParent("world")
-                    .WithTransform(camPose));
+                .AddFrame(
+                    "World",
+                    f => f
+                        .WithFrameId("world")
+                        .WithRole(VisionFrameRoleEnum.World)
+                        .WithTransform(worldPose))
+                .AddFrame(
+                    "Cam1",
+                    f => f
+                        .WithFrameId("cam1")
+                        .WithRole(VisionFrameRoleEnum.Camera)
+                        .WithParent("world")
+                        .WithTransform(camPose));
 
             Assert.That(fixture.Manager.Root.Frames, Is.Not.Null);
-            Assert.That(FindChild(fixture.Manager.Root.Frames!, "World"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Frames!, "World"),
                 Is.Not.Null);
-            Assert.That(FindChild(fixture.Manager.Root.Frames!, "Cam1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Frames!, "Cam1"),
                 Is.Not.Null);
         }
 
@@ -233,19 +263,24 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddFrame("World", f => f
-                .WithFrameId("world")
-                .WithRole(VisionFrameRoleEnum.World)
-                .WithTransform(CreatePose()));
+            context.Nodes.AddFrame(
+                "World",
+                f => f
+                    .WithFrameId("world")
+                    .WithRole(VisionFrameRoleEnum.World)
+                    .WithTransform(CreatePose()));
 
             NodeState worldNode = FindChild(fixture.Manager.Root.Frames!, "World")!;
-            context.Nodes.AddFrame("Tool0", f => f
-                .WithFrameId("tool0")
-                .WithRole(VisionFrameRoleEnum.Tool)
-                .WithParent(worldNode.NodeId)
-                .WithTransform(CreatePose()));
+            context.Nodes.AddFrame(
+                "Tool0",
+                f => f
+                    .WithFrameId("tool0")
+                    .WithRole(VisionFrameRoleEnum.Tool)
+                    .WithParent(worldNode.NodeId)
+                    .WithTransform(CreatePose()));
 
-            Assert.That(FindChild(fixture.Manager.Root.Frames!, "Tool0"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Frames!, "Tool0"),
                 Is.Not.Null);
         }
 
@@ -256,9 +291,12 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                context.Nodes.AddFrame("Nameless", f => f
-                    .WithRole(VisionFrameRoleEnum.World)))!;
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () =>
+                    context.Nodes.AddFrame(
+                        "Nameless",
+                        f => f
+                            .WithRole(VisionFrameRoleEnum.World)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
@@ -271,22 +309,27 @@ namespace Opc.Ua.Vision.Tests
             IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
             IVisionFeedbackSink feedbackSink = new Mock<IVisionFeedbackSink>().Object;
 
-            context.Nodes.AddImageSensor("Cam1", s => s
-                .WithSensorId("SN-CAM")
-                .WithModality(VisionSensorModalityEnum.Area2D));
+            context.Nodes.AddImageSensor(
+                "Cam1",
+                s => s
+                    .WithSensorId("SN-CAM")
+                    .WithModality(VisionSensorModalityEnum.Area2D));
 
             NodeState sensorNode = FindChild(fixture.Manager.Root.Sensors!, "Cam1")!;
 
-            context.Nodes.AddPipeline("Pipe1", p => p
-                .WithPipelineId("pipeline-1")
-                .WithSensor(sensorNode.NodeId)
-                .WithDeployment(new NodeId("deployment:pipeline-1", 1))
-                .ProducedBy(new NodeId("producer:workcell1", 1))
-                .UseInferenceProvider(inferenceProvider, onServer: true)
-                .UseFeedbackSink(feedbackSink));
+            context.Nodes.AddPipeline(
+                "Pipe1",
+                p => p
+                    .WithPipelineId("pipeline-1")
+                    .WithSensor(sensorNode.NodeId)
+                    .WithDeployment(new NodeId("deployment:pipeline-1", 1))
+                    .ProducedBy(new NodeId("producer:workcell1", 1))
+                    .UseInferenceProvider(inferenceProvider, onServer: true)
+                    .UseFeedbackSink(feedbackSink));
 
             Assert.That(fixture.Manager.Root.Pipelines, Is.Not.Null);
-            Assert.That(FindChild(fixture.Manager.Root.Pipelines!, "Pipe1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Pipelines!, "Pipe1"),
                 Is.Not.Null);
         }
 
@@ -298,11 +341,14 @@ namespace Opc.Ua.Vision.Tests
             IVisionBuildContext context = fixture.CreateBuildContext();
             IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
 
-            context.Nodes.AddPipeline("Off", p => p
-                .WithPipelineId("off-server")
-                .UseInferenceProvider(inferenceProvider, onServer: false));
+            context.Nodes.AddPipeline(
+                "Off",
+                p => p
+                    .WithPipelineId("off-server")
+                    .UseInferenceProvider(inferenceProvider, onServer: false));
 
-            Assert.That(FindChild(fixture.Manager.Root.Pipelines!, "Off"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Pipelines!, "Off"),
                 Is.Not.Null);
         }
 
@@ -313,8 +359,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddImageSensor(string.Empty, _ => { }));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddImageSensor(string.Empty, _ => { }));
         }
 
         [Test]
@@ -324,8 +371,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddImageSensor("Cam1", null!));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddImageSensor("Cam1", null!));
         }
 
         [Test]
@@ -335,8 +383,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddDepth3DSensor(string.Empty, _ => { }));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddDepth3DSensor(string.Empty, _ => { }));
         }
 
         [Test]
@@ -346,8 +395,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddDepth3DSensor("D1", null!));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddDepth3DSensor("D1", null!));
         }
 
         [Test]
@@ -357,8 +407,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddSensor(string.Empty, _ => { }));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddSensor(string.Empty, _ => { }));
         }
 
         [Test]
@@ -368,8 +419,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddSensor("S1", null!));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddSensor("S1", null!));
         }
 
         [Test]
@@ -379,8 +431,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddFrame(string.Empty, _ => { }));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddFrame(string.Empty, _ => { }));
         }
 
         [Test]
@@ -390,8 +443,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddFrame("F1", null!));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddFrame("F1", null!));
         }
 
         [Test]
@@ -401,8 +455,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddPipeline(string.Empty, _ => { }));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddPipeline(string.Empty, _ => { }));
         }
 
         [Test]
@@ -412,8 +467,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddPipeline("P1", null!));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddPipeline("P1", null!));
         }
 
         [Test]
@@ -423,8 +479,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddSensor("S1", s => s.WithOptics(null!)));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddSensor("S1", s => s.WithOptics(null!)));
         }
 
         [Test]
@@ -434,8 +491,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddSensor("S1", s => s.WithIllumination(null!)));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddSensor("S1", s => s.WithIllumination(null!)));
         }
 
         [Test]
@@ -445,8 +503,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddSensor("S1", s => s.UseMediaProvider(null!)));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddSensor("S1", s => s.UseMediaProvider(null!)));
         }
 
         [Test]
@@ -456,9 +515,12 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddSensor("S1", s =>
-                    s.AddIntrinsicCalibration(string.Empty, _ => { })));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddSensor(
+                        "S1",
+                        s =>
+                            s.AddIntrinsicCalibration(string.Empty, _ => { })));
         }
 
         [Test]
@@ -468,9 +530,12 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddSensor("S1", s =>
-                    s.AddExtrinsicCalibration(string.Empty, _ => { })));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddSensor(
+                        "S1",
+                        s =>
+                            s.AddExtrinsicCalibration(string.Empty, _ => { })));
         }
 
         [Test]
@@ -480,9 +545,12 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddSensor("S1", s =>
-                    s.AddStreamEndpoint(string.Empty, _ => { })));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddSensor(
+                        "S1",
+                        s =>
+                            s.AddStreamEndpoint(string.Empty, _ => { })));
         }
 
         [Test]
@@ -492,9 +560,12 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentException>(() =>
-                context.Nodes.AddSensor("S1", s =>
-                    s.AddClipEndpoint(string.Empty, _ => { })));
+            Assert.Throws<ArgumentException>(
+                () =>
+                    context.Nodes.AddSensor(
+                        "S1",
+                        s =>
+                            s.AddClipEndpoint(string.Empty, _ => { })));
         }
 
         [Test]
@@ -504,10 +575,13 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<ArgumentNullException>(() =>
-                context.Nodes.AddFrame("F1", f => f
-                    .WithFrameId("f1")
-                    .WithTransform(null!)));
+            Assert.Throws<ArgumentNullException>(
+                () =>
+                    context.Nodes.AddFrame(
+                        "F1",
+                        f => f
+                            .WithFrameId("f1")
+                            .WithTransform(null!)));
         }
 
         [Test]
@@ -517,16 +591,21 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddSensor("Cam1", s => s
-                .WithSensorId("SN-CAM")
-                .WithModality(VisionSensorModalityEnum.Area2D)
-                .AddStreamEndpoint("Mjpeg", ep => ep
-                    .WithEndpointId("mjpeg-1")
-                    .WithEndpointUri("http://cam-1/mjpeg")
-                    .WithProtocol(VisionStreamProtocolEnum.Mjpeg)
-                    .WithCodec(VisionVideoCodecEnum.Mjpeg)));
+            context.Nodes.AddSensor(
+                "Cam1",
+                s => s
+                    .WithSensorId("SN-CAM")
+                    .WithModality(VisionSensorModalityEnum.Area2D)
+                    .AddStreamEndpoint(
+                        "Mjpeg",
+                        ep => ep
+                            .WithEndpointId("mjpeg-1")
+                            .WithEndpointUri("http://cam-1/mjpeg")
+                            .WithProtocol(VisionStreamProtocolEnum.Mjpeg)
+                            .WithCodec(VisionVideoCodecEnum.Mjpeg)));
 
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
                 Is.Not.Null);
         }
 
@@ -537,16 +616,21 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddSensor("Cam1", s => s
-                .WithSensorId("SN-CAM")
-                .WithModality(VisionSensorModalityEnum.Area2D)
-                .AddClipEndpoint("Snap", ep => ep
-                    .WithEndpointId("snap-1")
-                    .WithClipFormat(VisionClipFormatEnum.Png)
-                    .WithInlineDelivery(false, 0)
-                    .WithDefaultProfileName("noinline")));
+            context.Nodes.AddSensor(
+                "Cam1",
+                s => s
+                    .WithSensorId("SN-CAM")
+                    .WithModality(VisionSensorModalityEnum.Area2D)
+                    .AddClipEndpoint(
+                        "Snap",
+                        ep => ep
+                            .WithEndpointId("snap-1")
+                            .WithClipFormat(VisionClipFormatEnum.Png)
+                            .WithInlineDelivery(false, 0)
+                            .WithDefaultProfileName("noinline")));
 
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
                 Is.Not.Null);
         }
 
@@ -557,13 +641,16 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddImageSensor("Cam1", s => s
-                .WithSensorId("SN-CAM")
-                .WithModality(VisionSensorModalityEnum.Area2D)
-                .HasScenePrim(new NodeId("scene:prim1", 1))
-                .MountedOn(new NodeId("mount:cam1", 1)));
+            context.Nodes.AddImageSensor(
+                "Cam1",
+                s => s
+                    .WithSensorId("SN-CAM")
+                    .WithModality(VisionSensorModalityEnum.Area2D)
+                    .HasScenePrim(new NodeId("scene:prim1", 1))
+                    .MountedOn(new NodeId("mount:cam1", 1)));
 
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
                 Is.Not.Null);
         }
 
@@ -574,12 +661,15 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            context.Nodes.AddImageSensor("Cam1", s => s
-                .WithSensorId("SN-CAM")
-                .HasScenePrim(NodeId.Null)
-                .MountedOn(NodeId.Null));
+            context.Nodes.AddImageSensor(
+                "Cam1",
+                s => s
+                    .WithSensorId("SN-CAM")
+                    .HasScenePrim(NodeId.Null)
+                    .MountedOn(NodeId.Null));
 
-            Assert.That(FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
+            Assert.That(
+                FindChild(fixture.Manager.Root.Sensors!, "Cam1"),
                 Is.Not.Null);
         }
 
@@ -590,15 +680,16 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(context.VisionNamespaceIndex, Is.GreaterThan((ushort)0));
-                Assert.That(context.InstanceNamespaceIndex, Is.GreaterThan((ushort)0));
-                Assert.That(context.Manager, Is.SameAs(fixture.Manager));
-                Assert.That(context.Root, Is.SameAs(fixture.Manager.Root));
-                Assert.That(context.Context, Is.Not.Null);
-                Assert.That(context.CancellationToken, Is.EqualTo(CancellationToken.None));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(context.VisionNamespaceIndex, Is.GreaterThan((ushort)0));
+                    Assert.That(context.InstanceNamespaceIndex, Is.GreaterThan((ushort)0));
+                    Assert.That(context.Manager, Is.SameAs(fixture.Manager));
+                    Assert.That(context.Root, Is.SameAs(fixture.Manager.Root));
+                    Assert.That(context.Context, Is.Not.Null);
+                    Assert.That(context.CancellationToken, Is.EqualTo(CancellationToken.None));
+                });
         }
 
         [Test]
@@ -608,8 +699,9 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
 
-            Assert.Throws<InvalidOperationException>(() =>
-                context.GetRequiredService<IVisionMediaProvider>());
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    context.GetRequiredService<IVisionMediaProvider>());
         }
 
         private static VisionPose3DDataType CreatePose()

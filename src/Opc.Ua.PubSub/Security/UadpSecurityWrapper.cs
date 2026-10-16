@@ -170,7 +170,8 @@ namespace Opc.Ua.PubSub.Security
             if (key is null || key.TokenId == 0)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed, "The provider returned an invalid publication token.");
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The provider returned an invalid publication token.");
             }
 
             bool sign = options is UadpSecurityWrapOptions.SignOnly
@@ -335,11 +336,12 @@ namespace Opc.Ua.PubSub.Security
             if (key is null)
             {
                 m_logger.RejectedUnknownToken(header.SecurityTokenId);
-                EmitSecurityEvent(new PubSubSecurityEvent(
-                    PubSubSecurityEventKind.UnknownTokenRejected,
-                    DateTimeOffset.UtcNow,
-                    PubSubSecurityEventOutcome.Rejected,
-                    tokenId: header.SecurityTokenId));
+                EmitSecurityEvent(
+                    new PubSubSecurityEvent(
+                        PubSubSecurityEventKind.UnknownTokenRejected,
+                        DateTimeOffset.UtcNow,
+                        PubSubSecurityEventOutcome.Rejected,
+                        tokenId: header.SecurityTokenId));
                 return UnwrapResult.Failure(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown SecurityTokenId {header.SecurityTokenId}");
@@ -373,11 +375,12 @@ namespace Opc.Ua.PubSub.Security
                     if (!valid)
                     {
                         m_logger.SignatureVerificationFailed(header.SecurityTokenId);
-                        EmitSecurityEvent(new PubSubSecurityEvent(
-                            PubSubSecurityEventKind.SignatureVerificationFailed,
-                            DateTimeOffset.UtcNow,
-                            PubSubSecurityEventOutcome.Failed,
-                            tokenId: header.SecurityTokenId));
+                        EmitSecurityEvent(
+                            new PubSubSecurityEvent(
+                                PubSubSecurityEventKind.SignatureVerificationFailed,
+                                DateTimeOffset.UtcNow,
+                                PubSubSecurityEventOutcome.Failed,
+                                tokenId: header.SecurityTokenId));
                         return UnwrapResult.Failure(
                             StatusCodes.BadSecurityChecksFailed,
                             "Signature verification failed");
@@ -495,11 +498,12 @@ namespace Opc.Ua.PubSub.Security
                 {
                     Array.Clear(plaintext, 0, plaintext.Length);
                     m_logger.RejectedReplayOrNonceReuse(header.SecurityTokenId, sequenceNumber);
-                    EmitSecurityEvent(new PubSubSecurityEvent(
-                        PubSubSecurityEventKind.ReplayRejected,
-                        DateTimeOffset.UtcNow,
-                        PubSubSecurityEventOutcome.Rejected,
-                        tokenId: header.SecurityTokenId));
+                    EmitSecurityEvent(
+                        new PubSubSecurityEvent(
+                            PubSubSecurityEventKind.ReplayRejected,
+                            DateTimeOffset.UtcNow,
+                            PubSubSecurityEventOutcome.Rejected,
+                            tokenId: header.SecurityTokenId));
                     return UnwrapResult.Failure(
                         StatusCodes.BadSecurityChecksFailed,
                         "Replay or nonce reuse detected");
@@ -636,7 +640,9 @@ namespace Opc.Ua.PubSub.Security
     /// </summary>
     internal static partial class UadpSecurityWrapperLog
     {
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 0, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 0,
+            Level = LogLevel.Debug,
             Message = "UadpSecurityWrapper wrapped message tokenId={TokenId} options={Options} " +
                 "payload={PayloadLength} signed={SignedLength}")]
         public static partial void WrappedMessage(
@@ -646,19 +652,27 @@ namespace Opc.Ua.PubSub.Security
             int payloadLength,
             int signedLength);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 1,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper failed to parse SecurityHeader")]
         public static partial void FailedToParseSecurityHeader(this ILogger logger);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 2, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 2,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper rejected unknown tokenId={TokenId}")]
         public static partial void RejectedUnknownToken(this ILogger logger, uint tokenId);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 3, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 3,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper signature verification failed tokenId={TokenId}")]
         public static partial void SignatureVerificationFailed(this ILogger logger, uint tokenId);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 4, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 4,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper rejected replay or nonce reuse tokenId={TokenId} " +
                 "sequenceNumber={SequenceNumber}")]
         public static partial void RejectedReplayOrNonceReuse(

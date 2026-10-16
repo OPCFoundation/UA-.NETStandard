@@ -191,7 +191,7 @@ namespace Opc.Ua.XRegistry.Client
         private static bool IsTransferFailure(Exception error)
         {
             return error is ServiceResultException or IOException or OperationCanceledException or
-                InvalidOperationException or ArgumentException or NotSupportedException;
+                InvalidOperationException or ArgumentException or NotSupportedException or TimeoutException;
         }
 
         private const byte kReadMode = 1;
@@ -209,8 +209,10 @@ namespace Opc.Ua.XRegistry.Client
                 }
                 catch (Exception error) when (Failure is not null && IsTransferFailure(error))
                 {
-                    throw new AggregateException("Writing and closing the resource document both failed.",
-                        Failure, error);
+                    throw new AggregateException(
+                        "Writing and closing the resource document both failed.",
+                        Failure,
+                        error);
                 }
             }
         }

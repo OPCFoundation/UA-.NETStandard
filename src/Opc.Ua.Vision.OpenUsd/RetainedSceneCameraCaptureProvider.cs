@@ -95,20 +95,24 @@ namespace Opc.Ua.Vision.OpenUsd
             }
             if (string.IsNullOrEmpty(request.StageIdentifier) ||
                 !string.Equals(request.StageIdentifier, m_source.StageIdentifier, StringComparison.Ordinal) ||
-                request.Width < 1 || request.Width > m_maximumDimension ||
-                request.Height < 1 || request.Height > m_maximumDimension ||
+                request.Width < 1 ||
+                request.Width > m_maximumDimension ||
+                request.Height < 1 ||
+                request.Height > m_maximumDimension ||
                 (long)request.Width * request.Height * 4 > m_maximumFrameBytes ||
                 request.Format != SceneCameraImageFormat.Png ||
                 !double.IsFinite(request.TimeCode) ||
                 request.PrimPath?.Length > 512 ||
                 timestamp.Kind != DateTimeKind.Utc)
             {
-                return Failure(SceneCameraCaptureStatus.InvalidRequest,
+                return Failure(
+                    SceneCameraCaptureStatus.InvalidRequest,
                     "Capture requires this retained stage, a bounded PNG frame, a finite time code and UTC time.");
             }
             if (!Backend.IsAvailable)
             {
-                return Failure(SceneCameraCaptureStatus.NoRenderingBackend,
+                return Failure(
+                    SceneCameraCaptureStatus.NoRenderingBackend,
                     Backend.UnavailableReason ?? "Start the embedded renderer before requesting a frame.");
             }
             if (Interlocked.CompareExchange(ref m_capturing, 1, 0) != 0)
@@ -125,21 +129,26 @@ namespace Opc.Ua.Vision.OpenUsd
                 catch (Exception error) when (error is not OperationCanceledException)
                 {
                     m_logger.RenderFailed(Backend.Name, error);
-                    return Failure(SceneCameraCaptureStatus.RenderFailed,
+                    return Failure(
+                        SceneCameraCaptureStatus.RenderFailed,
                         "The retained renderer could not capture the requested camera. Inspect renderer diagnostics.");
                 }
                 cancellationToken.ThrowIfCancellationRequested();
-                if (frame is null || frame.Width != request.Width || frame.Height != request.Height ||
+                if (frame is null ||
+                    frame.Width != request.Width ||
+                    frame.Height != request.Height ||
                     frame.Rgba.Length != (long)request.Width * request.Height * 4)
                 {
-                    return Failure(SceneCameraCaptureStatus.RenderFailed,
+                    return Failure(
+                        SceneCameraCaptureStatus.RenderFailed,
                         "The renderer returned inconsistent dimensions or RGBA8 storage.");
                 }
                 BlankFrameCheck guard = BlankFrameGuard.Check(frame.DrawCount, frame.MeshCount, frame.Rgba.Span);
                 if (guard.IsBlank)
                 {
                     m_logger.BlankFrameDetected(guard.DrawCount, guard.MeshCount, guard.IsUniform);
-                    return Failure(SceneCameraCaptureStatus.BlankFrame,
+                    return Failure(
+                        SceneCameraCaptureStatus.BlankFrame,
                         guard.Reason ?? "The retained frame contains no visible geometry.");
                 }
                 byte[] png = PngEncoder.EncodeRgba8(frame.Width, frame.Height, frame.Rgba.Span);

@@ -45,9 +45,14 @@ namespace Opc.Ua.Positioning.Tests
             SetupTranslate(session, _ => new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch });
             NodeId optional = await ResolveAsync(Operations(session)).ConfigureAwait(false);
             Assert.That(optional.IsNull, Is.True);
-            await AssertStatusAsync(async () => await Operations(session).ResolveRequiredChildAsync(
-                    s_frame, ReferenceTypeIds.HasComponent, new QualifiedName("Base", 1), CancellationToken.None)
-                .ConfigureAwait(false), StatusCodes.BadNoMatch).ConfigureAwait(false);
+            await AssertStatusAsync(
+                async () => await Operations(session).ResolveRequiredChildAsync(
+                    s_frame,
+                    ReferenceTypeIds.HasComponent,
+                    new QualifiedName("Base", 1),
+                    CancellationToken.None)
+                    .ConfigureAwait(false),
+                StatusCodes.BadNoMatch).ConfigureAwait(false);
             VerifyNoRead(session);
         }
 
@@ -58,7 +63,8 @@ namespace Opc.Ua.Positioning.Tests
             SetupTranslate(session, _ => new BrowsePathResult { StatusCode = status });
             await AssertStatusAsync(async () => await ResolveAsync(Operations(session)).ConfigureAwait(false), status)
                 .ConfigureAwait(false);
-            await AssertStatusAsync(async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
                 status).ConfigureAwait(false);
             VerifyNoRead(session);
         }
@@ -70,7 +76,8 @@ namespace Opc.Ua.Positioning.Tests
             BrowsePathResult path = Resolved(s_base);
             path.StatusCode = StatusCodes.BadNoMatch;
             SetupTranslate(session, _ => path);
-            await AssertStatusAsync(async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
                 StatusCodes.BadNoMatch).ConfigureAwait(false);
         }
 
@@ -90,7 +97,8 @@ namespace Opc.Ua.Positioning.Tests
                 _ => [null!]
             };
             SetupTranslate(session, _ => result);
-            await AssertStatusAsync(async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
                 StatusCodes.BadDecodingError).ConfigureAwait(false);
             VerifyNoRead(session);
         }
@@ -110,11 +118,14 @@ namespace Opc.Ua.Positioning.Tests
                 "index" => new ExpandedNodeId(new NodeId("base", 99)),
                 _ => ExpandedNodeId.Null
             };
-            SetupTranslate(session, _ => new BrowsePathResult
-            {
-                Targets = [new BrowsePathTarget { TargetId = target, RemainingPathIndex = uint.MaxValue }]
-            });
-            await AssertStatusAsync(async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
+            SetupTranslate(
+                session,
+                _ => new BrowsePathResult
+                {
+                    Targets = [new BrowsePathTarget { TargetId = target, RemainingPathIndex = uint.MaxValue }]
+                });
+            await AssertStatusAsync(
+                async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
                 targetKind == "remote" ? StatusCodes.BadNotSupported : StatusCodes.BadNodeIdUnknown)
                 .ConfigureAwait(false);
             Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(namespaceCount));
@@ -125,17 +136,19 @@ namespace Opc.Ua.Positioning.Tests
         public async Task AbsoluteLocalPathResolvesUsingTheExistingNamespaceIndexAsync()
         {
             Mock<ISession> session = CreateSession();
-            SetupTranslate(session, _ => new BrowsePathResult
-            {
-                Targets =
-                [
-                    new BrowsePathTarget
-                    {
-                        TargetId = new ExpandedNodeId("base", kInstanceNamespace),
-                        RemainingPathIndex = uint.MaxValue
-                    }
-                ]
-            });
+            SetupTranslate(
+                session,
+                _ => new BrowsePathResult
+                {
+                    Targets =
+                    [
+                        new BrowsePathTarget
+                        {
+                            TargetId = new ExpandedNodeId("base", kInstanceNamespace),
+                            RemainingPathIndex = uint.MaxValue
+                        }
+                    ]
+                });
             NodeId result = await ResolveAsync(Operations(session)).ConfigureAwait(false);
             Assert.That(result, Is.EqualTo(s_base));
         }
@@ -148,24 +161,29 @@ namespace Opc.Ua.Positioning.Tests
         public async Task TranslateRejectsMalformedResponseShapesAsync(string shape)
         {
             Mock<ISession> session = CreateSession();
-            session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
-                {
-                    ResponseHeader = new ResponseHeader
+            session.Setup(
+                s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    new TranslateBrowsePathsToNodeIdsResponse
                     {
-                        ServiceResult = shape == "header" ? StatusCodes.BadDecodingError : StatusCodes.Good
-                    },
-                    Results = shape switch
-                    {
-                        "empty" => [],
-                        "extra" => [Resolved(s_base), Resolved(s_base)],
-                        "null" => [null!],
-                        _ => [Resolved(s_base)]
-                    },
-                    DiagnosticInfos = shape == "diagnostics" ? [new DiagnosticInfo(), new DiagnosticInfo()] : []
-                });
-            await AssertStatusAsync(async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
+                        ResponseHeader = new ResponseHeader
+                        {
+                            ServiceResult = shape == "header" ? StatusCodes.BadDecodingError : StatusCodes.Good
+                        },
+                        Results = shape switch
+                        {
+                            "empty" => [],
+                            "extra" => [Resolved(s_base), Resolved(s_base)],
+                            "null" => [null!],
+                            _ => [Resolved(s_base)]
+                        },
+                        DiagnosticInfos = shape == "diagnostics" ? [new DiagnosticInfo(), new DiagnosticInfo()] : []
+                    });
+            await AssertStatusAsync(
+                async () => await ResolveAsync(Operations(session)).ConfigureAwait(false),
                 StatusCodes.BadDecodingError).ConfigureAwait(false);
         }
 
@@ -173,13 +191,17 @@ namespace Opc.Ua.Positioning.Tests
         public async Task TranslateRequiresGoodHeaderEvenForAnOptionalMissingPathAsync(StatusCode status)
         {
             Mock<ISession> session = CreateSession();
-            session.Setup(s => s.TranslateBrowsePathsToNodeIdsAsync(
-                    It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
-                {
-                    ResponseHeader = new ResponseHeader { ServiceResult = status },
-                    Results = [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }]
-                });
+            session.Setup(
+                s => s.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader { ServiceResult = status },
+                        Results = [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }]
+                    });
             await AssertStatusAsync(async () => await ResolveAsync(Operations(session)).ConfigureAwait(false), status)
                 .ConfigureAwait(false);
         }
@@ -189,16 +211,20 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession(includeModels: false);
             int count = session.Object.NamespaceUris.Count;
-            await AssertStatusAsync(async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () => await Relative(session).ReadFrameAsync(s_frame).ConfigureAwait(false),
                 StatusCodes.BadNodeIdUnknown).ConfigureAwait(false);
-            await AssertStatusAsync(async () =>
-                await Global(session).ReadZoneTransformAsync(s_zone).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () =>
+                    await Global(session).ReadZoneTransformAsync(s_zone).ConfigureAwait(false),
                 StatusCodes.BadNodeIdUnknown).ConfigureAwait(false);
-            await AssertStatusAsync(async () =>
-                await CollectAsync(Relative(session).EnumerateSpatialObjectListsAsync()).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () =>
+                    await CollectAsync(Relative(session).EnumerateSpatialObjectListsAsync()).ConfigureAwait(false),
                 StatusCodes.BadNodeIdUnknown).ConfigureAwait(false);
-            await AssertStatusAsync(async () =>
-                await CollectAsync(Global(session).EnumerateZonesAsync()).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () =>
+                    await CollectAsync(Global(session).EnumerateZonesAsync()).ConfigureAwait(false),
                 StatusCodes.BadNodeIdUnknown).ConfigureAwait(false);
             Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(count));
             VerifyNoRead(session);
@@ -221,11 +247,16 @@ namespace Opc.Ua.Positioning.Tests
                 _ => ExpandedNodeId.Null
             };
             SetupBrowse(session, () => new BrowseResult { References = [reference] });
-            await AssertStatusAsync(async () =>
-                await CollectAsync(Relative(session).EnumerateFramesAsync(s_frame)).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () =>
+                    await CollectAsync(Relative(session).EnumerateFramesAsync(s_frame)).ConfigureAwait(false),
                 kind == "remote" ? StatusCodes.BadNotSupported : StatusCodes.BadNodeIdUnknown).ConfigureAwait(false);
-            Mock.Get(session.Object.NodeCache).Verify(c => c.IsTypeOfAsync(
-                It.IsAny<ExpandedNodeId>(), It.IsAny<ExpandedNodeId>(), It.IsAny<CancellationToken>()), Times.Never);
+            Mock.Get(session.Object.NodeCache).Verify(
+                c => c.IsTypeOfAsync(
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<ExpandedNodeId>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         [Test]
@@ -235,13 +266,19 @@ namespace Opc.Ua.Positioning.Tests
             ReferenceDescription other = Reference("other");
             other.TypeDefinition = new ExpandedNodeId(VariableTypeIds.BaseDataVariableType);
             SetupBrowse(session, () => new BrowseResult { References = [other, Reference()] });
-            await AssertStatusAsync(async () => await CollectAsync(Relative(session, new PositioningClientReadOptions
-            {
-                MaximumBrowseReferences = 1
-            }).EnumerateFramesAsync(s_frame)).ConfigureAwait(false), StatusCodes.BadEncodingLimitsExceeded)
+            await AssertStatusAsync(
+                async () => await CollectAsync(
+                    Relative(
+                        session,
+                        new PositioningClientReadOptions
+                        {
+                            MaximumBrowseReferences = 1
+                        }).EnumerateFramesAsync(s_frame)).ConfigureAwait(false),
+                StatusCodes.BadEncodingLimitsExceeded)
                 .ConfigureAwait(false);
             SetupBrowse(session, () => new BrowseResult { References = [null!] });
-            await AssertStatusAsync(async () => await BrowseAsync(session).ConfigureAwait(false),
+            await AssertStatusAsync(
+                async () => await BrowseAsync(session).ConfigureAwait(false),
                 StatusCodes.BadDecodingError).ConfigureAwait(false);
         }
 
@@ -250,14 +287,16 @@ namespace Opc.Ua.Positioning.Tests
         {
             Mock<ISession> session = CreateSession();
             var operations = new PositioningClientOperations(session.Object, Mock.Of<ITelemetryContext>());
-            SetupTranslate(session, _ => new BrowsePathResult
-            {
-                Targets =
-                [
-                    new BrowsePathTarget { TargetId = s_base, RemainingPathIndex = 0 },
-                    new BrowsePathTarget { TargetId = s_frame, RemainingPathIndex = uint.MaxValue }
-                ]
-            });
+            SetupTranslate(
+                session,
+                _ => new BrowsePathResult
+                {
+                    Targets =
+                    [
+                        new BrowsePathTarget { TargetId = s_base, RemainingPathIndex = 0 },
+                        new BrowsePathTarget { TargetId = s_frame, RemainingPathIndex = uint.MaxValue }
+                    ]
+                });
             Assert.That(await ResolveAsync(operations).ConfigureAwait(false), Is.EqualTo(s_base));
             SetupTranslate(session, _ => new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied });
             NodeId missing = await ResolveAsync(operations).ConfigureAwait(false);
@@ -272,18 +311,22 @@ namespace Opc.Ua.Positioning.Tests
             var operations = new PositioningClientOperations(session.Object, Mock.Of<ITelemetryContext>());
             ushort rsl = operations.GetNamespaceIndex(Rsl.Namespaces.RSL);
             ushort gpos = operations.GetNamespaceIndex(Gpos.Namespaces.GPOS);
-            Assert.Multiple(() =>
-            {
-                Assert.That(rsl, Is.EqualTo(count));
-                Assert.That(gpos, Is.EqualTo(count + 1));
-                Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(count + 2));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(rsl, Is.EqualTo(count));
+                    Assert.That(gpos, Is.EqualTo(count + 1));
+                    Assert.That(session.Object.NamespaceUris.Count, Is.EqualTo(count + 2));
+                });
         }
 
         private static ValueTask<NodeId> ResolveAsync(PositioningClientOperations operations)
         {
             return operations.ResolveChildAsync(
-                s_frame, ReferenceTypeIds.HasComponent, new QualifiedName("Base", 1), CancellationToken.None);
+                s_frame,
+                ReferenceTypeIds.HasComponent,
+                new QualifiedName("Base", 1),
+                CancellationToken.None);
         }
     }
 }

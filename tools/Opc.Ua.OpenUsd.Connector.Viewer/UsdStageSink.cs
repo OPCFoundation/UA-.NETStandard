@@ -131,7 +131,9 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// <param name="requireActiveTargets">Reject missing or inactive targets instead of ignoring their writes.</param>
         /// <exception cref="ArgumentNullException">An argument is <c>null</c>.</exception>
         public UsdStageSink(
-            UsdStageScheduler scheduler, Action<Exception> onError, bool requireActiveTargets = false)
+            UsdStageScheduler scheduler,
+            Action<Exception> onError,
+            bool requireActiveTargets = false)
         {
             m_scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
             m_onError = onError ?? throw new ArgumentNullException(nameof(onError));
@@ -175,8 +177,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         }
 
         /// <inheritdoc/>
-        public void ComposePrim(string primPath, OpenUsdCompositionArc arc,
-            string? assetReference, bool active)
+        public void ComposePrim(
+            string primPath,
+            OpenUsdCompositionArc arc,
+            string? assetReference,
+            bool active)
         {
             if (!UsdNames.IsValidPrimPath(primPath))
             {
@@ -344,7 +349,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// flood the console.
         /// </summary>
         private static void ApplyValueIsolated(
-            UsdPrim prim, string primPath, string propertyName, Variant value, double? timeCode,
+            UsdPrim prim,
+            string primPath,
+            string propertyName,
+            Variant value,
+            double? timeCode,
             bool requireActiveTargets)
         {
             try
@@ -372,7 +381,9 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         }
 
         private static void ApplyComposition(
-            UsdStage stage, string primPath, PrimComposition composition)
+            UsdStage stage,
+            string primPath,
+            PrimComposition composition)
         {
             UsdPrim prim = stage.GetPrim(primPath);
             if (!prim.Exists())
@@ -409,7 +420,9 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// through the data API needs the two parts separately.
         /// </summary>
         private static bool TryParseReference(
-            string reference, out string assetPath, out string? targetPrimPath)
+            string reference,
+            out string assetPath,
+            out string? targetPrimPath)
         {
             assetPath = string.Empty;
             targetPrimPath = null;
@@ -521,10 +534,22 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             double r22 = cx * cy;
 
             return new UsdMatrix4d(
-                scale.X * r00, scale.X * r01, scale.X * r02, 0,
-                scale.Y * r10, scale.Y * r11, scale.Y * r12, 0,
-                scale.Z * r20, scale.Z * r21, scale.Z * r22, 0,
-                translate.X, translate.Y, translate.Z, 1);
+                scale.X * r00,
+                scale.X * r01,
+                scale.X * r02,
+                0,
+                scale.Y * r10,
+                scale.Y * r11,
+                scale.Y * r12,
+                0,
+                scale.Z * r20,
+                scale.Z * r21,
+                scale.Z * r22,
+                0,
+                translate.X,
+                translate.Y,
+                translate.Z,
+                1);
         }
 
         private static bool IsColorProperty(string propertyName)
@@ -534,7 +559,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         }
 
         private static void ApplyValue(
-            UsdPrim prim, string propertyName, Variant value, double? timeCode)
+            UsdPrim prim,
+            string propertyName,
+            Variant value,
+            double? timeCode)
         {
             if (!prim.Exists())
             {
@@ -628,9 +656,13 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// stepping onto it. Returns <c>false</c> for anything that is not a plain number.
         /// </summary>
         private bool TryUpdateScalar(
-            string primPath, string propertyName, in Variant value, long now)
+            string primPath,
+            string propertyName,
+            in Variant value,
+            long now)
         {
-            if (value.TryGetValue(out string? _) || value.TryGetValue(out bool _) ||
+            if (value.TryGetValue(out string? _) ||
+                value.TryGetValue(out bool _) ||
                 value.TryGetValue(out ArrayOf<float> _) ||
                 !VariantConversions.TryGetDouble(value, out double number))
             {
@@ -654,7 +686,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// the scalar <c>xformOp:rotateZ</c> a robot joint uses.
         /// </summary>
         private bool TryUpdateTransform(
-            string primPath, string propertyName, in Variant value, long now)
+            string primPath,
+            string propertyName,
+            in Variant value,
+            long now)
         {
             if (!string.Equals(propertyName, TranslateOp, StringComparison.Ordinal) &&
                 !string.Equals(propertyName, RotateOp, StringComparison.Ordinal) &&
@@ -864,16 +899,25 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         private readonly record struct AttributeKey(string PrimPath, string PropertyName);
 
         private readonly record struct TimeSampleKey(
-            string PrimPath, string PropertyName, double Frame);
+            string PrimPath,
+            string PropertyName,
+            double Frame);
 
         private readonly record struct PrimComposition(
-            OpenUsdCompositionArc Arc, string? AssetReference, bool Active);
+            OpenUsdCompositionArc Arc,
+            string? AssetReference,
+            bool Active);
 
         private readonly record struct ScalarSample(
-            string PrimPath, string PropertyName, double Value);
+            string PrimPath,
+            string PropertyName,
+            double Value);
 
         private readonly record struct TransformSample(
-            string PrimPath, UsdVec3d? Translate, UsdVec3d? Rotate, UsdVec3d? Scale);
+            string PrimPath,
+            UsdVec3d? Translate,
+            UsdVec3d? Rotate,
+            UsdVec3d? Scale);
 
         /// <summary>
         /// One tick's worth of work, detached from the sink's mutable state so the stage
@@ -906,8 +950,11 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             public List<TransformSample> Transforms { get; }
 
             public bool IsEmpty =>
-                Prims.Count == 0 && Discrete.Count == 0 &&
-                TimeSamples.Count == 0 && Scalars.Count == 0 && Transforms.Count == 0;
+                Prims.Count == 0 &&
+                Discrete.Count == 0 &&
+                TimeSamples.Count == 0 &&
+                Scalars.Count == 0 &&
+                Transforms.Count == 0;
 
             /// <summary>
             /// Composing a prim changes the stage's composition; everything else only

@@ -88,7 +88,7 @@ namespace Opc.Ua.Positioning.Client
             }
             ValidateGeographic(position, AngleUnit.Degrees, coordinateReferenceSystem == 4326);
             if (((position.EncodingMask & (uint)GlobalPositionDataTypeFields.Accuracy) != 0 &&
-                    (!position.Accuracy.IsFinite() || position.Accuracy < 0)) ||
+                (!position.Accuracy.IsFinite() || position.Accuracy < 0)) ||
                 ((position.EncodingMask & (uint)GlobalPositionDataTypeFields.Floor) != 0 &&
                     !((double)position.Floor).IsFinite()))
             {
@@ -127,7 +127,8 @@ namespace Opc.Ua.Positioning.Client
             }
             ValidateAngleUnit(angleUnit);
             if (geographic is null ||
-                !geographic.Longitude.IsFinite() || !geographic.Latitude.IsFinite() ||
+                !geographic.Longitude.IsFinite() ||
+                !geographic.Latitude.IsFinite() ||
                 ((geographic.EncodingMask & (uint)S3DGeographicCoordinateDataTypeFields.Elevation) != 0 &&
                     !geographic.Elevation.IsFinite()))
             {
@@ -141,8 +142,9 @@ namespace Opc.Ua.Positioning.Client
                 {
                     throw InvalidGeometry();
                 }
-                ValidateCartesian(Wgs84CoordinateReferenceSystemTransformer.Instance
-                    .ToEarthCenteredEarthFixed(geographic, angleUnit));
+                ValidateCartesian(
+                    Wgs84CoordinateReferenceSystemTransformer.Instance
+                        .ToEarthCenteredEarthFixed(geographic, angleUnit));
             }
         }
 
@@ -160,10 +162,11 @@ namespace Opc.Ua.Positioning.Client
             }
             AngleUnit angleUnit = options?.AngleUnit ?? AngleUnit.Degrees;
             ValidateAngleUnit(angleUnit);
-            if (options is not null && options.Mode is not
-                (GroundControlPointFitMode.Rigid or
-                GroundControlPointFitMode.Similarity or
-                GroundControlPointFitMode.Affine))
+            if (options is not null &&
+                options.Mode is not
+                    (GroundControlPointFitMode.Rigid or
+                    GroundControlPointFitMode.Similarity or
+                    GroundControlPointFitMode.Affine))
             {
                 throw InvalidGeometry();
             }
@@ -185,8 +188,11 @@ namespace Opc.Ua.Positioning.Client
         /// </summary>
         public void ValidateFit(GroundControlPointFitResult result)
         {
-            if (Strict && (!result.IsInvertible || !result.RootMeanSquareError.IsFinite() ||
-                !result.MaxResidual.IsFinite() || !result.Determinant.IsFinite()))
+            if (Strict &&
+                (!result.IsInvertible ||
+                    !result.RootMeanSquareError.IsFinite() ||
+                    !result.MaxResidual.IsFinite() ||
+                    !result.Determinant.IsFinite()))
             {
                 throw InvalidGeometry();
             }
@@ -197,8 +203,11 @@ namespace Opc.Ua.Positioning.Client
         /// </summary>
         public void ValidateCartesian(ThreeDCartesianCoordinates coordinates)
         {
-            if (Strict && (coordinates is null ||
-                !coordinates.X.IsFinite() || !coordinates.Y.IsFinite() || !coordinates.Z.IsFinite()))
+            if (Strict &&
+                (coordinates is null ||
+                    !coordinates.X.IsFinite() ||
+                    !coordinates.Y.IsFinite() ||
+                    !coordinates.Z.IsFinite()))
             {
                 throw InvalidGeometry();
             }
@@ -218,7 +227,9 @@ namespace Opc.Ua.Positioning.Client
         private static void ValidateOrientation(ThreeDOrientation orientation)
         {
             if (orientation is null ||
-                !orientation.A.IsFinite() || !orientation.B.IsFinite() || !orientation.C.IsFinite())
+                !orientation.A.IsFinite() ||
+                !orientation.B.IsFinite() ||
+                !orientation.C.IsFinite())
             {
                 throw InvalidGeometry();
             }
@@ -227,7 +238,8 @@ namespace Opc.Ua.Positioning.Client
         private static ServiceResultException InvalidGeometry()
         {
             return new ServiceResultException(
-                StatusCodes.BadInvalidArgument, "The Positioning geometry is invalid or non-finite.");
+                StatusCodes.BadInvalidArgument,
+                "The Positioning geometry is invalid or non-finite.");
         }
     }
 }

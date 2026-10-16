@@ -54,21 +54,26 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             UsdViewportLimits limits,
             Func<string> cameraPath,
             Action<UsdViewportStatistics> frameRendered,
-            ISilkGraphicsDevice? ownedDevice = null)
+            ISilkGraphicsDevice? ownedDevice = null,
+            UsdViewportCaptureQueue? captures = null)
         {
             m_scheduler = scheduler;
             m_limits = limits;
             m_geometry = new UsdViewportGeometryBudget(limits);
             m_cameraPath = cameraPath;
             m_frameRendered = frameRendered;
+            m_captures = captures ?? new UsdViewportCaptureQueue();
             m_ownedDevice = ownedDevice;
             m_session = OpenUsdSilkRuntime.Create(pluginPath, source);
             try
             {
                 if (ownedDevice is not null)
                 {
-                    m_renderer = new SilkMeshRenderer(ownedDevice, new SilkTextureResidencyOptions(
-                        32UL * 1024 * 1024, 64UL * 1024 * 1024));
+                    m_renderer = new SilkMeshRenderer(
+                        ownedDevice,
+                        new SilkTextureResidencyOptions(
+                            32UL * 1024 * 1024,
+                            64UL * 1024 * 1024));
                 }
             }
             catch
@@ -102,14 +107,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             string path = m_cameraPath();
             CameraState camera = CameraState.Default;
             ulong serial = 0;
-            await m_scheduler.InvokeAsync(stage =>
-            {
-                serial = stage.ChangeSerial;
-                if (!string.IsNullOrEmpty(path))
+            await m_scheduler.InvokeAsync(
+                stage =>
                 {
-                    camera = CameraState.FromStageCamera(stage, path, 0, size.Width, size.Height);
-                }
-            }, cancellationToken).ConfigureAwait(false);
+                    serial = stage.ChangeSerial;
+                    if (!string.IsNullOrEmpty(path))
+                    {
+                        camera = CameraState.FromStageCamera(stage, path, 0, size.Width, size.Height);
+                    }
+                },
+                cancellationToken).ConfigureAwait(false);
             lock (m_state)
             {
                 if (m_size != size || m_camera != camera || m_preparedCameraPath != path)
@@ -127,11 +134,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
 
         /// <inheritdoc/>
         public SilkPresentationRenderResult Render(
-            ISilkGraphicsTexture color, ISilkGraphicsTexture depth, CancellationToken cancellationToken)
+            ISilkGraphicsTexture color,
+            ISilkGraphicsTexture depth,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            SilkMeshRenderResult rendered = Render(m_renderer ??
-                throw new InvalidOperationException("The D3D12 renderer was not constructed."), color, depth);
+            SilkMeshRenderResult rendered = Render(
+                m_renderer ??
+                throw new InvalidOperationException("The D3D12 renderer was not constructed."),
+                color,
+                depth);
             return new SilkPresentationRenderResult(Statistics.SceneRevision, rendered.DrawCount, true);
         }
 
@@ -139,15 +151,20 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// Renders into a native presenter's retained renderer and frame targets.
         /// </summary>
         public SilkMeshRenderResult Render(
-            SilkMeshRenderer renderer, ISilkGraphicsTexture color, ISilkGraphicsTexture depth)
+            SilkMeshRenderer renderer,
+            ISilkGraphicsTexture color,
+            ISilkGraphicsTexture depth)
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref m_disposed) != 0, this);
             int width = checked((int)color.Width);
             int height = checked((int)color.Height);
             _ = m_limits.RequireFrame(new ViewportDimensions(width, height));
-            if (color.Format != SilkTextureFormat.Rgba8Unorm || color.MipLevelCount != 1 ||
-                depth.Format != SilkTextureFormat.D32Float || depth.MipLevelCount != 1 ||
-                color.Width != depth.Width || color.Height != depth.Height)
+            if (color.Format != SilkTextureFormat.Rgba8Unorm ||
+                color.MipLevelCount != 1 ||
+                depth.Format != SilkTextureFormat.D32Float ||
+                depth.MipLevelCount != 1 ||
+                color.Width != depth.Width ||
+                color.Height != depth.Height)
             {
                 throw new NotSupportedException("Composition requires matching single-level RGBA8 and D32 targets.");
             }
@@ -157,14 +174,21 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 using OpenUsdSilkPage page = m_session.Sync(width, height, 0, m_camera, RenderComplexity.Low);
                 ValidatePage(page);
                 rendered = renderer.ApplyAndRender(
-                    page, color, depth, new SilkPickFrameBinding(m_stateRevision, page.Revision), s_options);
+                    page,
+                    color,
+                    depth,
+                    new SilkPickFrameBinding(m_stateRevision, page.Revision),
+                    s_options);
                 m_pageRevision = page.Revision;
                 m_needsSync = false;
             }
             else
             {
                 rendered = renderer.Render(
-                    color, depth, new SilkPickFrameBinding(m_stateRevision, m_pageRevision), s_options);
+                    color,
+                    depth,
+                    new SilkPickFrameBinding(m_stateRevision, m_pageRevision),
+                    s_options);
             }
             if (rendered.DrawCount < 1 || rendered.Statistics.MeshCount < 1)
             {
@@ -177,7 +201,8 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     throw new InvalidOperationException($"OpenUSD {diagnostic.Code}: {diagnostic.Message}");
                 }
             }
-            if (m_statistics.Width != width || m_statistics.Height != height ||
+            if (m_statistics.Width != width ||
+                m_statistics.Height != height ||
                 m_validatedCameraPath != m_preparedCameraPath)
             {
                 byte[] pixels = new byte[m_limits.RequireFrame(m_size)];
@@ -199,16 +224,22 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 }
                 m_validatedCameraPath = m_preparedCameraPath;
             }
-            Capture? capture;
             lock (m_state)
             {
                 m_renderer = renderer;
-                m_statistics = new UsdViewportStatistics(width, height, m_statistics.RenderedFrames + 1,
-                    m_pageRevision, rendered.DrawCount, rendered.Statistics.MeshCount, 0, 0);
-                capture = m_capture;
+                m_statistics = new UsdViewportStatistics(
+                    width,
+                    height,
+                    m_statistics.RenderedFrames + 1,
+                    m_pageRevision,
+                    rendered.DrawCount,
+                    rendered.Statistics.MeshCount,
+                    0,
+                    0);
             }
             m_frameRendered(Statistics);
-            if (capture is not null && capture.TryStart())
+            UsdViewportCaptureQueue.Readback? capture = m_captures.TryStart();
+            if (capture is not null)
             {
                 CaptureFrame(capture, renderer, color, depth, rendered, m_pageRevision);
             }
@@ -218,35 +249,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         /// <summary>
         /// Queues a single bounded readback to be fulfilled inside a serialized render callback.
         /// </summary>
-        public async ValueTask<RetainedSceneFrame> CaptureAsync(
-            SceneCameraCaptureRequest request, CancellationToken cancellationToken)
+        public ValueTask<RetainedSceneFrame> CaptureAsync(
+            SceneCameraCaptureRequest request,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var capture = new Capture(request, cancellationToken);
             lock (m_state)
             {
                 ObjectDisposedException.ThrowIf(m_disposed != 0, this);
-                if (m_capture is not null)
-                {
-                    throw new InvalidOperationException("A viewport readback is already queued.");
-                }
                 RequireCapture(request);
-                m_capture = capture;
-            }
-            using CancellationTokenRegistration registration = cancellationToken.Register(capture.CancelIfQueued);
-            try
-            {
-                return await capture.Completion.Task.ConfigureAwait(false);
-            }
-            finally
-            {
-                lock (m_state)
-                {
-                    if (ReferenceEquals(m_capture, capture))
-                    {
-                        m_capture = null;
-                    }
-                }
+                return m_captures.CaptureAsync(request, cancellationToken);
             }
         }
 
@@ -261,8 +273,12 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             lock (m_state)
             {
                 ObjectDisposedException.ThrowIf(m_disposed != 0, this);
-                if (m_renderer is null || m_statistics.RenderedFrames == 0 ||
-                    x < 0 || y < 0 || x >= m_size.Width || y >= m_size.Height)
+                if (m_renderer is null ||
+                    m_statistics.RenderedFrames == 0 ||
+                    x < 0 ||
+                    y < 0 ||
+                    x >= m_size.Width ||
+                    y >= m_size.Height)
                 {
                     throw new ArgumentOutOfRangeException(nameof(x), "Pick inside an already rendered frame.");
                 }
@@ -272,8 +288,16 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 }
                 m_picking = true;
                 state = m_stateRevision;
-                work = m_renderer.PickAsync(new RenderPickRequest(x, y, m_size,
-                    state, null, RenderPickTarget.Primitive, RenderPickOptions.None), cancellationToken);
+                work = m_renderer.PickAsync(
+                    new RenderPickRequest(
+                        x,
+                        y,
+                        m_size,
+                        state,
+                        null,
+                        RenderPickTarget.Primitive,
+                        RenderPickOptions.None),
+                    cancellationToken);
             }
             try
             {
@@ -306,7 +330,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 {
                     return;
                 }
-                m_capture?.Completion.TrySetException(new ObjectDisposedException(nameof(UsdViewportRenderer)));
+                m_captures.Dispose();
             }
             try
             {
@@ -322,20 +346,45 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             }
         }
 
-        private void RequireCapture(SceneCameraCaptureRequest request)
+        /// <summary>
+        /// Validates capture dimensions and camera identity against selected and prepared viewport state.
+        /// </summary>
+        internal static void RequireCapture(
+            SceneCameraCaptureRequest request,
+            UsdViewportLimits limits,
+            ViewportDimensions size,
+            string selectedCameraPath,
+            string preparedCameraPath)
         {
-            _ = m_limits.RequireFrame(new ViewportDimensions(request.Width, request.Height));
-            if (request.Width != m_size.Width || request.Height != m_size.Height ||
-                request.TimeCode != 0 || (request.PrimPath ?? string.Empty) != m_cameraPath())
+            _ = limits.RequireFrame(new ViewportDimensions(request.Width, request.Height));
+            if (request.Width != size.Width ||
+                request.Height != size.Height ||
+                request.TimeCode != 0 ||
+                (request.PrimPath ?? string.Empty) != selectedCameraPath ||
+                (request.PrimPath ?? string.Empty) != preparedCameraPath)
             {
                 throw new InvalidOperationException(
                     "Retained capture requires the active viewport camera, time and physical dimensions.");
             }
         }
 
+        private void RequireCapture(SceneCameraCaptureRequest request)
+        {
+            RequireCapture(
+                request,
+                m_limits,
+                m_size,
+                m_cameraPath(),
+                m_preparedCameraPath);
+        }
+
         private void CaptureFrame(
-            Capture capture, SilkMeshRenderer renderer, ISilkGraphicsTexture color,
-            ISilkGraphicsTexture depth, SilkMeshRenderResult rendered, ulong revision)
+            UsdViewportCaptureQueue.Readback capture,
+            SilkMeshRenderer renderer,
+            ISilkGraphicsTexture color,
+            ISilkGraphicsTexture depth,
+            SilkMeshRenderResult rendered,
+            ulong revision)
         {
             try
             {
@@ -345,12 +394,19 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 if (m_ownedDevice is not null)
                 {
                     SilkFrameCaptureResult frame = SilkFrameCapture.CaptureRetained(
-                        renderer, m_ownedDevice, capture.Request.Width, capture.Request.Height,
-                        RenderSettings.Default, revision);
+                        renderer,
+                        m_ownedDevice,
+                        capture.Request.Width,
+                        capture.Request.Height,
+                        RenderSettings.Default,
+                        revision);
                     rgba = ByteString.From(frame.Rgba.ToArray());
                     rendered = frame.RenderResult;
                     _ = renderer.Render(
-                        color, depth, new SilkPickFrameBinding(m_stateRevision, revision), s_options);
+                        color,
+                        depth,
+                        new SilkPickFrameBinding(m_stateRevision, revision),
+                        s_options);
                 }
                 else
                 {
@@ -361,17 +417,18 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                     rgba = ByteString.From(pixels);
                 }
                 capture.Token.ThrowIfCancellationRequested();
-                capture.Completion.TrySetResult(new RetainedSceneFrame(
-                    capture.Request.Width, capture.Request.Height, rgba,
-                    rendered.DrawCount, rendered.Statistics.MeshCount, revision));
-            }
-            catch (OperationCanceledException)
-            {
-                capture.Completion.TrySetCanceled(capture.Token);
+                capture.Complete(
+                    new RetainedSceneFrame(
+                        capture.Request.Width,
+                        capture.Request.Height,
+                        rgba,
+                        rendered.DrawCount,
+                        rendered.Statistics.MeshCount,
+                        revision));
             }
             catch (Exception error)
             {
-                capture.Completion.TrySetException(error);
+                capture.Complete(error);
             }
         }
 
@@ -391,25 +448,31 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 else if (command.Type == SilkCommandType.MeshUpsert)
                 {
                     SilkMeshUpsertCommand mesh = command.AsMeshUpsert();
-                    m_geometry.Upsert(mesh.StableHash, mesh.InstanceIndex,
-                        mesh.PointCount, mesh.IndexCount, mesh.AttributeCount, mesh.HasDeformation);
+                    m_geometry.Upsert(
+                        mesh.StableHash,
+                        mesh.InstanceIndex,
+                        mesh.PointCount,
+                        mesh.IndexCount,
+                        mesh.AttributeCount,
+                        mesh.HasDeformation);
                 }
             }
         }
 
         private static readonly SilkMeshRenderOptions s_options =
             new(new SilkColor(0.02f, 0.02f, 0.03f, 1), 1, false, true);
+
         private readonly UsdStageScheduler m_scheduler;
         private readonly UsdViewportLimits m_limits;
         private readonly Func<string> m_cameraPath;
         private readonly Action<UsdViewportStatistics> m_frameRendered;
+        private readonly UsdViewportCaptureQueue m_captures;
         private readonly ISilkGraphicsDevice? m_ownedDevice;
         private readonly OpenUsdSilkSession m_session;
         private readonly Lock m_state = new();
         private readonly UsdViewportGeometryBudget m_geometry;
         private UsdViewportStatistics m_statistics = new(0, 0, 0, 0, 0, 0, 0, 0);
         private SilkMeshRenderer? m_renderer;
-        private Capture? m_capture;
         private ViewportDimensions m_size;
         private CameraState m_camera = CameraState.Default;
         private string m_preparedCameraPath = string.Empty;
@@ -420,27 +483,5 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
         private bool m_needsSync = true;
         private int m_disposed;
         private bool m_picking;
-
-        private sealed class Capture(SceneCameraCaptureRequest request, CancellationToken token)
-        {
-            public SceneCameraCaptureRequest Request { get; } = request;
-
-            public CancellationToken Token { get; } = token;
-
-            public TaskCompletionSource<RetainedSceneFrame> Completion { get; } =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
-
-            public bool TryStart() => Interlocked.CompareExchange(ref m_state, 1, 0) == 0;
-
-            public void CancelIfQueued()
-            {
-                if (Interlocked.CompareExchange(ref m_state, 2, 0) == 0)
-                {
-                    Completion.TrySetCanceled(Token);
-                }
-            }
-
-            private int m_state;
-        }
     }
 }
