@@ -99,6 +99,16 @@ not one elevated identity per browser tab.
 - Material/genealogy reads are bounded and run-scoped. Equipment recovery does not release
   persistent quality holds, and produced packages do not necessarily equal released product.
 
+Genealogy requests carry their expected run through the typed feed. Direct coordinator
+snapshot reads around the genealogy service call reject reset races with HTTP 409 even
+when subscription delivery still exposes an old cached run.
+
+Browser delivery health is separate from coordinator health. A terminal SSE refusal,
+including the live-consumer limit, triggers explicit stream retries with bounded backoff.
+Retained HTTP observations remain read-only until a fresh event arrives on the live stream;
+a successful one-off refresh cannot re-enable controls. Browsers without SSE remain read-only.
+Loss of live delivery also cancels an outstanding destructive-action confirmation.
+
 The exception dock is a compact preview of recent outstanding holds. The **Holds** section
 pages the complete retained history, with Outstanding/All/Released/Rejected filters and
 Previous/Next navigation. Pages carry their run and revision, so holds beyond the preview

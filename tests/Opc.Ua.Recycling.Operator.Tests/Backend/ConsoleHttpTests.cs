@@ -279,7 +279,38 @@ public sealed class ConsoleHttpTests
             .ConfigureAwait(false);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
         m_feed.Verify(item => item.ReadHistoryAsync(
-            It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// A normal page forwards the exact requested run through the typed history boundary.
+    /// </summary>
+    [Test]
+    public async Task HistoryPassesExpectedRunToTheTypedFeedAsync()
+    {
+        m_feed.Setup(item => item.ReadHistoryAsync("run", 4, 2, It.IsAny<CancellationToken>()))
+            .Returns(new ValueTask<ArrayOf<MaterialExecution>>([]));
+        await AuthenticateAsync().ConfigureAwait(false);
+        using JsonDocument history = JsonDocument.Parse(await m_http.GetStringAsync(new Uri(
+            "/api/history?runId=run&after=4&limit=2", UriKind.Relative)).ConfigureAwait(false));
+        Assert.That(history.RootElement.GetProperty("runId").GetString(), Is.EqualTo("run"));
+        Assert.That(history.RootElement.GetProperty("items").GetArrayLength(), Is.Zero);
+        m_feed.Verify(item => item.ReadHistoryAsync("run", 4, 2, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    /// <summary>
+    /// A run mismatch found after a typed read remains a conflict even when the subscription cache is unchanged.
+    /// </summary>
+    [Test]
+    public async Task HistoryRunMismatchReturnsConflictWithRetainedCacheAsync()
+    {
+        m_feed.Setup(item => item.ReadHistoryAsync("run", 0, 50, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ServiceResultException(StatusCodes.BadInvalidState, "Run changed while reading history."));
+        await AuthenticateAsync().ConfigureAwait(false);
+        using HttpResponseMessage response = await m_http.GetAsync(new Uri(
+            "/api/history?runId=run&after=0&limit=50", UriKind.Relative)).ConfigureAwait(false);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict));
+        Assert.That(m_feed.Object.Snapshot!.RunId, Is.EqualTo("run"));
     }
 
     /// <summary>

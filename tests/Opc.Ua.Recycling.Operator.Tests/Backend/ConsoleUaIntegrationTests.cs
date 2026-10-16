@@ -13,13 +13,16 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
@@ -61,9 +64,17 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             VerifyCoordinatorAsync(null, outage: true);
 
         /// <summary>
+        /// A delayed subscription cannot label a new run's genealogy as belonging to a retained old run.
+        /// </summary>
+        [Test]
+        public Task HistoryRejectsResetWithDelayedSubscriptionCacheAsync() =>
+            VerifyCoordinatorAsync(null, outage: false, historyReset: true);
+
+        /// <summary>
         /// Composes the actual workstation, trusted server and optional native projection.
         /// </summary>
-        private static async Task VerifyCoordinatorAsync(RecyclingProcess? nativeProcess, bool outage)
+        private static async Task VerifyCoordinatorAsync(
+            RecyclingProcess? nativeProcess, bool outage, bool historyReset = false)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(timeout.Token)
@@ -114,11 +125,34 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 configuration["RecyclingConsole:ProcessEndpoints:" + nativeProcess] =
                     view.Services.GetRequiredService<RecyclingHostOptions>().EndpointUrl;
             }
+            CommittedSnapshot? frozenSnapshot = null;
+            ConsoleState? frozenState = null;
             WebApplication app = OperatorConsoleHost.Build([], builder =>
             {
                 builder.Configuration.AddInMemoryCollection(configuration);
                 builder.WebHost.UseTestServer();
                 builder.Logging.ClearProviders();
+            }, services =>
+            {
+                if (!historyReset)
+                {
+                    return;
+                }
+                services.Replace(ServiceDescriptor.Singleton<IOperatorPlantFeed>(provider =>
+                {
+                    ConsoleFeed actual = provider.GetRequiredService<ConsoleFeed>();
+                    var retained = new Mock<IOperatorPlantFeed>();
+                    retained.SetupGet(feed => feed.Snapshot).Returns(() => frozenSnapshot ?? actual.Snapshot);
+                    retained.SetupGet(feed => feed.State).Returns(() => frozenState ?? actual.State);
+                    retained.Setup(feed => feed.Subscribe()).Returns(actual.Subscribe);
+                    retained.Setup(feed => feed.Unsubscribe(It.IsAny<Channel<ConsoleState>>()))
+                        .Callback<Channel<ConsoleState>>(actual.Unsubscribe);
+                    retained.Setup(feed => feed.ReadHistoryAsync(
+                        It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                        .Returns((string run, long after, int limit, CancellationToken ct) =>
+                            actual.ReadHistoryAsync(run, after, limit, ct));
+                    return retained.Object;
+                }));
             });
             await using var appLifetime = app.ConfigureAwait(false);
             await TrustWorkstationAsync(app, environment, timeout.Token).ConfigureAwait(false);
@@ -161,6 +195,19 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             Assert.That(feed.Snapshot!.RunId, Is.EqualTo(environment.Coordinator.Current.RunId));
             Assert.That(feed.Snapshot.SourceMass, Is.EqualTo(environment.Coordinator.Current.SourceMass));
             Assert.That(feed.State.Quality, Is.EqualTo("Good"));
+            if (historyReset)
+            {
+                frozenSnapshot = feed.Snapshot ?? throw new InvalidOperationException("A cached run is required.");
+                frozenState = feed.State;
+                await VerifyHistoryResetAsync(
+                    http, environment, app.Services.GetRequiredService<ConsoleFeed>(), frozenSnapshot.RunId,
+                    timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(feed.Snapshot!.RunId, Is.EqualTo(frozenSnapshot.RunId),
+                    "The simulated delayed subscription must still expose the old cached run.");
+                await app.StopAsync(timeout.Token).ConfigureAwait(false);
+                return;
+            }
             if (outage)
             {
                 await VerifyOutageAsync(app, http, environment, csrf, timeout.Token).ConfigureAwait(false);
@@ -221,6 +268,48 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 }
             }
             await app.StopAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Commits a real reset and new history through the encrypted coordinator while the HTTP cache is frozen.
+        /// </summary>
+        private static async Task VerifyHistoryResetAsync(
+            HttpClient http, RecyclingUaEnvironment environment, ConsoleFeed actual, string oldRun,
+            CancellationToken cancellationToken)
+        {
+            RecyclingCoordinatorClient administrator = await environment.ConnectAsync(
+                "administrator", cancellationToken).ConfigureAwait(false);
+            foreach (RecyclingCommandKind kind in new[] { RecyclingCommandKind.Stop, RecyclingCommandKind.Reset })
+            {
+                CommittedSnapshot current = await administrator.ReadSnapshotAsync(cancellationToken)
+                    .ConfigureAwait(false);
+                RecyclingCommand command = CoordinatorTests.Command(environment.Coordinator, kind) with
+                {
+                    RunId = current.RunId,
+                    ExpectedRevision = current.Revision
+                };
+                RecyclingCommandOutcome outcome = await administrator.ExecuteAsync(command, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good));
+            }
+            Assert.That(environment.Coordinator.Current.RunId, Is.Not.EqualTo(oldRun));
+            await environment.InitializeRolesAsync(cancellationToken).ConfigureAwait(false);
+            for (int tick = 0; tick < 8; tick++)
+            {
+                await environment.Coordinator.TickAsync(cancellationToken).ConfigureAwait(false);
+            }
+            ArrayOf<MaterialExecution> history = await administrator.ReadHistoryAsync(
+                0, 50, cancellationToken).ConfigureAwait(false);
+            Assert.That(history.Count, Is.Positive, "The new run must have genuine genealogy to distinguish.");
+            ArrayOf<MaterialExecution> matching = await actual.ReadHistoryAsync(
+                environment.Coordinator.Current.RunId, 0, 50, cancellationToken).ConfigureAwait(false);
+            Assert.That(matching.Count, Is.EqualTo(history.Count),
+                "Matching direct coordinator reads must permit genuine current-run history.");
+            using HttpResponseMessage response = await http.GetAsync(new Uri(
+                "/api/history?runId=" + Uri.EscapeDataString(oldRun) + "&after=0&limit=50", UriKind.Relative),
+                cancellationToken).ConfigureAwait(false);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.Conflict),
+                "New-run history must not be returned under the frozen old run ID.");
         }
 
         /// <summary>

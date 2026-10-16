@@ -76,7 +76,7 @@ export async function fetchCommand(requestId) {
 
 export function openStateStream(onState, onStatus) {
     if (!("EventSource" in window)) {
-        onStatus?.("Unavailable", "This browser does not support server-sent events. Polling remains available.");
+        onStatus?.("Unavailable", "This browser does not support live state delivery; controls remain disabled.");
         return null;
     }
 
@@ -88,7 +88,12 @@ export function openStateStream(onState, onStatus) {
             onStatus?.("Unavailable", `State event could not be parsed: ${error.message}`);
         }
     });
-    events.onerror = () => onStatus?.("Reconnecting", "Live stream interrupted; fetching newest state.");
+    events.onerror = () => {
+        const terminal = events.readyState === EventSource.CLOSED;
+        onStatus?.(terminal ? "Unavailable" : "Reconnecting",
+            terminal ? "Live stream closed; retrying with bounded backoff." : "Live stream interrupted.",
+            terminal);
+    };
     events.onopen = () => onStatus?.("Connected", "Live state stream connected.");
     return events;
 }

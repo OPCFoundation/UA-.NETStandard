@@ -9,6 +9,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -75,6 +76,20 @@ namespace Opc.Ua.Recycling.Operator.Tests
         internal int StateStatus { get; set; } = 200;
 
         /// <summary>
+        /// Controls the actual SSE endpoint response, including terminal consumer-limit refusals.
+        /// </summary>
+        internal int EventStatus
+        {
+            get => Volatile.Read(ref m_eventStatus);
+            set => Volatile.Write(ref m_eventStatus, value);
+        }
+
+        /// <summary>
+        /// Counts real SSE connection attempts, independently of state refreshes.
+        /// </summary>
+        internal int EventRequests => Volatile.Read(ref m_eventRequests);
+
+        /// <summary>
         /// Gets the browser page under test.
         /// </summary>
         internal IPage Page { get; private set; } = null!;
@@ -98,6 +113,12 @@ namespace Opc.Ua.Recycling.Operator.Tests
             OperatorBrowserHarness? activeFixture = null;
             application.MapGet("/api/events", async (HttpContext context) =>
             {
+                Interlocked.Increment(ref activeFixture!.m_eventRequests);
+                if (activeFixture.EventStatus != 200)
+                {
+                    context.Response.StatusCode = activeFixture.EventStatus;
+                    return;
+                }
                 context.Response.ContentType = "text/event-stream";
                 await context.Response.WriteAsync(
                     "event: state\ndata: " + activeFixture!.State.ToJsonString() + "\n\n",
@@ -304,5 +325,9 @@ namespace Opc.Ua.Recycling.Operator.Tests
         private readonly IPlaywright m_playwright;
         private readonly IBrowser m_browser;
         private readonly Channel<string> m_updates;
+        /// <summary>Actual event endpoint status supplied by the test.</summary>
+        private int m_eventStatus = 200;
+        /// <summary>Actual event endpoint requests observed by the server.</summary>
+        private int m_eventRequests;
     }
 }

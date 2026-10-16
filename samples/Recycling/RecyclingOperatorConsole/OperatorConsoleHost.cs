@@ -372,9 +372,9 @@ public static class OperatorConsoleHost
         }
         try
         {
-            ArrayOf<MaterialExecution> history = await feed.ReadHistoryAsync(after, limit, context.RequestAborted)
-                .ConfigureAwait(false);
-            if (feed.Snapshot?.RunId != snapshot!.RunId)
+            ArrayOf<MaterialExecution> history = await feed.ReadHistoryAsync(
+                snapshot!.RunId, after, limit, context.RequestAborted).ConfigureAwait(false);
+            if (feed.Snapshot?.RunId != snapshot.RunId)
             {
                 return Failure(409, "Run changed while reading history.");
             }
@@ -393,6 +393,10 @@ public static class OperatorConsoleHost
             string status = exception is ServiceResultException service
                 ? service.StatusCode.ToString() : "BadCommunicationError";
             ConsoleLog.HistoryFailed(telemetry.CreateLogger(nameof(OperatorConsoleHost)), status, exception);
+            if (exception is ServiceResultException changed && changed.StatusCode == StatusCodes.BadInvalidState)
+            {
+                return Failure(409, "Run changed while reading history.");
+            }
             return Failure(503, "Typed coordinator history unavailable: " + status);
         }
     }

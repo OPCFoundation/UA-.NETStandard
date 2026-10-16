@@ -80,6 +80,10 @@ const state = {
     selectedProcess: "Collection",
     inspector: null,
     eventSource: null,
+    liveDelivery: false,
+    streamGeneration: 0,
+    streamRetryTimer: null,
+    streamRetryDelay: 1000,
     browserStreamStatus: "Disconnected",
     browserStreamDetail: "",
     previousTransfers: new Map(),
@@ -145,17 +149,52 @@ async function boot() {
     if (!state.session) {
         return;
     }
-    state.eventSource = openStateStream(applyState, async (connection, detail) => {
-        state.browserStreamStatus = connection;
+    connectStateStream();
+}
+
+function connectStateStream() {
+    const generation = ++state.streamGeneration;
+    state.eventSource?.close();
+    state.eventSource = openStateStream(nextState => {
+        if (!state.session || generation !== state.streamGeneration) return;
+        state.liveDelivery = true;
+        state.streamRetryDelay = 1000;
+        state.browserStreamStatus = "Connected";
+        state.browserStreamDetail = "";
+        applyState(nextState);
+    }, (connection, detail, terminal = false) => {
+        if (!state.session || generation !== state.streamGeneration) return;
+        state.liveDelivery = false;
+        state.browserStreamStatus = connection === "Connected" ? "Connecting" : connection;
         state.browserStreamDetail = detail ?? "";
-        renderAll();
-        if (connection === "Reconnecting") {
-            await refreshState();
+        closeIncompatibleConfirmation("Browser live delivery is unavailable");
+        if (state.plant) {
+            applyState({ ...state.plant, available: false });
+        } else {
+            renderAll();
+        }
+        if (connection !== "Connected") {
+            refreshState();
+        }
+        if (terminal && state.streamRetryTimer === null) {
+            state.eventSource?.close();
+            const delay = state.streamRetryDelay;
+            state.streamRetryDelay = Math.min(delay * 2, 15000);
+            state.streamRetryTimer = window.setTimeout(() => {
+                state.streamRetryTimer = null;
+                if (state.session && generation === state.streamGeneration) {
+                    connectStateStream();
+                }
+            }, delay);
         }
     });
 }
 
 function showUnauthenticated(error) {
+    state.streamGeneration++;
+    window.clearTimeout(state.streamRetryTimer);
+    state.streamRetryTimer = null;
+    state.liveDelivery = false;
     state.eventSource?.close();
     state.eventSource = null;
     state.session = null;
@@ -168,9 +207,17 @@ function showUnauthenticated(error) {
 }
 
 async function refreshState() {
+    const generation = state.streamGeneration;
     try {
-        applyState(await fetchState());
+        const observation = await fetchState();
+        if (!state.session || generation !== state.streamGeneration || state.liveDelivery) {
+            return;
+        }
+        applyState(observation);
     } catch (error) {
+        if (!state.session || generation !== state.streamGeneration || state.liveDelivery) {
+            return;
+        }
         if (error.status === 401) {
             showUnauthenticated(error);
             return;
@@ -192,7 +239,8 @@ async function refreshState() {
 }
 
 function applyState(nextState) {
-    const normalized = normalizeState(mergeUnavailableState(nextState));
+    const observation = normalizeState(mergeUnavailableState(nextState));
+    const normalized = state.liveDelivery ? observation : { ...observation, available: false };
     const previousRunId = state.plant?.runId ?? "";
     const previousConfigurationId = state.plant?.configurationId ?? "";
     const changedContext = previousRunId &&
@@ -430,6 +478,10 @@ async function loadHistoryPage() {
 }
 
 async function submitCommand(candidate) {
+    if (!state.plant?.available || !state.liveDelivery) {
+        systemBanner.textContent = "Live state delivery is unavailable; reconnect before issuing a command.";
+        return;
+    }
     const envelope = candidate.requestId
         ? candidate
         : buildCommand(candidate.kind, state.plant, {
@@ -453,6 +505,10 @@ async function submitCommand(candidate) {
         if (!accepted) {
             return;
         }
+    }
+    if (!state.plant?.available || !state.liveDelivery) {
+        systemBanner.textContent = "Live state delivery changed; the command was not submitted.";
+        return;
     }
 
     const originalEnvelope = Object.freeze({ ...confirmedEnvelope });
@@ -505,6 +561,10 @@ async function submitCommand(candidate) {
 }
 
 async function retryCommand(requestId) {
+    if (!state.plant?.available || !state.liveDelivery) {
+        systemBanner.textContent = "Live state delivery is unavailable; the exact retry was not submitted.";
+        return;
+    }
     const original = state.commandEnvelopes.get(requestId);
     if (!original) {
         systemBanner.textContent = "The exact original command envelope is no longer available in this browser session.";
@@ -520,6 +580,10 @@ async function retryCommand(requestId) {
         if (!accepted) {
             return;
         }
+    }
+    if (!state.plant?.available || !state.liveDelivery) {
+        systemBanner.textContent = "Live state delivery changed; the exact retry was not submitted.";
+        return;
     }
 
     const pendingKey = commandKey(retryEnvelope);
@@ -552,6 +616,7 @@ async function retryCommand(requestId) {
 }
 
 function confirmCommand(envelope) {
+    commandDialog.returnValue = "";
     state.activeConfirmation = {
         runId: envelope.runId,
         configurationId: state.plant?.configurationId ?? "",
@@ -666,7 +731,7 @@ function clearRunScopedState() {
     state.pendingCommandKeys.clear();
 }
 
-function closeIncompatibleConfirmation() {
+function closeIncompatibleConfirmation(reason = "The run or configuration changed") {
     if (!state.activeConfirmation) {
         return;
     }
@@ -675,7 +740,7 @@ function closeIncompatibleConfirmation() {
         commandDialog.close("cancel");
     }
 
-    systemBanner.textContent = "The run or configuration changed; the pending confirmation was canceled without retargeting.";
+    systemBanner.textContent = `${reason}; the pending confirmation was canceled without retargeting.`;
 }
 
 function captureRenderState() {

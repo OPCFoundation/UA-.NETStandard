@@ -110,10 +110,24 @@ internal sealed class ConsoleFeed(
         (Client ?? throw new IOException("Coordinator unavailable.")).ExecuteAsync(command, cancellationToken);
 
     /// <inheritdoc/>
-    public ValueTask<ArrayOf<MaterialExecution>> ReadHistoryAsync(
-        long after, int limit, CancellationToken cancellationToken) =>
-        (Client ?? throw new IOException("Coordinator unavailable."))
-            .ReadHistoryAsync(after, limit, cancellationToken);
+    public async ValueTask<ArrayOf<MaterialExecution>> ReadHistoryAsync(
+        string expectedRunId, long after, int limit, CancellationToken cancellationToken)
+    {
+        RecyclingCoordinatorClient client = Client ?? throw new IOException("Coordinator unavailable.");
+        CommittedSnapshot before = await client.ReadSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        if (before.RunId != expectedRunId)
+        {
+            throw new ServiceResultException(StatusCodes.BadInvalidState, "Run changed before reading history.");
+        }
+        ArrayOf<MaterialExecution> history = await client.ReadHistoryAsync(after, limit, cancellationToken)
+            .ConfigureAwait(false);
+        CommittedSnapshot afterRead = await client.ReadSnapshotAsync(cancellationToken).ConfigureAwait(false);
+        if (afterRead.RunId != expectedRunId)
+        {
+            throw new ServiceResultException(StatusCodes.BadInvalidState, "Run changed while reading history.");
+        }
+        return history;
+    }
 
     /// <inheritdoc/>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

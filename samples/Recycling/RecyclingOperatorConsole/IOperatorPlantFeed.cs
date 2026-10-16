@@ -67,7 +67,8 @@ internal interface IOperatorPlantFeed
     ValueTask<RecyclingCommandOutcome> ExecuteAsync(RecyclingCommand command, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Reads real typed bounded genealogy.
+    /// Reads typed bounded genealogy only while direct coordinator reads confirm the expected run.
     /// </summary>
-    ValueTask<ArrayOf<MaterialExecution>> ReadHistoryAsync(long after, int limit, CancellationToken cancellationToken);
+    ValueTask<ArrayOf<MaterialExecution>> ReadHistoryAsync(
+        string expectedRunId, long after, int limit, CancellationToken cancellationToken);
 }

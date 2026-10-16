@@ -203,6 +203,97 @@ namespace Opc.Ua.Recycling.Operator.Tests
         }
 
         /// <summary>
+        /// Escape on a reused dialog cancels only that action, even after an earlier confirmed command.
+        /// </summary>
+        [Test]
+        public async Task EscapeAfterConfirmedActionDoesNotSubmitTheNextCommandAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+
+            await fixture.Page.GetByTestId("process-Sorting").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync()
+                .ConfigureAwait(false);
+            Assert.That(await fixture.Page.GetByTestId("confirm-dialog")
+                .EvaluateAsync<string>("dialog => dialog.returnValue").ConfigureAwait(false), Is.Empty);
+            await fixture.Page.GetByTestId("confirm-dialog").PressAsync("Escape").ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("confirm-dialog")).Not.ToBeVisibleAsync()
+                .ConfigureAwait(false);
+
+            await fixture.Page.GetByTestId("process-Bagging").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            Task<IResponse> final = fixture.Page.WaitForResponseAsync(response =>
+                response.Url.EndsWith("/api/commands", StringComparison.Ordinal) &&
+                response.Request.PostData?.Contains("Bagging", StringComparison.Ordinal) == true);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await final.ConfigureAwait(false);
+
+            Assert.That(fixture.Commands, Has.Count.EqualTo(2));
+            Assert.That(fixture.Commands[0]["process"]!.GetValue<string>(), Is.EqualTo("Washing"));
+            Assert.That(fixture.Commands[1]["process"]!.GetValue<string>(), Is.EqualTo("Bagging"));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// A terminal consumer-limit response retains readable data but cannot masquerade as live control.
+        /// </summary>
+        [Test]
+        public async Task ConsumerLimitKeepsControlsUnavailableUntilLiveDeliveryRecoversAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync(
+                "Operator", configure: browser => browser.EventStatus = 429).ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+            while (fixture.EventRequests < 2)
+            {
+                await Task.Delay(20, timeout.Token).ConfigureAwait(false);
+            }
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            fixture.EventStatus = 200;
+
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43",
+                new LocatorAssertionsToContainTextOptions { Timeout = 15000 }).ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeEnabledAsync()
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Is.Empty);
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Losing live delivery while a dialog is open cannot submit its retained destructive envelope.
+        /// </summary>
+        [Test]
+        public async Task StreamFailureCancelsPendingDestructiveConfirmationAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync()
+                .ConfigureAwait(false);
+            fixture.EventStatus = 429;
+            fixture.DisconnectStream();
+
+            await Assertions.Expect(fixture.Page.GetByTestId("confirm-dialog")).Not.ToBeVisibleAsync()
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Is.Empty);
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
         /// Administrative commands are explicit sample operations, not a start button or an emergency stop.
         /// </summary>
         [Test]
