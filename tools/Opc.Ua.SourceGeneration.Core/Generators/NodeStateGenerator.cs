@@ -769,7 +769,8 @@ namespace Opc.Ua.SourceGeneration
                     root.SymbolicId.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(root.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    root.SymbolicName.Namespace));
 
             switch (root)
             {
@@ -1777,26 +1778,10 @@ namespace Opc.Ua.SourceGeneration
                     instance.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(instance.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    instance.SymbolicName.Namespace));
 
             return context.Template.Render();
-        }
-
-        /// <summary>
-        /// Returns the expression for a browse name's namespace URI: the
-        /// model's namespace constant when the model declares the namespace,
-        /// otherwise the URI as a literal.
-        /// </summary>
-        /// <remarks>
-        /// An inherited child keeps the browse namespace of the model that
-        /// declared it, which can be one the consuming model only reaches
-        /// through a referenced assembly - DI below a Robotics subtype - and so
-        /// has no constant for.
-        /// </remarks>
-        private string GetNamespaceUriExpression(string namespaceUri)
-        {
-            return m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(namespaceUri)
-                ?? namespaceUri.AsStringLiteral();
         }
 
         private TemplateString? LoadTemplate_ListOfNodeStateInitializers(ILoadContext context)
@@ -1944,7 +1929,8 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(root.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    root.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.DescriptionValue,
                 GetDescriptionValue(root));
