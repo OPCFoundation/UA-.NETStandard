@@ -613,6 +613,59 @@ interface ICompactedLog
     Task CompactThroughAsync(long lastIncludedCommand, CancellationToken ct);
 }
 
+// Application-owned. Contract: when PublishDurably returns, finalPath durably names the complete contents of
+// tempPath (a power loss cannot undo the rename); on failure it throws. Both paths are on the same volume.
+static class DurableFile
+{
+    const int MOVEFILE_REPLACE_EXISTING = 0x1;
+    const int MOVEFILE_WRITE_THROUGH = 0x8;
+    const int O_RDONLY = 0; // 0 on Linux, macOS and the BSDs
+
+    public static void PublishDurably(string tempPath, string finalPath)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // Returns only after the move has been flushed to disk.
+            if (!MoveFileEx(tempPath, finalPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+            {
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            }
+            return;
+        }
+
+        // rename(2) is atomic; it is durable only once the containing directory is fsynced.
+        File.Move(tempPath, finalPath, overwrite: true);
+        int fd = open(Path.GetDirectoryName(Path.GetFullPath(finalPath))!, O_RDONLY);
+        if (fd < 0)
+        {
+            throw new Win32Exception(Marshal.GetLastPInvokeError());
+        }
+        try
+        {
+            if (fsync(fd) != 0)
+            {
+                throw new Win32Exception(Marshal.GetLastPInvokeError());
+            }
+        }
+        finally
+        {
+            close(fd);
+        }
+    }
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern bool MoveFileEx(string lpExistingFileName, string lpNewFileName, int dwFlags);
+
+    [DllImport("libc", SetLastError = true)]
+    static extern int open(string path, int flags);
+
+    [DllImport("libc", SetLastError = true)]
+    static extern int fsync(int fd);
+
+    [DllImport("libc")]
+    static extern int close(int fd);
+}
+
 static string SnapshotFile(string directory, long position) =>
     Path.Combine(directory, $"{position:D20}.snapshot"); // zero-padded: ordinal order is position order
 
@@ -633,11 +686,10 @@ await using (var stream = new FileStream(
     stream.Flush(flushToDisk: true); // fsync / FlushFileBuffers: the bytes are on disk before the rename
 }
 
-// Publish atomically: the file is either absent or complete.
-File.Move(tempPath, snapshotPath, overwrite: true);
-// On POSIX, also fsync snapshotDirectory here (see below).
+// Publish atomically and durably: the file is either absent or complete, also after a power loss.
+DurableFile.PublishDurably(tempPath, snapshotPath);
 
-// Only now compact the log, and only then delete the snapshots older than the new boundary.
+// Only after the publication is durable compact the log, and only then delete the snapshots older than the new boundary.
 await log.CompactThroughAsync(snapshot.LastIncludedCommand, ct);
 foreach (string older in Directory.EnumerateFiles(snapshotDirectory, "*.snapshot")
     .Where(f => StringComparer.Ordinal.Compare(f, snapshotPath) < 0))
@@ -674,9 +726,9 @@ The crash windows resolve from the persisted state alone:
 
 Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the snapshot that matches the log's compaction boundary until the log is compacted up to a newer, durably published one:
 
-- Write the temporary file in the same directory as the snapshots. `File.Move(..., overwrite: true)` replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
+- Write the temporary file in the same directory as the snapshots. The rename replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
 - `Flush(flushToDisk: true)` makes the file contents durable before the rename, so the rename never publishes a file whose data is still in the page cache.
-- On POSIX filesystems the rename is a change to the containing directory and survives power loss only after that directory is also fsynced: open the directory read-only (`open(dir, O_RDONLY | O_DIRECTORY)`, through P/Invoke or a library such as `Mono.Posix`), call `fsync` on it, then close it. .NET offers no managed API for this. On Windows there is no directory fsync and `File.Move` does not request write-through; when the rename must be durable before the log is compacted, call `MoveFileEx` with `MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH` through P/Invoke instead, which returns only after the move is on disk.
+- An atomic rename is not yet a durable one, and `CompactThroughAsync` must run only after `PublishDurably` returned: if the compaction boundary survived a power loss but the rename did not, `CompactedThrough` would name a missing snapshot and recovery could not proceed. `File.Move` alone guarantees neither: on Windows it does not request write-through, so `PublishDurably` calls `MoveFileEx` with `MOVEFILE_WRITE_THROUGH`; on POSIX the rename is a change to the containing directory, so `PublishDurably` fsyncs that directory after it. .NET offers no managed API for either.
 - Network filesystems and some container volume drivers may not honour these guarantees; keep snapshots on a local or block-backed volume whose atomic-rename and fsync semantics are documented.
 
 `LastIncludedCommand` counts committed application commands, not entries of the consensus engine's own log (which also holds leader no-ops and configuration changes), because `IRaftConsensus` does not expose log indexes. Compacting an engine's log therefore needs the engine to map the position to its own index.
