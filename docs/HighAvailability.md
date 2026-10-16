@@ -634,8 +634,9 @@ static class DurableFile
             return;
         }
 
-        // rename(2) is atomic; it is durable only once the containing directory is flushed.
-        File.Move(tempPath, finalPath, overwrite: true);
+        // rename(2) is atomic; it is durable only once the containing directory is flushed. The directory is opened
+        // first so that its descriptor also reports a writeback error of the rename (Linux reports such errors only
+        // to descriptors that were open when they occurred).
         int fd = open(Path.GetDirectoryName(Path.GetFullPath(finalPath))!, O_RDONLY);
         if (fd < 0)
         {
@@ -643,6 +644,8 @@ static class DurableFile
         }
         try
         {
+            File.Move(tempPath, finalPath, overwrite: true);
+
             // On macOS fsync does not flush the drive's volatile cache; F_FULLFSYNC does (see fsync(2)).
             int flushed = OperatingSystem.IsMacOS() ? fcntl(fd, F_FULLFSYNC) : fsync(fd);
             if (flushed != 0)
