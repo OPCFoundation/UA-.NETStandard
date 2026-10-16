@@ -136,6 +136,12 @@ namespace Opc.Ua.Client
                 if (activation.SessionGeneration == m_requestContextGeneration &&
                     activation.ActivationGeneration == m_requestContextActivationGeneration)
                 {
+                    if (activation.Transport.MessageContext is ServiceMessageContext messageContext)
+                    {
+                        // A replacement native transport initializes an empty ServerUris table.
+                        // The verified reactivated Session still owns its established URI mapping.
+                        messageContext.ServerUris = ServerUris;
+                    }
                     m_requestContextReactivation = activation;
                 }
             }

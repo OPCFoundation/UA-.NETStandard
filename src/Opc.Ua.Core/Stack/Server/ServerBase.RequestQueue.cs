@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
@@ -154,6 +153,7 @@ namespace Opc.Ua
             /// </summary>
             /// <param name="request">The request.</param>
             /// <param name="cancellationToken">The caller's request lifetime.</param>
+            /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
             public void ScheduleIncomingRequest(
                 IEndpointIncomingRequest request,
                 CancellationToken cancellationToken = default)
@@ -259,7 +259,8 @@ namespace Opc.Ua
                 {
                     lock (m_workerGate)
                     {
-                        if (!m_stopped && m_totalThreadCount < m_maxThreadCount &&
+                        if (!m_stopped &&
+                            m_totalThreadCount < m_maxThreadCount &&
                             m_activeThreadCount >= m_totalThreadCount)
                         {
                             Interlocked.Increment(ref m_totalThreadCount);
@@ -336,7 +337,8 @@ namespace Opc.Ua
                         {
                             queued = await m_queue.Reader.ReadAsync(ct).ConfigureAwait(false);
                         }
-                        if (ct.IsCancellationRequested || Volatile.Read(ref m_stopped) ||
+                        if (ct.IsCancellationRequested ||
+                            Volatile.Read(ref m_stopped) ||
                             queued.CancellationToken.IsCancellationRequested)
                         {
                             entry?.Dispose();

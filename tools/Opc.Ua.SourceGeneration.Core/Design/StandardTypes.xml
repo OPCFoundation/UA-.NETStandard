@@ -9743,7 +9743,7 @@
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="AuditServiceOperationEventType" BaseType="ua:AuditEventType" Category="RuntimeOptional" ReleaseStatus="Draft">
+  <opc:ObjectType SymbolicName="AuditServiceOperationEventType" BaseType="ua:AuditSessionEventType" Category="RuntimeOptional" ReleaseStatus="Draft">
     <opc:Description>Privileged audit metadata for recoverable operation actions. Tokens, credentials and copied request/result payloads are not fields of this event.</opc:Description>
     <opc:Children>
       <opc:Property SymbolicName="ClientOperationId" DataType="ua:Guid" ModellingRule="Mandatory">

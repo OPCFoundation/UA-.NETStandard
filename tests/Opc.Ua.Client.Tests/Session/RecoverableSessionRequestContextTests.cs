@@ -50,7 +50,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await using var channels = new SessionChannelHarness(
-                configureChannel: channel => channel.Channel.MessageContext.ServerUris.Update(["urn:localhost:server"]));
+                configureChannel: channel =>
+                    channel.Channel.MessageContext.ServerUris.Update(["urn:localhost:server"]));
             await using Client.ManagedSession owner = await Client.ManagedSession.CreateAsync(
                 new ManagedSessionOptions { Endpoint = SessionChannelHarness.CreateEndpoint() },
                 channels.Configuration,
@@ -273,7 +274,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
                 return new ValueTask<IServiceResponse>(transport.CreateResponse(request));
             };
-            var changedIdentity = new UserIdentity("synthetic-user", ReadOnlySpan<byte>.Empty);
+            var changedIdentity = new UserIdentity("synthetic-user", []);
             if (activationFails)
             {
                 _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -312,8 +313,13 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         /// <summary>
         /// Changing encoding limits cannot silently change a retained operation's encoding contract.
         /// </summary>
-        [Test]
-        public async Task ChangedEncodingLimitsAreRejectedBeforeSending()
+        /// <exception cref="ArgumentException"></exception>
+        [TestCase("string")]
+        [TestCase("bytes")]
+        [TestCase("array")]
+        [TestCase("nesting")]
+        [TestCase("recoveries")]
+        public async Task ChangedEncodingLimitsAreRejectedBeforeSending(string limit)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await using var channels = new SessionChannelHarness();
@@ -322,9 +328,96 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
             var source = (ServiceMessageContext)channels.CreatedChannels[0].Channel.MessageContext;
-            source.MaxMessageSize /= 2;
+            switch (limit)
+            {
+                case "string":
+                    source.MaxStringLength++;
+                    break;
+                case "bytes":
+                    source.MaxByteStringLength++;
+                    break;
+                case "array":
+                    source.MaxArrayLength++;
+                    break;
+                case "nesting":
+                    source.MaxEncodingNestingLevels++;
+                    break;
+                case "recoveries":
+                    source.MaxDecoderRecoveries++;
+                    break;
+                default:
+                    throw new ArgumentException("Unknown encoding limit.", nameof(limit));
+            }
             ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(context.Invalidated.IsCompleted, Is.True);
+        }
+
+        /// <summary>
+        /// Message capacity alone can shrink and recover, but cannot raise a captured finite safety ceiling.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MessageCapacityDoesNotInvalidateRecoveryOrRaiseCapturedCeiling(bool capturedUnlimited)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var channels = new SessionChannelHarness();
+            await using Client.ManagedSession owner = await CreateOwnerAsync(channels, timeout.Token)
+                .ConfigureAwait(false);
+            var source = (ServiceMessageContext)channels.CreatedChannels[0].Channel.MessageContext;
+            source.MaxMessageSize = capturedUnlimited ? 0 : 65_536;
+            await using SessionRequestContext context =
+                await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
+            source.MaxMessageSize = 32_768;
+            _ = await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false);
+            Assert.That(context.Invalidated.IsCompleted, Is.False);
+            source.MaxMessageSize = 0;
+            if (capturedUnlimited)
+            {
+                _ = await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+            Assert.That(context.Invalidated.IsCompleted, Is.False);
+            source.MaxMessageSize = 65_536;
+            _ = await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false);
+            Assert.That(context.Invalidated.IsCompleted, Is.False);
+        }
+
+        /// <summary>
+        /// Replacing the encodeable factory remains an interpretation change, not a delivery-capacity adjustment.
+        /// </summary>
+        [Test]
+        public async Task ChangedEncodingFactoryInvalidatesRecovery()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var channels = new SessionChannelHarness();
+            await using Client.ManagedSession owner = await CreateOwnerAsync(channels, timeout.Token)
+                .ConfigureAwait(false);
+            await using SessionRequestContext context =
+                await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
+            ScriptedChannel channel = channels.CreatedChannels[0];
+            IServiceMessageContext previous = channel.Channel.MessageContext;
+            var replacement = new ServiceMessageContext(
+                previous.Telemetry, ServiceMessageContext.CreateEmpty(previous.Telemetry).Factory)
+            {
+                NamespaceUris = previous.NamespaceUris,
+                ServerUris = previous.ServerUris,
+                MaxMessageSize = previous.MaxMessageSize,
+                MaxStringLength = previous.MaxStringLength,
+                MaxByteStringLength = previous.MaxByteStringLength,
+                MaxArrayLength = previous.MaxArrayLength,
+                MaxEncodingNestingLevels = previous.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = previous.MaxDecoderRecoveries
+            };
+            channel.Mock.Setup(value => value.MessageContext).Returns(replacement);
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
         }

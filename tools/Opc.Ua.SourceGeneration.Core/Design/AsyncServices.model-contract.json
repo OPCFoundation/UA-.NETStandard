@@ -290,6 +290,7 @@
   },
   "invariants": [
     "Field order is wire order. No request or response changes the fixed standard header layouts.",
+    "Fixed root-instance IDs do not allocate their runtime children. Servers instantiate mandatory children with Server-assigned NodeIds and the declared namespace-zero BrowseNames; type member declaration IDs are not instance IDs.",
     "All requests require an activated Session. IDs alone confer no access.",
     "Admission checks and reservations precede the single original-Service dispatch.",
     "Client ID is nonzero; Server token is 1..64 bytes for a known operation.",

@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 WaitTime = 0
             };
             byte[] encoded = json
-                ? JsonEncoder.EncodeMessage(request, new byte[4096], context).AsSpan().ToArray()
+                ? [.. JsonEncoder.EncodeMessage(request, new byte[4096], context)]
                 : BinaryEncoder.EncodeMessage(request, context);
             SubmitServiceRequest decoded = json
                 ? JsonDecoder.DecodeMessage<SubmitServiceRequest>(encoded, context)
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 Result = new ExtensionObject(original)
             };
             byte[] encoded = json
-                ? JsonEncoder.EncodeMessage(response, new byte[4096], context).AsSpan().ToArray()
+                ? [.. JsonEncoder.EncodeMessage(response, new byte[4096], context)]
                 : BinaryEncoder.EncodeMessage(response, context);
             GetServiceResultResponse decoded = json
                 ? JsonDecoder.DecodeMessage<GetServiceResultResponse>(encoded, context)
@@ -212,8 +212,9 @@ namespace Opc.Ua.Core.Encoders.Tests
             NodeStateCollection nodes = new NodeStateCollection().AddOpcUa(context);
             var pending = new Stack<NodeState>(nodes);
             var names = new HashSet<string>(StringComparer.Ordinal);
-            while (pending.TryPop(out NodeState? node))
+            while (pending.Count != 0)
             {
+                NodeState node = pending.Pop();
                 if (node.BrowseName.Name is { } name)
                 {
                     names.Add(name);

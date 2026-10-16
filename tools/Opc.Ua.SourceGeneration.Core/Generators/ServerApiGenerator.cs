@@ -63,6 +63,7 @@ namespace Opc.Ua.SourceGeneration
                     ServiceCategory.Subscription,
                     ServiceCategory.NodeManagement,
                     ServiceCategory.Query,
+                    ServiceCategory.Asynchronous,
                     ServiceCategory.Test),
                 new ServiceSet("Discovery", ServiceCategory.Discovery, ServiceCategory.Registration)
             ];

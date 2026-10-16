@@ -1951,7 +1951,6 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context,
             ByteString certificate)
         {
-
             ServiceResult cancelResult = await m_configNode.CancelChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.CancelChanges,
@@ -3909,13 +3908,15 @@ namespace Opc.Ua.Server.Tests
             return false;
         }
 
-        [Test]
-        public void CreateSigningRequestWithInsecureChannelThrowsBadSecurityModeInsufficient()
+        [TestCase(MessageSecurityMode.None)]
+        [TestCase(MessageSecurityMode.Sign)]
+        public void CreateSigningRequestWithInsecureChannelThrowsBadSecurityModeInsufficient(
+            MessageSecurityMode securityMode)
         {
             // §7.10.10: CreateSigningRequest requires an encrypted channel.
             ISystemContext context = CreateContext(
                 UserTokenType.UserName,
-                MessageSecurityMode.Sign,
+                securityMode,
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
@@ -3931,6 +3932,25 @@ namespace Opc.Ua.Server.Tests
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+        }
+
+        /// <summary>
+        /// A claimed HTTPS mapping without authenticated transport evidence does not satisfy the Push guard.
+        /// </summary>
+        [TestCase(Profiles.HttpsBinaryTransport)]
+        [TestCase(Profiles.HttpsJsonTransport)]
+        public void ClaimedHttpsProfileDoesNotProtectCertificateManagement(string profile)
+        {
+            SessionSystemContext context = CreateContext(
+                UserTokenType.UserName, MessageSecurityMode.None, ObjectIds.WellKnownRole_SecurityAdmin);
+            Assert.That(context.OperationContext, Is.InstanceOf<OperationContext>());
+            var operation = (OperationContext)context.OperationContext!;
+            operation.ChannelContext!.EndpointDescription!.TransportProfileUri = profile;
+            ArrayOf<ByteString> certificates = default;
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                m_configNode.GetRejectedList!.OnCall!(
+                    context, m_configNode.GetRejectedList, m_configNode.NodeId, ref certificates));
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 

@@ -100,6 +100,7 @@ namespace Opc.Ua.SourceGeneration
             GeneratorRunResult generatorResult = runResult.Results[0];
             string clientSource = generatorResult.GeneratedSources
                 .Single(source => source.HintName == "Opc.Ua.Client.g.cs").SourceText.ToString();
+            Assert.That(clientSource, Does.Contain("interface IAsynchronousServiceSetClientMethods"));
             foreach (string name in new[] { "SubmitService", "GetServiceResult", "ControlServiceExecution" })
             {
                 Assert.That(clientSource, Does.Contain(name + "Async("));

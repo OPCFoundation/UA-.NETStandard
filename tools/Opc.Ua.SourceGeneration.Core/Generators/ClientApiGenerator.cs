@@ -60,6 +60,7 @@ namespace Opc.Ua.SourceGeneration
             new ServiceSet("SubscriptionServiceSet", [], EmitClass: false, ServiceCategory.Subscription),
             new ServiceSet("NodeManagementServiceSet", [], EmitClass: false, ServiceCategory.NodeManagement),
             new ServiceSet("QueryServiceSet", [], EmitClass: false, ServiceCategory.Query),
+            new ServiceSet("AsynchronousServiceSet", [], EmitClass: false, ServiceCategory.Asynchronous),
             new ServiceSet("Session",
             [
                 "IAttributeServiceSetClientMethods",
@@ -68,7 +69,8 @@ namespace Opc.Ua.SourceGeneration
                 "IMonitoredItemServiceSetClientMethods",
                 "ISubscriptionServiceSetClientMethods",
                 "INodeManagementServiceSetClientMethods",
-                "IQueryServiceSetClientMethods"
+                "IQueryServiceSetClientMethods",
+                "IAsynchronousServiceSetClientMethods"
             ],
             [ServiceCategory.Session, ServiceCategory.Test],
             [
@@ -80,6 +82,7 @@ namespace Opc.Ua.SourceGeneration
                 ServiceCategory.Subscription,
                 ServiceCategory.NodeManagement,
                 ServiceCategory.Query,
+                ServiceCategory.Asynchronous,
                 ServiceCategory.Test
             ]),
             new ServiceSet("Discovery", [], ServiceCategory.Discovery),

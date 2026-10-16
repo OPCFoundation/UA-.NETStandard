@@ -28,32 +28,35 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
+#if NET8_0_OR_GREATER
+using Microsoft.AspNetCore.Connections.Features;
+#else
+using Microsoft.AspNetCore.Http.Features;
+#endif
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-
-using System.Security.Cryptography;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -629,6 +632,7 @@ namespace Opc.Ua.Bindings
         /// certificate and the host it built, so a caller that drops a
         /// listener which failed to open leaks nothing.
         /// </remarks>
+        /// <exception cref="AggregateException"></exception>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             try
@@ -899,7 +903,10 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Binary,
                     context.Connection.ClientCertificate?.RawData,
                     ServerChannelCertificate,
-                    peerAddress: context.Connection.RemoteIpAddress);
+                    peerAddress: context.Connection.RemoteIpAddress)
+                {
+                    HasTransportSecurity = HasTlsProtection(context)
+                };
 
                 IServiceResponse output =
                     await m_callback.ProcessRequestAsync(
@@ -1038,7 +1045,10 @@ namespace Opc.Ua.Bindings
                     RequestEncoding.Json,
                     context.Connection.ClientCertificate?.RawData,
                     ServerChannelCertificate,
-                    peerAddress: context.Connection.RemoteIpAddress);
+                    peerAddress: context.Connection.RemoteIpAddress)
+                {
+                    HasTransportSecurity = HasTlsProtection(context)
+                };
 
                 IServiceResponse output = await m_callback
                     .ProcessRequestAsync(secureChannelContext, input, ct)
@@ -1278,8 +1288,7 @@ namespace Opc.Ua.Bindings
             // Snapshot the set under the concurrent dictionary's enumerator
             // contract; status callbacks of the disposed channels no longer
             // find them in the set and so do not dispose them twice.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            foreach (TcpServerChannel channel in reverseChannels)
+            foreach (TcpServerChannel channel in (TcpServerChannel[])[.. m_reverseConnectChannels.Keys])
             {
                 if (!m_reverseConnectChannels.TryRemove(channel, out _))
                 {
@@ -1401,6 +1410,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Holds physical connection admission through the host pipeline and releases it after transport closure.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="connection"/> is <c>null</c>.</exception>
         internal static async Task RunHttpsConnectionAsync(
             ConnectionContext connection,
             ConnectionDelegate next,
@@ -2855,11 +2865,8 @@ namespace Opc.Ua.Bindings
                     // The connection's existing body lease continues to cover its receive buffer.
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
-                    Task request = admission.RunAsync(async () =>
-                    {
-                        await ProcessAdmittedOpenApiWebSocketRequestAsync(
-                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false);
-                    });
+                    Task request = admission.RunAsync(async () => await ProcessAdmittedOpenApiWebSocketRequestAsync(
+                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false));
                     requests.Add(request);
                 }
             }
@@ -3142,6 +3149,20 @@ namespace Opc.Ua.Bindings
             response.ContentType = kHttpsContentType;
             response.StatusCode = (int)status;
             return response.WriteAsync(message);
+        }
+
+        /// <summary>
+        /// Uses the TLS handshake established by Kestrel, never a profile, forwarded scheme or caller header alone.
+        /// </summary>
+        private static bool HasTlsProtection(HttpContext context)
+        {
+#if NET8_0_OR_GREATER
+            return context.Request.IsHttps &&
+                context.Features.Get<ITlsHandshakeFeature>() is { Protocol: not SslProtocols.None };
+#else
+            // Kestrel 2.x exposes this feature only on requests that passed its TLS connection adapter.
+            return context.Request.IsHttps && context.Features.Get<ITlsConnectionFeature>() != null;
+#endif
         }
 
         /// <summary>

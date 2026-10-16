@@ -104,14 +104,9 @@ namespace Opc.Ua
         /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
         /// mode, or one shared FIFO regardless of owner in global FIFO mode.
         /// </summary>
-        internal int OwnerCount
-        {
-            get
-            {
-                // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
-                return m_owners.Count;
-            }
-        }
+        internal int OwnerCount =>
+            // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
+            m_owners.Count;
 
         /// <summary>
         /// Gets the number of turn tokens in the ready queue, including stale tokens of retired
@@ -129,6 +124,7 @@ namespace Opc.Ua
         /// encoded-message footprint, retained through execution/parking until completion.
         /// This is a conservative admission cost, not an estimate of managed heap bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         public bool TryEnqueue(
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken,
@@ -346,6 +342,7 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for a request, waking at most one blocked reader per coalesced signal.
         /// </summary>
+        /// <exception cref="OperationCanceledException"></exception>
         public async ValueTask<Entry> DequeueAsync(CancellationToken cancellationToken)
         {
             while (true)
@@ -911,7 +908,8 @@ namespace Opc.Ua
         /// </remarks>
         private void Pulse()
         {
-            if (Volatile.Read(ref m_count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
+            if (Volatile.Read(ref m_count) > 0 &&
+                Volatile.Read(ref m_stopped) == 0 &&
                 Volatile.Read(ref m_signalPending) == 0 &&
                 Interlocked.Exchange(ref m_signalPending, 1) == 0 &&
                 m_signals.Writer.TryWrite(true))
@@ -1383,6 +1381,7 @@ namespace Opc.Ua
             /// <summary>
             /// Gets the entry before ownership transfers to the queue.
             /// </summary>
+            /// <exception cref="InvalidOperationException"></exception>
             public Entry Entry => m_entry ??
                 throw new InvalidOperationException("Admission ownership has already transferred.");
 

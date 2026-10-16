@@ -109,7 +109,7 @@ def service_dictionary(contract):
 
 
 def model_dictionary(contract):
-    base_types = {"i=58": "BaseObjectType", "i=2069": "AuditEventType"}
+    base_types = {"i=58": "BaseObjectType", "i=2069": "AuditSessionEventType"}
     lines = [BEGIN]
     for item in contract["objectTypes"]:
         base = base_types[item["baseType"]]

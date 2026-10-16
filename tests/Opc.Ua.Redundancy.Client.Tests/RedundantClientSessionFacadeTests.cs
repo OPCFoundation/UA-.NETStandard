@@ -209,6 +209,51 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.VerifyGet(s => s.EndpointConfiguration, Times.Once());
         }
 
+        /// <summary>
+        /// Experimental operation ownership cannot follow a transparent facade to whichever Session becomes leader.
+        /// </summary>
+        [TestCase("submit")]
+        [TestCase("get")]
+        [TestCase("control")]
+        public void RecoverableServicesAreNotDelegatedToARetargetableSession(string service)
+        {
+            var session = new Mock<ISession>();
+            RedundantClientSession facade = CreateLeaderFacade(session);
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                switch (service)
+                {
+                    case "submit":
+                        _ = await facade.SubmitServiceAsync(
+                            null, Uuid.NewUuid(), default, 10_000, 30_000, 0, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        break;
+                    case "get":
+                        _ = await facade.GetServiceResultAsync(
+                            null, Uuid.NewUuid(), default, 0, CancellationToken.None).ConfigureAwait(false);
+                        break;
+                    case "control":
+                        _ = await facade.ControlServiceExecutionAsync(
+                            null, default, ServiceOperationControlAction.Acknowledge, CancellationToken.None)
+                            .ConfigureAwait(false);
+                        break;
+                    default:
+                        throw new ArgumentException("Unknown experimental Service.", nameof(service));
+                }
+            })!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            session.Verify(value => value.SubmitServiceAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<Uuid>(), It.IsAny<ExtensionObject>(),
+                It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            session.Verify(value => value.GetServiceResultAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<Uuid>(), It.IsAny<ByteString>(),
+                It.IsAny<double>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.ControlServiceExecutionAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ByteString>(),
+                It.IsAny<ServiceOperationControlAction>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         [Test]
         public void LeaderPropertySettersDelegateToCurrentSession()
         {

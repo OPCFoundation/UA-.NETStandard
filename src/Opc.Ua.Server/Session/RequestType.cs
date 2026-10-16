@@ -207,6 +207,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Unregister Nodes request type.
         /// </summary>
-        UnregisterNodes
+        UnregisterNodes,
+
+        /// <summary>
+        /// Experimental recoverable operation admission.
+        /// </summary>
+        SubmitService,
+
+        /// <summary>
+        /// Experimental operation collection without resubmission.
+        /// </summary>
+        GetServiceResult,
+
+        /// <summary>
+        /// Experimental token-based cancellation, acknowledgement or abandonment.
+        /// </summary>
+        ControlServiceExecution
     }
 }

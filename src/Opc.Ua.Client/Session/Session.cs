@@ -6239,6 +6239,13 @@ namespace Opc.Ua.Client
                     expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
+                    string.Equals(
+                        TransportProfileIdentity.GetEffective(
+                            serverEndpoint.TransportProfileUri, serverEndpoint.EndpointUrl!),
+                        TransportProfileIdentity.GetEffective(
+                            match.TransportProfileUri, match.EndpointUrl!,
+                            m_endpoint.Configuration?.UseBinaryEncoding ?? true),
+                        StringComparison.Ordinal) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&
                     serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
                 {

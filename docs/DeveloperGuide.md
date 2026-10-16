@@ -194,6 +194,17 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
+The default-off [recoverable Service prototype](AsyncServices.md) separates
+codec, scripted-lifecycle, in-process endpoint and native transport evidence.
+Its native Server selection is `FullyQualifiedName~AsyncServices` in
+`tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj`; run with
+`-f net10.0 -p:CustomTestTarget=net10.0`. The certificate-cycle filter is
+`FullyQualifiedName~CertificateCycleAcrossRecoverableGateway`.
+`AsyncServicesAotTests` must additionally be published and executed as a
+native binary; running its managed assembly alone is not NativeAOT evidence.
+When formatting a single test target, set the `CustomTestTarget` environment
+variable too, so the formatter does not analyze an unrestored first TFM.
+
 ## Coding standards (dos and don'ts)
 
 All rules apply to new code and to existing code you touch. The `.editorconfig` is authoritative and enforced at build time; the highlights below are the ones most often missed.

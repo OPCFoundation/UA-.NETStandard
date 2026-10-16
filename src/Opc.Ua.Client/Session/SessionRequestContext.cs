@@ -58,7 +58,7 @@ namespace Opc.Ua.Client
             m_owner = owner;
             m_originalSession = session;
             m_generation = generation;
-            m_allowSameSessionRecovery = allowSameSessionRecovery;
+            AllowsSameSessionRecovery = allowSameSessionRecovery;
             m_activationGeneration = session.RequestContextActivationGeneration;
             m_identity = allowSameSessionRecovery ? session.Identity.TokenHandler.Copy() : null;
             SessionConfiguration configuration = session.SaveSessionConfiguration();
@@ -87,6 +87,7 @@ namespace Opc.Ua.Client
             m_namespaceUris = session.NamespaceUris.ToArrayOf();
             m_serverUris = session.ServerUris.ToArrayOf();
             m_messageContext = new ServiceMessageContext(session.MessageContext, session.MessageContext.Telemetry);
+            m_maxMessageSize = m_messageContext.MaxMessageSize;
             m_endpoint = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
             m_endpointConfiguration = CoreUtils.Clone(session.ConfiguredEndpoint.Configuration)
                 ?? EndpointConfiguration.Create();
@@ -137,7 +138,26 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets whether fresh requests may wait for same-Session recovery before entering the service gate.
         /// </summary>
-        internal bool AllowsSameSessionRecovery => m_allowSameSessionRecovery;
+        internal bool AllowsSameSessionRecovery { get; }
+
+        /// <summary>
+        /// Requests managed recovery without replaying a request or accepting a replacement Session.
+        /// Fresh dispatch still verifies the recorded activation and captured encoding context.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask RecoverAsync(CancellationToken ct)
+        {
+            if (!AllowsSameSessionRecovery || m_invalidated.Task.IsCompleted)
+            {
+                throw InvalidSession();
+            }
+            await m_owner.ReconnectAsync(null, null, ct).ConfigureAwait(false);
+            if (m_invalidated.Task.IsCompleted || !ReferenceEquals(m_owner.InnerSession, m_originalSession))
+            {
+                Invalidate();
+                throw InvalidSession();
+            }
+        }
 
         /// <summary>
         /// Captures a stack-managed session without acquiring ownership of its connection.
@@ -171,7 +191,9 @@ namespace Opc.Ua.Client
         /// <remarks>
         /// Only fresh exchanges may follow a successfully validated reactivation of the original Session.
         /// No request is retried, including one whose response was lost. A replacement Session, changed user,
-        /// certificate, security policy, mode, transport mapping or namespace mapping invalidates the context.
+        /// Client certificate, security policy, mode, transport mapping or namespace mapping invalidates the context.
+        /// A smaller current MaxMessageSize is a delivery limit, not invalidation; the captured ceiling is never
+        /// raised.
         /// This API does not make an arbitrary service safe to repeat after an uncertain result.
         /// </remarks>
         /// <exception cref="ArgumentNullException"></exception>
@@ -253,7 +275,7 @@ namespace Opc.Ua.Client
                 throw InvalidSession();
             }
             ITransportChannel transport;
-            if (m_allowSameSessionRecovery)
+            if (AllowsSameSessionRecovery)
             {
                 transport = ResolveRecoverableTransport(current);
             }
@@ -295,6 +317,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Selects one physical send target only when its activation evidence and captured encoding remain valid.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ITransportChannel ResolveRecoverableTransport(Session current)
         {
             ITransportChannel channel = current.TransportChannel;
@@ -319,11 +342,14 @@ namespace Opc.Ua.Client
                 !m_identity!.Equals(current.Identity.TokenHandler) ||
                 endpoint.SecurityMode != m_endpoint.SecurityMode ||
                 !string.Equals(endpoint.SecurityPolicyUri, m_endpoint.SecurityPolicyUri, StringComparison.Ordinal) ||
-                !string.Equals(endpoint.TransportProfileUri, m_endpoint.TransportProfileUri, StringComparison.Ordinal) ||
+                !string.Equals(
+                    endpoint.TransportProfileUri, m_endpoint.TransportProfileUri, StringComparison.Ordinal) ||
                 !string.Equals(endpoint.Server.ApplicationUri, m_endpoint.Server.ApplicationUri,
                     StringComparison.Ordinal) ||
                 m_clientCertificate != ByteString.From(transport.ClientChannelCertificate.AsSpan()) ||
                 !MatchesEncodingLimits(transport.MessageContext) ||
+                !ReferenceEquals(transport.MessageContext.Factory, m_messageContext.Factory) ||
+                m_messageContext.MaxMessageSize != m_maxMessageSize ||
                 !Matches(m_session.NamespaceUris, m_namespaceUris) ||
                 !Matches(m_session.ServerUris, m_serverUris) ||
                 !Matches(transport.MessageContext.NamespaceUris, m_namespaceUris) ||
@@ -332,16 +358,23 @@ namespace Opc.Ua.Client
                 Invalidate();
                 throw InvalidSession();
             }
+            int currentLimit = transport.MessageContext.MaxMessageSize;
+            if (currentLimit < 0 ||
+                (m_maxMessageSize > 0 && (currentLimit == 0 || currentLimit > m_maxMessageSize)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "The current transport would exceed the captured message-size safety ceiling.");
+            }
             return transport;
         }
 
         /// <summary>
-        /// Keeps the captured encoding limits rather than silently adopting a replacement context's limits.
+        /// Preserves encoding interpretation limits; MaxMessageSize is checked separately as delivery capacity.
         /// </summary>
         private bool MatchesEncodingLimits(IServiceMessageContext context)
         {
-            return context.MaxMessageSize == m_messageContext.MaxMessageSize &&
-                context.MaxStringLength == m_messageContext.MaxStringLength &&
+            return context.MaxStringLength == m_messageContext.MaxStringLength &&
                 context.MaxByteStringLength == m_messageContext.MaxByteStringLength &&
                 context.MaxArrayLength == m_messageContext.MaxArrayLength &&
                 context.MaxEncodingNestingLevels == m_messageContext.MaxEncodingNestingLevels &&
@@ -391,7 +424,7 @@ namespace Opc.Ua.Client
         private void OnConnectionStateChanged(object? sender, ConnectionStateChangedEventArgs args)
         {
             if (args.NewState != ConnectionState.Connected &&
-                (!m_allowSameSessionRecovery ||
+                (!AllowsSameSessionRecovery ||
                     args.NewState is ConnectionState.Closed or ConnectionState.Closing))
             {
                 Invalidate();
@@ -403,7 +436,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void OnChannelStateChanged(ManagedSession sender, ChannelStateChange change)
         {
-            if (!m_allowSameSessionRecovery && change.NewState != ChannelState.Ready)
+            if (!AllowsSameSessionRecovery && change.NewState != ChannelState.Ready)
             {
                 Invalidate();
             }
@@ -475,7 +508,6 @@ namespace Opc.Ua.Client
         private readonly Session m_session;
         private readonly RequestContextTransport m_requestTransport;
         private readonly long m_generation;
-        private readonly bool m_allowSameSessionRecovery;
         private readonly long m_activationGeneration;
         private readonly IUserIdentityTokenHandler? m_identity;
         private readonly ByteString m_clientCertificate;
@@ -488,6 +520,7 @@ namespace Opc.Ua.Client
         private readonly ArrayOf<string> m_namespaceUris;
         private readonly ArrayOf<string> m_serverUris;
         private readonly ServiceMessageContext m_messageContext;
+        private readonly int m_maxMessageSize;
         private readonly EndpointDescription m_endpoint;
         private readonly EndpointConfiguration m_endpointConfiguration;
 

@@ -298,5 +298,10 @@ namespace Opc.Ua.Server.Hosting
         /// An explicitly registered isolation provider takes precedence over these options.
         /// </summary>
         public ServerResourceIsolationOptions ResourceIsolation { get; set; } = new();
+
+        /// <summary>
+        /// Default-off experimental recoverable Service execution, using the existing transport and isolation limits.
+        /// </summary>
+        public AsyncServiceExecutionOptions AsyncServices { get; set; } = new();
     }
 }

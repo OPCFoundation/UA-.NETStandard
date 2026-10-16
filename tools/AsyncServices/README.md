@@ -1,7 +1,7 @@
 # Experimental Async Services generator inputs
 
-This directory maintains the proposed 0.2.0 wire definitions tracked in
-[#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813). The proposal
+This directory maintains the proposed 0.2.0 wire definitions initially discussed in
+the now-closed [#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813). The proposal
 is not an adopted OPC UA standard. Its namespace-zero identifiers are
 provisional and must not be presented as assigned standard identifiers.
 
@@ -38,6 +38,15 @@ available in the model. The two well-known capability/diagnostic roots have
 fixed proposal IDs. Their instance children use Server-assigned IDs in the
 application namespace, not the IDs of the corresponding type declarations.
 
+The three operations have their own `Asynchronous` Service Set category and
+generated `IAsynchronousServiceSetClientMethods` interface. The Session client
+and endpoint host that set because it requires a Session; it is not classified
+as one of the four Session lifecycle Services.
+
 The encoder tests independently check Binary field order, both Binary and JSON
 round trips, the original response header and diagnostics, and exclusion of the
 experimental definitions from the normal address-space initializer.
+
+See the [runtime and typed-Client guide](../../docs/AsyncServices.md) and
+[protocol reference](../../docs/AsyncServicesProtocol.md) for opt-in installation,
+acceptance/ACK, lifetimes, ownership and evidence boundaries.

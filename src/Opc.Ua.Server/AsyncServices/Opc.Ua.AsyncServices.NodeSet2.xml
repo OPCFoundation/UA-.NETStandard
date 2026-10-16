@@ -1,0 +1,647 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- OPC UA Asynchronous Service Execution - an experimental overlay on the base OPC UA
+     namespace (http://opcfoundation.org/UA/). Every node below is a proposed ADDITION
+     to the base namespace, so it carries an unqualified BrowseName and an i=<n> NodeId
+     and the NodeSet declares no additional NamespaceUri. Merge this overlay into the
+     base UA NodeSet; it is not a stand-alone model. PROVISIONAL NodeIds from the
+     1200000+ block - final identifiers are assigned by the OPC Foundation. -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris />
+  <Models>
+    <!-- An overlay on the base namespace has no RequiredModel: naming its own
+         ModelUri would be a cycle in the model dependency graph, and a loader that
+         topologically sorts by RequiredModel before import would not resolve it. -->
+    <Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.07-ase-draft.0.2.0" PublicationDate="2026-10-16T00:00:00Z" />
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="DiagnosticInfo">i=25</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="IntegerId">i=288</Alias>
+    <Alias Alias="Counter">i=289</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="UtcTime">i=294</Alias>
+    <Alias Alias="RequestHeader">i=389</Alias>
+    <Alias Alias="ResponseHeader">i=392</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+  <UADataType NodeId="i=1200000" BrowseName="ServiceOperationState">
+    <DisplayName>ServiceOperationState</DisplayName>
+    <Description>The state reported for a recoverable Service operation. Unknown is a lookup result, not a stored execution outcome.</Description>
+    <Category>ASE-Execution</Category>
+    <Category>ASE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=1205000</Reference>
+    </References>
+    <Definition Name="ServiceOperationState"><Field Name="Unknown" Value="0"><Description>No record is disclosed for this lookup. This does not establish whether work ran or may still be admitted.</Description></Field><Field Name="Pending" Value="1"><Description>The operation is admitted and has no committed final outcome.</Description></Field><Field Name="OutcomeAvailable" Value="2"><Description>An immutable original response or terminal protocol outcome is available.</Description></Field><Field Name="Acknowledged" Value="3"><Description>The Client acknowledged the available outcome and its payload was released.</Description></Field><Field Name="Abandoned" Value="4"><Description>The Client waived result recovery. This state does not establish that work stopped.</Description></Field><Field Name="Expired" Value="5"><Description>The result-retention interval elapsed and its payload was released.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="i=1205000" BrowseName="EnumStrings" ParentNodeId="i=1200000" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200000</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unknown</Text></LocalizedText><LocalizedText><Text>Pending</Text></LocalizedText><LocalizedText><Text>OutcomeAvailable</Text></LocalizedText><LocalizedText><Text>Acknowledged</Text></LocalizedText><LocalizedText><Text>Abandoned</Text></LocalizedText><LocalizedText><Text>Expired</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="i=1200001" BrowseName="ServiceOperationOutcome">
+    <DisplayName>ServiceOperationOutcome</DisplayName>
+    <Description>The kind of committed outcome. A protocol outcome does not fabricate an original Service response.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=1205001</Reference>
+    </References>
+    <Definition Name="ServiceOperationOutcome"><Field Name="None" Value="0"><Description>No final outcome is reported.</Description></Field><Field Name="ServiceResponse" Value="1"><Description>The original Service produced a complete response or ServiceFault.</Description></Field><Field Name="ExecutionDeadlineExceeded" Value="2"><Description>The execution allowance ended before an outcome was committed. Effects may remain unknown.</Description></Field><Field Name="ResultUnavailable" Value="3"><Description>The original response could not be retained within the accepted encoding or message limits.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="i=1205001" BrowseName="EnumStrings" ParentNodeId="i=1200001" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200001</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>None</Text></LocalizedText><LocalizedText><Text>ServiceResponse</Text></LocalizedText><LocalizedText><Text>ExecutionDeadlineExceeded</Text></LocalizedText><LocalizedText><Text>ResultUnavailable</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="i=1200002" BrowseName="ServiceOperationControlAction">
+    <DisplayName>ServiceOperationControlAction</DisplayName>
+    <Description>An explicit control action for one Server token.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=1205002</Reference>
+    </References>
+    <Definition Name="ServiceOperationControlAction"><Field Name="Unspecified" Value="0"><Description>Invalid in a request.</Description></Field><Field Name="Cancel" Value="1"><Description>Request cancellation of owned work without abandoning its outcome or implying rollback.</Description></Field><Field Name="Acknowledge" Value="2"><Description>Confirm Client acceptance of an available outcome and release its payload.</Description></Field><Field Name="Abandon" Value="3"><Description>Waive result recovery without requesting cancellation of work.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="i=1205002" BrowseName="EnumStrings" ParentNodeId="i=1200002" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200002</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unspecified</Text></LocalizedText><LocalizedText><Text>Cancel</Text></LocalizedText><LocalizedText><Text>Acknowledge</Text></LocalizedText><LocalizedText><Text>Abandon</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="i=1200003" BrowseName="ServiceOperationControlResult">
+    <DisplayName>ServiceOperationControlResult</DisplayName>
+    <Description>The disposition of a well-formed, authorized control request.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=1205003</Reference>
+    </References>
+    <Definition Name="ServiceOperationControlResult"><Field Name="Unspecified" Value="0"><Description>Invalid in a response.</Description></Field><Field Name="Applied" Value="1"><Description>The requested state change or cancellation signal was applied.</Description></Field><Field Name="AlreadyApplied" Value="2"><Description>The same action was applied previously; no new change was made.</Description></Field><Field Name="NotApplicable" Value="3"><Description>The action cannot be applied to the reported state; no new change was made.</Description></Field><Field Name="UnknownOperation" Value="4"><Description>No record is disclosed for the token; this is not proof of earlier acknowledgement or non-execution.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="i=1205003" BrowseName="EnumStrings" ParentNodeId="i=1200003" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200003</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unspecified</Text></LocalizedText><LocalizedText><Text>Applied</Text></LocalizedText><LocalizedText><Text>AlreadyApplied</Text></LocalizedText><LocalizedText><Text>NotApplicable</Text></LocalizedText><LocalizedText><Text>UnknownOperation</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="i=1200004" BrowseName="ServiceOperationAuditAction">
+    <DisplayName>ServiceOperationAuditAction</DisplayName>
+    <Description>An action recorded by the privileged operation audit.</Description>
+    <Category>ASE-Auditing</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">i=1205004</Reference>
+    </References>
+    <Definition Name="ServiceOperationAuditAction"><Field Name="Admitted" Value="0"><Description>Identity and resources were committed before dispatch.</Description></Field><Field Name="OutcomeCommitted" Value="1"><Description>An immutable outcome became available.</Description></Field><Field Name="CancellationRequested" Value="2"><Description>A cancellation signal was recorded; stopping is not asserted.</Description></Field><Field Name="Acknowledged" Value="3"><Description>The available outcome was acknowledged.</Description></Field><Field Name="Abandoned" Value="4"><Description>The result was abandoned.</Description></Field><Field Name="Expired" Value="5"><Description>The result-retention interval ended.</Description></Field><Field Name="Rejected" Value="6"><Description>Submission was rejected without a new dispatch.</Description></Field><Field Name="Denied" Value="7"><Description>A request was denied by authorization or Session checks.</Description></Field><Field Name="Collected" Value="8"><Description>An available outcome was selected for delivery.</Description></Field><Field Name="SessionClosed" Value="9"><Description>The issuing Session ended and its recoverable state was discarded.</Description></Field><Field Name="HistoryForgotten" Value="10"><Description>The bounded terminal record was removed.</Description></Field><Field Name="InvocationEnded" Value="11"><Description>Owned invocation resources were released after the invocation actually ended, possibly after a protocol deadline.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="i=1205004" BrowseName="EnumStrings" ParentNodeId="i=1200004" DataType="LocalizedText" ValueRank="1" ArrayDimensions="12">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200004</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Admitted</Text></LocalizedText><LocalizedText><Text>OutcomeCommitted</Text></LocalizedText><LocalizedText><Text>CancellationRequested</Text></LocalizedText><LocalizedText><Text>Acknowledged</Text></LocalizedText><LocalizedText><Text>Abandoned</Text></LocalizedText><LocalizedText><Text>Expired</Text></LocalizedText><LocalizedText><Text>Rejected</Text></LocalizedText><LocalizedText><Text>Denied</Text></LocalizedText><LocalizedText><Text>Collected</Text></LocalizedText><LocalizedText><Text>SessionClosed</Text></LocalizedText><LocalizedText><Text>HistoryForgotten</Text></LocalizedText><LocalizedText><Text>InvocationEnded</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="i=1200010" BrowseName="ServiceOperationInfoDataType">
+    <DisplayName>ServiceOperationInfoDataType</DisplayName>
+    <Description>Operation identity, state and remaining intervals. It contains no original response payload.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202010</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203010</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204010</Reference>
+    </References>
+    <Definition Name="ServiceOperationInfoDataType"><Field Name="ClientOperationId" DataType="i=14"><Description>The accepted Client ID. An unknown Client-ID lookup echoes the requested ID; an unknown token lookup reports a null Guid.</Description></Field><Field Name="ServerToken" DataType="i=15"><Description>The opaque token, between 1 and 64 bytes for a known record; null for an unknown lookup.</Description></Field><Field Name="ServiceId" DataType="i=17"><Description>The DataType NodeId of the original request, or a null NodeId for an unknown lookup.</Description></Field><Field Name="State" DataType="i=1200000"><Description>The disclosed operation state or Unknown lookup result.</Description></Field><Field Name="OutcomeKind" DataType="i=1200001"><Description>The committed outcome kind; None while pending or unknown.</Description></Field><Field Name="OutcomeStatus" DataType="i=19"><Description>The original serviceResult for ServiceResponse, or the terminal protocol error. Good with OutcomeKind None carries no business-success claim.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>The accepted execution allowance in milliseconds; zero for an unknown lookup.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>The accepted result and subsequent history interval in milliseconds; zero for an unknown lookup.</Description></Field><Field Name="ExecutionRemaining" DataType="i=290"><Description>Nonnegative remaining execution allowance while Pending; otherwise zero.</Description></Field><Field Name="ResultRemaining" DataType="i=290"><Description>Nonnegative remaining result retention while OutcomeAvailable; otherwise zero.</Description></Field><Field Name="HistoryRemaining" DataType="i=290"><Description>Nonnegative remaining terminal-history retention after release; otherwise zero.</Description></Field><Field Name="CancellationRequested" DataType="i=1"><Description>A cancellation signal has been requested. This is not confirmation that work stopped.</Description></Field><Field Name="RetryAfter" DataType="i=290"><Description>Nonnegative advisory delay while Pending, no greater than ExecutionRemaining and strictly less than ResultRetentionTime when positive; zero for every other state.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202010" BrowseName="Default Binary" ParentNodeId="i=1200010">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200010</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203010" BrowseName="Default XML" ParentNodeId="i=1200010">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200010</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204010" BrowseName="Default JSON" ParentNodeId="i=1200010">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200010</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200020" BrowseName="SubmitServiceRequest">
+    <DisplayName>SubmitServiceRequest</DisplayName>
+    <Description>Submit one eligible original Service request under the recoverable contract.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202020</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203020</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204020</Reference>
+    </References>
+    <Definition Name="SubmitServiceRequest"><Field Name="RequestHeader" DataType="i=389"><Description>Standard parameters for this submission exchange.</Description></Field><Field Name="ClientOperationId" DataType="i=14"><Description>A fresh nonzero random Client operation ID.</Description></Field><Field Name="Request" DataType="i=22"><Description>An ExtensionObject containing exactly one eligible original Service request.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>Exact positive finite milliseconds from admission to outcome commitment.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>Exact positive finite milliseconds of result retention, then the same interval for terminal history.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum wait for this exchange; zero requests current state without parking a waiter.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202020" BrowseName="Default Binary" ParentNodeId="i=1200020">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200020</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203020" BrowseName="Default XML" ParentNodeId="i=1200020">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200020</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204020" BrowseName="Default JSON" ParentNodeId="i=1200020">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200020</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200021" BrowseName="SubmitServiceResponse">
+    <DisplayName>SubmitServiceResponse</DisplayName>
+    <Description>The admitted operation state and any available original response.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202021</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203021</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204021</Reference>
+    </References>
+    <Definition Name="SubmitServiceResponse"><Field Name="ResponseHeader" DataType="i=392"><Description>Standard response parameters for this exchange, independent of the original Service outcome.</Description></Field><Field Name="Operation" DataType="i=1200010"><Description>The admitted identity, exact lifetime values and state.</Description></Field><Field Name="Result" DataType="i=22"><Description>The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202021" BrowseName="Default Binary" ParentNodeId="i=1200021">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200021</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203021" BrowseName="Default XML" ParentNodeId="i=1200021">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200021</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204021" BrowseName="Default JSON" ParentNodeId="i=1200021">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200021</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200022" BrowseName="GetServiceResultRequest">
+    <DisplayName>GetServiceResultRequest</DisplayName>
+    <Description>Recover or collect an operation using exactly one identifier.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202022</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203022</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204022</Reference>
+    </References>
+    <Definition Name="GetServiceResultRequest"><Field Name="RequestHeader" DataType="i=389"><Description>Standard parameters for this collection exchange.</Description></Field><Field Name="ClientOperationId" DataType="i=14"><Description>A nonzero Client ID for recovery, or a null Guid when ServerToken is used.</Description></Field><Field Name="ServerToken" DataType="i=15"><Description>A nonempty token of at most 64 bytes, or null when ClientOperationId is used. Supplying both or neither is invalid.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum wait for this exchange; zero means polling.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202022" BrowseName="Default Binary" ParentNodeId="i=1200022">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200022</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203022" BrowseName="Default XML" ParentNodeId="i=1200022">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200022</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204022" BrowseName="Default JSON" ParentNodeId="i=1200022">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200022</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200023" BrowseName="GetServiceResultResponse">
+    <DisplayName>GetServiceResultResponse</DisplayName>
+    <Description>A declared collection response containing state and an optional original response.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202023</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203023</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204023</Reference>
+    </References>
+    <Definition Name="GetServiceResultResponse"><Field Name="ResponseHeader" DataType="i=392"><Description>A fresh header for this collection exchange.</Description></Field><Field Name="Operation" DataType="i=1200010"><Description>The operation snapshot or Unknown lookup result.</Description></Field><Field Name="Result" DataType="i=22"><Description>The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202023" BrowseName="Default Binary" ParentNodeId="i=1200023">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200023</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203023" BrowseName="Default XML" ParentNodeId="i=1200023">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200023</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204023" BrowseName="Default JSON" ParentNodeId="i=1200023">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200023</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200024" BrowseName="ControlServiceExecutionRequest">
+    <DisplayName>ControlServiceExecutionRequest</DisplayName>
+    <Description>Control one known operation using its Server-issued token.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202024</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203024</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204024</Reference>
+    </References>
+    <Definition Name="ControlServiceExecutionRequest"><Field Name="RequestHeader" DataType="i=389"><Description>Standard parameters for this control exchange.</Description></Field><Field Name="ServerToken" DataType="i=15"><Description>A nonempty Server token of at most 64 bytes; Client ID lookup is not a control action.</Description></Field><Field Name="Action" DataType="i=1200002"><Description>Cancel, Acknowledge or Abandon; Unspecified and unrecognized values are invalid.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202024" BrowseName="Default Binary" ParentNodeId="i=1200024">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200024</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203024" BrowseName="Default XML" ParentNodeId="i=1200024">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200024</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204024" BrowseName="Default JSON" ParentNodeId="i=1200024">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200024</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="i=1200025" BrowseName="ControlServiceExecutionResponse">
+    <DisplayName>ControlServiceExecutionResponse</DisplayName>
+    <Description>The disposition of a control action and the resulting operation metadata.</Description>
+    <Category>ASE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">i=1202025</Reference>
+      <Reference ReferenceType="HasEncoding">i=1203025</Reference>
+      <Reference ReferenceType="HasEncoding">i=1204025</Reference>
+    </References>
+    <Definition Name="ControlServiceExecutionResponse"><Field Name="ResponseHeader" DataType="i=392"><Description>A fresh header for this control exchange.</Description></Field><Field Name="Result" DataType="i=1200003"><Description>Whether the action was applied, already applied, not applicable or unknown.</Description></Field><Field Name="Operation" DataType="i=1200010"><Description>The current disclosed metadata. This response never carries an original response payload.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="i=1202025" BrowseName="Default Binary" ParentNodeId="i=1200025">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200025</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1203025" BrowseName="Default XML" ParentNodeId="i=1200025">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200025</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1204025" BrowseName="Default JSON" ParentNodeId="i=1200025">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">i=1200025</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="i=1200040" BrowseName="AsyncServiceCapabilitiesType">
+    <DisplayName>AsyncServiceCapabilitiesType</DisplayName>
+    <Description>Supported recoverable Service requests and exact lifetime ranges/defaults. Existing message and operation limits remain applicable.</Description>
+    <Category>ASE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">i=1210000</Reference>
+      <Reference ReferenceType="HasProperty">i=1210001</Reference>
+      <Reference ReferenceType="HasProperty">i=1210002</Reference>
+      <Reference ReferenceType="HasProperty">i=1210003</Reference>
+      <Reference ReferenceType="HasProperty">i=1210004</Reference>
+      <Reference ReferenceType="HasProperty">i=1210005</Reference>
+      <Reference ReferenceType="HasProperty">i=1210006</Reference>
+      <Reference ReferenceType="HasProperty">i=1210007</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=1210000" BrowseName="ContractVersion" ParentNodeId="i=1200040" DataType="String" ValueRank="-1">
+    <DisplayName>ContractVersion</DisplayName>
+    <Description>Experimental contract revision; 0.2.0 for this model.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210001" BrowseName="SupportedServices" ParentNodeId="i=1200040" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>SupportedServices</DisplayName>
+    <Description>The request DataType NodeIds that this Server explicitly supports for recoverable submission.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210002" BrowseName="MinExecutionAllowance" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>MinExecutionAllowance</DisplayName>
+    <Description>The minimum positive execution allowance accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210003" BrowseName="MaxExecutionAllowance" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>MaxExecutionAllowance</DisplayName>
+    <Description>The maximum finite execution allowance accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210004" BrowseName="DefaultExecutionAllowance" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>DefaultExecutionAllowance</DisplayName>
+    <Description>An execution allowance a Client may explicitly select within the advertised range.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210005" BrowseName="MinResultRetentionTime" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>MinResultRetentionTime</DisplayName>
+    <Description>The minimum positive result/history interval accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210006" BrowseName="MaxResultRetentionTime" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>MaxResultRetentionTime</DisplayName>
+    <Description>The maximum finite result/history interval accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210007" BrowseName="DefaultResultRetentionTime" ParentNodeId="i=1200040" DataType="Duration" ValueRank="-1">
+    <DisplayName>DefaultResultRetentionTime</DisplayName>
+    <Description>A result/history interval a Client may explicitly select within the advertised range.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200040</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="i=1200041" BrowseName="AsyncServiceDiagnosticsType">
+    <DisplayName>AsyncServiceDiagnosticsType</DisplayName>
+    <Description>Privileged aggregate diagnostics. There is no caller-visible operation list.</Description>
+    <Category>ASE-Diagnostics</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">i=1210100</Reference>
+      <Reference ReferenceType="HasComponent">i=1210101</Reference>
+      <Reference ReferenceType="HasComponent">i=1210102</Reference>
+      <Reference ReferenceType="HasComponent">i=1210103</Reference>
+      <Reference ReferenceType="HasComponent">i=1210104</Reference>
+      <Reference ReferenceType="HasComponent">i=1210105</Reference>
+      <Reference ReferenceType="HasComponent">i=1210106</Reference>
+      <Reference ReferenceType="HasComponent">i=1210107</Reference>
+      <Reference ReferenceType="HasComponent">i=1210108</Reference>
+      <Reference ReferenceType="HasComponent">i=1210109</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=1210100" BrowseName="ActiveOperationCount" ParentNodeId="i=1200041" DataType="UInt32" ValueRank="-1">
+    <DisplayName>ActiveOperationCount</DisplayName>
+    <Description>Owned invocations that have not actually ended, including those past their protocol deadline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210101" BrowseName="RetainedOutcomeCount" ParentNodeId="i=1200041" DataType="UInt32" ValueRank="-1">
+    <DisplayName>RetainedOutcomeCount</DisplayName>
+    <Description>Outcomes still available for collection.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210102" BrowseName="RetainedOutcomeBytes" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>RetainedOutcomeBytes</DisplayName>
+    <Description>Charged retained-outcome storage, including storage still leased to in-flight senders.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210103" BrowseName="TerminalRecordCount" ParentNodeId="i=1200041" DataType="UInt32" ValueRank="-1">
+    <DisplayName>TerminalRecordCount</DisplayName>
+    <Description>Retained metadata records after payload release, including required still-running-work identities.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210104" BrowseName="AdmittedCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AdmittedCount</DisplayName>
+    <Description>Cumulative admitted operations.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210105" BrowseName="RejectedCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>RejectedCount</DisplayName>
+    <Description>Cumulative submissions rejected without a new dispatch.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210106" BrowseName="AcknowledgedCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AcknowledgedCount</DisplayName>
+    <Description>Cumulative first acknowledgements; retries do not increase this count.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210107" BrowseName="AbandonedCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AbandonedCount</DisplayName>
+    <Description>Cumulative first abandonments; retries do not increase this count.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210108" BrowseName="ExpiredCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>ExpiredCount</DisplayName>
+    <Description>Cumulative result-retention expirations.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210109" BrowseName="ExecutionDeadlineCount" ParentNodeId="i=1200041" DataType="UInt64" ValueRank="-1">
+    <DisplayName>ExecutionDeadlineCount</DisplayName>
+    <Description>Cumulative committed execution-deadline outcomes.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=1200041</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="i=1200042" BrowseName="AuditServiceOperationEventType">
+    <DisplayName>AuditServiceOperationEventType</DisplayName>
+    <Description>Privileged audit metadata for recoverable operation actions. Tokens, credentials and copied request/result payloads are not fields of this event.</Description>
+    <Category>ASE-Auditing</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2069</Reference>
+      <Reference ReferenceType="HasProperty">i=1210200</Reference>
+      <Reference ReferenceType="HasProperty">i=1210201</Reference>
+      <Reference ReferenceType="HasProperty">i=1210202</Reference>
+      <Reference ReferenceType="HasProperty">i=1210203</Reference>
+      <Reference ReferenceType="HasProperty">i=1210204</Reference>
+      <Reference ReferenceType="HasProperty">i=1210205</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="i=1210200" BrowseName="ClientOperationId" ParentNodeId="i=1200042" DataType="Guid" ValueRank="-1">
+    <DisplayName>ClientOperationId</DisplayName>
+    <Description>The Client correlation ID, or a null Guid when no operation was identified.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210201" BrowseName="ServiceId" ParentNodeId="i=1200042" DataType="NodeId" ValueRank="-1">
+    <DisplayName>ServiceId</DisplayName>
+    <Description>The original request DataType NodeId, when known.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210202" BrowseName="Action" ParentNodeId="i=1200042" DataType="i=1200004" ValueRank="-1">
+    <DisplayName>Action</DisplayName>
+    <Description>The action recorded by this event.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210203" BrowseName="OperationState" ParentNodeId="i=1200042" DataType="i=1200000" ValueRank="-1">
+    <DisplayName>OperationState</DisplayName>
+    <Description>The reported operation state or Unknown when no record is disclosed.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210204" BrowseName="OutcomeKind" ParentNodeId="i=1200042" DataType="i=1200001" ValueRank="-1">
+    <DisplayName>OutcomeKind</DisplayName>
+    <Description>The recorded outcome kind, without the original response payload.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="i=1210205" BrowseName="OutcomeStatus" ParentNodeId="i=1200042" DataType="StatusCode" ValueRank="-1">
+    <DisplayName>OutcomeStatus</DisplayName>
+    <Description>The original serviceResult or terminal protocol error when known; the inherited audit Status reports success of the audited action separately.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">i=1200042</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="i=1200100" BrowseName="AsyncServiceCapabilities" ParentNodeId="i=2268">
+    <DisplayName>AsyncServiceCapabilities</DisplayName>
+    <Description>Recoverable execution capabilities under ServerCapabilities; absent when the feature is disabled.</Description>
+    <Category>ASE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=1200040</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2268</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="i=1200101" BrowseName="AsyncServiceDiagnostics" ParentNodeId="i=2274">
+    <DisplayName>AsyncServiceDiagnostics</DisplayName>
+    <Description>Privileged aggregate diagnostics under ServerDiagnostics.</Description>
+    <Category>ASE-Diagnostics</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=1200041</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2274</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

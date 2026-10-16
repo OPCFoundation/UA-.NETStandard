@@ -515,7 +515,12 @@ public Session identifiers alone are not sufficient. A new Session incarnation
 invalidates the context even if the Server reuses those identifiers.
 
 The context rejects changed user identity, client certificate, security policy
-or mode, transport mapping, namespace/server mappings, or encoding limits.
+or mode, transport mapping, namespace/server mappings, factory, or
+encoding-interpretation limits. A smaller current transport `MaxMessageSize`
+can fail a delivery without invalidating the recoverable context; restoring a
+suitable ceiling permits another collection within the original retention
+interval. A captured finite ceiling is never silently raised, including by a
+later zero/unlimited setting. Strict contexts retain their original behaviour.
 Anonymous Sessions using Sign are rejected when capturing a recoverable context
 because they cannot reactivate on a replacement SecureChannel. A failure or
 cancellation after dispatch does not trigger replay; cancellation of a readiness
@@ -527,6 +532,13 @@ lost request did not execute, or authorize repeating it. Use it only with a
 protocol that defines separate recovery exchanges and preserves the same
 Session/user ownership. Current Server permissions still apply to every
 exchange. Disposing the context releases only its local borrowed client.
+
+The certificate continuity guard concerns the **Client** certificate. A changed
+peer Server certificate can follow normal trust/identity validation and verified
+same-Session activation. After an explicit endpoint-discovery refresh the channel
+manager replaces a transport still holding the previous peer certificate.
+See [experimental recoverable Services](AsyncServices.md) for the typed handle,
+acceptance/ACK API and a live certificate-rotation example using this binding.
 
 ### Closing a `ManagedSession`
 

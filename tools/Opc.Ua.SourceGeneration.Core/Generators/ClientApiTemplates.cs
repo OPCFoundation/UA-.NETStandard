@@ -135,7 +135,8 @@ namespace Opc.Ua.SourceGeneration
                 try
                 {
                     global::Opc.Ua.IServiceResponse? genericResponse =
-                        await TransportChannel.SendRequestAsync({{Tokens.ClientRequestVariable}}, ct).ConfigureAwait(false);
+                        await TransportChannel.SendRequestAsync({{Tokens.ClientRequestVariable}}, ct)
+                            .ConfigureAwait(false);
 
                     if (genericResponse == null)
                     {
@@ -147,7 +148,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 finally
                 {
-                    RequestCompleted({{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
+                    RequestCompleted(
+                        {{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
                 }
 
                 return {{Tokens.ClientResponseVariable}};
@@ -179,7 +181,8 @@ namespace Opc.Ua.SourceGeneration
                 try
                 {
                     global::Opc.Ua.IServiceResponse? genericResponse = TransportChannel
-                        .SendRequestAsync({{Tokens.ClientRequestVariable}}, global::System.Threading.CancellationToken.None)
+                        .SendRequestAsync(
+                            {{Tokens.ClientRequestVariable}}, global::System.Threading.CancellationToken.None)
                         .AsTask()
                         .GetAwaiter()
                         .GetResult();
@@ -196,7 +199,8 @@ namespace Opc.Ua.SourceGeneration
                 }
                 finally
                 {
-                    RequestCompleted({{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
+                    RequestCompleted(
+                        {{Tokens.ClientRequestVariable}}, {{Tokens.ClientResponseVariable}}, "{{Tokens.Name}}");
                 }
 
                 return {{Tokens.ClientResponseVariable}}.ResponseHeader;

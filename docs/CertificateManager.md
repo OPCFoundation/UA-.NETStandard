@@ -301,6 +301,12 @@ The stack implements this contract in two pieces:
 
 Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
 
+The default-off [recoverable Service prototype](AsyncServices.md#run-the-local-two-hop-demonstration)
+demonstrates this flow through a gateway with stable management Sessions on both
+hops, real pending-key generation, a synthetic local CA, installed-key verification
+and UA-TCP/Binary or TLS HTTPS UA JSON. It recovers a lost CSR reply without generating
+another key. ApplyChanges remains the transaction commit Method, never result polling.
+
 The commit installs the key-bearing certificate in the live registry before
 that deferred reload. Signing and token decryption can use the new key during
 the response-flush grace period, including when the commit fills an empty slot.

@@ -70,8 +70,10 @@ namespace Opc.Ua.SourceGeneration
         public static string Documentation => nameof(Documentation);
         public static string EmitDefaultValue => nameof(EmitDefaultValue);
         public static string EncodingMaskModifier => nameof(EncodingMaskModifier);
+
         public static string EncodingMaskFieldNamesModifier =>
             nameof(EncodingMaskFieldNamesModifier);
+
         public static string EncodingMaskEncode => nameof(EncodingMaskEncode);
         public static string EncodingMaskDecode => nameof(EncodingMaskDecode);
         public static string EnumerationName => nameof(EnumerationName);
@@ -147,8 +149,10 @@ namespace Opc.Ua.SourceGeneration
         public static string NodeManagerClassName => nameof(NodeManagerClassName);
         public static string NodeManagerDefaultConstructor => nameof(NodeManagerDefaultConstructor);
         public static string NodeManagerFactoryClassName => nameof(NodeManagerFactoryClassName);
+
         public static string NodeSetImportFactoryProviderClassName =>
             nameof(NodeSetImportFactoryProviderClassName);
+
         public static string Nillable => nameof(Nillable);
         public static string NodeClass => nameof(NodeClass);
         public static string OnCallAsyncDeclaration => nameof(OnCallAsyncDeclaration);
