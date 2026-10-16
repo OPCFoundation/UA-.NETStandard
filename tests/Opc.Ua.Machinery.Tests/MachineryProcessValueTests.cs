@@ -82,6 +82,154 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task ExistingProcessValueAndItsQualifiedSignalArePreservedAsync()
+        {
+            IMachineryBuildContext context = m_context!;
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("ExistingMeasurement"));
+            ProcessValueState measurement = context.Context.CreateInstanceOfProcessValueType(
+                machine.State,
+                new QualifiedName("Measurement", context.InstanceNamespaceIndex));
+            ushort padimIndex = (ushort)context.Context.NamespaceUris.GetIndex(Opc.Ua.PADIM.Namespaces.PADIM);
+            ProcessValueVariableState signal = context.Context.CreateInstanceOfProcessValueVariableType(
+                measurement,
+                new QualifiedName(PadimBrowseNames.AnalogSignal, padimIndex));
+            measurement.CreateOrReplaceAnalogSignal(context.Context, signal);
+            machine.State.AddChild(measurement);
+            NodeId originalId = measurement.NodeId;
+            NodeId signalId = signal.NodeId;
+            IProcessValueHandle? handle = null;
+
+            await machine.WithProcessValue(measurement, value => value
+                .WithLimits(high: 50)
+                .WithStatus()
+                .Bind(out handle)).BuildAsync();
+            await handle!.SetValueAsync(34.5);
+
+            Assert.That(handle.State, Is.SameAs(measurement));
+            Assert.That(handle.Signal, Is.SameAs(signal));
+            Assert.That(measurement.NodeId, Is.EqualTo(originalId));
+            Assert.That(signal.NodeId, Is.EqualTo(signalId));
+            Assert.That(signal.BrowseName, Is.EqualTo(new QualifiedName(PadimBrowseNames.AnalogSignal, padimIndex)));
+            Assert.That(signal.WrappedValue.TryGetValue(out double reading), Is.True);
+            Assert.That(reading, Is.EqualTo(34.5));
+            Assert.That(signal.HighLimit!.WrappedValue.TryGetValue(out double high), Is.True);
+            Assert.That(high, Is.EqualTo(50));
+        }
+
+        [Test]
+        public async Task PublishingDataValuePreservesNumericTypeQualityAndAcquisitionTimeAsync()
+        {
+            IProcessValueHandle handle = await BuildAsync();
+            DateTimeUtc acquired = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+            var reading = new DataValue(Variant.From(57f), StatusCodes.UncertainLastUsableValue, acquired);
+
+            await handle.SetValueAsync(reading);
+
+            Assert.That(handle.Signal.WrappedValue.TryGetValue(out float value), Is.True);
+            Assert.That(value, Is.EqualTo(57f));
+            Assert.That(handle.Value, Is.EqualTo(57.0));
+            Assert.That(handle.Signal.StatusCode, Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(handle.Signal.Timestamp, Is.EqualTo(acquired));
+            Assert.That(
+                handle.Signal.PercentageValue!.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
+            Assert.That(handle.Signal.PercentageValue.Timestamp, Is.EqualTo(acquired));
+            Assert.That(handle.Signal.PercentageValue.WrappedValue.TryGetValue(out double percentage), Is.True);
+            Assert.That(percentage, Is.EqualTo(55.0).Within(0.001));
+        }
+
+        [Test]
+        public async Task CanceledDataValuePublicationDoesNotChangeThePreviousReadingAsync()
+        {
+            IProcessValueHandle handle = await BuildAsync();
+            Variant before = handle.Signal.WrappedValue;
+            DateTimeUtc timestamp = handle.Signal.Timestamp;
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await handle.SetValueAsync(
+                    new DataValue(Variant.From(87.0), StatusCodes.Good, DateTimeUtc.Now),
+                    cancellation.Token));
+
+            Assert.That(handle.Signal.WrappedValue, Is.EqualTo(before));
+            Assert.That(handle.Signal.Timestamp, Is.EqualTo(timestamp));
+        }
+
+        [TestCase("text")]
+        [TestCase("boolean")]
+        [TestCase("array")]
+        [TestCase("good-null")]
+        [TestCase("uninitialized")]
+        public async Task InvalidSamplesPreserveTheLastPublishedValueAsync(string inputKind)
+        {
+            IProcessValueHandle handle = await BuildAsync();
+            Variant before = handle.Signal.WrappedValue;
+            DateTimeUtc timestamp = handle.Signal.Timestamp;
+            ArrayOf<double> arrayReading = [12.0];
+            DataValue reading = inputKind switch
+            {
+                "text" => new DataValue(Variant.From("12.0")),
+                "boolean" => new DataValue(Variant.From(true)),
+                "array" => new DataValue(Variant.From(arrayReading)),
+                "good-null" => new DataValue(Variant.Null),
+                "uninitialized" => DataValue.Null,
+                _ => throw new ArgumentOutOfRangeException(nameof(inputKind))
+            };
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await handle.SetValueAsync(reading))!;
+
+            StatusCode expectedStatus = inputKind == "uninitialized"
+                ? StatusCodes.BadInvalidArgument
+                : StatusCodes.BadTypeMismatch;
+            Assert.That(exception.StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(handle.Signal.WrappedValue, Is.EqualTo(before));
+            Assert.That(handle.Signal.Timestamp, Is.EqualTo(timestamp));
+        }
+
+        [Test]
+        public async Task UnavailableReadingDoesNotBecomeZeroOrClearTheLastAlarmAsync()
+        {
+            IProcessValueHandle handle = await BuildAsync(withDeviationAlarm: false);
+            await handle.SetValueAsync(85.0);
+            DateTimeUtc acquired = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+
+            await handle.SetValueAsync(new DataValue(Variant.Null, StatusCodes.BadNoCommunication, acquired));
+
+            Assert.That(handle.Signal.WrappedValue.IsNull, Is.True);
+            Assert.That(handle.Signal.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(handle.Signal.Timestamp, Is.EqualTo(acquired));
+            Assert.That(handle.Signal.PercentageValue!.WrappedValue.IsNull, Is.True);
+            Assert.That(
+                handle.Signal.PercentageValue.StatusCode,
+                Is.EqualTo(StatusCodes.BadNoCommunication));
+            Assert.That(
+                ((ExclusiveLimitAlarmState)handle.State.LimitAlarm!).ActiveState!.Id!.Value,
+                Is.True);
+        }
+
+        [Test]
+        public void AdoptionDoesNotReplaceAnIncompatibleDeclaredSignal()
+        {
+            IMachineryBuildContext context = m_context!;
+            IMachineBuilder<BaseObjectState> machine = context.AddMachine(new QualifiedName("UnpromotedSignal"));
+            ProcessValueState measurement = context.Context.CreateInstanceOfProcessValueType(
+                machine.State,
+                new QualifiedName("Measurement", context.InstanceNamespaceIndex));
+            machine.State.AddChild(measurement);
+            Opc.Ua.PADIM.AnalogSignalVariableState original = measurement.AnalogSignal!;
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                machine.WithProcessValue(
+                    measurement,
+                    _ => Assert.Fail("An incompatible signal must be rejected before configuration.")))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(measurement.AnalogSignal, Is.SameAs(original));
+        }
+
+        [Test]
         public async Task TheLimitAlarmMirrorsTheSignalLimitsAndFollowsTheValueAsync()
         {
             // No deviation alarm here: both alarms report on the same

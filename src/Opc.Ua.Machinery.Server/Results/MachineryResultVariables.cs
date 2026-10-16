@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Globalization;
 using Opc.Ua.Machinery.Result;
 using Opc.Ua.Machinery.Server.Builders;
@@ -51,8 +53,11 @@ namespace Opc.Ua.Machinery.Server.Results
         public static MachineryResultVariables Create(
             MachineryBuildScope scope,
             FolderState results,
-            int capacity)
+            int capacity,
+            Func<ISystemContext, NodeState, QualifiedName, ResultState>? createResult = null)
         {
+            createResult ??= static (context, parent, browseName) =>
+                context.CreateInstanceOfResultType(parent, browseName);
             var slots = new List<ResultState>(capacity);
             for (int ii = 0; ii < capacity; ii++)
             {
@@ -63,8 +68,17 @@ namespace Opc.Ua.Machinery.Server.Results
                     scope.Context,
                     results,
                     new QualifiedName(name, scope.BuildContext.InstanceNamespaceIndex),
-                    static (ctx, parent, browseName) =>
-                        ctx.CreateInstanceOfResultType(parent, browseName));
+                    createResult);
+                NodeId resultTypeId = NodeId.Create(
+                    Opc.Ua.Machinery.Result.VariableTypes.ResultType,
+                    Opc.Ua.Machinery.Result.Namespaces.MachineryResult,
+                    scope.Context.NamespaceUris);
+                if (!scope.Context.TypeTable.IsTypeOf(slot.TypeDefinitionId, resultTypeId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTypeDefinitionInvalid,
+                        "The companion result factory must create a ResultType variable or a subtype.");
+                }
                 slots.Add(slot);
             }
             return new MachineryResultVariables(slots);
@@ -73,6 +87,7 @@ namespace Opc.Ua.Machinery.Server.Results
         private MachineryResultVariables(List<ResultState> slots)
         {
             m_slots = slots;
+            m_projections = new Action<ISystemContext, ResultState>?[slots.Count];
         }
 
         /// <summary>
@@ -86,7 +101,13 @@ namespace Opc.Ua.Machinery.Server.Results
         /// </summary>
         /// <param name="context">The system context.</param>
         /// <param name="result">The newly published result.</param>
-        public void Publish(ISystemContext context, MachineryResult result)
+        /// <param name="projection">The validated immutable companion sample projection.</param>
+        /// <param name="cancellationToken">Cancels asynchronous notification delivery.</param>
+        public async ValueTask PublishAsync(
+            ISystemContext context,
+            MachineryResult result,
+            Action<ISystemContext, ResultState>? projection,
+            CancellationToken cancellationToken)
         {
             if (m_slots.Count == 0)
             {
@@ -96,13 +117,27 @@ namespace Opc.Ua.Machinery.Server.Results
             {
                 for (int ii = m_slots.Count - 1; ii > 0; ii--)
                 {
-                    Write(context, m_slots[ii], m_slots[ii - 1].Value);
+                    Write(context, m_slots[ii], m_slots[ii - 1].Value, m_projections[ii - 1]);
+                    m_projections[ii] = m_projections[ii - 1];
                 }
-                Write(context, m_slots[0], result.Data);
+                Write(context, m_slots[0], result.Data, projection);
+                m_projections[0] = projection;
+            }
+            for (int index = m_slots.Count - 1; index >= 0; index--)
+            {
+                await m_slots[index].ClearChangeMasksAsync(context, includeChildren: true, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
-        private static void Write(ISystemContext context, ResultState slot, ResultDataType? data)
+        /// <summary>
+        /// Updates the standard structured value and its declared field variables together.
+        /// </summary>
+        internal static void Write(
+            ISystemContext context,
+            ResultState slot,
+            ResultDataType? data,
+            Action<ISystemContext, ResultState>? projection = null)
         {
             if (data == null)
             {
@@ -121,10 +156,14 @@ namespace Opc.Ua.Machinery.Server.Results
             {
                 slot.ResultContent.Value = data.ResultContent;
             }
-            slot.ClearChangeMasks(context, includeChildren: true);
+            projection?.Invoke(context, slot);
         }
 
         private readonly List<ResultState> m_slots;
+
+        /// <summary>Bounded immutable projections which move with their retained result slots.</summary>
+        private readonly Action<ISystemContext, ResultState>?[] m_projections;
+
         private readonly Lock m_lock = new();
     }
 }

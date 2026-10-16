@@ -690,6 +690,13 @@ Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
 
+For finalized files, set `StartCaptureRequest.RequireCompleteReplay = true` when
+starting `ReplayCaptureSource` or a managed replay session. The corresponding
+`PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, ct)` overload rejects
+missing/partial global headers and partial trailing records. The original reader
+overload remains tolerant of an incomplete trailing header for active-capture
+snapshots. Strict mode does not add decryption keys or transmit any data.
+
 ### Security model
 
 This component is a **diagnostics-only** tool. It captures live OPC

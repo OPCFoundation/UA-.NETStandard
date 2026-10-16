@@ -272,28 +272,75 @@ namespace Opc.Ua.Machinery.Server.Builders
                     static (ctx, parent, name) =>
                         ctx.CreateInstanceOfMachineryComponentIdentificationType(parent, name));
 
-            // Identification is in Table 12's "may be referenced" column: the
-            // direct HasAddIn from the item stays the primary path, and the
-            // organizer references the same node in addition.
+            BindIdentification(identification, data, asMachine);
+            return identification;
+        }
+
+        /// <summary>
+        /// Reuses the shared nameplate writer and organizer for an existing companion descendant.
+        /// </summary>
+        internal void BindIdentification(
+            MachineryItemIdentificationState identification,
+            Action<MachineryIdentificationData> configure)
+        {
+            Scope.EnsureMutable();
+            Scope.EnsurePart(MachineryParts.BuildingBlocks, "Identification");
+            bool asMachine = identification is MachineIdentificationState;
+            uint identifier = identification switch
+            {
+                MachineIdentificationState => ObjectTypes.MachineIdentificationType,
+                MachineryComponentIdentificationState => ObjectTypes.MachineryComponentIdentificationType,
+                _ => ObjectTypes.MachineryItemIdentificationType
+            };
+            NodeId requiredType = NodeId.Create(identifier, Namespaces.Machinery, Context.NamespaceUris);
+            if (!Context.TypeTable.IsTypeOf(identification.TypeDefinitionId, requiredType))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeDefinitionInvalid,
+                    "The identification's type definition does not match its generated state.");
+            }
+            var data = new MachineryIdentificationData();
+            configure(data);
+            data.Validate();
+            BindIdentification(identification, data, asMachine);
+        }
+
+        /// <summary>
+        /// Applies validated identity values and records only the materialized identification facets.
+        /// </summary>
+        private void BindIdentification(
+            MachineryItemIdentificationState identification,
+            MachineryIdentificationData data,
+            bool asMachine)
+        {
+            if (asMachine && data.ProductInstanceUri == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "OPC 40001-1 requires ProductInstanceUri on a machine identification.");
+            }
             ReferenceBuildingBlock(identification);
             WriteIdentification(identification, data, asMachine);
-            Scope.RecordFacet(
-                asMachine
-                    ? MachineryFacet.MachineIdentification
-                    : MachineryFacet.ComponentIdentification);
+            if (asMachine)
+            {
+                Scope.RecordFacet(MachineryFacet.MachineIdentification);
+            }
+            else if (identification is MachineryComponentIdentificationState)
+            {
+                Scope.RecordFacet(MachineryFacet.ComponentIdentification);
+            }
             if (data.Writable)
             {
                 if (asMachine)
                 {
                     Scope.RecordFacet(MachineryFacet.MachineIdentificationWritable);
                 }
-                else
+                else if (identification is MachineryComponentIdentificationState)
                 {
                     Scope.RecordFacet(MachineryFacet.ComponentIdentificationMandatory);
                     Scope.RecordFacet(MachineryFacet.ComponentIdentificationWritable);
                 }
             }
-            return identification;
         }
 
         /// <summary>
@@ -648,6 +695,12 @@ namespace Opc.Ua.Machinery.Server.Builders
         {
             m_scope = scope;
             State = state;
+            var children = new List<BaseInstanceState>();
+            state.GetChildren(scope.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                m_names.Add(child.BrowseName);
+            }
         }
 
         public MachineComponentsState State { get; }

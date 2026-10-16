@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -39,8 +40,11 @@ namespace Opc.Ua.Scales.Server.Runtime
     /// <summary>
     /// What the runtime of a scale needs from the node manager that hosts it.
     /// </summary>
-    internal sealed class ScaleRuntimeServices
+    internal sealed class ScaleRuntimeServices : IDisposable
     {
+        /// <summary>
+        /// Creates the shared controller dependencies.
+        /// </summary>
         public ScaleRuntimeServices(
             ISystemContext context,
             ScaleNamespaceIndices namespaces,
@@ -61,10 +65,19 @@ namespace Opc.Ua.Scales.Server.Runtime
             Logger = logger;
         }
 
+        /// <summary>
+        /// Gets the owning manager's system context.
+        /// </summary>
         public ISystemContext Context { get; }
 
+        /// <summary>
+        /// Gets the resolved companion namespaces.
+        /// </summary>
         public ScaleNamespaceIndices Namespaces { get; }
 
+        /// <summary>
+        /// Gets the selected runtime options.
+        /// </summary>
         public ScalesServerOptions Options { get; }
 
         /// <summary>
@@ -87,7 +100,49 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public ILockService? LockService { get; }
 
+        /// <summary>
+        /// Gets the runtime logger.
+        /// </summary>
         public ILogger Logger { get; }
+
+        /// <summary>
+        /// Creates file services owned by the address-space runtime, not by an individual recipe controller.
+        /// </summary>
+        public ScaleFileBinder CreateFileBinder()
+        {
+            lock (m_resourceGate)
+            {
+                if (m_disposed)
+                {
+                    throw new ObjectDisposedException(nameof(ScaleRuntimeServices));
+                }
+                var files = new ScaleFileBinder();
+                m_resources.Add(files);
+                return files;
+            }
+        }
+
+        /// <summary>
+        /// Releases the resources of every scale, including nested controllers.
+        /// </summary>
+        public void Dispose()
+        {
+            IDisposable[] resources;
+            lock (m_resourceGate)
+            {
+                if (m_disposed)
+                {
+                    return;
+                }
+                m_disposed = true;
+                resources = m_resources.ToArray();
+                m_resources.Clear();
+            }
+            foreach (IDisposable resource in resources)
+            {
+                resource.Dispose();
+            }
+        }
 
         /// <summary>
         /// Builds a NodeId in the Scales namespace.
@@ -104,6 +159,15 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             return new QualifiedName(name, Namespaces.Scales);
         }
+
+        /// <summary>Protects resource adoption and disposal.</summary>
+        private readonly Lock m_resourceGate = new();
+
+        /// <summary>The resources of all controller instances.</summary>
+        private readonly List<IDisposable> m_resources = [];
+
+        /// <summary>Whether resources have been released.</summary>
+        private bool m_disposed;
     }
 
     /// <summary>

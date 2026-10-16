@@ -1440,6 +1440,8 @@ What the server side adds:
      `PubSubKeyPushTargetFolder`.
    - One Object per `PubSubConnection`, `WriterGroup`, `ReaderGroup`,
      `DataSetWriter`, `DataSetReader`, `PublishedDataSet`, and DataSet folder.
+     PublishedDataSets and DataSet folders are organized below the standard
+     `PublishSubscribe.PublishedDataSets` folder (`i=17371`).
    - Per-instance `Status` / `State` and `ConfigurationVersion` Variables so a
      client can observe the same runtime state the scheduler uses.
 2. Method bindings ([§9.1.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.5)):
@@ -1447,7 +1449,9 @@ What the server side adds:
    `AddReaderGroup`, `AddDataSetWriter`, `AddDataSetReader`, `Remove*`,
    `Enable`, and `Disable`, plus `AddPublishedDataItems`,
    `AddPublishedEvents`, `AddPublishedDataItemsTemplate`, `AddVariables`,
-   `RemoveVariables`, `AddDataSetFolder`, and `RemoveDataSetFolder`.
+   `RemoveVariables`, `AddDataSetFolder`, and `RemoveDataSetFolder`. The
+   folder methods are bound on the `PublishSubscribe.PublishedDataSets`
+   instance and on every DataSet folder created through `AddDataSetFolder`.
 3. `PubSubConfigurationType` File import/export: clients can open/read the
    current `PubSubConfigurationDataType` file or write a replacement file; the
    server applies it through `ReplaceConfigurationAsync` and returns per-item

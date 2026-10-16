@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(FullSetCases))]
-        public void AllThirtyThreeProfilesProduceExactIndependentFullSetCatalogues(
+        public void AllThirtySixProfilesProduceExactIndependentFullSetCatalogues(
             string module,
             bool diagnosticsToolsEnabled,
             string catalogue,
@@ -154,6 +154,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             int expectedConnectionCount)
         {
             McpToolProfileSet profiles = AllProfiles();
+            Assert.That(profiles.Count, Is.EqualTo(36));
             string[] actual = Observe(builder => RegisterSet(builder, module, profiles, diagnosticsToolsEnabled));
 
             AssertCatalogue(actual, ExpectedNames(catalogue, expectedConnectionCount),
@@ -552,7 +553,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile[] invalidProfiles =
             [
                 (McpToolProfile)(-1),
-                (McpToolProfile)33,
+                (McpToolProfile)36,
                 (McpToolProfile)63,
                 (McpToolProfile)64,
                 (McpToolProfile)int.MinValue,
@@ -587,7 +588,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 foreach (bool gate in GateValues(module))
                 {
-                    foreach (McpToolProfile profile in s_legacyProfiles)
+                    foreach (McpToolProfile profile in s_boundedProfiles)
                     {
                         // Ownership comes only from the independent literal selection table below.
                         if (!s_selections.Any(selection => selection.Module == module && selection.Profile == profile))
@@ -931,8 +932,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
         private static McpToolProfileSet AllProfiles()
         {
-            // These two explicit, disjoint tables contain all 33 profiles, not just Full.
-            return new McpToolProfileSet([.. s_legacyProfiles, .. s_appendedProfiles]);
+            // These two explicit, disjoint tables contain all 36 profiles, not just Full.
+            return new McpToolProfileSet([.. s_boundedProfiles, .. s_appendedProfiles]);
         }
 
         private static void AssertIndependentSelection(
@@ -1277,7 +1278,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             "Robotics", "Scales", "Vision", "WotCon", "XRegistry"
         ];
 
-        private static readonly McpToolProfile[] s_legacyProfiles =
+        private static readonly McpToolProfile[] s_boundedProfiles =
         [
             McpToolProfile.Core,
             McpToolProfile.Services,
@@ -1296,7 +1297,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.Positioning,
             McpToolProfile.Wot,
             McpToolProfile.XRegistry,
-            McpToolProfile.WotDocuments
+            McpToolProfile.WotDocuments,
+            McpToolProfile.MachineTool,
+            McpToolProfile.Gms,
+            McpToolProfile.CranesHoists
         ];
 
         /// <summary>
@@ -1334,7 +1338,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.Isa95,
             McpToolProfile.Positioning,
             McpToolProfile.Wot,
-            McpToolProfile.XRegistry
+            McpToolProfile.XRegistry,
+            McpToolProfile.MachineTool,
+            McpToolProfile.Gms,
+            McpToolProfile.CranesHoists
         ];
 
         /// <summary>

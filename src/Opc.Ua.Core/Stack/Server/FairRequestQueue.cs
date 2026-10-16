@@ -156,7 +156,7 @@ namespace Opc.Ua
                 return false;
             }
 
-            ResourceIsolationOwner owner = Classify(request);
+            ResourceIsolationOwner owner = Classify(request, out ResourceIsolationAdmissionEvidence? evidence);
             if (!m_provider.TryAcquire(
                 ResourceIsolationStage.RequestQueue, owner, 1, out IDisposable? queueLease, out _))
             {
@@ -189,6 +189,7 @@ namespace Opc.Ua
                 costLease = null;
                 parkedLease = null;
                 Entry entry = admission.Entry;
+                entry.AdmissionEvidence = evidence;
                 entry.RegisterCancellation();
 
                 if (IsStopped())
@@ -410,8 +411,20 @@ namespace Opc.Ua
         /// <summary>
         /// Resolves authoritative owner and service intent for admission.
         /// </summary>
-        private ResourceIsolationOwner Classify(IEndpointIncomingRequest request)
+        private ResourceIsolationOwner Classify(
+            IEndpointIncomingRequest request,
+            out ResourceIsolationAdmissionEvidence? evidence)
         {
+            if (m_provider is IResourceIsolationAdmissionEvidence admission)
+            {
+                return admission.Classify(
+                    request.SecureChannelContext,
+                    request.Request.RequestHeader.AuthenticationToken,
+                    IsSessionEstablishment(request.Request),
+                    IsControlRequest(request.Request),
+                    out evidence);
+            }
+            evidence = null;
             return m_provider.Classify(
                 request.SecureChannelContext,
                 request.Request.RequestHeader.AuthenticationToken,
@@ -424,6 +437,14 @@ namespace Opc.Ua
         /// </summary>
         private StatusCode GetRevalidationStatus(Entry entry)
         {
+            // The evidence the classification was derived from still holds: a full
+            // revalidation would repeat the lookups only to return Good.
+            if (entry.AdmissionEvidence is { } evidence &&
+                ((IResourceIsolationAdmissionEvidence)m_provider).IsAdmissionCurrent(
+                    evidence, entry.Request.SecureChannelContext))
+            {
+                return StatusCodes.Good;
+            }
             if (m_provider is IResourceIsolationRevalidationProvider revalidation)
             {
                 return revalidation.GetRevalidationStatus(
@@ -938,6 +959,12 @@ namespace Opc.Ua
             /// Gets the caller-controlled request lifetime.
             /// </summary>
             public CancellationToken CancellationToken { get; }
+
+            /// <summary>
+            /// The evidence the provider derived <see cref="Owner"/> from, or <c>null</c>
+            /// when every revalidation must run in full. Set before the entry is linked.
+            /// </summary>
+            internal ResourceIsolationAdmissionEvidence? AdmissionEvidence { get; set; }
 
             /// <summary>
             /// Gets or sets the owning FIFO while linked; written under that FIFO's gate.

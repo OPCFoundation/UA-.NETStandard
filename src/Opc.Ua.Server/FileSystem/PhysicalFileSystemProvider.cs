@@ -51,6 +51,10 @@ namespace Opc.Ua.Server.FileSystem
     /// prefix-match against the canonicalised root.
     /// </para>
     /// <para>
+    /// Write streams exclude other readers and writers until disposed. Explicit
+    /// exclusive sharing is required on Unix as well as Windows.
+    /// </para>
+    /// <para>
     /// The provider is async-friendly but the underlying
     /// <see cref="System.IO"/> APIs used here are largely synchronous;
     /// callers should not rely on these implementations to release the
@@ -210,7 +214,7 @@ namespace Opc.Ua.Server.FileSystem
                 _ => FileMode.OpenOrCreate
             };
             return new ValueTask<Stream>(
-                new FileStream(full, fileMode, FileAccess.Write));
+                new FileStream(full, fileMode, FileAccess.Write, FileShare.None));
         }
 
         /// <inheritdoc/>

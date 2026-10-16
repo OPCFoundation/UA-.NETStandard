@@ -27,6 +27,7 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
     - [Sampling interval revision](#sampling-interval-revision)
+    - [Final-value publication before node removal](#final-value-publication-before-node-removal)
   - [History](#history)
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
@@ -309,6 +310,25 @@ attribute operations. Type/rank checks, access checks, audit reporting, and
 semantic-change notifications remain part of the manager service path; directly
 mutating a node value is not a replacement for a client Write service call.
 
+For `OnWriteValueAsync` and `OnSimpleWriteValueAsync`, successful results normally
+copy the requested value, status and source timestamp into the node cache.
+An external committed-state publisher can opt out for that operation:
+
+```csharp
+return new AttributeWriteResult(result)
+{
+    SuppressCacheUpdate = true
+};
+```
+
+This returns the handler's result without changing cached data or manufacturing
+a value-change mask. Access, type and writable-metadata checks still run.
+The external publisher owns observation updates and their notifications; for an
+indexed write, the handler also owns applying the range to its authoritative data.
+The default is `false`, so existing handlers and ordinary write-through variables
+keep their current behavior. Suppression does not turn an uncommitted or failed
+command into a successful write.
+
 #### Method Calls
 
 `CustomNodeManager2.Call` completes synchronously through its synchronous
@@ -389,6 +409,10 @@ support filter validation, event subscriptions, condition refresh, and role chec
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
 
+For terminal observations before deleting dynamic nodes, use the
+[final-value publication barrier](#final-value-publication-before-node-removal),
+not `ClearChangeMasksAsync` alone.
+
 A sampling group checks the Read permission of an item through
 `ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
 verdict until one of its inputs changes: the Session or its effective identity
@@ -459,6 +483,38 @@ to 2000 ms; a node that declares 5000 ms still wins and is revised to 5000 ms.
 automatically through their `MinSupportedSamplingInterval` property. Node
 managers that implement `INodeManager` directly can call
 `SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same rule.
+
+#### Final-value publication before node removal
+
+`AsyncCustomNodeManager` implements `INodeValuePublication` for terminal
+observations such as a completed production job. Stop the subtree's producers,
+keep its values unchanged, and await the owning manager's barrier before deletion:
+
+```csharp
+await manager.WaitForValuePublicationAsync(
+    [job], TimeSpan.FromSeconds(10), cancellationToken);
+cancellationToken.ThrowIfCancellationRequested();
+await manager.DeleteNodeAsync(manager.SystemContext, job.NodeId, cancellationToken);
+```
+
+Completion means final Value notifications entered **responses to real Publish
+requests**, not merely a queue, transport delivery or client acknowledgment.
+Only the terminal queue entry counts; an earlier equal-valued notification
+cannot satisfy the barrier.
+The barrier makes permission-checked final reads, preserves index ranges and
+protects pending terminal samples from overwrite. Ordinary refreshes should
+continue using `ClearChangeMasksAsync` without waiting for Publish requests.
+
+Membership is a snapshot of reporting Value items with live sessions;
+descendants are included. New subscriptions, event/non-Value items and
+detached durable subscriptions are outside it. Losing a captured subscriber
+releases its obligation; disabling publishing does not. There is no atomic
+subscription-admission/deletion transaction.
+
+The default deadline is 30 seconds; explicit deadlines must be positive and
+finite. Timeout, cancellation, read/permission failure, transfer or unsupported
+aggregate/custom items fail rather than imply delivery. **Retain the nodes on
+failure.** Never await the barrier while holding a gate its callbacks need.
 
 ### History
 
@@ -561,6 +617,23 @@ Three rules follow for node types that customise browsing:
   node and skips `OnPopulateBrowser` altogether.
 
 ### Delivery and callback lifecycle
+
+Composed asynchronous session resources use
+`AsyncCustomNodeManager.RegisterSessionClosingHandler` and retain its
+registration lease. The existing session-close pipeline awaits each handler
+outside manager gates and attempts the remaining handlers after a failure.
+Disposing the lease unregisters future calls; manager disposal drains admitted
+calls. Overrides of `SessionClosingAsync` must await their base implementation.
+A handler must not await disposal of its own manager. The synchronous
+`SessionManager.SessionClosing` event remains suitable only for nonblocking
+cleanup.
+
+`FluentNodeManagerBase.RegisterNodeResource` attaches one composite resource
+to an exact indexed node. Actual node removal and manager disposal await its
+cleanup, including disposal-only startup aborts. The resource must join
+concurrent disposal calls; Machinery's per-machine resource group supplies
+that behavior. This registration does not use value change-mask callbacks,
+which can run on an unrelated publisher's execution path.
 
 Event delivery for a node follows enqueue order. The Server node and
 nodes opting into parallel event consumers deliver each event concurrently
@@ -2784,6 +2857,12 @@ ordering-sensitive code. The call is idempotent per node and still completes
 children added since an earlier call. It does not re-run `OnAfterCreate` on
 ancestors which were already created; assemble parent-wired children before
 the parent's first completion, or wire those late children explicitly.
+
+Explicit references to `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations remain on generated type templates, not runtime instances.
+Instance factories omit these references whether the model resolves their
+targets by identifier or by a hierarchy path, including direct children of
+object and variable types. Ordinary references are preserved in both contexts.
 
 Notes:
 

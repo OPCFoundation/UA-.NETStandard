@@ -60,7 +60,7 @@ namespace Opc.Ua.Client.FileSystem
     /// itself does NOT close the server handle on disposal.
     /// </para>
     /// </remarks>
-    public sealed class TemporaryFileTransferClient
+    public sealed partial class TemporaryFileTransferClient
     {
         /// <summary>
         /// Creates a new client rooted at the supplied
