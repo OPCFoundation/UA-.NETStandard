@@ -1109,7 +1109,7 @@ namespace Opc.Ua
             // Allow a length of -1 to support legacy devices that don't fill the length correctly
             int length = SafeReadInt32();
 
-            if (!BaseStream.CanSeek)
+            if (!m_hasBuffer && !BaseStream.CanSeek)
             {
                 if (length < 0)
                 {

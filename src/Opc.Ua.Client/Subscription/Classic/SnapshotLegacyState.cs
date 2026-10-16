@@ -34,7 +34,7 @@ namespace Opc.Ua.Client
     /// options. Do not inherit current options or append fields to this type.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaXsd)]
-    internal sealed partial record class ClassicMonitoredItemStateV0
+    internal sealed partial record class MonitoredItemStateV0
     {
         /// <summary>
         /// Saved display name.
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client
     /// The base/derived boundary determines binary field order.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaXsd)]
-    internal partial record class ClassicSubscriptionOptionsV0
+    internal partial record class SubscriptionOptionsV0
     {
         /// <summary>
         /// Saved display name.
@@ -270,13 +270,13 @@ namespace Opc.Ua.Client
     /// Frozen unversioned classic subscription body with frozen nested items.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaXsd)]
-    internal sealed partial record class ClassicSubscriptionStateV0 : ClassicSubscriptionOptionsV0
+    internal sealed partial record class SubscriptionStateV0 : SubscriptionOptionsV0
     {
         /// <summary>
         /// Saved monitored items.
         /// </summary>
         [DataTypeField(Order = 11, StructureHandling = StructureHandling.Inline)]
-        public partial ArrayOf<ClassicMonitoredItemStateV0> MonitoredItems { get; init; }
+        public partial ArrayOf<MonitoredItemStateV0> MonitoredItems { get; init; }
 
         /// <summary>
         /// Revised publishing interval.
@@ -338,7 +338,7 @@ namespace Opc.Ua.Client
     /// subscriptions. Session options and state fields precede subscriptions.
     /// </summary>
     [DataType(Namespace = Namespaces.OpcUaXsd)]
-    internal sealed partial record class ClassicSessionConfigurationV0
+    internal sealed partial record class SessionConfigurationV0
     {
         /// <summary>
         /// Saved session name.
@@ -410,7 +410,7 @@ namespace Opc.Ua.Client
         /// Saved subscriptions.
         /// </summary>
         [DataTypeField(Order = 20, StructureHandling = StructureHandling.Inline)]
-        public partial ArrayOf<ClassicSubscriptionStateV0> Subscriptions { get; init; }
+        public partial ArrayOf<SubscriptionStateV0> Subscriptions { get; init; }
 
         /// <summary>
         /// Upgrades the complete legacy configuration.

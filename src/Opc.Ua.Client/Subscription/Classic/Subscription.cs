@@ -3531,8 +3531,17 @@ namespace Opc.Ua.Client
                 await ResolveItemNodeIdsAsync(prepared, ct).ConfigureAwait(false);
                 var requestItems = new List<MonitoredItemCreateRequest>(prepared.Count);
                 var itemsToCreate = new List<MonitoredItem>(prepared.Count);
-                foreach ((MonitoredItem monitoredItem, MonitoredItemOptions options, _) in prepared)
+                foreach ((MonitoredItem monitoredItem, MonitoredItemOptions targetOptions, _) in prepared)
                 {
+                    if (!string.IsNullOrEmpty(targetOptions.RelativePath) &&
+                        monitoredItem.ResolvedNodeId.IsNull &&
+                        ServiceResult.IsBad(monitoredItem.Status.Error))
+                    {
+                        monitoredItem.CompleteCreate();
+                        continue;
+                    }
+
+                    MonitoredItemOptions options = monitoredItem.State;
                     // build item request.
                     var request = new MonitoredItemCreateRequest();
 
@@ -3707,7 +3716,7 @@ namespace Opc.Ua.Client
                     catch (Exception e)
                     {
                         item.SetError(new ServiceResult(e));
-                        throw;
+                        continue;
                     }
 
                     browsePaths.Add(browsePath);

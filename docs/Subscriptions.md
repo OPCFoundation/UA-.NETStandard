@@ -954,9 +954,11 @@ reconciliation, etc.) along with the recommended V2 alternative.
 
 Classic snapshots preserve the original resolved target of relative-path items
 as SDK-owned metadata. `Session.Load(..., transferSubscriptions: true)` restores
-`ResolvedNodeId` and `Status.NodeId` before adoption; transfer and saved-session
-reactivation do not translate the path again. A changed browse relationship or
-lost browse permission must not retarget an existing server monitored item.
+`ResolvedNodeId` and `Status.NodeId` on the local monitored-item objects before
+`TransferSubscriptionsAsync` or `ReactivateSubscriptionsAsync` is called.
+These operations use the saved handles without translating the path again, so
+a changed browse relationship or lost browse permission does not retarget an
+existing server monitored item.
 
 ```csharp
 // Before deliberately closing the origin session:
@@ -981,13 +983,7 @@ Attach notification handlers after loading and before transfer. Loading only
 restores local objects; it does not perform the server transfer. For a restored
 session, use `ReactivateSubscriptionsAsync` after reactivating that session
 instead. No call to `ResolveItemNodeIdsAsync` or a resolution-state setter is
-needed for adoption or subsequent maintenance.
-
-The updated reader accepts the earlier unversioned 2.0 files, but their
-relative-path targets remain unknown because those files did not store them.
-Such items still support notifications, apply, modify, and delete through their
-saved handles. Newly saved files use a versioned format and require an updated
-SDK to read. See the [migration notes](migrate/2.0.x/sessions-subscriptions.md#classic-relative-path-restoration).
+needed for transfer, reactivation, or subsequent maintenance.
 
 Loading for recreation or creating a replacement server subscription resolves
 paths afresh instead of reusing the saved target. Changing `StartNodeId` or

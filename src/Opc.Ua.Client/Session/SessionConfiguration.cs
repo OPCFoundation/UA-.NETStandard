@@ -196,7 +196,7 @@ namespace Opc.Ua.Client
         /// </summary>
         public static SessionConfiguration? Create(Stream stream, ITelemetryContext telemetry)
         {
-            return ClassicSnapshotCodec.LoadConfiguration(stream, telemetry);
+            return SnapshotCodec.LoadConfiguration(stream, telemetry);
         }
     }
 }

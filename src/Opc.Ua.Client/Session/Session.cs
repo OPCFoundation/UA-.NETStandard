@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Client
             {
                 IServiceMessageContext context = MessageContext
                     ?? throw new InvalidOperationException("Missing service message context");
-                ClassicSnapshotCodec.SaveConfiguration(stream, context, sessionConfiguration);
+                SnapshotCodec.SaveConfiguration(stream, context, sessionConfiguration);
             }
             return sessionConfiguration;
         }
@@ -1258,7 +1258,7 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            ClassicSnapshotCodec.SaveSubscriptions(stream, context, subscriptionStates.ToArray());
+            SnapshotCodec.SaveSubscriptions(stream, context, subscriptionStates.ToArray());
         }
 
         /// <inheritdoc/>
@@ -1271,7 +1271,7 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            ArrayOf<SubscriptionState> states = ClassicSnapshotCodec.LoadSubscriptions(stream, context);
+            ArrayOf<SubscriptionState> states = SnapshotCodec.LoadSubscriptions(stream, context);
             var subscriptions = new SubscriptionCollection(states.Count);
             foreach (SubscriptionState savedState in states)
             {

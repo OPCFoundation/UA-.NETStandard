@@ -38,7 +38,7 @@ namespace Opc.Ua.Client
     /// Versioned SDK-owned classic persistence. Raw IEncodeable bodies remain
     /// schema-coupled and must not be passed off as legacy saved files.
     /// </summary>
-    internal static class ClassicSnapshotCodec
+    internal static class SnapshotCodec
     {
         /// <summary>
         /// Saves a complete classic subscription collection.
@@ -89,7 +89,7 @@ namespace Opc.Ua.Client
                 SubscriptionState state;
                 if (legacy)
                 {
-                    var old = new ClassicSubscriptionStateV0();
+                    var old = new SubscriptionStateV0();
                     old.Decode(decoder);
                     state = old.ToCurrent();
                 }
@@ -136,7 +136,7 @@ namespace Opc.Ua.Client
             SessionConfiguration configuration;
             if (legacy)
             {
-                var old = new ClassicSessionConfigurationV0();
+                var old = new SessionConfigurationV0();
                 old.Decode(decoder);
                 configuration = old.ToCurrent();
             }

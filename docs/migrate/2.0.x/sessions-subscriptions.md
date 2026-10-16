@@ -8,7 +8,7 @@
 
 ## Contents
 
-- [Classic relative-path restoration](#classic-relative-path-restoration)
+- [Persisted subscription files](#persisted-subscription-files)
 - [GDS Client API modernization](#gds-client-api-modernization)
   - [`Task` → `ValueTask` on GDS client interfaces](#task--valuetask-on-gds-client-interfaces)
   - [Removal of obsolete GDS APIs](#removal-of-obsolete-gds-apis)
@@ -29,34 +29,16 @@
   - [`IMessageSocket` abstraction removed](#imessagesocket-abstraction-removed)
   - [Transport binding registry — `TransportBindings` static API removed](#transport-binding-registry--transportbindings-static-api-removed)
 
-## Classic relative-path restoration
+## Persisted subscription files
 
-Classic `MonitoredItem` snapshots now carry the original resolved target as
-internal SDK state. Save/load, transfer, and saved-session reactivation restore
-`ResolvedNodeId` and `Status.NodeId` without a caller-operated repair API or
-another browse request. Subsequent `ApplyChangesAsync` skips already-created
-items during creation-time resolution, including legacy items whose target
-metadata is unknown.
+**Breaking change from 1.5 to 2.0:** The unversioned XML subscription files
+written by the 1.5 SDK are not compatible with the binary persistence format
+used by the 2.0 SDK. `Session.Load` does not import those 1.5 files.
 
-**Persistence compatibility:** `Session.Load` and `SessionConfiguration.Create`
-read the previous unversioned 2.0 file formats and the new versioned formats.
-New files require an updated SDK reader. Old relative-path snapshots did not
-store a resolved target, so the reader leaves it unknown rather than assuming
-that the current browse path still identifies the originally monitored node.
-Direct `IEncodeable.Encode`/`Decode` bodies are positional, schema-coupled
-records, not versioned SDK files; callers managing those bodies must version
-their own storage. This change does not add legacy 1.5 XML import.
-
-**Target mutation:** assigning a different `StartNodeId` or `RelativePath` while
-an item is created or being created now throws `BadInvalidState` immediately,
-rather than failing during a later apply or retaining a stale cache. Equal
-assignments remain valid. Delete the item successfully before retargeting, or
-replace it. A rejected deletion preserves the server handle and target and can
-be retried. Fresh creation/recreation translates the desired path again.
-
-These changes apply to the classic API within SDK 2.0; they neither require
-switching to the V2 subscription engine nor add relative-path resolution to
-that engine. See the [classic persistence example](../../Subscriptions.md#persistence-save--load).
+Applications that retain subscription files across upgrades need to migrate
+their saved state or recreate their subscriptions from application configuration
+and save them using the 2.0 SDK. Recreating a subscription starts new server-side
+queues; it does not recover the old subscription's queued notifications.
 
 ## GDS Client API modernization
 

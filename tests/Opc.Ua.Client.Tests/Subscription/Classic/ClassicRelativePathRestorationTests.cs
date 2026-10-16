@@ -134,6 +134,99 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A malformed sibling path does not abort creation or poison later apply retries.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task MalformedPathDoesNotBlockValidSiblingCreationAsync(bool createSubscription)
+        {
+            Mock<ISession> session = CreateSession();
+            using Subscription subscription = CreateSubscription(session);
+            if (!createSubscription)
+            {
+                await subscription.CreateAsync().ConfigureAwait(false);
+            }
+            MonitoredItem malformed = CreateItem();
+            malformed.RelativePath = "<";
+            MonitoredItem valid = CreateItem();
+            subscription.AddItems([malformed, valid]);
+
+            if (createSubscription)
+            {
+                await subscription.CreateAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            }
+
+            Assert.That(subscription.Created, Is.True);
+            Assert.That(valid.Created, Is.True);
+            Assert.That(valid.Status.NodeId, Is.EqualTo(new NodeId("Target", 1)));
+            Assert.That(malformed.Created, Is.False);
+            Assert.That(ServiceResult.IsBad(malformed.Status.Error), Is.True);
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            Assert.That(ServiceResult.IsBad(malformed.Status.Error), Is.True);
+            VerifyCreateCount(session, Times.Once());
+            session.Verify(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+
+            malformed.RelativePath = "/Fixed";
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            Assert.That(malformed.Created, Is.True);
+            Assert.That(ServiceResult.IsGood(malformed.Status.Error), Is.True);
+            VerifyCreateCount(session, Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Monitoring options changed during translation are sent in the creation request.
+        /// </summary>
+        [Test]
+        public async Task CreationUsesMonitoringOptionsChangedDuringTranslationAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            using Subscription subscription = CreateSubscription(session);
+            await subscription.CreateAsync().ConfigureAwait(false);
+            MonitoredItem item = CreateItem();
+            subscription.AddItem(item);
+            var translation = new TaskCompletionSource<TranslateBrowsePathsToNodeIdsResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            SetTranslation(session, translation.Task);
+            Task<ArrayOf<MonitoredItem>> creating = subscription.CreateItemsAsync();
+            try
+            {
+                VerifyTranslationCount(session, Times.Once());
+                item.SamplingInterval = 321;
+                item.QueueSize = 17;
+                item.DiscardOldest = false;
+                item.Filter = new DataChangeFilter { DeadbandValue = 2.5 };
+            }
+            finally
+            {
+                translation.TrySetResult(Translation("Target"));
+                await creating.ConfigureAwait(false);
+            }
+
+            session.Verify(s => s.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), 9, It.IsAny<TimestampsToReturn>(),
+                It.Is<ArrayOf<MonitoredItemCreateRequest>>(requests =>
+                    requests.Count == 1 &&
+                    requests[0].ItemToMonitor.NodeId == new NodeId("Target", 1) &&
+                    requests[0].RequestedParameters.SamplingInterval == 321 &&
+                    requests[0].RequestedParameters.QueueSize == 17 &&
+                    !requests[0].RequestedParameters.DiscardOldest),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(item.Status.Filter, Is.TypeOf<DataChangeFilter>());
+            Assert.That(((DataChangeFilter)item.Status.Filter!).DeadbandValue, Is.EqualTo(2.5));
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            session.Verify(s => s.ModifyMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), 9, It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemModifyRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
         /// A paused translation cannot admit retargeting or duplicate creation.
         /// </summary>
         [Test]
