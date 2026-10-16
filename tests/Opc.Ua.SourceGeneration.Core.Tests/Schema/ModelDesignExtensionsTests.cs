@@ -12161,7 +12161,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// declares the namespace.
         /// </summary>
         [Test]
-        public void GetNamespaceUriAsCode_DeclaredNamespace_ReturnsConstant()
+        public void GetNamespaceUriAsCodeDeclaredNamespaceReturnsConstant()
         {
             Namespace[] namespaces =
             [
@@ -12178,7 +12178,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// when the model does not declare the namespace.
         /// </summary>
         [Test]
-        public void GetNamespaceUriAsCode_UndeclaredNamespace_ReturnsEscapedLiteral()
+        public void GetNamespaceUriAsCodeUndeclaredNamespaceReturnsEscapedLiteral()
         {
             Namespace[] namespaces =
             [
@@ -12197,7 +12197,7 @@ namespace Opc.Ua.Schema.Model.Tests
         /// literal instead of an empty namespace argument.
         /// </summary>
         [Test]
-        public void GetNodeIdAsCode_UndeclaredNamespace_UsesEscapedUriLiteral()
+        public void GetNodeIdAsCodeUndeclaredNamespaceUsesEscapedUriLiteral()
         {
             Namespace[] namespaces =
             [
