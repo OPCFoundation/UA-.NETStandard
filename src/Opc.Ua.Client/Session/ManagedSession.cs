@@ -542,11 +542,14 @@ namespace Opc.Ua.Client
         /// session is recreated against it. When a reconnect is rejected with a
         /// status that requires the endpoint to be refreshed, the endpoint is
         /// read again from the server's discovery endpoint and replaces the one
-        /// in use. The validator receives the endpoint in use and the
-        /// rediscovered one. Only a Good result accepts the rediscovered
+        /// in use. A rediscovered endpoint that changes the security mode or
+        /// policy is always rejected before the validator is called. The
+        /// validator receives the endpoint in use and the rediscovered one, so
+        /// that the application can add its own checks, such as pinning the
+        /// server certificate. Only a Good result accepts the rediscovered
         /// endpoint: any other result, an exception or a cancellation keeps the
         /// endpoint in use and fails the reconnect attempt. When <c>null</c>,
-        /// the rediscovered endpoint is used as it is.
+        /// only the security mode and policy are checked.
         /// </summary>
         /// <remarks>
         /// Set it through <see cref="ManagedSessionOptions.ValidateRediscoveredEndpoint"/>,
@@ -1927,6 +1930,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Throws when a candidate endpoint changes an explicitly configured
+        /// mode or policy.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The candidate changes the
+        /// required security mode or policy.</exception>
+        private static void ThrowIfSecurityConfigurationMismatch(
+            EndpointDescription required,
+            EndpointDescription candidate)
+        {
+            ServiceResultException? mismatch = GetSecurityConfigurationMismatch(required, candidate);
+            if (mismatch != null)
+            {
+                throw mismatch;
+            }
+        }
+
+        /// <summary>
         /// Reactivates the session against the given endpoint reusing the current
         /// AuthenticationToken instead of recreating it. Used by client replica sets
         /// to fast-activate a mirrored session on promotion. The standby still performs
@@ -2020,21 +2040,24 @@ namespace Opc.Ua.Client
 
         /// <summary>
         /// Refreshes <paramref name="endpoint"/> through <paramref name="update"/>
-        /// and lets <paramref name="validator"/> accept or reject the result.
-        /// With a validator, <paramref name="update"/> refreshes a detached
-        /// copy of the endpoint, and the rediscovered description is published
-        /// to <paramref name="endpoint"/> only once the validator returned a
-        /// Good result. The endpoint can be shared by several sessions, so it
-        /// never holds a description that was not accepted, not even while the
-        /// validation runs. The check is fail-closed: a result that is not
-        /// Good, or a refresh or validator that throws or is cancelled, leaves
-        /// the endpoint untouched.
+        /// on a detached copy and publishes the rediscovered description to
+        /// <paramref name="endpoint"/> only once it was accepted: it must keep
+        /// the security mode and policy of the endpoint in use, and
+        /// <paramref name="validator"/>, when set, must return a Good result.
+        /// The endpoint can be shared by several sessions, so it never holds a
+        /// description that was not accepted, not even while the checks run.
+        /// The check is fail-closed: a changed security configuration, a
+        /// validator result that is not Good, or a refresh or validator that
+        /// throws or is cancelled, leaves the endpoint untouched.
         /// </summary>
-        /// <exception cref="ServiceResultException">The validator rejected the
-        /// rediscovered endpoint; a Bad result is thrown as it is, an
-        /// Uncertain or missing result as
+        /// <exception cref="ServiceResultException">The rediscovered endpoint
+        /// changes the security mode or policy
+        /// (<see cref="StatusCodes.BadSecurityModeRejected"/>,
+        /// <see cref="StatusCodes.BadSecurityPolicyRejected"/>; the validator
+        /// is not called), or the validator rejected it: a Bad result is
+        /// thrown as it is, an Uncertain or missing result as
         /// <see cref="StatusCodes.BadSecurityChecksFailed"/>. When the
-        /// endpoint has no description to validate against, nothing is
+        /// endpoint has no description to check against, nothing is
         /// refreshed and <see cref="StatusCodes.BadInternalError"/> is
         /// thrown.</exception>
         internal static async Task RefreshAndValidateEndpointAsync(
@@ -2043,12 +2066,6 @@ namespace Opc.Ua.Client
             RediscoveredEndpointValidator? validator,
             CancellationToken ct)
         {
-            if (validator == null)
-            {
-                await update(endpoint, ct).ConfigureAwait(false);
-                return;
-            }
-
             // ConfiguredEndpoint never holds a null Description (its
             // constructors substitute or reject null and Update clones a
             // non-null description); should that ever change, fail the
@@ -2060,20 +2077,27 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint candidate = CoreUtils.Clone(endpoint)!;
 
             await update(candidate, ct).ConfigureAwait(false);
-            ServiceResult? result = await validator(current, candidate.Description, ct).ConfigureAwait(false);
 
-            // A validator may ignore the token and still return Good; a
-            // cancelled validation is never an acceptance.
-            ct.ThrowIfCancellationRequested();
+            ThrowIfSecurityConfigurationMismatch(current, candidate.Description);
 
-            if (result == null || !ServiceResult.IsGood(result))
+            if (validator != null)
             {
-                throw new ServiceResultException(
-                    result != null && ServiceResult.IsBad(result)
-                        ? result
-                        : new ServiceResult(
-                            StatusCodes.BadSecurityChecksFailed,
-                            new LocalizedText("The rediscovered endpoint was not accepted.")));
+                ServiceResult? result = await validator(current, candidate.Description, ct)
+                    .ConfigureAwait(false);
+
+                // A validator may ignore the token and still return Good; a
+                // cancelled validation is never an acceptance.
+                ct.ThrowIfCancellationRequested();
+
+                if (result == null || !ServiceResult.IsGood(result))
+                {
+                    throw new ServiceResultException(
+                        result != null && ServiceResult.IsBad(result)
+                            ? result
+                            : new ServiceResult(
+                                StatusCodes.BadSecurityChecksFailed,
+                                new LocalizedText("The rediscovered endpoint was not accepted.")));
+                }
             }
 
             endpoint.Update(candidate.Description);
@@ -2401,14 +2425,7 @@ namespace Opc.Ua.Client
         {
             if (endpoint != null)
             {
-                ServiceResultException? securityConfigurationMismatch =
-                    GetSecurityConfigurationMismatch(
-                        session.ConfiguredEndpoint.Description,
-                        endpoint.Description);
-                if (securityConfigurationMismatch != null)
-                {
-                    throw securityConfigurationMismatch;
-                }
+                ThrowIfSecurityConfigurationMismatch(session.ConfiguredEndpoint.Description, endpoint.Description);
             }
 
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
@@ -2431,14 +2448,7 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
-            ServiceResultException? securityConfigurationMismatch =
-                GetSecurityConfigurationMismatch(
-                    session.ConfiguredEndpoint.Description,
-                    endpoint.Description);
-            if (securityConfigurationMismatch != null)
-            {
-                throw securityConfigurationMismatch;
-            }
+            ThrowIfSecurityConfigurationMismatch(session.ConfiguredEndpoint.Description, endpoint.Description);
 
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try

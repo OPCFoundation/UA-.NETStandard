@@ -133,8 +133,8 @@ namespace Opc.Ua.Client
         /// <see cref="ManagedSession.ValidateRediscoveredEndpoint"/>. When not
         /// set, the dependency-injection path uses a
         /// <see cref="RediscoveredEndpointValidator"/> registered in the
-        /// service collection. Default: <c>null</c> (the rediscovered endpoint
-        /// is used as it is).
+        /// service collection. Default: <c>null</c> (only the security mode
+        /// and policy of the rediscovered endpoint are checked).
         /// </summary>
         public RediscoveredEndpointValidator? ValidateRediscoveredEndpoint { get; init; }
 

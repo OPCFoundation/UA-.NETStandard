@@ -39,9 +39,10 @@ namespace Opc.Ua.Client.Tests
     /// <summary>
     /// A reconnect that is rejected with a status requiring an endpoint refresh
     /// rediscovers the endpoint and replaces the one in use. The rediscovered
-    /// endpoint was applied without a chance to validate it, so a discovery
-    /// answer that, for example, downgrades the security mode was taken over
-    /// as it was.
+    /// endpoint must keep the security mode and policy of the endpoint in use,
+    /// and an application validator can reject it, for example when it
+    /// replaces a pinned server certificate. Neither check may publish a
+    /// rediscovered endpoint that was not accepted.
     /// </summary>
     [TestFixture]
     [Category("ManagedSession")]
@@ -49,6 +50,8 @@ namespace Opc.Ua.Client.Tests
     public sealed class ManagedSessionRediscoveryValidationTests
     {
         private const string kEndpointUrl = "opc.tcp://localhost:62541/Quickstarts/ReferenceServer";
+        private static readonly ByteString s_approvedCertificate = ByteString.From([1, 1, 1]);
+        private static readonly ByteString s_renewedCertificate = ByteString.From([4, 4, 4]);
 
         [Test]
         public void ValidatorCanBeSetOnAManagedSession()
@@ -71,27 +74,22 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     (current, rediscovered, _) =>
                     {
                         seenCurrent = current;
                         seenRediscovered = rediscovered;
                         return new ValueTask<ServiceResult>(
-                            new ServiceResult(StatusCodes.BadSecurityModeRejected));
+                            new ServiceResult(StatusCodes.BadCertificateInvalid));
                     },
                     CancellationToken.None));
 
             Assert.Multiple(() =>
             {
-                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
-                Assert.That(seenCurrent?.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-                Assert.That(seenRediscovered?.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
-                Assert.That(
-                    endpoint.Description.SecurityMode,
-                    Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
-                Assert.That(
-                    endpoint.Description.SecurityPolicyUri,
-                    Is.EqualTo(SecurityPolicies.Basic256Sha256));
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(seenCurrent?.ServerCertificate, Is.EqualTo(s_approvedCertificate));
+                Assert.That(seenRediscovered?.ServerCertificate, Is.EqualTo(s_renewedCertificate));
+                AssertEndpointInUseKept(endpoint);
             });
         }
 
@@ -103,7 +101,7 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                (target, _) => DowngradeAsync(target),
+                (target, _) => RenewCertificateAsync(target),
                 (_, _, _) =>
                 {
                     calls++;
@@ -114,7 +112,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(calls, Is.EqualTo(1));
-                Assert.That(endpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+                Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(s_renewedCertificate));
             });
         }
 
@@ -125,11 +123,11 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                (target, _) => DowngradeAsync(target),
+                (target, _) => RenewCertificateAsync(target),
                 null,
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(endpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+            Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(s_renewedCertificate));
         }
 
         [Test]
@@ -140,7 +138,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>(
                         new ServiceResult(StatusCodes.UncertainNoCommunicationLastUsableValue)),
                     CancellationToken.None));
@@ -160,7 +158,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>((ServiceResult)null!),
                     CancellationToken.None));
 
@@ -179,7 +177,7 @@ namespace Opc.Ua.Client.Tests
             System.InvalidOperationException exception = Assert.ThrowsAsync<System.InvalidOperationException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => throw new System.InvalidOperationException("validator failed"),
                     CancellationToken.None));
 
@@ -199,7 +197,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     async (_, _, ct) =>
                     {
                         await cancellation.CancelAsync().ConfigureAwait(false);
@@ -220,7 +218,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    (target, _) => DowngradeAsync(target),
+                    (target, _) => RenewCertificateAsync(target),
                     async (_, _, _) =>
                     {
                         await cancellation.CancelAsync().ConfigureAwait(false);
@@ -242,7 +240,7 @@ namespace Opc.Ua.Client.Tests
                     endpoint,
                     async (target, _) =>
                     {
-                        await DowngradeAsync(target).ConfigureAwait(false);
+                        await RenewCertificateAsync(target).ConfigureAwait(false);
                         throw new ServiceResultException(StatusCodes.BadCommunicationError);
                     },
                     (_, _, _) =>
@@ -272,7 +270,7 @@ namespace Opc.Ua.Client.Tests
                 (target, _) =>
                 {
                     refreshed = target;
-                    return DowngradeAsync(target);
+                    return RenewCertificateAsync(target);
                 },
                 async (_, _, _) =>
                 {
@@ -293,7 +291,76 @@ namespace Opc.Ua.Client.Tests
             release.TrySetResult(true);
             await refresh.ConfigureAwait(false);
 
-            Assert.That(endpoint.Description.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+            Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(s_renewedCertificate));
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ChangedSecurityModeIsRejectedBeforeTheValidator(bool withValidator)
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            int calls = 0;
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    (target, _) => ChangeSecurityAsync(
+                        target,
+                        MessageSecurityMode.Sign,
+                        SecurityPolicies.Basic256Sha256),
+                    withValidator ? CountingValidator(() => calls++) : null,
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+                Assert.That(calls, Is.Zero);
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ChangedSecurityPolicyIsRejectedBeforeTheValidator(bool withValidator)
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            int calls = 0;
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    (target, _) => ChangeSecurityAsync(
+                        target,
+                        MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicies.Aes256_Sha256_RsaPss),
+                    withValidator ? CountingValidator(() => calls++) : null,
+                    CancellationToken.None));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+                Assert.That(calls, Is.Zero);
+                AssertEndpointInUseKept(endpoint);
+            });
+        }
+
+        [Test]
+        public void FailedRefreshWithoutAValidatorKeepsTheEndpointInUse()
+        {
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+
+            Assert.ThrowsAsync<ServiceResultException>(
+                () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
+                    endpoint,
+                    async (target, _) =>
+                    {
+                        await RenewCertificateAsync(target).ConfigureAwait(false);
+                        throw new ServiceResultException(StatusCodes.BadCommunicationError);
+                    },
+                    null,
+                    CancellationToken.None));
+
+            AssertEndpointInUseKept(endpoint);
         }
 
         [TestCase(false)]
@@ -414,6 +481,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(
                 endpoint.Description.SecurityPolicyUri,
                 Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(s_approvedCertificate));
         }
 
         private static ConfiguredEndpoint CreateEndpoint()
@@ -424,18 +492,34 @@ namespace Opc.Ua.Client.Tests
                 {
                     EndpointUrl = kEndpointUrl,
                     SecurityMode = MessageSecurityMode.SignAndEncrypt,
-                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                    ServerCertificate = s_approvedCertificate
                 });
         }
 
-        private static Task DowngradeAsync(ConfiguredEndpoint endpoint)
+        private static RediscoveredEndpointValidator CountingValidator(System.Action onCall)
         {
-            endpoint.Update(new EndpointDescription
+            return (_, _, _) =>
             {
-                EndpointUrl = kEndpointUrl,
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None
-            });
+                onCall();
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+        }
+
+        private static Task RenewCertificateAsync(ConfiguredEndpoint endpoint)
+        {
+            return ReplaceCertificateAsync(endpoint, s_renewedCertificate);
+        }
+
+        private static Task ChangeSecurityAsync(
+            ConfiguredEndpoint endpoint,
+            MessageSecurityMode securityMode,
+            string securityPolicyUri)
+        {
+            EndpointDescription description = CoreUtils.Clone(endpoint.Description)!;
+            description.SecurityMode = securityMode;
+            description.SecurityPolicyUri = securityPolicyUri;
+            endpoint.Update(description);
             return Task.CompletedTask;
         }
 

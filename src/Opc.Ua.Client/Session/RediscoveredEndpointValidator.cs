@@ -34,7 +34,9 @@ namespace Opc.Ua.Client
 {
     /// <summary>
     /// Accepts or rejects the endpoint a <see cref="ManagedSession"/>
-    /// rediscovered while it reconnects.
+    /// rediscovered while it reconnects. The session has already checked that
+    /// the rediscovered endpoint keeps the security mode and policy of the
+    /// endpoint in use; the validator adds application checks on top.
     /// </summary>
     /// <param name="current">The endpoint the session used before the
     /// rediscovery.</param>
@@ -55,27 +57,22 @@ namespace Opc.Ua.Client
     /// rediscovered endpoint" section of docs/Sessions.md.
     /// </remarks>
     /// <example>
-    /// Reject a rediscovered endpoint that weakens the security of the
-    /// session:
+    /// Reject a rediscovered endpoint whose server certificate differs from
+    /// the pinned one:
     /// <code><![CDATA[
-    /// RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
+    /// RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
     /// {
-    ///     if (rediscovered.SecurityMode < current.SecurityMode)
+    ///     if (rediscovered.ServerCertificate != current.ServerCertificate)
     ///     {
     ///         return new ValueTask<ServiceResult>(
-    ///             new ServiceResult(StatusCodes.BadSecurityModeRejected));
-    ///     }
-    ///     if (rediscovered.SecurityPolicyUri != current.SecurityPolicyUri)
-    ///     {
-    ///         return new ValueTask<ServiceResult>(
-    ///             new ServiceResult(StatusCodes.BadSecurityPolicyRejected));
+    ///             new ServiceResult(StatusCodes.BadCertificateInvalid));
     ///     }
     ///     return new ValueTask<ServiceResult>(ServiceResult.Good);
     /// };
     ///
     /// ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     ///     .UseEndpoint(endpoint)
-    ///     .WithRediscoveredEndpointValidator(keepSecurity)
+    ///     .WithRediscoveredEndpointValidator(pinCertificate)
     ///     .ConnectAsync(ct);
     /// ]]></code>
     /// </example>
