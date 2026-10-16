@@ -432,6 +432,108 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(attemptedEndpoints, Is.EqualTo(new[] { primaryEndpoint, compatibleEndpoint }));
         }
 
+        [Test]
+        public async Task SessionsSharingAnEndpointValidateRediscoveryAgainstTheirOwnAcceptedEndpointAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ByteString pinned = ByteString.From([1, 1, 1]);
+            ByteString replaced = ByteString.From([2, 2, 2]);
+            ConfiguredEndpoint sharedEndpoint = CreateEndpoint();
+            sharedEndpoint.Description.ServerCertificate = pinned;
+
+            var recreatedA = new List<ConfiguredEndpoint>();
+            var recreatedB = new List<ConfiguredEndpoint>();
+            using Session innerA = CreateRecordingInnerSession(configuration, sharedEndpoint, recreatedA);
+            using Session innerB = CreateRecordingInnerSession(configuration, sharedEndpoint, recreatedB);
+            using Client.ManagedSession managedA = CreateManagedSessionWithInner(
+                configuration, sharedEndpoint, innerA, telemetry);
+            using Client.ManagedSession managedB = CreateManagedSessionWithInner(
+                configuration, sharedEndpoint, innerB, telemetry);
+
+            // Session A pins the certificate it accepted, session B accepts any.
+            var currentSeenByA = new List<ByteString>();
+            managedA.ValidateRediscoveredEndpoint = (current, rediscovered, _) =>
+            {
+                currentSeenByA.Add(current.ServerCertificate);
+                return new ValueTask<ServiceResult>(
+                    rediscovered.ServerCertificate == current.ServerCertificate
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadCertificateInvalid));
+            };
+            managedB.ValidateRediscoveredEndpoint = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+
+            // B accepts the replaced certificate and publishes it to the shared endpoint.
+            ServiceResultException? recreateB = null;
+            try
+            {
+                await managedB.RefreshEndpointAndRecreateAsync(
+                    innerB,
+                    new RetryBudget(TimeSpan.FromSeconds(30)),
+                    (target, _) => SetServerCertificateAsync(target, replaced),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                recreateB = exception;
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(recreateB?.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(sharedEndpoint.Description.ServerCertificate, Is.EqualTo(replaced));
+                Assert.That(recreatedB, Has.Count.EqualTo(1));
+                Assert.That(recreatedB[0], Is.Not.SameAs(sharedEndpoint));
+                Assert.That(recreatedB[0].Description.ServerCertificate, Is.EqualTo(replaced));
+            });
+
+            // A validates against the certificate it accepted, not the one B published.
+            ServiceResultException? rejectedByA = null;
+            try
+            {
+                await managedA.RefreshEndpointAndRecreateAsync(
+                    innerA,
+                    new RetryBudget(TimeSpan.FromSeconds(30)),
+                    (target, _) => SetServerCertificateAsync(target, replaced),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                rejectedByA = exception;
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(rejectedByA?.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(currentSeenByA, Is.EqualTo(new[] { pinned }));
+                Assert.That(recreatedA, Is.Empty);
+            });
+
+            // A accepts the pinned certificate and recreates against exactly that endpoint.
+            ServiceResultException? recreateA = null;
+            try
+            {
+                await managedA.RefreshEndpointAndRecreateAsync(
+                    innerA,
+                    new RetryBudget(TimeSpan.FromSeconds(30)),
+                    (target, _) => SetServerCertificateAsync(target, pinned),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                recreateA = exception;
+            }
+            await SetServerCertificateAsync(sharedEndpoint, replaced).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(recreateA?.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(currentSeenByA, Is.EqualTo(new[] { pinned, pinned }));
+                Assert.That(recreatedA, Has.Count.EqualTo(1));
+                Assert.That(recreatedA[0], Is.Not.SameAs(sharedEndpoint));
+                Assert.That(recreatedA[0].Description.ServerCertificate, Is.EqualTo(pinned));
+                Assert.That(innerA.ConfiguredEndpoint, Is.SameAs(recreatedA[0]));
+                Assert.That(innerA.ConfiguredEndpoint.Description.ServerCertificate, Is.EqualTo(pinned));
+            });
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task HandleReconnectAsyncSkipsAlternateWithDifferentSecurityPolicyAsync(
@@ -1724,6 +1826,48 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return task!;
         }
 #pragma warning restore IDE0051, RCS1213
+
+        /// <summary>
+        /// Creates an inner session whose in-place recreate records the
+        /// endpoint it builds the channel for and then fails.
+        /// </summary>
+        private static Session CreateRecordingInnerSession(
+            ApplicationConfiguration configuration,
+            ConfiguredEndpoint endpoint,
+            List<ConfiguredEndpoint> recreatedEndpoints)
+        {
+            IServiceMessageContext messageContext = configuration.CreateMessageContext();
+            var managedChannel = new Mock<IManagedTransportChannel>();
+            managedChannel.SetupGet(channel => channel.MessageContext).Returns(messageContext);
+            managedChannel.SetupGet(channel => channel.State).Returns(ChannelState.Closed);
+
+            var channelManager = new Mock<IClientChannelManager>();
+            channelManager.Setup(manager => manager.GetAsync(
+                    It.IsAny<ConfiguredEndpoint>(),
+                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                    It.IsAny<ITransportWaitingConnection>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
+                    ITransportWaitingConnection?, CancellationToken>(
+                    (target, _, _, _) => recreatedEndpoints.Add(target))
+                .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError));
+
+            var session = new Session(
+                managedChannel.Object,
+                configuration,
+                endpoint,
+                engineFactory: DefaultSubscriptionEngineFactory.Instance);
+            session.BindManagedChannel(channelManager.Object, managedChannel.Object);
+            return session;
+        }
+
+        private static Task SetServerCertificateAsync(ConfiguredEndpoint endpoint, ByteString certificate)
+        {
+            EndpointDescription description = CoreUtils.Clone(endpoint.Description)!;
+            description.ServerCertificate = certificate;
+            endpoint.Update(description);
+            return Task.CompletedTask;
+        }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for tests that inject an already-created inner Session.
         private static Client.ManagedSession CreateManagedSessionWithInner(

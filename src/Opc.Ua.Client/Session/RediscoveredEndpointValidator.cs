@@ -38,8 +38,10 @@ namespace Opc.Ua.Client
     /// the rediscovered endpoint keeps the security mode and policy of the
     /// endpoint in use; the validator adds application checks on top.
     /// </summary>
-    /// <param name="current">The endpoint the session used before the
-    /// rediscovery.</param>
+    /// <param name="current">The endpoint this session last accepted: the
+    /// endpoint it connected or failed over to, or the last rediscovered
+    /// endpoint it accepted. Endpoints that other sessions sharing the same
+    /// <see cref="ConfiguredEndpoint"/> published are not used.</param>
     /// <param name="rediscovered">The endpoint the server's discovery endpoint
     /// returned, which the session would use from now on.</param>
     /// <param name="ct">The cancellation token.</param>

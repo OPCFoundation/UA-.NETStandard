@@ -477,6 +477,14 @@ cancellation keeps the endpoint in use and fails the reconnect attempt, which
 the reconnect policy then retries. A Bad validator result is reported as it
 is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
 
+Both steps compare against the endpoint the session itself last accepted: the
+endpoint it connected or failed over to, or the last rediscovered endpoint it
+accepted. An accepted endpoint is still published to the shared
+`ConfiguredEndpoint`, but another session sharing it never validates against
+that publication. The session that accepted the endpoint is recreated against
+exactly the endpoint it validated, so a later publication by another session
+cannot replace it.
+
 ```csharp
 RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
 {
