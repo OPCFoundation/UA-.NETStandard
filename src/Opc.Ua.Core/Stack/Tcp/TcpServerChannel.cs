@@ -1852,11 +1852,15 @@ namespace Opc.Ua.Bindings
 
             if (TrySendResponseWithoutGate(requestId, response))
             {
+                CttDiag.Log("TX ch=" + ChannelId + " req=" + requestId + " " + response.GetType().Name +
+                    " h=" + response.ResponseHeader?.RequestHandle + " nogate async");
                 return false;
             }
 
             using (await Gate.EnterAsync().ConfigureAwait(false))
             {
+                CttDiag.Log("TX ch=" + ChannelId + " req=" + requestId + " " + response.GetType().Name +
+                    " h=" + response.ResponseHeader?.RequestHandle + " gate async state=" + State);
                 return SendResponseCore(requestId, response);
             }
         }
