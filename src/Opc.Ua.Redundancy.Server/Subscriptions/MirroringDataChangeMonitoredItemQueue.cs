@@ -118,9 +118,18 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && !m_aborted)
+            if (disposing)
             {
-                m_sink.RemoveQueue(MonitoredItemId);
+                if (m_restoring || m_aborted)
+                {
+                    // a queue released before its restore was committed does not own the
+                    // stored queue: the stored contents stay for a retry of the restore.
+                    AbortRestore();
+                }
+                else
+                {
+                    m_sink.RemoveQueue(MonitoredItemId);
+                }
             }
             base.Dispose(disposing);
         }

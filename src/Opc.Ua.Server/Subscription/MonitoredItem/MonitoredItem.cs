@@ -2811,10 +2811,7 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void CommitQueueRestore()
         {
-            foreach (IRestorableMonitoredItemQueue queue in GetRestorableQueues())
-            {
-                queue.CommitRestore();
-            }
+            ForEachRestorableQueue(static queue => queue.CommitRestore());
         }
 
         /// <summary>
@@ -2825,13 +2822,14 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void AbortQueueRestore()
         {
-            foreach (IRestorableMonitoredItemQueue queue in GetRestorableQueues())
-            {
-                queue.AbortRestore();
-            }
+            ForEachRestorableQueue(static queue => queue.AbortRestore());
         }
 
-        private List<IRestorableMonitoredItemQueue> GetRestorableQueues()
+        /// <summary>
+        /// Applies the action to each restorable queue of the item while holding the
+        /// item lock, so that it is serialized with the changes of the queues.
+        /// </summary>
+        private void ForEachRestorableQueue(Action<IRestorableMonitoredItemQueue> action)
         {
             var queues = new List<IRestorableMonitoredItemQueue>(4);
             lock (m_lock)
@@ -2840,8 +2838,11 @@ namespace Opc.Ua.Server
                 AddRestorableQueue(queues, m_eventQueueHandler?.RestorableQueue);
                 AddRestorableQueue(queues, m_restoredDataChangeQueue as IRestorableMonitoredItemQueue);
                 AddRestorableQueue(queues, m_restoredEventQueue as IRestorableMonitoredItemQueue);
+                foreach (IRestorableMonitoredItemQueue queue in queues)
+                {
+                    action(queue);
+                }
             }
-            return queues;
         }
 
         private static void AddRestorableQueue(

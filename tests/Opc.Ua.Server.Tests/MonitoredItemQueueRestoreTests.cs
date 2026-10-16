@@ -281,6 +281,43 @@ namespace Opc.Ua.Server.Tests
                 Has.Some.Contains("Failed to pre-hydrate queue for monitored item with id 3"));
         }
 
+        /// <summary>
+        /// Verifies that the commit of a restored queue is serialized with the values the item queues, so the
+        /// storage ends with the newest value.
+        /// </summary>
+        [Test]
+        public async Task CommitOfARestoredQueueIsSerializedWithQueuedValuesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            StoredMonitoredItem stored = CreateStoredItem();
+            var queue = new GatedRestorableQueue(stored.Id, telemetry);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                stored);
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+
+            Task commit = Task.Run(item.CommitQueueRestore);
+            Assert.That(queue.CommitStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+            Task enqueue = Task.Run(() => item.QueueValue(new DataValue(Variant.From(3)), ServiceResult.Good));
+            Task first = await Task.WhenAny(enqueue, Task.Delay(500)).ConfigureAwait(false);
+            queue.ReleaseCommit();
+            await Task.WhenAll(commit, enqueue).ConfigureAwait(false);
+
+            Assert.That(first, Is.Not.SameAs(enqueue), "the value is queued once the commit completed");
+            Assert.That(queue.Stored, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
+            Assert.That(queue.Stored[^1], Is.EqualTo(3), "the storage ends with the newest value");
+        }
+
         private static StoredMonitoredItem StoreItemWithPendingHistoryFailure(
             IServerInternal server,
             uint queueSize,
@@ -477,6 +514,110 @@ namespace Opc.Ua.Server.Tests
             }
 
             private readonly ConcurrentBag<string> m_messages;
+        }
+
+        /// <summary>
+        /// A restorable queue that writes its values to a simulated storage, and whose commit waits until the
+        /// test releases it after it captured the values to write.
+        /// </summary>
+        private sealed class GatedRestorableQueue : DataChangeMonitoredItemQueue, IRestorableMonitoredItemQueue
+        {
+            public GatedRestorableQueue(uint monitoredItemId, ITelemetryContext telemetry)
+                : base(false, monitoredItemId, telemetry)
+            {
+            }
+
+            public ManualResetEventSlim CommitStarted { get; } = new();
+
+            public int[] Values
+            {
+                get
+                {
+                    lock (m_contents)
+                    {
+                        return [.. m_contents];
+                    }
+                }
+            }
+
+            public int[] Stored { get; private set; } = [];
+
+            public override void Enqueue(DataValue value, ServiceResult error)
+            {
+                base.Enqueue(value, error);
+                Change(values => values.Add(ValueOf(value)));
+            }
+
+            public override void OverwriteLastValue(DataValue value, ServiceResult error)
+            {
+                base.OverwriteLastValue(value, error);
+                Change(values => values[^1] = ValueOf(value));
+            }
+
+            public override bool Dequeue(out DataValue value, out ServiceResult error)
+            {
+                bool dequeued = base.Dequeue(out value, out error);
+                if (dequeued)
+                {
+                    Change(values => values.RemoveAt(0));
+                }
+                return dequeued;
+            }
+
+            public void BeginRestore()
+            {
+                m_staged = true;
+            }
+
+            public void CommitRestore()
+            {
+                m_staged = false;
+                int[] values = Values;
+                CommitStarted.Set();
+                m_release.Wait();
+                Stored = values;
+            }
+
+            public void AbortRestore()
+            {
+                m_staged = true;
+            }
+
+            public void ReleaseCommit()
+            {
+                m_release.Set();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    CommitStarted.Dispose();
+                    m_release.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private void Change(Action<List<int>> change)
+            {
+                lock (m_contents)
+                {
+                    change(m_contents);
+                    if (!m_staged)
+                    {
+                        Stored = [.. m_contents];
+                    }
+                }
+            }
+
+            private static int ValueOf(DataValue value)
+            {
+                return value.WrappedValue.TryGetValue(out int result) ? result : 0;
+            }
+
+            private readonly List<int> m_contents = [];
+            private readonly ManualResetEventSlim m_release = new();
+            private volatile bool m_staged;
         }
 
         private sealed class NoopDisposable : IDisposable

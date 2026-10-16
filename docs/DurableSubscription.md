@@ -68,8 +68,11 @@ Typically the following porting steps are necessary:
   queue writes its current contents once and resumes writing. When the restore
   fails or is cancelled the server calls `AbortRestore` and disposes the queue;
   the queue must drop writes it has not completed, never write again, and keep
-  its stored contents on dispose, because the retry reads them again. The
-  mirrored queues of `SharedKeyValueMonitoredItemQueueFactory` implement it.
+  its stored contents on dispose, because the retry reads them again. A queue
+  disposed after `BeginRestore` but before `CommitRestore`, e.g. because a node
+  manager failed to create its monitored item, must keep its stored contents as
+  well. The mirrored queues of `SharedKeyValueMonitoredItemQueueFactory`
+  implement it.
   An override of `SubscriptionManager.RestoreSubscriptionsAsync` that does not
   call the base implementation leaves these queues staged.
 - If you implement a custom `INodeManager` or override

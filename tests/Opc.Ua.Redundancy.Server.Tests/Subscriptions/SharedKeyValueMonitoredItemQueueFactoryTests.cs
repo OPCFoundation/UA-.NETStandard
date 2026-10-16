@@ -333,6 +333,26 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposingAStagedQueueKeepsTheStoredQueueAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            // The queue is released before the restore was committed or aborted.
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
         private static async Task<IRestorableMonitoredItemQueue> StoreAndRestoreAsync(
             SharedKeyValueMonitoredItemQueueFactory factory,
             bool eventQueue)

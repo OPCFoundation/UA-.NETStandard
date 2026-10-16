@@ -56,6 +56,12 @@ namespace Opc.Ua.Server
     /// <see cref="BeginRestore"/> was not called on.
     /// </para>
     /// <para>
+    /// A queue that is disposed after <see cref="BeginRestore"/> and before
+    /// <see cref="CommitRestore"/> or <see cref="AbortRestore"/>, e.g. because the
+    /// creation of its monitored item failed, behaves as if
+    /// <see cref="AbortRestore"/> was called: disposing it keeps the stored contents.
+    /// </para>
+    /// <para>
     /// A queue the server does not call <see cref="BeginRestore"/> on keeps writing to
     /// its storage as usual.
     /// </para>

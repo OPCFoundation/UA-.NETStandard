@@ -66,8 +66,8 @@ namespace Opc.Ua.Redundancy.Server
         void RemoveQueue(uint monitoredItemId);
 
         /// <summary>
-        /// Drops the snapshots of the monitored item that are not persisted yet, without removing
-        /// its mirrored state (e.g. when the restore that created the queue was aborted).
+        /// Drops the snapshots and the removal of the monitored item that are not persisted yet, without
+        /// removing its mirrored state (e.g. when the restore that created the queue was aborted).
         /// </summary>
         /// <param name="monitoredItemId">The owning monitored-item id.</param>
         void DiscardPendingQueue(uint monitoredItemId);
@@ -321,6 +321,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 m_pendingDataChange.Remove(monitoredItemId);
                 m_pendingEvent.Remove(monitoredItemId);
+                m_pendingRemovals.Remove(monitoredItemId);
             }
         }
 

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -442,6 +443,55 @@ namespace Opc.Ua.Server.Tests
             AssertMonitoredItems(fixture, 43, 1003);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task FailedCreationOfARestoredItemKeepsItsMirroredQueueAsync(bool asynchronous)
+        {
+            using var queues = new MirroredQueues();
+            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            ICreationFailingNodeManager? owner = null;
+            using var fixture = new Fixture(
+                store =>
+                {
+                    store
+                        .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(() => new RestoreSubscriptionResult(
+                            true,
+                            [CreateStored(42, CreateStoredOwnedDataItem(1002, 42))]));
+                    queues.Serve(store);
+                },
+                createNodeManager: server =>
+                {
+                    if (asynchronous)
+                    {
+                        var manager = new AsyncCreationFailingNodeManager(server) { FailCreationOf = 1002 };
+                        owner = manager;
+                        return manager;
+                    }
+                    var synchronous = new SyncCreationFailingNodeManager(server) { FailCreationOf = 1002 };
+                    owner = synchronous;
+                    return synchronous.ToAsyncNodeManager();
+                });
+
+            // The node manager releases the item, and with it the restored queue, when
+            // the creation of the item fails.
+            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+            Assert.That(exception.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
+            AssertNothingRestored(fixture);
+            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+
+            owner!.FailCreationOf = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 42, 1002);
+            Assert.That(queues.DataChangeReads, Has.Count.EqualTo(2));
+            Assert.That(
+                queues.DataChangeReads[1].Values,
+                Is.EqualTo(new[] { new Variant(1), new Variant(2) }),
+                "the retry restores every stored value, in order");
+        }
+
         [Test]
         public async Task RestoreCancelledWhileSubscribingAnEventItemReleasesItAsync()
         {
@@ -507,6 +557,13 @@ namespace Opc.Ua.Server.Tests
                 ParsedIndexRange = NumericRange.Null,
                 LastValue = new DataValue(new Variant(0))
             };
+        }
+
+        private static StoredMonitoredItem CreateStoredOwnedDataItem(uint id, uint subscriptionId)
+        {
+            StoredMonitoredItem item = CreateStoredDataItem(id, subscriptionId, queueSize: 10);
+            item.NodeId = CreationFailingVariable.NodeId;
+            return item;
         }
 
         private static StoredMonitoredItem CreateStoredEventItem(uint id, uint subscriptionId)
@@ -609,7 +666,8 @@ namespace Opc.Ua.Server.Tests
             public Fixture(
                 Action<Mock<ISubscriptionStore>> setupStore,
                 uint failingSubscriptionId = 0,
-                IAsyncNodeManager? nodeManager = null)
+                IAsyncNodeManager? nodeManager = null,
+                Func<IServerInternal, IAsyncNodeManager>? createNodeManager = null)
             {
                 var clock = new FakeTimeProvider();
                 Mock<IServerInternal> server = DeterministicServerMock.Create(
@@ -663,7 +721,9 @@ namespace Opc.Ua.Server.Tests
                     server.Object,
                     configuration,
                     null,
-                    nodeManager == null ? [] : [nodeManager],
+                    (nodeManager ?? createNodeManager?.Invoke(server.Object)) is IAsyncNodeManager owner
+                        ? [owner]
+                        : [],
                     null);
                 server.SetupGet(value => value.NodeManager).Returns(m_master);
                 Events = new EventManager(server.Object, 100, 100);
@@ -802,6 +862,93 @@ namespace Opc.Ua.Server.Tests
                 () => new InvalidOperationException("restore failed");
 
             private readonly Mock<IAsyncNodeManager> m_mock;
+        }
+
+        /// <summary>
+        /// The variable owned by the node managers that can fail the creation of the
+        /// monitored items they restore for it.
+        /// </summary>
+        private static class CreationFailingVariable
+        {
+            public static NodeId NodeId { get; } = new NodeId("RestoreVariable", 1);
+
+            public static BaseDataVariableState Create()
+            {
+                return new BaseDataVariableState(null)
+                {
+                    NodeId = NodeId,
+                    BrowseName = new QualifiedName("RestoreVariable", 1),
+                    DataType = DataTypeIds.Int32,
+                    ValueRank = ValueRanks.Scalar,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    Value = 1
+                };
+            }
+
+            public static ApplicationConfiguration Configuration => new()
+            {
+                ServerConfiguration = new ServerConfiguration { MaxNotificationQueueSize = 100 }
+            };
+        }
+
+        private interface ICreationFailingNodeManager
+        {
+            uint FailCreationOf { get; set; }
+        }
+
+        private sealed class AsyncCreationFailingNodeManager : AsyncCustomNodeManager, ICreationFailingNodeManager
+        {
+            public AsyncCreationFailingNodeManager(IServerInternal server)
+                : base(
+                    server,
+                    CreationFailingVariable.Configuration,
+                    NullLogger.Instance,
+                    DeterministicServerMock.TestNamespaceUri)
+            {
+                AddPredefinedNodeSynchronously(CreationFailingVariable.Create());
+            }
+
+            public uint FailCreationOf { get; set; }
+
+            protected override void OnMonitoredItemCreated(
+                ServerSystemContext context,
+                NodeHandle handle,
+                ISampledDataChangeMonitoredItem monitoredItem)
+            {
+                if (monitoredItem.Id == FailCreationOf)
+                {
+                    throw new InvalidOperationException("creation failed");
+                }
+                base.OnMonitoredItemCreated(context, handle, monitoredItem);
+            }
+        }
+
+        private sealed class SyncCreationFailingNodeManager : CustomNodeManager2, ICreationFailingNodeManager
+        {
+            public SyncCreationFailingNodeManager(IServerInternal server)
+                : base(
+                    server,
+                    CreationFailingVariable.Configuration,
+                    NullLogger.Instance,
+                    DeterministicServerMock.TestNamespaceUri)
+            {
+                AddPredefinedNode(SystemContext, CreationFailingVariable.Create());
+            }
+
+            public uint FailCreationOf { get; set; }
+
+            protected override void OnMonitoredItemCreated(
+                ServerSystemContext context,
+                NodeHandle handle,
+                ISampledDataChangeMonitoredItem monitoredItem)
+            {
+                if (monitoredItem.Id == FailCreationOf)
+                {
+                    throw new InvalidOperationException("creation failed");
+                }
+                base.OnMonitoredItemCreated(context, handle, monitoredItem);
+            }
         }
 
         /// <summary>
