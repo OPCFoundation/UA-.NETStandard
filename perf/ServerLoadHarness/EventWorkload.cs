@@ -139,7 +139,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         /// </summary>
         public int Rate { get; }
 
-        public override double Operations => Interlocked.Read(ref m_events);
+        public override double Operations => m_received;
 
         public override string OperationName => "event notification";
 
@@ -179,6 +179,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public override void OnServerReport(string report)
         {
+            // notifications keep arriving after the window: report the count at its end
+            m_received = Interlocked.Read(ref m_events);
             foreach (string part in report.Split(' '))
             {
                 if (part.StartsWith("events=", StringComparison.Ordinal))
@@ -190,7 +192,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         public override string Report(double seconds)
         {
-            long events = Interlocked.Read(ref m_events);
+            long events = m_received;
             long expected = m_generated * m_sessions.Length * m_subscriptions;
             double ratio = expected == 0 ? 0 : (double)events / expected;
             return FormattableString.Invariant(
@@ -261,5 +263,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly LatencyRecorder m_latency = new();
         private long m_events;
         private long m_generated;
+        private long m_received;
     }
 }

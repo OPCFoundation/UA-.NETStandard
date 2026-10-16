@@ -428,13 +428,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             string clientProcess = ProcessStats.Capture().Delta(clientMark);
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
+            // freeze the client counts at the end of the server window
+            workload.OnServerReport(report);
+            double operations = workload.Operations;
+            (double Count, string Name)? secondary = workload.Secondary;
             double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
                 window.Elapsed.TotalSeconds;
             if (workload is EventWorkload)
             {
                 await server.StandardInput.WriteLineAsync("events stop").ConfigureAwait(false);
             }
-            workload.OnServerReport(report);
             string clientReport = workload.Report(window.Elapsed.TotalSeconds) +
                 FormattableString.Invariant($" clientCpuCores={clientCores:F2}");
             await stop.CancelAsync().ConfigureAwait(false);
@@ -460,20 +463,22 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Append("  client: ").Append(clientReport).Append('\n')
                 .Append("  server: ").Append(report).Append('\n')
                 .Append("  client-process: ").Append(clientProcess).Append('\n');
-            double operations = workload.Operations;
+            (double serverMb, double serverCpuMs) = ParseProcessReport(report);
             if (operations > 0)
             {
-                (double allocatedMb, double cpuMs) = ParseProcessReport(report);
                 result.Append(
                     CultureInfo.InvariantCulture,
-                    $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
-                if (workload.Secondary is (double count, string name) && count > 0)
-                {
-                    result.Append(
-                        CultureInfo.InvariantCulture,
-                        $"  per-op2: allocB={allocatedMb * 1048576 / count:F0} cpuUs={cpuMs * 1000 / count:F1}  ({name})\n");
-                }
-                (allocatedMb, cpuMs) = ParseProcessReport(clientProcess);
+                    $"  per-op: allocB={serverMb * 1048576 / operations:F0} cpuUs={serverCpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+            }
+            if (secondary is (double secondaryCount, string secondaryName) && secondaryCount > 0)
+            {
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  per-op2: allocB={serverMb * 1048576 / secondaryCount:F0} cpuUs={serverCpuMs * 1000 / secondaryCount:F1}  ({secondaryName})\n");
+            }
+            if (operations > 0)
+            {
+                (double allocatedMb, double cpuMs) = ParseProcessReport(clientProcess);
                 result.Append(
                     CultureInfo.InvariantCulture,
                     $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
@@ -711,7 +716,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public abstract Task SetupAsync();
 
         /// <summary>
-        /// Receives the server report of the window before <see cref="Report"/> is called.
+        /// Receives the server report of the window as soon as it arrives, before
+        /// <see cref="Operations"/>, <see cref="Secondary"/> and <see cref="Report"/> are read;
+        /// workloads that keep counting after the window freeze their counts here.
         /// </summary>
         public virtual void OnServerReport(string report)
         {
@@ -881,12 +888,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             m_writeBatch = writeBatch;
         }
 
-        public override double Operations => Interlocked.Read(ref m_notifications);
+        public override double Operations => m_final.Notifications;
 
         public override string OperationName => "notification";
 
-        public override (double Count, string Name)? Secondary =>
-            (Interlocked.Read(ref m_writtenValues), "written value");
+        public override (double Count, string Name)? Secondary => (m_final.Values, "written value");
 
         /// <summary>
         /// Values per Write request: all written nodes, or slices of <c>--write-batch</c>.
@@ -976,9 +982,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 first = (first + batch) % WrittenNodes;
                 long start = Stopwatch.GetTimestamp();
                 Volatile.Write(ref m_writeTicks[counter & 0xFFFF], start);
+                WriteResponse response;
                 try
                 {
-                    await writer.WriteAsync(null, values, ct).ConfigureAwait(false);
+                    response = await writer.WriteAsync(null, values, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -993,8 +1000,27 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     continue;
                 }
                 m_writeLatency.Record(Stopwatch.GetTimestamp() - start);
+                // only values the server accepted change and notify
+                int written = 0;
+                StatusCode rejected = StatusCodes.BadUnexpectedError;
+                for (int i = 0; i < response.Results.Count; i++)
+                {
+                    if (StatusCode.IsGood(response.Results[i]))
+                    {
+                        written++;
+                    }
+                    else
+                    {
+                        rejected = response.Results[i];
+                    }
+                }
+                if (written < batch && Interlocked.Increment(ref m_writeErrors) < 5)
+                {
+                    Console.WriteLine(FormattableString.Invariant(
+                        $"write error: {batch - written} of {batch} values rejected ({rejected})"));
+                }
                 Interlocked.Increment(ref m_writes);
-                Interlocked.Add(ref m_writtenValues, batch);
+                Interlocked.Add(ref m_writtenValues, written);
             }
         }
 
@@ -1024,20 +1050,30 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Interlocked.Exchange(ref m_notifications, 0);
             Interlocked.Exchange(ref m_writes, 0);
             Interlocked.Exchange(ref m_writtenValues, 0);
+            Interlocked.Exchange(ref m_writeErrors, 0);
+        }
+
+        public override void OnServerReport(string report)
+        {
+            // closed-loop writers keep going: report the counts at the end of the server window
+            m_final = (
+                Interlocked.Read(ref m_notifications),
+                Interlocked.Read(ref m_writes),
+                Interlocked.Read(ref m_writtenValues),
+                Interlocked.Read(ref m_writeErrors));
         }
 
         public override string Report(double seconds)
         {
-            long notifications = Interlocked.Read(ref m_notifications);
-            long written = Interlocked.Read(ref m_writtenValues);
+            (long notifications, long writes, long written, long writeErrors) = m_final;
             long expected = written * m_sessions.Length * m_subscriptions;
             double ratio = expected == 0 ? 0 : (double)notifications / expected;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
                 FormattableString.Invariant(
-                $"writes/s={Interlocked.Read(ref m_writes) / seconds:F0} values/s={written / seconds:F0} ") +
+                $"writes/s={writes / seconds:F0} values/s={written / seconds:F0} ") +
                 FormattableString.Invariant(
-                $"writeErrors={Interlocked.Read(ref m_writeErrors)} write latency {m_writeLatency.Percentiles()} ") +
+                $"writeErrors={writeErrors} write latency {m_writeLatency.Percentiles()} ") +
                 FormattableString.Invariant($"write->notify latency {m_latency.Percentiles()}");
         }
 
@@ -1237,5 +1273,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly LatencyRecorder m_writeLatency = new();
         private long m_writtenValues;
         private long m_writeErrors;
+        private (long Notifications, long Writes, long Values, long WriteErrors) m_final;
     }
 }
