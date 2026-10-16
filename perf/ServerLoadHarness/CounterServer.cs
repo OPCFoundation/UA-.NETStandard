@@ -46,9 +46,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     {
         public const string Namespace = "urn:opcfoundation.org:perf:counters";
 
-        public CounterNodeManager(IServerInternal server, ApplicationConfiguration configuration, int count)
-            : base(server, configuration, useSamplingGroups: true, Namespace)
+        public CounterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            int count,
+            string namespaceUri = Namespace,
+            bool lockedCallback = false)
+            : base(server, configuration, useSamplingGroups: true, namespaceUri)
         {
+            m_lockedCallback = lockedCallback;
             m_values = new ulong[count];
             m_marked = new ulong[count];
         }
@@ -81,7 +87,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 node.OnReadValue = (ISystemContext context, NodeState state, NumericRange range,
                     QualifiedName encoding, ref Variant value, ref StatusCode status, ref DateTimeUtc timestamp) =>
                 {
-                    value = new Variant(Interlocked.Increment(ref m_values[index]));
+                    if (m_lockedCallback)
+                    {
+                        // the o6-automation .NET worker increments under the node manager lock
+                        lock (Lock)
+                        {
+                            value = new Variant(++m_values[index]);
+                        }
+                    }
+                    else
+                    {
+                        value = new Variant(Interlocked.Increment(ref m_values[index]));
+                    }
                     status = StatusCodes.Good;
                     timestamp = DateTimeUtc.Now;
                     return ServiceResult.Good;
@@ -131,6 +148,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 $"progressMean={sum / m_values.Length:P2} itemsBelow99={belowTarget}");
         }
 
+        private readonly bool m_lockedCallback;
         private readonly ulong[] m_values;
         private readonly ulong[] m_marked;
         private long m_markTimestamp = Stopwatch.GetTimestamp();
@@ -141,10 +159,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// </summary>
     internal sealed class CounterServer : StandardServer
     {
-        public CounterServer(ITelemetryContext telemetry, int count)
+        public CounterServer(
+            ITelemetryContext telemetry,
+            int count,
+            string namespaceUri = CounterNodeManager.Namespace,
+            bool lockedCallback = false)
             : base(telemetry)
         {
             m_count = count;
+            m_namespaceUri = namespaceUri;
+            m_lockedCallback = lockedCallback;
         }
 
         public CounterNodeManager? Counters { get; private set; }
@@ -153,10 +177,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Counters = new CounterNodeManager(server, configuration, m_count);
+            Counters = new CounterNodeManager(server, configuration, m_count, m_namespaceUri, m_lockedCallback);
             return new MasterNodeManager(server, configuration, null, Counters);
         }
 
         private readonly int m_count;
+        private readonly string m_namespaceUri;
+        private readonly bool m_lockedCallback;
     }
 }
