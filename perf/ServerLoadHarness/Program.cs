@@ -79,16 +79,27 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 if (args[i].StartsWith("--", StringComparison.Ordinal))
                 {
                     string key = args[i][2..];
-                    string value = i + 1 < args.Length && !args[i + 1].StartsWith("--", StringComparison.Ordinal)
+                    // --server-args takes the next argument verbatim, which may start with "--"
+                    string value = i + 1 < args.Length &&
+                        (key == "server-args" || !args[i + 1].StartsWith("--", StringComparison.Ordinal))
                         ? args[++i]
                         : "1";
                     s_args[key] = value;
                 }
             }
             string mode = args.Length > 0 ? args[0] : "run";
-            return mode == "server"
-                ? await RunServerAsync().ConfigureAwait(false)
+            if (mode == "server")
+            {
+                return await RunServerAsync().ConfigureAwait(false);
+            }
+            return NativeWorkerBenchmark.IsScenario(Arg("scenario", "read"))
+                ? await NativeWorkerBenchmark.RunAsync(args).ConfigureAwait(false)
                 : await RunDriverAsync(args).ConfigureAwait(false);
+        }
+
+        internal static bool TryGetArg(string name, out string? value)
+        {
+            return s_args.TryGetValue(name, out value);
         }
 
         internal static string Arg(string name, string defaultValue)
@@ -152,15 +163,19 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int port = ArgInt("port", 62555);
             bool diagnostics = ArgInt("diag", 0) != 0;
             bool auditing = ArgInt("audit", 0) != 0;
-            string pkiRoot = Path.Combine(Path.GetTempPath(), "uaperf-pki-server");
-            string endpointUrl = FormattableString.Invariant($"opc.tcp://localhost:{port}/PerfReferenceServer");
+            // the contract of the o6-automation opcua-benchmarks servers (see NativeWorkerBenchmark)
+            bool contract = ArgInt("contract", 0) != 0;
+            string pkiRoot = Path.Combine(Path.GetTempPath(), contract ? "uaperf-pki-contractserver" : "uaperf-pki-server");
+            string endpointUrl = contract
+                ? FormattableString.Invariant($"opc.tcp://127.0.0.1:{port}")
+                : FormattableString.Invariant($"opc.tcp://localhost:{port}/PerfReferenceServer");
             ArrayOf<CertificateIdentifier> certificates =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
                     "CN=PerfReferenceServer, O=OPC Foundation, DC=localhost",
                     CertificateStoreType.Directory,
                     pkiRoot);
             ApplicationConfiguration config = await application
-                .Build("urn:localhost:UA:PerfReferenceServer", "uri:opcfoundation.org:PerfReferenceServer")
+                .Build(contract ? NativeWorkerBenchmark.ContractServerUri : "urn:localhost:UA:PerfReferenceServer", "uri:opcfoundation.org:PerfReferenceServer")
                 .SetMaxByteStringLength(4 * 1024 * 1024)
                 .SetMaxArrayLength(1024 * 1024)
                 .SetMaxMessageSize(16 * 1024 * 1024)
@@ -180,8 +195,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MaxSubscriptionCount = 20000;
             config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
             config.ServerConfiguration.MaxRequestThreadCount = ArgInt("threads", 200);
-            config.ServerConfiguration.MinRequestThreadCount = 50;
-            // sized for the largest pipeline (sessions x inflight), as the o6 benchmarks do
+            config.ServerConfiguration.MinRequestThreadCount = Math.Min(50, config.ServerConfiguration.MaxRequestThreadCount);
+            // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
             int counters = ArgInt("counters", 0);
             int sampling = ArgInt("sampling", 10);
@@ -206,7 +221,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
 
             using Opc.Ua.Server.StandardServer server = counters > 0
-                ? new CounterServer(telemetry, counters)
+                ? new CounterServer(
+                    telemetry,
+                    counters,
+                    contract ? NativeWorkerBenchmark.ContractServerUri : CounterNodeManager.Namespace,
+                    ArgInt("counter-lock", 0) != 0,
+                    contract && ArgInt("async-node-manager", 1) != 0)
+                : contract
+                ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
                 : new ReferenceServer(telemetry);
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
@@ -222,11 +244,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
                         mark = ProcessStats.Capture();
-                        (server as CounterServer)?.Counters?.Mark();
+                        (server as CounterServer)?.Counters.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
-                        string counterReport = (server as CounterServer)?.Counters?.Report(sampling) ?? string.Empty;
+                        string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
                         Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
                         break;
                     case "quit":
@@ -246,27 +268,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
             string security = Arg("security", "none");
 
-            var startInfo = new ProcessStartInfo(
-                Environment.ProcessPath!,
+            (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"))
-            {
-                RedirectStandardInput = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-            foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())
-            {
-                string name = (string)variable.Key;
-                if (name.StartsWith("SERVER_", StringComparison.Ordinal))
-                {
-                    startInfo.Environment[name[7..]] = (string?)variable.Value;
-                }
-            }
-
-            using Process server = Process.Start(startInfo)!;
-            using var serverLines = new BlockingCollection<string>();
-            _ = Task.Run(() => PumpServerOutput(server, serverLines));
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"));
+            using Process server = startedServer;
+            using BlockingCollection<string> serverLines = startedLines;
             string ready = serverLines.Take();
             if (!ready.StartsWith("READY", StringComparison.Ordinal))
             {
@@ -447,6 +453,40 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             return 0;
         }
 
+        /// <summary>
+        /// Starts the harness itself as the server child; <c>SERVER_</c> variables are passed without the prefix.
+        /// </summary>
+        internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(
+            string arguments,
+            IReadOnlyDictionary<string, string>? defaultEnvironment = null)
+        {
+            var startInfo = new ProcessStartInfo(Environment.ProcessPath!, arguments)
+            {
+                RedirectStandardInput = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            };
+            if (defaultEnvironment != null)
+            {
+                foreach (KeyValuePair<string, string> variable in defaultEnvironment)
+                {
+                    startInfo.Environment[variable.Key] = variable.Value;
+                }
+            }
+            foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())
+            {
+                string name = (string)variable.Key;
+                if (name.StartsWith("SERVER_", StringComparison.Ordinal))
+                {
+                    startInfo.Environment[name[7..]] = (string?)variable.Value;
+                }
+            }
+            Process server = Process.Start(startInfo)!;
+            var lines = new BlockingCollection<string>();
+            _ = Task.Run(() => PumpServerOutput(server, lines));
+            return (server, lines);
+        }
+
         private static void PumpServerOutput(Process server, BlockingCollection<string> lines)
         {
             string? line;
@@ -467,7 +507,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             lines.CompleteAdding();
         }
 
-        private static Process? StartTracer(int processId, int durationSeconds, out string? trace)
+        internal static Process? StartTracer(int processId, int durationSeconds, out string? trace)
         {
             if (!s_args.TryGetValue("trace", out trace))
             {
@@ -493,7 +533,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             });
         }
 
-        private static string Take(BlockingCollection<string> lines, string prefix)
+        internal static string Take(BlockingCollection<string> lines, string prefix)
         {
             while (true)
             {
