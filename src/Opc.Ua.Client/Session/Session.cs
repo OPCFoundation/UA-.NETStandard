@@ -3462,25 +3462,16 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Points the session back at <paramref name="endpoint"/> after an
-        /// in-place recreate against another endpoint failed. The recreate
-        /// adopts its target before it connects and keeps it on failure; an
-        /// owner that only adopts a target once the switch succeeded restores
-        /// the endpoint it works on, so the next reconnect or recreate uses it.
+        /// Points the session at <paramref name="endpoint"/>, the endpoint its
+        /// owner works on, after an in-place recreate against it failed and
+        /// rolled the session back to the endpoint it had before. The next
+        /// reconnect or recreate then uses <paramref name="endpoint"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         internal void RestoreConfiguredEndpoint(ConfiguredEndpoint endpoint)
         {
-            if (endpoint == null)
-            {
-                throw new ArgumentNullException(nameof(endpoint));
-            }
-
-            if (!ReferenceEquals(m_endpoint, endpoint))
-            {
-                m_endpoint = endpoint;
-                m_effectiveEndpoint = endpoint;
-            }
+            m_endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
+            m_effectiveEndpoint = endpoint;
         }
 
         internal Task ReactivateOnNetworkEndpointAsync(
@@ -3565,6 +3556,14 @@ namespace Opc.Ua.Client
             bool resetReconnect = false;
             bool publishingPaused = false;
             bool reused = false;
+            // A switch to another endpoint that fails is rolled back: the
+            // session keeps the endpoint, the server certificate and no
+            // channel of the endpoint it switched to.
+            ConfiguredEndpoint? switchedFromEndpoint = null;
+            ConfiguredEndpoint? switchedFromEffectiveEndpoint = null;
+            Certificate? switchedFromServerCertificate = null;
+            bool serverCertificateSwitched = false;
+            ITransportChannel? switchedChannel = null;
             await m_reconnectLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -3579,6 +3578,12 @@ namespace Opc.Ua.Client
                 Reconnecting = true;
                 resetReconnect = true;
                 m_reconnectLock.Release();
+
+                if (endpoint != null && !ReferenceEquals(endpoint, m_endpoint))
+                {
+                    switchedFromEndpoint = m_endpoint;
+                    switchedFromEffectiveEndpoint = m_effectiveEndpoint;
+                }
 
                 if (manager != null)
                 {
@@ -3727,6 +3732,7 @@ namespace Opc.Ua.Client
                     }
 
                     TransportChannel = newChannel;
+                    switchedChannel = switchedFromEndpoint != null ? newChannel : null;
                 }
 
                 // Token-reuse fast reconnect: re-activate the
@@ -3751,7 +3757,16 @@ namespace Opc.Ua.Client
                                 Certificate adopted = failoverChain[0].AddRef();
                                 lock (m_lock)
                                 {
-                                    m_serverCertificate?.Dispose();
+                                    if (switchedFromEndpoint != null && !serverCertificateSwitched)
+                                    {
+                                        // Kept until the switch succeeded.
+                                        switchedFromServerCertificate = m_serverCertificate;
+                                        serverCertificateSwitched = true;
+                                    }
+                                    else
+                                    {
+                                        m_serverCertificate?.Dispose();
+                                    }
                                     m_serverCertificate = adopted;
                                 }
                             }
@@ -3874,9 +3889,21 @@ namespace Opc.Ua.Client
                 m_logger.SessionRECREATEPLACECompletedOldSessionIdNewSessionId(
                     previousSessionId,
                     SessionId);
+                switchedFromServerCertificate?.Dispose();
+                serverCertificateSwitched = false;
             }
             catch (Exception ex)
             {
+                if (switchedFromEndpoint != null)
+                {
+                    await RollBackEndpointSwitchAsync(
+                        switchedFromEndpoint,
+                        switchedFromEffectiveEndpoint!,
+                        serverCertificateSwitched,
+                        switchedFromServerCertificate,
+                        switchedChannel).ConfigureAwait(false);
+                }
+
                 if (newManagedLease != null && !managedLeaseActivated)
                 {
                     if (oldManagedLease != null &&
@@ -3931,6 +3958,46 @@ namespace Opc.Ua.Client
                     StartPublishing(OperationTimeout, true);
                 }
 #endif
+            }
+        }
+
+        /// <summary>
+        /// Rolls a failed switch to another endpoint back: the session keeps
+        /// the endpoint and server certificate it had, and a raw channel the
+        /// switch opened to the other endpoint is closed and never reconnected,
+        /// so the next reconnect opens a channel to the restored endpoint. A
+        /// managed lease is restored by the caller.
+        /// </summary>
+        private async Task RollBackEndpointSwitchAsync(
+            ConfiguredEndpoint endpoint,
+            ConfiguredEndpoint effectiveEndpoint,
+            bool serverCertificateSwitched,
+            Certificate? serverCertificate,
+            ITransportChannel? switchedChannel)
+        {
+            m_endpoint = endpoint;
+            m_effectiveEndpoint = effectiveEndpoint;
+            if (serverCertificateSwitched)
+            {
+                lock (m_lock)
+                {
+                    m_serverCertificate?.Dispose();
+                    m_serverCertificate = serverCertificate;
+                }
+            }
+
+            if (switchedChannel != null)
+            {
+                m_discardedChannel = switchedChannel;
+                try
+                {
+                    await switchedChannel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // The channel is discarded either way; the next reconnect replaces it.
+                    m_logger.ErrorClosingChannelDuringClose(ex);
+                }
             }
         }
 
@@ -4376,6 +4443,7 @@ namespace Opc.Ua.Client
 
                     // check if the channel supports reconnect.
                     if (transportChannel != null &&
+                        !ReferenceEquals(transportChannel, m_discardedChannel) &&
                         (transportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
                         await transportChannel.ReconnectAsync(connection, ct).ConfigureAwait(false);
@@ -4416,6 +4484,7 @@ namespace Opc.Ua.Client
 
                     // check if the channel supports reconnect.
                     if (transportChannel != null &&
+                        !ReferenceEquals(transportChannel, m_discardedChannel) &&
                         (transportChannel.SupportedFeatures & TransportChannelFeatures.Reconnect) != 0)
                     {
                         await transportChannel.ReconnectAsync(ct: ct).ConfigureAwait(false);
@@ -6817,6 +6886,12 @@ namespace Opc.Ua.Client
         /// The endpoint used while connected to the server.
         /// </summary>
         protected ConfiguredEndpoint m_effectiveEndpoint;
+
+        /// <summary>
+        /// A raw channel a failed endpoint switch opened to the endpoint it
+        /// switched to; a reconnect opens a new channel instead of reusing it.
+        /// </summary>
+        private ITransportChannel? m_discardedChannel;
 
         /// <summary>
         /// The instance certificate together with its issuer chain.

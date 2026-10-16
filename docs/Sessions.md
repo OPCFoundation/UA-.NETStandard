@@ -485,7 +485,11 @@ and both steps above compare against it, so it is always the endpoint the
 session itself last accepted. An accepted rediscovered endpoint is still
 published to the endpoint the copy was taken from, so other consumers of it see
 the update, but no session reads it back: another session sharing that endpoint
-keeps working on, and validating against, its own copy.
+keeps working on, and validating against, its own copy. When a session switches
+back to an endpoint it used before and that endpoint changed since, another
+session published the change; it is checked in both steps above against what
+this session accepted for that endpoint, and a change that is not accepted is
+not taken over.
 `ManagedSession.ConfiguredEndpoint` returns the copy once the session is
 connected.
 
