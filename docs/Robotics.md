@@ -191,6 +191,17 @@ await host.Build().RunAsync();
 `AddOpcUaDi()`; both register the shared `DiAddressSpaceOwnership` marker and the
 second call throws with the name of the conflicting extension.
 
+Derived motion-device systems can enlist companion bindings with
+`system.WithRegistrationParticipant(participant)`. For example,
+`machineryContext.BindMachine(craneState, configure)` reuses Machinery
+identification and building blocks without adopting or registering the root a
+second time. See [externally registered Machinery bindings](Machinery.md#bindings-on-an-externally-registered-root).
+Participants must refer to the exact staged root and its manager. The Robotics
+scope prepares them before validation, registers the complete tree once, binds
+them afterward, and commits only after all fallible work succeeds. Cancellation,
+including cancellation after registration, unwinds uncommitted participants
+and the attempted tree without deleting an existing conflicting node.
+
 The two address-space shapes are separate but composable. OPC 40010 Robotics
 instances live below the DI `DeviceSet`; Robot Intent lives below
 `Server/RobotIntent` and exposes the command surface a client or MCP agent uses.
@@ -316,6 +327,17 @@ that every instance NodeId is unique, adds the semantic references, and then
 registers the completed generated state tree — rolling back the reservation if
 any step fails. Reservations for NodeIds and root BrowseNames are held per node
 manager, so concurrent configurators cannot collide.
+
+Companion specifications can supply their generated derived factories with
+`AddMotionDeviceSystemAsync(browseName, createSystem, configure, cancellationToken)`.
+The matching `AddMotionDevice`, `AddAxis` and `AddMotor` overloads accept
+`(ISystemContext, NodeState, QualifiedName) => TState` factories. They keep the
+returned instance and its subtype identity, while reusing Robotics validation,
+semantic references, registration and rollback. A factory can also return an
+unregistered existing instance, but its parent and browse name must match the
+supplied arguments and its type definition must derive from the expected
+Robotics type. Incompatible types are rejected rather than replaced with base
+instances; temporary allocations for those rejected instances are released.
 
 ## Topology builders
 
@@ -511,9 +533,19 @@ IRoboticsBuildContext buildContext =
 
 `CreateRoboticsBuildContext` validates the `DeviceSet`, the loaded Robotics
 model, and the configured instance namespace before returning. The manager's
-`Context.NodeIdFactory` must implement `IRoboticsNodeIdFactory`; the allocator
+`Context.NodeIdFactory` must implement `IRoboticsNodeIdFactory` or the shared
+DI `ICompanionNodeIdFactory` marker; the allocator
 must be thread-safe, must reserve unique NodeIds for unregistered nodes, and must
 allocate Robotics instances in the configured instance namespace.
+
+Both the Robotics and Machinery allocator markers inherit the shared marker,
+so one existing namespace owner can support both build contexts without a
+second DI manager. All contexts must use that owner's application namespace.
+Allocators retaining temporary reservations can additionally implement
+`ICompanionNodeIdReservationOwner`; rollback and successful registration then
+release reservations through the actual allocator, even when another companion
+family owns the manager. The stock Robotics and Machinery managers provide
+this capability. Existing marker implementers acquire no new required methods.
 
 [`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) is the example of
 the custom-manager route: it composes Robotics, IA, DI, the draft OpenUSD

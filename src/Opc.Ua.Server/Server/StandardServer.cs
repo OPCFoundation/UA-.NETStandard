@@ -1525,7 +1525,7 @@ namespace Opc.Ua.Server
 
                 return new CloseSessionResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -1568,7 +1568,7 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     CancelCount = cancelCount
                 };
             }
@@ -1625,7 +1625,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -1678,7 +1678,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -1734,7 +1734,7 @@ namespace Opc.Ua.Server
 
                 return new AddNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
@@ -1798,7 +1798,7 @@ namespace Opc.Ua.Server
 
                 return new DeleteNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
@@ -1862,7 +1862,7 @@ namespace Opc.Ua.Server
 
                 return new AddReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
@@ -1926,7 +1926,7 @@ namespace Opc.Ua.Server
 
                 return new DeleteReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
@@ -2017,7 +2017,7 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     RegisteredNodeIds = registeredNodeIds
                 };
             }
@@ -2066,7 +2066,7 @@ namespace Opc.Ua.Server
 
                 response = new UnregisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2122,7 +2122,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2176,7 +2176,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2246,7 +2246,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2297,7 +2297,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2348,7 +2348,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2447,7 +2447,7 @@ namespace Opc.Ua.Server
                     priority,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -2495,7 +2495,7 @@ namespace Opc.Ua.Server
                     sendInitialValues,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -2541,7 +2541,7 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -2591,7 +2591,7 @@ namespace Opc.Ua.Server
                     requestLifetime.ParkSink,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -2638,7 +2638,7 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
+                    ResponseHeader = CreateResponse(requestHeader, context),
                     NotificationMessage = notificationMessage
                 };
             }
@@ -2701,7 +2701,7 @@ namespace Opc.Ua.Server
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
                     RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2755,7 +2755,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2826,7 +2826,7 @@ namespace Opc.Ua.Server
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
                     RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -2877,7 +2877,7 @@ namespace Opc.Ua.Server
                     itemsToCreate,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                result.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return result;
             }
@@ -2928,7 +2928,7 @@ namespace Opc.Ua.Server
                     itemsToModify,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -2976,7 +2976,7 @@ namespace Opc.Ua.Server
                     monitoredItemIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
@@ -3038,7 +3038,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -3086,7 +3086,7 @@ namespace Opc.Ua.Server
                 {
                     Results = results,
                     DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    ResponseHeader = CreateResponse(requestHeader, context)
                 };
             }
             catch (ServiceResultException e)
@@ -3404,6 +3404,41 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected IServerInternal ServerInternal =>
             m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+
+        /// <summary>
+        /// Creates the response header with the diagnostic strings of the request.
+        /// </summary>
+        /// <remarks>
+        /// A request that wrote no diagnostic strings, which is nearly every request, has
+        /// no string table of its own (see <see cref="OperationContext.StringTable"/>); an
+        /// empty table of the thread stands in for it, so the response still carries an
+        /// empty string table. The table is taken from the thread for the call and given
+        /// back only if it is still empty when the call returns: an override of
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
+        /// strings to it, or throws, keeps it, and a response created during the call
+        /// (re-entrantly) gets a table of its own.
+        /// </remarks>
+        internal ResponseHeader CreateResponse(RequestHeader? requestHeader, OperationContext context)
+        {
+            StringTable? strings = context.CreatedStringTable;
+            if (strings != null)
+            {
+                return CreateResponse(requestHeader!, strings);
+            }
+
+            strings = t_noStrings ?? new StringTable();
+            t_noStrings = null;
+            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings);
+            if (strings.Count == 0)
+            {
+                t_noStrings = strings;
+            }
+
+            return responseHeader;
+        }
+
+        [ThreadStatic]
+        private static StringTable? t_noStrings;
 
         /// <summary>
         /// Verifies that the request header is valid.
@@ -4771,6 +4806,9 @@ namespace Opc.Ua.Server
             // reject deleting a certificate still referenced by an
             // EndpointDescription (OPC UA Part 12 §7.10.7).
             m_serverInternal.SetServerEndpoints(GetEndpoints());
+
+            // Endpoint-dependent contributors cannot advertise security profiles during the earlier address-space pass.
+            await m_serverInternal.ConformanceUnitsManager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             OnServerStarted(m_serverInternal);
 

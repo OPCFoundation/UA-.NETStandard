@@ -24,6 +24,9 @@
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.WotCon\Opc.Ua.Mcp.WotCon.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.XRegistry\Opc.Ua.Mcp.XRegistry.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Vision\Opc.Ua.Mcp.Vision.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.CranesHoists\Opc.Ua.Mcp.CranesHoists.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.MachineTool\Opc.Ua.Mcp.MachineTool.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.GMS\Opc.Ua.Mcp.GMS.csproj" />
   </ItemGroup>
   <!-- Keep the existing test source and assembly hooks unchanged while
        compiling the independent MCP tool graph in its own native executable. -->

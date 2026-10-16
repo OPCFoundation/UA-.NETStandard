@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Fluent
     /// generated code only.
     /// </para>
     /// </remarks>
-    public abstract class FluentNodeManagerBase : AsyncCustomNodeManager
+    public abstract partial class FluentNodeManagerBase : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -620,11 +620,47 @@ namespace Opc.Ua.Server.Fluent
         public override async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            List<Exception> failures = await ReleaseNodeBehaviorsAsync().ConfigureAwait(false);
+            try
+            {
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            ThrowNodeBehaviorReleaseFailures(failures);
+        }
+
+        /// <summary>
+        /// Releases committed behaviors when an aborted startup disposes the manager without normal shutdown.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            StopNodeResourceAdmission();
+            List<Exception> failures = await ReleaseNodeBehaviorsAsync().ConfigureAwait(false);
+            failures.AddRange(await ReleaseOwnedNodeResourcesAsync().ConfigureAwait(false));
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            ThrowNodeBehaviorReleaseFailures(failures);
+        }
+
+        /// <summary>
+        /// Drains each activation before clearing nodes, retaining pending entries for concurrent teardown callers.
+        /// </summary>
+        private async ValueTask<List<Exception>> ReleaseNodeBehaviorsAsync()
+        {
             List<NodeBehaviorActivation> activations;
             lock (m_behaviorActivationsLock)
             {
                 activations = [.. m_behaviorActivations];
-                m_behaviorActivations.Clear();
             }
 
             var failures = new List<Exception>();
@@ -643,19 +679,23 @@ namespace Opc.Ua.Server.Fluent
                 {
                     failures.Add(ex);
                 }
+                finally
+                {
+                    lock (m_behaviorActivationsLock)
+                    {
+                        m_behaviorActivations.Remove(activations[i]);
+                    }
+                }
             }
 
-            try
-            {
-                await base
-                    .DeleteAddressSpaceAsync(cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                failures.Add(ex);
-            }
+            return failures;
+        }
 
+        /// <summary>
+        /// Preserves all release failures after every owned resource has had a cleanup attempt.
+        /// </summary>
+        private static void ThrowNodeBehaviorReleaseFailures(List<Exception> failures)
+        {
             if (failures.Count == 1)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo
@@ -1427,19 +1467,14 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Cancels every running iterator and waits (bounded by each
-        /// source's
-        /// <see cref="EventPublishOptions.CancellationTimeout"/>) before
-        /// invoking the base disposer. Subclasses that further override
-        /// <c>Dispose</c> must call <c>base.Dispose(disposing)</c>.
+        /// Signals running iterators without blocking; async disposal drains their owned resources.
+        /// Subclasses that further override <c>Dispose</c> must call <c>base.Dispose(disposing)</c>.
         /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                // Signal-only: real release runs in DeleteAddressSpaceAsync, which
-                // MasterNodeManager.ShutdownAsync invokes before it disposes managers.
-                // Blocking here would sit under a sync-over-async dispose.
+                // Awaited release also runs during async disposal when startup never reached normal shutdown.
                 SignalNodeBehaviorShutdown();
                 MonitoredSources.Dispose();
                 Simulations.Dispose();

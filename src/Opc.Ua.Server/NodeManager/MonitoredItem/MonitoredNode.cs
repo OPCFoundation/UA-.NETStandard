@@ -524,6 +524,38 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Waits for notifications already admitted to the report-by-exception consumer without stopping it.
+        /// </summary>
+        /// <remarks>
+        /// Callers must quiesce producers first. This is a sampling fence, not evidence that any client has
+        /// received a value. Cancellation releases the fence's completion even if its channel entry remains
+        /// behind an uncooperative callback.
+        /// </remarks>
+        internal async ValueTask WaitForPendingNotificationsAsync(CancellationToken cancellationToken)
+        {
+            var fence = new NotificationFence(m_server.DefaultSystemContext);
+            try
+            {
+                try
+                {
+                    await m_channel.Writer.WriteAsync(fence, cancellationToken).ConfigureAwait(false);
+                }
+                catch (ChannelClosedException)
+                {
+                    await m_consumerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return;
+                }
+                await Task.WhenAny(fence.Completion.Task, m_consumerTask)
+                    .WaitAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+            finally
+            {
+                fence.Completion.TrySetCanceled(cancellationToken);
+            }
+        }
+
+        /// <summary>
         /// Synchronous wrapper over <see cref="OnMonitoredNodeChangedAsync"/>. Completes inline for a
         /// synchronously-readable node with channel capacity; blocks only when a read is genuinely
         /// asynchronous or the bounded channel is full (only synchronous callers pay that cost).
@@ -569,6 +601,10 @@ namespace Opc.Ua.Server
                         else if (notification is DataChangeSnapshot dataChangeSnapshot)
                         {
                             await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken).ConfigureAwait(false);
+                        }
+                        else if (notification is NotificationFence fence)
+                        {
+                            fence.Completion.TrySetResult(true);
                         }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -1231,6 +1267,19 @@ namespace Opc.Ua.Server
                     m_consumerCts?.Dispose();
                 }
             }
+        }
+
+        private sealed class NotificationFence : INodeNotification
+        {
+            public NotificationFence(ISystemContext context)
+            {
+                Context = context;
+            }
+
+            public ISystemContext Context { get; }
+
+            public TaskCompletionSource<bool> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 

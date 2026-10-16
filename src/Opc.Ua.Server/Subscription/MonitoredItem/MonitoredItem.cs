@@ -38,14 +38,15 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem :
+    public partial class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
         IMonitoredItemTransferState,
-        IReadySignalingMonitoredItem
+        IReadySignalingMonitoredItem,
+        IMonitoredItemValuePublication
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -698,6 +699,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
                 SetDetachState(m_isDetached, isDeleted: true);
                 QueueNodeIdUnknown();
             }
@@ -708,6 +710,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_valuePublication?.Fail(StatusCodes.BadInvalidState);
                 SetDetachState(isDetached: true, m_isDeleted);
             }
         }
@@ -775,6 +778,7 @@ namespace Opc.Ua.Server
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
                 SetDetachState(isDetached: false, isDeleted: false);
+                m_finalValuePublished = false;
             }
         }
 
@@ -1051,6 +1055,10 @@ namespace Opc.Ua.Server
 
                 aggregateFilter?.CommitChange(filterToUse, aggregateChange);
                 m_filterToUse = (IMonitoringFilter?)aggregateFilter ?? filterToUse;
+                if (aggregateFilter != null)
+                {
+                    m_valuePublication?.Fail(StatusCodes.BadNotSupported);
+                }
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1324,6 +1332,7 @@ namespace Opc.Ua.Server
                 // a sampling or disabled item must not report (Part 4, 5.13.1.3).
                 if (monitoringMode != MonitoringMode.Reporting)
                 {
+                    m_valuePublication?.Complete(published: false);
                     m_resendData = false;
                 }
 
@@ -1405,7 +1414,15 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (MonitoringMode == MonitoringMode.Disabled)
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)))
+                {
+                    return;
+                }
+
+                // A terminal observation is pinned until its real Publish response is built.
+                // Older asynchronous reads and report-by-exception work cannot replace it.
+                if (m_valuePublication != null)
                 {
                     return;
                 }
@@ -2111,6 +2128,11 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                if (maxNotificationsPerPublish == 0)
+                {
+                    return IsReadyToPublish || m_resendData;
+                }
+
                 if (!IsReadyToPublish)
                 {
                     if (!m_resendData)
@@ -2134,9 +2156,10 @@ namespace Opc.Ua.Server
                         notificationCount < maxNotificationsPerPublish &&
                         m_dataChangeQueueHandler.PublishSingleValue(
                             out DataValue value,
-                            out ServiceResult error))
+                            out ServiceResult error,
+                            out bool required))
                     {
-                        Publish(context, notifications, diagnostics, value, error);
+                        PublishObservedValue(context, notifications, diagnostics, value, error, required);
 
                         notificationCount++;
 
@@ -2154,7 +2177,8 @@ namespace Opc.Ua.Server
                         m_lastValue.StatusCode.Code,
                         m_lastValue.StatusCode.Overflow,
                         Id);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
+                    PublishObservedValue(
+                        context, notifications, diagnostics, m_lastValue, m_lastError!, m_finalValuePending);
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -2248,6 +2272,10 @@ namespace Opc.Ua.Server
 
             ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
+            if (m_publishingFinalValue)
+            {
+                m_valuePublication?.TrackNotification(item);
+            }
 
             // update diagnostic info.
             DiagnosticInfo? diagnosticInfo = null;
@@ -2569,9 +2597,14 @@ namespace Opc.Ua.Server
                         // filter, so re-queueing it then would report it a second time.
                         if (queueLastValue && m_readyToPublish && !m_lastValue.IsNull)
                         {
-                            m_dataChangeQueueHandler.QueueValue(
-                                m_lastValue,
-                                m_lastError!);
+                            if (m_finalValuePending)
+                            {
+                                m_dataChangeQueueHandler.QueueRequiredValue(m_lastValue, m_lastError!);
+                            }
+                            else
+                            {
+                                m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
+                            }
                         }
                     }
                     else // create event queue.
@@ -2774,6 +2807,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
+                m_valuePublication?.Complete(published: false);
                 SetDetachState(m_isDetached, m_isDeleted);
 
                 // A NodeManager reload may be handing this item to its replacement right now.

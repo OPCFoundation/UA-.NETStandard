@@ -184,6 +184,56 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(missingTarget.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// A denied child must not be misreported as an unselected optional feature.
+        /// </summary>
+        [Test]
+        public void ResolveChildPropagatesAccessDenied()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }],
+                        DiagnosticInfos = []
+                    }));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ResolveAsync("urn:test", "Child", CancellationToken.None).ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        /// <summary>
+        /// A truncated service response is an error rather than evidence of absent optional nodes.
+        /// </summary>
+        [Test]
+        public void ResolveChildRejectsMissingOperationResults()
+        {
+            Mock<ISessionClient> session = CreateSession();
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    null,
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [],
+                        DiagnosticInfos = []
+                    }));
+            var client = new TestObjectTypeClient(session.Object, new NodeId(1000), NUnitTelemetryContext.Create());
+
+            Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ResolveAsync("urn:test", "Child", CancellationToken.None).ConfigureAwait(false));
+        }
+
         private static Mock<ISessionClient> CreateSession()
         {
             var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());

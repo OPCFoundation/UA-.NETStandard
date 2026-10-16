@@ -36,6 +36,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Server;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Hosting;
@@ -60,6 +61,19 @@ namespace Microsoft.Extensions.DependencyInjection
             if (builder == null)
             {
                 throw new ArgumentNullException(nameof(builder));
+            }
+            foreach (ServiceDescriptor service in builder.Services)
+            {
+                if (!service.IsKeyedService &&
+                    (service.ServiceType == typeof(VisionHostedNodeManagerFactory) ||
+                        (service.ServiceType == typeof(IMachineryModelProvider) &&
+                            (service.ImplementationType == typeof(VisionMachineryModelProvider) ||
+                                service.ImplementationInstance is VisionMachineryModelProvider))))
+                {
+                    throw new InvalidOperationException(
+                        "Vision namespaces already have an owner. Configure that owner instead of registering " +
+                        "another standalone AddVision manager.");
+                }
             }
             var selected = new VisionServerOptions();
             configure?.Invoke(selected);

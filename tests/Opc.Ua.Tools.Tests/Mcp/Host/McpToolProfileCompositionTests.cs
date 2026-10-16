@@ -162,6 +162,45 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(connectCount, Is.EqualTo(1));
         }
 
+        [TestCase(McpToolProfile.MachineTool)]
+        [TestCase(McpToolProfile.Gms)]
+        [TestCase(McpToolProfile.CranesHoists)]
+        public void CompanionProfilesAreAcceptedByUnselectedPackagesAndShareConnections(McpToolProfile profile)
+        {
+            var services = new ServiceCollection();
+            services.AddMcpServer()
+                .WithOpcUaCoreTools(profile)
+                .WithOpcUaVisionTools(profile)
+                .WithOpcUaRoboticsTools(profile)
+                .WithOpcUaPubSubTools(profile)
+                .WithOpcUaDiagnosticsTools(profile)
+                .WithOpcUaPubSubDiagnosticsTools(profile)
+                .WithOpcUaCoreTools(new McpToolProfileSet(profile))
+                .WithOpcUaConnectionTools();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            string[] names = provider.GetServices<McpServerTool>()
+                .Select(tool => tool.ProtocolTool.Name)
+                .ToArray();
+            Assert.That(
+                names,
+                Is.EquivalentTo(s_connectionToolNames));
+        }
+
+        [Test]
+        public void FullAndExplicitConnectionRegistrationDoNotDuplicateConnections()
+        {
+            var services = new ServiceCollection();
+            services.AddMcpServer()
+                .WithOpcUaCoreTools(new McpToolProfileSet(McpToolProfile.Full))
+                .WithOpcUaConnectionTools();
+
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Assert.That(
+                provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name),
+                Is.Unique);
+        }
+
         [Test]
         public void SingleProfileSetPreservesLegacyBehaviour()
         {
@@ -249,6 +288,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .Select(tool => tool.ProtocolTool.Name)
                 .ToHashSet(StringComparer.Ordinal);
         }
+
+        private static readonly string[] s_connectionToolNames =
+            ["Connect", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif

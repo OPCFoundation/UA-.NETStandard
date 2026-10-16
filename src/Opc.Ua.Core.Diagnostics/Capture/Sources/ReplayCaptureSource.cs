@@ -49,6 +49,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         private readonly ILogger m_logger;
         private string? m_pcapFilePath;
         private string? m_keyLogFilePath;
+        private bool m_requireCompleteFile;
         private long m_frameCount;
         private long m_byteCount;
         private int m_state;
@@ -105,6 +106,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
             }
 
             m_pcapFilePath = request.PcapFilePath;
+            m_requireCompleteFile = request.RequireCompleteReplay;
             if (!string.IsNullOrWhiteSpace(request.KeyLogFilePath) && File.Exists(request.KeyLogFilePath))
             {
                 m_keyLogFilePath = request.KeyLogFilePath;
@@ -165,7 +167,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
 
             long count = 0;
             long limit = maxFrames ?? long.MaxValue;
-            await foreach (PcapRecord record in PcapFileReader.ReadAllAsync(path, ct)
+            await foreach (PcapRecord record in PcapFileReader.ReadAllAsync(path, m_requireCompleteFile, ct)
                 .WithCancellation(ct)
                 .ConfigureAwait(false))
             {
@@ -282,7 +284,6 @@ namespace Opc.Ua.Pcap.Capture.Sources
                     m_logger.ReadKeyLogAsJsonFailed(ex, filePath);
                     return null;
                 }
-
             }
         }
     }
@@ -303,5 +304,4 @@ namespace Opc.Ua.Pcap.Capture.Sources
             Exception exception,
             string keyLogFilePath);
     }
-
 }

@@ -41,7 +41,20 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// </summary>
     internal sealed class FakeMessageAckQueue : IMessageAckQueue
     {
-        public List<SubscriptionAcknowledgement> QueuedAcks { get; } = [];
+        /// <summary>
+        /// An owned snapshot of queued acknowledgements, captured under the queue's mutation lock.
+        /// </summary>
+        public List<SubscriptionAcknowledgement> QueuedAcks
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_queuedAcks];
+                }
+            }
+        }
+
         public List<uint> CompletedSubscriptions { get; } = [];
 
         /// <summary>
@@ -70,7 +83,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         {
             lock (m_lock)
             {
-                QueuedAcks.Add(ack);
+                m_queuedAcks.Add(ack);
             }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
         }
@@ -104,7 +117,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
                 int queued;
                 lock (m_lock)
                 {
-                    queued = QueuedAcks.Count;
+                    queued = m_queuedAcks.Count;
                 }
                 if (queued >= count)
                 {
@@ -169,7 +182,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             DroppedSubscriptions.Add(subscriptionId);
             lock (m_lock)
             {
-                return QueuedAcks.RemoveAll(
+                return m_queuedAcks.RemoveAll(
                     ack => ack.SubscriptionId == subscriptionId);
             }
         }
@@ -206,5 +219,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public bool PoolNotifications { get; set; }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>The queue's mutable storage, accessed only under <see cref="m_lock"/>.</summary>
+        private readonly List<SubscriptionAcknowledgement> m_queuedAcks = [];
     }
 }

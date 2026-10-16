@@ -26,6 +26,14 @@ than transparently retrying on a replacement peer. Generated ObjectType clients
 consume the binding directly; closing it does not close the owning session.
 Unsupported custom adapters/transports report `BadNotSupported`.
 
+Model libraries can opt into `ModelSourceGeneratorClientAccessorsOnly` to emit
+typed variable views and placeholder enumerators over their existing generated
+proxies. This package supplies the reusable `ClientVariable<T>`, `ClientRead<T>`
+and `ClientModelAccess` runtime. These helpers use the proxy's existing `ISession`
+or `ManagedSession`, preserve value quality and timestamps, and reuse streaming
+subscriptions. See the [source generator guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors)
+for configuration.
+
 ## Getting started
 
 ```csharp
@@ -76,6 +84,13 @@ ITransportWaitingConnection connection =
 The synchronous `StartService`, `RegisterWaitingConnection`, and `Dispose` methods remain as obsolete compatibility wrappers. New applications should use `StartServiceAsync`, `RegisterWaitingConnectionAsync`, and `DisposeAsync`.
 
 When configured through `AddClient(...)`, a Generic Host starts the singleton manager eagerly through an internal hosted service. Applications using only `ServiceCollection` get lazy startup from `WaitForConnectionAsync` or `RegisterWaitingConnectionAsync`. Register an `IReverseConnectConfigurationProvider` to asynchronously validate or transform the effective listener configuration before activation.
+
+## Programs
+
+`ProgramClient` adds Part 10 discovery, lifecycle and diagnostic/result reads
+to generated Program proxies. Program event streams retain captured
+intermediate results instead of rereading changing state Variables. See the
+[Programs guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Programs.md).
 
 ## Target frameworks
 

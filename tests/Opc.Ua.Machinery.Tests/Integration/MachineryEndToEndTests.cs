@@ -81,6 +81,42 @@ namespace Opc.Ua.Machinery.Tests.Integration
     {
         private const string kNotificationMessage = "E2E notification.";
 
+        /// <summary>
+        /// A real client observes the original sample type, quality and acquisition timestamp.
+        /// </summary>
+        [Test]
+        public Task ProcessValueSamplesPreserveQualityAndAcquisitionTimeOverTcpAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, configurator, _, session, ct) =>
+            {
+                DateTimeUtc acquired = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+                var reading = new DataValue(Variant.From(57f), StatusCodes.UncertainLastUsableValue, acquired);
+                IProcessValueHandle handle = configurator.OilTemperature!;
+                await handle.SetValueAsync(reading, ct).ConfigureAwait(false);
+
+                DataValue observed = await session.ReadValueAsync(handle.Signal.NodeId, ct).ConfigureAwait(false);
+                Assert.That(observed.WrappedValue.TryGetValue(out float value), Is.True);
+                Assert.That(value, Is.EqualTo(57f));
+                Assert.That(observed.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(observed.SourceTimestamp, Is.EqualTo(acquired));
+                DataValue percentage = await session.ReadValueAsync(handle.Signal.PercentageValue!.NodeId, ct)
+                    .ConfigureAwait(false);
+                Assert.That(percentage.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(percentage.SourceTimestamp, Is.EqualTo(acquired));
+                Assert.That(percentage.WrappedValue.TryGetValue(out double percent), Is.True);
+                Assert.That(percent, Is.EqualTo(55.0).Within(0.001));
+
+                MachineryProcessValue? snapshot = await machinery.ReadProcessValueAsync(handle.NodeId, ct)
+                    .ConfigureAwait(false);
+                Assert.That(snapshot, Is.Not.Null);
+                Assert.That(snapshot!.Sample.IsNull, Is.False);
+                Assert.That(snapshot.Sample.WrappedValue.TryGetValue(out float sampledValue), Is.True);
+                Assert.That(sampledValue, Is.EqualTo(57f));
+                Assert.That(snapshot.Sample.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(snapshot.Sample.SourceTimestamp, Is.EqualTo(acquired));
+            });
+        }
+
         [Test]
         public Task TheClientDrivesEveryPartOverTheWireAsync()
         {

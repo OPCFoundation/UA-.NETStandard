@@ -95,6 +95,11 @@ namespace Opc.Ua.Server.FileSystem
     /// <summary>
     /// Creates bindings that back existing FileDirectoryType nodes with file-system providers.
     /// </summary>
+    /// <remarks>
+    /// With a ServerSystemContext, bindings observe the server session lifecycle and release the closing
+    /// session's file handles, including pending opens. The application owns the binding's lifetime and
+    /// must dispose it when its directory is removed or the node manager shuts down.
+    /// </remarks>
     public interface IFileDirectoryBinder
     {
         /// <summary>
@@ -271,6 +276,7 @@ namespace Opc.Ua.Server.FileSystem
                         m_handles.Values.CopyTo(handles, 0);
                         m_handles.Clear();
                     }
+                    DetachSessionLifecycle();
                     DetachDirectoryCallbacks(Directory);
                     foreach (MaterializedNode entry in m_nodesByPath.Values)
                     {
@@ -331,6 +337,7 @@ namespace Opc.Ua.Server.FileSystem
                 {
                     return null;
                 }
+                EnsureSessionLifecycle();
                 string identity = FileSystemDirectoryOperations.GetPathIdentity(Provider, providerPath);
                 lock (m_lock)
                 {
@@ -343,7 +350,7 @@ namespace Opc.Ua.Server.FileSystem
                         return handle;
                     }
 
-                    handle = new FileHandle(Provider, providerPath);
+                    handle = new FileHandle(Provider, providerPath, IsSessionTerminated);
                     FileSystemDirectoryOperations.BlockForRunningMutations(Provider, m_mutations, handle);
                     m_handles.Add(identity, handle);
                     return handle;
@@ -509,6 +516,82 @@ namespace Opc.Ua.Server.FileSystem
                 finally
                 {
                     m_initializing = false;
+                }
+            }
+
+            /// <summary>
+            /// Attaches lazily because address-space setup can precede creation of the server session manager.
+            /// </summary>
+            private void EnsureSessionLifecycle()
+            {
+                // SessionManager raises callbacks under its own event gate. Never hold m_lock while
+                // subscribing or unsubscribing: the callback itself needs m_lock to snapshot the handles.
+                lock (m_sessionLifecycleLock)
+                {
+                    if (!m_disposed && m_sessions == null &&
+                        m_context is ServerSystemContext { Server.SessionManager: { } sessions })
+                    {
+                        m_sessions = sessions;
+                        sessions.SessionClosing += OnSessionClosing;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Removes lifecycle callbacks after admission has been stopped by binding disposal.
+            /// </summary>
+            private void DetachSessionLifecycle()
+            {
+                lock (m_sessionLifecycleLock)
+                {
+                    if (m_sessions != null)
+                    {
+                        m_sessions.SessionClosing -= OnSessionClosing;
+                        m_sessions = null;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Checks the live session registry instead of retaining an unbounded set of terminated identifiers.
+            /// </summary>
+            private bool IsSessionTerminated(NodeId sessionId)
+            {
+                ISessionManager? sessions = Volatile.Read(ref m_sessions);
+                if (sessions == null)
+                {
+                    return false;
+                }
+                foreach (ISession session in sessions.GetSessions())
+                {
+                    if (session.Id == sessionId)
+                    {
+                        return SessionTermination.IsClosingOrClaimed(session) || session.HasExpired;
+                    }
+                }
+                return true;
+            }
+
+            /// <summary>
+            /// Releases only the closing session, without waiting for a provider open or the reconciliation gate.
+            /// </summary>
+            private void OnSessionClosing(ISession session, SessionEventReason reason)
+            {
+                FileHandle[] handles;
+                lock (m_lock)
+                {
+                    handles = [.. m_handles.Values];
+                }
+                foreach (FileHandle handle in handles)
+                {
+                    try
+                    {
+                        handle.CloseSession(session.Id);
+                    }
+                    finally
+                    {
+                        ReleaseHandle(handle);
+                    }
                 }
             }
 
@@ -922,6 +1005,13 @@ namespace Opc.Ua.Server.FileSystem
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_registerNode;
             private readonly Func<NodeState, CancellationToken, ValueTask>? m_deregisterNode;
             private readonly Lock m_lock = new();
+
+            /// <summary>Serializes lifecycle attachment without holding the handle dictionary gate.</summary>
+            private readonly Lock m_sessionLifecycleLock = new();
+
+            /// <summary>The lifecycle source, attached on the first open and removed on disposal.</summary>
+            private ISessionManager? m_sessions;
+
             private readonly string m_nodeIdPrefix;
             private Dictionary<NodeId, MaterializedNode> m_lookupById = [];
             private bool m_disposed;
