@@ -187,7 +187,12 @@ is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
 endpoint refreshes when the server certificate changes, and cooperates
-with `ReverseConnectManager`.
+with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
+requires the same message-security mode and security policy as the configured
+endpoint. If discovery no longer offers that exact combination, reconnect fails
+instead of selecting another security configuration. Network redundancy skips
+incompatible alternate endpoints and continues searching the configured list
+for a matching endpoint.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -262,6 +267,11 @@ an `ISession` facade that wraps a raw `Session` and adds:
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before
   recreating the session; normal certificate trust validation still applies.
+  Refresh preserves the active endpoint's message-security mode and
+  security-policy URI. A new server certificate can therefore be accepted only
+  through the existing certificate-validation rules, not by changing the
+  channel's security configuration. An application can add its own checks;
+  see [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint).
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -394,7 +404,10 @@ connection state machine transitions `Connected → Reconnecting` and:
 4. If the redundancy handler is enabled and the active server is
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
-   session against the failover endpoint.
+   session against a failover endpoint with the same message-security mode
+   and security-policy URI. Targets with a different mode or policy are
+   skipped before opening their channels; recovery continues to the next
+   configured endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established
@@ -427,38 +440,46 @@ without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
 
+`ConfiguredEndpoint.UpdateBeforeConnect` controls whether endpoint discovery
+refreshes the configured endpoint before connecting. It does not authorize
+automatic security-policy changes and does not disable discovery needed during
+recovery. Reconnect and failover preserve the selected security mode and policy;
+if the server or failover target no longer offers them, the connection attempt
+fails visibly. To use a different policy, explicitly reconfigure and establish a
+new connection rather than relying on automatic reconnect to negotiate one.
+
 ### Validating a rediscovered endpoint
 
 When a reconnect is rejected with a status that requires the endpoint to be
 refreshed (for example `BadCertificateInvalid` after the server replaced its
 certificate), `ManagedSession` reads the endpoint again from the server's
 discovery endpoint and recreates the session against it. Discovery runs before
-the new secure channel exists, so an application that must not silently accept
-a weaker endpoint registers a `RediscoveredEndpointValidator`. It receives the
-endpoint in use and the rediscovered one, and returns `ServiceResult.Good` to
-accept the rediscovered endpoint.
+the new secure channel exists, so its answer is not authenticated. The
+rediscovered endpoint is therefore read into a detached copy and checked in two
+steps before it replaces the endpoint in use:
 
-The check is fail-closed: the rediscovered endpoint is read into a detached
-copy and replaces the endpoint in use only after the validator returned Good,
-so sessions sharing a `ConfiguredEndpoint` never see an endpoint that was not
-accepted. Any result that is not Good, an exception or a cancellation keeps the
-endpoint in use and fails the reconnect attempt, which the reconnect policy
-then retries. A Bad result is reported as it is; an Uncertain or `null` result
-is reported as `BadSecurityChecksFailed`.
+1. **Security configuration (always).** The rediscovered endpoint must keep the
+   message-security mode and security-policy URI of the endpoint in use, as
+   described above. A change fails the reconnect attempt with
+   `BadSecurityModeRejected` or `BadSecurityPolicyRejected`; the validator
+   below is not called.
+2. **Application validator (optional).** A registered
+   `RediscoveredEndpointValidator` receives the endpoint in use and the
+   rediscovered one and returns `ServiceResult.Good` to accept it. Use it for
+   checks the client cannot make on its own, such as pinning the server
+   certificate; it does not need to repeat the security-configuration check.
+
+The check is fail-closed: the rediscovered endpoint replaces the endpoint in
+use only after both steps passed, so sessions sharing a `ConfiguredEndpoint`
+never see an endpoint that was not accepted. A failed refresh, a changed
+security configuration, a validator result that is not Good, an exception or a
+cancellation keeps the endpoint in use and fails the reconnect attempt, which
+the reconnect policy then retries. A Bad validator result is reported as it
+is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
 
 ```csharp
-RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
+RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
 {
-    if (rediscovered.SecurityMode < current.SecurityMode)
-    {
-        return new ValueTask<ServiceResult>(
-            new ServiceResult(StatusCodes.BadSecurityModeRejected));
-    }
-    if (rediscovered.SecurityPolicyUri != current.SecurityPolicyUri)
-    {
-        return new ValueTask<ServiceResult>(
-            new ServiceResult(StatusCodes.BadSecurityPolicyRejected));
-    }
     if (rediscovered.ServerCertificate != current.ServerCertificate)
     {
         // A renewed server certificate is still validated by the certificate
@@ -474,20 +495,20 @@ RediscoveredEndpointValidator keepSecurity = (current, rediscovered, ct) =>
 // Fluent API: installed before the session connects.
 ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(endpoint)
-    .WithRediscoveredEndpointValidator(keepSecurity)
+    .WithRediscoveredEndpointValidator(pinCertificate)
     .ConnectAsync(ct);
 
 // Options snapshot passed to ManagedSession.CreateAsync.
 var options = new ManagedSessionOptions
 {
     Endpoint = endpoint,
-    ValidateRediscoveredEndpoint = keepSecurity
+    ValidateRediscoveredEndpoint = pinCertificate
 };
 
 // Dependency injection: a registered validator is applied to every managed
 // session that IManagedSessionFactory connects, unless the session options
 // carry their own.
-services.AddSingleton(keepSecurity);
+services.AddSingleton(pinCertificate);
 ```
 
 Setting `ManagedSession.ValidateRediscoveredEndpoint` on a connected session

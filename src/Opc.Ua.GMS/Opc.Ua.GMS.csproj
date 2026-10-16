@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).GMS</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.GMS</PackageId>
+    <RootNamespace>Opc.Ua.GMS</RootNamespace>
+    <Description>Server/client-independent OPC 40210 Geometric Measurement Systems model, generated types, factories and client proxies with MachineTool and Machinery Result dependencies.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.MachineTool\Opc.Ua.MachineTool.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Result\Opc.Ua.Machinery.Result.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\opc.ua.gms.nodeset2.xml" />
+    <None Remove="Model\Opc.Ua.GMS.Derived.NodeIds.csv" />
+    <AdditionalFiles Include="Model\opc.ua.gms.nodeset2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/GMS/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>GMS</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.GMS</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.GMS.Derived.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.GMS.Derived.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

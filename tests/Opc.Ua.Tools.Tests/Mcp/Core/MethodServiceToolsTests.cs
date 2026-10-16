@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Mcp.Tools;
+using Opc.Ua.Tools.Tests.McpAuthorization;
 
 namespace Opc.Ua.Tools.Tests.Mcp
 {
@@ -42,6 +43,40 @@ namespace Opc.Ua.Tools.Tests.Mcp
     public sealed class MethodServiceToolsTests
     {
         private const string kUnknownSessionName = "definitely-not-connected";
+
+        /// <summary>
+        /// Both public call tools reject malformed variant envelopes before any method reaches the transport.
+        /// </summary>
+        [TestCase(false, "[{\"Value\":42}]")]
+        [TestCase(true, "[{\"Value\":42}]")]
+        [TestCase(false, "[{\"UaTyp\":6,\"Value\":42}]")]
+        [TestCase(true, "[{\"UaTyp\":6,\"Value\":42}]")]
+        [TestCase(false, "[{\"uaType\":6,\"Value\":42}]")]
+        [TestCase(true, "[{\"uaType\":6,\"Value\":42}]")]
+        [TestCase(false, "[{\"UaType\":null,\"Value\":42}]")]
+        [TestCase(true, "[{\"UaType\":null,\"Value\":42}]")]
+        [TestCase(false, "[{\"UaType\":24,\"Value\":[{\"Value\":42}]}]")]
+        [TestCase(true, "[{\"UaType\":24,\"Value\":[{\"Value\":42}]}]")]
+        [TestCase(false, "[{\"UaType\":23,\"Value\":{\"Value\":42}}]")]
+        [TestCase(true, "[{\"UaType\":23,\"Value\":{\"Value\":42}}]")]
+        public async Task CallToolsRejectMissingTypesBeforeDispatchAsync(bool convenience, string arguments)
+        {
+            await using McpGenericGenerationTestContext fixture =
+                await McpGenericGenerationTestContext.CreateAsync().ConfigureAwait(false);
+
+            string json = convenience
+                ? await ConvenienceTools.CallMethodAsync(
+                    fixture.Manager, "ns=1;i=100", "ns=1;i=101",
+                    inputArgumentsJson: arguments).ConfigureAwait(false)
+                : await MethodServiceTools.CallAsync(
+                    fixture.Manager, "ns=1;i=100", "ns=1;i=101",
+                    inputArgumentsJson: arguments).ConfigureAwait(false);
+
+            Assert.That(fixture.Mutations, Is.Empty);
+            using JsonDocument document = JsonDocument.Parse(json);
+            Assert.That(document.RootElement.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(document.RootElement.GetProperty("statusCode").GetString(), Is.EqualTo("BadDecodingError"));
+        }
 
         [Test]
         public async Task CallAsyncWithValidSessionReturnsStatusJsonAsync()

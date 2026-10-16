@@ -100,15 +100,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = m_nodeManagers[1].SyncNodeManager.GetManagerHandle(nodeId);
+                // Routing is withdrawn before disposal callbacks release their remaining node references.
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return null;
+                }
+                INodeManager core = routing.NodeManagers[1].SyncNodeManager;
+                handle = core.GetManagerHandle(nodeId);
 
                 if (handle != null)
                 {
-                    nodeManager = m_nodeManagers[1].SyncNodeManager;
+                    nodeManager = core;
                     return handle;
                 }
                 return null;
@@ -145,16 +152,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = await m_nodeManagers[1].GetManagerHandleAsync(nodeId, cancellationToken)
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return (null, null);
+                }
+                IAsyncNodeManager core = routing.NodeManagers[1];
+                handle = await core.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (handle != null)
                 {
-                    return (handle, m_nodeManagers[1]);
+                    return (handle, core);
                 }
                 return (null, null);
             }
@@ -272,6 +285,36 @@ namespace Opc.Ua.Server
             bool diagnosticsExist,
             ref List<DiagnosticInfo> diagnosticInfos)
         {
+            if (!HasReportableDiagnostics(context, diagnosticsExist, diagnosticInfos))
+            {
+                diagnosticInfos = null!;
+            }
+        }
+
+        /// <summary>
+        /// Clears the diagnostics result when no reportable operation diagnostics remain.
+        /// </summary>
+        /// <param name="context">The receiving operation's string table.</param>
+        /// <param name="diagnosticsExist">Whether a requested diagnostic was generated.</param>
+        /// <param name="diagnosticInfos">The ordered operation diagnostics retained in the response,
+        /// <c>null</c> if no diagnostic was generated.</param>
+        private static void UpdateDiagnostics(
+            OperationContext context,
+            bool diagnosticsExist,
+            ref DiagnosticInfo[]? diagnosticInfos)
+        {
+            if (diagnosticInfos == null ||
+                !HasReportableDiagnostics(context, diagnosticsExist, diagnosticInfos))
+            {
+                diagnosticInfos = null;
+            }
+        }
+
+        private static bool HasReportableDiagnostics(
+            OperationContext context,
+            bool diagnosticsExist,
+            IList<DiagnosticInfo> diagnosticInfos)
+        {
             if (diagnosticsExist && context.StringTable.Count == 0)
             {
                 diagnosticsExist = false;
@@ -295,10 +338,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (!diagnosticsExist)
-            {
-                diagnosticInfos = null!;
-            }
+            return diagnosticsExist;
         }
 
         /// <summary>
@@ -1239,18 +1279,14 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
 
+            // The node managers fill the results by index, so arrays serve as the result
+            // lists and become the response arrays without a copy. The diagnostics array is
+            // only allocated for the first operation diagnostic.
             bool diagnosticsExist = false;
-            var values = new List<DataValue>(nodesToRead.Count);
-            var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
+            var values = new DataValue[nodesToRead.Count];
+            DiagnosticInfo[]? diagnosticInfos = null;
+            var errors = new ServiceResult[nodesToRead.Count];
 
-            // create empty list of errors.
-            var errors = new List<ServiceResult>(nodesToRead.Count);
-            for (int ii = 0; ii < nodesToRead.Count; ii++)
-            {
-                errors.Add(null!);
-            }
-
-            // add placeholder for each result.
             bool validItems = false;
 
             m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
@@ -1264,17 +1300,13 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
-                // add default value to values collection
-                values.Add(default);
-                // add placeholder for diagnostics
-                diagnosticInfos.Add(null!);
-
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateReadRequestAsync(
                     context,
                     nodesToRead[ii],
                     uniqueNodesReadAttributes,
                     permissionsOnly: uniqueNodesReadAttributes == null,
+                    routeHandle: true,
                     cancellationToken)
                     .ConfigureAwait(false))!;
 
@@ -1338,11 +1370,12 @@ namespace Opc.Ua.Server
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            errors[ii],
-                            m_logger)!;
+                        (diagnosticInfos ??= new DiagnosticInfo[nodesToRead.Count])[ii] =
+                            ServerUtils.CreateDiagnosticInfo(
+                                Server,
+                                context,
+                                errors[ii],
+                                m_logger)!;
                         diagnosticsExist = true;
                     }
                 }
@@ -1366,7 +1399,13 @@ namespace Opc.Ua.Server
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
-            return (values, diagnosticInfos);
+            ArrayOf<DiagnosticInfo> diagnostics = default;
+            if (diagnosticInfos != null)
+            {
+                diagnostics = diagnosticInfos;
+            }
+
+            return (values, diagnostics);
         }
 
         /// <summary>
@@ -3692,12 +3731,34 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates an attribute read and the permissions required by its requested attribute.
         /// </summary>
-        internal async ValueTask<ServiceResult?> ValidateReadRequestAsync(
+        internal ValueTask<ServiceResult?> ValidateReadRequestAsync(
             OperationContext operationContext,
             ReadValueId readValueId,
             Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
+        {
+            return ValidateReadRequestAsync(
+                operationContext,
+                readValueId,
+                uniqueNodesReadAttributes,
+                permissionsOnly,
+                routeHandle: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates an attribute read and the permissions required by its requested attribute,
+        /// and with <paramref name="routeHandle"/> keeps the handle of the node for the read
+        /// (see <see cref="ValidateReadPermissionsAndRouteHandleAsync"/>).
+        /// </summary>
+        private async ValueTask<ServiceResult?> ValidateReadRequestAsync(
+            OperationContext operationContext,
+            ReadValueId readValueId,
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes,
+            bool permissionsOnly,
+            bool routeHandle,
+            CancellationToken cancellationToken)
         {
             ServiceResult? serviceResult = ReadValueId.Validate(readValueId);
 
@@ -3714,6 +3775,18 @@ namespace Opc.Ua.Server
                     requestedPermission = PermissionType.Read;
                 }
 
+                if (routeHandle)
+                {
+                    return await ValidateReadPermissionsAndRouteHandleAsync(
+                            operationContext,
+                            readValueId,
+                            requestedPermission,
+                            uniqueNodesReadAttributes,
+                            permissionsOnly,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 // check access rights and role permissions
                 serviceResult = await ValidatePermissionsAsync(
                         operationContext,
@@ -3725,6 +3798,61 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
             return serviceResult;
+        }
+
+        /// <summary>
+        /// Validates the permissions of a read like
+        /// <see cref="ValidatePermissionsAsync(OperationContext, NodeId, PermissionType, Dictionary{NodeId, Variant[]}?, bool, CancellationToken)"/>
+        /// and keeps the handle of an in-memory node of an <see cref="AsyncCustomNodeManager"/>
+        /// in <see cref="ReadValueId.Handle"/>, so the node manager reads through it (see
+        /// <see cref="AsyncCustomNodeManager.GetRoutedHandle"/>).
+        /// </summary>
+        /// <remarks>
+        /// Only a handle the node manager returned already resolved and validated is routed:
+        /// the permission check may validate a handle of a node that is not in memory, which
+        /// the read must still validate itself.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateReadPermissionsAndRouteHandleAsync(
+            OperationContext context,
+            ReadValueId readValueId,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            // a handle routed for an earlier read of the same instance is stale.
+            if (readValueId.Handle is NodeHandle { RoutedBy: not null })
+            {
+                readValueId.Handle = null!;
+            }
+
+            if (context.Session == null && context.UserIdentity == null && context.ChannelContext == null)
+            {
+                return StatusCodes.Good;
+            }
+
+            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
+                    readValueId.NodeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (nodeManager is AsyncCustomNodeManager owner &&
+                nodeHandle is NodeHandle { Validated: true, Node: not null } resolved &&
+                readValueId.Handle == null)
+            {
+                resolved.RoutedBy = owner;
+                readValueId.Handle = resolved;
+            }
+
+            return await ValidatePermissionsAsync(
+                    context,
+                    nodeManager,
+                    nodeHandle,
+                    requestedPermission,
+                    uniqueNodesReadAttributes,
+                    permissionsOnly,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

@@ -65,6 +65,7 @@ namespace Opc.Ua.Machinery.Server
     public sealed class MachineryNodeManager :
         DiNodeManager,
         IMachineryNodeIdFactory,
+        ICompanionNodeIdReservationOwner,
         IMachineryFacetSink
     {
         private readonly MachineryServerOptions m_options;
@@ -263,6 +264,12 @@ namespace Opc.Ua.Machinery.Server
                     node);
             }
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        void ICompanionNodeIdReservationOwner.ReleaseNodeIdReservation(NodeState node)
+        {
+            m_buildCoordinator.ReleaseNodeId(node);
         }
 
         /// <inheritdoc/>

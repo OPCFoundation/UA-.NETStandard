@@ -107,6 +107,22 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Emits only typed variable accessors and placeholder enumerators over client proxies
+        /// supplied by a referenced model assembly. Disabled by default.
+        /// </summary>
+        public bool ClientAccessorsOnly { get; set; }
+
+        /// <summary>
+        /// Overrides the namespace of client accessor extensions. Defaults to the model prefix plus Client.
+        /// </summary>
+        public string? ClientAccessorNamespace { get; set; }
+
+        /// <summary>
+        /// Overrides the partial extension class name. Defaults to the model name plus ClientMembers.
+        /// </summary>
+        public string? ClientAccessorClassName { get; set; }
+
+        /// <summary>
         /// Optional override for the C# namespace used by classes emitted
         /// by the <see cref="ObjectTypeProxyGenerator"/>. When unset,
         /// the model's target namespace prefix is used.

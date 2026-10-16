@@ -39,6 +39,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Identity;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Mcp
@@ -288,7 +289,7 @@ namespace Opc.Ua.Mcp
         /// Connects to an OPC UA server with endpoint selection and authentication options.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        public async Task<string> ConnectAsync(
+        public Task<string> ConnectAsync(
             string? name,
             string endpointUrl,
             string? securityMode,
@@ -299,7 +300,33 @@ namespace Opc.Ua.Mcp
             bool autoAcceptCerts,
             CancellationToken ct)
         {
+            return ConnectAsync(name, endpointUrl, securityMode, securityPolicy, authType,
+                username, password, autoAcceptCerts, certificateIdentity: null, ct);
+        }
+
+        /// <summary>
+        /// Connects using the selected authentication kind and an optional host-approved X.509 identity reference.
+        /// </summary>
+        public async Task<string> ConnectAsync(
+            string? name,
+            string endpointUrl,
+            string? securityMode,
+            string? securityPolicy,
+            string authType,
+            string? username,
+            string? password,
+            bool autoAcceptCerts,
+            string? certificateIdentity,
+            CancellationToken ct)
+        {
             ObjectDisposedException.ThrowIf(m_disposed, this);
+            if (certificateIdentity != null &&
+                !string.Equals(authType, "Certificate", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "A certificate identity reference requires Certificate authentication.",
+                    nameof(certificateIdentity));
+            }
 
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
@@ -323,6 +350,10 @@ namespace Opc.Ua.Mcp
                 }
 
                 await EnsureConfigurationInternalAsync(ct).ConfigureAwait(false);
+                IClientIdentityProvider? identityProvider =
+                    string.Equals(authType, "Certificate", StringComparison.OrdinalIgnoreCase)
+                        ? CreateCertificateIdentityProvider(certificateIdentity, m_configuration!)
+                        : null;
                 ConnectionValidationContext? validationContext =
                     await CreateConnectionValidationContextAsync(
                         m_configuration!,
@@ -343,15 +374,20 @@ namespace Opc.Ua.Mcp
                         authType,
                         ct).ConfigureAwait(false);
 
-                    UserIdentity identity = BuildUserIdentity(authType, username, password);
-
                     var endpointConfiguration = EndpointConfiguration.Create(configuration);
                     var endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
                     ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, Telemetry)
                         .UseEndpoint(endpoint)
                         .WithSessionName(name)
-                        .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000))
-                        .WithUserIdentity(identity);
+                        .WithSessionTimeout(TimeSpan.FromMilliseconds(60_000));
+                    if (identityProvider != null)
+                    {
+                        builder.WithIdentityProvider(identityProvider);
+                    }
+                    else
+                    {
+                        builder.WithUserIdentity(BuildUserIdentity(authType, username, password));
+                    }
 
                     if (validationContext.UseSharedChannelManager)
                     {
@@ -550,6 +586,55 @@ namespace Opc.Ua.Mcp
 
             m_sessions.Clear();
             m_lock.Dispose();
+        }
+
+        /// <summary>
+        /// Resolves a host-owned selector through the existing X.509 identity and certificate providers.
+        /// </summary>
+        internal IClientIdentityProvider CreateCertificateIdentityProvider(
+            string? reference,
+            ApplicationConfiguration configuration)
+        {
+            if (string.IsNullOrWhiteSpace(reference))
+            {
+                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                    "Certificate authentication requires a host-configured certificateIdentity reference.");
+            }
+            ArrayOf<McpCertificateIdentity> identities =
+                m_serviceProvider.GetRequiredService<OpcUaMcpOptions>().CertificateIdentities;
+            McpCertificateIdentity? selected = null;
+            foreach (McpCertificateIdentity candidate in identities)
+            {
+                if (candidate.Name != reference)
+                {
+                    continue;
+                }
+                if (selected != null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                        "The configured certificate identity name is ambiguous.");
+                }
+                selected = candidate;
+            }
+            if (selected?.Certificate == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
+                    "The requested certificateIdentity is not configured by the host.");
+            }
+            ICertificateManager manager = configuration.CertificateManager ??
+                throw new ServiceResultException(StatusCodes.BadConfigurationError,
+                    "The application certificate manager is not initialized.");
+            ICertificatePasswordProvider passwords = m_serviceProvider
+                .GetService<ICertificatePasswordProvider>() ?? new CertificatePasswordProvider();
+            return new CompositeClientIdentityProviderBuilder()
+                .AddX509(options =>
+                {
+                    options.StoreType = selected.Certificate.StoreType;
+                    options.StorePath = selected.Certificate.StorePath;
+                    options.SubjectName = selected.Certificate.SubjectName;
+                    options.Thumbprint = selected.Certificate.Thumbprint;
+                }, manager.CertificateProvider, passwords)
+                .Build();
         }
 
         private static async Task DisconnectInternalAsync(SessionInfo info, CancellationToken ct)
@@ -804,12 +889,6 @@ namespace Opc.Ua.Mcp
                     return new UserIdentity(
                         username,
                         System.Text.Encoding.UTF8.GetBytes(password ?? string.Empty));
-                case "CERTIFICATE":
-                    throw new NotSupportedException(
-                        "Certificate authentication is not yet supported through the MCP " +
-                        "Connect tool. Certificate auth requires certificate store " +
-                        "configuration which is beyond the scope of MCP tool parameters. " +
-                        "Use 'Anonymous' or 'Username' authentication instead.");
                 default:
                     throw new ArgumentException(
                         $"Invalid authType '{authType}'. " +

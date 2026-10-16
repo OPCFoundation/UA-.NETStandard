@@ -1,0 +1,95 @@
+{
+  "revision": "96a08945425d0295edb3607d2a38f6841ef44046",
+  "specification": "OPC-40210",
+  "referenceEdition": "1.0.1",
+  "referenceUrl": "https://reference.opcfoundation.org/specs/OPC-40210",
+  "hashNormalization": "UTF-8 source bytes with CRLF normalized to LF; repository files use CRLF.",
+  "model": {
+    "ModelUri": "http://opcfoundation.org/UA/GMS/",
+    "Version": "1.0.0",
+    "PublicationDate": "2023-07-01T00:00:00Z",
+    "requiredModels": [
+      {
+        "ModelUri": "http://opcfoundation.org/UA/",
+        "Version": "1.05.02",
+        "PublicationDate": "2022-11-01T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/DI/",
+        "Version": "1.04.0",
+        "PublicationDate": "2022-11-03T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/IA/",
+        "Version": "1.01.0",
+        "PublicationDate": "2021-07-31T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+        "Version": "1.02.0",
+        "PublicationDate": "2021-12-01T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/MachineTool/",
+        "Version": "1.01.1",
+        "PublicationDate": "2022-07-04T12:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/Machinery/Result/",
+        "Version": "1.00.0",
+        "PublicationDate": "2023-01-01T00:00:00Z"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "file": "opc.ua.gms.nodeset2.xml",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/GMS/opc.ua.gms.nodeset2.xml",
+      "sha256": "9e510c01a2671b732e5eb27561b06a5bc040bb219412884d0a3aff3c55b88ee0",
+      "normalizedSha256": "9e510c01a2671b732e5eb27561b06a5bc040bb219412884d0a3aff3c55b88ee0"
+    },
+    {
+      "file": "opc.ua.gms.nodesids.csv",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/GMS/opc.ua.gms.nodesids.csv",
+      "sha256": "cb2f8533cac25659cf46df8621f7c3b462933241ac9f6b615f7b6289754d6203",
+      "normalizedSha256": "cb2f8533cac25659cf46df8621f7c3b462933241ac9f6b615f7b6289754d6203"
+    },
+    {
+      "file": "opc.ua.gms.nodeset2.documentation.csv",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/GMS/opc.ua.gms.nodeset2.documentation.csv",
+      "sha256": "d0d2e53a991efa4649ab0dc0442f7608d2b5904fa848cb203655ad1967ecbf2b",
+      "normalizedSha256": "d0d2e53a991efa4649ab0dc0442f7608d2b5904fa848cb203655ad1967ecbf2b"
+    }
+  ],
+  "derivedIdentifierTable": {
+    "file": "Opc.Ua.GMS.Derived.NodeIds.csv",
+    "tool": "tools/nodesets/derive-identifier-table.py",
+    "purpose": "Local source-generator symbolic-name drift guard, not an upstream publication or NodeId source.",
+    "canonicalDeclarations": 273,
+    "renamedSymbols": 45,
+    "surplusUpstreamRowsAbsentFromXml": {
+      "5002": "WorkspaceType_Encoding_DefaultBinary",
+      "5003": "WorkspaceType_Encoding_DefaultXml",
+      "5004": "WorkspaceType_Encoding_DefaultJson",
+      "6061": "TypeDictionary_BinarySchema_WorkspaceType",
+      "6062": "TypeDictionary_XmlSchema_WorkspaceType"
+    },
+    "derivationResult": "The tool emits all 273 canonical XML declarations and exits 1 to report the five surplus upstream CSV rows. Both original inputs remain unchanged; the absent abstract-workspace encodings are not fabricated."
+  },
+  "declarationCounts": {
+    "DataType": 7,
+    "Variable": 194,
+    "VariableType": 3,
+    "ObjectType": 19,
+    "Object": 43,
+    "Method": 7
+  },
+  "compatibility": [
+    "The released GMS model version is 1.0.0, not the reference edition 1.0.1.",
+    "The package reuses the existing MachineTool 1.02.0 dependency and its Machinery Jobs/ISA95 closure while retaining required inherited legacy Production declarations.",
+    "WMTP shares the MachineTool assembly but is not part of the GMS runtime namespace or factory closure.",
+    "Canonical XML identities prevail over prose discrepancies: SensorWarningAlarmType i=1010, GMSResultType i=2004, GMSResultManagementType i=1008.",
+    "The XML and section 8.3 Table 17 set Qualified/IsCountingUp=true. Section 12.2 QualifiedToolLife instead requires remaining-time semantics with Indication=Time and IsCountingUp=false. The immutable model input is preserved; a runtime selecting this CU must configure its optional Qualified entry accordingly.",
+    "OPC-40210 12.3.2.7 requires GMS_ProductionStatisticsType, which is absent from the CU definitions and normative XML. No type or NodeId is invented; inherited production/statistics and defined GMS job/part declarations are retained. A complete GMS Production facet is not claimed."
+  ]
+}

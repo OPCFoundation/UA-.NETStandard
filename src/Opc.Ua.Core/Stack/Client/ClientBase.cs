@@ -97,11 +97,11 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
-        public EndpointDescription Endpoint => NullableTransportChannel!.EndpointDescription;
+        public EndpointDescription Endpoint => TransportChannel.EndpointDescription;
 
         /// <inheritdoc/>
         public EndpointConfiguration EndpointConfiguration
-            => NullableTransportChannel!.EndpointConfiguration;
+            => TransportChannel.EndpointConfiguration;
 
         /// <inheritdoc/>
         /// <exception cref="ServiceResultException">

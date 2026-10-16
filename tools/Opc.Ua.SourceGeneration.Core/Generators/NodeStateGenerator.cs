@@ -884,7 +884,7 @@ namespace Opc.Ua.SourceGeneration
             if (!instance.IsOverridden())
             {
                 if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
-                    !instance.HidesBaseTypePlaceholder())
+                    !HidesInheritedPlaceholderHelper(instance))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
@@ -908,6 +908,37 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Tests the CLR helper signature rather than the qualified browse name: a placeholder
+        /// in a different wire namespace can still hide the same Add helper on a generated base class.
+        /// </summary>
+        private static bool HidesInheritedPlaceholderHelper(InstanceDesign instance)
+        {
+            if (instance.ModellingRule is not ModellingRule.MandatoryPlaceholder and
+                not ModellingRule.OptionalPlaceholder ||
+                instance.Parent is not TypeDesign declaringType)
+            {
+                return false;
+            }
+            for (TypeDesign? baseType = declaringType.BaseTypeNode; baseType != null; baseType = baseType.BaseTypeNode)
+            {
+                if (baseType.Children?.Items == null)
+                {
+                    continue;
+                }
+                foreach (InstanceDesign child in baseType.Children.Items)
+                {
+                    if (child.ModellingRule is
+                        ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder &&
+                        child.SymbolicName.Name == instance.SymbolicName.Name)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private TemplateString? LoadTemplate_TypedVariableType(ILoadContext context)
@@ -2030,8 +2061,18 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            bool placeholder = reference.TargetNode is InstanceDesign
+            {
+                ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+            };
+            if (placeholder)
+            {
+                context.Out.WriteLine("if (!forInstance)");
+                context.Out.WriteLine("{");
+            }
             context.Out.WriteLine(
-                "state.AddReference({0}, {1}, {2});",
+                "{0}state.AddReference({1}, {2}, {3});",
+                placeholder ? "    " : string.Empty,
                 m_context.ModelDesign.GetNodeIdConstant(
                     reference.ReferenceTypeId,
                     "<ReferenceType>",
@@ -2040,6 +2081,10 @@ namespace Opc.Ua.SourceGeneration
                 reference.TargetNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable));
+            if (placeholder)
+            {
+                context.Out.WriteLine("}");
+            }
             return null;
         }
 
@@ -4088,12 +4133,12 @@ namespace Opc.Ua.SourceGeneration
                 if (node.RootIsTypeDefinition &&
                     !current.ExplicitlyDefined &&
                     current.Inherited &&
-                    current.AdHocInstance)
+                    current.AdHocInstance &&
+                    effectiveRule != ModellingRule.Mandatory)
                 {
-                    // this assumes that ad-hoc instances are not more than one level deep.
-                    // i.e. a type defines folder and adds a few instances but does not
-                    // defined subfolders.
-                    // need a better way to identify when to suppress inherited adhoc instances.
+                    // Required descendants of generic containers such as DI ParameterSet
+                    // must also initialize derived instances. Keep this shallow-level
+                    // suppression only for non-mandatory inherited ad-hoc declarations.
                     if (!node.Path!.Contains(NodeDesign.PathChar, StringComparison.Ordinal))
                     {
                         continue;
@@ -4230,15 +4275,6 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    if (!node.RootIsTypeDefinition &&
-                        targetNode is InstanceDesign instance &&
-                        (instance.ModellingRule is
-                            ModellingRule.MandatoryPlaceholder or
-                            ModellingRule.OptionalPlaceholder))
-                    {
-                        continue;
-                    }
-
                     references.Add(new ReferenceToGenerate(
                         targetNode,
                         reference.ReferenceType,
@@ -4296,6 +4332,15 @@ namespace Opc.Ua.SourceGeneration
                     source.Instance!,
                     reference.ReferenceType!,
                     !isInverse));
+            }
+
+            // Apply the instance filter after resolving both identifier and hierarchy-path targets.
+            if (!node.RootIsTypeDefinition)
+            {
+                references.RemoveWhere(reference => reference.TargetNode is InstanceDesign
+                {
+                    ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+                });
             }
 
             // Inherited and declared designs can differ structurally while

@@ -753,13 +753,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RoboticsProfilePublishesExactlyFortyTwoTools()
+        public void RoboticsProfilePublishesExactlyFortyThreeTools()
         {
-            Assert.That(ResolveToolNames(McpToolProfile.Robotics), Has.Count.EqualTo(42));
+            Assert.That(ResolveToolNames(McpToolProfile.Robotics), Has.Count.EqualTo(43));
         }
 
         [Test]
-        public void ComposedVisionAndRoboticsProfilePublishesEightyOneTools()
+        public void ComposedVisionAndRoboticsProfilePublishesEightyTwoTools()
         {
             var services = new ServiceCollection();
             var toolProfiles = new McpToolProfileSet(
@@ -777,7 +777,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.Multiple(() =>
             {
-                Assert.That(tools, Has.Count.EqualTo(81));
+                Assert.That(tools, Has.Count.EqualTo(82));
                 Assert.That(tools, Does.Contain("robotics_vision_pick"));
                 Assert.That(tools, Does.Contain("vision_run_inference"));
             });

@@ -98,6 +98,11 @@ namespace Opc.Ua.SourceGeneration
                     // Nothing to do
                     return;
                 }
+                if (m_options.ClientAccessorsOnly && m_options.Options.GenerateNodeManager)
+                {
+                    throw new InvalidOperationException(
+                        "Client accessor-only generation cannot be combined with node manager generation.");
+                }
 
                 string[] exclusions = [.. m_options.Exclude
                     .Append("Draft")
@@ -121,6 +126,9 @@ namespace Opc.Ua.SourceGeneration
                     EmitDependencyMetadata = ResolveEmitDependencyMetadata(),
                     OmitFluentApi = m_options.OmitFluentApi,
                     FluentAccessorsOnly = m_options.FluentAccessorsOnly,
+                    ClientAccessorsOnly = m_options.ClientAccessorsOnly,
+                    ClientAccessorNamespace = m_options.ClientAccessorNamespace,
+                    ClientAccessorClassName = m_options.ClientAccessorClassName,
                     OmitEventRecords = m_options.OmitEventRecords
                 };
 
@@ -447,30 +455,54 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
+                if (IsMatchingTransitiveReference(candidate, existing))
+                {
+                    if (IsModelProducer(candidate))
+                    {
+                        map[candidate.ModelUri] = candidate;
+                    }
+                    continue;
+                }
                 int cmp = CompareReferencedModels(candidate, existing);
+                if (cmp == 0)
+                {
+                    continue;
+                }
+                ModelDependencyReference selected = cmp > 0 ? candidate : existing;
+                ModelDependencyReference ignored = cmp > 0 ? existing : candidate;
                 if (cmp > 0)
                 {
-                    m_context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            SourceGenerator.ModelDependencyTieBreak,
-                            Location.None,
-                            candidate.ModelUri,
-                            candidate.AssemblyName,
-                            existing.AssemblyName));
                     map[candidate.ModelUri] = candidate;
                 }
-                else if (cmp < 0)
-                {
-                    m_context.ReportDiagnostic(
-                        Diagnostic.Create(
-                            SourceGenerator.ModelDependencyTieBreak,
-                            Location.None,
-                            existing.ModelUri,
-                            existing.AssemblyName,
-                            candidate.AssemblyName));
-                }
+                m_context.ReportDiagnostic(
+                    Diagnostic.Create(
+                        SourceGenerator.ModelDependencyTieBreak,
+                        Location.None,
+                        selected.ModelUri,
+                        selected.AssemblyName,
+                        ignored.AssemblyName));
             }
             return map;
+        }
+
+        /// <summary>
+        /// Identifies matching dependency metadata, not another assembly that emits the model's types.
+        /// </summary>
+        private static bool IsMatchingTransitiveReference(
+            ModelDependencyReference candidate,
+            ModelDependencyReference existing)
+        {
+            if (!string.Equals(candidate.ModelUri, existing.ModelUri, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Prefix, existing.Prefix, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Version, existing.Version, StringComparison.Ordinal) ||
+                !string.Equals(candidate.PublicationDate, existing.PublicationDate, StringComparison.Ordinal) ||
+                !string.Equals(candidate.Name, existing.Name, StringComparison.Ordinal))
+            {
+                return false;
+            }
+            return (candidate.Payload.Length == 0 &&
+                    (existing.Payload.Length == 0 || IsModelProducer(existing))) ||
+                (existing.Payload.Length == 0 && IsModelProducer(candidate));
         }
 
         /// <summary>
@@ -481,7 +513,8 @@ namespace Opc.Ua.SourceGeneration
         /// the order the assemblies are referenced in. The versions go through
         /// <see cref="SemVer.CompareModels"/>, the OPC 10000-6 F.2 comparator
         /// NodesetFileCollection uses, so the two halves of the pipeline cannot
-        /// pick different winners.
+        /// pick different winners. An ordinal assembly-name tie-break keeps
+        /// equally versioned distinct producers deterministic.
         /// </summary>
         /// <remarks>
         /// <see cref="ModelDependencyAttribute"/> and its ModelDependencyV1
@@ -511,6 +544,10 @@ namespace Opc.Ua.SourceGeneration
             {
                 cmp = string.CompareOrdinal(
                     candidate.PublicationDate, existing.PublicationDate);
+            }
+            if (cmp == 0)
+            {
+                cmp = string.CompareOrdinal(existing.AssemblyName, candidate.AssemblyName);
             }
             return cmp;
         }

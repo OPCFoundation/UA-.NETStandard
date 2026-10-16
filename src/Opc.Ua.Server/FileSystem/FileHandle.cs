@@ -43,10 +43,17 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     internal sealed class FileHandle : IDisposable
     {
-        public FileHandle(IFileSystemProvider provider, string providerPath)
+        /// <summary>
+        /// Creates a handle bag with an optional admission check for the hosting session lifecycle.
+        /// </summary>
+        public FileHandle(
+            IFileSystemProvider provider,
+            string providerPath,
+            Func<NodeId, bool>? isSessionTerminated = null)
         {
             m_provider = provider;
             ProviderPath = providerPath;
+            m_isSessionTerminated = isSessionTerminated;
         }
 
         public string ProviderPath { get; }
@@ -310,6 +317,11 @@ namespace Opc.Ua.Server.FileSystem
                 if (m_disposed)
                 {
                     error = StatusCodes.BadShutdown;
+                    return false;
+                }
+                if (m_isSessionTerminated?.Invoke(sessionId) == true)
+                {
+                    error = StatusCodes.BadSessionClosed;
                     return false;
                 }
                 if (m_openBlocks != 0)
@@ -578,6 +590,10 @@ namespace Opc.Ua.Server.FileSystem
         private readonly Lock m_lock = new();
         private readonly Dictionary<uint, OpenFile> m_reads = [];
         private readonly IFileSystemProvider m_provider;
+
+        /// <summary>Rejects a late reservation after its session's close notification has already run.</summary>
+        private readonly Func<NodeId, bool>? m_isSessionTerminated;
+
         private OpenFile? m_write;
 
         /// <summary>

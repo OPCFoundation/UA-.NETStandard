@@ -53,6 +53,17 @@ src/Opc.Ua.Vision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
 src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.NodeSet2.xml -text
 src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
 
+# Preserve pinned plastics/rubber inputs and the reproducibly authored common model.
+# Their upstream license banners include trailing spaces covered by the byte-level hashes.
+# TODO: revisit the whitespace exception if upstream republishes these inputs without it.
+src/Opc.Ua.PlasticsRubber/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/Basis/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+
 # Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
 # fork messages are exact byte sequences, not documents. Line-ending translation
 # changes their length and SHA-256, breaks the byte-exact provenance assertions,
