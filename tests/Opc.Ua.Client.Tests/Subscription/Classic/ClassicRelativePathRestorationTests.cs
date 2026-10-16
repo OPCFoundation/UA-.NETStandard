@@ -134,6 +134,44 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A failed creation's translated target is not persisted as an existing server identity.
+        /// </summary>
+        [Test]
+        public async Task UncreatedItemSnapshotDoesNotRetainTranslatedTargetAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            using Subscription subscription = CreateSubscription(session);
+            await subscription.CreateAsync().ConfigureAwait(false);
+            MonitoredItem item = CreateItem();
+            subscription.AddItem(item);
+            session.Setup(s => s.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), 9, It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results = [new MonitoredItemCreateResult { StatusCode = StatusCodes.BadTooManyMonitoredItems }]
+                });
+            await subscription.CreateItemsAsync().ConfigureAwait(false);
+            Assert.That(item.Created, Is.False);
+            Assert.That(item.ResolvedNodeId, Is.EqualTo(new NodeId("Target", 1)));
+
+            item.Snapshot(out MonitoredItemState state);
+            var restored = new MonitoredItem(NUnitTelemetryContext.Create());
+            restored.Restore(state);
+
+            Assert.That(restored.ResolvedNodeId.IsNull, Is.True);
+            Mock<ISession> targetSession = CreateSession();
+            SetTranslation(targetSession, Task.FromResult(Translation("ChangedTarget")));
+            using Subscription target = CreateSubscription(targetSession);
+            await target.CreateAsync().ConfigureAwait(false);
+            target.AddItem(restored);
+            await target.ApplyChangesAsync().ConfigureAwait(false);
+            Assert.That(restored.Created, Is.True);
+            Assert.That(restored.Status.NodeId, Is.EqualTo(new NodeId("ChangedTarget", 1)));
+            VerifyTranslationCount(targetSession, Times.Once());
+        }
+
+        /// <summary>
         /// A malformed sibling path does not abort creation or poison later apply retries.
         /// </summary>
         [TestCase(false)]
@@ -412,6 +450,90 @@ namespace Opc.Ua.Client.Tests
             Assert.That(item.ResolvedNodeId.IsNull, Is.True);
             Assert.That(item.Status.NodeId.IsNull, Is.True);
             Assert.DoesNotThrow(() => item.RelativePath = "/New");
+        }
+
+        /// <summary>
+        /// Losing a subscription clears retained identities without reactivating removed items.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SubscriptionResetClearsFailedDeletionIdentityAsync(bool recreateSession)
+        {
+            Mock<ISession> session = CreateSession();
+            using Subscription subscription = CreateSubscription(session);
+            MonitoredItem item = CreateItem();
+            subscription.AddItem(item);
+            await subscription.CreateAsync().ConfigureAwait(false);
+            session.Setup(s => s.DeleteMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), 9, It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteMonitoredItemsResponse { Results = [StatusCodes.BadUserAccessDenied] });
+            session.Setup(s => s.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            subscription.RemoveItem(item);
+            await subscription.DeleteItemsAsync().ConfigureAwait(false);
+            Assert.That(item.Created, Is.True);
+            Assert.That(subscription.ChangesPending, Is.True);
+
+            if (recreateSession)
+            {
+                await subscription.ResetForSessionRecreateAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await subscription.DeleteAsync(false).ConfigureAwait(false);
+            }
+
+            Assert.That(item.ServerId, Is.Zero);
+            Assert.That(item.ResolvedNodeId.IsNull, Is.True);
+            Assert.That(item.Status.NodeId.IsNull, Is.True);
+            Assert.That(subscription.MonitoredItems, Is.Empty);
+            Assert.That(subscription.ChangesPending, Is.False);
+            Assert.DoesNotThrow(() => item.RelativePath = "/Replacement");
+            await subscription.CreateAsync().ConfigureAwait(false);
+            Assert.That((await subscription.DeleteItemsAsync().ConfigureAwait(false)).IsEmpty, Is.True);
+            VerifyCreateCount(session, Times.Once());
+        }
+
+        /// <summary>
+        /// Moving an item, even away and back, invalidates its previous owner's translation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OwnershipChangeRejectsPendingResolutionAsync(bool moveBack)
+        {
+            Mock<ISession> firstSession = CreateSession();
+            Mock<ISession> secondSession = CreateSession();
+            using Subscription first = CreateSubscription(firstSession);
+            using Subscription second = CreateSubscription(secondSession);
+            await first.CreateAsync().ConfigureAwait(false);
+            await second.CreateAsync().ConfigureAwait(false);
+            MonitoredItem item = CreateItem();
+            first.AddItem(item);
+            var translation = new TaskCompletionSource<TranslateBrowsePathsToNodeIdsResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            SetTranslation(firstSession, translation.Task);
+            Task resolving = first.ResolveItemNodeIdsAsync();
+
+            first.RemoveItem(item);
+            second.AddItem(item);
+            if (moveBack)
+            {
+                second.RemoveItem(item);
+                first.AddItem(item);
+            }
+            translation.SetResult(Translation("StaleOwner"));
+
+            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resolving.ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(item.ResolvedNodeId.IsNull, Is.True);
+            Mock<ISession> currentSession = moveBack ? firstSession : secondSession;
+            Subscription current = moveBack ? first : second;
+            SetTranslation(currentSession, Task.FromResult(Translation("CurrentOwner")));
+            await current.CreateItemsAsync().ConfigureAwait(false);
+            Assert.That(item.Created, Is.True);
+            Assert.That(item.Status.NodeId, Is.EqualTo(new NodeId("CurrentOwner", 1)));
         }
 
         /// <summary>

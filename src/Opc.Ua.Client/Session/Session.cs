@@ -1258,7 +1258,10 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            SnapshotCodec.SaveSubscriptions(stream, context, subscriptionStates.ToArray());
+            SnapshotCodec.SaveSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                subscriptionStates.ToArray());
         }
 
         /// <inheritdoc/>
@@ -1271,7 +1274,10 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            ArrayOf<SubscriptionState> states = SnapshotCodec.LoadSubscriptions(stream, context);
+            ArrayOf<SubscriptionState> states = SnapshotCodec.LoadSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                out ServiceMessageContext restoredContext);
             var subscriptions = new SubscriptionCollection(states.Count);
             foreach (SubscriptionState savedState in states)
             {
@@ -1294,6 +1300,7 @@ namespace Opc.Ua.Client
                 AddSubscription(subscription);
                 subscriptions.Add(subscription);
             }
+            m_restoredSubscriptionContext = restoredContext;
             return subscriptions;
         }
 
@@ -6932,6 +6939,9 @@ namespace Opc.Ua.Client
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
+
+        /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
+        private ServiceMessageContext? m_restoredSubscriptionContext;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;

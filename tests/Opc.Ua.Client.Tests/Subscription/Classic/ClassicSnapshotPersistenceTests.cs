@@ -414,10 +414,15 @@ namespace Opc.Ua.Client.Tests
             Assert.That(session.Subscriptions, Is.Empty);
         }
 
-        [Test]
-        public void InvalidTargetNamespaceFailsWithoutAttachingSubscriptions()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void InvalidTargetNamespaceFailsWithoutAttachingSubscriptions(bool largerDestinationTable)
         {
             using Session session = CreateSession();
+            if (largerDestinationTable)
+            {
+                session.NamespaceUris.Append("urn:unrelated:destination");
+            }
             using var output = new MemoryStream();
             using (var encoder = new BinaryEncoder(output, session.MessageContext, true))
             {
@@ -432,13 +437,57 @@ namespace Opc.Ua.Client.Tests
                     TransferId = 102,
                     MonitoredItems =
                     [
-                        new MonitoredItemState { ResolvedNodeId = new NodeId(20, ushort.MaxValue) }
+                        new MonitoredItemState { ResolvedNodeId = new NodeId(20, 1) }
                     ]
                 }.Encode(encoder);
             }
             output.Position = 0;
             Assert.Throws<ServiceResultException>(() => session.Load(output).ToArray());
             Assert.That(session.Subscriptions, Is.Empty);
+        }
+
+        /// <summary>
+        /// A snapshot loaded before reconnect can be saved again without losing its namespace provenance.
+        /// </summary>
+        [Test]
+        public void PreReconnectLoadSaveLoadPreservesNamespaceProvenance()
+        {
+            using Session source = CreateSession();
+            source.NamespaceUris.Append("urn:original:target");
+            using var original = new Subscription(NUnitTelemetryContext.Create());
+            original.Restore(new SubscriptionState
+            {
+                MonitoredItems =
+                [
+                    new MonitoredItemState
+                    {
+                        StartNodeId = new NodeId(10, 1),
+                        RelativePath = "/Target",
+                        ResolvedNodeId = new NodeId(20, 1),
+                        ServerId = 101,
+                        ClientId = 102
+                    }
+                ]
+            });
+            using var first = new MemoryStream();
+            source.Save(first, [original]);
+            first.Position = 0;
+            using Session disconnected = CreateSession();
+            Subscription[] loaded = disconnected.Load(first, true).ToArray();
+            using var second = new MemoryStream();
+
+            disconnected.Save(second, loaded);
+            second.Position = 0;
+            using Session target = CreateSession();
+            target.NamespaceUris.Append("urn:unrelated:destination");
+            target.NamespaceUris.Append("urn:original:target");
+            MonitoredItem restored = target.Load(second, true).Single().MonitoredItems.Single();
+
+            Assert.That(disconnected.NamespaceUris.Count, Is.EqualTo(1));
+            Assert.That(restored.StartNodeId, Is.EqualTo(new NodeId(10, 2)));
+            Assert.That(restored.ResolvedNodeId, Is.EqualTo(new NodeId(20, 2)));
+            Assert.That(restored.Status.NodeId, Is.EqualTo(new NodeId(20, 2)));
+            Assert.That(restored.ServerId, Is.EqualTo(101u));
         }
 
         private static Session CreateSession()

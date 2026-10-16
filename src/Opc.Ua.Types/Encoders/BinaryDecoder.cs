@@ -1117,7 +1117,7 @@ namespace Opc.Ua
                         StatusCodes.BadDecodingError,
                         "An ExtensionObject on a forward-only stream must have a known body length.");
                 }
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
+                if (activator == null && Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < length)
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
@@ -1125,10 +1125,19 @@ namespace Opc.Ua
                         Context.MaxByteStringLength,
                         length);
                 }
+                if (activator != null && Context.MaxMessageSize > 0 && Context.MaxMessageSize < length)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxMessageSize exceeded in ExtensionObject replay: {0} < {1}",
+                        Context.MaxMessageSize,
+                        length);
+                }
 
                 // Only this length-delimited body needs replay for recovery.
                 // Keep the enclosing stream forward-only and grow the body
-                // buffer with bytes actually read, using the existing limits.
+                // buffer with bytes actually read. Known structures retain
+                // field limits; opaque and recovered bodies retain the ByteString limit.
                 byte[] body = SafeReadStreamBytes(length, nameof(ReadExtensionObject));
                 using var bodyDecoder = new BinaryDecoder(body, Context);
                 bodyDecoder.InheritDecodingState(

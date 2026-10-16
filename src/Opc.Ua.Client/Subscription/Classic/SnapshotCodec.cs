@@ -62,7 +62,8 @@ namespace Opc.Ua.Client
         /// </summary>
         internal static ArrayOf<SubscriptionState> LoadSubscriptions(
             Stream stream,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            out ServiceMessageContext restoredContext)
         {
             byte[] prefix = ReadPrefix(stream);
             using var input = new PrefixReplayStream(stream, prefix);
@@ -70,14 +71,18 @@ namespace Opc.Ua.Client
             using var decoder = new BinaryDecoder(input, decodingContext, true);
             bool legacy = ReadHeader(decoder, prefix, kSubscriptions);
             (NamespaceTable namespaces, StringTable servers) = ReadTables(decoder);
+            restoredContext = new ServiceMessageContext(context, context.Telemetry);
             // Before reconnect the target has no server namespace table yet.
             // Preserve saved indices without publishing speculative tables to the live session.
-            if (decodingContext.NamespaceUris.Count <= 1)
+            if (restoredContext.NamespaceUris.Count <= 1)
             {
-                decodingContext.NamespaceUris = namespaces;
-                decodingContext.ServerUris = servers;
+                restoredContext.NamespaceUris = namespaces;
+                restoredContext.ServerUris = servers;
             }
-            decoder.SetMappingTables(namespaces, servers);
+            // Validate the original indices before mapping. An out-of-range
+            // source index must not alias an unrelated valid destination index.
+            decodingContext.NamespaceUris = namespaces;
+            decodingContext.ServerUris = servers;
 
             int count = decoder.ReadInt32(null);
             if (count < 0)
@@ -107,10 +112,34 @@ namespace Opc.Ua.Client
                     state.Decode(decoder);
                 }
                 ValidateSubscription(state, decodingContext.NamespaceUris);
+                if (!ReferenceEquals(restoredContext.NamespaceUris, namespaces))
+                {
+                    state = RemapSubscription(state, decodingContext, restoredContext);
+                    ValidateSubscription(state, restoredContext.NamespaceUris);
+                }
                 states.Add(state);
             }
             EnsureEnd(input);
             return states.ToArray();
+        }
+
+        /// <summary>
+        /// Remaps one validated record, including nested filter fields, through the standard codecs.
+        /// </summary>
+        private static SubscriptionState RemapSubscription(
+            SubscriptionState state,
+            ServiceMessageContext source,
+            IServiceMessageContext destination)
+        {
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, source, true);
+            state.Encode(encoder);
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, destination, true);
+            decoder.SetMappingTables(source.NamespaceUris, source.ServerUris);
+            var mapped = new SubscriptionState();
+            mapped.Decode(decoder);
+            return mapped;
         }
 
         /// <summary>

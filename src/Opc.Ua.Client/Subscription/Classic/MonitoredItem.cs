@@ -155,7 +155,7 @@ namespace Opc.Ua.Client
                 Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, state.ClientId);
                 ClientHandle = state.ClientId;
                 ServerId = state.ServerId;
-                ResolvedNodeId = state.ResolvedNodeId;
+                ResolvedNodeId = state.ServerId != 0 ? state.ResolvedNodeId : NodeId.Null;
                 Status.RestoreTarget(ResolvedNodeId);
                 TriggeringItemId = state.TriggeringItemId;
                 TriggeredItems = state.TriggeredItems;
@@ -175,7 +175,7 @@ namespace Opc.Ua.Client
                     TriggeringItemId = TriggeringItemId,
                     TriggeredItems = TriggeredItems,
                     CacheQueueSize = CacheQueueSize,
-                    ResolvedNodeId = Created ? Status.NodeId : ResolvedNodeId
+                    ResolvedNodeId = Created ? Status.NodeId : NodeId.Null
                 };
             }
         }
@@ -414,11 +414,19 @@ namespace Opc.Ua.Client
             get;
             internal set
             {
-                if (field == null && value?.Telemetry != null)
+                lock (m_cache)
                 {
-                    m_logger = value.Telemetry.CreateLogger<MonitoredItem>();
+                    if (ReferenceEquals(field, value))
+                    {
+                        return;
+                    }
+                    if (field == null && value?.Telemetry != null)
+                    {
+                        m_logger = value.Telemetry.CreateLogger<MonitoredItem>();
+                    }
+                    field = value;
+                    m_targetRevision++;
                 }
-                field = value;
             }
         }
 

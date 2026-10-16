@@ -3022,6 +3022,10 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                foreach (MonitoredItem monitoredItem in m_deletedItems)
+                {
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                }
                 m_deletedItems.Clear();
                 m_deletingItems.Clear();
             }
