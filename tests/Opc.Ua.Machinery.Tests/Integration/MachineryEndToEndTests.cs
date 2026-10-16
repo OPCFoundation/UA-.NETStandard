@@ -155,6 +155,62 @@ namespace Opc.Ua.Machinery.Tests.Integration
         }
 
         /// <summary>
+        /// Verifies bounded streaming and exact temporary-file cleanup over the
+        /// real transport, alongside the compatible buffered download.
+        /// </summary>
+        [Test]
+        public Task BoundedResultDownloadsCloseAfterSuccessAndByteLimitFailureAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, configurator, _, session, ct) =>
+            {
+                NodeId machine = configurator.Machine!.NodeId;
+                var payload = new byte[65537];
+                for (int ii = 0; ii < payload.Length; ii++)
+                {
+                    payload[ii] = (byte)(ii % 251);
+                }
+                await configurator.Machine.Results!.PublishAsync(
+                    new MachineryResult(
+                        new ResultDataType
+                        {
+                            ResultMetaData = new ResultMetaDataType { ResultId = "bounded-selected" }
+                        },
+                        new ByteString(payload)),
+                    ct).ConfigureAwait(false);
+                NodeId management = await machinery.ResolveResultManagementAsync(machine, ct).ConfigureAwait(false);
+                ushort resultNamespace = (ushort)session.NamespaceUris.GetIndex(
+                    Opc.Ua.Machinery.Result.Namespaces.MachineryResult);
+                NodeId transfer = await machinery.ResolveChildAsync(
+                    management,
+                    new QualifiedName("ResultTransfer", resultNamespace),
+                    ct).ConfigureAwait(false);
+
+                using var destination = new MemoryStream();
+                long copied = await machinery.DownloadResultAsync(
+                    machine, "bounded-selected", destination, payload.Length, ct).ConfigureAwait(false);
+                Assert.That(copied, Is.EqualTo(payload.Length));
+                Assert.That(destination.ToArray(), Is.EqualTo(payload));
+                Assert.That(destination.CanWrite, Is.True);
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+
+                using var oversizedDestination = new MemoryStream();
+                ServiceResultException overflow = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await machinery.DownloadResultAsync(
+                        machine, "bounded-selected", oversizedDestination, payload.Length - 1, ct)
+                        .ConfigureAwait(false))!;
+                Assert.That(overflow.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(oversizedDestination.Length, Is.EqualTo(payload.Length - 1));
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+
+                ByteString legacy = await machinery.DownloadResultAsync(machine, "bounded-selected", ct)
+                    .ConfigureAwait(false);
+                Assert.That(legacy.ToArray(), Is.EqualTo(payload));
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+                Assert.That(session.Connected, Is.True, "Downloads must not close the borrowed session.");
+            });
+        }
+
+        /// <summary>
         /// Drives Pause, Resume and RevokeStart through a machine's
         /// <c>JobManagement</c> over the wire, together with the state the
         /// published <c>JobOrderList</c> reports after each, and reads the
@@ -1573,6 +1629,36 @@ namespace Opc.Ua.Machinery.Tests.Integration
 
         private static readonly string[] s_expectedJobAResults = ["E2E-Q1", "E2E-Q3"];
         private static readonly string[] s_expectedFirstJobAResult = ["E2E-Q1"];
+
+        private static async ValueTask AssertNoResultFilesAsync(
+            ClientSession session,
+            NodeId transfer,
+            CancellationToken ct)
+        {
+            BrowseResponse response = await session.BrowseAsync(
+                null,
+                null,
+                0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = transfer,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ],
+                ct).ConfigureAwait(false);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                response.Results[0].References,
+                Is.Empty,
+                "Every transient result file must be removed by Close.");
+            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
+        }
 
         private static async Task AssertResultsAsync(
             MachineryClient machinery,

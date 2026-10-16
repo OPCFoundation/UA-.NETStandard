@@ -64,6 +64,7 @@ namespace Opc.Ua.Machinery.Tests
             // Type checks go through the node cache; answer them from the
             // server's own type tree.
             TypeTable typeTree = fixture.Manager.Server.TypeTree;
+            mock.SetupGet(session => session.TypeTree).Returns(typeTree);
             var nodeCache = new Mock<INodeCache>();
             nodeCache
                 .Setup(cache => cache.IsTypeOfAsync(
@@ -222,9 +223,17 @@ namespace Opc.Ua.Machinery.Tests
             ReadValueId nodeToRead)
         {
             NodeState? node = fixture.Manager.FindPredefinedNode(nodeToRead.NodeId);
-            return node is BaseVariableState variable
-                ? new DataValue(variable.WrappedValue, StatusCodes.Good)
-                : DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+            if (node is not BaseVariableState variable)
+            {
+                return DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+            }
+            return nodeToRead.AttributeId switch
+            {
+                Attributes.Value => new DataValue(variable.WrappedValue, StatusCodes.Good),
+                Attributes.DataType => new DataValue(Variant.From(variable.DataType)),
+                Attributes.ValueRank => new DataValue(Variant.From(variable.ValueRank)),
+                _ => DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)
+            };
         }
 
         private static BrowseResult Browse(
@@ -261,7 +270,9 @@ namespace Opc.Ua.Machinery.Tests
                     IsForward = true,
                     TypeDefinition = child is BaseObjectState objectState
                         ? (ExpandedNodeId)objectState.TypeDefinitionId
-                        : ExpandedNodeId.Null
+                        : child is BaseVariableState variableState
+                            ? (ExpandedNodeId)variableState.TypeDefinitionId
+                            : ExpandedNodeId.Null
                 });
             }
 
