@@ -548,6 +548,39 @@ namespace Opc.Ua.Server.Tests.Redundancy
             return stored.ItemsInQueue;
         }
 
+        [Test]
+        public async Task RemovalWaitsForBothKeysWhenOneThrowsSynchronouslyAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 5);
+            queue.ResetQueue(2, false);
+            queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            // The removal of the data-change key is held; the removal of the event key throws at once.
+            Gate dataRemoval = kv.Hold(DataChangeKey(5));
+            kv.ThrowOnNextDelete(EventKey(5));
+            queue.Dispose();
+            Task flush = factory.FlushAsync().AsTask();
+            Task finished;
+            try
+            {
+                await dataRemoval.WaitEnteredAsync().ConfigureAwait(false);
+                finished = await Task.WhenAny(flush, Task.Delay(500)).ConfigureAwait(false);
+            }
+            finally
+            {
+                dataRemoval.Release();
+            }
+            await flush.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            Assert.That(finished, Is.Not.SameAs(flush), "the batch waits for the removal still in progress");
+        }
+
         private static string DataChangeKey(uint monitoredItemId)
         {
             return "monitored-item-queue/data/" + monitoredItemId.ToString(System.Globalization.CultureInfo.InvariantCulture);
@@ -803,7 +836,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return m_inner.CompareAndSwapAsync(key, expected, value, ct);
             }
 
-            public async ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                lock (m_gates)
+                {
+                    if (m_throwSynchronously.Remove(key))
+                    {
+                        throw new IOException("store rejected the removal");
+                    }
+                }
+                return DeleteCoreAsync(key, ct);
+            }
+
+            /// <summary>
+            /// Makes the next removal of the key throw before it returns a task.
+            /// </summary>
+            public void ThrowOnNextDelete(string key)
+            {
+                lock (m_gates)
+                {
+                    m_throwSynchronously.Add(key);
+                }
+            }
+
+            private async ValueTask<bool> DeleteCoreAsync(string key, CancellationToken ct)
             {
                 try
                 {
@@ -857,6 +913,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             private readonly Dictionary<string, Gate> m_gates = [];
             private readonly Dictionary<string, int> m_started = [];
             private readonly Dictionary<string, int> m_inFlight = [];
+            private readonly HashSet<string> m_throwSynchronously = [];
             private int m_maxConcurrentWritesOfAKey;
         }
 

@@ -285,7 +285,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 if (TryParseId(pair.Key, DataChangePrefix, out uint id) && !live.Contains(id))
                 {
-                    operations.Add(m_store.DeleteAsync(pair.Key, cancellationToken).AsTask());
+                    operations.Add(DeleteKeyAsync(pair.Key, cancellationToken));
                 }
             }
 
@@ -295,7 +295,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 if (TryParseId(pair.Key, EventPrefix, out uint id) && !live.Contains(id))
                 {
-                    operations.Add(m_store.DeleteAsync(pair.Key, cancellationToken).AsTask());
+                    operations.Add(DeleteKeyAsync(pair.Key, cancellationToken));
                 }
             }
 
@@ -601,20 +601,31 @@ namespace Opc.Ua.Redundancy.Server
                 }
 
                 // Only the start of the write is serialized with the discards; the store completes it
-                // asynchronously.
+                // asynchronously. The helpers turn an exception thrown synchronously by the store into a
+                // faulted task, so that both removals always run to completion before the batch does.
                 if (record is (string key, ByteString payload))
                 {
-                    operation = m_store.SetAsync(key, payload, cancellationToken).AsTask();
+                    operation = SetKeyAsync(key, payload, cancellationToken);
                 }
                 else
                 {
                     operation = Task.WhenAll(
-                        m_store.DeleteAsync(DataChangeKeyFor(write.MonitoredItemId), cancellationToken).AsTask(),
-                        m_store.DeleteAsync(EventKeyFor(write.MonitoredItemId), cancellationToken).AsTask());
+                        DeleteKeyAsync(DataChangeKeyFor(write.MonitoredItemId), cancellationToken),
+                        DeleteKeyAsync(EventKeyFor(write.MonitoredItemId), cancellationToken));
                 }
             }
 
             await operation.ConfigureAwait(false);
+        }
+
+        private async Task SetKeyAsync(string key, ByteString payload, CancellationToken cancellationToken)
+        {
+            await m_store.SetAsync(key, payload, cancellationToken).ConfigureAwait(false);
+        }
+
+        private async Task DeleteKeyAsync(string key, CancellationToken cancellationToken)
+        {
+            await m_store.DeleteAsync(key, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
