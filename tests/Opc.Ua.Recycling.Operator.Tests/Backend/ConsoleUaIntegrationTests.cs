@@ -195,11 +195,8 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             Assert.That(outcome.RootElement.GetProperty("requestId").GetString(), Is.EqualTo(requestId));
             if (nativeProcess.HasValue)
             {
-                using HttpResponseMessage inspected = await http.GetAsync(
-                    new Uri("/api/processes/" + nativeProcess, UriKind.Relative), timeout.Token).ConfigureAwait(false);
-                Assert.That(inspected.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                using JsonDocument native = JsonDocument.Parse(
-                    await inspected.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false));
+                using JsonDocument native = await ReadReadyNativeProjectionAsync(
+                    http, nativeProcess.Value, timeout.Token).ConfigureAwait(false);
                 Assert.That(native.RootElement.GetProperty("nativeAvailable").GetBoolean(), Is.True,
                     native.RootElement.GetProperty("nativeDetail").GetString());
                 Assert.That(native.RootElement.GetProperty("readings").GetArrayLength(), Is.Positive);
@@ -224,6 +221,31 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 }
             }
             await app.StopAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Membership can contend with Pause; a command receipt does not guarantee native projection readiness.
+        /// </summary>
+        private static async Task<JsonDocument> ReadReadyNativeProjectionAsync(
+            HttpClient http, RecyclingProcess process, CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                using HttpResponseMessage inspected = await http.GetAsync(
+                    new Uri("/api/processes/" + process, UriKind.Relative), cancellationToken).ConfigureAwait(false);
+                Assert.That(inspected.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                JsonDocument native = JsonDocument.Parse(
+                    await inspected.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false));
+                if (native.RootElement.GetProperty("nativeAvailable").GetBoolean())
+                {
+                    return native;
+                }
+                string? detail = native.RootElement.GetProperty("nativeDetail").GetString();
+                native.Dispose();
+                Assert.That(detail,
+                    Is.EqualTo("Process endpoint is reachable but its native projection is unavailable."));
+                await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

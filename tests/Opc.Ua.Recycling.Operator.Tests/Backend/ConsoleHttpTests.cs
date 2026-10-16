@@ -14,6 +14,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -228,6 +229,34 @@ public sealed class ConsoleHttpTests
             .ConfigureAwait(false);
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.TooManyRequests));
         m_feed.Verify(item => item.Subscribe(), Times.Once);
+    }
+
+    /// <summary>
+    /// Host shutdown drains a live browser stream without waiting for browser expiry or a forced request abort.
+    /// </summary>
+    [Test]
+    public async Task ApplicationStoppingCompletesLiveEventsBeforeServerShutdownAsync()
+    {
+        var channel = Channel.CreateUnbounded<ConsoleState>();
+        channel.Writer.TryWrite(m_feed.Object.State);
+        m_feed.Setup(item => item.Subscribe()).Returns(channel);
+        await AuthenticateAsync().ConfigureAwait(false);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using HttpResponseMessage response = await m_http.GetAsync(
+            new Uri("/api/events", UriKind.Relative), HttpCompletionOption.ResponseHeadersRead, timeout.Token)
+            .ConfigureAwait(false);
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+        using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(timeout.Token)
+            .ConfigureAwait(false));
+        Assert.That(await reader.ReadLineAsync(timeout.Token).ConfigureAwait(false), Is.EqualTo("event: state"));
+        Assert.That(await reader.ReadLineAsync(timeout.Token).ConfigureAwait(false), Does.StartWith("data: "));
+        Assert.That(await reader.ReadLineAsync(timeout.Token).ConfigureAwait(false), Is.Empty);
+
+        m_app!.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+
+        Assert.That(await reader.ReadLineAsync(timeout.Token).ConfigureAwait(false), Is.Null);
+        m_feed.Verify(item => item.Unsubscribe(channel), Times.Once);
+        VerifyNoMutation();
     }
 
     /// <summary>

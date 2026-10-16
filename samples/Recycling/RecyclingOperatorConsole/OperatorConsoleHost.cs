@@ -215,7 +215,11 @@ public static class OperatorConsoleHost
     /// Streams one coalescible projection per consumer, with an explicit maximum consumer count.
     /// </summary>
     private static async Task StreamAsync(
-        HttpContext context, IOperatorPlantFeed feed, ConsoleSessions sessions, TimeProvider timeProvider)
+        HttpContext context,
+        IOperatorPlantFeed feed,
+        ConsoleSessions sessions,
+        TimeProvider timeProvider,
+        IHostApplicationLifetime applicationLifetime)
     {
         SessionDto? session = sessions.Get(context);
         TimeSpan lifetime = (session?.ExpiresUtc ?? DateTime.MinValue) -
@@ -226,7 +230,8 @@ public static class OperatorConsoleHost
             return;
         }
         using var expiry = new CancellationTokenSource(lifetime, timeProvider);
-        using var streamStop = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, expiry.Token);
+        using var streamStop = CancellationTokenSource.CreateLinkedTokenSource(
+            context.RequestAborted, expiry.Token, applicationLifetime.ApplicationStopping);
         var channel = feed.Subscribe();
         if (channel == null)
         {

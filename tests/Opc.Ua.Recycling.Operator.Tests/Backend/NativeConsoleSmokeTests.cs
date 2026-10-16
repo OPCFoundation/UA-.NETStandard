@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -38,7 +39,22 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
         [Test]
         [Category("NativeSmoke")]
         [Explicit("Set OPCUA_RECYCLING_OPERATOR_NATIVE_EXE to the actual published NativeAOT executable.")]
-        public async Task NativeConsoleAuthenticatesStreamsAndControlsTheRealCoordinatorAsync()
+        public Task NativeConsoleAuthenticatesStreamsAndControlsTheRealCoordinatorAsync() =>
+            VerifyNativeConsoleAsync(gracefulShutdown: false);
+
+        /// <summary>
+        /// A real operating-system signal shuts down the native console without stopping its coordinator.
+        /// </summary>
+        [Test]
+        [Category("NativeSmoke")]
+        [Explicit("Set OPCUA_RECYCLING_OPERATOR_NATIVE_EXE to the actual published NativeAOT executable.")]
+        public Task NativeConsoleGracefullyStopsWithoutStoppingTheCoordinatorAsync() =>
+            VerifyNativeConsoleAsync(gracefulShutdown: true);
+
+        /// <summary>
+        /// Exercises the actual executable, optionally including isolated graceful process termination.
+        /// </summary>
+        private static async Task VerifyNativeConsoleAsync(bool gracefulShutdown)
         {
             string executable = Environment.GetEnvironmentVariable("OPCUA_RECYCLING_OPERATOR_NATIVE_EXE")
                 ?? throw new InvalidOperationException("The native executable path is required.");
@@ -85,23 +101,36 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 await ConsoleUaIntegrationTests.TrustWorkstationAsync(provisioner, environment, timeout.Token)
                     .ConfigureAwait(false);
             }
+            bool isolatedWindowsConsole = gracefulShutdown && OperatingSystem.IsWindows();
             using var process = new Process
             {
                 StartInfo = new ProcessStartInfo(executable)
                 {
                     WorkingDirectory = Path.GetDirectoryName(executable)!,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
+                    UseShellExecute = isolatedWindowsConsole,
+                    RedirectStandardOutput = !isolatedWindowsConsole,
+                    RedirectStandardError = !isolatedWindowsConsole
                 }
             };
+            if (isolatedWindowsConsole)
+            {
+                process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+            }
             foreach ((string name, string? value) in configuration)
             {
-                process.StartInfo.Environment[name.Replace(":", "__", StringComparison.Ordinal)] = value;
+                if (isolatedWindowsConsole)
+                {
+                    process.StartInfo.ArgumentList.Add("--" + name);
+                    process.StartInfo.ArgumentList.Add(value!);
+                }
+                else
+                {
+                    process.StartInfo.Environment[name.Replace(":", "__", StringComparison.Ordinal)] = value;
+                }
             }
             Assert.That(process.Start(), Is.True);
-            Task<string> output = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            Task<string> error = process.StandardError.ReadToEndAsync(timeout.Token);
+            Task<string>? output = isolatedWindowsConsole ? null : process.StandardOutput.ReadToEndAsync(timeout.Token);
+            Task<string>? error = isolatedWindowsConsole ? null : process.StandardError.ReadToEndAsync(timeout.Token);
             try
             {
                 using var http = new HttpClient(new HttpClientHandler
@@ -183,6 +212,36 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                     await result.Content.ReadAsStringAsync(timeout.Token).ConfigureAwait(false));
                 Assert.That(receipt.RootElement.GetProperty("state").GetString(), Is.EqualTo("Accepted"));
                 Assert.That(environment.Coordinator.Current.Lifecycle, Is.EqualTo(RunLifecycle.Paused));
+                if (gracefulShutdown)
+                {
+                    long tick = environment.Coordinator.Current.Tick;
+                    await RequestGracefulStopAsync(process.Id, timeout.Token).ConfigureAwait(false);
+                    await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.That(process.ExitCode, Is.Zero, "The native host must handle the signal and exit cleanly.");
+
+                    RecyclingCoordinatorClient independent = await environment.ConnectAsync(
+                        "administrator", timeout.Token).ConfigureAwait(false);
+                    CommittedSnapshot retained = await independent.ReadSnapshotAsync(timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(retained.RunId, Is.EqualTo(runId));
+                    Assert.That(retained.Tick, Is.EqualTo(tick));
+                    Assert.That(retained.Lifecycle, Is.EqualTo(RunLifecycle.Paused));
+                    RecyclingCommand resume = CoordinatorTests.Command(
+                        environment.Coordinator, RecyclingCommandKind.Resume) with
+                    {
+                        RunId = retained.RunId,
+                        ExpectedRevision = retained.Revision
+                    };
+                    RecyclingCommandOutcome resumed = await independent.ExecuteAsync(resume, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(resumed.Status, Is.EqualTo(StatusCodes.Good));
+                    await environment.Coordinator.TickAsync(timeout.Token).ConfigureAwait(false);
+                    CommittedSnapshot continued = await independent.ReadSnapshotAsync(timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(continued.RunId, Is.EqualTo(runId));
+                    Assert.That(continued.Lifecycle, Is.EqualTo(RunLifecycle.Running));
+                    Assert.That(continued.Tick, Is.EqualTo(tick + 1));
+                }
             }
             finally
             {
@@ -191,10 +250,111 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                     process.Kill(entireProcessTree: true);
                 }
                 await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
-                string diagnostic = await error.ConfigureAwait(false);
-                _ = await output.ConfigureAwait(false);
-                Assert.That(diagnostic, Does.Not.Contain("Unhandled exception"));
+                if (error != null)
+                {
+                    string diagnostic = await error.ConfigureAwait(false);
+                    Assert.That(diagnostic, Does.Not.Contain("Unhandled exception"));
+                }
+                if (output != null)
+                {
+                    _ = await output.ConfigureAwait(false);
+                }
             }
         }
+
+        /// <summary>
+        /// Signals only the owned process. Windows first proves that its console contains no unrelated process.
+        /// </summary>
+        private static async Task RequestGracefulStopAsync(int processId, CancellationToken cancellationToken)
+        {
+            bool windows = OperatingSystem.IsWindows();
+            var start = new ProcessStartInfo
+            {
+                FileName = windows
+                    ? Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe")
+                    : "kill",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            string id = processId.ToString(CultureInfo.InvariantCulture);
+            if (windows)
+            {
+                start.ArgumentList.Add("-NoProfile");
+                start.ArgumentList.Add("-NonInteractive");
+                start.ArgumentList.Add("-EncodedCommand");
+                start.ArgumentList.Add(Convert.ToBase64String(Encoding.Unicode.GetBytes(
+                    kWindowsSignalScript.Replace("OWNED_PROCESS_ID", id, StringComparison.Ordinal))));
+            }
+            else
+            {
+                start.ArgumentList.Add("-TERM");
+                start.ArgumentList.Add(id);
+            }
+            using Process signal = Process.Start(start) ?? throw new InvalidOperationException(
+                "The operating-system signal helper did not start.");
+            Task<string> output = signal.StandardOutput.ReadToEndAsync(cancellationToken);
+            Task<string> error = signal.StandardError.ReadToEndAsync(cancellationToken);
+            try
+            {
+                await signal.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+                string diagnostic = await error.ConfigureAwait(false);
+                _ = await output.ConfigureAwait(false);
+                Assert.That(signal.ExitCode, Is.Zero, diagnostic);
+            }
+            finally
+            {
+                if (!signal.HasExited)
+                {
+                    signal.Kill(entireProcessTree: true);
+                }
+                await signal.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>The isolated signal helper never attaches or detaches the test runner's console.</summary>
+        private const string kWindowsSignalScript = """
+            $ErrorActionPreference = 'Stop'
+            $ProgressPreference = 'SilentlyContinue'
+            Add-Type @'
+            using System;
+            using System.Runtime.InteropServices;
+            public static class OwnedConsoleSignal
+            {
+                [DllImport("kernel32.dll", SetLastError = true)]
+                public static extern bool FreeConsole();
+                [DllImport("kernel32.dll", SetLastError = true)]
+                public static extern bool AttachConsole(uint processId);
+                [DllImport("kernel32.dll", SetLastError = true)]
+                public static extern uint GetConsoleProcessList([Out] uint[] processes, uint count);
+                [DllImport("kernel32.dll", SetLastError = true)]
+                public static extern bool SetConsoleCtrlHandler(IntPtr handler, bool add);
+                [DllImport("kernel32.dll", SetLastError = true)]
+                public static extern bool GenerateConsoleCtrlEvent(uint signal, uint group);
+            }
+            '@
+            $target = [uint32] OWNED_PROCESS_ID
+            [void] [OwnedConsoleSignal]::FreeConsole()
+            if (-not [OwnedConsoleSignal]::AttachConsole($target)) {
+                throw "Cannot attach to owned console: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+            }
+            try {
+                $attached = New-Object 'uint32[]' 8
+                $count = [OwnedConsoleSignal]::GetConsoleProcessList($attached, $attached.Length)
+                if ($count -ne 2 -or $attached -notcontains $target -or $attached -notcontains [uint32] $PID) {
+                    throw 'Refusing to signal a console containing an unexpected process.'
+                }
+                if (-not [OwnedConsoleSignal]::SetConsoleCtrlHandler([IntPtr]::Zero, $true)) {
+                    throw "Cannot protect signal helper: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+                }
+                if (-not [OwnedConsoleSignal]::GenerateConsoleCtrlEvent(0, 0)) {
+                    throw "Cannot signal owned console: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+                }
+            }
+            finally {
+                [void] [OwnedConsoleSignal]::FreeConsole()
+            }
+            """;
     }
 }

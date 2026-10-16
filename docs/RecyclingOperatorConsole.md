@@ -248,6 +248,24 @@ dotnet test tests\Opc.Ua.Recycling.Operator.Tests\Opc.Ua.Recycling.Operator.Test
     --filter FullyQualifiedName~NativeConsoleAuthenticatesStreamsAndControlsTheRealCoordinatorAsync
 ```
 
+Also select the explicit graceful-shutdown profile against the same native executable:
+
+```powershell
+dotnet test tests\Opc.Ua.Recycling.Operator.Tests\Opc.Ua.Recycling.Operator.Tests.csproj `
+    -c Release -f net10.0 -p:CustomTestTarget=net10.0 `
+    --filter FullyQualifiedName~NativeConsoleGracefullyStopsWithoutStoppingTheCoordinatorAsync
+```
+
+This profile keeps a live SSE request open while delivering an operating-system shutdown
+signal. It requires a clean native exit, then reads and resumes the independent coordinator
+through encrypted OPC UA and verifies continued logical ticks in the same run. Windows
+uses an isolated console and the built-in Windows PowerShell signal helper; the helper refuses
+to signal a console containing an unrelated process. Other platforms use a PID-targeted
+`SIGTERM`. Forced process termination is only failure cleanup, never evidence of graceful shutdown.
+
+SSE requests observe application shutdown as well as browser cancellation and session expiry.
+An open browser must not consume the host's shutdown budget before UA services can stop.
+
 Provision and export the same external certificate, bootstrap and endpoint settings described
 above before launching. Select a runtime identifier compatible with the native build host;
 the example command is not a claim that a native build or startup was validated.
