@@ -475,7 +475,8 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsControlRequest(IServiceRequest request)
         {
-            return request is CancelRequest or CloseSessionRequest;
+            return request is CancelRequest or CloseSessionRequest or
+                GetServiceResultRequest or ControlServiceExecutionRequest;
         }
 
         /// <summary>
@@ -1021,6 +1022,14 @@ namespace Opc.Ua
             public void ReleaseExecution()
             {
                 Interlocked.Exchange(ref m_executionLease, null)?.Dispose();
+            }
+
+            /// <summary>
+            /// Moves the existing retained-cost lease to a response that outlives handler dispatch.
+            /// </summary>
+            internal IDisposable? TransferResponseCost()
+            {
+                return Interlocked.Exchange(ref m_costLease, null);
             }
 
             /// <summary>

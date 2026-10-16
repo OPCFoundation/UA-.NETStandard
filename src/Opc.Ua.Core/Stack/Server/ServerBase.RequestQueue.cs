@@ -439,6 +439,10 @@ namespace Opc.Ua
                             CompleteRequest(request, status);
                             return;
                         }
+                        if (request is IResourceRetainingRequest retaining)
+                        {
+                            retaining.SetResponseResourceTransfer(entry.TransferResponseCost);
+                        }
                     }
                     // An endpoint request links the token it was scheduled with into its own
                     // request lifetime; linking it here as well would cost a second token source.
