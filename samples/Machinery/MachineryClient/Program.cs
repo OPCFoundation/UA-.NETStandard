@@ -42,7 +42,7 @@ using Opc.Ua.Machinery.Client;
 using Opc.Ua.Machinery.Result;
 using MachineryClientOptions = MachinerySample.Client.MachineryClientOptions;
 
-MachineryClientOptions options = MachineryClientOptions.Parse(args);
+var options = MachineryClientOptions.Parse(args);
 
 ITelemetryContext telemetry = DefaultTelemetry.Create(
     logging => logging.SetMinimumLevel(LogLevel.Warning));
@@ -62,8 +62,9 @@ await using ConfiguredAsyncDisposable _ = connection.ConfigureAwait(false);
 MachineryClient machinery = connection.Session.Machinery(telemetry);
 if (machinery.MachinesFolderId.IsNull)
 {
-    Console.Error.WriteLine(
-        "The server does not publish the OPC 40001-1 Machinery namespace.");
+    await Console.Error
+        .WriteLineAsync("The server does not publish the OPC 40001-1 Machinery namespace.")
+        .ConfigureAwait(false);
     return 1;
 }
 
@@ -137,7 +138,8 @@ await foreach (MachineEntry machine in machinery
 
 if (firstMachine.IsNull)
 {
-    Console.Error.WriteLine("The server publishes no machines.");
+    await Console.Error.WriteLineAsync("The server publishes no machines.")
+        .ConfigureAwait(false);
     return 1;
 }
 
@@ -320,15 +322,15 @@ static async Task DownloadLatestResultAsync(
         return;
     }
 
-    (uint resultHandle, ResultDataType result, int error) latest = await results
-    .GetLatestResultAsync(timeout: 5000, ct: cancellationToken)
-    .ConfigureAwait(false);
-    if (latest.error != 0)
+    (uint resultHandle, ResultDataType result, int error) = await results
+        .GetLatestResultAsync(timeout: 5000, ct: cancellationToken)
+        .ConfigureAwait(false);
+    if (error != 0)
     {
         Console.WriteLine("No result has been produced yet.");
         return;
     }
-    string? resultId = latest.result?.ResultMetaData?.ResultId;
+    string? resultId = result?.ResultMetaData?.ResultId;
     if (string.IsNullOrEmpty(resultId))
     {
         Console.WriteLine("No result has been produced yet.");
@@ -354,7 +356,7 @@ static async Task DownloadLatestResultAsync(
     finally
     {
         await results
-            .ReleaseResultHandleAsync(latest.resultHandle, ct: cancellationToken)
+            .ReleaseResultHandleAsync(resultHandle, ct: cancellationToken)
             .ConfigureAwait(false);
     }
 }

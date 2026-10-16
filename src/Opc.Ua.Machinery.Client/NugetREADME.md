@@ -35,7 +35,7 @@ against any server that publishes the OPC 40001-1 state machines — including
 vendor subtypes.
 
 For bounded inspection with explicit source, quality and timestamp evidence,
-opt in without changing legacy callers:
+pass `MachineryClientOptions`:
 
 ```csharp
 MachineryClient strict = session.Machinery(telemetry, new MachineryClientOptions
@@ -58,7 +58,7 @@ throw `MachineryReadException`, preserving status and offending evidence.
 Browse budgets are enforced while following pages, including progressing pages
 that reuse opaque continuation tokens. Continuation cleanup accepts standard
 empty release responses and has an independently bounded five-second deadline.
-Decoding and opaque vendor payload sizes still
+Decoding and opaque vendor payload sizes
 depend on session quotas.
 
 Strict lifetime and equipment-life bounds are mandatory Number fields.
@@ -95,8 +95,7 @@ On a ManagedSession, the result path and transfer share one captured session
 generation. Bounded browse continuations use the same ownership rule; neither
 operation forwards owned state to a replacement session after recovery.
 
-The existing `DownloadResultAsync(machineId, resultId, ct)` overload still returns
-a buffered `ByteString` with its original behavior. Prefer the streaming overload
-for exports that must remain bounded.
+`DownloadResultAsync(machineId, resultId, ct)` returns a buffered `ByteString`.
+Use the streaming overload for exports that must remain bounded.
 
 See the [Machinery developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Machinery.md).
