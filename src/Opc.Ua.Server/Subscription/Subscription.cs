@@ -194,13 +194,34 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var subscription = new Subscription(server, storedSubscription, timeProvider);
-            await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
 
-            await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
-                .ConfigureAwait(false);
+                await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
+                    .ConfigureAwait(false);
 
-            subscription.RestoreTriggeringLinks(
-                (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+                subscription.RestoreTriggeringLinks(
+                    (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+            }
+            catch
+            {
+                // The subscription is not returned, so release its monitored items
+                // and diagnostics here.
+                try
+                {
+                    await subscription.DeleteAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    subscription.m_logger.DeleteItemsForSubscriptionFailed(e);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                }
+                throw;
+            }
 
             return subscription;
         }
@@ -3842,35 +3863,42 @@ namespace Opc.Ua.Server
                 monitoredItems.Add(null!);
             }
 
-            await m_server.NodeManager.RestoreMonitoredItemsAsync(
-                [.. storedMonitoredItems],
-                monitoredItems,
-                m_savedOwnerIdentity!,
-                cancellationToken).ConfigureAwait(false);
-
-            lock (m_lock)
+            try
             {
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
-                {
-                    // skip MonitoredItem if recreation failed
-                    if (monitoredItem == null)
-                    {
-                        continue;
-                    }
-                    monitoredItem.SubscriptionCallback = this;
-
-                    LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
-                    m_monitoredItems.Add(monitoredItem.Id, node);
-                    OnMonitoredItemAdded(monitoredItem);
-
-                    // update sampling interval diagnostics.
-                    AddItemToSamplingInterval(
-                        monitoredItem.SamplingInterval,
-                        monitoredItem.MonitoringMode);
-                }
-
-                TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS RESTORED");
+                await m_server.NodeManager.RestoreMonitoredItemsAsync(
+                    [.. storedMonitoredItems],
+                    monitoredItems,
+                    m_savedOwnerIdentity!,
+                    cancellationToken).ConfigureAwait(false);
             }
+            finally
+            {
+                // Items created before a failure are added too, so that deleting the
+                // subscription releases them.
+                lock (m_lock)
+                {
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        // skip MonitoredItem if recreation failed
+                        if (monitoredItem == null)
+                        {
+                            continue;
+                        }
+                        monitoredItem.SubscriptionCallback = this;
+
+                        LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
+                        m_monitoredItems.Add(monitoredItem.Id, node);
+                        OnMonitoredItemAdded(monitoredItem);
+
+                        // update sampling interval diagnostics.
+                        AddItemToSamplingInterval(
+                            monitoredItem.SamplingInterval,
+                            monitoredItem.MonitoringMode);
+                    }
+                }
+            }
+
+            TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS RESTORED");
         }
 
         /// <summary>

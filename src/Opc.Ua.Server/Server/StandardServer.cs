@@ -4441,6 +4441,10 @@ namespace Opc.Ua.Server
                 lifecycle.PrepareForStartup();
             }
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // The managers belong to the datastore once registered with it; until then a
+            // failed startup must release them itself.
+            ISessionManager? unregisteredSessionManager = null;
+            ISubscriptionManager? unregisteredSubscriptionManager = null;
             try
             {
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
@@ -4580,6 +4584,7 @@ namespace Opc.Ua.Server
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSessionManager = sessionManager;
                 await sessionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
@@ -4621,11 +4626,14 @@ namespace Opc.Ua.Server
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSubscriptionManager = subscriptionManager;
                 await subscriptionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                unregisteredSessionManager = null;
+                unregisteredSubscriptionManager = null;
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4720,6 +4728,9 @@ namespace Opc.Ua.Server
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
             {
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 throw;
@@ -4728,6 +4739,9 @@ namespace Opc.Ua.Server
             {
                 const string message = "Unexpected error starting application";
                 m_logger.Message(e, message);
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
@@ -4785,6 +4799,52 @@ namespace Opc.Ua.Server
                 // and transport listeners pick up cert hot-updates.
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
+            }
+        }
+
+        /// <summary>
+        /// Releases the session and subscription managers that a failed startup
+        /// created but did not register with the datastore. The session manager
+        /// is shut down so its monitor stops; the subscription manager is only
+        /// disposed, so nothing is stored.
+        /// </summary>
+        private async ValueTask DisposeUnregisteredManagersAsync(
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager)
+        {
+            try
+            {
+                if (sessionManager != null)
+                {
+                    try
+                    {
+                        await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        sessionManager.Dispose();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+            }
+
+            try
+            {
+                if (subscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+                {
+                    await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    subscriptionManager?.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
             }
         }
 
@@ -6220,5 +6280,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        /// <summary>
+        /// Logs a failure to release a manager created by a failed startup.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 39, Level = LogLevel.Warning,
+            Message = "Server - releasing a manager created by the failed startup failed.")]
+        public static partial void ReleasingManagerOfFailedStartupFailed(this ILogger logger, Exception ex);
     }
 }

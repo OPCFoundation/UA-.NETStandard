@@ -432,7 +432,9 @@ namespace Opc.Ua.Server
         /// stored subscription that cannot be recreated, fail the restore
         /// unless <see cref="ContinueOnRestoreFailure"/> is set. When a stored
         /// subscription fails, the store is not told that the restore completed,
-        /// so it keeps what it holds.
+        /// so it keeps what it holds. A restore that fails or is cancelled deletes
+        /// the subscriptions it already recreated, without storing them, so the
+        /// manager can retry the restore.
         /// </remarks>
         /// <exception cref="InvalidOperationException">The server is already running.</exception>
         /// <exception cref="ServiceResultException">The subscription store failed.</exception>
@@ -492,44 +494,85 @@ namespace Opc.Ua.Server
             }
 
             var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
+            var restoredSubscriptions = new List<ISubscription>();
             List<Exception>? failures = null;
+            uint lastSubscriptionId = m_lastSubscriptionId;
 
-            foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
+            try
             {
-                ISubscription subscription;
-
-                try
+                foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
                 {
-                    subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
-                {
-                    m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
-                    (failures ??= []).Add(ex);
-                    continue;
+                    ISubscription subscription;
+
+                    try
+                    {
+                        subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
+                    {
+                        m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
+                        (failures ??= []).Add(ex);
+                        continue;
+                    }
+
+                    restoredSubscriptions.Add(subscription);
+                    subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
+                    createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
                 }
 
-                subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
-                createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
+                m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
+
+                if (failures != null)
+                {
+                    if (!ContinueOnRestoreFailure)
+                    {
+                        throw new AggregateException(
+                            $"{failures.Count} of the stored durable subscriptions could not be restored.",
+                            failures);
+                    }
+                    m_logger.DurableSubscriptionsLostOnRestore(failures.Count, failures.Count + createdSubscriptions.Count);
+                }
+
+                await m_subscriptionStore
+                    .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
             }
-
-            m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
-
-            if (failures != null)
+            catch
             {
-                if (!ContinueOnRestoreFailure)
-                {
-                    throw new AggregateException(
-                        $"{failures.Count} of the stored durable subscriptions could not be restored.",
-                        failures);
-                }
-                m_logger.DurableSubscriptionsLostOnRestore(failures.Count, failures.Count + createdSubscriptions.Count);
+                // A failed or cancelled restore leaves the manager as it was, so that
+                // it can be retried; the store still holds what it returned.
+                m_lastSubscriptionId = lastSubscriptionId;
+                await RollBackRestoredSubscriptionsAsync(restoredSubscriptions).ConfigureAwait(false);
+                throw;
             }
+        }
 
-            await m_subscriptionStore
-                .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
+        /// <summary>
+        /// Deletes the subscriptions that a failed restore recreated, with their
+        /// monitored items and diagnostics, without storing them.
+        /// </summary>
+        private async ValueTask RollBackRestoredSubscriptionsAsync(List<ISubscription> restoredSubscriptions)
+        {
+            foreach (ISubscription subscription in restoredSubscriptions)
+            {
+                m_subscriptions.TryRemove(subscription.Id, out _);
+                m_abandonedSubscriptions.TryRemove(subscription.Id, out _);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
+
+                RaiseSubscriptionEvent(subscription, true);
+
+                await DiscardRejectedSubscriptionAsync(null!, subscription).ConfigureAwait(false);
+
+                uint publishingIntervalCount = GetPublishingIntervalCount();
+
+                m_server.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSubscriptionCount--;
+                    diagnostics.CumulatedSubscriptionCount--;
+                    diagnostics.PublishingIntervalCount = publishingIntervalCount;
+                });
+            }
         }
 
         /// <summary>
@@ -1138,7 +1181,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases a created subscription that was never registered with the manager.
+        /// Releases a created subscription that is not, or no longer, registered with the manager.
         /// </summary>
         private async ValueTask DiscardRejectedSubscriptionAsync(
             OperationContext context,

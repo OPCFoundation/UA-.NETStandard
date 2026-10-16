@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -206,7 +207,131 @@ namespace Opc.Ua.Server.Tests
             Assert.That(fixture.Manager.GetSubscriptions(), Is.Empty);
         }
 
-        private static StoredSubscription CreateStored(uint id)
+        [Test]
+        public async Task FailedRestoreDeletesTheRecreatedSubscriptionsAndCanBeRetriedAsync()
+        {
+            using var fixture = new Fixture(
+                store => store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(() => new RestoreSubscriptionResult(
+                        true,
+                        [CreateStored(41), CreateStored(42)])),
+                failingSubscriptionId: 41);
+
+            Assert.ThrowsAsync<AggregateException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+
+            AssertNothingRestored(fixture);
+            fixture.Diagnostics.Verify(
+                value => value.DeleteSubscriptionDiagnosticsAsync(
+                    It.IsAny<ServerSystemContext>(),
+                    new NodeId(42u),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            fixture.Manager.FailingSubscriptionId = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertBothRestored(fixture, 41u, 42u);
+        }
+
+        [Test]
+        public async Task CancelledRestoreDeletesTheRecreatedSubscriptionsAndCanBeRetriedAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            bool cancelRestoreOf43 = true;
+            using var fixture = new Fixture(store =>
+            {
+                store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(() => new RestoreSubscriptionResult(
+                        true,
+                        [CreateStored(42), CreateStored(43)]));
+
+                // The restore of 43 is cancelled after the subscription object exists.
+                store.As<ISubscriptionRetransmissionStore>()
+                    .Setup(value => value.LoadRetransmissionStateAsync(
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((uint subscriptionId, CancellationToken _) =>
+                    {
+                        if (subscriptionId == 43 && cancelRestoreOf43)
+                        {
+                            cancellation.Cancel();
+                            throw new OperationCanceledException(cancellation.Token);
+                        }
+                        return new ValueTask<SubscriptionRetransmissionState?>(
+                            (SubscriptionRetransmissionState?)null);
+                    });
+            });
+
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
+                    .ConfigureAwait(false));
+
+            AssertNothingRestored(fixture);
+            foreach (uint id in new[] { 42u, 43u })
+            {
+                fixture.Diagnostics.Verify(
+                    value => value.DeleteSubscriptionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(),
+                        new NodeId(id),
+                        It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+
+            cancelRestoreOf43 = false;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertBothRestored(fixture, 42u, 43u);
+        }
+
+        private static void AssertNothingRestored(Fixture fixture)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Manager.GetSubscriptions(), Is.Empty);
+                Assert.That(fixture.Manager.CaptureAbandonedPublishTimerSnapshot(), Is.Empty);
+                Assert.That(fixture.ServerDiagnostics.CurrentSubscriptionCount, Is.Zero);
+                Assert.That(fixture.ServerDiagnostics.CumulatedSubscriptionCount, Is.Zero);
+            });
+            fixture.Store.Verify(
+                value => value.OnSubscriptionRestoreCompleteAsync(
+                    It.IsAny<Dictionary<uint, ArrayOf<uint>>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+            fixture.Store.Verify(
+                value => value.StoreSubscriptionsAsync(
+                    It.IsAny<IEnumerable<IStoredSubscription>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        private static void AssertBothRestored(Fixture fixture, uint first, uint second)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    fixture.Manager.GetSubscriptions().Select(subscription => subscription.Id),
+                    Is.EquivalentTo(new[] { first, second }));
+                Assert.That(fixture.Manager.CaptureAbandonedPublishTimerSnapshot(), Has.Count.EqualTo(2));
+                Assert.That(fixture.ServerDiagnostics.CurrentSubscriptionCount, Is.EqualTo(2u));
+                Assert.That(fixture.ServerDiagnostics.CumulatedSubscriptionCount, Is.EqualTo(2u));
+            });
+            fixture.Store.Verify(
+                value => value.OnSubscriptionRestoreCompleteAsync(
+                    It.Is<Dictionary<uint, ArrayOf<uint>>>(created =>
+                        created.Count == 2 && created.ContainsKey(first) && created.ContainsKey(second)),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            fixture.Store.Verify(
+                value => value.StoreSubscriptionsAsync(
+                    It.IsAny<IEnumerable<IStoredSubscription>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        internal static StoredSubscription CreateStored(uint id)
         {
             return new StoredSubscription
             {
@@ -239,8 +364,25 @@ namespace Opc.Ua.Server.Tests
                 var telemetry = new Mock<ITelemetryContext>();
                 telemetry.SetupGet(value => value.LoggerFactory).Returns(loggerFactory.Object);
                 server.SetupGet(value => value.Telemetry).Returns(telemetry.Object);
-                server.SetupGet(value => value.DiagnosticsNodeManager)
-                    .Returns(Mock.Of<IDiagnosticsNodeManager>());
+                Diagnostics = new Mock<IDiagnosticsNodeManager>();
+                Diagnostics
+                    .Setup(value => value.CreateSubscriptionDiagnosticsAsync(
+                        It.IsAny<ServerSystemContext>(),
+                        It.IsAny<SubscriptionDiagnosticsDataType>(),
+                        It.IsAny<NodeValueSimpleEventHandler>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((
+                        ServerSystemContext _,
+                        SubscriptionDiagnosticsDataType diagnostics,
+                        NodeValueSimpleEventHandler _,
+                        CancellationToken _) =>
+                        new ValueTask<NodeId>(new NodeId(diagnostics.SubscriptionId)));
+                server.SetupGet(value => value.DiagnosticsNodeManager).Returns(Diagnostics.Object);
+                ServerDiagnostics = new ServerDiagnosticsSummaryDataType();
+                server
+                    .Setup(value => value.UpdateServerDiagnostics(
+                        It.IsAny<Action<ServerDiagnosticsSummaryDataType>>()))
+                    .Callback((Action<ServerDiagnosticsSummaryDataType> update) => update(ServerDiagnostics));
                 var factory = new Mock<IMainNodeManagerFactory>();
                 factory.Setup(value => value.CreateConfigurationNodeManager())
                     .Returns(Mock.Of<IConfigurationNodeManager>());
@@ -271,6 +413,10 @@ namespace Opc.Ua.Server.Tests
 
             public Mock<ISubscriptionStore> Store { get; }
 
+            public Mock<IDiagnosticsNodeManager> Diagnostics { get; }
+
+            public ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
+
             public FailingSubscriptionManager Manager { get; }
 
             public RecordingLogger Logs { get; }
@@ -295,22 +441,22 @@ namespace Opc.Ua.Server.Tests
                 uint failingSubscriptionId)
                 : base(server, configuration, timeProvider)
             {
-                m_failingSubscriptionId = failingSubscriptionId;
+                FailingSubscriptionId = failingSubscriptionId;
             }
+
+            public uint FailingSubscriptionId { get; set; }
 
             protected override ValueTask<ISubscription> RestoreSubscriptionAsync(
                 IStoredSubscription storedSubscription,
                 CancellationToken cancellationToken = default)
             {
-                if (storedSubscription.Id == m_failingSubscriptionId)
+                if (storedSubscription.Id == FailingSubscriptionId)
                 {
                     throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                 }
 
                 return base.RestoreSubscriptionAsync(storedSubscription, cancellationToken);
             }
-
-            private readonly uint m_failingSubscriptionId;
         }
 
         private sealed class RecordingLogger : ILogger

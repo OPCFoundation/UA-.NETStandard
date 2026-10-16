@@ -52,7 +52,10 @@ Typically the following porting steps are necessary:
   cannot be recreated as an `AggregateException`. To start anyway, set
   `SubscriptionManager.ContinueOnRestoreFailure` to `true` in an override of
   `StandardServer.CreateSubscriptionManager`; failures are then logged as
-  errors and warnings, and the subscriptions concerned are lost.
+  errors and warnings, and the subscriptions concerned are lost. A restore that
+  fails or is cancelled deletes the subscriptions it already recreated without
+  storing them, and a server startup that fails releases its session and
+  subscription managers, so the restore can be retried by starting again.
 - If you implement a custom `INodeManager` or override
   `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
   the `MonitoredItem` constructor. When you check queue length for a durable
