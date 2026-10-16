@@ -2,7 +2,7 @@
 # Images CI publishes portable IL once natively, then selects the prebuilt stage for both architectures.
 ARG PUBLISH_SOURCE=build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-azurelinux3.0 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .

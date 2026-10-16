@@ -148,6 +148,17 @@ Both Dockerfiles compile portable framework-dependent .NET 10 IL on `$BUILDPLATF
 a runtime identifier, app host or NativeAOT. The server uses the .NET runtime; the client uses
 the ASP.NET runtime and copies the entire publish output, including `wwwroot`.
 The final images run as the non-root .NET `app` user.
+Their source stages pin the SDK selected by `global.json`; update both Dockerfiles when
+changing that repository SDK requirement rather than relying on a floating SDK patch tag.
+
+Podman can build these same Dockerfiles and run the Compose topology through its Compose
+provider. Use engine-accessible data paths or separately provisioned, role-isolated named
+volumes; do not assume Windows host paths are Linux engine paths. Preserve the documented
+read-only secret mounts, writable per-role stores and UID/GID 1654 permissions.
+On Windows, verify workstation-to-machine loopback forwarding independently of a successful
+container port mapping. If a task-local forwarding helper is needed, bind it only to loopback,
+verify its destination and stop it afterward. Do not widen HTTP bindings, relax the
+Host/Origin guards or bypass OPC UA certificate validation to work around engine networking.
 
 CI publishes once natively and selects the prebuilt stage, reusing that output for
 `linux/amd64` and `linux/arm64/v8` without compiling an SDK under QEMU. Reproduce the client path:

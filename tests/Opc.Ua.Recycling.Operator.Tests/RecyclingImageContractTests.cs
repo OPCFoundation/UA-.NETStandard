@@ -70,7 +70,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
         }
 
         /// <summary>
-        /// Source builds publish portable IL on the native build platform, never an emulated SDK.
+        /// Source builds use the repository-pinned SDK and publish portable IL on the native build platform.
         /// </summary>
         [TestCase("RecyclingServer")]
         [TestCase("RecyclingOperatorConsole")]
@@ -78,10 +78,14 @@ namespace Opc.Ua.Recycling.Operator.Tests
         {
             string dockerfile = await ReadRepositoryFileAsync("samples", "Recycling", project, "Dockerfile")
                 .ConfigureAwait(false);
+            using JsonDocument global = JsonDocument.Parse(
+                await ReadRepositoryFileAsync("global.json").ConfigureAwait(false));
+            string sdk = global.RootElement.GetProperty("sdk").GetProperty("version").GetString()
+                ?? throw new InvalidOperationException("The repository SDK version is required.");
 
             Assert.That(
                 dockerfile,
-                Does.Contain("FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0"));
+                Does.Contain($"FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:{sdk}-azurelinux3.0"));
             Assert.That(dockerfile, Does.Contain($"samples/Recycling/{project}/{project}.csproj"));
             Assert.That(dockerfile, Does.Contain("-f net10.0"));
             Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net10.0"));
