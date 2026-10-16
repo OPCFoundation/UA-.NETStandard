@@ -73,6 +73,8 @@ namespace Opc.Ua.Server
             m_minPublishingInterval = configuration.ServerConfiguration!.MinPublishingInterval;
             m_maxPublishingInterval = configuration.ServerConfiguration.MaxPublishingInterval;
             m_publishingResolution = configuration.ServerConfiguration.PublishingResolution;
+            m_sequentialPublishBudget = Math.Max(1, m_publishingResolution) * m_timeProvider.TimestampFrequency /
+                (1000L * kSequentialPublishBudgetDivisor);
             m_maxSubscriptionLifetime = (uint)configuration.ServerConfiguration
                 .MaxSubscriptionLifetime;
             m_maxDurableSubscriptionLifetimeInHours = (uint)
@@ -2861,46 +2863,13 @@ namespace Opc.Ua.Server
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8Started(Task.CurrentId);
 
-                int timeToWait = sleepCycle;
+                await RunAtFixedPeriodAsync(
+                    m_timeProvider,
+                    sleepCycle,
+                    PublishTimerPass,
+                    cancellationToken).ConfigureAwait(false);
 
-                while (true)
-                {
-                    // ConcurrentDictionary enumeration is thread-safe and provides a stable
-                    // snapshot for the current pass without taking the manager semaphore.
-                    SessionPublishQueue[] queues = [.. m_publishQueues.Values];
-                    IReadOnlyList<ISubscriptionPublishPipeline> abandonedSubscriptions =
-                        CaptureAbandonedPublishTimerSnapshot();
-
-                    // check the publish timer for each subscription. Each queue is
-                    // independent (its own lock and subscription state), so at high
-                    // session counts the O(N) sweep is parallelized across cores to
-                    // keep a single publishing cycle within its resolution budget.
-                    if (queues.Length >= kParallelPublishThreshold)
-                    {
-                        Parallel.For(
-                            0,
-                            queues.Length,
-                            s_parallelPublishOptions,
-                            ii => queues[ii].PublishTimerExpired());
-                    }
-                    else
-                    {
-                        for (int ii = 0; ii < queues.Length; ii++)
-                        {
-                            queues[ii].PublishTimerExpired();
-                        }
-                    }
-
-                    ProcessAbandonedPublishTimers(abandonedSubscriptions);
-
-                    if (m_shutdownEvent.WaitOne(0))
-                    {
-                        m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally(Task.CurrentId);
-                        break;
-                    }
-
-                    await m_timeProvider.Delay(TimeSpan.FromMilliseconds(timeToWait), cancellationToken).ConfigureAwait(false);
-                }
+                m_logger.SubscriptionPublishTaskTaskIdX8ExitedNormally(Task.CurrentId);
             }
             catch (ObjectDisposedException)
             {
@@ -2914,6 +2883,112 @@ namespace Opc.Ua.Server
             {
                 m_logger.SubscriptionPublishTaskTaskIdX8ExitedUnexpectedly(e, Task.CurrentId);
             }
+        }
+
+        /// <summary>
+        /// Runs a pass every <paramref name="periodMs"/> milliseconds until it returns
+        /// <c>false</c>.
+        /// </summary>
+        /// <remarks>
+        /// The passes start on a fixed cadence: the wait after a pass is what is left of the
+        /// period, so the time a pass takes does not push the following passes back. A pass
+        /// that overruns the period is followed by the next pass at once, and the cadence
+        /// restarts from that pass; the missed periods are not caught up with extra passes.
+        /// </remarks>
+        internal static async ValueTask RunAtFixedPeriodAsync(
+            TimeProvider timeProvider,
+            int periodMs,
+            Func<bool> pass,
+            CancellationToken cancellationToken)
+        {
+            long period = Math.Max(1, periodMs);
+            long nextPass = timeProvider.GetTimestampMilliseconds();
+
+            while (pass())
+            {
+                nextPass += period;
+                long now = timeProvider.GetTimestampMilliseconds();
+                if (nextPass > now)
+                {
+                    await timeProvider.Delay(TimeSpan.FromMilliseconds(nextPass - now), cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    nextPass = now;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks the publish timer of every subscription once.
+        /// </summary>
+        /// <returns><c>false</c> when the manager shuts down.</returns>
+        private bool PublishTimerPass()
+        {
+            // ConcurrentDictionary enumeration is thread-safe and provides a stable
+            // snapshot for the current pass without taking the manager semaphore.
+            SessionPublishQueue[] queues = [.. m_publishQueues.Values];
+            IReadOnlyList<ISubscriptionPublishPipeline> abandonedSubscriptions =
+                CaptureAbandonedPublishTimerSnapshot();
+
+            // check the publish timer for each subscription.
+            CheckPublishTimers(
+                queues,
+                static queue => queue.PublishTimerExpired(),
+                m_timeProvider,
+                m_sequentialPublishBudget);
+
+            ProcessAbandonedPublishTimers(abandonedSubscriptions);
+
+            return !m_shutdownEvent.WaitOne(0);
+        }
+
+        /// <summary>
+        /// Checks the publish timer of each session publish queue, on the calling thread
+        /// while the pass stays within <paramref name="sequentialBudget"/> and in parallel
+        /// for the queues that are left once it is used up.
+        /// </summary>
+        /// <remarks>
+        /// The cost of a pass follows the monitored items that have data to report, not the
+        /// number of sessions. A pass with little to do completes on the calling thread
+        /// without waking pool threads, which costs more CPU than it saves when the pass
+        /// fits easily into the publishing resolution. A pass that takes a large part of
+        /// the resolution is completed across cores, so that the publish cycle keeps up.
+        /// Each queue has its own lock and subscription state, so the queues are
+        /// independent.
+        /// </remarks>
+        /// <typeparam name="T">The queue type.</typeparam>
+        /// <param name="queues">The queues to check.</param>
+        /// <param name="check">Checks the publish timer of one queue.</param>
+        /// <param name="timeProvider">The clock that measures the pass.</param>
+        /// <param name="sequentialBudget">The time, in <see cref="TimeProvider.GetTimestamp"/>
+        /// ticks, after which the remaining queues are checked in parallel.</param>
+        /// <returns><c>true</c> when part of the pass ran in parallel.</returns>
+        internal static bool CheckPublishTimers<T>(
+            T[] queues,
+            Action<T> check,
+            TimeProvider timeProvider,
+            long sequentialBudget)
+        {
+            long start = timeProvider.GetTimestamp();
+            int next = 0;
+            while (next < queues.Length)
+            {
+                check(queues[next++]);
+                if (next < queues.Length &&
+                    timeProvider.GetTimestamp() - start > sequentialBudget)
+                {
+                    Parallel.For(
+                        next,
+                        queues.Length,
+                        s_parallelPublishOptions,
+                        ii => check(queues[ii]));
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -3161,11 +3236,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Above this many session publish queues the per-cycle sweep is
-        /// parallelized across cores so one publishing cycle keeps up with
-        /// thousands of subscriptions instead of serializing on a single thread.
+        /// The part of the publishing resolution a publish timer pass may take on the
+        /// sweep thread before the remaining queues are checked in parallel.
         /// </summary>
-        private const int kParallelPublishThreshold = 256;
+        private const int kSequentialPublishBudgetDivisor = 4;
 
         private static readonly ParallelOptions s_parallelPublishOptions = new()
         {
@@ -3180,6 +3254,7 @@ namespace Opc.Ua.Server
         private readonly double m_minPublishingInterval;
         private readonly double m_maxPublishingInterval;
         private readonly int m_publishingResolution;
+        private readonly long m_sequentialPublishBudget;
         private readonly uint m_maxSubscriptionLifetime;
         private readonly uint m_maxDurableSubscriptionLifetimeInHours;
         private readonly uint m_minSubscriptionLifetime;
