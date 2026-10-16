@@ -58,7 +58,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// <c>native-counters</c>: the subscription capacity test of <c>subscription/native/client.c</c>:
     /// one subscription with a monitored item per counter (queue size one); every item must
     /// reach 99% of the samples its sampling interval calls for.
-    /// The server is the harness child in contract mode (<c>server --contract 1</c>), or any
+    /// The server is the harness child in contract mode (<c>server --contract 1</c>), configured as the
+    /// benchmark's .NET worker for UA-.NETStandard 2.0.1 is: <see cref="AsyncCustomNodeManager"/> node managers
+    /// (<c>--async-node-manager 0</c> for <see cref="CustomNodeManager2"/>), counters incremented under a lock
+    /// (<c>--counter-lock 0</c> for an interlocked increment), Server GC, and a request queue of
+    /// clients x in flight + 3. Or the server is any
     /// executable given by <c>--server-exe</c>/<c>--server-args</c>, for example the open62541
     /// server of that benchmark (<c>{port}</c>, <c>{items}</c>, <c>{sampling}</c> and <c>{pki}</c>, the
     /// directory with the DER identities <c>server-cert.der</c>/<c>server-key.der</c>/<c>client-cert.der</c>,
@@ -375,12 +379,20 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 if (exe == null)
                 {
                     bool counters = scenario == "native-counters";
-                    (handle.m_process, handle.m_lines) = Program.StartServerChild(FormattableString.Invariant(
-                        $"server --contract 1 --port {port} --threads {Program.Arg("threads", "200")} --queue {Program.Arg("queue", "10000")} ") +
+                    // As the benchmark runner sizes it for UA-.NETStandard 2.0: the whole client pipeline
+                    // plus the three reserved bootstrap, reconnect and control slots.
+                    int queue = Math.Max(200, (Program.ArgInt("clients", 10) * Program.ArgInt("inflight", 100)) + 3);
+                    (handle.m_process, handle.m_lines) = Program.StartServerChild(
+                        FormattableString.Invariant(
+                        $"server --contract 1 --port {port} --threads {Program.Arg("threads", "200")} ") +
+                        FormattableString.Invariant(
+                        $"--queue {Program.Arg("queue", queue.ToString(CultureInfo.InvariantCulture))} ") +
                         FormattableString.Invariant(
                         $"--counters {(counters ? Program.Arg("nodes", "1") : "0")} --sampling {Program.Arg("sampling", "10")} ") +
                         FormattableString.Invariant(
-                        $"--counter-lock {Program.Arg("counter-lock", "0")} --async-node-manager {Program.Arg("async-node-manager", "0")}"));
+                        $"--counter-lock {Program.Arg("counter-lock", "1")} --async-node-manager {Program.Arg("async-node-manager", "1")}"),
+                        // the benchmark's .NET workers run with Server GC; SERVER_DOTNET_gcServer=0 overrides it
+                        new Dictionary<string, string>(StringComparer.Ordinal) { ["DOTNET_gcServer"] = "1" });
                     string ready = handle.m_lines.Take();
                     if (!ready.StartsWith("READY", StringComparison.Ordinal))
                     {

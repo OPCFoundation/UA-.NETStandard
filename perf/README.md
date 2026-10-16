@@ -43,6 +43,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
+| `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
 | `--trace <file>` | | Record the measurement window with `dotnet-trace`. |
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
@@ -88,9 +89,7 @@ scenarios, with the CPU time of the native workers in `client-per-op:`.
 | `--server-exe`, `--server-args` | harness child, `--port {port}` | An external server executable and its arguments; `{port}`, `{items}`, `{sampling}` and `{pki}` are replaced. `--server-args` takes the next argument verbatim, even if it starts with `--`. |
 | `--server-affinity` | all processors | Hexadecimal processor mask of the server process, for example `0x1` to compare the throughput per core with a single-threaded server. |
 | `--security` | `none` | `encrypt`: Basic256Sha256 SignAndEncrypt with DER identities written to `{pki}`. |
-| `--async-node-manager` | 0 | 1: the contract on `AsyncCustomNodeManager` instead of `CustomNodeManager2`. |
-| `--counter-lock` | 0 | 1: counter increments under a lock, as the benchmark's .NET worker does. |
-| `--queue` | 10000 | `MaxQueuedRequestCount` of the harness child. |
+| `--async-node-manager`, `--counter-lock`, `--queue` | see below | Configuration of the harness child. |
 | `--threads` | 200 | `MaxRequestThreadCount` of the harness child. |
 | `--trace <file>`, `--trace-profile`, `--duration` | | Record the server for `--duration` seconds from the start of the measurement. |
 | `--verbose` | 0 | 1: echo the worker output. |
@@ -100,6 +99,17 @@ endpoint `opc.tcp://127.0.0.1:<port>`, server URI `urn:o6:benchmark:server`, whi
 require because the contract puts its nodes in the namespace of the server URI (ns=1). The
 external server can be, for example, the open62541 server of the benchmark or one of its .NET
 workers.
+
+The harness child is configured like the benchmark's .NET worker for UA-.NETStandard 2.0.1:
+
+| Setting | Default | Override |
+|---|---|---|
+| Node managers (contract and counters) | `AsyncCustomNodeManager` | `--async-node-manager 0`: `CustomNodeManager2` |
+| Counter increment | under a lock owned by the counters | `--counter-lock 0`: interlocked |
+| Garbage collector | Server GC | `SERVER_DOTNET_gcServer=0` |
+| `MaxQueuedRequestCount` | clients × in flight + 3 (minimum 200): the whole worker pipeline plus the three reserved bootstrap, reconnect and control slots | `--queue` |
+
+The `counters` scenario keeps `CustomNodeManager2` with interlocked increments.
 
 `--server-affinity` (Windows and Linux) is applied after the server started, when the .NET
 runtime has already sized the thread pool and the GC heaps for all processors. Set

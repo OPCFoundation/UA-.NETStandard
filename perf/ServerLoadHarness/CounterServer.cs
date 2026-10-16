@@ -33,45 +33,37 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Perf.ServerLoadHarness
 {
     /// <summary>
-    /// Counter variables advanced by their read callback, so only sampling drives them.
-    /// Mirrors the subscription capacity workload of the o6-automation opcua-benchmarks
-    /// (UInt64 counter per monitored item, sampling groups, read-callback increments).
+    /// The counters of the subscription capacity workload of the o6-automation opcua-benchmarks
+    /// (UInt64 counter per monitored item, advanced by its read callback, so only sampling drives
+    /// them), shared by the node manager variants.
     /// </summary>
-    internal sealed class CounterNodeManager : CustomNodeManager2
+    internal sealed class CounterValues
     {
-        public const string Namespace = "urn:opcfoundation.org:perf:counters";
-
-        public CounterNodeManager(
-            IServerInternal server,
-            ApplicationConfiguration configuration,
-            int count,
-            string namespaceUri = Namespace,
-            bool lockedCallback = false)
-            : base(server, configuration, useSamplingGroups: true, namespaceUri)
+        public CounterValues(int count, bool lockedCallback)
         {
             m_lockedCallback = lockedCallback;
             m_values = new ulong[count];
             m_marked = new ulong[count];
         }
 
-        public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        /// <summary>
+        /// Creates the counter variables ns=namespaceIndex;i=1..count below the Objects folder.
+        /// </summary>
+        public IEnumerable<BaseDataVariableState> CreateNodes(ushort namespaceIndex)
         {
-            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
-            {
-                externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
-            }
             for (int i = 0; i < m_values.Length; i++)
             {
                 int index = i;
                 var node = new BaseDataVariableState(null)
                 {
-                    NodeId = new NodeId((uint)i + 1, NamespaceIndex),
-                    BrowseName = new QualifiedName("Counter" + i.ToString(CultureInfo.InvariantCulture), NamespaceIndex),
+                    NodeId = new NodeId((uint)i + 1, namespaceIndex),
+                    BrowseName = new QualifiedName("Counter" + i.ToString(CultureInfo.InvariantCulture), namespaceIndex),
                     DisplayName = new LocalizedText("Counter" + i.ToString(CultureInfo.InvariantCulture)),
                     TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
                     ReferenceTypeId = ReferenceTypeIds.Organizes,
@@ -87,25 +79,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 node.OnReadValue = (ISystemContext context, NodeState state, NumericRange range,
                     QualifiedName encoding, ref Variant value, ref StatusCode status, ref DateTimeUtc timestamp) =>
                 {
-                    if (m_lockedCallback)
-                    {
-                        // the o6-automation .NET worker increments under the node manager lock
-                        lock (Lock)
-                        {
-                            value = new Variant(++m_values[index]);
-                        }
-                    }
-                    else
-                    {
-                        value = new Variant(Interlocked.Increment(ref m_values[index]));
-                    }
+                    value = new Variant(Increment(index));
                     status = StatusCodes.Good;
                     timestamp = DateTimeUtc.Now;
                     return ServiceResult.Good;
                 };
                 node.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, node.NodeId));
-                AddPredefinedNode(SystemContext, node);
+                yield return node;
             }
         }
 
@@ -148,10 +128,92 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 $"progressMean={sum / m_values.Length:P2} itemsBelow99={belowTarget}");
         }
 
+        private ulong Increment(int index)
+        {
+            if (m_lockedCallback)
+            {
+                // the o6-automation .NET worker increments under a lock it owns
+                lock (m_lock)
+                {
+                    return ++m_values[index];
+                }
+            }
+            return Interlocked.Increment(ref m_values[index]);
+        }
+
         private readonly bool m_lockedCallback;
+        private readonly Lock m_lock = new();
         private readonly ulong[] m_values;
         private readonly ulong[] m_marked;
         private long m_markTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    /// <summary>
+    /// The counters on <see cref="CustomNodeManager2"/> with sampling groups.
+    /// </summary>
+    internal sealed class CounterNodeManager : CustomNodeManager2
+    {
+        public const string Namespace = "urn:opcfoundation.org:perf:counters";
+
+        public CounterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CounterValues counters,
+            string namespaceUri)
+            : base(server, configuration, useSamplingGroups: true, namespaceUri)
+        {
+            m_counters = counters;
+        }
+
+        public override void CreateAddressSpace(IDictionary<NodeId, IList<IReference>> externalReferences)
+        {
+            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
+            {
+                externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
+            }
+            foreach (BaseDataVariableState node in m_counters.CreateNodes(NamespaceIndex))
+            {
+                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, node.NodeId));
+                AddPredefinedNode(SystemContext, node);
+            }
+        }
+
+        private readonly CounterValues m_counters;
+    }
+
+    /// <summary>
+    /// The counters on <see cref="AsyncCustomNodeManager"/> with sampling groups, as the
+    /// o6-automation .NET worker for UA-.NETStandard 2.0 builds them.
+    /// </summary>
+    internal sealed class AsyncCounterNodeManager : AsyncCustomNodeManager
+    {
+        public AsyncCounterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            CounterValues counters,
+            string namespaceUri)
+            : base(server, configuration, useSamplingGroups: true, namespaceUri)
+        {
+            m_counters = counters;
+        }
+
+        public override async ValueTask CreateAddressSpaceAsync(
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            CancellationToken cancellationToken = default)
+        {
+            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
+            if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
+            {
+                externalReferences[ObjectIds.ObjectsFolder] = references = new List<IReference>();
+            }
+            foreach (BaseDataVariableState node in m_counters.CreateNodes(NamespaceIndex))
+            {
+                references.Add(new NodeStateReference(ReferenceTypeIds.Organizes, false, node.NodeId));
+                await AddPredefinedNodeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private readonly CounterValues m_counters;
     }
 
     /// <summary>
@@ -163,26 +225,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             ITelemetryContext telemetry,
             int count,
             string namespaceUri = CounterNodeManager.Namespace,
-            bool lockedCallback = false)
+            bool lockedCallback = false,
+            bool asyncNodeManager = false)
             : base(telemetry)
         {
-            m_count = count;
+            Counters = new CounterValues(count, lockedCallback);
             m_namespaceUri = namespaceUri;
-            m_lockedCallback = lockedCallback;
+            m_asyncNodeManager = asyncNodeManager;
         }
 
-        public CounterNodeManager? Counters { get; private set; }
+        public CounterValues Counters { get; }
 
         protected override IMasterNodeManager CreateMasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            Counters = new CounterNodeManager(server, configuration, m_count, m_namespaceUri, m_lockedCallback);
-            return new MasterNodeManager(server, configuration, null, Counters);
+            return m_asyncNodeManager
+                ? new MasterNodeManager(
+                    server, configuration, null, new AsyncCounterNodeManager(server, configuration, Counters, m_namespaceUri))
+                : new MasterNodeManager(
+                    server, configuration, null, new CounterNodeManager(server, configuration, Counters, m_namespaceUri));
         }
 
-        private readonly int m_count;
         private readonly string m_namespaceUri;
-        private readonly bool m_lockedCallback;
+        private readonly bool m_asyncNodeManager;
     }
 }

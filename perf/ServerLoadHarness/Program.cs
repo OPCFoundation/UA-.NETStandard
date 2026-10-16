@@ -195,7 +195,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MaxSubscriptionCount = 20000;
             config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
             config.ServerConfiguration.MaxRequestThreadCount = ArgInt("threads", 200);
-            config.ServerConfiguration.MinRequestThreadCount = 50;
+            config.ServerConfiguration.MinRequestThreadCount = Math.Min(50, config.ServerConfiguration.MaxRequestThreadCount);
             // sized for the largest pipeline (sessions x inflight), as the o6-automation benchmarks do
             config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
             int counters = ArgInt("counters", 0);
@@ -225,9 +225,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     telemetry,
                     counters,
                     contract ? NativeWorkerBenchmark.ContractServerUri : CounterNodeManager.Namespace,
-                    ArgInt("counter-lock", 0) != 0)
+                    ArgInt("counter-lock", 0) != 0,
+                    contract && ArgInt("async-node-manager", 1) != 0)
                 : contract
-                ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 0) != 0)
+                ? new BenchmarkContractServer(telemetry, ArgInt("async-node-manager", 1) != 0)
                 : new ReferenceServer(telemetry);
             server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
@@ -243,11 +244,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
                         mark = ProcessStats.Capture();
-                        (server as CounterServer)?.Counters?.Mark();
+                        (server as CounterServer)?.Counters.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
-                        string counterReport = (server as CounterServer)?.Counters?.Report(sampling) ?? string.Empty;
+                        string counterReport = (server as CounterServer)?.Counters.Report(sampling) ?? string.Empty;
                         Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
                         break;
                     case "quit":
@@ -455,7 +456,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         /// <summary>
         /// Starts the harness itself as the server child; <c>SERVER_</c> variables are passed without the prefix.
         /// </summary>
-        internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(string arguments)
+        internal static (Process Server, BlockingCollection<string> Lines) StartServerChild(
+            string arguments,
+            IReadOnlyDictionary<string, string>? defaultEnvironment = null)
         {
             var startInfo = new ProcessStartInfo(Environment.ProcessPath!, arguments)
             {
@@ -463,6 +466,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 RedirectStandardOutput = true,
                 UseShellExecute = false
             };
+            if (defaultEnvironment != null)
+            {
+                foreach (KeyValuePair<string, string> variable in defaultEnvironment)
+                {
+                    startInfo.Environment[variable.Key] = variable.Value;
+                }
+            }
             foreach (DictionaryEntry variable in Environment.GetEnvironmentVariables())
             {
                 string name = (string)variable.Key;
