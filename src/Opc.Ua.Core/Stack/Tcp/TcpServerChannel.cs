@@ -1737,6 +1737,7 @@ namespace Opc.Ua.Bindings
                 //
                 // Transfer chunk cleanup to dispatch. Stream decoding has copied
                 // the request values, so they do not borrow these pooled arrays.
+                CttDiag.Log("RX ch=" + ChannelId + " req=" + requestId + " " + request.GetType().Name + " h=" + request.RequestHeader?.RequestHandle);
                 pending = new PendingRequestDispatch(requestId, request, chunksToProcess);
                 chunksToProcess = null;
 
@@ -1815,11 +1816,15 @@ namespace Opc.Ua.Bindings
 
             if (TrySendResponseWithoutGate(requestId, response))
             {
+                CttDiag.Log("TX ch=" + ChannelId + " req=" + requestId + " " + response.GetType().Name +
+                    " h=" + response.ResponseHeader?.RequestHandle + " nogate");
                 return false;
             }
 
             using (Gate.Enter())
             {
+                CttDiag.Log("TX ch=" + ChannelId + " req=" + requestId + " " + response.GetType().Name +
+                    " h=" + response.ResponseHeader?.RequestHandle + " gate state=" + State);
                 return SendResponseCore(requestId, response);
             }
         }

@@ -2592,6 +2592,9 @@ namespace Opc.Ua.Server
                     context.SessionId,
                     requestHeader.RequestHandle,
                     requestHeader.Timestamp);
+                long dt0 = Environment.TickCount64;
+                CttDiag.Log("PUB-IN s=" + context.SessionId + " h=" + requestHeader.RequestHandle +
+                    " acks=" + subscriptionAcknowledgements.Count + " th=" + requestHeader.TimeoutHint);
 
                 PublishResponse response = await ServerInternal.SubscriptionManager.PublishAsync(
                     context,
@@ -2600,11 +2603,16 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
                 response.ResponseHeader = CreateResponse(requestHeader, context);
+                CttDiag.Log("PUB-OUT s=" + context.SessionId + " h=" + requestHeader.RequestHandle +
+                    " sub=" + response.SubscriptionId + " seq=" + response.NotificationMessage.SequenceNumber +
+                    " n=" + response.NotificationMessage.NotificationData.Count + " more=" + response.MoreNotifications +
+                    " avail=" + response.AvailableSequenceNumbers.Count + " dt=" + (Environment.TickCount64 - dt0));
 
                 return response;
             }
             catch (ServiceResultException e)
             {
+                CttDiag.Log("PUB-ERR s=" + context.SessionId + " h=" + requestHeader.RequestHandle + " " + e.StatusCode);
                 ServerInternal.UpdateServerDiagnostics(diagnostics =>
                 {
                     diagnostics.RejectedRequestsCount++;

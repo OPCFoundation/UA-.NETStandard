@@ -689,6 +689,8 @@ namespace Opc.Ua.Server
                 // check for expired subscription.
                 if (state == PublishingState.Expired)
                 {
+                    CttDiag.Log("SUB-EXPIRED s=" + m_session.Id + " sub=" + subscription.Subscription.Id +
+                        " queuedReq=" + m_queuedRequests.Count + " reqQueued=" + publishRequestQueued);
                     var subscriptionManager = (SubscriptionManager)m_server.SubscriptionManager;
                     if (!subscriptionManager.TryClaimSubscriptionExpiration(
                             this,

@@ -1600,6 +1600,7 @@ namespace Opc.Ua.Bindings
                     continue;
                 }
 
+                CttDiag.Log("WR ch=" + ChannelId + " n=" + batch.Count + (numbered ? " numbered" : string.Empty));
                 Task pending;
                 if (batch.Count > 1)
                 {

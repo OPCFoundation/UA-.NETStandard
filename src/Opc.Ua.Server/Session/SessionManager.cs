@@ -680,6 +680,7 @@ namespace Opc.Ua.Server
 
                 if (sessionExpired)
                 {
+                    CttDiag.Log("SESSION-TIMEOUT s=" + session.Id);
                     // Close re-enters this manager, so it must run outside the global gate.
                     // The shared close claim also prevents duplicate audit and diagnostic updates.
                     await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
