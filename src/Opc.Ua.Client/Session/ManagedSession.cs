@@ -875,8 +875,13 @@ namespace Opc.Ua.Client
             ConnectionStateBudgetOperation? operation = connection == null && channel == null
                 ? null
                 : (_, token) => HandleManualReconnectAsync(connection, channel, ct, token);
+
+            // An explicit reconnect always runs, even after a channel recovery, until a
+            // reconnect that started after this request completed.
+            Interlocked.Increment(ref m_explicitReconnectRequests);
             if (!StateMachine.RequestReconnect(operation))
             {
+                Interlocked.Decrement(ref m_explicitReconnectRequests);
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState, "The managed session cannot start the requested reconnect.");
             }
@@ -1292,16 +1297,33 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = m_configuredEndpoint;
-            var attempted = new HashSet<ConfiguredEndpoint> { endpoint };
+            ConfiguredEndpoint requiredEndpoint = endpoint;
+            var attempted = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                GetEndpointUrl(endpoint)
+            };
             while (true)
             {
-                ServiceResult result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
-                if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
+                ServiceResultException? mismatch = ReferenceEquals(endpoint, requiredEndpoint)
+                    ? null
+                    : GetSecurityConfigurationMismatch(requiredEndpoint.Description, endpoint.Description);
+                ServiceResult result;
+                if (mismatch != null)
                 {
-                    return result;
+                    m_logger.ManagedSessionConnectFailed(mismatch);
+                    result = new ServiceResult(mismatch);
                 }
+                else
+                {
+                    result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
+                    if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
+                    {
+                        return result;
+                    }
+                }
+
                 ConfiguredEndpoint? alternate = SelectNextNetworkEndpoint(endpoint);
-                if (alternate == null || !attempted.Add(alternate))
+                if (alternate == null || !attempted.Add(GetEndpointUrl(alternate)))
                 {
                     return result;
                 }
@@ -1504,7 +1526,7 @@ namespace Opc.Ua.Client
 
                     session.ConfigureChannelReconnectTimeout(m_channelReconnectTimeout, m_sessionTimeout);
                     WireSessionEvents(session);
-                    m_session = session;
+                    SetBindingSession(session);
                 }
                 finally
                 {
@@ -1611,6 +1633,7 @@ namespace Opc.Ua.Client
             CancellationToken workerToken)
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(callerToken, workerToken);
+            long explicitRequests = Interlocked.Read(ref m_explicitReconnectRequests);
             try
             {
                 using IDisposable recovery = InnerSession.DeferSubscriptionRecovery();
@@ -1633,6 +1656,7 @@ namespace Opc.Ua.Client
                     }
                 }
                 await RefreshRedundancyInfoBestEffortAsync(linked.Token).ConfigureAwait(false);
+                CompleteReconnect(explicitRequests);
                 return ServiceResult.Good;
             }
             catch (Exception exception)
@@ -1657,6 +1681,8 @@ namespace Opc.Ua.Client
                 return await HandleConnectAsync(ct).ConfigureAwait(false);
             }
 
+            // Explicit requests made after this point are served by a later attempt.
+            long explicitRequests = Interlocked.Read(ref m_explicitReconnectRequests);
             try
             {
                 m_logger.ManagedSessionReconnecting();
@@ -1665,6 +1691,20 @@ namespace Opc.Ua.Client
                 using (await RecoveryWriterLockAsync(ct)
                     .ConfigureAwait(false))
                 {
+                    // The channel manager may have recovered the channel while this
+                    // reconnect waited out its backoff, e.g. when the faulted lease
+                    // was reconnected directly. Reconnecting again would only tear
+                    // down the freshly reactivated channel. An explicit reconnect
+                    // that is still outstanding always runs.
+                    if (explicitRequests <= Interlocked.Read(ref m_explicitReconnectsServed) &&
+                        ChannelReactivatedSinceReconnectTrigger(session))
+                    {
+                        Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
+                        m_reconnectPolicy.Reset();
+                        m_logger.ManagedSessionReconnectSkippedChannelRecovered();
+                        return ServiceResult.Good;
+                    }
+
                     try
                     {
                         ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
@@ -1694,7 +1734,7 @@ namespace Opc.Ua.Client
                         }
                         else
                         {
-                            await ReactivateNetworkEndpointAsync(session, alternateEndpoint, budget, ct)
+                            await ReactivateNextNetworkEndpointAsync(session, budget, sre, ct)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -1731,16 +1771,14 @@ namespace Opc.Ua.Client
                             throw;
                         }
 
-                        await ReactivateNetworkEndpointAsync(
-                            session,
-                            alternateEndpoint,
-                            budget,
-                            ct).ConfigureAwait(false);
+                        await ReactivateNextNetworkEndpointAsync(session, budget, sre, ct)
+                            .ConfigureAwait(false);
                     }
                 }
 
                 await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
 
+                CompleteReconnect(explicitRequests);
                 m_reconnectPolicy.Reset();
 
                 m_logger.ManagedSessionReconnected();
@@ -1778,6 +1816,89 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint currentEndpoint)
         {
             return m_networkEndpointSelector?.SelectNext(currentEndpoint);
+        }
+
+        private async Task ReactivateNextNetworkEndpointAsync(
+            Session session,
+            IRetryBudget budget,
+            ServiceResultException originalFailure,
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint currentEndpoint = session.ConfiguredEndpoint;
+            var attempted = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                GetEndpointUrl(currentEndpoint)
+            };
+            ServiceResultException? securityConfigurationMismatch = null;
+            ServiceResultException? lastConnectivityFailure = null;
+            while (true)
+            {
+                ConfiguredEndpoint? candidate = SelectNextNetworkEndpoint(currentEndpoint);
+                if (candidate == null || !attempted.Add(GetEndpointUrl(candidate)))
+                {
+                    break;
+                }
+                currentEndpoint = candidate;
+                ServiceResultException? mismatch = GetSecurityConfigurationMismatch(
+                    session.ConfiguredEndpoint.Description,
+                    candidate.Description);
+                if (mismatch != null)
+                {
+                    securityConfigurationMismatch ??= mismatch;
+                    continue;
+                }
+
+                try
+                {
+                    await ReactivateNetworkEndpointAsync(session, candidate, budget, ct)
+                        .ConfigureAwait(false);
+                    return;
+                }
+                catch (ServiceResultException exception) when (IsConnectivityFailure(exception.StatusCode))
+                {
+                    lastConnectivityFailure = exception;
+                }
+            }
+
+            throw lastConnectivityFailure ?? securityConfigurationMismatch ?? originalFailure;
+        }
+
+        private static string GetEndpointUrl(ConfiguredEndpoint endpoint)
+        {
+            return endpoint.Description.EndpointUrl ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Creates an error when a candidate endpoint changes an explicitly
+        /// configured mode or policy.
+        /// </summary>
+        private static ServiceResultException? GetSecurityConfigurationMismatch(
+            EndpointDescription required,
+            EndpointDescription candidate)
+        {
+            if (required.SecurityMode != MessageSecurityMode.Invalid &&
+                required.SecurityMode != candidate.SecurityMode)
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeRejected,
+                    "The endpoint security mode '{0}' does not match the required mode '{1}'.",
+                    candidate.SecurityMode,
+                    required.SecurityMode);
+            }
+
+            if (!string.IsNullOrEmpty(required.SecurityPolicyUri) &&
+                !string.Equals(
+                    required.SecurityPolicyUri,
+                    candidate.SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    $"The endpoint security policy '{candidate.SecurityPolicyUri}' does not match the required policy " +
+                    $"'{required.SecurityPolicyUri}'.");
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -2116,7 +2237,7 @@ namespace Opc.Ua.Client
             Session? session = m_session;
             if (session != null)
             {
-                m_session = null;
+                SetBindingSession(null);
                 UnwireSessionEvents(session);
 
                 try
@@ -2183,6 +2304,18 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            if (endpoint != null)
+            {
+                ServiceResultException? securityConfigurationMismatch =
+                    GetSecurityConfigurationMismatch(
+                        session.ConfiguredEndpoint.Description,
+                        endpoint.Description);
+                if (securityConfigurationMismatch != null)
+                {
+                    throw securityConfigurationMismatch;
+                }
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
@@ -2203,6 +2336,15 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            ServiceResultException? securityConfigurationMismatch =
+                GetSecurityConfigurationMismatch(
+                    session.ConfiguredEndpoint.Description,
+                    endpoint.Description);
+            if (securityConfigurationMismatch != null)
+            {
+                throw securityConfigurationMismatch;
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
@@ -2343,7 +2485,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    StateMachine.TriggerReconnect();
+                    TriggerRecoveryReconnect();
                 }
             }
 
@@ -2376,6 +2518,10 @@ namespace Opc.Ua.Client
                     }
                     break;
                 case ChannelState.Ready:
+                    if (change.PreviousState == ChannelState.TransportConnectedSessionReactivating)
+                    {
+                        Interlocked.Increment(ref m_channelSessionReactivations);
+                    }
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
                     if (m_session?.ChannelRecoveryInProgress != true)
                     {
@@ -2388,7 +2534,7 @@ namespace Opc.Ua.Client
                     // Channel-mgr gave up. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
-                    StateMachine.TriggerReconnect(change);
+                    TriggerRecoveryReconnect(change);
                     break;
                 case ChannelState.Closed:
                     Interlocked.Exchange(ref m_channelReconnectInProgress, 0);
@@ -2396,9 +2542,55 @@ namespace Opc.Ua.Client
                     // Channel-mgr closed. Surface to outer state
                     // machine so the IReconnectPolicy / failover path
                     // can run.
-                    StateMachine.TriggerReconnect();
+                    TriggerRecoveryReconnect();
                     break;
             }
+        }
+
+        /// <summary>
+        /// Requests an outer reconnect for a channel fault or keep-alive failure
+        /// and remembers how many channel reactivations had happened by then, so
+        /// the reconnect can be skipped if the channel manager reactivates the
+        /// session again before it runs.
+        /// </summary>
+        private void TriggerRecoveryReconnect(ChannelStateChange? change = null)
+        {
+            // Recorded before the request so the worker never reads an older mark.
+            Interlocked.Exchange(
+                ref m_reconnectTriggerMark,
+                Interlocked.Read(ref m_channelSessionReactivations));
+            if (!StateMachine.RequestReconnect(underlyingChannelState: change))
+            {
+                Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
+            }
+        }
+
+        /// <summary>
+        /// Records a completed reconnect: the pending trigger is consumed and every
+        /// explicit request made before the reconnect started is served.
+        /// </summary>
+        private void CompleteReconnect(long explicitRequests)
+        {
+            Interlocked.Exchange(ref m_reconnectTriggerMark, NoReconnectTrigger);
+            if (explicitRequests > Interlocked.Read(ref m_explicitReconnectsServed))
+            {
+                // Only the state machine worker completes reconnects.
+                Interlocked.Exchange(ref m_explicitReconnectsServed, explicitRequests);
+            }
+        }
+
+        /// <summary>
+        /// Whether the channel manager reactivated the session after the pending
+        /// outer reconnect was requested and the channel is still ready, in which
+        /// case another reconnect would only tear down the recovered channel.
+        /// </summary>
+        private bool ChannelReactivatedSinceReconnectTrigger(Session session)
+        {
+            long mark = Interlocked.Read(ref m_reconnectTriggerMark);
+            return mark != NoReconnectTrigger &&
+                Interlocked.Read(ref m_channelSessionReactivations) > mark &&
+                !session.ChannelRecoveryInProgress &&
+                session.ManagedChannel?.State == ChannelState.Ready;
         }
 
         private void RaiseChannelStateChanged(ChannelStateChange change)
@@ -2686,6 +2878,10 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Starts asynchronous teardown without blocking the caller. Use <see cref="DisposeAsync"/>
+        /// to wait until background work and owned transport resources have been released.
+        /// </remarks>
         public void Dispose()
         {
             Dispose(disposing: true);
@@ -2704,56 +2900,111 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // Run the same teardown as DisposeAsync. Doing only part of it here
-            // left the state machine, the background work queue, the streaming
-            // subscription and the revalidation loop running while the service
-            // lock they use was already disposed.
-            DisposeAsyncCoreAsync().AsTask().GetAwaiter().GetResult();
+            _ = ObserveDisposalAsync(DisposeAsync().AsTask());
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            await DisposeAsyncCoreAsync().ConfigureAwait(false);
+            TaskCompletionSource<bool>? existing = Volatile.Read(ref m_disposalCompletion);
+            if (existing != null)
+            {
+                await existing.Task.ConfigureAwait(false);
+                return;
+            }
+
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            existing = Interlocked.CompareExchange(ref m_disposalCompletion, completion, null);
+            if (existing != null)
+            {
+                await existing.Task.ConfigureAwait(false);
+                return;
+            }
+
+            try
+            {
+                Interlocked.Exchange(ref m_disposed, 1);
+
+                // A notification may initiate disposal while the worker owns the inner session.
+                m_session?.NoteCloseFromBackgroundWork();
+
+                try
+                {
+                    if (Volatile.Read(ref m_abandonServerSession))
+                    {
+                        // Stop all teardown paths from reaching the demoted replica's server session.
+                        m_session?.AbandonServerSession();
+                    }
+
+                    await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
+                    UnsubscribeCertificateChanges();
+                    await StopRevalidationLoopAsync().ConfigureAwait(false);
+
+                    // Drain scheduled certificate work before releasing the inner session it uses.
+                    await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+                    await DisposeStreamingAsync().ConfigureAwait(false);
+                    await StateMachine.DisposeAsync().ConfigureAwait(false);
+
+                    Session? session = m_session;
+                    SetBindingSession(null);
+
+                    if (session != null)
+                    {
+                        UnwireSessionEvents(session);
+                        try
+                        {
+                            await session.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger.ManagedSessionDisposeCloseFailed(ex);
+                        }
+                    }
+
+                    // Dispose the lock only after every task that could still hold it has stopped.
+                    m_serviceLock.Dispose();
+                }
+                finally
+                {
+                    try
+                    {
+                        if (m_ownedChannelManager != null)
+                        {
+                            await m_ownedChannelManager.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        m_ownedTransportResources?.Dispose();
+                    }
+                }
+                completion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+
+            await completion.Task.ConfigureAwait(false);
             GC.SuppressFinalize(this);
+        }
+
+        private async Task ObserveDisposalAsync(Task disposal)
+        {
+            try
+            {
+                await disposal.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                m_logger.ManagedSessionDisposalFailed(ex);
+            }
         }
 
         internal void OwnTransportResources(ClientChannelManager? manager, IDisposable? resources)
         {
             m_ownedChannelManager = manager;
             m_ownedTransportResources = resources;
-        }
-
-        private async ValueTask DisposeAsyncCoreAsync()
-        {
-            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
-            {
-                return;
-            }
-
-            // Disposed from a Notification handler of the inner session: the
-            // state machine worker disposes the inner session and must not wait
-            // for the drain of the handler that waits for this dispose.
-            m_session?.NoteCloseFromBackgroundWork();
-
-            try
-            {
-                await DisposeSessionResourcesAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                try
-                {
-                    if (m_ownedChannelManager != null)
-                    {
-                        await m_ownedChannelManager.DisposeAsync().ConfigureAwait(false);
-                    }
-                }
-                finally
-                {
-                    m_ownedTransportResources?.Dispose();
-                }
-            }
         }
 
         /// <summary>
@@ -2768,55 +3019,6 @@ namespace Opc.Ua.Client
         {
             Volatile.Write(ref m_abandonServerSession, true);
             await DisposeAsync().ConfigureAwait(false);
-        }
-
-        private async ValueTask DisposeSessionResourcesAsync()
-        {
-            if (Volatile.Read(ref m_abandonServerSession))
-            {
-                // First: from here on neither the identity refresh, the
-                // background work, the state machine close nor the inner
-                // dispose can reach the server session with its token.
-                m_session?.AbandonServerSession();
-            }
-
-            await StopIdentityRefreshLoopAsync().ConfigureAwait(false);
-            UnsubscribeCertificateChanges();
-            await StopRevalidationLoopAsync().ConfigureAwait(false);
-
-            // After unsubscribing (no new work can arrive) and before the inner
-            // session goes away: a certificate reload already scheduled
-            // reconnects through it.
-            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
-
-            // Tear down streaming subscription and model change tracker
-            // before closing the session so any in-flight publish work
-            // completes against a still-valid session.
-            await DisposeStreamingAsync().ConfigureAwait(false);
-
-            await StateMachine.DisposeAsync()
-                .ConfigureAwait(false);
-
-            Session? session = m_session;
-            m_session = null;
-
-            if (session != null)
-            {
-                UnwireSessionEvents(session);
-                try
-                {
-                    await session.DisposeAsync()
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    m_logger.ManagedSessionDisposeCloseFailed(ex);
-                }
-            }
-
-            // Last: everything that could still be holding the lock (state
-            // machine worker, background work, streaming) is torn down above.
-            m_serviceLock.Dispose();
         }
 
         private sealed class DelayState : IDisposable
@@ -2857,6 +3059,7 @@ namespace Opc.Ua.Client
         private RenewUserIdentityEventHandler? m_renewUserIdentity;
         private volatile Session? m_session;
         private ClientChannelManager? m_ownedChannelManager;
+        private TaskCompletionSource<bool>? m_disposalCompletion;
         private bool m_abandonServerSession;
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
@@ -2922,6 +3125,30 @@ namespace Opc.Ua.Client
         /// suppressed by a stuck reconnect reports how long it has been suppressed.
         /// </summary>
         private long m_channelReconnectStartedAt;
+
+        /// <summary>
+        /// Counts channel-manager reconnect cycles that reactivated this session
+        /// (a Ready transition out of
+        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>).
+        /// </summary>
+        private long m_channelSessionReactivations;
+
+        /// <summary>
+        /// <see cref="m_channelSessionReactivations"/> when a channel fault or a
+        /// keep-alive failure last requested an outer reconnect, or
+        /// <see cref="NoReconnectTrigger"/> when none is recorded.
+        /// </summary>
+        private long m_reconnectTriggerMark = NoReconnectTrigger;
+        private const long NoReconnectTrigger = -1;
+
+        /// <summary>
+        /// Explicit <see cref="ReconnectAsync(ITransportWaitingConnection?, ITransportChannel?, CancellationToken)"/>
+        /// requests, and how many of them a completed reconnect has served. While a
+        /// request is outstanding the outer reconnect is never skipped, whatever
+        /// automatic triggers happen meanwhile.
+        /// </summary>
+        private long m_explicitReconnectRequests;
+        private long m_explicitReconnectsServed;
         private ServerRedundancyInfo? m_redundancyInfo;
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
         private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
@@ -3049,5 +3276,18 @@ namespace Opc.Ua.Client
                       "connecting with the configured identity until discovery succeeds.")]
         public static partial void ManagedSessionIdentityProviderDeferredUntilDiscovery(
             this ILogger logger);
+
+        /// <summary>
+        /// Writes the log event: <c>ManagedSession: Asynchronous teardown initiated by Dispose failed.</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="exception">The exception attached to the event.</param>
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 29, Level = LogLevel.Error,
+            Message = "ManagedSession: Asynchronous teardown initiated by Dispose failed.")]
+        public static partial void ManagedSessionDisposalFailed(this ILogger logger, Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 30, Level = LogLevel.Information,
+            Message = "ManagedSession: Reconnect skipped; the channel manager already reactivated the session.")]
+        public static partial void ManagedSessionReconnectSkippedChannelRecovered(this ILogger logger);
     }
 }

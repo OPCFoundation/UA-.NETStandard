@@ -32,12 +32,89 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Di;
+using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 
 namespace Opc.Ua.Robotics.Server.Builders
 {
     internal static class RoboticsBuilderUtilities
     {
+        /// <summary>
+        /// Creates a typed companion instance without changing its inherited wire identity or parent.
+        /// </summary>
+        /// <typeparam name="TState">The generated companion state type.</typeparam>
+        /// <param name="context">The owner's system context.</param>
+        /// <param name="parent">The required parent.</param>
+        /// <param name="browseName">The required instance browse name.</param>
+        /// <param name="create">The initialized instance factory.</param>
+        /// <param name="baseTypeIdentifier">The required Robotics supertype identifier.</param>
+        /// <returns>The validated factory instance.</returns>
+        internal static TState CreateCompanionInstance<TState>(
+            ISystemContext context,
+            NodeState parent,
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, TState> create,
+            uint baseTypeIdentifier)
+            where TState : BaseInstanceState
+        {
+            TState state = create(context, parent, browseName) ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The companion factory returned null for '{0}'.",
+                    browseName);
+            if (!ReferenceEquals(state.Parent, parent) || state.BrowseName != browseName)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "The companion factory must preserve the supplied parent and browse name '{0}'.",
+                    browseName);
+            }
+            NodeId baseTypeId = NodeId.Create(
+                baseTypeIdentifier,
+                Namespaces.Robotics,
+                context.NamespaceUris);
+            if (!context.TypeTable.IsTypeOf(state.TypeDefinitionId, baseTypeId))
+            {
+                ReleaseCompanionReservations(context, state);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadTypeDefinitionInvalid,
+                    "The companion instance '{0}' must derive from Robotics type '{1}'.",
+                    browseName,
+                    baseTypeId);
+            }
+            return state;
+        }
+
+        /// <summary>
+        /// Releases an incompatible, unattached factory result without deleting address-space nodes.
+        /// </summary>
+        private static void ReleaseCompanionReservations(ISystemContext context, NodeState root)
+        {
+            if (context.NodeIdFactory is not ICompanionNodeIdReservationOwner reservations)
+            {
+                return;
+            }
+            var pending = new Queue<NodeState>();
+            var visited = new HashSet<NodeState>();
+            var children = new List<BaseInstanceState>();
+            pending.Enqueue(root);
+            while (pending.Count > 0)
+            {
+                NodeState node = pending.Dequeue();
+                if (!visited.Add(node))
+                {
+                    continue;
+                }
+                reservations.ReleaseNodeIdReservation(node);
+                children.Clear();
+                node.GetChildren(context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    pending.Enqueue(child);
+                }
+            }
+        }
+
         public static QualifiedName NormalizeBrowseName(
             IRoboticsBuildContext context,
             string browseName)

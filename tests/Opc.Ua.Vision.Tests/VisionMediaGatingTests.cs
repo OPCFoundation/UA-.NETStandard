@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -239,7 +239,7 @@ namespace Opc.Ua.Vision.Tests
                 sensorId: 108, endpointId: 508, inlineDeliveryEnabled: true, maxInlineClipSize: 4096,
                 mediaProvider.Object);
 
-            Assert.That(harness.Clip.LatestClip!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good),
+            Assert.That(harness.Clip.LatestClip!.StatusCode, Is.EqualTo(StatusCodes.Good),
                 "Precondition: the harness starts with an unpublished LatestClip.");
 
             await harness.InvokeGetClip(

@@ -36,6 +36,14 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Server\Opc.Ua.MachineTool.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Client\Opc.Ua.MachineTool.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Server\Opc.Ua.GMS.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Client\Opc.Ua.GMS.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Server\Opc.Ua.CranesHoists.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Client\Opc.Ua.CranesHoists.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />

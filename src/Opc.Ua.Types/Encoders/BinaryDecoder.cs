@@ -79,10 +79,24 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(buffer));
             }
             Context = context ?? throw new ArgumentNullException(nameof(context));
-            var stream = new MemoryStream(buffer, start, count, false);
-            m_reader = new BinaryReader(stream);
+            // the checks of the stream over the buffer, which is created on demand now
+            if (start < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(start));
+            }
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+            if (buffer.Length - start < count)
+            {
+                throw new ArgumentException("The range exceeds the buffer.", nameof(count));
+            }
             m_buffer = new ReadOnlyMemory<byte>(buffer, start, count);
             m_hasBuffer = true;
+            // Decoding reads the buffer directly; the stream over it is only created when
+            // BaseStream exposes it (see CreateBufferReader).
+            m_reader = null!;
         }
 
         /// <summary>
@@ -178,7 +192,7 @@ namespace Opc.Ua
         /// </summary>
         public void Close()
         {
-            m_reader.Close();
+            m_reader?.Close();
         }
 
         /// <summary>
@@ -189,6 +203,14 @@ namespace Opc.Ua
         {
             get
             {
+                // A buffer decoder knows its position without exposing a stream over the
+                // buffer, which would make every later read synchronize with it.
+                if (m_hasBuffer && (!m_baseStreamExposed || m_reader != null))
+                {
+                    SynchronizeBufferPosition();
+                    return m_bufferPosition;
+                }
+
                 Stream stream = BaseStream;
                 if (stream?.CanSeek != true)
                 {
@@ -216,6 +238,7 @@ namespace Opc.Ua
             {
                 if (m_hasBuffer && !m_baseStreamExposed)
                 {
+                    m_reader ??= CreateBufferReader();
                     m_reader.BaseStream.Position = m_bufferPosition;
                     m_synchronizedStreamPosition = m_bufferPosition;
                     m_baseStreamExposed = true;
@@ -223,6 +246,17 @@ namespace Opc.Ua
 
                 return m_reader?.BaseStream!;
             }
+        }
+
+        /// <summary>
+        /// Creates the reader over the buffer of a buffer decoder, the first time
+        /// <see cref="BaseStream"/> exposes the stream; until then every read goes to the
+        /// buffer directly and the stream position is never used.
+        /// </summary>
+        private BinaryReader CreateBufferReader()
+        {
+            MemoryMarshal.TryGetArray(m_buffer, out ArraySegment<byte> segment);
+            return new BinaryReader(new MemoryStream(segment.Array!, segment.Offset, segment.Count, false));
         }
 
         /// <summary>

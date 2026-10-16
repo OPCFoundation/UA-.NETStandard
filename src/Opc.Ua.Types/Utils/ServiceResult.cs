@@ -423,6 +423,9 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a status code and a diagnostic info structure.
         /// </summary>
+        /// <param name="code">The code used to initialize the instance.</param>
+        /// <param name="diagnosticInfo">The diagnostic info used to initialize the instance.</param>
+        /// <param name="stringTable">The string table used to initialize the instance.</param>
         public ServiceResult(
             StatusCode code,
             DiagnosticInfo? diagnosticInfo,
@@ -441,7 +444,8 @@ namespace Opc.Ua
 
                 AdditionalInfo = diagnosticInfo.AdditionalInfo;
 
-                if (!StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
+                if (!diagnosticInfo.InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits) ||
+                    diagnosticInfo.InnerDiagnosticInfo is not null)
                 {
                     InnerResult = new ServiceResult(
                         diagnosticInfo.InnerStatusCode,
@@ -454,38 +458,17 @@ namespace Opc.Ua
         /// <summary>
         /// Initializes the object with a status code and a diagnostic info structure.
         /// </summary>
+        /// <param name="code">The code used to initialize the instance.</param>
+        /// <param name="index">The index used to initialize <c>ServiceResult</c>.</param>
+        /// <param name="diagnosticInfos">The diagnostic infos used to initialize the instance.</param>
+        /// <param name="stringTable">The string table used to initialize the instance.</param>
         public ServiceResult(
             StatusCode code,
             int index,
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             ArrayOf<string> stringTable)
+            : this(code, index >= 0 && index < diagnosticInfos.Count ? diagnosticInfos[index] : null, stringTable)
         {
-            StatusCode = code;
-
-            if (index >= 0 && index < diagnosticInfos.Count)
-            {
-                DiagnosticInfo diagnosticInfo = diagnosticInfos[index];
-
-                if (diagnosticInfo != null)
-                {
-                    NamespaceUri = LookupString(stringTable, diagnosticInfo.NamespaceUri);
-                    SymbolicId = LookupString(stringTable, diagnosticInfo.SymbolicId);
-
-                    string? locale = LookupString(stringTable, diagnosticInfo.Locale);
-                    string? localizedText = LookupString(stringTable, diagnosticInfo.LocalizedText);
-                    LocalizedText = new LocalizedText(locale, localizedText);
-
-                    AdditionalInfo = diagnosticInfo.AdditionalInfo;
-
-                    if (!StatusCode.IsGood(diagnosticInfo.InnerStatusCode))
-                    {
-                        InnerResult = new ServiceResult(
-                            diagnosticInfo.InnerStatusCode,
-                            diagnosticInfo.InnerDiagnosticInfo,
-                            stringTable);
-                    }
-                }
-            }
         }
 
         /// <summary>

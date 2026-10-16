@@ -17,8 +17,8 @@ model can drive the cell while a human watches. With `--view`, it can also open
 the in-process OpenUSD viewport so the same session is observable in 3-D while
 the agent runs.
 
-The MCP catalogue exposed to the agent contains **64 tools** measured from the
-running host: `26` Vision tools + `42` Robotics tools − `4` shared connection
+The MCP catalogue exposed to the agent contains **81 tools** measured from the
+running host: `43` Vision tools + `42` Robotics tools − `4` shared connection
 tools. This includes `vision_get_frame`, which returns the eye-in-hand camera
 image as an MCP `ImageContentBlock` so the model genuinely sees pixels; the
 one-call `robotics_vision_pick`; typed intent/mission tools; and the state,

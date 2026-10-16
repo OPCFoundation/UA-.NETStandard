@@ -84,6 +84,7 @@ namespace Opc.Ua.Bindings
     public sealed class TcpByteTransport :
         IUaSCByteTransport,
         IUaSCByteTransportLimits,
+        IUaSCChunkCoalescing,
         IDisposable
     {
         /// <summary>
@@ -97,7 +98,6 @@ namespace Opc.Ua.Bindings
             m_bufferManager = bufferManager ?? throw new ArgumentNullException(nameof(bufferManager));
             m_receiveBufferSize = receiveBufferSize;
             m_logger = telemetry.CreateLogger<TcpByteTransport>();
-            m_sendLock = new SemaphoreSlim(1, 1);
         }
 
         /// <summary>
@@ -231,14 +231,9 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource? linkedCts = ct.CanBeCanceled
                 ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
                 : null;
-            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
-            try
+            using (await m_sendLock.EnterAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false))
             {
                 await SendMemoryAsync(socket, chunk, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                m_sendLock.Release();
             }
         }
 
@@ -256,8 +251,7 @@ namespace Opc.Ua.Bindings
             using CancellationTokenSource? linkedCts = ct.CanBeCanceled
                 ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
                 : null;
-            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
-            try
+            using (await m_sendLock.EnterAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false))
             {
                 if (buffers.Count == 1)
                 {
@@ -279,10 +273,6 @@ namespace Opc.Ua.Bindings
                     socket,
                     static (s, pending) => s.SendAsync(pending, SocketFlags.None))
                     .ConfigureAwait(false);
-            }
-            finally
-            {
-                m_sendLock.Release();
             }
         }
 
@@ -332,21 +322,33 @@ namespace Opc.Ua.Bindings
         {
             Socket socket = RequireConnectedSocket();
             int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
+            if (Interlocked.Exchange(ref m_receiving, 1) != 0)
+            {
+                throw new InvalidOperationException("A receive is already in progress.");
+            }
 
-            // Read the 8-byte UASC chunk header (message type + chunk size) before
-            // renting the receive buffer: an idle or silent peer must not hold a
-            // full receive buffer (and its share of a process-wide memory budget)
-            // while the transport waits for the next chunk.
-            byte[] header = Interlocked.Exchange(ref m_receiveHeader, null) ??
-                new byte[TcpMessageLimits.MessageTypeAndSize];
-            int messageSize;
-            byte[] buffer;
             try
             {
-                await ReadExactAsync(socket, header, 0, TcpMessageLimits.MessageTypeAndSize, ct)
-                    .ConfigureAwait(false);
+                if (m_receiveBroken)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpInternalError,
+                        "An earlier receive was interrupted inside a chunk; the stream cannot be read further.");
+                }
 
-                uint messageType = BitConverter.ToUInt32(header, 0);
+                // An idle peer is waited for with the small staging buffer only: the
+                // receive buffer (and its share of a process-wide memory budget) is
+                // rented once the chunk header has arrived and been validated. One
+                // receive into the staging buffer returns the whole chunk when it is
+                // small and already there, plus any bytes of the following chunks,
+                // which are kept for the next call.
+                byte[] staging = m_staging ??= AllocateStaging();
+                while (m_stagedCount < TcpMessageLimits.MessageTypeAndSize)
+                {
+                    await FillStagingAsync(socket, staging, ct).ConfigureAwait(false);
+                }
+
+                uint messageType = BitConverter.ToUInt32(staging, m_stagedOffset);
                 if (!TcpMessageType.IsValid(messageType))
                 {
                     throw ServiceResultException.Create(
@@ -355,7 +357,7 @@ namespace Opc.Ua.Bindings
                         messageType);
                 }
 
-                messageSize = BitConverter.ToInt32(header, 4);
+                int messageSize = BitConverter.ToInt32(staging, m_stagedOffset + 4);
                 if (messageSize <= TcpMessageLimits.MessageTypeAndSize ||
                     messageSize > receiveBufferSize)
                 {
@@ -366,37 +368,66 @@ namespace Opc.Ua.Bindings
                         receiveBufferSize);
                 }
 
+                // A chunk that fits the staging buffer is completed there; the rest
+                // of a larger one is read directly into the rented buffer.
+                if (messageSize <= staging.Length)
+                {
+                    while (m_stagedCount < messageSize)
+                    {
+                        await FillStagingAsync(socket, staging, ct).ConfigureAwait(false);
+                    }
+                }
+
                 // Rent for this chunk rather than for the largest one the
                 // channel accepts (as PipeByteTransport does): a small chunk,
                 // in particular one kept for an incomplete message, must not
                 // hold a whole receive buffer of memory budget.
-                buffer = m_bufferManager.TakeBuffer(
+                byte[] buffer = m_bufferManager.TakeBuffer(
                     messageSize,
                     nameof(ReceiveChunkAsync),
                     ct);
-                Buffer.BlockCopy(header, 0, buffer, 0, TcpMessageLimits.MessageTypeAndSize);
-            }
-            finally
-            {
-                Volatile.Write(ref m_receiveHeader, header);
-            }
-
-            try
-            {
-                m_bufferManager.Lock(buffer);
                 try
                 {
-                    // Read the remaining bytes (chunk body) directly after the header.
-                    await ReadExactAsync(
-                            socket,
-                            buffer,
-                            TcpMessageLimits.MessageTypeAndSize,
-                            messageSize - TcpMessageLimits.MessageTypeAndSize,
-                            ct)
-                        .ConfigureAwait(false);
+                    m_bufferManager.Lock(buffer);
+                    try
+                    {
+                        int staged = Math.Min(m_stagedCount, messageSize);
+                        Buffer.BlockCopy(staging, m_stagedOffset, buffer, 0, staged);
+                        m_stagedOffset += staged;
+                        m_stagedCount -= staged;
+                        if (m_stagedCount == 0)
+                        {
+                            m_stagedOffset = 0;
+                        }
+
+                        if (staged < messageSize)
+                        {
+                            try
+                            {
+                                await ReadExactAsync(
+                                        socket,
+                                        buffer,
+                                        staged,
+                                        messageSize - staged,
+                                        ct)
+                                    .ConfigureAwait(false);
+                            }
+                            catch
+                            {
+                                // Part of the chunk was consumed from the stream and
+                                // goes back with the buffer: the next bytes are not a
+                                // chunk header, so the stream cannot be read again.
+                                m_receiveBroken = true;
+                                throw;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        m_bufferManager.Unlock(buffer);
+                    }
 
                     var segment = new ArraySegment<byte>(buffer, 0, messageSize);
-                    m_bufferManager.Unlock(buffer);
                     buffer = null!; // ownership transferred to caller
                     return segment;
                 }
@@ -404,20 +435,75 @@ namespace Opc.Ua.Bindings
                 {
                     if (buffer != null)
                     {
-                        m_bufferManager.Unlock(buffer);
+                        m_bufferManager.ReturnBuffer(buffer, nameof(ReceiveChunkAsync));
                     }
                     throw;
                 }
             }
-            catch
+            finally
             {
-                if (buffer != null)
-                {
-                    m_bufferManager.ReturnBuffer(buffer, nameof(ReceiveChunkAsync));
-                }
-                throw;
+                Volatile.Write(ref m_receiving, 0);
             }
         }
+
+        /// <summary>
+        /// Receives whatever is available into the free space of the staging buffer,
+        /// after moving the staged bytes to its start.
+        /// </summary>
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
+#endif
+        private async ValueTask FillStagingAsync(Socket socket, byte[] staging, CancellationToken ct)
+        {
+            if (m_stagedOffset > 0)
+            {
+                Buffer.BlockCopy(staging, m_stagedOffset, staging, 0, m_stagedCount);
+                m_stagedOffset = 0;
+            }
+
+            int n;
+#if NET5_0_OR_GREATER
+            n = await socket
+                .ReceiveAsync(
+                    new Memory<byte>(staging, m_stagedCount, staging.Length - m_stagedCount),
+                    SocketFlags.None,
+                    ct)
+                .ConfigureAwait(false);
+#else
+            n = await socket
+                .ReceiveAsync(
+                    new ArraySegment<byte>(staging, m_stagedCount, staging.Length - m_stagedCount),
+                    SocketFlags.None)
+                .ConfigureAwait(false);
+#endif
+            if (n <= 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Remote side closed the connection.");
+            }
+            m_stagedCount += n;
+#if !NET5_0_OR_GREATER
+            // The receive cannot be cancelled here; the bytes it returned are kept
+            // for the next call before the cancellation is observed.
+            ct.ThrowIfCancellationRequested();
+#endif
+        }
+
+        private static byte[] AllocateStaging()
+        {
+#if NET5_0_OR_GREATER
+            // A pending receive pins the buffer for as long as the peer is idle.
+            return GC.AllocateUninitializedArray<byte>(kStagingSize, pinned: true);
+#else
+            return new byte[kStagingSize];
+#endif
+        }
+
+        /// <summary>
+        /// A TCP stream carries chunks back to back.
+        /// </summary>
+        bool IUaSCChunkCoalescing.CanCoalesceChunks => true;
 
         void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
         {
@@ -625,16 +711,33 @@ namespace Opc.Ua.Bindings
         private int m_receiveBufferSize;
 
         /// <summary>
-        /// Reusable chunk-header buffer; taken for the duration of a header read.
+        /// The size of the staging buffer that receives chunk headers, small chunks
+        /// and the bytes of following chunks that arrived with them.
         /// </summary>
-        private byte[]? m_receiveHeader;
+        private const int kStagingSize = 8192;
+
+        /// <summary>
+        /// Staging buffer, allocated on the first receive. The bytes from
+        /// <see cref="m_stagedOffset"/> on (<see cref="m_stagedCount"/> of them)
+        /// were received but not returned yet.
+        /// </summary>
+        private byte[]? m_staging;
+        private int m_stagedOffset;
+        private int m_stagedCount;
+        private int m_receiving;
+
+        /// <summary>
+        /// Set when a receive failed after consuming part of a chunk that did not
+        /// fit the staging buffer; the stream position is lost.
+        /// </summary>
+        private bool m_receiveBroken;
         private readonly ILogger m_logger;
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage(
-            "Usage",
-            "CA2213:Disposable fields should be disposed",
-            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
-        private readonly SemaphoreSlim m_sendLock;
+        /// <summary>
+        /// Serialises the sends. The channel has one writer, so it is uncontended
+        /// there and costs one interlocked exchange each way.
+        /// </summary>
+        private readonly ChannelGate m_sendLock = new();
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage(
             "Usage",

@@ -184,6 +184,9 @@ namespace Opc.Ua.Server
             // initialize diagnostics.
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
+            m_lastContactUtcTicks = now.Ticks;
+            m_sessionTimeoutMs = (long)sessionTimeout;
+            m_foldedContactUtcTicks = now.Ticks;
             SessionDiagnostics = new SessionDiagnosticsDataType
             {
                 SessionId = default,
@@ -446,7 +449,9 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                FoldPendingDiagnosticsLocked();
                 update.Invoke(SessionDiagnostics);
+                PublishSessionTimeoutLocked();
             }
         }
 
@@ -471,6 +476,7 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                FoldPendingDiagnosticsLocked();
                 return read.Invoke(SessionDiagnostics);
             }
         }
@@ -521,14 +527,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Whether the session timeout has elapsed since the last communication from the client.
         /// </summary>
+        /// <remarks>
+        /// Checked at admission and dispatch of every request, so it takes no lock. An
+        /// observed expiry is recorded in the contact time, so a request that read the
+        /// clock earlier cannot refresh it afterwards (see <see cref="TryRefreshLastContact"/>).
+        /// </remarks>
         public bool HasExpired
         {
             get
             {
-                lock (m_diagnosticsLock)
+                while (true)
                 {
-                    return m_timeProvider.GetTimestampMilliseconds() - m_lastContactTickCount >
-                        (long)SessionDiagnostics.ActualSessionTimeout;
+                    long contact = ReadContactWord();
+                    if ((contact & kExpiredFlag) != 0)
+                    {
+                        return true;
+                    }
+                    if (m_timeProvider.GetTimestampMilliseconds() - contact <=
+                        ReadSessionTimeout())
+                    {
+                        return false;
+                    }
+                    if (Interlocked.CompareExchange(
+                            ref m_lastContactTickCount, contact | kExpiredFlag, contact) == contact)
+                    {
+                        return true;
+                    }
                 }
             }
         }
@@ -542,6 +566,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_diagnosticsLock)
                 {
+                    FoldPendingDiagnosticsLocked();
                     return (DateTime)SessionDiagnostics.ClientLastContactTime;
                 }
             }
@@ -551,21 +576,19 @@ namespace Opc.Ua.Server
         /// The monotonic tick count (milliseconds) at the last client contact.
         /// Used for timeout calculations that are immune to system time changes.
         /// </summary>
-        public long LastContactTickCount
-        {
-            get
-            {
-                lock (m_diagnosticsLock)
-                {
-                    return m_lastContactTickCount;
-                }
-            }
-        }
+        public long LastContactTickCount => ReadContactWord() & ~kExpiredFlag;
 
         /// <summary>
         /// Whether the session has been activated.
         /// </summary>
-        public bool Activated { get; private set; }
+        /// <remarks>
+        /// Set once under the session lock and read without it by request validation.
+        /// </remarks>
+        public bool Activated
+        {
+            get => Volatile.Read(ref m_activated);
+            private set => Volatile.Write(ref m_activated, value);
+        }
 
         /// <summary>
         /// Whether the session is being closed. Closing is entered once and never left, so a
@@ -730,7 +753,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
-        public string SecureChannelId { get; private set; }
+        public string SecureChannelId
+        {
+            get => Volatile.Read(ref m_secureChannelId);
+            private set => Volatile.Write(ref m_secureChannelId, value);
+        }
 
         /// <summary>
         /// allow derived classes access
@@ -753,49 +780,58 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(requestHeader));
             }
 
-            lock (m_lock)
+            // Runs for every request, so it takes neither the session lock nor the
+            // diagnostics lock. The channel id and the activated flag are published with
+            // volatile writes by Activate, the closing flag is entered once, the contact
+            // refresh is a compare-and-swap and the counters are interlocked increments.
+            if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
             {
-                if (secureChannelContext == null || !IsSecureChannelValid(secureChannelContext.SecureChannelId))
+                UpdateDiagnosticCounters(requestType, true, true);
+
+                if (requestType == RequestType.CloseSession)
                 {
-                    UpdateDiagnosticCounters(requestType, true, true);
-
-                    if (requestType == RequestType.CloseSession)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-                    }
-
-                    throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                 }
 
-                // verify that session has been activated.
-                if (!Activated && requestType != RequestType.CloseSession)
-                {
-                    UpdateDiagnosticCounters(requestType, true, true);
-                    throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
-                }
-
-                // OPC 10000-4 5.7.2.1: a Session that is being closed, or whose timeout has
-                // elapsed, is terminated and serves no further requests. The expiry check and
-                // the contact refresh are one step under the diagnostics lock, so a request
-                // cannot revive a Session that the session monitor has already seen expire.
-                // CloseSession on an expired Session that is not closing yet is still the
-                // client's close, so the requested DeleteSubscriptions is honoured.
-                if (IsClosing || (!TryRefreshLastContact() && requestType != RequestType.CloseSession))
-                {
-                    UpdateDiagnosticCounters(requestType, true, false);
-                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
-                }
-
-                // request accepted.
-                UpdateDiagnosticCounters(requestType, false, false);
+                throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
+
+            // verify that session has been activated.
+            if (!Activated && requestType != RequestType.CloseSession)
+            {
+                UpdateDiagnosticCounters(requestType, true, true);
+                throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
+            }
+
+            // OPC 10000-4 5.7.2.1: a Session that is being closed, or whose timeout has
+            // elapsed, is terminated and serves no further requests. The expiry check and
+            // the contact refresh are one compare-and-swap, and an observed expiry is
+            // recorded in the contact time, so a request cannot revive a Session that the
+            // session monitor has already seen expire. CloseSession on an expired Session
+            // that is not closing yet is still the client's close, so the requested
+            // DeleteSubscriptions is honoured.
+            if (IsClosing || (!TryRefreshLastContact() && requestType != RequestType.CloseSession))
+            {
+                UpdateDiagnosticCounters(requestType, true, false);
+                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+            }
+
+            // request accepted.
+            UpdateDiagnosticCounters(requestType, false, false);
         }
 
         /// <summary>
-        /// Validate the diagnostic info.
+        /// Validates requested diagnostic flags against the session's server-authorized roles.
         /// </summary>
+        /// <param name="requestHeader">The request header whose diagnostic flags must be validated.</param>
+        /// <exception cref="ArgumentNullException">The request header is null.</exception>
         public virtual void ValidateDiagnosticInfo(RequestHeader requestHeader)
         {
+            if (requestHeader is null)
+            {
+                throw new ArgumentNullException(nameof(requestHeader));
+            }
+            requestHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
             const uint additionalInfoDiagnosticsMask = (uint)(
                 DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.OperationAdditionalInfo);
             if ((requestHeader.ReturnDiagnostics & additionalInfoDiagnosticsMask) != 0)
@@ -813,12 +849,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the secure channel is currently valid.
         /// </summary>
+        /// <remarks>
+        /// Checked for every request; the channel id is written under the session lock
+        /// and published with a volatile write, so it is read without the lock.
+        /// </remarks>
         public virtual bool IsSecureChannelValid(string secureChannelId)
         {
-            lock (m_lock)
-            {
-                return SecureChannelId == secureChannelId;
-            }
+            return SecureChannelId == secureChannelId;
         }
 
         /// <summary>
@@ -1162,11 +1199,12 @@ namespace Opc.Ua.Server
                 unusedUserTokenNonce = TakePreparedUserTokenNonce();
                 m_consumedUserTokenNonce = null;
 
-                // update the contact time.
-                lock (m_diagnosticsLock)
+                // update the contact time; an expiry already observed stays expired, and
+                // then the diagnostic contact time is not advanced either. Stamped even when
+                // the tick count did not advance, so the activation itself is recorded.
+                if (TryRefreshLastContact())
                 {
-                    SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
-                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
+                    WriteContactUtcTicks(m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
                 }
             }
             retiredUserTokenNonce?.Dispose();
@@ -1238,6 +1276,7 @@ namespace Opc.Ua.Server
         {
             lock (m_diagnosticsLock)
             {
+                FoldPendingDiagnosticsLocked();
                 value = Variant.FromStructure(SessionDiagnostics, copy: true);
             }
 
@@ -1749,171 +1788,235 @@ namespace Opc.Ua.Server
         /// Refreshes the last contact time unless the session timeout has already elapsed.
         /// </summary>
         /// <returns><c>false</c> when the session has expired.</returns>
+        /// <remarks>
+        /// Lock free. The expiry check and the refresh are one compare-and-swap on the
+        /// contact time, and an expiry observed here or by <see cref="HasExpired"/> is
+        /// recorded in it (<see cref="kExpiredFlag"/>), so a request that read the clock
+        /// before the expiry was observed cannot refresh it afterwards. Requests within
+        /// the same millisecond do not write: the contact time already says that.
+        /// </remarks>
         private bool TryRefreshLastContact()
         {
-            lock (m_diagnosticsLock)
+            while (true)
             {
-                long now = m_timeProvider.GetTimestampMilliseconds();
-                if (now - m_lastContactTickCount > (long)SessionDiagnostics.ActualSessionTimeout)
+                long contact = ReadContactWord();
+                if ((contact & kExpiredFlag) != 0)
                 {
                     return false;
                 }
-                m_lastContactTickCount = now;
-                return true;
+                long now = m_timeProvider.GetTimestampMilliseconds();
+                if (now - contact > ReadSessionTimeout())
+                {
+                    if (Interlocked.CompareExchange(
+                            ref m_lastContactTickCount, contact | kExpiredFlag, contact) == contact)
+                    {
+                        return false;
+                    }
+                    continue;
+                }
+                if (now <= contact)
+                {
+                    return true;
+                }
+                if (Interlocked.CompareExchange(ref m_lastContactTickCount, now, contact) == contact)
+                {
+                    WriteContactUtcTicks(m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
+                    return true;
+                }
             }
+        }
+
+        /// <summary>
+        /// Reads the contact time word (tick count plus <see cref="kExpiredFlag"/>);
+        /// atomic on 32-bit too.
+        /// </summary>
+        private long ReadContactWord()
+        {
+            return IntPtr.Size == 8
+                ? Volatile.Read(ref m_lastContactTickCount)
+                : Interlocked.Read(ref m_lastContactTickCount);
+        }
+
+        /// <summary>
+        /// The session timeout in milliseconds, read without the diagnostics lock.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="SessionDiagnostics"/> may be changed under the diagnostics lock
+        /// (<see cref="UpdateDiagnostics"/>), so the expiry checks do not read its
+        /// ActualSessionTimeout directly: the value is republished as an atomic integer
+        /// after every update.
+        /// </remarks>
+        private long ReadSessionTimeout()
+        {
+            return IntPtr.Size == 8
+                ? Volatile.Read(ref m_sessionTimeoutMs)
+                : Interlocked.Read(ref m_sessionTimeoutMs);
+        }
+
+        /// <summary>
+        /// Republishes ActualSessionTimeout for <see cref="ReadSessionTimeout"/>; called
+        /// under the diagnostics lock after the diagnostics were updated.
+        /// </summary>
+        private void PublishSessionTimeoutLocked()
+        {
+            long timeout = (long)SessionDiagnostics.ActualSessionTimeout;
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref m_sessionTimeoutMs, timeout);
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_sessionTimeoutMs, timeout);
+            }
+        }
+
+        /// <summary>
+        /// Publishes the wall-clock time of the last contact; folded into
+        /// <see cref="SessionDiagnostics"/> when the diagnostics are read.
+        /// </summary>
+        private void WriteContactUtcTicks(long ticks)
+        {
+            if (IntPtr.Size == 8)
+            {
+                Volatile.Write(ref m_lastContactUtcTicks, ticks);
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_lastContactUtcTicks, ticks);
+            }
+        }
+
+        /// <summary>
+        /// Applies the request counts and contact time that requests recorded without the
+        /// diagnostics lock to <see cref="SessionDiagnostics"/>. Called under the
+        /// diagnostics lock before the diagnostics are read or updated.
+        /// </summary>
+        private void FoldPendingDiagnosticsLocked()
+        {
+            long utcTicks = IntPtr.Size == 8
+                ? Volatile.Read(ref m_lastContactUtcTicks)
+                : Interlocked.Read(ref m_lastContactUtcTicks);
+            if (utcTicks != m_foldedContactUtcTicks)
+            {
+                m_foldedContactUtcTicks = utcTicks;
+                SessionDiagnostics.ClientLastContactTime = new DateTime(utcTicks, DateTimeKind.Utc);
+            }
+
+            uint total = 0;
+            uint errors = 0;
+            uint unauthorized = 0;
+            for (int ii = 0; ii < kRequestTypeCount; ii++)
+            {
+                // Each request is one packed delta, so a fold takes whole requests: an error
+                // is never counted without its request, nor an unauthorized one without its error.
+                if (Volatile.Read(ref m_pendingRequestCounts[ii]) == 0)
+                {
+                    continue;
+                }
+                ulong pending = unchecked((ulong)Interlocked.Exchange(ref m_pendingRequestCounts[ii], 0));
+                uint requests = (uint)(pending & kTotalMask);
+                uint failed = (uint)((pending >> kErrorShift) & kErrorMask);
+                total += requests;
+                errors += failed;
+                unauthorized += (uint)(pending >> kUnauthorizedShift);
+                ServiceCounterDataType? counter = GetServiceCounter((RequestType)ii);
+                if (counter != null)
+                {
+                    counter.TotalCount += requests;
+                    counter.ErrorCount += failed;
+                }
+            }
+            SessionDiagnostics.TotalRequestCount.TotalCount += total;
+            SessionDiagnostics.TotalRequestCount.ErrorCount += errors;
+            SessionDiagnostics.UnauthorizedRequestCount += unauthorized;
         }
 
         /// <summary>
         /// Updates the diagnostic counters associated with the request.
         /// </summary>
+        /// <remarks>
+        /// Runs for every request, so the counts are interlocked increments of per-session
+        /// slots instead of updates under the diagnostics lock; they are applied to
+        /// <see cref="SessionDiagnostics"/> when it is read (<see cref="FoldPendingDiagnosticsLocked"/>).
+        /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
         private void UpdateDiagnosticCounters(
             RequestType requestType,
             bool error,
             bool authorizationError)
         {
-            ServiceCounterDataType? counter = null;
-
-            lock (m_diagnosticsLock)
+            int slot = (int)requestType;
+            if ((uint)slot >= (uint)kRequestTypeCount)
             {
-                if (!error)
+                throw ServiceResultException.Unexpected(
+                    $"Unexpected RequestType {requestType}");
+            }
+
+            long delta = !error
+                ? 1L
+                : authorizationError
+                    ? 1L + (1L << kErrorShift) + (1L << kUnauthorizedShift)
+                    : 1L + (1L << kErrorShift);
+            ulong pending = unchecked((ulong)Interlocked.Add(ref m_pendingRequestCounts[slot], delta));
+
+            // Without a diagnostics reader nothing folds the slots; fold before a field can
+            // carry into the next one. Every field has half its range left as headroom for
+            // the requests that add concurrently until the fold has taken the slot.
+            if ((pending & kTotalMask) >= kTotalFoldThreshold ||
+                ((pending >> kErrorShift) & kErrorMask) >= kErrorFoldThreshold)
+            {
+                lock (m_diagnosticsLock)
                 {
-                    SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
-                    m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
-                }
-
-                SessionDiagnostics.TotalRequestCount.TotalCount++;
-
-                if (error)
-                {
-                    SessionDiagnostics.TotalRequestCount.ErrorCount++;
-
-                    if (authorizationError)
-                    {
-                        SessionDiagnostics.UnauthorizedRequestCount++;
-                    }
-                }
-
-                switch (requestType)
-                {
-                    case RequestType.Read:
-                        counter = SessionDiagnostics.ReadCount;
-                        break;
-                    case RequestType.HistoryRead:
-                        counter = SessionDiagnostics.HistoryReadCount;
-                        break;
-                    case RequestType.Write:
-                        counter = SessionDiagnostics.WriteCount;
-                        break;
-                    case RequestType.HistoryUpdate:
-                        counter = SessionDiagnostics.HistoryUpdateCount;
-                        break;
-                    case RequestType.Call:
-                        counter = SessionDiagnostics.CallCount;
-                        break;
-                    case RequestType.CreateMonitoredItems:
-                        counter = SessionDiagnostics.CreateMonitoredItemsCount;
-                        break;
-                    case RequestType.ModifyMonitoredItems:
-                        counter = SessionDiagnostics.ModifyMonitoredItemsCount;
-                        break;
-                    case RequestType.SetMonitoringMode:
-                        counter = SessionDiagnostics.SetMonitoringModeCount;
-                        break;
-                    case RequestType.SetTriggering:
-                        counter = SessionDiagnostics.SetTriggeringCount;
-                        break;
-                    case RequestType.DeleteMonitoredItems:
-                        counter = SessionDiagnostics.DeleteMonitoredItemsCount;
-                        break;
-                    case RequestType.CreateSubscription:
-                        counter = SessionDiagnostics.CreateSubscriptionCount;
-                        break;
-                    case RequestType.ModifySubscription:
-                        counter = SessionDiagnostics.ModifySubscriptionCount;
-                        break;
-                    case RequestType.SetPublishingMode:
-                        counter = SessionDiagnostics.SetPublishingModeCount;
-                        break;
-                    case RequestType.Publish:
-                        counter = SessionDiagnostics.PublishCount;
-                        break;
-                    case RequestType.Republish:
-                        counter = SessionDiagnostics.RepublishCount;
-                        break;
-                    case RequestType.TransferSubscriptions:
-                        counter = SessionDiagnostics.TransferSubscriptionsCount;
-                        break;
-                    case RequestType.DeleteSubscriptions:
-                        counter = SessionDiagnostics.DeleteSubscriptionsCount;
-                        break;
-                    case RequestType.AddNodes:
-                        counter = SessionDiagnostics.AddNodesCount;
-                        break;
-                    case RequestType.AddReferences:
-                        counter = SessionDiagnostics.AddReferencesCount;
-                        break;
-                    case RequestType.DeleteNodes:
-                        counter = SessionDiagnostics.DeleteNodesCount;
-                        break;
-                    case RequestType.DeleteReferences:
-                        counter = SessionDiagnostics.DeleteReferencesCount;
-                        break;
-                    case RequestType.Browse:
-                        counter = SessionDiagnostics.BrowseCount;
-                        break;
-                    case RequestType.BrowseNext:
-                        counter = SessionDiagnostics.BrowseNextCount;
-                        break;
-                    case RequestType.TranslateBrowsePathsToNodeIds:
-                        counter = SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount;
-                        break;
-                    case RequestType.QueryFirst:
-                        counter = SessionDiagnostics.QueryFirstCount;
-                        break;
-                    case RequestType.QueryNext:
-                        counter = SessionDiagnostics.QueryNextCount;
-                        break;
-                    case RequestType.RegisterNodes:
-                        counter = SessionDiagnostics.RegisterNodesCount;
-                        break;
-                    case RequestType.UnregisterNodes:
-                        counter = SessionDiagnostics.UnregisterNodesCount;
-                        break;
-                    case RequestType.OpenDataChannel:
-                    case RequestType.ModifyDataChannel:
-                    case RequestType.CloseDataChannel:
-                        break;
-                    case RequestType.Unknown:
-                    case RequestType.FindServers:
-                    case RequestType.GetEndpoints:
-                    case RequestType.CreateSession:
-                    case RequestType.ActivateSession:
-                    case RequestType.CloseSession:
-                    case RequestType.Cancel:
-                        break;
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected RequestType {requestType}");
-                }
-
-                if (counter != null)
-                {
-                    counter.TotalCount++;
-
-                    if (error)
-                    {
-                        counter.ErrorCount++;
-                    }
+                    FoldPendingDiagnosticsLocked();
                 }
             }
 
-            if (counter != null)
+            // the services without a counter of their own only count in TotalRequestCount.
+            if (requestType >= RequestType.Read)
             {
                 m_server.SessionManager.RaiseSessionDiagnosticsChangedEvent(this);
             }
         }
 
+        /// <summary>
+        /// The per-service counter of a request type, or <c>null</c> for the services that
+        /// only count in TotalRequestCount.
+        /// </summary>
+        private ServiceCounterDataType? GetServiceCounter(RequestType requestType)
+        {
+            return requestType switch
+            {
+                RequestType.Read => SessionDiagnostics.ReadCount,
+                RequestType.HistoryRead => SessionDiagnostics.HistoryReadCount,
+                RequestType.Write => SessionDiagnostics.WriteCount,
+                RequestType.HistoryUpdate => SessionDiagnostics.HistoryUpdateCount,
+                RequestType.Call => SessionDiagnostics.CallCount,
+                RequestType.CreateMonitoredItems => SessionDiagnostics.CreateMonitoredItemsCount,
+                RequestType.ModifyMonitoredItems => SessionDiagnostics.ModifyMonitoredItemsCount,
+                RequestType.SetMonitoringMode => SessionDiagnostics.SetMonitoringModeCount,
+                RequestType.SetTriggering => SessionDiagnostics.SetTriggeringCount,
+                RequestType.DeleteMonitoredItems => SessionDiagnostics.DeleteMonitoredItemsCount,
+                RequestType.CreateSubscription => SessionDiagnostics.CreateSubscriptionCount,
+                RequestType.ModifySubscription => SessionDiagnostics.ModifySubscriptionCount,
+                RequestType.SetPublishingMode => SessionDiagnostics.SetPublishingModeCount,
+                RequestType.Publish => SessionDiagnostics.PublishCount,
+                RequestType.Republish => SessionDiagnostics.RepublishCount,
+                RequestType.TransferSubscriptions => SessionDiagnostics.TransferSubscriptionsCount,
+                RequestType.DeleteSubscriptions => SessionDiagnostics.DeleteSubscriptionsCount,
+                RequestType.AddNodes => SessionDiagnostics.AddNodesCount,
+                RequestType.AddReferences => SessionDiagnostics.AddReferencesCount,
+                RequestType.DeleteNodes => SessionDiagnostics.DeleteNodesCount,
+                RequestType.DeleteReferences => SessionDiagnostics.DeleteReferencesCount,
+                RequestType.Browse => SessionDiagnostics.BrowseCount,
+                RequestType.BrowseNext => SessionDiagnostics.BrowseNextCount,
+                RequestType.TranslateBrowsePathsToNodeIds => SessionDiagnostics.TranslateBrowsePathsToNodeIdsCount,
+                RequestType.QueryFirst => SessionDiagnostics.QueryFirstCount,
+                RequestType.QueryNext => SessionDiagnostics.QueryNextCount,
+                RequestType.RegisterNodes => SessionDiagnostics.RegisterNodesCount,
+                RequestType.UnregisterNodes => SessionDiagnostics.UnregisterNodesCount,
+                _ => null
+            };
+        }
         private readonly Lock m_lock = new();
 
         /// <summary>
@@ -1975,7 +2078,37 @@ namespace Opc.Ua.Server
         private readonly CertificateCollection? m_clientIssuerCertificates;
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
+
+        /// <summary>
+        /// The tick count (milliseconds) of the last contact, with <see cref="kExpiredFlag"/>
+        /// set once an expiry was observed.
+        /// </summary>
         private long m_lastContactTickCount;
+        private long m_lastContactUtcTicks;
+        private long m_sessionTimeoutMs;
+        private long m_foldedContactUtcTicks;
+
+        /// <summary>
+        /// Request counts not yet applied to <see cref="SessionDiagnostics"/>, one packed
+        /// slot per <see cref="RequestType"/> so that a request is recorded with a single
+        /// interlocked add: bits 0-31 total, 32-47 errors, 48-63 unauthorized. Unauthorized
+        /// requests are a subset of the errors, so the error threshold also bounds them.
+        /// </summary>
+        private readonly long[] m_pendingRequestCounts = new long[kRequestTypeCount];
+        private const int kRequestTypeCount = (int)RequestType.CloseDataChannel + 1;
+        private const int kErrorShift = 32;
+        private const int kUnauthorizedShift = 48;
+        private const ulong kTotalMask = 0xFFFF_FFFF;
+        private const ulong kErrorMask = 0xFFFF;
+        private const ulong kTotalFoldThreshold = 0x8000_0000;
+        private const ulong kErrorFoldThreshold = 0x8000;
+
+        /// <summary>
+        /// Marks <see cref="m_lastContactTickCount"/> as expired; tick counts stay far below it.
+        /// </summary>
+        private const long kExpiredFlag = 1L << 62;
+        private bool m_activated;
+        private string m_secureChannelId = null!;
         private long m_identityGeneration;
         private long m_identityRefreshGeneration;
     }

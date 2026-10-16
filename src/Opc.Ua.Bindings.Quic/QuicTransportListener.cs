@@ -949,7 +949,7 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request)
         {
-            using IDisposable usage = channel.TrackPendingRequest();
+            using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
             try
             {
                 if (m_callback == null)
@@ -970,7 +970,10 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
 
-                await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false);
+                if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
+                {
+                    (response as IPooledEncodeable)?.Reuse();
+                }
 
                 NotifyResponseDispatched(context);
             }

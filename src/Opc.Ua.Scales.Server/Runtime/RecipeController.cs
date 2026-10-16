@@ -103,6 +103,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         internal RecipeController(ScaleHandle owner, RecipeScaleState scale, bool recipeFiles = false)
         {
             m_owner = owner;
+            m_files = owner.Services.CreateFileBinder();
             Scale = scale;
             m_recipeFiles = recipeFiles;
             m_nextRecipeElement = owner.Services.ScalesId(ReferenceTypes.NextRecipeElement);
@@ -921,7 +922,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         private readonly ScaleHandle m_owner;
-        private readonly ScaleFileBinder m_files = new();
+        private readonly ScaleFileBinder m_files;
         private readonly HashSet<FileState> m_reportFiles = [];
         private readonly bool m_recipeFiles;
         private readonly NodeId m_nextRecipeElement;

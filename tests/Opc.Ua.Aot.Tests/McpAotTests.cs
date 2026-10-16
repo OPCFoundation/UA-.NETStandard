@@ -28,7 +28,9 @@
  * ======================================================================*/
 
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Serialization;
@@ -100,6 +102,37 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(root.GetProperty("statusCode").GetString()).IsEqualTo("BadNodeIdUnknown");
             await Assert.That(root.GetProperty("message").ValueKind).IsEqualTo(JsonValueKind.Null);
             await Assert.That(root.GetProperty("values").GetArrayLength()).IsEqualTo(4);
+        }
+
+        /// <summary>
+        /// Companion projections and MCP envelopes retain values without enabling JSON reflection.
+        /// </summary>
+        [Test]
+        public async Task CompanionResultsPreserveTypesWithoutJsonReflectionAsync()
+        {
+            await Assert.That(JsonReflectionIsEnabled()).IsFalse();
+            ITelemetryContext telemetry = DefaultTelemetry.Create(static _ => { });
+            IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+            var payload = new JsonObject
+            {
+                ["flag"] = McpCompanionJson.Variant(new Variant(false), context),
+                ["zero"] = McpCompanionJson.Variant(new Variant(0), context),
+                ["uninitialized"] = McpCompanionJson.Number(double.NaN),
+                ["range"] = McpCompanionJson.Encode(new Opc.Ua.Range { Low = -2, High = 4 }, context)
+            };
+
+            CallToolResult result = McpCompanionTools.Result(payload);
+            string text = ((TextContentBlock)result.Content[0]).Text;
+            using JsonDocument document = JsonDocument.Parse(text);
+            JsonElement root = document.RootElement;
+
+            await Assert.That(result.IsError ?? false).IsFalse();
+            await Assert.That(root.GetProperty("flag").GetProperty("Value").GetBoolean()).IsFalse();
+            await Assert.That(root.GetProperty("zero").GetProperty("Value").GetInt32()).IsEqualTo(0);
+            await Assert.That(root.GetProperty("uninitialized").GetString()).IsEqualTo("NaN");
+            await Assert.That(root.GetProperty("range").GetProperty("Low").GetDouble()).IsEqualTo(-2);
+            await Assert.That(root.GetProperty("range").GetProperty("High").GetDouble()).IsEqualTo(4);
+            await Assert.That(result.StructuredContent!.Value.GetRawText()).IsEqualTo(root.GetRawText());
         }
 
         /// <summary>

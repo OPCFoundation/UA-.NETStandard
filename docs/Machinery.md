@@ -1,5 +1,9 @@
 # OPC UA for Machinery (OPC 40001)
 
+Released [Machine Vision (OPC 40100-1/-2)](Vision.md) composes into this
+manager through `AddVisionToMachinery()` and `ConfigureVisionFor<MachineryNodeManager>()`.
+This reuses the existing DI/Machinery owner; do not register a second asset-owning Vision manager.
+
 The `Opc.Ua.Machinery*` packages implement the OPC 40001 specification series —
 the building blocks every machine shares, plus the four specialised parts that
 production equipment adds depending on its use case.
@@ -231,9 +235,74 @@ builder.ConfigureMachineryFor<PumpNodeManager>(async machinery =>
 specification created — an OPC 40223 `PumpState`, an OPC 40223-style
 `GeneratorSetState` — so the vendor model keeps its own type definition and
 still answers the Machinery browse paths. The custom manager only has to expose
-an `IMachineryNodeIdFactory`; `MachineryNodeManager` implements it, and a
-custom manager implements it with a thread-safe allocator for the configured
-instance namespace.
+an `IMachineryNodeIdFactory` or the shared DI `ICompanionNodeIdFactory`;
+`MachineryNodeManager` implements both. A custom manager supplies a thread-safe
+allocator for the configured instance namespace. The Robotics allocator marker
+also derives from the shared marker, allowing both families to reuse one owner
+when their required models are loaded and their instance namespaces agree.
+The optional `ICompanionNodeIdReservationOwner` capability releases temporary
+reservations through the actual allocator on success or rollback; both stock
+managers implement it without adding required methods to existing markers.
+
+When a companion already declares its nameplate, bind it with
+`machine.WithIdentification(existingIdentification, configure)` instead of
+creating another base add-in. Derived machine identification and nested
+component identification are both supported. The type, parent, browse name,
+NodeId and reference type remain intact, and `MachineryBuildingBlocks` points
+at that same node. Required identification values are validated before the
+existing nameplate is changed; machine and component requirements remain
+distinct.
+
+### Bindings on an externally registered root
+
+When Robotics owns a companion root under `DeviceSet`, do not also call
+`AddMachine(root).BuildAsync()`: that adopts the root as a Machinery-owned
+machine. Instead enlist shared bindings in the Robotics registration:
+
+```csharp
+system.WithRegistrationParticipant(machineryContext.BindMachine(
+    craneState,
+    machine => machine.WithIdentification(craneState.Identification!, identity =>
+    {
+        identity.Manufacturer = new LocalizedText("Example manufacturer");
+        identity.SerialNumber = "CR-1";
+        identity.ProductInstanceUri = "urn:example:crane:CR-1";
+    })));
+```
+
+`system` is the builder supplied to `AddMotionDeviceSystemAsync<TState>`.
+Both contexts must use the same node manager and application namespace.
+The binding callback runs before publication and reuses the normal Machinery
+writer; it must not call `BuildAsync` or change the root's identity.
+Robotics validates and registers the entire subtree once. Machinery adds
+`Machines` organizing references without changing the root's `DeviceSet`
+parent or `HasComponent` reference. Facets commit only after every participant
+has bound successfully. Failure or cancellation releases the participant's
+references, resources and reservations, while only the registration owner
+removes its own attempted tree.
+
+The DI-level `ICompanionRegistrationParticipant` is single-use. Its
+`PrepareAsync` and `BindAsync` phases may fail; `Commit` must not perform I/O
+or throw. The owner disposes participants in reverse order on every path.
+Committed Machinery bindings use the existing node-attachment lifetime,
+including on an existing Robotics manager: deleting the root or stopping the
+manager releases its bindings without a second owner or manager-wide registry.
+
+For either an ordinary machine builder or an enlisted one,
+`WithRegistrationBinding(async (state, context, cancellationToken) => resource)`
+defers an asynchronous binding until after indexing. The returned
+`IAsyncDisposable` is owned by the transaction: a later failure disposes it,
+and success transfers it to the existing machine lifetime. If configuration
+throws before an ordinary `BuildAsync` is called, await `builder.AbortAsync()`
+to release the unused name and allocations. Aborting cannot remove a
+registered machine and permanently closes that builder.
+
+For ordinary machine builders, successful registration groups the owned
+resources behind the exact root node. Deleting that root awaits reverse-order
+cleanup without touching another machine's resources. Manager shutdown joins
+any pending cleanup and releases remaining roots; a removed root does not
+retain an ever-growing entry in the coordinator. This uses the manager's
+actual asynchronous node-removal hook, not a value change-mask callback.
 
 ## Builder reference
 
@@ -241,6 +310,13 @@ instance namespace.
 
 Every block is attached to its machinery item with `HasAddIn`, which is what
 OPC 40001-1 uses — not `HasComponent`.
+
+For a companion-created or vendor-derived Components AddIn,
+`machine.WithComponents(existingComponents, configure)` reuses the existing
+`MachineComponentsState`. Its parent, qualified name, NodeId, reference and
+type definition are preserved. The node must be a descendant of this machine,
+derive from `MachineComponentsType`, and retain a `HasAddIn` reference or
+subtype. Existing child names are reserved rather than silently replaced.
 
 | Call | What it adds |
 | --- | --- |
@@ -313,6 +389,28 @@ await oilTemperature.SetValueAsync(70.0);   // percentage, both alarms
 await oilTemperature.SetSetpointAsync(55);  // deviation alarm
 ```
 
+For acquired data, `SetValueAsync(in DataValue, cancellationToken)` preserves
+the original numeric scalar type, quality and acquisition timestamp. An
+unavailable sample can carry `Variant.Null` with a bad status; it is not
+converted into a fresh zero or used to clear the last alarm. Incompatible
+payloads and canceled updates leave the previous sample unchanged. The
+percentage value carries the same quality and source time. Convenience
+double-valued updates use an injected `TimeProvider`, or `TimeProvider.System`
+when no provider is registered.
+
+`MachineryProcessValue.Sample` returns the full signal `DataValue` on the client,
+including uncertain or bad quality and both service timestamps. It complements
+the existing numeric `Value` projection rather than silently normalizing a
+failed or unavailable reading.
+
+`machine.WithProcessValue(existingProcessValue, configure)` adopts a
+companion-derived descendant without replacing either its object or signal.
+The signal must already use the standard `ProcessValueVariableType` subtype
+and keep its PADIM-qualified `AnalogSignal` browse name. A companion builder
+selects that permitted subtype when constructing the instance; an incompatible
+existing signal is rejected rather than replaced. Nested descendants are
+supported and remain under their declared parent.
+
 `WithLimitAlarm()` and `WithDeviationAlarm()` do more than create the objects
 the model declares. Each one mirrors the limits onto the alarm — absolute
 limits from `WithLimits`, deviations from `WithDeviationLimits` — points the
@@ -373,6 +471,15 @@ through a machine.
 When no provider is supplied explicitly the builder resolves
 `IIsa95JobOrderReceiverV2` from the application services, so
 `AddInMemoryIsa95JobControlProvider()` is enough for a demo server.
+
+Companion models can bind an already-declared job-management child with
+`machine.WithJobManagement(existingJobManagement, configure)`. This overload
+preserves the child's identity and validates **both** the receiver and response
+provider before publishing the machine. Explicit per-machine providers never
+borrow another instance's catalog from the container. The original
+`WithJobManagement(configure)` overload retains its receiver-only compatibility
+behavior; choose the companion overload when complete response handling is
+required.
 
 `MachineryEndToEndTests.JobControlPausesResumesAndRevokesStartThroughAMachineAsync`
 drives `Pause`, `Resume` and `RevokeStart` through a machine over `opc.tcp`,
@@ -469,6 +576,39 @@ All five methods of `ResultManagementType` are optional; the builder publishes
 `AcknowledgeResults` and `ReleaseResultHandle` once a store is bound, and the
 `ResultTransfer` object only when downloads are enabled.
 
+For a companion-declared subtype, use
+`machine.WithResultManagement(existingResultManagement, configure)` instead of
+creating a second base add-in. The existing descendant keeps its parent, browse
+name, NodeId, type definition and reference type, while the shared runtime
+supplies queries, metadata handles, publication and file-transfer lifetime.
+Foreign descendants and duplicate bindings are rejected. Stores are validated
+before the machine is published, and method nodes are staged before indexing.
+
+`results.WithResultsFolder(count, createResult)` accepts a typed result-variable
+factory, and `results.WithResultReadyEvents(eventTypeId, createEvent)` selects a
+derived result-ready event factory. The event factory receives the result being
+published; any specialized result child it creates is retained. Abstract event
+declarations stay unchanged: the runtime registers a concrete subtype in the
+application namespace. These overloads are extensions in
+`Opc.Ua.Machinery.Server.Builders`, so existing builder-interface implementers
+do not gain new mandatory members.
+
+The `WithResultReadyEvents(eventTypeIds, createEvent)` overload accepts one to
+sixteen distinct declared result-event bases. A factory can select a different
+configured base for each result, such as a companion's intermediate-result
+event instead of its final-result event. Every selected base gets a concrete
+application subtype; unconfigured or unrelated types are rejected.
+
+`WithResultProjection(prepareProjection)` captures validated immutable
+companion fields and sample metadata once per publication, before storage.
+It returns a synchronous assignment-only projection over the supplied result
+variable. The shared writer applies that projection after setting the standard
+result fields and before issuing change notifications, including the result
+inside events. A fixed ring retains the projection with its result when slots
+shift, so acquisition time, quality and derived fields do not depend on the
+backing store still retaining an old entry. Projection assignments must not
+perform I/O or recursively publish results.
+
 #### Bringing your own store
 
 Substitute a real store by implementing
@@ -538,10 +678,14 @@ it and closes it.
 serves it in the shape `SoftwareUpdateFileTransferManager` uses for DI
 software uploads: one transient `FileState` per handle, the handle bound to
 the session that opened it, a cap on concurrent handles, and a timeout after
-which an abandoned handle is reclaimed. Reclaiming is swept at the start of
-each `GenerateFileForRead` rather than driven by a per-object timer, so an
-abandoned handle survives until the next download — where it costs nothing
-but a transient node.
+which an inactive handle is reclaimed. Pending generations also consume the
+cap. Inactivity for a still-live session is swept at the next
+`GenerateFileForRead`; session termination and shutdown are independently
+awaited. A successful `CloseSession`, including `deleteSubscriptions=false`,
+waits for that owner's pending generation or rollback, transient-node deletion
+and capacity release. Other sessions retain their own handles. Providers and
+registration callbacks must honor cancellation or complete; cleanup does not
+abandon an unbounded late operation.
 
 `GenerateFileForWrite` and `CloseAndCommit` are mandatory on every
 `TemporaryFileTransferType` (OPC 10000-20 §4.4.1), so a `ResultTransfer`
@@ -563,9 +707,11 @@ the server never adds or deletes nodes while it runs.
 `GetLatestResult`, `GetResultById` and `GetResultIdListFiltered` each return a
 `ResultHandle` that pins what they handed out until the client calls
 `ReleaseResultHandle`. The handle is bound to the calling session, and
-releasing one twice is refused.
+releasing one twice is refused. Closing or expiring the session reclaims only
+its metadata handles. A late store response cannot pin new metadata for an
+ended session, and removal of the bound machine releases the lifecycle hook.
 
-Because the payload is materialised from the store synchronously,
+Because the payload is materialised from the store before the method returns,
 `GenerateFileForRead` returns `NodeId.Null` for `completionStateMachine` — the
 value OPC 10000-5 defines for "no completion state machine".
 
@@ -689,6 +835,32 @@ parameter as received in `Parameters`. A parameter with the wrong type counts
 as not carried. Optional fields of the generated ISA-95 structures, such as
 `JobOrderParameters` and `Subparameters`, only reach the wire when their
 `EncodingMask` bit is set.
+
+### Job endpoints and streamed results
+
+`GetJobManagementEndpointsAsync` returns the machine's actual job roles:
+
+```csharp
+MachineryJobManagementEndpoints endpoints =
+    await client.GetJobManagementEndpointsAsync(machineId, ct);
+if (!endpoints.JobResponseProviderId.IsNull)
+{
+    var responses = new Opc.Ua.ISA95.JobControl.V2.ISA95JobResponseProviderObjectTypeClient(
+        client.Session, endpoints.JobResponseProviderId, client.Telemetry);
+    var response = await responses.RequestJobResponseByJobOrderIDAsync("job-1", ct);
+}
+```
+
+Missing roles are `NodeId.Null`; Machinery defines no response receiver.
+The existing three-role `JobManagementAsync` helper retains its historical
+fallback behavior for compatibility. Use the actual role-specific endpoint
+when that distinction matters. ISA-95 return codes are UInt64 bitmaps; only `1`
+means success, independently of the UA service status.
+
+`DownloadResultAsync(machine, resultId, destination, ct)` streams through
+`TemporaryFileTransferClient` and leaves the destination open. The ByteString
+overload shares that implementation. Advanced callers can use
+`OpenResultStreamAsync` and must asynchronously dispose its `UaFileStream`.
 
 ## Conformance matrix
 

@@ -24,6 +24,7 @@ choose between them.
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
 | `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
+| `SessionRequestContext` | borrowed session view | rejects stale dispatch instead of reconnecting | not a subscription/reconnect facade | generation-sensitive remote handles, cursors and target classifications |
 | `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
 Everything below explains how these pieces fit together.
@@ -43,6 +44,7 @@ Everything below explains how these pieces fit together.
   - [`ManagedSessionFactory`](#managedsessionfactory)
   - [`ManagedSessionBuilder`](#managedsessionbuilder)
   - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
@@ -184,7 +186,12 @@ is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
 endpoint refreshes when the server certificate changes, and cooperates
-with `ReverseConnectManager`.
+with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
+requires the same message-security mode and security policy as the configured
+endpoint. If discovery no longer offers that exact combination, reconnect fails
+instead of selecting another security configuration. Network redundancy skips
+incompatible alternate endpoints and continues searching the configured list
+for a matching endpoint.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -259,6 +266,10 @@ an `ISession` facade that wraps a raw `Session` and adds:
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before
   recreating the session; normal certificate trust validation still applies.
+  Refresh preserves the active endpoint's message-security mode and
+  security-policy URI. A new server certificate can therefore be accepted only
+  through the existing certificate-validation rules, not by changing the
+  channel's security configuration.
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -391,7 +402,10 @@ connection state machine transitions `Connected → Reconnecting` and:
 4. If the redundancy handler is enabled and the active server is
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
-   session against the failover endpoint.
+   session against a failover endpoint with the same message-security mode
+   and security-policy URI. Targets with a different mode or policy are
+   skipped before opening their channels; recovery continues to the next
+   configured endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established
@@ -423,6 +437,59 @@ is consumed by the initial connection attempt only. Supplying that connection
 without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
+
+`ConfiguredEndpoint.UpdateBeforeConnect` controls whether endpoint discovery
+refreshes the configured endpoint before connecting. It does not authorize
+automatic security-policy changes and does not disable discovery needed during
+recovery. Reconnect and failover preserve the selected security mode and policy;
+if the server or failover target no longer offers them, the connection attempt
+fails visibly. To use a different policy, explicitly reconfigure and establish a
+new connection rather than relying on automatic reconnect to negotiate one.
+
+### Generation-bound client requests
+
+Use `SessionRequestContext` when several calls must use the **same server
+session**, such as continuing a history read, writing an open file, or acting on
+a target you have already checked. A `ManagedSession` can reconnect between
+those calls. Without a context, an old file handle or continuation point could
+be sent to the replacement session.
+
+Capture a context from your existing `ManagedSession` and pass `context.Session`
+to the clients or generated proxies used by the whole operation:
+
+```csharp
+using Opc.Ua.Client;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+
+ISession requestSession = context.Session;
+// Use requestSession for target lookup and every subsequent call in this operation.
+```
+
+The context borrows the connection; it does not connect or reconnect for you.
+Keep it alive until resources opened through it have been cleaned up. Disposing
+it releases its local resources, not the owning session.
+
+If recovery starts or the captured session becomes stale, later calls fail with
+`BadSessionIdInvalid` instead of following the replacement. `Invalidated` lets you
+stop work that depends on that session. Start a new context and obtain fresh
+handles before starting another operation.
+
+The context does not make a sequence atomic or retry failed calls. Late
+cancellation does not replace a returned mutation result; a lost response can
+mean the mutation committed, so inspect the server before retrying. Changes to the
+server's address space or permissions still need your application's normal
+handling.
+
+Capture requires the stack's `ManagedSession` and a supported transport;
+unsupported custom sessions or managed transports return `BadNotSupported`.
+For ordinary independent calls, continue using the managed session directly.
+
+See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
+[historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
+[role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the
+corresponding client APIs.
 
 ### Closing a `ManagedSession`
 

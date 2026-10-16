@@ -1373,12 +1373,15 @@ namespace Opc.Ua.Server
                         NotificationMessage? message = subscription.Publish(
                             context,
                             out ArrayOf<uint> availableSequenceNumbers,
-                            out moreNotifications);
+                            out moreNotifications,
+                            out NotificationMessageLease? lease);
 
                         // a null message indicates a false alarm; requeue and wait for the next one.
                         if (message != null)
                         {
-                            return new PublishResponse
+                            // the response owns the lease and releases it when the transport
+                            // has sent it, so the retained message is never copied.
+                            var response = new LeasedPublishResponse(lease)
                             {
                                 SubscriptionId = subscription.Id,
                                 AvailableSequenceNumbers = availableSequenceNumbers,
@@ -1387,6 +1390,11 @@ namespace Opc.Ua.Server
                                 Results = acknowledgeResults,
                                 DiagnosticInfos = acknowledgeDiagnosticInfos
                             };
+                            if (subscription is Subscription valuePublicationSubscription)
+                            {
+                                valuePublicationSubscription.CompleteValuePublications(message);
+                            }
+                            return response;
                         }
 
                         requeue = true;

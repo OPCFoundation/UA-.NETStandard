@@ -60,27 +60,51 @@ namespace Opc.Ua.AMB.Client
             NodeId asset,
             CancellationToken cancellationToken = default)
         {
+            BrowseBudget budget = CreateBrowseBudget();
             NodeId addIn = await ResolveDocumentationLinksAsync(asset, cancellationToken).ConfigureAwait(false);
-            List<ReferenceDescription> variables = await BrowseAsync(
+            List<ReferenceDescription> variables = await BrowseWithBudgetAsync(
                 addIn,
                 Ua.ReferenceTypeIds.HasComponent,
                 BrowseDirection.Forward,
-                cancellationToken,
-                NodeClass.Variable).ConfigureAwait(false);
+                NodeClass.Variable,
+                budget,
+                cancellationToken).ConfigureAwait(false);
             var nodes = new NodeId[variables.Count];
             for (int ii = 0; ii < nodes.Length; ii++)
             {
-                nodes[ii] = ToNodeId(variables[ii].NodeId);
+                nodes[ii] = ReadSourceOf(variables[ii]);
             }
             DataValue[] values = await ReadAsync(nodes, Attributes.Value, cancellationToken).ConfigureAwait(false);
             DataValue[] access = await ReadAsync(nodes, Attributes.UserAccessLevel, cancellationToken)
                 .ConfigureAwait(false);
-            bool[] userLinks = await ReadUserLinkMarkersAsync(nodes, cancellationToken).ConfigureAwait(false);
+            bool[] userLinks;
+            AssetReadValue[] markers = [];
+            if (m_options is null)
+            {
+                userLinks = await ReadUserLinkMarkersAsync(nodes, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                markers = await ReadBoundedUserLinkMarkersAsync(nodes, budget, cancellationToken)
+                    .ConfigureAwait(false);
+                userLinks = new bool[nodes.Length];
+                for (int ii = 0; ii < userLinks.Length; ii++)
+                {
+                    bool valid = markers[ii].Value.WrappedValue.TryGetValue(out bool isUserLink);
+                    RequireValueType(markers[ii], valid);
+                    userLinks[ii] = valid && isUserLink;
+                }
+            }
 
             var links = new DocumentationLinkRecord[nodes.Length];
             for (int ii = 0; ii < links.Length; ii++)
             {
                 byte userAccessLevel = access[ii].WrappedValue.TryGetValue(out byte level) ? level : (byte)0;
+                var value = new AssetReadValue(nodes[ii], [variables[ii].BrowseName], Attributes.Value, values[ii]);
+                var accessLevel = new AssetReadValue(
+                    nodes[ii], [variables[ii].BrowseName], Attributes.UserAccessLevel, access[ii]);
+                RequireValueType(value, values[ii].WrappedValue.TryGetValue(out string? _));
+                RequireValueType(accessLevel, access[ii].WrappedValue.TryGetValue(out byte _));
                 links[ii] = new DocumentationLinkRecord(
                     nodes[ii],
                     variables[ii].BrowseName,
@@ -88,10 +112,53 @@ namespace Opc.Ua.AMB.Client
                     StringOf(values[ii].WrappedValue) ?? string.Empty,
                     (userAccessLevel & AccessLevels.CurrentWrite) != 0)
                 {
-                    IsUserLink = userLinks[ii]
+                    IsUserLink = userLinks[ii],
+                    Values = m_options is null ? default : [value, accessLevel, markers[ii]]
                 };
             }
             return links.ToArrayOf();
+        }
+
+        private async ValueTask<AssetReadValue[]> ReadBoundedUserLinkMarkersAsync(
+            NodeId[] links,
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
+        {
+            var markers = new NodeId[links.Length];
+            var names = new QualifiedName[links.Length];
+            for (int ii = 0; ii < links.Length; ii++)
+            {
+                List<ReferenceDescription> properties = await BrowseWithBudgetAsync(
+                    links[ii],
+                    Ua.ReferenceTypeIds.HasProperty,
+                    BrowseDirection.Forward,
+                    NodeClass.Variable,
+                    budget,
+                    cancellationToken).ConfigureAwait(false);
+                names[ii] = new QualifiedName(DocumentationLinkProperties.UserLink);
+                foreach (ReferenceDescription property in properties)
+                {
+                    if (property.BrowseName.Name != DocumentationLinkProperties.UserLink)
+                    {
+                        continue;
+                    }
+                    NodeId marker = ToNodeId(property.NodeId);
+                    if (marker.IsNull || (!markers[ii].IsNull && marker != markers[ii]))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadBrowseNameDuplicated, "An AMB user-link marker is ambiguous or missing.");
+                    }
+                    markers[ii] = marker;
+                    names[ii] = property.BrowseName;
+                }
+            }
+            DataValue[] values = await ReadAsync(markers, Attributes.Value, cancellationToken).ConfigureAwait(false);
+            var fields = new AssetReadValue[links.Length];
+            for (int ii = 0; ii < fields.Length; ii++)
+            {
+                fields[ii] = new AssetReadValue(markers[ii], [names[ii]], Attributes.Value, values[ii]);
+            }
+            return fields;
         }
 
         /// <summary>
@@ -180,6 +247,21 @@ namespace Opc.Ua.AMB.Client
             LocalizedText description = default,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                CallMethodResult result = await CallDocumentationMethodAsync(
+                    asset,
+                    BrowseNames.AddLink,
+                    [Variant.From(uri), Variant.From(browseName), Variant.From(displayName), Variant.From(description)],
+                    1,
+                    cancellationToken).ConfigureAwait(false);
+                if (!result.OutputArguments[0].TryGetValue(out NodeId link) || link.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTypeMismatch, "AddLink returned no local link node.");
+                }
+                return ToNodeId(link);
+            }
             DocumentationLinksTypeClient addIn = await AddInAsync(asset, cancellationToken).ConfigureAwait(false);
             return await addIn
                 .AddLinkAsync(uri, browseName, displayName, description, cancellationToken)
@@ -201,6 +283,12 @@ namespace Opc.Ua.AMB.Client
             NodeId link,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null)
+            {
+                await CallDocumentationMethodAsync(
+                    asset, BrowseNames.RemoveLink, [Variant.From(link)], 0, cancellationToken).ConfigureAwait(false);
+                return;
+            }
             DocumentationLinksTypeClient addIn = await AddInAsync(asset, cancellationToken).ConfigureAwait(false);
             await addIn.RemoveLinkAsync(link, cancellationToken).ConfigureAwait(false);
         }
@@ -218,6 +306,36 @@ namespace Opc.Ua.AMB.Client
             CancellationToken cancellationToken = default)
         {
             return WriteValueAsync(link, Variant.From(uri), "No link given.", cancellationToken);
+        }
+
+        private async ValueTask<CallMethodResult> CallDocumentationMethodAsync(
+            NodeId asset,
+            string methodName,
+            ArrayOf<Variant> arguments,
+            int outputCount,
+            CancellationToken cancellationToken)
+        {
+            NodeId addIn = await ResolveDocumentationLinksAsync(asset, cancellationToken).ConfigureAwait(false);
+            if (addIn.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "The asset has no DocumentationLinks.");
+            }
+            NodeId method = await ResolveAsync(addIn, cancellationToken, Amb(methodName)).ConfigureAwait(false);
+            if (method.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported, "The documentation method is absent.");
+            }
+            // Resolve before issuing the one non-idempotent request. The
+            // generated proxy's tolerant result conversion and retry fallback
+            // cannot enforce the explicitly selected strict contract.
+            CallResponse response = await Session.CallAsync(
+                null,
+                [new CallMethodRequest { ObjectId = addIn, MethodId = method, InputArguments = arguments }],
+                cancellationToken).ConfigureAwait(false);
+            ValidateResponse(response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count);
+            CallMethodResult result = response.Results[0];
+            ValidateCallResult(result, arguments.Count, outputCount);
+            return result;
         }
 
         private async ValueTask<DocumentationLinksTypeClient> AddInAsync(

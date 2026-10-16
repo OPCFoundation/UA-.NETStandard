@@ -1,10 +1,11 @@
 #!/bin/bash
 # Paired A/B runs: alternates a baseline and a candidate harness build per scenario and round.
 # BASELINE: harness built in a second worktree of the commit to compare against.
+# CANDIDATE: harness to compare (default: the build in this worktree).
 # SCENARIOS: file with one scenario per line (default: server-scenarios.txt).
 # ROUNDS: rounds per scenario (default 3). OUT: result file (default ab-results.txt).
 A=${BASELINE:-C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe}
-B=./ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe
+B=${CANDIDATE:-./ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe}
 O=${OUT:-ab-results.txt}; rm -f "$O"
 ROUNDS=${ROUNDS:-3}
 SCENARIOS=${SCENARIOS:-server-scenarios.txt}

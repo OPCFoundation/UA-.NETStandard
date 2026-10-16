@@ -51,6 +51,24 @@ namespace Opc.Ua.Machinery.Server
     public static class DiNodeManagerMachineryExtensions
     {
         /// <summary>
+        /// Gives an integrated companion runtime the same lifetime as the Machinery manager.
+        /// </summary>
+        /// <param name="manager">The owning DI/Machinery node manager.</param>
+        /// <param name="resource">The companion resource to release with the manager.</param>
+        public static void RegisterMachineryResource(this DiNodeManager manager, IAsyncDisposable resource)
+        {
+            if (manager == null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (resource == null)
+            {
+                throw new ArgumentNullException(nameof(resource));
+            }
+            MachineryBuildCoordinator.Get(manager).AdoptResources(new[] { resource });
+        }
+
+        /// <summary>
         /// Creates a Machinery build context after validating that the custom
         /// manager exposes the required DI and Machinery model nodes.
         /// </summary>

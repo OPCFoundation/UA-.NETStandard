@@ -31,7 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Builders;
 
@@ -182,7 +182,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
 
         private void AddPipeline(IVisionBuildContext context)
         {
-            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            var deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             context.Nodes.AddPipeline(PipelineBrowseName, pipe =>
             {
                 pipe.WithPipelineId("pipe-test")
@@ -220,7 +220,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                     "The Vision builder must create the pipeline's Feedback object.");
             }
             await default(ValueTask).ConfigureAwait(false);
-            NodeId deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
+            var deployment = new NodeId(DeploymentBrowseName, context.InstanceNamespaceIndex);
             var target = new TestInferenceTarget(
                 context.Manager,
                 context.Context,
@@ -231,7 +231,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 results,
                 CameraFrameId,
                 WorldFrameId,
-                new[] { CameraWorldX, CameraWorldY, CameraWorldZ });
+                [CameraWorldX, CameraWorldY, CameraWorldZ]);
             if (m_offServer)
             {
                 m_agent.Attach(target, ImageWidth, ImageHeight);
@@ -290,7 +290,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 FrameId = frameId,
                 Position = new[] { x, y, z }.ToArrayOf(),
                 Orientation = s_identityOrientation.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 Cy = ImageHeight / 2.0,
                 Skew = 0.0,
                 DistortionModel = VisionDistortionModelEnum.None,
-                DistortionCoefficients = ArrayOf<double>.Empty,
+                DistortionCoefficients = [],
                 Width = ImageWidth,
                 Height = ImageHeight
             };

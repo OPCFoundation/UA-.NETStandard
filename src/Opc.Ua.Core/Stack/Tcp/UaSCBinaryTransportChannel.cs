@@ -41,7 +41,8 @@ namespace Opc.Ua.Bindings
     /// Implements the UA-SC security and UA Binary encoding.
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
-    public class UaSCUaBinaryTransportChannel : ITransportChannel, ISecureChannel, IServerRetryAfterHintProvider
+    public class UaSCUaBinaryTransportChannel
+        : ITransportChannel, ISecureChannel, ITransportChannelBindingProvider, IServerRetryAfterHintProvider
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -339,6 +340,72 @@ namespace Opc.Ua.Bindings
             m_settings.ClientCertificate = null;
             m_settings.ClientCertificateChain?.Dispose();
             m_settings.ClientCertificateChain = null;
+        }
+
+        async ValueTask<TransportChannelBinding> ITransportChannelBindingProvider.CreateTransportBindingAsync(
+            CancellationToken ct)
+        {
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                UaSCUaBinaryClientChannel channel = m_channel ?? throw BadNotConnected();
+                if (m_disposed)
+                {
+                    throw BadNotConnected();
+                }
+                return new TransportChannelBinding(
+                    this,
+                    () => !Volatile.Read(ref m_disposed) && ReferenceEquals(Volatile.Read(ref m_channel), channel),
+                    (request, valid, token) => SendBoundRequestAsync(channel, request, valid, token));
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
+        }
+
+        private async ValueTask<IServiceResponse> SendBoundRequestAsync(
+            UaSCUaBinaryClientChannel captured,
+            IServiceRequest request,
+            Func<bool> valid,
+            CancellationToken ct)
+        {
+            ValueTask<IServiceResponse> pending;
+            await m_connecting.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                if (Volatile.Read(ref m_disposed) ||
+                    !ReferenceEquals(Volatile.Read(ref m_channel), captured) ||
+                    !valid())
+                {
+                    throw TransportChannelBinding.InvalidBinding();
+                }
+                // Submission and validation share the owner's replacement gate.
+                // Completion is awaited outside it so reconnect/disposal can drain.
+                pending = captured.SendRequestAsync(request, OperationTimeout, ct);
+            }
+            finally
+            {
+                m_connecting.Release();
+            }
+            IServiceResponse response;
+            try
+            {
+                response = await pending.ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception) when (ct.IsCancellationRequested)
+            {
+                throw new OperationCanceledException("The bound request was cancelled.", exception, ct);
+            }
+            catch (ServiceResultException exception) when (!ct.IsCancellationRequested && !valid())
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The captured binding was invalidated while its request was in flight.",
+                    exception);
+            }
+            return TransportChannelBinding.ValidateResponse(response, valid, ct);
         }
 
         /// <inheritdoc/>

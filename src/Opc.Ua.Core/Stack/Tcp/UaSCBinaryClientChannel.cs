@@ -367,7 +367,11 @@ namespace Opc.Ua.Bindings
 
             using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
-            using (Gate.Enter())
+
+            // a request that waits for the gate (another request or a response is being
+            // processed) must not block its thread: a blocking wait spins first, and with
+            // many concurrent requests on one channel the spinning took a fifth of the CPU.
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)
@@ -645,37 +649,39 @@ namespace Opc.Ua.Bindings
 
             m_oscRequestSignature = null;
 
-            // write the asymmetric message.
-            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
-                TcpMessageType.Open,
-                m_handshakeOperation.RequestId,
-                ClientCertificate,
-                ClientCertificateChain,
-                ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length),
-                m_oscRequestSignature,
-                ct).ConfigureAwait(false);
-
-            BufferCollection? chunksToSend = written.Chunks;
-            SendGateTicket sendTicket = TakeSendTicket();
-
-            // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
-                ? written.Signature
-                : null;
-
-            // save token.
-            m_requestedToken = token;
-
-            // write the message to the server.
-            try
+            // Keep numbering and admission together so the writer cannot send an unsealed STR frame between them.
+            using (await SendOrder.EnterAsync(ct).ConfigureAwait(false))
             {
-                BeginWriteMessage(chunksToSend, m_handshakeOperation, sendTicket);
-                chunksToSend = null;
-            }
-            finally
-            {
-                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
+                AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
+                    TcpMessageType.Open,
+                    m_handshakeOperation.RequestId,
+                    ClientCertificate,
+                    ClientCertificateChain,
+                    ServerCertificate,
+                    new ArraySegment<byte>(buffer, 0, buffer.Length),
+                    m_oscRequestSignature,
+                    ct).ConfigureAwait(false);
+
+                BufferCollection? chunksToSend = written.Chunks;
+
+                // don't keep signature if secure channel enhancements are not used.
+                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
+                    ? written.Signature
+                    : null;
+
+                // save token.
+                m_requestedToken = token;
+
+                // write the message to the server.
+                try
+                {
+                    BeginWriteMessage(chunksToSend, m_handshakeOperation);
+                    chunksToSend = null;
+                }
+                finally
+                {
+                    chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
+                }
             }
         }
 
@@ -1377,17 +1383,19 @@ namespace Opc.Ua.Bindings
 
                 // must return an error to the client if limits are exceeded.
 
-                buffers = WriteSymmetricMessage(
+                EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
                     TcpMessageType.Message,
                     operation.RequestId,
-                    token,
                     request,
                     true,
-                    out bool limitsExceeded,
-                    out SendGateTicket sendTicket);
+                    out bool limitsExceeded);
 
-                BeginWriteMessage(buffers, operation, sendTicket);
-                buffers = null;
+                using (SendOrder.Enter())
+                {
+                    buffers = SealSymmetricMessage(encoded, token);
+                    BeginWriteMessage(buffers, operation);
+                    buffers = null;
+                }
                 success = true;
 
                 if (limitsExceeded)
@@ -1419,10 +1427,21 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            using var responseStream = new ArraySegmentStream(chunksToProcess);
-            return BinaryDecoder.DecodeMessage<IServiceResponse>(
-                responseStream,
-                Quotas.MessageContext) ??
+            IServiceResponse? response;
+            if (chunksToProcess.Count == 1)
+            {
+                // a response in one chunk, which most are, is decoded from that chunk's
+                // buffer without a stream over the chunk list, as the server decodes requests.
+                response = DecodeMessage<IServiceResponse>(chunksToProcess[0], Quotas.MessageContext);
+            }
+            else
+            {
+                using var responseStream = new ArraySegmentStream(chunksToProcess);
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    responseStream,
+                    Quotas.MessageContext);
+            }
+            return response ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
@@ -1909,24 +1928,25 @@ namespace Opc.Ua.Bindings
             // limits should never be exceeded sending a close message.
 
             // construct the message.
-            BufferCollection? buffers = WriteSymmetricMessage(
+            EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
                 TcpMessageType.Close,
                 operation.RequestId,
-                currentToken,
                 request,
                 true,
-                out _,
-                out SendGateTicket sendTicket);
+                out _);
 
-            // send the message.
-            try
+            using (SendOrder.Enter())
             {
-                BeginWriteMessage(buffers, operation, sendTicket);
-                buffers = null;
-            }
-            finally
-            {
-                buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
+                BufferCollection? buffers = SealSymmetricMessage(encoded, currentToken);
+                try
+                {
+                    BeginWriteMessage(buffers, operation);
+                    buffers = null;
+                }
+                finally
+                {
+                    buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
+                }
             }
         }
 

@@ -88,11 +88,11 @@ namespace Opc.Ua.PubSub.Tests.Application
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
             Assert.That(factory.Transport, Is.Not.Null);
-            Assert.That(factory.Transport!.Sends, Has.Count.EqualTo(1));
-            Assert.That(factory.Transport.Sends[0].Payload.Length, Is.GreaterThan(0));
+            Assert.That(factory.Transport!.SendCount, Is.EqualTo(1));
+            Assert.That(factory.Transport.GetSendsSnapshot()[0].Payload.Length, Is.GreaterThan(0));
         }
 
         [Test]
@@ -104,9 +104,9 @@ namespace Opc.Ua.PubSub.Tests.Application
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-            int initialCount = factory.Transport!.Sends.Count;
+            int initialCount = factory.Transport!.SendCount;
 
             // Trigger a change; the registry fires MetaDataChanged
             // because MajorVersion differs from any previously stored
@@ -115,11 +115,11 @@ namespace Opc.Ua.PubSub.Tests.Application
             app.MetaDataRegistry.Register(in key, NewMeta(majorVersion: 2));
 
             await WaitUntilAsync(
-                () => factory.Transport.Sends.Count > initialCount,
+                () => factory.Transport.SendCount > initialCount,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
             Assert.That(
-                factory.Transport.Sends,
-                Has.Count.GreaterThan(initialCount),
+                factory.Transport.SendCount,
+                Is.GreaterThan(initialCount),
                 "MetaDataChanged must trigger an additional metadata publish.");
         }
 
@@ -132,12 +132,13 @@ namespace Opc.Ua.PubSub.Tests.Application
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
-            Assert.That(factory.Transport!.Sends, Is.Not.Empty);
-            string? topic = factory.Transport.Sends
-                .Find(send => send.Topic?.Contains("/metadata/", StringComparison.Ordinal) == true)
+            (ReadOnlyMemory<byte> Payload, string? Topic)[] sends = factory.Transport!.GetSendsSnapshot();
+            Assert.That(sends, Is.Not.Empty);
+            string? topic = sends
+                .FirstOrDefault(send => send.Topic?.Contains("/metadata/", StringComparison.Ordinal) == true)
                 .Topic;
             Assert.That(topic, Is.Not.Null);
             Assert.That(topic, Does.Contain("/metadata/"),
@@ -154,10 +155,10 @@ namespace Opc.Ua.PubSub.Tests.Application
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
-            ReadOnlyMemory<byte> payload = factory.Transport!.Sends[0].Payload;
+            ReadOnlyMemory<byte> payload = factory.Transport!.GetSendsSnapshot()[0].Payload;
             PubSubNetworkMessageContext ctx = NewDecodeContext();
 
             PubSubNetworkMessage? decoded = UadpDecoder.Decode(payload, ctx);
@@ -190,9 +191,9 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
-            byte[] payload = factory.Transport!.Sends[0].Payload.ToArray();
+            byte[] payload = factory.Transport!.GetSendsSnapshot()[0].Payload.ToArray();
 
             Assert.That(
                 UadpDecoder.TryReadOuterPrefix(payload, out int prefixLength, out bool securityEnabled, out _, out _),
@@ -242,19 +243,45 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             // Each message is counted before it reaches the transport, so the counter
             // read after the sends is at least the number of sends.
-            int sends;
-            lock (factory.Transport!.Sends)
-            {
-                sends = factory.Transport.Sends.Count;
-            }
+            int sends = factory.Transport!.SendCount;
             Assert.That(
                 app.Diagnostics.Read(PubSubDiagnosticsCounterKind.SentNetworkMessages),
                 Is.GreaterThanOrEqualTo(sends));
+        }
+
+        /// <summary>
+        /// The UADP security wrapper cannot protect a JSON message. A connection
+        /// configured for SignAndEncrypt therefore refuses the JSON metadata
+        /// announcement and records the refusal, instead of publishing the DataSet
+        /// layout in plaintext.
+        /// </summary>
+        [Test]
+        public async Task JsonAnnouncementOfASecuredWriterGroupIsRefusedAsync()
+        {
+            using PubSubSecurityKeyRing ring = NewKeyRing();
+            var factory = new RecordingTransportFactory(JsonMqttProfile, supportsTopics: true);
+            await using IPubSubApplication app = BuildApp(
+                JsonMqttProfile,
+                factory,
+                securityKeyProvider: new StaticSecurityKeyProvider(SecurityGroupIdValue, ring));
+
+            // StartAsync returns after the initial announcement was sent or refused.
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+            (ReadOnlyMemory<byte> Payload, string? Topic)[] sends =
+                factory.Transport!.GetSendsSnapshot();
+            Assert.That(
+                sends.Select(send => send.Topic),
+                Has.None.Contains("/metadata/"),
+                "The announcement must not be published unsecured.");
+            Assert.That(
+                app.Diagnostics.Read(PubSubDiagnosticsCounterKind.EncryptionErrors),
+                Is.GreaterThanOrEqualTo(1));
         }
 
         [Test]
@@ -265,14 +292,14 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
             await WaitUntilAsync(
-                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                () => factory.Transport is { } t && t.SendCount >= 1,
                 TimeSpan.FromSeconds(2)).ConfigureAwait(false);
 
             // Capture a strong reference to the registry before disposing
             // the application; disposing the publisher must remove its
             // event handler from this exact instance.
             IDataSetMetaDataRegistry registry = app.MetaDataRegistry;
-            int sendsBeforeDispose = factory.Transport!.Sends.Count;
+            int sendsBeforeDispose = factory.Transport!.SendCount;
 
             await app.DisposeAsync().ConfigureAwait(false);
 
@@ -283,8 +310,8 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             await Task.Delay(150).ConfigureAwait(false);
             Assert.That(
-                factory.Transport.Sends,
-                Has.Count.EqualTo(sendsBeforeDispose),
+                factory.Transport.SendCount,
+                Is.EqualTo(sendsBeforeDispose),
                 "Disposed publisher must not respond to MetaDataChanged events.");
         }
 
@@ -625,6 +652,9 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private class RecordingTransport : IPubSubTransport
         {
+            private readonly Lock m_lock = new();
+            private readonly List<(ReadOnlyMemory<byte> Payload, string? Topic)> m_sends = [];
+
             public RecordingTransport(string profile)
             {
                 TransportProfileUri = profile;
@@ -637,8 +667,24 @@ namespace Opc.Ua.PubSub.Tests.Application
 
             public bool IsConnected { get; private set; }
 
-            public List<(ReadOnlyMemory<byte> Payload, string? Topic)> Sends { get; }
-                = [];
+            public int SendCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sends.Count;
+                    }
+                }
+            }
+
+            public (ReadOnlyMemory<byte> Payload, string? Topic)[] GetSendsSnapshot()
+            {
+                lock (m_lock)
+                {
+                    return [.. m_sends];
+                }
+            }
 
             public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
             {
@@ -666,9 +712,9 @@ namespace Opc.Ua.PubSub.Tests.Application
                 CancellationToken cancellationToken = default)
             {
                 _ = cancellationToken;
-                lock (Sends)
+                lock (m_lock)
                 {
-                    Sends.Add((payload, topic));
+                    m_sends.Add((payload, topic));
                 }
                 return default;
             }

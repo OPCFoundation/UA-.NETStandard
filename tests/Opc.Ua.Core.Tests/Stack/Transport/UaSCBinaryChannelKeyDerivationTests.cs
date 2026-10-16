@@ -178,12 +178,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public BufferCollection WriteRequest(ChannelToken token)
             {
                 BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message, 5, token, new ReadRequest(), true, out bool exceeded,
-                    out SendGateTicket sendTicket);
-
-                // the probe secures the message but never writes it, so the send gate
-                // has to be released here or the next write would wait on this ticket.
-                ReleaseSendTicket(sendTicket);
+                    TcpMessageType.Message, 5, token, new ReadRequest(), true, out bool exceeded);
                 Assert.That(exceeded, Is.False);
                 return chunks;
             }

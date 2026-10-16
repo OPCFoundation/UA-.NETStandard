@@ -29,7 +29,6 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -87,7 +86,7 @@ namespace Opc.Ua.Mcp
                         // connection tools can open one, so the bounded robotics catalogue has to
                         // carry them to be usable at all. Full already gets them from the core
                         // package, so adding them there would register the same tools twice.
-                        mcpServerBuilder.WithTools<ConnectionTools>();
+                        mcpServerBuilder.WithOpcUaConnectionTools();
                     }
 
                     break;
@@ -97,6 +96,20 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -117,7 +130,7 @@ namespace Opc.Ua.Mcp
         /// wants the Robot Intent tools alongside the tools of another bounded
         /// profile - <see cref="McpToolProfile.Vision"/>, for a vision-guided
         /// pick-and-place agent, for example. It never registers
-        /// <see cref="Tools.ConnectionTools"/> directly; the
+        /// <see cref="ConnectionTools"/> directly; the
         /// <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c> owns
         /// that registration and deduplicates it across every package that
         /// contributes to the same MCP server.

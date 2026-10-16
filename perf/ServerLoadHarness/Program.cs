@@ -34,7 +34,8 @@
 //           Starts a ReferenceServer and reads commands from stdin: mark | report | quit
 //   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
-//           [--subs S] [--pub ms] [--write-interval ms] [--trace file] [--trace-profile p] [--out file]
+//           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
+//           [--trace file] [--trace-profile p] [--out file]
 //           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
@@ -47,6 +48,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -301,25 +303,41 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             // classic: Session from the default session factory (classic subscription engine).
             // managed: ManagedSession with the default V2 subscription engine.
+            // shared: classic Sessions whose secure channels come from one ClientChannelManager.
             string clientKind = Arg("client", "classic");
-            ConfiguredEndpoint? managedEndpoint = clientKind == "managed"
+            ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
+            var channelManager = new ClientChannelManager(client.Config, telemetry);
+            await using ConfiguredAsyncDisposable disposeChannelManager = channelManager.ConfigureAwait(false);
             var sessions = new ISession[sessionCount];
             var connectTime = Stopwatch.StartNew();
+            // Shared sessions connect one at a time by default: concurrent creation
+            // on one ClientChannelManager fails with BadSecureChannelClosed.
+            int connectParallel = clientKind == "shared" ? ArgInt("connect-parallel", 1) : 32;
             await Parallel.ForAsync(
                 0,
                 sessionCount,
-                new ParallelOptions { MaxDegreeOfParallelism = 32 },
-                async (i, ct) => sessions[i] = managedEndpoint != null
-                    ? await new ManagedSessionBuilder(client.Config, telemetry)
-                        .UseEndpoint(managedEndpoint)
+                new ParallelOptions { MaxDegreeOfParallelism = connectParallel },
+                async (i, ct) => sessions[i] = clientKind switch
+                {
+                    "managed" => await new ManagedSessionBuilder(client.Config, telemetry)
+                        .UseEndpoint(endpointForBuilder!)
                         .WithSessionTimeout(TimeSpan.FromSeconds(60))
                         .ConnectAsync(ct)
-                        .ConfigureAwait(false)
-                    : await client
+                        .ConfigureAwait(false),
+                    "shared" => await Session.CreateAsync(
+                            channelManager,
+                            client.Config,
+                            endpointForBuilder!,
+                            updateBeforeConnect: false,
+                            sessionName: "PerfShared",
+                            ct: ct)
+                        .ConfigureAwait(false),
+                    _ => await client
                         .ConnectAsync(new Uri(url), policy, selected)
-                        .ConfigureAwait(false))
+                        .ConfigureAwait(false)
+                })
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
                 $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
@@ -333,7 +351,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("subs", 5),
                     ArgInt("pub", 100),
                     ArgInt("write-interval", 100),
-                    Arg("callback", "fast") == "item")
+                    Arg("callback", "fast") == "item",
+                    ArgInt("write-nodes", 0))
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
@@ -740,7 +759,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int subscriptions,
             int publishingInterval,
             int writeInterval,
-            bool itemCallback)
+            bool itemCallback,
+            int writeNodes)
         {
             m_sessions = sessions;
             m_nodes = nodes;
@@ -748,11 +768,18 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
             m_itemCallback = itemCallback;
+            m_writeNodes = writeNodes;
         }
 
         public override double Operations => Interlocked.Read(ref m_notifications);
 
         public override string OperationName => "notification";
+
+        /// <summary>
+        /// The number of monitored nodes the writer changes: all of them, or the first
+        /// <c>--write-nodes</c> (a large subscription in which few items change).
+        /// </summary>
+        private int WrittenNodes => m_writeNodes > 0 ? Math.Min(m_writeNodes, m_nodeIds.Count) : m_nodeIds.Count;
 
         public override async Task SetupAsync()
         {
@@ -771,7 +798,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"sub: {m_sessions.Length} sessions x {m_subscriptions} subs x {m_nodeIds.Count} items, ") +
                 FormattableString.Invariant(
-                $"pub {m_publishingInterval} ms, write every {m_writeInterval} ms; setup {setupTime.ElapsedMilliseconds} ms"));
+                $"pub {m_publishingInterval} ms, write {WrittenNodes} items every {m_writeInterval} ms; ") +
+                FormattableString.Invariant($"setup {setupTime.ElapsedMilliseconds} ms"));
         }
 
         public override async Task RunAsync(CancellationToken ct)
@@ -780,7 +808,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
                 int counter = Interlocked.Increment(ref m_counter);
-                var values = new WriteValue[m_nodeIds.Count];
+                var values = new WriteValue[WrittenNodes];
                 for (int i = 0; i < values.Length; i++)
                 {
                     values[i] = new WriteValue
@@ -806,7 +834,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override string Report(double seconds)
         {
             long notifications = Interlocked.Read(ref m_notifications);
-            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * m_nodeIds.Count;
+            long expected = Interlocked.Read(ref m_writes) * m_sessions.Length * m_subscriptions * WrittenNodes;
             double ratio = expected == 0 ? 0 : (double)notifications / expected;
             return FormattableString.Invariant(
                 $"notif/s={notifications / seconds:F0} received/expected={ratio:P1} ") +
@@ -1001,5 +1029,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private long m_writes;
         private int m_counter;
         private ArrayOf<NodeId> m_nodeIds;
+        private readonly int m_writeNodes;
     }
 }

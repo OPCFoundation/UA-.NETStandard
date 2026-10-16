@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -77,12 +78,12 @@ namespace Opc.Ua.Vision.Client
         {
             string[] members =
             [
-                BrowseNames.PipelineId,
-                BrowseNames.Sensor,
-                BrowseNames.Deployment,
-                BrowseNames.State,
-                BrowseNames.Continuous,
-                BrowseNames.LearningJob
+                Perception.BrowseNames.PipelineId,
+                Perception.BrowseNames.Sensor,
+                Perception.BrowseNames.Deployment,
+                Perception.BrowseNames.State,
+                Perception.BrowseNames.Continuous,
+                Perception.BrowseNames.LearningJob
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 PipelineNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -154,7 +155,7 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             NodeId node = await m_operations.ResolveChildAsync(
-                PipelineNodeId, BrowseNames.State, cancellationToken).ConfigureAwait(false);
+                PipelineNodeId, Perception.BrowseNames.State, cancellationToken).ConfigureAwait(false);
             if (node.IsNull)
             {
                 return default;
@@ -274,15 +275,15 @@ namespace Opc.Ua.Vision.Client
                 yield break;
             }
             NodeId resultType = m_operations.VisionNamespaceType(
-                ObjectTypes.VisionResultType);
+                Perception.ObjectTypes.VisionResultType);
             ArrayOf<ReferenceDescription> refs = await m_operations
                 .BrowseHierarchicalObjectsAsync(folderId, cancellationToken)
                 .ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     refs[ii].NodeId, m_operations.Session.NamespaceUris);
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     refs[ii].TypeDefinition, m_operations.Session.NamespaceUris);
                 if (nodeId.IsNull || typeDef.IsNull)
                 {

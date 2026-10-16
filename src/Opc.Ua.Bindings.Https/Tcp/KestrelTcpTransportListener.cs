@@ -930,7 +930,7 @@ namespace Opc.Ua.Bindings
             }
             // Keeps a sessionless channel classified as in use while the
             // request is processed so admission does not reclaim it.
-            using IDisposable usage = channel.TrackPendingRequest();
+            using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
             try
             {
                 var context = new SecureChannelContext(
@@ -944,7 +944,11 @@ namespace Opc.Ua.Bindings
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
-                await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false);
+                if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
+                {
+                    // encoded and not retained for a reconnect: the response is no longer read.
+                    (response as IPooledEncodeable)?.Reuse();
+                }
                 NotifyResponseDispatched(context);
             }
             catch (Exception ex)

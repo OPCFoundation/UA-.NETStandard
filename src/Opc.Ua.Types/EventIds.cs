@@ -48,5 +48,8 @@ namespace Opc.Ua
         public const int Matrix = 50;
         public const int XmlSchemaValidator = 60;
         public const int BackgroundTaskScope = 70;
+
+        /// <summary>Optional method-validation observer failures.</summary>
+        public const int MethodState = 80;
     }
 }

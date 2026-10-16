@@ -7,6 +7,10 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
+For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
+`WotDocumentSet` with caller-supplied thing/schema resolution while preserving
+set-local precedence. It performs no transport I/O itself.
+
 ## Contents
 
 - [Which specification revision this tracks](#which-specification-revision-this-tracks)
@@ -15,6 +19,7 @@ from the readable WoT terms.
 - [WoT to NodeSet defaults](#wot-to-nodeset-defaults)
 - [Portable identity and preservation semantics](#portable-identity-and-preservation-semantics)
   - [Verified linked document sets](#verified-linked-document-sets)
+  - [Generated document-set limits](#generated-document-set-limits)
   - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
   - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
   - [Unmapped reference vocabulary is residue](#unmapped-reference-vocabulary-is-residue)
@@ -253,6 +258,15 @@ When an archival `uav:nodeSet` is present, known readable facts are checked
 against that baseline and conflicts are reported rather than overwritten.
 Routing-only enrichment does not grant permission to add or replace archived
 model facts.
+
+### Generated document-set limits
+
+Converter callers can set `MaxDocumentSetDocuments`, `MaxDocumentSetDepth` and
+`MaxDocumentSetBytes` independently of external resolver limits. Generated
+document count, containment depth and cumulative JSON bytes are checked during
+conversion, including preservation partitions. Defaults impose no additional
+set-wide ceiling, preserving existing large companion-model conversions.
+Hosts processing untrusted input should set all three limits.
 
 ### Generated NodeIds follow Annex G.1
 

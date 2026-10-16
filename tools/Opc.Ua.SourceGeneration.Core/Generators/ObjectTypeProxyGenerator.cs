@@ -101,6 +101,97 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Returns true when a proxy class exists (or is emitted here) for
+        /// <paramref name="type"/>. This model's exclusions only decide that
+        /// for types of models generated with them: the target model, and
+        /// other inputs of this run. A type supplied by a referenced assembly
+        /// was emitted under that assembly's own exclusions, which its
+        /// dependency payload records by omitting the excluded types.
+        /// </summary>
+        internal bool HasProxy(ObjectTypeDesign type)
+        {
+            string? typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
+            if (!string.IsNullOrEmpty(typeUri) &&
+                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
+                m_context.ReferencedModels != null &&
+                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
+            {
+                Dependency.ModelDependencyV1? payload = reference.GetDependency();
+                if (payload == null)
+                {
+                    // No record of what the reference excluded: take the
+                    // type as emitted.
+                    return true;
+                }
+                string? name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
+                foreach (Dependency.DependencyNode node in payload.Nodes)
+                {
+                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
+                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+            return !m_context.ModelDesign.IsExcluded(type);
+        }
+
+        /// <summary>
+        /// Returns the C# namespace into which the proxy for
+        /// <paramref name="type"/> is (or would be) emitted. Internal
+        /// types use the configured output namespace; external types are
+        /// looked up via the standard UA → <c>Opc.Ua</c> default
+        /// and the user-supplied
+        /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
+        /// override; otherwise the model's namespace prefix is used as a
+        /// last resort.
+        /// </summary>
+        internal string ResolveProxyNamespaceForType(TypeDesign type)
+        {
+            string? typeUri = type.SymbolicName?.Namespace;
+            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
+
+            if (!string.IsNullOrEmpty(typeUri) &&
+                string.Equals(typeUri, targetUri, StringComparison.Ordinal))
+            {
+                return GetOutputNamespace();
+            }
+
+            if (!string.IsNullOrEmpty(typeUri))
+            {
+                IDictionary<string, string>? overrides =
+                    m_context.Options?.ObjectTypeProxyExternalNamespaces;
+                if (overrides != null &&
+                    overrides.TryGetValue(typeUri, out string? mapped) &&
+                    !string.IsNullOrWhiteSpace(mapped))
+                {
+                    return mapped;
+                }
+
+                if (string.Equals(typeUri, kStandardUaNamespaceUri, StringComparison.Ordinal))
+                {
+                    return kStandardUaProxyNamespace;
+                }
+
+                Namespace[] namespaces = m_context.ModelDesign.Namespaces;
+                if (namespaces != null)
+                {
+                    foreach (Namespace ns in namespaces)
+                    {
+                        if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
+                            !string.IsNullOrWhiteSpace(ns!.Prefix))
+                        {
+                            return ns.Prefix;
+                        }
+                    }
+                }
+            }
+
+            return GetOutputNamespace();
+        }
+
+        /// <summary>
         /// Selects every non-excluded <see cref="ObjectTypeDesign"/> in
         /// the model. A proxy class is emitted for each one regardless
         /// of whether it declares any methods so that the generated
@@ -226,97 +317,6 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Returns true when a proxy class exists (or is emitted here) for
-        /// <paramref name="type"/>. This model's exclusions only decide that
-        /// for types of models generated with them: the target model, and
-        /// other inputs of this run. A type supplied by a referenced assembly
-        /// was emitted under that assembly's own exclusions, which its
-        /// dependency payload records by omitting the excluded types.
-        /// </summary>
-        private bool HasProxy(ObjectTypeDesign type)
-        {
-            string? typeUri = type.SymbolicId?.Namespace ?? type.SymbolicName?.Namespace;
-            if (!string.IsNullOrEmpty(typeUri) &&
-                !string.Equals(typeUri, m_context.ModelDesign.TargetNamespace?.Value, StringComparison.Ordinal) &&
-                m_context.ReferencedModels != null &&
-                m_context.ReferencedModels.TryGetValue(typeUri, out ModelDependencyReference reference))
-            {
-                Dependency.ModelDependencyV1? payload = reference.GetDependency();
-                if (payload == null)
-                {
-                    // No record of what the reference excluded: take the
-                    // type as emitted.
-                    return true;
-                }
-                string? name = type.SymbolicId?.Name ?? type.SymbolicName?.Name;
-                foreach (Dependency.DependencyNode node in payload.Nodes)
-                {
-                    if (node.Kind == Dependency.DependencyNodeKind.ObjectType &&
-                        string.Equals(node.SymbolicName, name, StringComparison.Ordinal))
-                    {
-                        return true;
-                    }
-                }
-                return false;
-            }
-            return !m_context.ModelDesign.IsExcluded(type);
-        }
-
-        /// <summary>
-        /// Returns the C# namespace into which the proxy for
-        /// <paramref name="type"/> is (or would be) emitted. Internal
-        /// types use the configured output namespace; external types are
-        /// looked up via the standard UA → <c>Opc.Ua</c> default
-        /// and the user-supplied
-        /// <see cref="GeneratorOptions.ObjectTypeProxyExternalNamespaces"/>
-        /// override; otherwise the model's namespace prefix is used as a
-        /// last resort.
-        /// </summary>
-        private string ResolveProxyNamespaceForType(TypeDesign type)
-        {
-            string? typeUri = type.SymbolicName?.Namespace;
-            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
-
-            if (!string.IsNullOrEmpty(typeUri) &&
-                string.Equals(typeUri, targetUri, StringComparison.Ordinal))
-            {
-                return GetOutputNamespace();
-            }
-
-            if (!string.IsNullOrEmpty(typeUri))
-            {
-                IDictionary<string, string>? overrides =
-                    m_context.Options?.ObjectTypeProxyExternalNamespaces;
-                if (overrides != null &&
-                    overrides.TryGetValue(typeUri, out string? mapped) &&
-                    !string.IsNullOrWhiteSpace(mapped))
-                {
-                    return mapped;
-                }
-
-                if (string.Equals(typeUri, kStandardUaNamespaceUri, StringComparison.Ordinal))
-                {
-                    return kStandardUaProxyNamespace;
-                }
-
-                Namespace[] namespaces = m_context.ModelDesign.Namespaces;
-                if (namespaces != null)
-                {
-                    foreach (Namespace ns in namespaces)
-                    {
-                        if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
-                            !string.IsNullOrWhiteSpace(ns!.Prefix))
-                        {
-                            return ns.Prefix;
-                        }
-                    }
-                }
-            }
-
-            return GetOutputNamespace();
-        }
-
-        /// <summary>
         /// Walks the supertype chain of <paramref name="objectType"/> and
         /// returns the union of the emitted C# member names of every
         /// method declared anywhere above it. Used to decide which
@@ -324,7 +324,9 @@ namespace Opc.Ua.SourceGeneration
         /// shadowing). Method names are emitted as
         /// <c>{methodSymbolicName}Async</c>.
         /// </summary>
-        private HashSet<string> CollectInheritedMethodNames(ObjectTypeDesign objectType)
+        private HashSet<string> CollectInheritedMethodNames(
+            ObjectTypeDesign objectType,
+            bool includeSignature = false)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
             ObjectTypeDesign? parent = GetEmittedBaseType(objectType);
@@ -335,12 +337,31 @@ namespace Opc.Ua.SourceGeneration
                     string? name = method.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
-                        names.Add(name + "Async");
+                        names.Add(includeSignature ? GetMethodSignature(method) : name + "Async");
                     }
                 }
                 parent = GetEmittedBaseType(parent);
             }
             return names;
+        }
+
+        /// <summary>
+        /// Identifies C# method hiding by input types, not just by the OPC UA
+        /// method name. A narrowed generate-options argument creates an overload.
+        /// </summary>
+        private string GetMethodSignature(MethodDesign method)
+        {
+            MethodDesign effective = method.IsOverridden()
+                ? (MethodDesign)method.GetMergedInstance()
+                : method;
+            Parameter[] inputs = MethodDesignArgumentResolver.ResolveMethodInputs(effective);
+            return method.SymbolicName.Name + "(" + string.Join(
+                ",",
+                Array.ConvertAll(inputs, input => input.DataTypeNode!.GetMethodArgumentTypeAsCode(
+                    input.ValueRank,
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces,
+                    input.IsOptional))) + ")";
         }
 
         /// <summary>
@@ -386,6 +407,7 @@ namespace Opc.Ua.SourceGeneration
             // Stash inherited method names so LoadTemplate_Method can
             // emit the C# 'new' modifier on shadowed methods.
             m_inheritedMethodNames = CollectInheritedMethodNames(objectType);
+            m_inheritedMethodSignatures = CollectInheritedMethodNames(objectType, includeSignature: true);
             // And inherited Object child names so the Object accessor
             // emitter does the same.
             m_inheritedObjectChildNames = CollectInheritedObjectChildNames(objectType);
@@ -650,8 +672,8 @@ namespace Opc.Ua.SourceGeneration
             string returnTypeAnnotation = GetReturnTypeAnnotation(
                 outputs, targetNamespace, namespaces);
 
-            bool isShadow = m_inheritedMethodNames != null &&
-                m_inheritedMethodNames.Contains(methodName + "Async");
+            bool isShadow = m_inheritedMethodSignatures != null &&
+                m_inheritedMethodSignatures.Contains(GetMethodSignature(method));
 
             // XML doc and signature
             context.Out.WriteLine();
@@ -730,7 +752,7 @@ namespace Opc.Ua.SourceGeneration
                 context.Out.WriteLine(",");
                 context.Out.Write(
                     "        {0}",
-                    BoxInputArgument(inputs[ii]));
+                    BoxInputArgument(inputs[ii], targetNamespace, namespaces));
             }
             context.Out.WriteLine(").ConfigureAwait(false);");
 
@@ -873,6 +895,16 @@ namespace Opc.Ua.SourceGeneration
                 parameter.IsOptional);
             string localName = GetLocalVariableName(parameter);
 
+            if (typeName == "global::Opc.Ua.Variant")
+            {
+                context.Out.WriteLine(
+                    "    {0} {1} = _outputArguments[{2}];",
+                    typeName,
+                    localName,
+                    index);
+                return;
+            }
+
             switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
@@ -894,14 +926,6 @@ namespace Opc.Ua.SourceGeneration
                         index,
                         localName);
                     EmitConversionFailure(context, methodName, parameter.Name);
-                    break;
-                case BasicDataType.BaseDataType when parameter.ValueRank == ValueRank.Scalar:
-                    // The argument is itself a Variant; assign directly.
-                    context.Out.WriteLine(
-                        "    {0} {1} = _outputArguments[{2}];",
-                        typeName,
-                        localName,
-                        index);
                     break;
                 default:
                     context.Out.WriteLine(
@@ -952,17 +976,27 @@ namespace Opc.Ua.SourceGeneration
         /// Returns the C# expression used to box an input argument into a
         /// <see cref="Variant"/>.
         /// </summary>
-        private static string BoxInputArgument(Parameter parameter)
+        private static string BoxInputArgument(
+            Parameter parameter,
+            string targetNamespace,
+            Namespace[] namespaces)
         {
             string name = GetMethodArgumentIdentifier(parameter);
+            string typeName = parameter.DataTypeNode!.GetMethodArgumentTypeAsCode(
+                parameter.ValueRank,
+                targetNamespace,
+                namespaces,
+                parameter.IsOptional);
+            if (typeName == "global::Opc.Ua.Variant")
+            {
+                return name;
+            }
             switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     return CoreUtils.Format(
                         "global::Opc.Ua.Variant.FromStructure({0})",
                         name);
-                case BasicDataType.BaseDataType when parameter.ValueRank == ValueRank.Scalar:
-                    return name;
                 default:
                     return CoreUtils.Format(
                         "global::Opc.Ua.Variant.From({0})",
@@ -1052,6 +1086,7 @@ namespace Opc.Ua.SourceGeneration
         private readonly IGeneratorContext m_context;
         private readonly Microsoft.Extensions.Logging.ILogger m_logger;
         private HashSet<string>? m_inheritedMethodNames;
+        private HashSet<string>? m_inheritedMethodSignatures;
         private HashSet<string>? m_inheritedAccessorNames;
         private HashSet<string>? m_inheritedObjectChildNames;
     }

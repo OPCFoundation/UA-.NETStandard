@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -293,10 +294,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket _s = serverSocket;
             using (client)
             {
-                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                var sendLock = (ChannelGate)typeof(TcpByteTransport)
                     .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .GetValue(client)!;
-                sendLock.Wait();
+                ChannelGate.Releaser held = sendLock.Enter();
                 try
                 {
                     using var cts = new CancellationTokenSource();
@@ -313,7 +314,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    sendLock.Release();
+                    held.Dispose();
                 }
             }
         }
@@ -327,10 +328,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket _s = serverSocket;
             using (client)
             {
-                var sendLock = (SemaphoreSlim)typeof(TcpByteTransport)
+                var sendLock = (ChannelGate)typeof(TcpByteTransport)
                     .GetField("m_sendLock", BindingFlags.Instance | BindingFlags.NonPublic)!
                     .GetValue(client)!;
-                sendLock.Wait();
+                ChannelGate.Releaser held = sendLock.Enter();
                 try
                 {
                     Task send = client.SendChunkAsync(
@@ -348,7 +349,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
                 finally
                 {
-                    sendLock.Release();
+                    held.Dispose();
                 }
             }
         }
@@ -554,6 +555,177 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ReceiveChunkAsyncReturnsChunksSentTogetherOneAtATimeAsync()
+        {
+            const int largeBufferSize = 65536;
+            m_bufferManager = new BufferManager("TcpByteTransportTests", largeBufferSize, m_telemetry);
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync(largeBufferSize).ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // Small chunks around one larger than the staging buffer, in one send:
+                // each receive returns exactly one chunk and keeps the rest.
+                byte[][] chunks =
+                [
+                    BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 40),
+                    BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 9),
+                    BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 20000),
+                    BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 8192),
+                    BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 100)
+                ];
+                byte[] all = [.. chunks.SelectMany(c => c)];
+                await SendAllAsync(serverSocket, all, 0, all.Length).ConfigureAwait(false);
+
+                foreach (byte[] expected in chunks)
+                {
+                    await AssertReceivesAsync(client, expected).ConfigureAwait(false);
+                }
+            }
+        }
+
+        [Test]
+        public async Task ReceiveChunkAsyncCompletesAChunkSplitAcrossSendsAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // The first chunk arrives in three pieces, the middle one ending inside
+                // the header of the second chunk.
+                byte[] first = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 64);
+                byte[] second = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 32);
+                byte[] all = [.. first, .. second];
+                Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+                foreach ((int offset, int count) in new[] { (0, 3), (3, 64), (67, 29) })
+                {
+                    await SendAllAsync(serverSocket, all, offset, count).ConfigureAwait(false);
+                    await Task.Delay(50).ConfigureAwait(false);
+                }
+
+                AssertChunk(await receive.ConfigureAwait(false), first);
+                await AssertReceivesAsync(client, second).ConfigureAwait(false);
+            }
+        }
+
+#if NET5_0_OR_GREATER
+        // The pending receive can only be cancelled where Socket.ReceiveAsync takes
+        // a token; on .NET Framework it waits for data or the close of the transport.
+        [Test]
+        public async Task ReceiveChunkAsyncHonoursCancellationAndKeepsStagedBytesAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // Half a header, then the receive is cancelled.
+                byte[] chunk = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 48);
+                await serverSocket
+                    .SendAsync(new ArraySegment<byte>(chunk, 0, 4), SocketFlags.None)
+                    .ConfigureAwait(false);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
+                Assert.That(
+                    async () => await client.ReceiveChunkAsync(cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                // The next receive continues with the bytes that already arrived.
+                await SendAllAsync(serverSocket, chunk, 4, chunk.Length - 4).ConfigureAwait(false);
+                await AssertReceivesAsync(client, chunk).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task CancellingTheBodyReadOfALargeChunkFailsLaterReceivesAsync()
+        {
+            const int largeBufferSize = 65536;
+            m_bufferManager = new BufferManager("TcpByteTransportTests", largeBufferSize, m_telemetry);
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync(largeBufferSize).ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // More than the staging buffer arrives, then the rest of the chunk
+                // does not: the bytes consumed so far cannot be put back.
+                byte[] chunk = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 20000);
+                await SendAllAsync(serverSocket, chunk, 0, 12000).ConfigureAwait(false);
+                using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+                Assert.That(
+                    async () => await client.ReceiveChunkAsync(cts.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
+
+                await SendAllAsync(serverSocket, chunk, 12000, chunk.Length - 12000).ConfigureAwait(false);
+                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.ReceiveChunkAsync(CancellationToken.None)
+                        .ConfigureAwait(false))!;
+                Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
+            }
+        }
+#endif
+
+        [Test]
+        public async Task ASecondConcurrentReceiveIsRejectedAsync()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // The staged bytes belong to one reader; a second receive on the
+                // same stream fails instead of interleaving with the first.
+                Task<ArraySegment<byte>> first = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+                Assert.That(
+                    async () => await client.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false),
+                    Throws.InvalidOperationException);
+
+                byte[] chunk = BuildValidChunk(TcpMessageType.Message | TcpMessageType.Final, 24);
+                await SendAllAsync(serverSocket, chunk, 0, chunk.Length).ConfigureAwait(false);
+                AssertChunk(await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), chunk);
+            }
+        }
+
+        private static async Task SendAllAsync(Socket socket, byte[] data, int offset, int count)
+        {
+            while (count > 0)
+            {
+                int sent = await socket
+                    .SendAsync(new ArraySegment<byte>(data, offset, count), SocketFlags.None)
+                    .ConfigureAwait(false);
+                Assert.That(sent, Is.GreaterThan(0));
+                offset += sent;
+                count -= sent;
+            }
+        }
+
+        private async Task AssertReceivesAsync(TcpByteTransport client, byte[] expected)
+        {
+            ArraySegment<byte> chunk = await client
+                .ReceiveChunkAsync(CancellationToken.None)
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5))
+                .ConfigureAwait(false);
+            AssertChunk(chunk, expected);
+        }
+
+        private void AssertChunk(ArraySegment<byte> chunk, byte[] expected)
+        {
+            try
+            {
+                Assert.That(chunk.ToArray(), Is.EqualTo(expected));
+            }
+            finally
+            {
+                m_bufferManager.ReturnBuffer(chunk.Array, nameof(AssertChunk));
+            }
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncDoesNotHoldReceiveBufferWhileIdle()
         {
             int budget = new FastBufferManager("sizing", kBufferSize, m_telemetry)
@@ -704,7 +876,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
-        private async Task<(TcpByteTransport, Socket, TcpListener)> CreateConnectedPairAsync()
+        private async Task<(TcpByteTransport, Socket, TcpListener)> CreateConnectedPairAsync(
+            int receiveBufferSize = kBufferSize)
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -712,7 +885,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             Task<Socket> acceptTask = listener.AcceptSocketAsync();
 
-            var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
+            var transport = new TcpByteTransport(m_bufferManager, receiveBufferSize, m_telemetry);
             await transport
                 .ConnectAsync(new Uri($"opc.tcp://127.0.0.1:{port}"), CancellationToken.None)
                 .ConfigureAwait(false);

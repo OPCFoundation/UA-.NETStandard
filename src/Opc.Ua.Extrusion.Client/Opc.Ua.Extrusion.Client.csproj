@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Extrusion.Client</AssemblyName>
+    <RootNamespace>Opc.Ua.Extrusion.Client</RootNamespace>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Extrusion.Client</PackageId>
+    <Description>Managed-session typed clients for OPC 40084 parts 1 through 12, discovery, production jobs, states and events.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.PlasticsRubber.Client\Opc.Ua.PlasticsRubber.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Extrusion\Opc.Ua.Extrusion.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Extrusion\*\Model\*.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>$([System.String]::Copy('%(Filename)').Replace('.NodeSet2', ''))</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>$([System.String]::Copy('%(Filename)').Replace('.NodeSet2', '').Replace('Opc.Ua.', '').Replace('.', ''))</ModelSourceGeneratorName>
+      <ModelSourceGeneratorIdentifierFile>$([System.String]::Copy('%(Filename)').Replace('.NodeSet2', '.NodeIds.csv'))</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Extrusion\*\Model\*.NodeIds.csv"
+                     Exclude="..\Opc.Ua.Extrusion\*\Model\*.Upstream.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+    <ModelSourceGeneratorClientAccessorNamespace>Opc.Ua.Extrusion.Client</ModelSourceGeneratorClientAccessorNamespace>
+    <ModelSourceGeneratorClientAccessorClassName>ExtrusionClientMembers</ModelSourceGeneratorClientAccessorClassName>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <None Include="..\Opc.Ua.PlasticsRubber\Model\NOTICE.txt"
+          Pack="true" PackagePath="licenses\CompanionModels.NOTICE.txt" />
+  </ItemGroup>
+</Project>

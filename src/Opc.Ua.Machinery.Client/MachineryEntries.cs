@@ -32,6 +32,19 @@ using System;
 namespace Opc.Ua.Machinery.Client
 {
     /// <summary>
+    /// The real endpoint objects published by OPC 40001-3 job management.
+    /// Absent roles have <see cref="NodeId.Null"/> identifiers; no response
+    /// receiver is defined by this building block.
+    /// </summary>
+    /// <param name="JobManagementId">The job-management object, or null NodeId.</param>
+    /// <param name="JobOrderReceiverId">The JobOrderControl order receiver, or null NodeId.</param>
+    /// <param name="JobResponseProviderId">The JobOrderResults response provider, or null NodeId.</param>
+    public sealed record MachineryJobManagementEndpoints(
+        NodeId JobManagementId,
+        NodeId JobOrderReceiverId,
+        NodeId JobResponseProviderId);
+
+    /// <summary>
     /// A machine discovered below the OPC 40001-1 <c>Machines</c> folder.
     /// </summary>
     /// <param name="NodeId">The machine's NodeId.</param>
@@ -140,8 +153,8 @@ namespace Opc.Ua.Machinery.Client
     /// <c>AnalogSignal</c>.
     /// </summary>
     /// <remarks>
-    /// Every member but the two NodeIds is optional in the part, so a
-    /// <see langword="null"/> means the server does not publish it.
+    /// Optional model members are nullable when the server does not publish them.
+    /// The client retains the mandatory signal's original reading in <see cref="Sample"/>.
     /// </remarks>
     public sealed record MachineryProcessValue
     {
@@ -154,6 +167,15 @@ namespace Opc.Ua.Machinery.Client
         /// The <c>AnalogSignal</c> variable carrying the reading.
         /// </summary>
         public required NodeId SignalNodeId { get; init; }
+
+        /// <summary>
+        /// The original signal sample, including its numeric type, quality and timestamps.
+        /// </summary>
+        /// <remarks>
+        /// Inspect this value to distinguish unavailable or uncertain data from an absent
+        /// optional property. The legacy numeric <see cref="Value"/> projection remains available.
+        /// </remarks>
+        public DataValue Sample { get; init; }
 
         /// <summary>
         /// The current reading.

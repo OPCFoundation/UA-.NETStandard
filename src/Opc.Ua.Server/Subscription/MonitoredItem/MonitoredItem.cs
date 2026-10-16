@@ -38,13 +38,15 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem :
+    public partial class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
-        IMonitoredItemTransferState
+        IMonitoredItemTransferState,
+        IReadySignalingMonitoredItem,
+        IMonitoredItemValuePublication
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -354,8 +356,10 @@ namespace Opc.Ua.Server
                 m_readyToTrigger = MonitoringMode == MonitoringMode.Reporting;
             }
 
-            m_isDeleted = storedMonitoredItem.IsDeleted;
-            m_isDetached = storedMonitoredItem.IsDetached;
+            lock (m_lock)
+            {
+                SetDetachState(storedMonitoredItem.IsDetached, storedMonitoredItem.IsDeleted);
+            }
         }
 
         /// <summary>
@@ -392,6 +396,50 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
+
+        /// <summary>
+        /// Whether any live monitored item in the process is detached or marked deleted.
+        /// </summary>
+        /// <remarks>
+        /// Every node a NodeManager adds asks the subscriptions for detached items to
+        /// reattach, and a scan reads every monitored item of every subscription. Creating a
+        /// subscription adds its diagnostics nodes, so with many monitored items the scans made
+        /// subscription creation quadratic. Recovery is skipped while this is <c>false</c>. The
+        /// count is process-wide, so items of another server instance only cost a scan.
+        /// </remarks>
+        internal static bool HasRecoverableItems => Interlocked.Read(ref s_recoverableCount) > 0;
+
+        /// <summary>
+        /// Whether this item is included in <see cref="HasRecoverableItems"/>.
+        /// </summary>
+        internal bool IsCountedAsRecoverable
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_countedAsRecoverable;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sets the detached and deleted flags and keeps <see cref="HasRecoverableItems"/>
+        /// in step. The caller holds <c>m_lock</c>.
+        /// </summary>
+        private void SetDetachState(bool isDetached, bool isDeleted)
+        {
+            m_isDetached = isDetached;
+            m_isDeleted = isDeleted;
+
+            // a disposed item cannot be attached again, so it no longer counts.
+            bool recoverable = (isDetached || isDeleted) && !m_isDisposed;
+            if (recoverable != m_countedAsRecoverable)
+            {
+                m_countedAsRecoverable = recoverable;
+                Interlocked.Add(ref s_recoverableCount, recoverable ? 1 : -1);
+            }
+        }
 
         /// <inheritdoc/>
         bool IDetachableMonitoredItem.IsDetached
@@ -520,6 +568,7 @@ namespace Opc.Ua.Server
                     (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     m_resendData = true;
+                    SignalReady();
                 }
             }
         }
@@ -529,6 +578,46 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 m_resendData = resendData;
+                if (resendData)
+                {
+                    SignalReady();
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        bool IReadySignalingMonitoredItem.HasPendingNotifications =>
+            Volatile.Read(ref m_readyToPublish) ||
+            Volatile.Read(ref m_readyToTrigger) ||
+            Volatile.Read(ref m_resendData) ||
+            // an aggregate becomes ready when its processing interval ends, without a new value.
+            AggregateFilter != null;
+
+        /// <inheritdoc/>
+        bool IReadySignalingMonitoredItem.TryAcquireReadySignal()
+        {
+            return Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0;
+        }
+
+        /// <inheritdoc/>
+        void IReadySignalingMonitoredItem.ReleaseReadySignal()
+        {
+            Interlocked.Exchange(ref m_readySignal, 0);
+        }
+
+        /// <summary>
+        /// Tells the owning subscription that the item has something to report, unless it
+        /// was told already and has not looked at the item since. Called after the ready
+        /// flags were set, while holding <c>m_lock</c>.
+        /// </summary>
+        private void SignalReady()
+        {
+            // the compare-exchange is a full fence: the flags set before it are visible to a
+            // subscription that releases the signal and then checks the flags again.
+            if (m_subscription is IMonitoredItemReadySink sink &&
+                Interlocked.CompareExchange(ref m_readySignal, 1, 0) == 0)
+            {
+                sink.OnMonitoredItemReady(this);
             }
         }
 
@@ -610,7 +699,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isDeleted = true;
+                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
+                SetDetachState(m_isDetached, isDeleted: true);
                 QueueNodeIdUnknown();
             }
         }
@@ -620,7 +710,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                m_isDetached = true;
+                m_valuePublication?.Fail(StatusCodes.BadInvalidState);
+                SetDetachState(isDetached: true, m_isDeleted);
             }
         }
 
@@ -638,7 +729,7 @@ namespace Opc.Ua.Server
             {
                 NodeManager = owner;
                 ManagerHandle = DetachedHandle;
-                m_isDetached = true;
+                SetDetachState(isDetached: true, m_isDeleted);
             }
         }
 
@@ -673,10 +764,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (!m_isDeleted)
-                {
-                    m_isDeleted = true;
-                }
+                SetDetachState(m_isDetached, isDeleted: true);
 
                 QueueNodeIdUnknown();
             }
@@ -689,8 +777,8 @@ namespace Opc.Ua.Server
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
-                m_isDetached = false;
-                m_isDeleted = false;
+                SetDetachState(isDetached: false, isDeleted: false);
+                m_finalValuePublished = false;
             }
         }
 
@@ -967,6 +1055,10 @@ namespace Opc.Ua.Server
 
                 aggregateFilter?.CommitChange(filterToUse, aggregateChange);
                 m_filterToUse = (IMonitoringFilter?)aggregateFilter ?? filterToUse;
+                if (aggregateFilter != null)
+                {
+                    m_valuePublication?.Fail(StatusCodes.BadNotSupported);
+                }
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1240,6 +1332,7 @@ namespace Opc.Ua.Server
                 // a sampling or disabled item must not report (Part 4, 5.13.1.3).
                 if (monitoringMode != MonitoringMode.Reporting)
                 {
+                    m_valuePublication?.Complete(published: false);
                     m_resendData = false;
                 }
 
@@ -1321,7 +1414,15 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (MonitoringMode == MonitoringMode.Disabled)
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)))
+                {
+                    return;
+                }
+
+                // A terminal observation is pinned until its real Publish response is built.
+                // Older asynchronous reads and report-by-exception work cannot replace it.
+                if (m_valuePublication != null)
                 {
                     return;
                 }
@@ -1450,6 +1551,7 @@ namespace Opc.Ua.Server
             m_lastError = error;
             m_readyToPublish = true;
             m_readyToTrigger = true;
+            SignalReady();
         }
 
         /// <summary>
@@ -1473,6 +1575,7 @@ namespace Opc.Ua.Server
             m_lastValue = value;
             m_lastError = error;
             m_readyToPublish = true;
+            SignalReady();
 
             m_logger.QUEUEVALUEMonitoredItemIdValueValueCODECode(
                 Id,
@@ -1676,6 +1779,7 @@ namespace Opc.Ua.Server
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
+                SignalReady();
             }
         }
 
@@ -2024,6 +2128,11 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                if (maxNotificationsPerPublish == 0)
+                {
+                    return IsReadyToPublish || m_resendData;
+                }
+
                 if (!IsReadyToPublish)
                 {
                     if (!m_resendData)
@@ -2047,9 +2156,10 @@ namespace Opc.Ua.Server
                         notificationCount < maxNotificationsPerPublish &&
                         m_dataChangeQueueHandler.PublishSingleValue(
                             out DataValue value,
-                            out ServiceResult error))
+                            out ServiceResult error,
+                            out bool required))
                     {
-                        Publish(context, notifications, diagnostics, value, error);
+                        PublishObservedValue(context, notifications, diagnostics, value, error, required);
 
                         notificationCount++;
 
@@ -2067,7 +2177,8 @@ namespace Opc.Ua.Server
                         m_lastValue.StatusCode.Code,
                         m_lastValue.StatusCode.Overflow,
                         Id);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
+                    PublishObservedValue(
+                        context, notifications, diagnostics, m_lastValue, m_lastError!, m_finalValuePending);
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -2142,24 +2253,29 @@ namespace Opc.Ua.Server
                     m_server.ResourceManager.TranslateValue(context.PreferredLocales, value.WrappedValue));
             }
 
-            // copy data value.
-            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
-            item.ClientHandle = ClientHandle;
-            item.Value = value!;
-
             // apply timestamp filter.
             if (m_timestampsToReturn is not TimestampsToReturn.Server and not TimestampsToReturn.Both)
             {
-                item.Value = item.Value!.WithServerTimestamp(DateTimeUtc.MinValue);
+                value = value.WithServerTimestamp(DateTimeUtc.MinValue);
             }
 
             if (m_timestampsToReturn is not TimestampsToReturn.Source and not TimestampsToReturn.Both)
             {
-                item.Value = item.Value!.WithSourceTimestamp(DateTimeUtc.MinValue);
+                value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            ServerUtils.ReportPublishValue(NodeId, Id, item.Value!);
+            // the notification is pooled; it is returned to the pool when the message that
+            // carries it was acknowledged and sent (NotificationMessageLease).
+            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
+            item.ClientHandle = ClientHandle;
+            item.Value = value;
+
+            ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
+            if (m_publishingFinalValue)
+            {
+                m_valuePublication?.TrackNotification(item);
+            }
 
             // update diagnostic info.
             DiagnosticInfo? diagnosticInfo = null;
@@ -2481,9 +2597,14 @@ namespace Opc.Ua.Server
                         // filter, so re-queueing it then would report it a second time.
                         if (queueLastValue && m_readyToPublish && !m_lastValue.IsNull)
                         {
-                            m_dataChangeQueueHandler.QueueValue(
-                                m_lastValue,
-                                m_lastError!);
+                            if (m_finalValuePending)
+                            {
+                                m_dataChangeQueueHandler.QueueRequiredValue(m_lastValue, m_lastError!);
+                            }
+                            else
+                            {
+                                m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
+                            }
                         }
                     }
                     else // create event queue.
@@ -2678,6 +2799,8 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
+                m_valuePublication?.Complete(published: false);
+                SetDetachState(m_isDetached, m_isDeleted);
 
                 // A NodeManager reload may be handing this item to its replacement right now.
                 // Tearing the queues down underneath it would leave the replacement sampling a
@@ -2746,6 +2869,7 @@ namespace Opc.Ua.Server
         private bool m_semanticsChanged;
         private bool m_structureChanged;
         private ISubscription? m_subscription;
+        private int m_readySignal;
         private ServiceResult? m_samplingError;
         private bool m_triggered;
         private bool m_resendData;
@@ -2753,6 +2877,8 @@ namespace Opc.Ua.Server
         private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;
         private bool m_isDeleted;
+        private bool m_countedAsRecoverable;
+        private static long s_recoverableCount;
     }
 
     /// <summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -39,7 +40,7 @@ namespace Opc.Ua.Server
     /// sampling a MonitoredItem, own no scope and disposing them does nothing.
     /// </para>
     /// </summary>
-    public class OperationContext : ISessionOperationContext, IDisposable
+    public class OperationContext : ISessionOperationContext, IDisposable, IRequestTableEntry
     {
         /// <summary>
         /// Initializes the context with a session.
@@ -66,7 +67,6 @@ namespace Opc.Ua.Server
             UserIdentity = identity!;
             PreferredLocales = Array.Empty<string>();
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -108,7 +108,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -137,7 +136,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -176,7 +174,6 @@ namespace Opc.Ua.Server
             }
 
             DiagnosticsMask = DiagnosticsMasks.SymbolicId;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -320,7 +317,26 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This object is thread safe.
         /// </remarks>
-        public StringTable StringTable { get; }
+        public StringTable StringTable
+        {
+            get
+            {
+                StringTable? table = Volatile.Read(ref m_stringTable);
+                if (table != null)
+                {
+                    return table;
+                }
+
+                // created on first use: most requests write no diagnostic strings.
+                table = new StringTable();
+                return Interlocked.CompareExchange(ref m_stringTable, table, null) ?? table;
+            }
+        }
+
+        /// <summary>
+        /// The string table if anything asked for it, else <c>null</c>.
+        /// </summary>
+        internal StringTable? CreatedStringTable => Volatile.Read(ref m_stringTable);
 
         /// <summary>
         /// When the request times out.
@@ -367,6 +383,8 @@ namespace Opc.Ua.Server
                 try
                 {
                     System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                    System.Threading.Interlocked.Exchange(ref m_requestCompletion, null)?
+                        .CompleteAttachedRequest(this);
                 }
                 finally
                 {
@@ -386,6 +404,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Attaches the request manager that tracks this request while it executes, for a
+        /// request that needs no scope object (see
+        /// <see cref="RequestManager.AttachRequestScope(OperationContext)"/>), so that disposing
+        /// the context completes the request exactly once.
+        /// </summary>
+        /// <param name="requestManager">The request manager the request was registered with.</param>
+        internal void AttachRequestCompletion(RequestManager requestManager)
+        {
+            m_requestCompletion = requestManager;
+        }
+
+        /// <summary>
         /// Attaches the capacity a Session-less request holds in the Session-less request budget, so
         /// that disposing the context returns it however the request ends.
         /// </summary>
@@ -400,23 +430,78 @@ namespace Opc.Ua.Server
         /// reusing the copy made for the previous call with the same template.
         /// </summary>
         /// <remarks>
-        /// Per-node node manager callbacks (permission and node metadata, reference
-        /// descriptions) otherwise clone the system context once for every node of a
-        /// request. The copies are equal for one request, so the last one is kept.
+        /// Node manager service calls and their per-node callbacks (permission and node
+        /// metadata, reference descriptions) otherwise clone the system context once for
+        /// every call or node of a request. The copies are equal for one request and
+        /// node manager, so one copy is kept per template. A request that touches several
+        /// node managers keeps one copy for each of them, so they do not evict each
+        /// other.
         /// </remarks>
         /// <param name="template">The node manager's system context.</param>
         internal ServerSystemContext GetSystemContext(ServerSystemContext template)
         {
-            SystemContextCacheEntry? entry = m_systemContextCache;
-            if (entry != null && ReferenceEquals(entry.Template, template))
+            // The copy of the first node manager is kept on its own; it knows its template,
+            // so a request served by one node manager allocates no cache entry.
+            ServerSystemContext? first = m_firstSystemContext;
+            if (first != null && ReferenceEquals(first.CopiedFrom, template))
             {
-                return entry.Copy;
+                return first;
+            }
+
+            if (first == null)
+            {
+                ServerSystemContext firstCopy = template.Copy(this);
+                firstCopy.CopiedFrom = template;
+
+                // a concurrent caller may have published a copy for another template.
+                first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                if (first == null || ReferenceEquals(first.CopiedFrom, template))
+                {
+                    return first ?? firstCopy;
+                }
+            }
+
+            SystemContextCacheEntry? head = m_systemContextCache;
+            int count = 0;
+            for (SystemContextCacheEntry? entry = head; entry != null; entry = entry.Next)
+            {
+                if (ReferenceEquals(entry.Template, template))
+                {
+                    return entry.Copy;
+                }
+
+                count++;
             }
 
             ServerSystemContext copy = template.Copy(this);
-            m_systemContextCache = new SystemContextCacheEntry(template, copy);
+
+            // Entries are immutable and published as one reference. A concurrent caller
+            // that loses the race only costs one more copy later. A request touches few
+            // node managers; past the bound the list restarts instead of growing.
+            m_systemContextCache = new SystemContextCacheEntry(
+                template,
+                copy,
+                count < kMaxSystemContextCacheEntries ? head : null);
             return copy;
         }
+
+        /// <inheritdoc/>
+        uint IRequestTableEntry.TableKey => RequestId;
+
+        /// <inheritdoc/>
+        ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
+
+        private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
+
+        /// <summary>
+        /// The most node managers after the first whose system context copies a request keeps.
+        /// </summary>
+        private const int kMaxSystemContextCacheEntries = 8;
+
+        /// <summary>
+        /// The system context copy of the first node manager the request called.
+        /// </summary>
+        private ServerSystemContext? m_firstSystemContext;
 
         /// <summary>
         /// A system context copy and the template it was made from, published as one
@@ -424,19 +509,109 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class SystemContextCacheEntry
         {
-            public SystemContextCacheEntry(ServerSystemContext template, ServerSystemContext copy)
+            public SystemContextCacheEntry(
+                ServerSystemContext template,
+                ServerSystemContext copy,
+                SystemContextCacheEntry? next)
             {
                 Template = template;
                 Copy = copy;
+                Next = next;
             }
 
             public ServerSystemContext Template { get; }
             public ServerSystemContext Copy { get; }
+            public SystemContextCacheEntry? Next { get; }
         }
 
+        /// <summary>
+        /// Returns the namespace default permissions remembered for this service
+        /// request by <see cref="SetDefaultPermissions"/>.
+        /// </summary>
+        /// <remarks>
+        /// Permission checks read the DefaultAccessRestrictions, DefaultRolePermissions
+        /// and DefaultUserRolePermissions of the node's namespace for every node of a
+        /// request, which took two server-wide locks and deep-copied the role permission
+        /// array per node. One read per namespace and request is enough. Contexts that
+        /// are not a service request (monitored item and session contexts, which can be
+        /// kept for a long time) remember nothing, so a changed default applies to them
+        /// at once.
+        /// </remarks>
+        internal bool TryGetDefaultPermissions(
+            ushort namespaceIndex,
+            out NamespaceDefaultPermissions permissions)
+        {
+            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
+            if (entries != null)
+            {
+                foreach (NamespaceDefaultPermissions entry in entries)
+                {
+                    if (entry.NamespaceIndex == namespaceIndex)
+                    {
+                        permissions = entry;
+                        return true;
+                    }
+                }
+            }
+
+            permissions = default;
+            return false;
+        }
+
+        /// <summary>
+        /// Remembers the namespace default permissions for the rest of this service request.
+        /// </summary>
+        internal void SetDefaultPermissions(NamespaceDefaultPermissions permissions)
+        {
+            if (RequestType == RequestType.Unknown)
+            {
+                return;
+            }
+
+            // copy on write: node managers can validate nodes of one request concurrently,
+            // and a lost update only costs a second read.
+            NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
+            if (entries == null)
+            {
+                m_defaultPermissions = [permissions];
+                return;
+            }
+
+            var updated = new NamespaceDefaultPermissions[entries.Length + 1];
+            Array.Copy(entries, updated, entries.Length);
+            updated[entries.Length] = permissions;
+            m_defaultPermissions = updated;
+        }
+
+        private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
+        private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;
+        private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private static uint s_lastRequestId;
+    }
+
+    /// <summary>
+    /// The default permissions of a namespace, read from its NamespaceMetadata.
+    /// </summary>
+    internal readonly struct NamespaceDefaultPermissions
+    {
+        public NamespaceDefaultPermissions(
+            ushort namespaceIndex,
+            AccessRestrictionType defaultAccessRestrictions,
+            ArrayOf<RolePermissionType> defaultRolePermissions,
+            ArrayOf<RolePermissionType> defaultUserRolePermissions)
+        {
+            NamespaceIndex = namespaceIndex;
+            DefaultAccessRestrictions = defaultAccessRestrictions;
+            DefaultRolePermissions = defaultRolePermissions;
+            DefaultUserRolePermissions = defaultUserRolePermissions;
+        }
+
+        public ushort NamespaceIndex { get; }
+        public AccessRestrictionType DefaultAccessRestrictions { get; }
+        public ArrayOf<RolePermissionType> DefaultRolePermissions { get; }
+        public ArrayOf<RolePermissionType> DefaultUserRolePermissions { get; }
     }
 }

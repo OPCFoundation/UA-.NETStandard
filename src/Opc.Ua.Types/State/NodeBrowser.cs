@@ -73,6 +73,24 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Optional contract for the complete dependencies of a resumable Browse operation.
+    /// </summary>
+    /// <remarks>
+    /// Implementations report every local target whose owner can be needed by any remaining page,
+    /// including targets used for metadata, permissions, or filtering. The issuing owner is retained
+    /// separately. An empty successful result promises that no other owner is needed. A lazy browser
+    /// must not report only the targets it has discovered so far. The query must not advance the browser.
+    /// </remarks>
+    public interface IBrowseContinuationDependencies
+    {
+        /// <summary>
+        /// Returns the complete remaining dependency set, or false when it cannot be determined.
+        /// </summary>
+        /// <param name="targetIds">The target IDs.</param>
+        bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds);
+    }
+
+    /// <summary>
     /// An object which browses the references for a node.
     /// </summary>
     /// <remarks>
@@ -103,7 +121,7 @@ namespace Opc.Ua
     /// <see cref="Next"/> only ever sees the in-memory references.
     /// </para>
     /// </remarks>
-    public class NodeBrowser : INodeBrowser
+    public class NodeBrowser : INodeBrowser, IBrowseContinuationDependencies
     {
         /// <summary>
         /// Creates a new browser object with a set of filters.
@@ -206,6 +224,27 @@ namespace Opc.Ua
         public virtual void Push(IReference reference)
         {
             m_pushBack = reference;
+        }
+
+        /// <summary>
+        /// Returns the complete remaining dependency set, or false when it cannot be determined.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Only the standard browser is known to be bounded by its stored references. Derived browsers
+        /// must override this method to promise a complete set, including their own lazy dependencies.
+        /// </remarks>
+        /// <param name="targetIds">The target IDs.</param>
+        public virtual bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+        {
+            if (GetType() != typeof(NodeBrowser))
+            {
+                targetIds = default;
+                return false;
+            }
+
+            targetIds = GetRemainingReferenceTargets();
+            return true;
         }
 
         /// <summary>
@@ -330,6 +369,24 @@ namespace Opc.Ua
         public bool CanProduceDuplicateReferences => m_seenReferences == null;
 
         /// <summary>
+        /// Copies the remaining stored targets, including the pushed-back reference, without advancing.
+        /// Derived browsers must also account for targets they produce outside this stored set.
+        /// </summary>
+        protected ArrayOf<ExpandedNodeId> GetRemainingReferenceTargets()
+        {
+            var targets = new HashSet<ExpandedNodeId>();
+            if (m_pushBack != null)
+            {
+                targets.Add(m_pushBack.TargetId);
+            }
+            for (int index = m_index; index < m_references.Count; index++)
+            {
+                targets.Add(m_references[index].TargetId);
+            }
+            return [.. targets];
+        }
+
+        /// <summary>
         /// Ensure unique references are added.
         /// </summary>
         private void AddReference(IReference reference)
@@ -371,6 +428,25 @@ namespace Opc.Ua
             IsInverse = isInverse;
             TargetId = targetId;
             Target = null;
+        }
+
+        /// <summary>
+        /// Initializes a new <c>NodeStateReference</c> instance.
+        /// </summary>
+        /// <param name="referenceTypeId">The reference type ID used to initialize the instance.</param>
+        /// <param name="isInverse">The inverse flag used to initialize <c>NodeStateReference</c>.</param>
+        /// <param name="targetId">The target ID used to initialize the instance.</param>
+        /// <param name="target">The node state used to initialize the instance.</param>
+        internal NodeStateReference(
+            NodeId referenceTypeId,
+            bool isInverse,
+            ExpandedNodeId targetId,
+            NodeState? target)
+        {
+            ReferenceTypeId = referenceTypeId;
+            IsInverse = isInverse;
+            TargetId = targetId;
+            Target = target;
         }
 
         /// <summary>

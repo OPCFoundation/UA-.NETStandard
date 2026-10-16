@@ -269,14 +269,15 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// Assigning the SequenceNumber and applying message security are
-        /// serialized against the Service traffic on the same channel, because
+        /// serialized by the writer against Service traffic on the same channel, because
         /// both draw on the same keys and the same counter. The SequenceNumber
         /// is claimed inside that serialization and the send is refused with
         /// <c>Bad_SecureChannelTokenUnknown</c> when the space under the
         /// current SecurityToken is exhausted, so a sender stalls rather than
         /// reuse a number (Part 6 errata §5.1.1). The write itself is awaited
-        /// outside it, so a slow peer on a data channel cannot stall Service
-        /// traffic.
+        /// outside it and runs through the same ordered writer as Service
+        /// traffic. Cancellation after queuing cancels the wait, not the write,
+        /// so later messages cannot leave a sequence gap.
         /// </remarks>
         /// <param name="frame">The frame to write.</param>
         /// <param name="ct">Cancellation token.</param>
@@ -287,7 +288,7 @@ namespace Opc.Ua.Bindings
             int size = frame.EncodedSize;
             byte[] encoded = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
             BufferCollection? chunks = null;
-            SendGateTicket? sendTicket = null;
+            var operation = new DataChannelWriteOperation();
 
             try
             {
@@ -295,61 +296,68 @@ namespace Opc.Ua.Bindings
 
                 using (await Gate.EnterAsync(ct).ConfigureAwait(false))
                 {
-                    ChannelToken token = CurrentToken
-                        ?? throw ServiceResultException.Create(
-                            StatusCodes.BadSecureChannelClosed,
-                            "The SecureChannel has no active token.");
-
-                    if (!SequenceBudget.TryConsume())
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadSecureChannelTokenUnknown,
-                            "The SequenceNumber space under the current SecurityToken is exhausted.");
-                    }
-
-                    chunks = WriteSymmetricMessage(
+                    EncodedSymmetricMessage message = EncodeSymmetricMessage(
                         TcpMessageType.Stream,
                         DataChannelConstants.FrameRequestId,
-                        token,
                         new ArraySegment<byte>(encoded, 0, written),
                         !m_dataChannelsAreSource,
-                        out bool limitsExceeded,
-                        out sendTicket);
+                        out bool limitsExceeded);
+                    chunks = message.Chunks;
 
-                    if (limitsExceeded)
+                    if (limitsExceeded || chunks.Count != 1)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDataChannelLimitsExceeded,
                             "The data channel frame exceeds the negotiated buffer size.");
                     }
+
+                    ct.ThrowIfCancellationRequested();
+                    if (!BeginWriteSymmetricMessage(message, operation))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadConnectionClosed,
+                            "The transport was closed by the remote application.");
+                    }
+
+                    chunks = null;
                 }
 
-                IUaSCByteTransport transport = Transport
-                    ?? throw ServiceResultException.Create(
-                        StatusCodes.BadConnectionClosed,
-                        "The transport was closed by the remote application.");
-
-                await AwaitSendTurnAsync(sendTicket, ct).ConfigureAwait(false);
-                await transport.SendChunkAsync(chunks, ct).ConfigureAwait(false);
+                ServiceResult result = await operation.Completion.WaitAsync(ct).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
             }
             finally
             {
-                // The ticket is released on every path out, not only the one
-                // that reached the transport. WriteSymmetricMessage hands its
-                // ticket to the caller even when it reports limitsExceeded, and
-                // a ticket that is never completed becomes the tail every later
-                // send chains behind — which would stall MSG, OPN and CLO for
-                // every Session on this SecureChannel, silently and for good,
-                // because the scheduler logs a send fault rather than faulting
-                // the channel.
-                if (sendTicket != null)
-                {
-                    ReleaseSendTicket(sendTicket);
-                }
-
                 chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
                 BufferManager.ReturnBuffer(encoded, nameof(SendDataChannelFrameAsync));
             }
+        }
+
+        /// <summary>
+        /// Joins a data-channel send to the shared writer without owning the queued buffers.
+        /// </summary>
+        private sealed class DataChannelWriteOperation
+        {
+            /// <summary>
+            /// Completes when the writer releases the frame buffers and reports the send result.
+            /// </summary>
+            public Task<ServiceResult> Completion => m_completion.Task;
+
+            /// <summary>
+            /// Records the send result without faulting an abandoned completion task.
+            /// </summary>
+            public void Complete(ServiceResult result)
+            {
+                m_completion.TrySetResult(result);
+            }
+
+            /// <summary>
+            /// Completion signal independent of the caller's cancellation lifetime.
+            /// </summary>
+            private readonly TaskCompletionSource<ServiceResult> m_completion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

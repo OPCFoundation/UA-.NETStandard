@@ -28,8 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
-using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -150,7 +151,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Assert.That(channel.TransportErrors, Has.Count.EqualTo(1));
                 Assert.That(
                     channel.TransportErrors[0].StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadTcpMessageTypeInvalid));
+                    Is.EqualTo(StatusCodes.BadTcpMessageTypeInvalid));
                 Assert.That(channel.ProtocolFaults, Is.Empty);
                 Assert.That(channel.ProcessingErrors, Is.Empty);
             });
@@ -221,8 +222,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.AttachTransport(transport);
             channel.Activate(SecureChannelId, TokenId);
 
-            channel.EmitServiceChunk();
-            channel.EmitServiceChunk();
+            await channel.EmitServiceChunkAsync().ConfigureAwait(false);
+            await channel.EmitServiceChunkAsync().ConfigureAwait(false);
 
             await SendFrameAsync(
                     channel,
@@ -248,7 +249,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.AttachTransport(transport);
             channel.Activate(SecureChannelId, TokenId);
 
-            channel.EmitServiceChunk();
+            await channel.EmitServiceChunkAsync().ConfigureAwait(false);
 
             await SendFrameAsync(
                     channel,
@@ -276,7 +277,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Is.Zero,
                 "The new token brings a fresh SequenceNumber space.");
 
-            channel.EmitServiceChunk();
+            await channel.EmitServiceChunkAsync().ConfigureAwait(false);
 
             Assert.That(
                 channel.SequenceBudget.Consumed,
@@ -294,7 +295,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             int issuedAfterActivation = channel.SequenceNumbersIssued;
 
-            channel.EmitServiceChunk();
+            await channel.EmitServiceChunkAsync().ConfigureAwait(false);
 
             await SendFrameAsync(
                     channel,
@@ -345,11 +346,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     Assert.That(
                         streamSend.IsCompleted,
                         Is.False,
-                        "The STR writer completed while the earlier MSG ticket was still held.");
+                        "The STR writer completed while the earlier MSG write was still pending.");
                     Assert.That(
                         transport.StartedCalls,
                         Is.EqualTo(1),
-                        "The STR writer must wait for the earlier MSG ticket before reaching transport.");
+                        "The STR writer must wait for the earlier MSG write before reaching transport.");
                 });
 
                 transport.AllowFirstWrite();
@@ -394,26 +395,112 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 Assert.That(exception, Is.Not.Null);
                 Assert.That(
                     exception!.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadDataChannelLimitsExceeded));
+                    Is.EqualTo(StatusCodes.BadDataChannelLimitsExceeded));
                 Assert.That(transport.Chunks, Is.Empty);
             });
         }
 
         /// <summary>
-        /// A refused frame must not leave its send-gate ticket outstanding.
+        /// An unsealed service response already queued must reach the wire before the stream frame it permits.
+        /// </summary>
+        [Test]
+        public async Task UnsealedServiceResponsePrecedesStreamFrameAsync()
+        {
+            using var channel = TestChannel.Create("str-unsealed-order");
+            var transport = new ReorderingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+            channel.SetNextSendSequenceNumber(100);
+            channel.EnableDataChannels(isServer: false, NUnitTelemetryContext.Create());
+            channel.BeginServiceChunk();
+            await transport.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            Task response = channel.EmitServiceChunkAsync();
+            Task stream = channel.SendDataChannelFrameAsync(
+                DataChannelFrame.Data(DataChannelId, 1, DataChannelFrameFlags.MessageStart, ExpectedPayload()),
+                CancellationToken.None).AsTask();
+            try
+            {
+                Assert.That(response.IsCompleted, Is.False);
+                Assert.That(stream.IsCompleted, Is.False);
+                transport.AllowFirstWrite();
+                await Task.WhenAll(response, stream).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+                Assert.That(transport.SequenceNumbers, Is.EqualTo(new uint[] { 100, 101, 102 }));
+                Assert.That(transport.MessageTypes, Is.EqualTo(
+                [
+                    TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Stream
+                ]));
+            }
+            finally
+            {
+                transport.AllowFirstWrite();
+                await Task.WhenAll(response, stream).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Cancelling a queued frame only cancels its wait; the writer keeps its buffers and sequence position.
+        /// </summary>
+        [Test]
+        public async Task CancelledStreamWaitPreservesQueuedBuffersAndSequenceOrderAsync()
+        {
+            var pool = new TrackingArrayPool();
+            using var channel = TestChannel.Create(
+                "str-cancelled-wait", MessageSecurityMode.None, SecurityPolicies.None, pool);
+            var transport = new ReorderingByteTransport();
+            channel.AttachTransport(transport);
+            channel.Activate(SecureChannelId, TokenId);
+            channel.SetNextSendSequenceNumber(100);
+            channel.EnableDataChannels(isServer: false, NUnitTelemetryContext.Create());
+            using var cancellation = new CancellationTokenSource();
+
+            Task service = channel.EmitServiceChunkAsync();
+            Task? following = null;
+            try
+            {
+                await transport.FirstCallStarted.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                Task stream = channel.SendDataChannelFrameAsync(
+                    DataChannelFrame.Data(DataChannelId, 1, DataChannelFrameFlags.MessageStart, ExpectedPayload()),
+                    cancellation.Token).AsTask();
+                Assert.That(stream.IsCompleted, Is.False);
+                cancellation.Cancel();
+                Assert.CatchAsync<OperationCanceledException>(
+                    async () => await stream.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false));
+
+                Assert.That(pool.OutstandingCount, Is.EqualTo(2),
+                    "The blocked service and queued frame must remain owned by the writer.");
+                following = channel.EmitServiceChunkAsync();
+                transport.AllowFirstWrite();
+                await Task.WhenAll(service, following).WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+                Assert.That(transport.SequenceNumbers, Is.EqualTo(new uint[] { 100, 101, 102 }));
+                Assert.That(transport.MessageTypes, Is.EqualTo(
+                [
+                    TcpMessageType.Message, TcpMessageType.Stream, TcpMessageType.Message
+                ]));
+                Assert.That(pool.OutstandingCount, Is.Zero);
+            }
+            finally
+            {
+                transport.AllowFirstWrite();
+                await service.ConfigureAwait(false);
+                if (following != null)
+                {
+                    await following.ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A refused frame must not consume sequence space or block later writes.
         /// </summary>
         /// <remarks>
-        /// WriteSymmetricMessage hands its ticket to the caller even when it
-        /// reports limitsExceeded, so a refusal that returns without completing
-        /// the ticket leaves it as the tail every later send chains behind.
-        /// Nothing recovers from that: DataChannelManager logs a scheduler
-        /// fault rather than faulting the channel, so MSG, OPN and CLO for
-        /// every Session on this SecureChannel stall silently and for good.
-        /// The ticket count is asserted directly because it is the invariant
-        /// that was broken; a later send would only observe it as a hang.
+        /// Refusal precedes numbering and queue ownership. A subsequent send must
+        /// still complete with the next consecutive sequence number.
         /// </remarks>
         [Test]
-        public void ARefusedOversizedFrameLeavesNoOutstandingSendTicket()
+        public async Task ARefusedOversizedFrameDoesNotBlockFollowingSendsAsync()
         {
             using var channel = TestChannel.Create("str-dispatch-gate");
             var transport = new CapturingByteTransport();
@@ -421,7 +508,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             channel.Activate(SecureChannelId, TokenId);
             channel.SetMaxResponseMessageSize(16);
 
-            Assert.That(channel.OutstandingSendTickets, Is.Zero, "The gate did not start clear.");
+            long issued = channel.SequenceNumbersIssuedUnderCurrentToken;
 
             Assert.ThrowsAsync<ServiceResultException>(
                 async () => await SendFrameAsync(
@@ -433,11 +520,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                             new byte[64]))
                     .ConfigureAwait(false));
 
-            Assert.That(
-                channel.OutstandingSendTickets,
-                Is.Zero,
-                "The refused frame leaked its send-gate ticket, which stalls every later " +
-                    "send on this SecureChannel including MSG, OPN and CLO.");
+            Assert.That(channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(issued));
+            Assert.That(transport.Chunks, Is.Empty);
+
+            await SendFrameAsync(channel, DataChannelFrame.Data(
+                    DataChannelId, 2, DataChannelFrameFlags.MessageStart, new byte[] { 1 }))
+                .WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            Assert.That(transport.Chunks, Has.Count.EqualTo(1));
+            Assert.That(channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(issued + 1));
         }
 
         /// <summary>
@@ -598,15 +688,22 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 return Create(contextId, MessageSecurityMode.None, SecurityPolicies.None);
             }
 
+            /// <summary>
+            /// Creates a channel with an optional buffer pool for ownership assertions.
+            /// </summary>
             public static TestChannel Create(
                 string contextId,
                 MessageSecurityMode securityMode,
-                string securityPolicyUri)
+                string securityPolicyUri,
+                ArrayPool<byte>? pool = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                BufferManager buffers = pool == null
+                    ? new BufferManager(contextId, TcpMessageLimits.DefaultMaxBufferSize, telemetry)
+                    : new BufferManager(contextId, TcpMessageLimits.DefaultMaxBufferSize, telemetry, pool);
                 var channel = new TestChannel(
                     contextId,
-                    new BufferManager(contextId, TcpMessageLimits.DefaultMaxBufferSize, telemetry),
+                    buffers,
                     new ChannelQuotas(ServiceMessageContext.CreateEmpty(telemetry)),
                     securityMode,
                     securityPolicyUri,
@@ -662,23 +759,6 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 MaxResponseChunkCount = 1;
             }
 
-            /// <summary>
-            /// How many send-gate tickets have been issued and not completed.
-            /// A ticket that outlives its send blocks every later send.
-            /// </summary>
-            public int OutstandingSendTickets
-            {
-                get
-                {
-                    FieldInfo ticketsField = typeof(UaSCUaBinaryChannel).GetField(
-                            "m_sendGateTickets",
-                            BindingFlags.Instance | BindingFlags.NonPublic)
-                        ?? throw new AssertionException("m_sendGateTickets was not found.");
-
-                    return ((IEnumerable)ticketsField.GetValue(this)!).Cast<object>().Count();
-                }
-            }
-
             public void SetNextSendSequenceNumber(uint sequenceNumber)
             {
                 FieldInfo field = typeof(UaSCUaBinaryChannel).GetField(
@@ -689,62 +769,43 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 field.SetValue(this, (long)sequenceNumber - 1);
             }
 
-            public void EmitServiceChunk()
+            /// <summary>
+            /// Queues a service message through the production writer and awaits its completion.
+            /// </summary>
+            public async Task EmitServiceChunkAsync()
             {
-                ChannelToken token = CurrentToken
-                    ?? throw new AssertionException("No active token.");
-
-                BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message,
-                    requestId: 1,
-                    token,
-                    new ArraySegment<byte>(Array.Empty<byte>()),
-                    isRequest: true,
-                    out bool limitsExceeded,
-                    out SendGateTicket sendTicket);
-
-                Assert.That(limitsExceeded, Is.False);
-
-                bool sendTurnAcquired = false;
-                try
-                {
-                    AwaitSendTurnAsync(sendTicket, CancellationToken.None)
-                        .AsTask()
-                        .GetAwaiter()
-                        .GetResult();
-                    sendTurnAcquired = true;
-                    Transport!.SendChunkAsync(chunks, CancellationToken.None)
-                        .AsTask()
-                        .GetAwaiter()
-                        .GetResult();
-                }
-                finally
-                {
-                    if (sendTurnAcquired)
-                    {
-                        ReleaseSendTicket(sendTicket);
-                    }
-
-                    chunks.Release(BufferManager, nameof(EmitServiceChunk));
-                }
+                var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                QueueServiceChunk(completion);
+                await completion.Task.WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Queues a service message without waiting for the transport.
+            /// </summary>
             public void BeginServiceChunk()
             {
-                ChannelToken token = CurrentToken
-                    ?? throw new AssertionException("No active token.");
+                QueueServiceChunk(null);
+            }
 
-                BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message,
-                    requestId: 1,
-                    token,
-                    new ArraySegment<byte>(Array.Empty<byte>()),
-                    isRequest: true,
-                    out bool limitsExceeded,
-                    out SendGateTicket sendTicket);
-
-                Assert.That(limitsExceeded, Is.False);
-                BeginWriteMessage(chunks, null, sendTicket);
+            /// <inheritdoc/>
+            protected override void HandleWriteComplete(
+                BufferCollection? buffers,
+                object? state,
+                int bytesWritten,
+                ServiceResult result)
+            {
+                base.HandleWriteComplete(buffers, state, bytesWritten, result);
+                if (state is TaskCompletionSource<bool> completion)
+                {
+                    if (ServiceResult.IsBad(result))
+                    {
+                        completion.TrySetException(new ServiceResultException(result));
+                    }
+                    else
+                    {
+                        completion.TrySetResult(true);
+                    }
+                }
             }
 
             protected override void OnSequenceNumberIssued()
@@ -785,10 +846,60 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 DataChannelProtocolFault += (_, error) => m_protocolFaults.Add(error);
             }
 
+            /// <summary>
+            /// Encodes an unsealed service message for the shared writer.
+            /// </summary>
+            private void QueueServiceChunk(TaskCompletionSource<bool>? completion)
+            {
+                EncodedSymmetricMessage message = EncodeSymmetricMessage(
+                    TcpMessageType.Message,
+                    requestId: 1,
+                    new ArraySegment<byte>([]),
+                    isRequest: true,
+                    out bool limitsExceeded);
+
+                Assert.That(limitsExceeded, Is.False);
+                Assert.That(BeginWriteSymmetricMessage(message, completion), Is.True);
+            }
+
             private readonly List<DataChannelFrameError> m_protocolFaults = [];
             private readonly List<ServiceResult> m_transportErrors = [];
             private readonly List<ServiceResult> m_processingErrors = [];
             private int m_sequenceNumbersIssued;
+        }
+
+        /// <summary>
+        /// Tracks rentals and poisons returned buffers so early or duplicate returns cannot go unnoticed.
+        /// </summary>
+        private sealed class TrackingArrayPool : ArrayPool<byte>
+        {
+            /// <summary>
+            /// Number of buffers whose owner has not returned them.
+            /// </summary>
+            public int OutstandingCount => m_outstanding.Count;
+
+            /// <inheritdoc/>
+            public override byte[] Rent(int minimumLength)
+            {
+                byte[] buffer = new byte[minimumLength];
+                m_outstanding.TryAdd(buffer, 0);
+                return buffer;
+            }
+
+            /// <inheritdoc/>
+            public override void Return(byte[] array, bool clearArray = false)
+            {
+                if (!m_outstanding.TryRemove(array, out _))
+                {
+                    throw new InvalidOperationException("The writer returned a buffer more than once.");
+                }
+                array.AsSpan().Fill(0xDD);
+            }
+
+            /// <summary>
+            /// Buffers currently held by the channel or writer.
+            /// </summary>
+            private readonly ConcurrentDictionary<byte[], byte> m_outstanding = new();
         }
 
         private sealed class CapturingByteTransport : IUaSCByteTransport
@@ -860,6 +971,20 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 }
             }
 
+            /// <summary>
+            /// Message types in the order the transport received them.
+            /// </summary>
+            public IReadOnlyList<uint> MessageTypes
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return [.. m_messageTypes];
+                    }
+                }
+            }
+
             public int StartedCalls => Volatile.Read(ref m_startedCalls);
 
             public EndPoint? LocalEndpoint => null;
@@ -879,6 +1004,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
             {
                 int call = Interlocked.Increment(ref m_startedCalls);
                 uint sequenceNumber = ReadSequenceNumber(chunk.Span);
+                uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(chunk.Span) & 0x00FF_FFFF;
 
                 if (call == 1)
                 {
@@ -886,13 +1012,14 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     await m_allowFirstWrite.Task.WaitAsync(ct).ConfigureAwait(false);
                 }
 
-                Record(sequenceNumber);
+                Record(sequenceNumber, messageType);
             }
 
             public async ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
             {
                 int call = Interlocked.Increment(ref m_startedCalls);
                 uint sequenceNumber = ReadSequenceNumber(buffers[0].AsSpan());
+                uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(buffers[0].AsSpan()) & 0x00FF_FFFF;
 
                 if (call == 1)
                 {
@@ -900,7 +1027,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
                     await m_allowFirstWrite.Task.WaitAsync(ct).ConfigureAwait(false);
                 }
 
-                Record(sequenceNumber);
+                Record(sequenceNumber, messageType);
             }
 
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
@@ -925,11 +1052,12 @@ namespace Opc.Ua.Core.DataChannels.Tests
                 return BinaryPrimitives.ReadUInt32LittleEndian(chunk.Slice(16, 4));
             }
 
-            private void Record(uint sequenceNumber)
+            private void Record(uint sequenceNumber, uint messageType)
             {
                 lock (m_lock)
                 {
                     m_sequenceNumbers.Add(sequenceNumber);
+                    m_messageTypes.Add(messageType);
                     if (m_sequenceNumbers.Count == 2)
                     {
                         TwoSequencesRecorded.TrySetResult(true);
@@ -939,6 +1067,11 @@ namespace Opc.Ua.Core.DataChannels.Tests
 
             private readonly Lock m_lock = new();
             private readonly List<uint> m_sequenceNumbers = [];
+
+            /// <summary>
+            /// Message types captured with each sequence number.
+            /// </summary>
+            private readonly List<uint> m_messageTypes = [];
             private readonly TaskCompletionSource<bool> m_allowFirstWrite =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_startedCalls;

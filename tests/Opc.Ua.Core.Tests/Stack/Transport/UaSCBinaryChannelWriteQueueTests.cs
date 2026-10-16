@@ -153,6 +153,124 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(channel.HasPendingWrites, Is.False);
         }
 
+        /// <summary>
+        /// On a stream transport, writes queued behind a send in progress go out
+        /// together in order, at most 16 per send, and each is reported on its own.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task QueuedWritesAreCoalescedIntoFewerSendsInOrderAsync()
+        {
+            var transport = new RecordingTransport { CanCoalesceChunks = true };
+            using var channel = new WriteProbeChannel(m_telemetry, transport);
+            const int count = 40;
+
+            channel.Write(0, useCollection: false);
+            await transport.FirstSendStarted.Task.ConfigureAwait(false);
+            for (int ii = 1; ii < count; ii++)
+            {
+                channel.Write(ii, useCollection: ii % 2 == 0);
+            }
+            transport.ReleaseFirstSend.SetResult(true);
+
+            await channel.WaitForCompletionsAsync(count).ConfigureAwait(false);
+
+            Assert.That(transport.Sent, Is.EqualTo(Range(count)));
+            Assert.That(transport.SendCalls, Is.EqualTo(4), "1 + 16 + 16 + 7");
+            Assert.That(transport.MaxConcurrentSends, Is.EqualTo(1));
+            Assert.That(channel.Completed, Is.EqualTo(Range(count)));
+            Assert.That(channel.BytesReported, Is.EqualTo(count * sizeof(int)));
+            Assert.That(channel.HasPendingWrites, Is.False);
+        }
+
+        /// <summary>
+        /// A transport that frames each send keeps one write per send.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task WritesAreNotCoalescedForAFramingTransportAsync()
+        {
+            var transport = new RecordingTransport();
+            using var channel = new WriteProbeChannel(m_telemetry, transport);
+            const int count = 10;
+
+            channel.Write(0, useCollection: false);
+            await transport.FirstSendStarted.Task.ConfigureAwait(false);
+            for (int ii = 1; ii < count; ii++)
+            {
+                channel.Write(ii, useCollection: ii % 2 == 0);
+            }
+            transport.ReleaseFirstSend.SetResult(true);
+
+            await channel.WaitForCompletionsAsync(count).ConfigureAwait(false);
+
+            Assert.That(transport.Sent, Is.EqualTo(Range(count)));
+            Assert.That(transport.SendCalls, Is.EqualTo(count));
+        }
+
+        /// <summary>
+        /// A failed coalesced send is reported for every write in it; the writes
+        /// queued after it still go out.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task AFailedCoalescedSendIsReportedForEveryWriteInItAsync()
+        {
+            var transport = new RecordingTransport { CanCoalesceChunks = true, FailIndex = 3 };
+            using var channel = new WriteProbeChannel(m_telemetry, transport);
+
+            channel.Write(0, useCollection: true);
+            await transport.FirstSendStarted.Task.ConfigureAwait(false);
+            for (int ii = 1; ii < 6; ii++)
+            {
+                channel.Write(ii, useCollection: ii % 2 == 0);
+            }
+            transport.ReleaseFirstSend.SetResult(true);
+            await channel.WaitForCompletionsAsync(6).ConfigureAwait(false);
+
+            channel.Write(6, useCollection: false);
+            await channel.WaitForCompletionsAsync(7).ConfigureAwait(false);
+
+            Assert.That(transport.Sent, Is.EqualTo(s_sentAroundTheFailedBatch));
+            Assert.That(channel.Failed, Is.EquivalentTo(s_failedBatch));
+            Assert.That(channel.Completed, Is.EqualTo(s_sentAroundTheFailedBatch));
+            Assert.That(channel.HasPendingWrites, Is.False);
+        }
+
+        /// <summary>
+        /// An unexpected exception from a coalesced send is reported as an internal
+        /// error for every write in it, chunks and buffer collections alike.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task AnUnexpectedErrorInACoalescedSendIsReportedForEveryWriteAsync()
+        {
+            var transport = new RecordingTransport
+            {
+                CanCoalesceChunks = true,
+                FailIndex = 2,
+                FailUnexpectedly = true
+            };
+            using var channel = new WriteProbeChannel(m_telemetry, transport);
+
+            channel.Write(0, useCollection: false);
+            await transport.FirstSendStarted.Task.ConfigureAwait(false);
+            for (int ii = 1; ii < 5; ii++)
+            {
+                channel.Write(ii, useCollection: ii % 2 == 0);
+            }
+            transport.ReleaseFirstSend.SetResult(true);
+            await channel.WaitForCompletionsAsync(5).ConfigureAwait(false);
+
+            Assert.That(channel.Failed, Is.EquivalentTo(s_failedUnexpectedly));
+            Assert.That(channel.FailedCodes, Is.All.EqualTo((StatusCode)StatusCodes.BadTcpInternalError));
+            Assert.That(channel.BytesReported, Is.EqualTo(sizeof(int)));
+            Assert.That(channel.HasPendingWrites, Is.False);
+        }
+
+        private static readonly int[] s_failedUnexpectedly = [1, 2, 3, 4];
+        private static readonly int[] s_sentAroundTheFailedBatch = [0, 6];
+        private static readonly int[] s_failedBatch = [1, 2, 3, 4, 5];
         private static readonly int[] s_sentAroundTheFailure = [0, 1, 2, 4, 5];
         private static readonly int[] s_failed = [3];
 
@@ -200,19 +318,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ConcurrentQueue<int> Failed { get; } = new();
 
+            public int BytesReported => Volatile.Read(ref m_bytesReported);
+
+            public ConcurrentQueue<StatusCode> FailedCodes { get; } = new();
+
             public void Write(int index, bool useCollection)
             {
                 byte[] buffer = BufferManager.TakeBuffer(sizeof(int), "WriteProbeChannel");
                 BitConverter.GetBytes(index).CopyTo(buffer, 0);
                 if (useCollection)
                 {
-                    // Secured messages are ordered by their send-gate ticket
-                    // rather than by the write queue, so the probe takes one
-                    // exactly where WriteSymmetricMessage would.
                     BeginWriteMessage(
                         new BufferCollection { new ArraySegment<byte>(buffer, 0, sizeof(int)) },
-                        index,
-                        TakeSendTicket());
+                        index);
                 }
                 else
                 {
@@ -235,17 +353,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ServiceResult result)
             {
                 base.HandleWriteComplete(buffers, state, bytesWritten, result);
+                Interlocked.Add(ref m_bytesReported, bytesWritten);
+                if (ServiceResult.IsBad(result))
+                {
+                    FailedCodes.Enqueue(result.StatusCode);
+                }
                 (ServiceResult.IsGood(result) ? Completed : Failed).Enqueue((int)state!);
             }
+
+            private int m_bytesReported;
         }
 
         /// <summary>
         /// Records the index carried by each sent chunk and how many sends overlap.
         /// The first send can be held until released.
         /// </summary>
-        private sealed class RecordingTransport : IUaSCByteTransport
+        private sealed class RecordingTransport : IUaSCByteTransport, IUaSCChunkCoalescing
         {
             public bool BlockFirstSend { get; set; } = true;
+
+            public bool CanCoalesceChunks { get; set; }
+
+            public bool FailUnexpectedly { get; set; }
+
+            public int SendCalls => Volatile.Read(ref m_sendCalls);
 
             public int FailIndex { get; set; } = -1;
 
@@ -285,13 +416,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
-                return SendAsync(BitConverter.ToInt32(chunk.ToArray(), 0));
+                return SendAsync([BitConverter.ToInt32(chunk.ToArray(), 0)]);
             }
 
             public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
             {
-                ArraySegment<byte> segment = buffers[0];
-                return SendAsync(BitConverter.ToInt32(segment.Array!, segment.Offset));
+                // Each write is one 4-byte segment; a coalesced send carries several.
+                int[] indexes = new int[buffers.Count];
+                for (int ii = 0; ii < indexes.Length; ii++)
+                {
+                    ArraySegment<byte> segment = buffers[ii];
+                    indexes[ii] = BitConverter.ToInt32(segment.Array!, segment.Offset);
+                }
+                return SendAsync(indexes);
             }
 
             public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
@@ -304,8 +441,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
             }
 
-            private async ValueTask SendAsync(int index)
+            private async ValueTask SendAsync(int[] indexes)
             {
+                int index = indexes[0];
+                Interlocked.Increment(ref m_sendCalls);
                 int concurrent = Interlocked.Increment(ref m_concurrent);
                 int max;
                 while (concurrent > (max = Volatile.Read(ref m_maxConcurrent)) &&
@@ -332,14 +471,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         }
                     }
 
-                    if (index == FailIndex)
+                    if (Array.IndexOf(indexes, FailIndex) >= 0)
                     {
+                        if (FailUnexpectedly)
+                        {
+                            throw new InvalidOperationException("send failed");
+                        }
                         throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "send failed");
                     }
 
                     lock (m_sentLock)
                     {
-                        m_sent.Add(index);
+                        m_sent.AddRange(indexes);
                     }
                 }
                 finally
@@ -353,6 +496,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private int m_concurrent;
             private int m_maxConcurrent;
             private int m_started;
+            private int m_sendCalls;
         }
     }
 }

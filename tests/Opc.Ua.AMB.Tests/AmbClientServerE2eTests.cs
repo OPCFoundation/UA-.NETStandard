@@ -72,6 +72,51 @@ namespace Opc.Ua.AMB.Tests
         private static readonly string[] s_levels = ["Plant1", "Plant1/Hall3", "Plant1/Hall3/Line2"];
 
         [Test]
+        public async Task BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync()
+        {
+            await using Plant plant = await Plant.StartAsync(
+                nameof(BoundedClientReadsAndEditsThePlantOnABorrowedSessionAsync), null).ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "bounded")
+                .ConfigureAwait(false);
+            var client = new AmbClient(connection.Session, NUnitTelemetryContext.Create(), new AmbClientOptions());
+            NodeId pump = plant.Pump!.NodeId;
+
+            ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+            AssetSnapshot snapshot = await client.ReadAssetAsync(pump).ConfigureAwait(false);
+            ArrayOf<AssetLocationNode> locations = await client.BrowseLocationsAsync(AssetLocationKind.Hierarchical)
+                .ConfigureAwait(false);
+            await client.WriteAssetIdAsync(pump, "P-bounded").ConfigureAwait(false);
+            NodeId link = await client.AddDocumentationLinkAsync(
+                pump, "https://example.invalid/bounded", new QualifiedName("BoundedManual", pump.NamespaceIndex))
+                .ConfigureAwait(false);
+            ArrayOf<DocumentationLinkRecord> links = await client.ReadDocumentationLinksAsync(pump)
+                .ConfigureAwait(false);
+            await client.RemoveDocumentationLinkAsync(pump, link).ConfigureAwait(false);
+            AssetIdentificationRecord written = await client.ReadIdentificationAsync(pump).ConfigureAwait(false);
+            DataValue alive = await connection.Session.ReadValueAsync(Ua.VariableIds.Server_NamespaceArray,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(assets.ToArray(), Does.Contain(pump));
+                Assert.That(snapshot.Identification.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(snapshot.Identification.Values.Count, Is.EqualTo(10));
+                Assert.That(snapshot.DeviceHealthValue!.IsAbsent, Is.False);
+                Assert.That(snapshot.DeviceHealthValue.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(snapshot.HealthAlarms.Count, Is.EqualTo(1));
+                Assert.That(snapshot.HealthAlarms[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(snapshot.MaintenanceActivities.Count, Is.EqualTo(1));
+                Assert.That(snapshot.MaintenanceActivities[0].PlannedDate, Is.EqualTo(s_planned));
+                Assert.That(snapshot.MaintenanceActivities[0].Values.Count, Is.EqualTo(AmbConditionFields.Count - 1));
+                Assert.That(locations.Count, Is.EqualTo(3));
+                Assert.That(links.ToArray()!.Single(value => value.NodeId == link).IsUserLink, Is.True);
+                Assert.That(written.AssetId, Is.EqualTo("P-bounded"));
+                Assert.That(alive.StatusCode, Is.EqualTo(StatusCodes.Good),
+                    "the borrowed session still accepts reads");
+            });
+        }
+
+        [Test]
         public async Task TheClientDiscoversAndReadsThePlantAsync()
         {
             await using Plant plant = await Plant.StartAsync(nameof(TheClientDiscoversAndReadsThePlantAsync), null)
@@ -194,6 +239,80 @@ namespace Opc.Ua.AMB.Tests
                         new QualifiedName("AMB Asset relations")
                     }));
             });
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task HostedClientOptionsReachClientsAsync(bool strict, bool configuredOnBuilder)
+        {
+            await using Plant plant = await Plant.StartAsync(nameof(HostedClientOptionsReachClientsAsync), null)
+                .ConfigureAwait(false);
+            await using Connection connection = await Connection.OpenAsync(plant.Server, "hosted")
+                .ConfigureAwait(false);
+            var services = new ServiceCollection();
+            IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
+            {
+                options.ApplicationName = "AmbClientOptions";
+                options.ApplicationUri = "urn:localhost:OPCFoundation:AmbClientOptions";
+            });
+            var limits = new AmbClientOptions { MaximumBrowseReferences = 1 };
+            if (configuredOnBuilder)
+            {
+                Assert.That(builder.AddAssetManagementClient(limits), Is.SameAs(builder));
+            }
+            else
+            {
+                if (strict)
+                {
+                    services.AddSingleton(limits);
+                }
+                builder.AddAssetManagementClient();
+            }
+            using var cancellation = new CancellationTokenSource();
+            int opened = 0;
+            Task<ManagedSession> OpenSessionAsync(CancellationToken token)
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                opened++;
+                return Task.FromResult(connection.Session);
+            }
+            services.AddSingleton<Func<CancellationToken, Task<ManagedSession>>>(OpenSessionAsync);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            AmbClientFactory directFactory = strict
+                ? new AmbClientFactory(OpenSessionAsync, telemetry, limits)
+                : new AmbClientFactory(OpenSessionAsync, telemetry);
+            AmbClient[] clients =
+            [
+                await provider.GetRequiredService<AmbClientFactory>()
+                    .CreateAsync(cancellation.Token).ConfigureAwait(false),
+                await provider.GetRequiredService<Func<CancellationToken, Task<AmbClient>>>()
+                    (cancellation.Token).ConfigureAwait(false),
+                await directFactory.CreateAsync(cancellation.Token).ConfigureAwait(false)
+            ];
+            foreach (AmbClient client in clients)
+            {
+                Assert.That(client.Session, Is.SameAs(connection.Session));
+                AssetIdentificationRecord identity = await client.ReadIdentificationAsync(plant.Pump!.NodeId)
+                    .ConfigureAwait(false);
+                Assert.That(identity.ProductInstanceUri, Is.EqualTo(PumpUri));
+                Assert.That(identity.Values.Count, Is.EqualTo(strict ? 10 : 0));
+                if (strict)
+                {
+                    await Assert.ThatAsync(
+                        async () => await client.DiscoverAssetsAsync().ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadEncodingLimitsExceeded)).ConfigureAwait(false);
+                }
+                else
+                {
+                    ArrayOf<NodeId> assets = await client.DiscoverAssetsAsync().ConfigureAwait(false);
+                    Assert.That(assets.Count, Is.EqualTo(3));
+                }
+            }
+            Assert.That(opened, Is.EqualTo(3));
         }
 
         [Test]

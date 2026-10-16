@@ -29,7 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server.Builders
 {
@@ -62,7 +62,7 @@ namespace Opc.Ua.Vision.Server.Builders
             ImageSensorState sensor = m_context.Context.CreateInstanceOfImageSensorType(
                 sensorsFolder,
                 qualifiedName);
-            sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            sensor.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionImageSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
@@ -87,7 +87,7 @@ namespace Opc.Ua.Vision.Server.Builders
             Depth3DSensorState sensor = m_context.Context.CreateInstanceOfDepth3DSensorType(
                 sensorsFolder,
                 qualifiedName);
-            sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            sensor.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionDepth3DSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
@@ -112,7 +112,7 @@ namespace Opc.Ua.Vision.Server.Builders
             VisionSensorState sensor = m_context.Context.CreateInstanceOfVisionSensorType(
                 sensorsFolder,
                 qualifiedName);
-            sensor.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            sensor.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionGenericSensorBuilder(m_context, m_registry, m_dispatcher, sensor, browseName);
             configure(builder);
             builder.Finalize(sensorsFolder);
@@ -137,7 +137,7 @@ namespace Opc.Ua.Vision.Server.Builders
             CoordinateFrameState frame = m_context.Context.CreateInstanceOfCoordinateFrameType(
                 framesFolder,
                 qualifiedName);
-            frame.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            frame.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionFrameBuilder(m_context, m_registry, frame, browseName);
             configure(builder);
             builder.Finalize(framesFolder);
@@ -162,7 +162,7 @@ namespace Opc.Ua.Vision.Server.Builders
             InferencePipelineState pipeline = m_context.Context.CreateInstanceOfInferencePipelineType(
                 pipelinesFolder,
                 qualifiedName);
-            pipeline.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            pipeline.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionPipelineBuilder(m_context, m_registry, m_dispatcher, pipeline, browseName);
             configure(builder);
             builder.Finalize(pipelinesFolder);
@@ -403,7 +403,9 @@ namespace Opc.Ua.Vision.Server.Builders
         {
             if (!scenePrimNodeId.IsNull)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasScenePrim"), false, scenePrimNodeId);
+                Sensor.AddReference(
+                    VisionSensorBuilderBase<TSelf, TSensor>.VisionReferenceTypeIds(BuildContext, "HasScenePrim"),
+                    false, scenePrimNodeId);
                 m_hasScenePrim = true;
             }
             return Self;
@@ -413,7 +415,9 @@ namespace Opc.Ua.Vision.Server.Builders
         {
             if (!mountNodeId.IsNull)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "MountedOn"), false, mountNodeId);
+                Sensor.AddReference(
+                    VisionSensorBuilderBase<TSelf, TSensor>.VisionReferenceTypeIds(BuildContext, "MountedOn"),
+                    false, mountNodeId);
             }
             return Self;
         }
@@ -460,11 +464,13 @@ namespace Opc.Ua.Vision.Server.Builders
             var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
             IntrinsicCalibrationState calibration = BuildContext.Context
                 .CreateInstanceOfIntrinsicCalibrationType(calibrations, qualifiedName);
-            calibration.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            calibration.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionIntrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
-            Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasCalibration"), false, calibration.NodeId);
+            Sensor.AddReference(
+                VisionSensorBuilderBase<TSelf, TSensor>.VisionReferenceTypeIds(BuildContext, "HasCalibration"),
+                false, calibration.NodeId);
             m_hasCalibration = true;
             return Self;
         }
@@ -485,11 +491,13 @@ namespace Opc.Ua.Vision.Server.Builders
             var qualifiedName = new QualifiedName(browseName, BuildContext.InstanceNamespaceIndex);
             ExtrinsicCalibrationState calibration = BuildContext.Context
                 .CreateInstanceOfExtrinsicCalibrationType(calibrations, qualifiedName);
-            calibration.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            calibration.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionExtrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
-            Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "HasCalibration"), false, calibration.NodeId);
+            Sensor.AddReference(
+                VisionSensorBuilderBase<TSelf, TSensor>.VisionReferenceTypeIds(BuildContext, "HasCalibration"),
+                false, calibration.NodeId);
             m_hasCalibration = true;
             m_hasExtrinsicCalibration = true;
             return Self;
@@ -514,7 +522,7 @@ namespace Opc.Ua.Vision.Server.Builders
             StreamEndpointState endpoint = BuildContext.Context.CreateInstanceOfStreamEndpointType(
                 endpoints,
                 qualifiedName);
-            endpoint.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            endpoint.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionStreamEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
@@ -541,7 +549,7 @@ namespace Opc.Ua.Vision.Server.Builders
             ClipEndpointState endpoint = BuildContext.Context.CreateInstanceOfClipEndpointType(
                 endpoints,
                 qualifiedName);
-            endpoint.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.Organizes;
+            endpoint.ReferenceTypeId = ReferenceTypeIds.Organizes;
             var builder = new VisionClipEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
@@ -551,11 +559,7 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public TSelf UseMediaProvider(IVisionMediaProvider provider)
         {
-            if (provider == null)
-            {
-                throw new ArgumentNullException(nameof(provider));
-            }
-            m_mediaProvider = provider;
+            m_mediaProvider = provider ?? throw new ArgumentNullException(nameof(provider));
             EnsureMedia();
             return Self;
         }
@@ -592,7 +596,9 @@ namespace Opc.Ua.Vision.Server.Builders
                 Registry.TryGetFrameByFrameId(m_frameId, out FrameRegistration? mountFrame) &&
                 mountFrame != null)
             {
-                Sensor.AddReference(VisionReferenceTypeIds(BuildContext, "MountedOn"), false, mountFrame.NodeId);
+                Sensor.AddReference(
+                    VisionSensorBuilderBase<TSelf, TSensor>.VisionReferenceTypeIds(BuildContext, "MountedOn"),
+                    false, mountFrame.NodeId);
             }
             if (Sensor.Media is VisionMediaManagementState media)
             {
@@ -610,23 +616,23 @@ namespace Opc.Ua.Vision.Server.Builders
             ISystemContext context = BuildContext.Context;
             DeclareMedia(
                 media.CreateOrReplaceGetStreamEndpoint(context, null),
-                MethodIds.VisionMediaManagementType_GetStreamEndpoint,
+                Perception.MethodIds.VisionMediaManagementType_GetStreamEndpoint,
                 VisionMethodArguments.Declare);
             DeclareMedia(
                 media.CreateOrReplaceReleaseStreamEndpoint(context, null),
-                MethodIds.VisionMediaManagementType_ReleaseStreamEndpoint,
+                Perception.MethodIds.VisionMediaManagementType_ReleaseStreamEndpoint,
                 VisionMethodArguments.Declare);
             DeclareMedia(
                 media.CreateOrReplaceConfigureStreamEndpoint(context, null),
-                MethodIds.VisionMediaManagementType_ConfigureStreamEndpoint,
+                Perception.MethodIds.VisionMediaManagementType_ConfigureStreamEndpoint,
                 VisionMethodArguments.Declare);
             DeclareMedia(
                 media.CreateOrReplaceSelectEndpoint(context, null),
-                MethodIds.VisionMediaManagementType_SelectEndpoint,
+                Perception.MethodIds.VisionMediaManagementType_SelectEndpoint,
                 VisionMethodArguments.Declare);
             DeclareMedia(
                 media.CreateOrReplaceGetClip(context, null),
-                MethodIds.VisionMediaManagementType_GetClip,
+                Perception.MethodIds.VisionMediaManagementType_GetClip,
                 VisionMethodArguments.Declare);
         }
 
@@ -637,7 +643,7 @@ namespace Opc.Ua.Vision.Server.Builders
             where TMethod : MethodState
         {
             declare(BuildContext.Context, method);
-            method.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
                 declarationId, BuildContext.Context.NamespaceUris);
         }
@@ -649,7 +655,7 @@ namespace Opc.Ua.Vision.Server.Builders
         protected VisionMediaManagementState EnsureMedia()
         {
             Sensor.CreateOrReplaceMedia(BuildContext.Context, null);
-            Sensor.Media!.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            Sensor.Media!.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             return Sensor.Media!;
         }
 
@@ -696,8 +702,8 @@ namespace Opc.Ua.Vision.Server.Builders
                     facets.Add(VisionConformanceUris.FacetNames.MediaInline);
                 }
             }
-            if (m_realityKind == VisionRealityKindEnum.Simulated ||
-                m_realityKind == VisionRealityKindEnum.Hybrid)
+            if (m_realityKind is VisionRealityKindEnum.Simulated or
+                VisionRealityKindEnum.Hybrid)
             {
                 facets.Add(VisionConformanceUris.FacetNames.Simulation);
             }
@@ -708,14 +714,14 @@ namespace Opc.Ua.Vision.Server.Builders
             return facets;
         }
 
-        private NodeId VisionReferenceTypeIds(VisionBuildContext context, string referenceName)
+        private static NodeId VisionReferenceTypeIds(VisionBuildContext context, string referenceName)
         {
             ExpandedNodeId expanded = referenceName switch
             {
-                "HasCalibration" => Opc.Ua.Vision.ReferenceTypeIds.HasCalibration,
-                "MountedOn" => Opc.Ua.Vision.ReferenceTypeIds.MountedOn,
-                "HasScenePrim" => Opc.Ua.Vision.ReferenceTypeIds.HasScenePrim,
-                "ProducedBy" => Opc.Ua.Vision.ReferenceTypeIds.ProducedBy,
+                "HasCalibration" => Perception.ReferenceTypeIds.HasCalibration,
+                "MountedOn" => Perception.ReferenceTypeIds.MountedOn,
+                "HasScenePrim" => Perception.ReferenceTypeIds.HasScenePrim,
+                "ProducedBy" => Perception.ReferenceTypeIds.ProducedBy,
                 _ => throw new ArgumentOutOfRangeException(nameof(referenceName))
             };
             return ExpandedNodeId.ToNodeId(expanded, context.Context.NamespaceUris);
@@ -788,12 +794,8 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public IVisionImageSensorBuilder WithIntrinsics(VisionIntrinsicsDataType intrinsics)
         {
-            if (intrinsics == null)
-            {
-                throw new ArgumentNullException(nameof(intrinsics));
-            }
             Sensor.CreateOrReplaceIntrinsics(BuildContext.Context, null);
-            Sensor.Intrinsics!.Value = intrinsics;
+            Sensor.Intrinsics!.Value = intrinsics ?? throw new ArgumentNullException(nameof(intrinsics));
             m_hasIntrinsics = true;
             return this;
         }
@@ -803,7 +805,7 @@ namespace Opc.Ua.Vision.Server.Builders
             registration.HasIntrinsicCalibration = registration.HasIntrinsicCalibration || m_hasIntrinsics;
         }
 
-        private new ImageSensorState Sensor => (ImageSensorState)base.Sensor!;
+        private new ImageSensorState Sensor => base.Sensor!;
 
         private bool m_hasIntrinsics;
     }
@@ -847,7 +849,7 @@ namespace Opc.Ua.Vision.Server.Builders
             return this;
         }
 
-        private new Depth3DSensorState Sensor => (Depth3DSensorState)base.Sensor!;
+        private new Depth3DSensorState Sensor => base.Sensor!;
     }
 
     internal sealed class VisionOpticsBuilder : IVisionOpticsBuilder
@@ -963,12 +965,8 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public IVisionIntrinsicCalibrationBuilder WithIntrinsics(VisionIntrinsicsDataType intrinsics)
         {
-            if (intrinsics == null)
-            {
-                throw new ArgumentNullException(nameof(intrinsics));
-            }
             m_calibration.CreateOrReplaceIntrinsics(m_context.Context, null);
-            m_calibration.Intrinsics!.Value = intrinsics;
+            m_calibration.Intrinsics!.Value = intrinsics ?? throw new ArgumentNullException(nameof(intrinsics));
             return this;
         }
 
@@ -1244,8 +1242,8 @@ namespace Opc.Ua.Vision.Server.Builders
         public IVisionPipelineBuilder WithLearningJob(NodeId learningJobNodeId)
         {
             m_pipeline.CreateOrReplaceLearningJob(m_context.Context, null);
-            m_pipeline.LearningJob!.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasProperty;
-            m_pipeline.LearningJob.TypeDefinitionId = global::Opc.Ua.VariableTypeIds.PropertyType;
+            m_pipeline.LearningJob!.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            m_pipeline.LearningJob.TypeDefinitionId = VariableTypeIds.PropertyType;
             m_pipeline.LearningJob.Value = learningJobNodeId;
             return this;
         }
@@ -1256,7 +1254,7 @@ namespace Opc.Ua.Vision.Server.Builders
             {
                 m_pipeline.AddReference(
                     ExpandedNodeId.ToNodeId(
-                        Opc.Ua.Vision.ReferenceTypeIds.ProducedBy,
+                        Perception.ReferenceTypeIds.ProducedBy,
                         m_context.Context.NamespaceUris),
                     false,
                     producerNodeId);
@@ -1266,22 +1264,14 @@ namespace Opc.Ua.Vision.Server.Builders
 
         public IVisionPipelineBuilder UseInferenceProvider(IVisionInferenceProvider provider, bool onServer = true)
         {
-            if (provider == null)
-            {
-                throw new ArgumentNullException(nameof(provider));
-            }
-            m_inferenceProvider = provider;
+            m_inferenceProvider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_inferenceOnServer = onServer;
             return this;
         }
 
         public IVisionPipelineBuilder UseFeedbackSink(IVisionFeedbackSink sink)
         {
-            if (sink == null)
-            {
-                throw new ArgumentNullException(nameof(sink));
-            }
-            m_feedbackSink = sink;
+            m_feedbackSink = sink ?? throw new ArgumentNullException(nameof(sink));
             return this;
         }
 
@@ -1323,43 +1313,43 @@ namespace Opc.Ua.Vision.Server.Builders
             if (m_inferenceProvider != null)
             {
                 FolderState results = m_pipeline.CreateOrReplaceResults(context, null);
-                results.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
-                results.TypeDefinitionId = global::Opc.Ua.ObjectTypeIds.FolderType;
+                results.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+                results.TypeDefinitionId = ObjectTypeIds.FolderType;
                 Declare(
                     m_pipeline.CreateOrReplaceRunInference(context, null),
-                    MethodIds.InferencePipelineType_RunInference,
+                    Perception.MethodIds.InferencePipelineType_RunInference,
                     VisionMethodArguments.Declare);
                 Declare(
                     m_pipeline.CreateOrReplaceStartContinuous(context, null),
-                    MethodIds.InferencePipelineType_StartContinuous,
+                    Perception.MethodIds.InferencePipelineType_StartContinuous,
                     VisionMethodArguments.DeclareStartContinuous);
                 Declare(
                     m_pipeline.CreateOrReplaceStop(context, null),
-                    MethodIds.InferencePipelineType_Stop,
+                    Perception.MethodIds.InferencePipelineType_Stop,
                     VisionMethodArguments.DeclareStop);
             }
             if (m_feedbackSink != null)
             {
                 m_pipeline.CreateOrReplaceFeedback(context, null);
                 VisionFeedbackState feedback = m_pipeline.Feedback!;
-                feedback.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+                feedback.ReferenceTypeId = ReferenceTypeIds.HasComponent;
                 feedback.TypeDefinitionId = ExpandedNodeId.ToNodeId(
-                    ObjectTypeIds.VisionFeedbackType, context.NamespaceUris);
+                    Perception.ObjectTypeIds.VisionFeedbackType, context.NamespaceUris);
                 Declare(
                     feedback.CreateOrReplaceSubmitDetections(context, null),
-                    MethodIds.VisionFeedbackType_SubmitDetections,
+                    Perception.MethodIds.VisionFeedbackType_SubmitDetections,
                     VisionMethodArguments.Declare);
                 Declare(
                     feedback.CreateOrReplaceSubmitInspectionResult(context, null),
-                    MethodIds.VisionFeedbackType_SubmitInspectionResult,
+                    Perception.MethodIds.VisionFeedbackType_SubmitInspectionResult,
                     VisionMethodArguments.Declare);
                 Declare(
                     feedback.CreateOrReplaceSubmitCorrection(context, null),
-                    MethodIds.VisionFeedbackType_SubmitCorrection,
+                    Perception.MethodIds.VisionFeedbackType_SubmitCorrection,
                     VisionMethodArguments.Declare);
                 Declare(
                     feedback.CreateOrReplaceSubmitImageReference(context, null),
-                    MethodIds.VisionFeedbackType_SubmitImageReference,
+                    Perception.MethodIds.VisionFeedbackType_SubmitImageReference,
                     VisionMethodArguments.Declare);
             }
         }
@@ -1371,7 +1361,7 @@ namespace Opc.Ua.Vision.Server.Builders
             where TMethod : MethodState
         {
             declare(m_context.Context, method);
-            method.ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HasComponent;
+            method.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             method.MethodDeclarationId = ExpandedNodeId.ToNodeId(
                 declarationId, m_context.Context.NamespaceUris);
         }

@@ -1,0 +1,198 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<UAProfileSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" TargetProfileGroup="0" ReleaseStatus="Draft" PublicationDate="2025-09-18T05:08:00.2367681Z" xmlns="http://opcfoundation.org/UA/schema/UAProfileSet.xsd">
+  <ProfileGroups>
+    <ProfileGroup Index="0" FullName="UACore 1.05" />
+    <ProfileGroup Index="1" FullName="HPDC 1.00" />
+    <ProfileGroup Index="2" FullName="UACore 1.03" />
+  </ProfileGroups>
+  <Categories>
+    <Category Name="Application Profiles" Version="2" Sort="1" Id="2:296f6c70-9494-4e74-a130-d7699aada26b">
+      <Description>Application level profiles represent a collection of Facets necessary to build a functional OPC UA Application.They specifically include Transport Profiles and generally also Security Profiles.</Description>
+    </Category>
+  </Categories>
+  <Profiles>
+    <Profile Name="WMTP Basic Server Facet" ReleaseStatus="Draft" Changed="true" Id="1:254c96dd-cb99-466a-8452-85d33271060f">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:6c5862b1-cab6-4ada-b93b-d72eea619ecc" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:5b2a77f4-ccca-4773-b5f9-7a6ac706db3b" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:fa4ce741-a3b7-4ed4-8cac-10a6dece73ac" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:1bdd12a8-e3c3-470a-950a-450581859508" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:f6f3209b-a716-46b2-9c53-58c380edbfba" IsOptional="true" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Service and LifeCycle Basic Facet" ReleaseStatus="Draft" Changed="true" Id="1:e030c5b6-d3d1-4302-8211-3c27bf22aeee">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:b0c8ba1d-039b-42be-8f83-c013af9139a4" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Service and LifeCycle Advanced Facet" ReleaseStatus="Draft" Changed="true" Id="1:27d12c88-b011-489d-a156-6de109f34758">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:65f16788-3c43-446e-a320-aa04420cca62" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Temperature Facet" ReleaseStatus="Draft" Changed="true" Id="1:85f5e55b-0588-4e94-811c-e1a0ab60ea63">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:caf20cb0-b3a7-4c96-a28e-01891c923e93" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Rotation Speed Facet" ReleaseStatus="Draft" Changed="true" Id="1:15ea42c9-0f3a-4275-b1cc-8dccd1e1ceef">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:8372ac33-8561-434c-8724-5029047f686c" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Humidity Facet" ReleaseStatus="Draft" Changed="true" Id="1:20914984-f3b5-4f56-9c27-1c798a82c358">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:b558035b-25c1-424d-8763-8db840ac6b42" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Acceleration Facet" ReleaseStatus="Draft" Changed="true" Id="1:49522db9-bcdc-4915-99a4-f2c581419ee4">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:382b8203-4e87-4d01-99ea-26b9ab6a9127" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Force Facet" ReleaseStatus="Draft" Changed="true" Id="1:ab4ec0be-5720-4854-a057-8c88c29d0553">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:36142fed-96d3-41fb-8d1a-6a2ffd36e264" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Torque Facet" ReleaseStatus="Draft" Changed="true" Id="1:e9e4dafc-daea-48a8-8099-5ad9512d477a">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:c4c93f40-7a94-4528-be25-8f85daa2c435" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Position Facet" ReleaseStatus="Draft" Changed="true" Id="1:bbdcf9b1-9e98-41c3-8690-1ef6f7993c69">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:86478fe9-a7c9-46dd-900e-3a0a1bec1076" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Dimension Facet" ReleaseStatus="Draft" Changed="true" Id="1:d37614b7-f48b-4e50-bca1-9a508c14a54b">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:c96476f9-1470-4852-a3ee-67325a53a53f" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Work Cycle Data Facet" ReleaseStatus="Draft" Changed="true" Id="1:863cc37b-dc1c-4bbf-98fa-07caaae52074">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:22af1a23-c06f-4dc8-a287-6d454126ec7d" />
+        <IncludedConformanceUnit Id="1:00ef1278-2770-44bd-9bf4-4da5715476b4" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:76c5466b-d343-456d-92a9-aef4a82a3550" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:fd815204-d0a9-4268-95be-9327c287e5e9" IsOptional="true" />
+        <IncludedConformanceUnit Id="1:def74e29-2311-4719-b42c-d34de4f6b14d" IsOptional="true" />
+      </ConformanceUnits>
+    </Profile>
+    <Profile Name="WMTP Service Cycle Data Facet" ReleaseStatus="Draft" Changed="true" Id="1:971105af-47bb-4f4f-a8b5-1b3792ce8a86">
+      <ConformanceUnits>
+        <IncludedConformanceUnit Id="1:e206c10a-5c17-4eda-9959-248d576f479c" />
+        <IncludedConformanceUnit Id="1:c590b690-a2cd-487e-851b-38fcd0a74b05" />
+      </ConformanceUnits>
+    </Profile>
+  </Profiles>
+  <ProfileFolders>
+    <ProfileFolder Name="HighPressure" Id="1:73c3ed17-54aa-4f22-86d4-d7ada5192d23">
+      <Description>HighPressure</Description>
+      <Category>0:296f6c70-9494-4e74-a130-d7699aada26b</Category>
+    </ProfileFolder>
+  </ProfileFolders>
+  <ConformanceGroups />
+  <ConformanceUnits>
+    <ConformanceUnit Name="WMTP Basic" ReleaseStatus="Draft" Changed="true" Id="1:e206c10a-5c17-4eda-9959-248d576f479c">
+      <Description>Type definition of WirelessMachineToolPeripheralType is available on the server. There is at least one instance of WirelessMachineToolPeripheralType. The instance has all mandatory nodes.</Description>
+      <ConformanceGroup>1:b4aee016-dd5b-4a79-a45a-50e694ab27a9</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP DeviceConfiguration Calibration Capabilities" ReleaseStatus="Draft" Changed="true" Id="1:6c5862b1-cab6-4ada-b93b-d72eea619ecc">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional nodes for CalibrationMode and SwitchCalibrationMode.</Description>
+      <ConformanceGroup>1:b15836e1-a56f-4cbf-82c5-723cf42d11b8</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP DeviceConfiguration Time Capabilities" ReleaseStatus="Draft" Changed="true" Id="1:5b2a77f4-ccca-4773-b5f9-7a6ac706db3b">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional node for SetDeviceTime.</Description>
+      <ConformanceGroup>1:bb71566e-c20c-4456-8776-ad70348b53c0</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Firmware Services" ReleaseStatus="Draft" Changed="true" Id="1:fa4ce741-a3b7-4ed4-8cac-10a6dece73ac">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional node for UpdateFirmware.</Description>
+      <ConformanceGroup>1:a1f1e434-e80c-479b-ab58-6ba53eb5311b</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP License Services" ReleaseStatus="Draft" Changed="true" Id="1:1bdd12a8-e3c3-470a-950a-450581859508">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional nodes for SendLicenseData, LicenseInformation and LicenseValidity.</Description>
+      <ConformanceGroup>1:4460c23d-1507-41d6-92ad-9a091393500a</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP BatteryLevel" ReleaseStatus="Draft" Changed="true" Id="1:f6f3209b-a716-46b2-9c53-58c380edbfba">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional node for BatteryLevel.</Description>
+      <ConformanceGroup>1:23e0ea6e-75c0-48a7-8410-8a3880a29160</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Service and LifeCycle Information Basic" ReleaseStatus="Draft" Changed="true" Id="1:b0c8ba1d-039b-42be-8f83-c013af9139a4">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional nodes for NextServiceDate, LastService and LifeCycleStatus.</Description>
+      <ConformanceGroup>1:b3a19ff1-adb6-4b02-9802-d0e409d80cd7</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Service and LifeCycle Information Advanced" ReleaseStatus="Draft" Changed="true" Id="1:65f16788-3c43-446e-a320-aa04420cca62">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional nodes for NextServiceDate, LastService, LifeCycleStatus, RemainingLifetimeCounter, RemainingCycleCounter, NextServiceCounter, OperationCounter and OperationSinceLastServiceCounter.</Description>
+      <ConformanceGroup>1:481c0d1e-a0dc-4c16-87ab-0c7f04944e8c</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Temperature Measurement" ReleaseStatus="Draft" Changed="true" Id="1:caf20cb0-b3a7-4c96-a28e-01891c923e93">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking temperature data.</Description>
+      <ConformanceGroup>1:d4f588a0-91b2-4127-b18d-f3b94a050d0a</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP RotationSpeed Measurement" ReleaseStatus="Draft" Changed="true" Id="1:8372ac33-8561-434c-8724-5029047f686c">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking rotational speed data.</Description>
+      <ConformanceGroup>1:19e3440a-8d0f-4e50-987c-708b01d50fe2</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Humidity Measurement" ReleaseStatus="Draft" Changed="true" Id="1:b558035b-25c1-424d-8763-8db840ac6b42">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking humidity data.</Description>
+      <ConformanceGroup>1:be95c190-7620-43c1-b999-2f3210632245</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Acceleration Measurement" ReleaseStatus="Draft" Changed="true" Id="1:382b8203-4e87-4d01-99ea-26b9ab6a9127">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking acceleration data.</Description>
+      <ConformanceGroup>1:68386f13-6eeb-4089-a624-ac346ba9f7d8</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Force Measurement" ReleaseStatus="Draft" Changed="true" Id="1:36142fed-96d3-41fb-8d1a-6a2ffd36e264">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking force data.</Description>
+      <ConformanceGroup>1:d8b2e160-171c-479f-aefa-92aee91250d6</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Torque Measurement" ReleaseStatus="Draft" Changed="true" Id="1:c4c93f40-7a94-4528-be25-8f85daa2c435">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking torque data.</Description>
+      <ConformanceGroup>1:3eb4e8e7-08cf-4b0b-bc1e-f091e2795a98</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Position Measurement" ReleaseStatus="Draft" Changed="true" Id="1:86478fe9-a7c9-46dd-900e-3a0a1bec1076">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking position data.</Description>
+      <ConformanceGroup>1:25d35dfa-008b-4d55-b9df-9fda70ec712e</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP Dimension Measurement" ReleaseStatus="Draft" Changed="true" Id="1:c96476f9-1470-4852-a3ee-67325a53a53f">
+      <Description>The WirelessMachineToolPeripheralType instance has implemented an Object according to the WMTPMeasurementType that is tracking dimension data.</Description>
+      <ConformanceGroup>1:d431334d-a823-4c2c-b7a1-173e2e73d293</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP WorkCycleData" ReleaseStatus="Draft" Changed="true" Id="1:22af1a23-c06f-4dc8-a287-6d454126ec7d">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional node for WorkCycleData.</Description>
+      <ConformanceGroup>1:cbd65544-e514-4da3-8c9f-54d5b63423b5</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP ServiceCycleData" ReleaseStatus="Draft" Changed="true" Id="1:c590b690-a2cd-487e-851b-38fcd0a74b05">
+      <Description>The WirelessMachineToolPeripheralType instance has the optional node for ServiceCycleData.</Description>
+      <ConformanceGroup>1:7cf1fa87-9f19-4256-8d04-e5cfe68ef387</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP WorkCycleData Deleting All" ReleaseStatus="Draft" Changed="true" Id="1:00ef1278-2770-44bd-9bf4-4da5715476b4">
+      <Description>The WorkCycleDataType instance has the optional node for DeleteAllStoredRecords.</Description>
+      <ConformanceGroup>1:9360f12f-7f67-4e81-8b2d-b42b5bb35819</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP WorkCycleData Deleting Advanced" ReleaseStatus="Draft" Changed="true" Id="1:76c5466b-d343-456d-92a9-aef4a82a3550">
+      <Description>The WorkCycleDataType instance has the optional nodes for DeleteAllStoredRecords, DeleteStoredRecordsTime and DeleteStoredRecordsIndex.</Description>
+      <ConformanceGroup>1:cd973a82-8701-4043-82f7-7077604bfebf</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP WorkCycleData ReportNumberOfStoredRecordsTime" ReleaseStatus="Draft" Changed="true" Id="1:fd815204-d0a9-4268-95be-9327c287e5e9">
+      <Description>The WorkCycleDataType instance has the optional node for ReportNumberOfStoredRecordsTime.</Description>
+      <ConformanceGroup>1:73309a9b-32ee-454d-8008-7302df5984fb</ConformanceGroup>
+    </ConformanceUnit>
+    <ConformanceUnit Name="WMTP WorkCycleData CombinedReport Index" ReleaseStatus="Draft" Changed="true" Id="1:def74e29-2311-4719-b42c-d34de4f6b14d">
+      <Description>The WorkCycleDataType instance has the optional node for CombinedReportIndex.</Description>
+      <ConformanceGroup>1:e040781c-342a-40ed-a0a9-ffed7b35602f</ConformanceGroup>
+    </ConformanceUnit>
+  </ConformanceUnits>
+</UAProfileSet>

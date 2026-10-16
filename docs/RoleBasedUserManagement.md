@@ -303,6 +303,21 @@ object types under the RoleSet are excluded.
 
 All mutator methods require the calling session to hold the `SecurityAdmin` role and use a `SignAndEncrypt` secure channel; otherwise the server returns `Bad_UserAccessDenied` / `Bad_SecurityModeInsufficient` which surfaces as a `ServiceResultException`.
 
+### Bounded role snapshots
+
+Use `new RoleManagementClient(session, maxMappingEntries: 1000)` to limit a role
+snapshot. The limit applies separately to identity, application and endpoint
+mapping collections, before client-side decoded-array/list copies. Zero and the
+existing one-argument constructor preserve legacy behavior. This does not bound
+the separate `ListRolesAsync` traversal.
+
+When a target check and subsequent role calls must use the same server session,
+capture a [`SessionRequestContext`](Sessions.md#generation-bound-client-requests)
+first. Resolve the target through `context.Session` and use
+`new RoleManagementClient(context.Session, maxMappingEntries: 1000)` until the
+operation is finished. Recovery then refuses later calls instead of silently
+moving the operation to a replacement session.
+
 ## GDS
 
 The GDS adds the following roles in addition to the standard well-known set:

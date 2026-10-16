@@ -33,6 +33,10 @@
     <ProjectReference Include="..\Opc.Ua.Mcp.Core\Opc.Ua.Mcp.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub\Opc.Ua.PubSub.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Udp\Opc.Ua.PubSub.Udp.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Mqtt\Opc.Ua.PubSub.Mqtt.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Kafka\Opc.Ua.PubSub.Kafka.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Eth\Opc.Ua.PubSub.Eth.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Adapter\Opc.Ua.PubSub.Adapter.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

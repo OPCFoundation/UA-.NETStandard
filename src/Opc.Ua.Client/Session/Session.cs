@@ -602,7 +602,14 @@ namespace Opc.Ua.Client
                 m_serverCertificate = null;
                 m_keepAliveCancellation?.Dispose();
                 m_keepAliveCancellation = null;
-                m_engine?.Dispose();
+                if (m_engine is IAsyncDisposable asyncEngine)
+                {
+                    await asyncEngine.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    m_engine?.Dispose();
+                }
             }
 
             base.Dispose(disposing);
@@ -1414,6 +1421,10 @@ namespace Opc.Ua.Client
 
             if (TransportChannel is ManagedTransportChannelLease lease)
             {
+                // A session attaching to a shared channel that another caller
+                // is still opening has no installed transport to read the
+                // certificate from yet.
+                await lease.Entry.WaitForTransportAsync(ct).ConfigureAwait(false);
                 using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
                 CertificateEntry? replacement = BuildInstanceCertificateEntry(
                     certificates.Certificate,
@@ -4114,10 +4125,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // clean up.
+                // clean up. Asynchronously: the synchronous Dispose blocks a thread
+                // until the subscription engine has stopped, and many sessions closed
+                // at once that way starve the thread pool their own close needs.
                 if (closeChannel)
                 {
-                    Dispose();
+                    await DisposeAsync().ConfigureAwait(false);
                 }
 
                 return result;
@@ -4835,10 +4848,15 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            base.SessionCreated(sessionId, sessionCookie);
-            if (!sessionCookie.IsNull)
+            lock (m_requestContextIdentity)
             {
-                m_hadSession = true;
+                base.SessionCreated(sessionId, sessionCookie);
+                if (!sessionCookie.IsNull)
+                {
+                    m_hadSession = true;
+                }
+                m_requestContextGeneration++;
+                RequestContextChanged?.Invoke();
             }
         }
 

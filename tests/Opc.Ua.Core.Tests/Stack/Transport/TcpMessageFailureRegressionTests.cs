@@ -433,9 +433,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public BufferCollection Encode(ArraySegment<byte> payload, bool request, out bool exceeded)
             {
                 BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message, 17, CurrentToken!, payload, request, out exceeded,
-                    out SendGateTicket sendTicket);
-                ReleaseSendTicket(sendTicket);
+                    TcpMessageType.Message, 17, CurrentToken!, payload, request, out exceeded);
                 return chunks;
             }
 

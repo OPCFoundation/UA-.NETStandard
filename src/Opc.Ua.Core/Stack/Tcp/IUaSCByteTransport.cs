@@ -174,6 +174,21 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Implemented by byte transports that carry a plain byte stream, so that
+    /// several complete chunks can go out in one
+    /// <see cref="IUaSCByteTransport.SendChunkAsync(BufferCollection, CancellationToken)"/>.
+    /// Transports that frame each send (a WebSocket message, for instance) or
+    /// observe chunks one by one do not implement it.
+    /// </summary>
+    internal interface IUaSCChunkCoalescing
+    {
+        /// <summary>
+        /// Whether one send may carry several chunks back to back.
+        /// </summary>
+        bool CanCoalesceChunks { get; }
+    }
+
+    /// <summary>
     /// Factory used by client-side transport channels to create an
     /// unconnected <see cref="IUaSCByteTransport"/> instance configured with
     /// the buffer pool and receive sizing required by the UASC channel.

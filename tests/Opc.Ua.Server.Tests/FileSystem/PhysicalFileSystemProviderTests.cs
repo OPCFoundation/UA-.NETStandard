@@ -250,6 +250,49 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(File.Exists(Path.Combine(m_root, "new.bin")), Is.True);
         }
 
+        /// <summary>
+        /// A writer excludes other streams across provider instances until it is disposed.
+        /// Failed opens must not truncate the current writer's data.
+        /// </summary>
+        [TestCase(FileWriteMode.OpenOrCreate)]
+        [TestCase(FileWriteMode.Truncate)]
+        [TestCase(FileWriteMode.Append)]
+        public async Task OpenWriterExcludesOtherStreamsUntilDisposedAsync(FileWriteMode mode)
+        {
+            PhysicalFileSystemProvider provider = CreateProvider();
+            var other = new PhysicalFileSystemProvider(m_root);
+            byte[] payload = [1, 2, 3];
+
+            using (Stream writer = await provider.OpenWriteAsync(
+                "exclusive.bin", mode, CancellationToken.None).ConfigureAwait(false))
+            {
+                await WritePayloadAsync(writer, payload).ConfigureAwait(false);
+                await writer.FlushAsync().ConfigureAwait(false);
+
+                Assert.ThrowsAsync<IOException>(async () =>
+                {
+                    using Stream unexpected = await other.OpenWriteAsync(
+                        "exclusive.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false);
+                });
+                Assert.ThrowsAsync<IOException>(async () =>
+                {
+                    using Stream unexpected = await other.OpenReadAsync(
+                        "exclusive.bin", CancellationToken.None).ConfigureAwait(false);
+                });
+            }
+
+            using (Stream reader = await other.OpenReadAsync(
+                "exclusive.bin", CancellationToken.None).ConfigureAwait(false))
+            {
+                using var contents = new MemoryStream();
+                await reader.CopyToAsync(contents).ConfigureAwait(false);
+                Assert.That(contents.ToArray(), Is.EqualTo(payload));
+            }
+            using Stream replacement = await other.OpenWriteAsync(
+                "exclusive.bin", FileWriteMode.OpenOrCreate, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(replacement.Length, Is.EqualTo(payload.Length));
+        }
+
         [Test]
         public void OpenReadAsyncForMissingFileThrows()
         {

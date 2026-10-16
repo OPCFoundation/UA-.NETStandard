@@ -79,9 +79,10 @@ namespace Opc.Ua.Aot.Tests
                     inverse ? BrowseDirection.Inverse : BrowseDirection.Forward, default, null, false);
                 foreach (IReference expected in oracle.Find(ReferenceTypeIds.HasComponent, inverse))
                 {
-                    await Assert.That(ReferenceEquals(browser.Next(), expected)).IsTrue();
+                    IReference? actual = await browser.NextAsync(CancellationToken.None).ConfigureAwait(false);
+                    await Assert.That(ReferenceEquals(actual, expected)).IsTrue();
                 }
-                await Assert.That(browser.Next()).IsNull();
+                await Assert.That(await browser.NextAsync(CancellationToken.None).ConfigureAwait(false)).IsNull();
             }
             var clone = (BaseObjectState)node.Clone();
             for (int index = count - 1; index >= 0; index--)
@@ -107,6 +108,9 @@ namespace Opc.Ua.Aot.Tests
         /// <summary>
         /// Pins mutable insertion keys and node Target identity through copy and reference-stream encoding.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The XML reference encoder returned no content.
+        /// </exception>
         [Test]
         [Arguments(false)]
         [Arguments(true)]
@@ -144,8 +148,9 @@ namespace Opc.Ua.Aot.Tests
                 encoder.Push("Root", Namespaces.OpcUaXsd);
                 node.SaveReferences(context, encoder);
                 encoder.Pop();
-                using var text = new StringReader(encoder.CloseAndReturnText());
-                using XmlReader reader = XmlReader.Create(text, CoreUtils.DefaultXmlReaderSettings());
+                using var text = new StringReader(encoder.CloseAndReturnText() ??
+                    throw new InvalidDataException("The reference encoder returned no XML."));
+                using var reader = XmlReader.Create(text, CoreUtils.DefaultXmlReaderSettings());
                 using var decoder = new XmlDecoder(null, reader, messageContext);
                 loaded.UpdateReferences(context, decoder);
             }

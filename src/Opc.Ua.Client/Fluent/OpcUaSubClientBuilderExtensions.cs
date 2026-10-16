@@ -34,6 +34,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.AliasNames;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Client.Historian;
+using Opc.Ua.Client.Programs;
 using Opc.Ua.Client.Roles;
 
 namespace Microsoft.Extensions.DependencyInjection
@@ -43,6 +44,33 @@ namespace Microsoft.Extensions.DependencyInjection
     /// </summary>
     public static class OpcUaSubClientBuilderExtensions
     {
+        /// <summary>
+        /// Registers the session-bound Part 10 Program client factory.
+        /// </summary>
+        public static IOpcUaBuilder AddProgramClient(this IOpcUaBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            builder.Services.AddOpcUa();
+            builder.Services.TryAddSingleton<ProgramClientFactory>();
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the session-bound Part 10 Program client factory.
+        /// </summary>
+        public static IOpcUaClientBuilder AddProgramClient(this IOpcUaClientBuilder builder)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            new BuilderAdapter(builder.Services).AddProgramClient();
+            return builder;
+        }
+
         /// <summary>
         /// Registers the historian client factory.
         /// </summary>

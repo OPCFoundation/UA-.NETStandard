@@ -285,7 +285,10 @@ namespace Opc.Ua.Server.Tests
                 SequenceNumber = 9,
                 NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })]
             };
-            queue.Enqueue([message], [], out _, out _);
+            queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+
+            // the Publish response that carried the message was sent.
+            lease.Release();
             IStoredSubscription snapshot = subscription.ToStorableSubscription();
             Assert.That(snapshot.SentMessages[0], Is.Not.SameAs(message));
             queue.Clear();

@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
         {
             Uri endpointUrl = EndpointUrl(0, "ChannelPolicies");
             TransportListenerSettings settings = CreateListenerSettings(endpointUrl, m_serverRegistry!);
-            settings.SessionBindingProvider = Mock.Of<ISessionBindingProvider>();
+            settings.SessionBindingProvider = Mock.Of<IServerSessionBindingProvider>();
             settings.ResourceIsolationProvider = Mock.Of<IServerResourceIsolationProvider>();
             settings.HandshakeTimeout = TimeSpan.FromSeconds(37);
             var sharedBudget = new ChunkReassemblyBudget(8 * 1024 * 1024);

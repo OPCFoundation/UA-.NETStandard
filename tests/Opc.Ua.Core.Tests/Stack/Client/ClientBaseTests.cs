@@ -109,6 +109,25 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.Throws<ArgumentNullException>(() => new TestableClientBase(null!, m_telemetry!));
         }
 
+        /// <summary>
+        /// Accessing the message context after closure must report the channel
+        /// failure instead of dereferencing a missing transport channel.
+        /// </summary>
+        [Test]
+        public async Task MessageContextReportsClosedChannelAsync()
+        {
+            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
+            Assert.That(sut.MessageContext, Is.SameAs(m_messageContextMock!.Object));
+
+            await sut.TestCloseChannelAsync().ConfigureAwait(false);
+
+            Assert.That(
+                () => sut.MessageContext,
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadSecureChannelClosed));
+        }
+
         [Test]
         public async Task RequestCompletedAfterChannelCloseWithMetricsDoesNotThrowAsync()
         {
@@ -128,6 +147,28 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await sut.TestCloseChannelAsync().ConfigureAwait(false);
 
             Assert.DoesNotThrow(() => sut.TestRequestCompleted(request, response, "Read"));
+        }
+
+        /// <summary>
+        /// Channel-backed properties report the protocol error used by generated-client cleanup.
+        /// </summary>
+        [TestCase(nameof(ClientBase.MessageContext))]
+        [TestCase(nameof(ClientBase.Endpoint))]
+        [TestCase(nameof(ClientBase.EndpointConfiguration))]
+        public async Task ClosedChannelPropertiesReportProtocolFailureAsync(string member)
+        {
+            using var sut = new TestableClientBase(m_transportChannelMock!.Object, m_telemetry!);
+            await sut.TestCloseChannelAsync().ConfigureAwait(false);
+
+            Action read = member switch
+            {
+                nameof(ClientBase.MessageContext) => () => _ = sut.MessageContext,
+                nameof(ClientBase.Endpoint) => () => _ = sut.Endpoint,
+                nameof(ClientBase.EndpointConfiguration) => () => _ = sut.EndpointConfiguration,
+                _ => throw new ArgumentOutOfRangeException(nameof(member))
+            };
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(read);
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
         }
 
         [Test]

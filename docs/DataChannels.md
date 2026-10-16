@@ -58,12 +58,16 @@ interoperability rule of §5.16 requires of a peer that does not implement this
 specification.
 
 `SequenceNumberBudget` tracks the sequence space every MessageType on the channel draws
-on. The channel claims a SequenceNumber while it secures a frame and refuses the send with
-`Bad_SecureChannelTokenUnknown` when the space under the current token is exhausted, so a
-sender stalls rather than reuse a number (§5.1.1). Assigning the number and applying
-message security are serialized against Service traffic — both draw on the same keys and
-the same counter — while the write itself is awaited outside that serialization, so a slow
-peer on a data channel cannot stall `Publish`.
+on. Frames enter the same unsealed FIFO as Service responses. The single writer checks
+the budget, assigns a SequenceNumber and secures each frame under the current token,
+serialized against token activation and other message numbering. It refuses a frame with
+`Bad_SecureChannelTokenUnknown` before numbering when that token's space is exhausted, so
+a sender stalls rather than reuse a number (§5.1.1). An `OpenDataChannel` response queued
+before its first frame therefore stays ahead of it on the wire.
+
+The transport write is awaited outside the channel and send-order gates. Cancellation
+after queue admission cancels the caller's wait, not the committed write: the writer
+retains and releases its buffers and preserves the sequence order for subsequent traffic.
 
 `UaSCSecureChannelRegistry` maps a SecureChannel identifier to the channel that owns it.
 It is public because an application writing its own `IServerDataChannelTransport` for
@@ -284,10 +288,11 @@ exactly one MessageChunk. A multi-chunk frame would sit in the existing chunk as
 and block every other Message on the connection until it completed — the precise failure
 a streaming layer exists to avoid.
 
-**Service traffic keeps precedence structurally, not by a second scheduler.** The
-transport already serializes writes in arrival order, so a `MSG`, `OPN` or `CLO` chunk
-that becomes ready while a frame is being written is admitted immediately after it. The
-maximum delay is one frame, which is exactly what the specification requires.
+**Service traffic shares the ordered writer, not a second data-channel send gate.**
+Unsealed `MSG` responses and `STR` frames are numbered in FIFO order. Already-numbered
+`OPN`, `CLO` and client request chunks retain their sequence position ahead of unsealed
+work. The data-channel scheduler awaits each frame write before submitting another, so
+it does not build a separate frame backlog ahead of Service traffic.
 
 **The sequence arithmetic uses modulus 2^32−1, not 2^32.** Zero is excluded from the
 `FrameSequenceNumber` value space, so with modulus 2^32 the wrap from `4294967295` to
