@@ -351,6 +351,12 @@ namespace Opc.Ua.Types.Buffers.Tests
         [Test]
         public void GetBuffersOfAReadStreamReturnsACopy()
         {
+            using (var empty = new ArraySegmentStream(new BufferCollection()))
+            {
+                // a read stream owns no buffers to return.
+                Assert.That(empty.ReleaseBuffers, Throws.Nothing);
+            }
+
             var source = new BufferCollection { new ArraySegment<byte>(new byte[] { 1, 2, 3 }, 0, 3) };
             using var reader = new ArraySegmentStream(source);
 

@@ -420,6 +420,21 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ResetDecoderKeepsTheContextAndRejectsNone()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var decoder = new BinaryDecoder([1, 0, 0, 0], messageContext);
+
+            decoder.ResetToBuffer(new ArraySegment<byte>([2, 0, 0, 0]), messageContext);
+            Assert.That(decoder.Context, Is.SameAs(messageContext));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(
+                () => decoder.ResetToBuffer(new ArraySegment<byte>(new byte[4]), null!),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
         public void ResetOfAStreamDecoderIsRejected()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();

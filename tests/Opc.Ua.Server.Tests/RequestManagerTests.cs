@@ -1444,6 +1444,15 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Attaching a request scope requires a context.
+        /// </summary>
+        [Test]
+        public void AttachRequestScopeRejectsANullContext()
+        {
+            Assert.That(() => m_requestManager.AttachRequestScope(null!), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
         /// A request attached outside a service dispatch scope sets the ambient request id for
         /// its execution and restores the previous one when its context is disposed.
         /// </summary>

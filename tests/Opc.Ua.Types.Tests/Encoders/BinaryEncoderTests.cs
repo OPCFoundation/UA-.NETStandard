@@ -1570,6 +1570,24 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void ResetEncoderKeepsTheContextAndRejectsNone()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var stream = new MemoryStream();
+            using var encoder = new BinaryEncoder(stream, messageContext, true);
+            encoder.WriteInt32(null, 1);
+
+            encoder.ResetToStream(messageContext);
+            Assert.That(encoder.Context, Is.SameAs(messageContext));
+            Assert.That(() => encoder.ResetToStream(null!), Throws.ArgumentNullException);
+
+            using var disposed = new BinaryEncoder(new MemoryStream(), messageContext, true);
+            disposed.Dispose();
+            Assert.That(() => disposed.ResetToStream(messageContext), Throws.InvalidOperationException);
+        }
+
+        [Test]
         public void ResetOfAnEncoderThatOwnsItsStreamIsRejected()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
