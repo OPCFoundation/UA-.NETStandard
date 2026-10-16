@@ -1525,17 +1525,15 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ResetEncoderWritesTheNextMessageLikeANewEncoder()
+        public void EncodersBorrowingOneWriterEncodeLikeNewEncoders()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var serverUris = new NamespaceTable();
             serverUris.Append(Namespaces.OpcUa);
             serverUris.Append("urn:a");
             serverUris.Append("urn:b");
-            ServiceMessageContext first = ServiceMessageContext.Create(telemetryContext);
-            first.NamespaceUris = serverUris;
-            ServiceMessageContext second = ServiceMessageContext.Create(telemetryContext);
-            second.NamespaceUris = serverUris;
+            ServiceMessageContext messageContext = ServiceMessageContext.Create(telemetryContext);
+            messageContext.NamespaceUris = serverUris;
             var messageUris = new NamespaceTable();
             messageUris.Append(Namespaces.OpcUa);
             messageUris.Append("urn:b");
@@ -1544,7 +1542,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] expected;
             using (var fresh = new MemoryStream())
             {
-                using (var encoder = new BinaryEncoder(fresh, second, true))
+                using (var encoder = new BinaryEncoder(fresh, messageContext, true))
                 {
                     encoder.WriteNodeId(null, nodeId);
                     encoder.WriteInt32(null, 9);
@@ -1553,51 +1551,37 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using var stream = new MemoryStream();
-            using var reused = new BinaryEncoder(stream, first, true);
-            reused.SetMappingTables(messageUris, null);
-            reused.WriteNodeId(null, nodeId);
-            reused.FlushToStream();
-            Assert.That(stream.ToArray(), Is.Not.EqualTo(expected.AsSpan(0, 4).ToArray()), "the mapping tables apply");
+            using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, true);
+            using (var first = new BinaryEncoder(writer, messageContext))
+            {
+                first.SetMappingTables(messageUris, null);
+                first.WriteNodeId(null, nodeId);
+                Assert.That(first.Close(), Is.GreaterThan(0));
+            }
+            Assert.That(stream.CanWrite, Is.True, "closing a borrowing encoder leaves the stream open");
             stream.SetLength(0);
 
-            reused.ResetToStream(second);
-            reused.WriteNodeId(null, nodeId);
-            reused.WriteInt32(null, 9);
-            reused.FlushToStream();
+            using (var second = new BinaryEncoder(writer, messageContext))
+            {
+                second.WriteNodeId(null, nodeId);
+                second.WriteInt32(null, 9);
+            }
 
-            Assert.That(reused.Context, Is.SameAs(second));
-            Assert.That(stream.ToArray(), Is.EqualTo(expected), "the mappings of the last message are dropped");
+            Assert.That(stream.ToArray(), Is.EqualTo(expected), "the mappings of the first encoder do not carry over");
+            writer.Write(1);
+            Assert.That(stream.Length, Is.EqualTo(expected.Length + 4), "the writer stays usable");
         }
 
         [Test]
-        public void ResetEncoderKeepsTheContextAndRejectsNone()
+        public void EncoderBorrowingAWriterRejectsNullArguments()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var stream = new MemoryStream();
-            using var encoder = new BinaryEncoder(stream, messageContext, true);
-            encoder.WriteInt32(null, 1);
-
-            encoder.ResetToStream(messageContext);
-            Assert.That(encoder.Context, Is.SameAs(messageContext));
-            Assert.That(() => encoder.ResetToStream(null!), Throws.ArgumentNullException);
-
-            using var disposed = new BinaryEncoder(new MemoryStream(), messageContext, true);
-            disposed.Dispose();
-            Assert.That(() => disposed.ResetToStream(messageContext), Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void ResetOfAnEncoderThatOwnsItsStreamIsRejected()
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var owning = new BinaryEncoder(new MemoryStream(), messageContext, false);
-            using var buffered = new BinaryEncoder(messageContext);
+            using var writer = new BinaryWriter(new MemoryStream());
             Assert.Multiple(() =>
             {
-                Assert.That(() => owning.ResetToStream(messageContext), Throws.InvalidOperationException);
-                Assert.That(() => buffered.ResetToStream(messageContext), Throws.InvalidOperationException);
+                Assert.That(() => new BinaryEncoder((BinaryWriter)null!, messageContext), Throws.ArgumentNullException);
+                Assert.That(() => new BinaryEncoder(writer, null!), Throws.ArgumentNullException);
             });
         }
 

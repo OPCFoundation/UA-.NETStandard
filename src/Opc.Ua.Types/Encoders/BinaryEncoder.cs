@@ -118,6 +118,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates an encoder that writes through a writer it borrows: disposing or closing the
+        /// encoder flushes the writer but neither disposes it nor its stream. The channels keep
+        /// one writer per thread over the stream they encode messages to, and create an encoder
+        /// for every message.
+        /// </summary>
+        /// <param name="writer">The writer, over the stream the encoder writes to.</param>
+        /// <param name="context">The message context to use for the encoding.</param>
+        internal BinaryEncoder(BinaryWriter writer, IServiceMessageContext context)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_writer = writer ?? throw new ArgumentNullException(nameof(writer));
+            m_ostrm = writer.BaseStream;
+            m_leaveOpen = true;
+            m_borrowsWriter = true;
+            m_nestingLevel = 0;
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -125,7 +143,10 @@ namespace Opc.Ua
             if (m_writer != null)
             {
                 m_writer.Flush();
-                m_writer.Dispose();
+                if (!m_borrowsWriter)
+                {
+                    m_writer.Dispose();
+                }
                 m_writer = null!;
             }
 
@@ -222,7 +243,10 @@ namespace Opc.Ua
 
             int position = (int)m_writer.BaseStream.Position;
             m_writer.Flush();
-            m_writer.Dispose();
+            if (!m_borrowsWriter)
+            {
+                m_writer.Dispose();
+            }
 
             // Clear the reference so a following Dispose() does not flush a
             // writer that is already disposed - which throws for every owned
@@ -424,41 +448,7 @@ namespace Opc.Ua
         public bool CanOmitFields => false;
 
         /// <inheritdoc/>
-        public IServiceMessageContext Context { get; private set; }
-
-        /// <summary>
-        /// Lets an encoder that writes to a stream it leaves open write the next message to
-        /// that stream, in the state of an encoder newly created over it. The channels encode
-        /// one message at a time on a thread and reuse one encoder and stream for it.
-        /// </summary>
-        /// <param name="context">The message context to encode with.</param>
-        /// <exception cref="InvalidOperationException">The encoder does not write to a stream
-        /// it leaves open, or was disposed.</exception>
-        internal void ResetToStream(IServiceMessageContext context)
-        {
-            if (m_ostrm == null || m_writer == null || !m_leaveOpen)
-            {
-                throw new InvalidOperationException("Only an open encoder over a stream it leaves open can be reset.");
-            }
-            if (!ReferenceEquals(Context, context))
-            {
-                Context = context ?? throw new ArgumentNullException(nameof(context));
-                m_logger = null;
-            }
-            m_closed = false;
-            m_bufferPosition = 0;
-            m_namespaceMappings = null;
-            m_serverMappings = null;
-            m_nestingLevel = 0;
-        }
-
-        /// <summary>
-        /// Writes what the writer still buffers to the stream, as disposing the encoder does.
-        /// </summary>
-        internal void FlushToStream()
-        {
-            m_writer?.Flush();
-        }
+        public IServiceMessageContext Context { get; }
 
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
@@ -2794,6 +2784,7 @@ namespace Opc.Ua
         private int m_bufferPosition;
         private bool m_closed;
         private readonly bool m_leaveOpen;
+        private readonly bool m_borrowsWriter;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
         private uint m_nestingLevel;
