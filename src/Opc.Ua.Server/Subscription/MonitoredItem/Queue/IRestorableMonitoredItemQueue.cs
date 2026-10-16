@@ -38,14 +38,22 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <remarks>
     /// <para>
-    /// While the server restores the durable subscriptions it calls
-    /// <see cref="BeginRestore"/> on each queue of a restored monitored item before it
-    /// changes the queue. From then on the queue must not write to its storage.
+    /// While <see cref="SubscriptionManager.RestoreSubscriptionsAsync"/> restores the
+    /// durable subscriptions it calls <see cref="BeginRestore"/> on each queue of a
+    /// restored monitored item before it changes the queue. From then on the queue
+    /// must not write to its storage. A monitored item restored by other means, e.g.
+    /// by <see cref="Subscription.RestoreAsync(IServerInternal, IStoredSubscription, System.Threading.CancellationToken)"/>
+    /// called directly, does not stage its queues.
     /// </para>
     /// <para>
     /// When the restore completes, the server calls <see cref="CommitRestore"/>: the
     /// queue writes its current contents once and then keeps its storage up to date
-    /// as before.
+    /// as before. The server calls it after the subscription store was told that the
+    /// restore completed, when the restore can no longer be rolled back, so
+    /// <see cref="CommitRestore"/> must not throw: a queue that cannot write its
+    /// contents handles the failure itself, e.g. logs it and writes again on its next
+    /// change. The server logs an exception thrown by <see cref="CommitRestore"/> or
+    /// <see cref="AbortRestore"/> and continues with the other queues.
     /// </para>
     /// <para>
     /// When the restore fails or is cancelled, the server calls
@@ -77,7 +85,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Writes the current contents of the queue to its storage and resumes
         /// writing every change. Does nothing unless <see cref="BeginRestore"/>
-        /// was called and <see cref="AbortRestore"/> was not.
+        /// was called and <see cref="AbortRestore"/> was not. Must not throw.
         /// </summary>
         void CommitRestore();
 

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
@@ -104,7 +105,15 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
             m_restoring = false;
-            Mirror();
+            try
+            {
+                Mirror();
+            }
+            catch (Exception ex)
+            {
+                // The restore must not fail once it was committed; the next change mirrors the queue.
+                m_logger.FailedToMirrorRestoredMonitoredItemQueue(ex, MonitoredItemId);
+            }
         }
 
         /// <inheritdoc/>

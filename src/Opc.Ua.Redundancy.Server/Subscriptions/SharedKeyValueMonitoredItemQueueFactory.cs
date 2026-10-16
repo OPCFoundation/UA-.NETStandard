@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -67,7 +68,9 @@ namespace Opc.Ua.Redundancy.Server
 
         /// <summary>
         /// Drops the snapshots and the removal of the monitored item that are not persisted yet, without
-        /// removing its mirrored state (e.g. when the restore that created the queue was aborted).
+        /// removing its mirrored state (e.g. when the restore that created the queue was aborted). A write of
+        /// the monitored item that the background drain already took but has not started is dropped too, and
+        /// is not retried when the drain fails.
         /// </summary>
         /// <param name="monitoredItemId">The owning monitored-item id.</param>
         void DiscardPendingQueue(uint monitoredItemId);
@@ -282,7 +285,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_pendingLock)
             {
-                m_pendingDataChange[monitoredItemId] = snapshot;
+                m_pendingDataChange[monitoredItemId] = (snapshot, ++m_sequence);
                 m_pendingRemovals.Remove(monitoredItemId);
             }
 
@@ -294,7 +297,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_pendingLock)
             {
-                m_pendingEvent[monitoredItemId] = snapshot;
+                m_pendingEvent[monitoredItemId] = (snapshot, ++m_sequence);
                 m_pendingRemovals.Remove(monitoredItemId);
             }
 
@@ -308,7 +311,7 @@ namespace Opc.Ua.Redundancy.Server
             {
                 m_pendingDataChange.Remove(monitoredItemId);
                 m_pendingEvent.Remove(monitoredItemId);
-                m_pendingRemovals.Add(monitoredItemId);
+                m_pendingRemovals[monitoredItemId] = ++m_sequence;
             }
 
             SignalDrain();
@@ -317,11 +320,17 @@ namespace Opc.Ua.Redundancy.Server
         /// <inheritdoc/>
         void IMirroredQueueSink.DiscardPendingQueue(uint monitoredItemId)
         {
-            lock (m_pendingLock)
+            // Serialized with the start of every storage write, so that no write of the monitored item that
+            // was recorded before starts after this returns.
+            lock (m_writeLock)
             {
-                m_pendingDataChange.Remove(monitoredItemId);
-                m_pendingEvent.Remove(monitoredItemId);
-                m_pendingRemovals.Remove(monitoredItemId);
+                lock (m_pendingLock)
+                {
+                    m_pendingDataChange.Remove(monitoredItemId);
+                    m_pendingEvent.Remove(monitoredItemId);
+                    m_pendingRemovals.Remove(monitoredItemId);
+                    m_discardedBefore[monitoredItemId] = ++m_sequence;
+                }
             }
         }
 
@@ -416,87 +425,184 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            KeyValuePair<uint, DataChangeQueueSnapshot>[] dataChange;
-            KeyValuePair<uint, EventQueueSnapshot>[] events;
-            uint[] removals;
+            List<MirrorWrite> batch = [];
             lock (m_pendingLock)
             {
-                dataChange = [.. m_pendingDataChange];
-                events = [.. m_pendingEvent];
-                removals = [.. m_pendingRemovals];
+                foreach (KeyValuePair<uint, (DataChangeQueueSnapshot Snapshot, long Sequence)> entry in
+                    m_pendingDataChange.OrderBy(entry => entry.Key))
+                {
+                    batch.Add(new MirrorWrite(entry.Key, entry.Value.Sequence, entry.Value.Snapshot, null));
+                }
+                foreach (KeyValuePair<uint, (EventQueueSnapshot Snapshot, long Sequence)> entry in
+                    m_pendingEvent.OrderBy(entry => entry.Key))
+                {
+                    batch.Add(new MirrorWrite(entry.Key, entry.Value.Sequence, null, entry.Value.Snapshot));
+                }
+                foreach (KeyValuePair<uint, long> entry in m_pendingRemovals.OrderBy(entry => entry.Key))
+                {
+                    batch.Add(new MirrorWrite(entry.Key, entry.Value, null, null));
+                }
                 m_pendingDataChange.Clear();
                 m_pendingEvent.Clear();
                 m_pendingRemovals.Clear();
             }
 
-            var operations = new List<Task>();
-            foreach (KeyValuePair<uint, DataChangeQueueSnapshot> entry in dataChange)
-            {
-                string key = DataChangeKeyFor(entry.Key);
-                ByteString payload = m_protector.Protect(
-                    RecordProtectionContext.Create("monitored-data-queue", key),
-                    EncodeDataChangeSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
-            }
-            foreach (KeyValuePair<uint, EventQueueSnapshot> entry in events)
-            {
-                string key = EventKeyFor(entry.Key);
-                ByteString payload = m_protector.Protect(
-                    RecordProtectionContext.Create("monitored-event-queue", key),
-                    EncodeEventSnapshot(entry.Value));
-                operations.Add(m_store.SetAsync(key, payload, cancellationToken).AsTask());
-            }
-            foreach (uint id in removals)
-            {
-                operations.Add(m_store.DeleteAsync(DataChangeKeyFor(id), cancellationToken).AsTask());
-                operations.Add(m_store.DeleteAsync(EventKeyFor(id), cancellationToken).AsTask());
-            }
-
-            if (operations.Count == 0)
-            {
-                return;
-            }
-
+            // The writes start one after the other, so that a write of a queue discarded while the drain
+            // runs is dropped before it starts.
+            var retry = new List<MirrorWrite>();
+            List<Exception>? failures = null;
             try
             {
-                await Task.WhenAll(operations).ConfigureAwait(false);
+                for (int index = 0; index < batch.Count; index++)
+                {
+                    (string Key, ByteString Payload)? record;
+                    try
+                    {
+                        record = Encode(batch[index]);
+                    }
+                    catch (Exception ex)
+                    {
+                        // A snapshot that cannot be encoded is not retried.
+                        (failures ??= []).Add(ex);
+                        continue;
+                    }
+
+                    try
+                    {
+                        await WriteAsync(batch[index], record, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        retry.AddRange(batch.Skip(index));
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        retry.Add(batch[index]);
+                        (failures ??= []).Add(ex);
+                    }
+                }
             }
-            catch
+            finally
             {
-                Requeue(dataChange, events, removals);
-                throw;
+                CompleteBatch(retry);
+            }
+
+            if (failures != null)
+            {
+                if (failures.Count == 1)
+                {
+                    ExceptionDispatchInfo.Capture(failures[0]).Throw();
+                }
+                throw new AggregateException(failures);
             }
         }
 
-        private void Requeue(
-            KeyValuePair<uint, DataChangeQueueSnapshot>[] dataChange,
-            KeyValuePair<uint, EventQueueSnapshot>[] events,
-            uint[] removals)
+        /// <summary>
+        /// Returns the protected record a snapshot write stores, or <c>null</c> for a removal.
+        /// </summary>
+        private (string Key, ByteString Payload)? Encode(MirrorWrite write)
+        {
+            if (write.DataChange != null)
+            {
+                string key = DataChangeKeyFor(write.MonitoredItemId);
+                return (key, m_protector.Protect(
+                    RecordProtectionContext.Create("monitored-data-queue", key),
+                    EncodeDataChangeSnapshot(write.DataChange)));
+            }
+            if (write.Event != null)
+            {
+                string key = EventKeyFor(write.MonitoredItemId);
+                return (key, m_protector.Protect(
+                    RecordProtectionContext.Create("monitored-event-queue", key),
+                    EncodeEventSnapshot(write.Event)));
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Starts the storage write unless the queue was discarded after the write was recorded, and waits
+        /// for it to complete.
+        /// </summary>
+        private async ValueTask WriteAsync(
+            MirrorWrite write,
+            (string Key, ByteString Payload)? record,
+            CancellationToken cancellationToken)
+        {
+            Task operation;
+            lock (m_writeLock)
+            {
+                lock (m_pendingLock)
+                {
+                    if (IsDiscarded(write))
+                    {
+                        return;
+                    }
+                }
+
+                // Only the start of the write is serialized with the discards; the store completes it
+                // asynchronously.
+                if (record is (string key, ByteString payload))
+                {
+                    operation = m_store.SetAsync(key, payload, cancellationToken).AsTask();
+                }
+                else
+                {
+                    operation = Task.WhenAll(
+                        m_store.DeleteAsync(DataChangeKeyFor(write.MonitoredItemId), cancellationToken).AsTask(),
+                        m_store.DeleteAsync(EventKeyFor(write.MonitoredItemId), cancellationToken).AsTask());
+                }
+            }
+
+            await operation.ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Records the writes of a finished drain that are retried by the next drain: a write is dropped when
+        /// its queue was discarded or a newer write of the queue is pending.
+        /// </summary>
+        private void CompleteBatch(List<MirrorWrite> retry)
         {
             lock (m_pendingLock)
             {
-                foreach (KeyValuePair<uint, DataChangeQueueSnapshot> entry in dataChange)
+                foreach (MirrorWrite write in retry)
                 {
-                    if (!m_pendingDataChange.ContainsKey(entry.Key) && !m_pendingRemovals.Contains(entry.Key))
+                    uint id = write.MonitoredItemId;
+                    if (IsDiscarded(write))
                     {
-                        m_pendingDataChange[entry.Key] = entry.Value;
+                        continue;
+                    }
+                    if (write.DataChange != null)
+                    {
+                        if (!m_pendingDataChange.ContainsKey(id) && !m_pendingRemovals.ContainsKey(id))
+                        {
+                            m_pendingDataChange[id] = (write.DataChange, write.Sequence);
+                        }
+                    }
+                    else if (write.Event != null)
+                    {
+                        if (!m_pendingEvent.ContainsKey(id) && !m_pendingRemovals.ContainsKey(id))
+                        {
+                            m_pendingEvent[id] = (write.Event, write.Sequence);
+                        }
+                    }
+                    else if (!m_pendingDataChange.ContainsKey(id) &&
+                        !m_pendingEvent.ContainsKey(id) &&
+                        !m_pendingRemovals.ContainsKey(id))
+                    {
+                        m_pendingRemovals[id] = write.Sequence;
                     }
                 }
-                foreach (KeyValuePair<uint, EventQueueSnapshot> entry in events)
-                {
-                    if (!m_pendingEvent.ContainsKey(entry.Key) && !m_pendingRemovals.Contains(entry.Key))
-                    {
-                        m_pendingEvent[entry.Key] = entry.Value;
-                    }
-                }
-                foreach (uint id in removals)
-                {
-                    if (!m_pendingDataChange.ContainsKey(id) && !m_pendingEvent.ContainsKey(id))
-                    {
-                        m_pendingRemovals.Add(id);
-                    }
-                }
+
+                // No write taken before a discard is left: the discards recorded so far are no longer needed.
+                m_discardedBefore.Clear();
             }
+        }
+
+        private bool IsDiscarded(MirrorWrite write)
+        {
+            return m_discardedBefore.TryGetValue(write.MonitoredItemId, out long discardedBefore) &&
+                write.Sequence < discardedBefore;
         }
 
         private ByteString EncodeDataChangeSnapshot(DataChangeQueueSnapshot snapshot)
@@ -641,11 +747,24 @@ namespace Opc.Ua.Redundancy.Server
         private readonly CancellationTokenSource m_drainCts = new();
         private readonly Task m_drainTask;
         private readonly Lock m_pendingLock = new();
-        private readonly Dictionary<uint, DataChangeQueueSnapshot> m_pendingDataChange = [];
-        private readonly Dictionary<uint, EventQueueSnapshot> m_pendingEvent = [];
-        private readonly HashSet<uint> m_pendingRemovals = [];
+        private readonly Lock m_writeLock = new();
+        private readonly Dictionary<uint, (DataChangeQueueSnapshot Snapshot, long Sequence)> m_pendingDataChange = [];
+        private readonly Dictionary<uint, (EventQueueSnapshot Snapshot, long Sequence)> m_pendingEvent = [];
+        private readonly Dictionary<uint, long> m_pendingRemovals = [];
+        private readonly Dictionary<uint, long> m_discardedBefore = [];
+        private long m_sequence;
         private int m_overflowWarningWritten;
         private int m_disposed;
+
+        /// <summary>
+        /// A storage write the drain took: the snapshot of a data-change or event queue, or the removal of
+        /// both when neither is set. The sequence orders it against discards of the queue.
+        /// </summary>
+        private sealed record MirrorWrite(
+            uint MonitoredItemId,
+            long Sequence,
+            DataChangeQueueSnapshot? DataChange,
+            EventQueueSnapshot? Event);
 
         /// <summary>
         /// Command enqueued to the mirror worker; carries an optional completion source used to await the mirror
@@ -694,5 +813,14 @@ namespace Opc.Ua.Redundancy.Server
         public static partial void FailedToMirrorMonitoredItemQueueState(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueMonitoredItemQueueFactory + 2,
+            Level = LogLevel.Warning,
+            Message = "Failed to mirror the restored queue of monitored item {MonitoredItemId}; its next change " +
+                "mirrors it.")]
+        public static partial void FailedToMirrorRestoredMonitoredItemQueue(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
     }
 }

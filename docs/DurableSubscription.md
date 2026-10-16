@@ -61,11 +61,16 @@ Typically the following porting steps are necessary:
   restore can be retried by starting again.
 - A queue whose contents are kept in storage while the server runs, and which
   disposing removes from that storage, should implement
-  `IRestorableMonitoredItemQueue`. While the server restores the subscriptions
-  it calls `BeginRestore` before it changes such a queue of a restored
-  monitored item; the queue must then not write to its storage. When every
-  stored subscription was restored the server calls `CommitRestore`, and the
-  queue writes its current contents once and resumes writing. When the restore
+  `IRestorableMonitoredItemQueue`. While
+  `SubscriptionManager.RestoreSubscriptionsAsync` restores the subscriptions it
+  calls `BeginRestore` before it changes such a queue of a restored monitored
+  item; the queue must then not write to its storage. When every stored
+  subscription was restored and the store was told so, the server calls
+  `CommitRestore`, and the queue writes its current contents once and resumes
+  writing. The restore can no longer be rolled back then, so `CommitRestore`
+  must not throw: a queue that cannot write handles the failure itself, e.g.
+  logs it and writes on its next change; the server logs an exception it throws
+  and commits the other queues. When the restore
   fails or is cancelled the server calls `AbortRestore` and disposes the queue;
   the queue must drop writes it has not completed, never write again, and keep
   its stored contents on dispose, because the retry reads them again. A queue
@@ -73,8 +78,10 @@ Typically the following porting steps are necessary:
   manager failed to create its monitored item, must keep its stored contents as
   well. The mirrored queues of `SharedKeyValueMonitoredItemQueueFactory`
   implement it.
-  An override of `SubscriptionManager.RestoreSubscriptionsAsync` that does not
-  call the base implementation leaves these queues staged.
+  Only the base `SubscriptionManager.RestoreSubscriptionsAsync` stages queues:
+  a monitored item restored outside of it, e.g. by calling
+  `Subscription.RestoreAsync` or the restoring `MonitoredItem` constructor
+  directly, writes its queue to storage at once, as before.
 - If you implement a custom `INodeManager` or override
   `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
   the `MonitoredItem` constructor. When you check queue length for a durable

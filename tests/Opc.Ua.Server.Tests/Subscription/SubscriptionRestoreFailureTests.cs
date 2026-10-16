@@ -529,6 +529,82 @@ namespace Opc.Ua.Server.Tests
             Assert.That(fixture.Events.GetMonitoredItems(), Has.Count.EqualTo(1));
         }
 
+        [Test]
+        public async Task QueueThatFailsToCommitItsRestoreDoesNotFailTheRestoreAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var queues = new Dictionary<uint, StagedQueue>
+            {
+                [1002] = new StagedQueue(1002, telemetry) { FailCommit = true },
+                [1004] = new StagedQueue(1004, telemetry),
+                [1003] = new StagedQueue(1003, telemetry)
+            };
+            using var fixture = new Fixture(store =>
+            {
+                store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(() => new RestoreSubscriptionResult(
+                        true,
+                        [
+                            CreateStored(
+                                42,
+                                CreateStoredDataItem(1002, 42, queueSize: 10),
+                                CreateStoredDataItem(1004, 42, queueSize: 10)),
+                            CreateStored(43, CreateStoredDataItem(1003, 43, queueSize: 10))
+                        ]));
+                store
+                    .Setup(value => value.RestoreDataChangeMonitoredItemQueueAsync(
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((uint monitoredItemId, CancellationToken _) =>
+                        new ValueTask<IDataChangeMonitoredItemQueue?>(queues[monitoredItemId]));
+            });
+
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertBothRestored(fixture, 42u, 43u);
+            Assert.Multiple(() =>
+            {
+                foreach (StagedQueue queue in queues.Values)
+                {
+                    Assert.That(queue.Began, Is.True, $"queue {queue.MonitoredItemId} is staged");
+                    Assert.That(queue.CommitCalls, Is.EqualTo(1), $"queue {queue.MonitoredItemId} is committed");
+                    Assert.That(queue.Aborted, Is.False, $"queue {queue.MonitoredItemId} is not aborted");
+                }
+            });
+            Assert.That(
+                fixture.Logs.Entries,
+                Has.Some.Matches<(LogLevel Level, string Message)>(entry =>
+                    entry.Level == LogLevel.Error &&
+                    entry.Message.Contains("monitored item with id 1002", StringComparison.Ordinal)));
+        }
+
+        [Test]
+        public async Task SubscriptionRestoredWithoutTheManagerWritesItsQueuesAtOnceAsync()
+        {
+            using var queues = new MirroredQueues();
+            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            using var fixture = new Fixture(store => queues.Serve(store));
+
+            // Restoring the unowned item queues Bad_NodeIdUnknown into its queue, which a
+            // queue that is not staged writes to its storage at once.
+            using Subscription subscription = await Subscription.RestoreAsync(
+                fixture.Server,
+                CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 10)))
+                .ConfigureAwait(false);
+
+            Variant[] stored = await queues.ReadStoredDataChangeValuesAsync(1002).ConfigureAwait(false);
+            Assert.That(stored, Has.Length.EqualTo(3), "the restored queue writes its changes");
+            Assert.That(stored[..2], Is.EqualTo(new[] { new Variant(1), new Variant(2) }));
+
+            await subscription.DeleteAsync(null!).ConfigureAwait(false);
+            await queues.FlushAsync().ConfigureAwait(false);
+            Assert.That(
+                await queues.IsDataChangeQueueStoredAsync(1002).ConfigureAwait(false),
+                Is.False,
+                "deleting the subscription removes the queue it owns");
+        }
+
         private static void AssertMonitoredItems(Fixture fixture, uint subscriptionId, params uint[] monitoredItemIds)
         {
             Assert.That(fixture.Manager.TryGetSubscription(subscriptionId, out ISubscription? subscription), Is.True);
@@ -673,6 +749,7 @@ namespace Opc.Ua.Server.Tests
                 Mock<IServerInternal> server = DeterministicServerMock.Create(
                     out m_queueFactory, clock);
                 server.SetupGet(value => value.IsRunning).Returns(false);
+                Server = server.Object;
                 Logs = new RecordingLogger();
                 var loggerFactory = new Mock<ILoggerFactory>();
                 loggerFactory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(Logs);
@@ -734,6 +811,8 @@ namespace Opc.Ua.Server.Tests
                     clock,
                     failingSubscriptionId);
             }
+
+            public IServerInternal Server { get; }
 
             public Mock<ISubscriptionStore> Store { get; }
 
@@ -1030,6 +1109,15 @@ namespace Opc.Ua.Server.Tests
                 return ValuesOf(queue);
             }
 
+            public async Task<bool> IsDataChangeQueueStoredAsync(uint monitoredItemId)
+            {
+                IDataChangeMonitoredItemQueue? queue = await m_factory
+                    .RestoreDataChangeQueueAsync(monitoredItemId)
+                    .ConfigureAwait(false);
+                ((IRestorableMonitoredItemQueue?)queue)?.AbortRestore();
+                return queue != null;
+            }
+
             public async Task AssertDataChangeQueueKeptAsync(uint monitoredItemId)
             {
                 Assert.That(
@@ -1086,6 +1174,46 @@ namespace Opc.Ua.Server.Tests
 
             private readonly InMemorySharedKeyValueStore m_store;
             private readonly SharedKeyValueMonitoredItemQueueFactory m_factory;
+        }
+
+        /// <summary>
+        /// A restorable queue that records how the restore completes it, and whose
+        /// commit can fail.
+        /// </summary>
+        private sealed class StagedQueue : DataChangeMonitoredItemQueue, IRestorableMonitoredItemQueue
+        {
+            public StagedQueue(uint monitoredItemId, ITelemetryContext telemetry)
+                : base(false, monitoredItemId, telemetry)
+            {
+                ResetQueue(10, false);
+            }
+
+            public bool FailCommit { get; init; }
+
+            public bool Began { get; private set; }
+
+            public int CommitCalls { get; private set; }
+
+            public bool Aborted { get; private set; }
+
+            public void BeginRestore()
+            {
+                Began = true;
+            }
+
+            public void CommitRestore()
+            {
+                CommitCalls++;
+                if (FailCommit)
+                {
+                    throw new InvalidOperationException("storage unavailable");
+                }
+            }
+
+            public void AbortRestore()
+            {
+                Aborted = true;
+            }
         }
 
         private sealed class RecordingLogger : ILogger

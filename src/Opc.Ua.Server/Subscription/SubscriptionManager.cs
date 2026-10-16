@@ -436,7 +436,8 @@ namespace Opc.Ua.Server
         /// the subscriptions it already recreated, without storing them, so the
         /// manager can retry the restore. Monitored item queues that implement
         /// <see cref="IRestorableMonitoredItemQueue"/> write to their storage only
-        /// once the restore completed.
+        /// once the restore completed; a queue that fails to complete its restore is
+        /// logged and does not fail the restore.
         /// </remarks>
         /// <exception cref="InvalidOperationException">The server is already running.</exception>
         /// <exception cref="ServiceResultException">The subscription store failed.</exception>
@@ -506,6 +507,8 @@ namespace Opc.Ua.Server
             uint lastSubscriptionId = m_lastSubscriptionId;
             var storedState = StoredRestoreState.Capture(storedSubscriptions);
 
+            // The restored monitored items stage their queues until the restore completed.
+            using IDisposable staging = RestoredQueueStaging.Begin();
             try
             {
                 foreach (IStoredSubscription storedSubscription in storedSubscriptions)
@@ -557,7 +560,10 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            // Only now may the restored queues change their stored contents.
+            // Only now may the restored queues change their stored contents. The store
+            // was told that the restore completed, so it cannot be rolled back anymore:
+            // every queue is committed, and a queue that fails to is logged.
+            staging.Dispose();
             foreach (ISubscription subscription in restoredSubscriptions)
             {
                 (subscription as Subscription)?.CommitRestoredQueues();

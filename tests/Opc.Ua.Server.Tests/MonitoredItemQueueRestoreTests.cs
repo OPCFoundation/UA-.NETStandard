@@ -299,12 +299,18 @@ namespace Opc.Ua.Server.Tests
             queue.ResetQueue(10, false);
             queue.Enqueue(new DataValue(Variant.From(1)), ServiceResult.Good);
             stored.RestoredDataChangeQueue = queue;
-            using var item = new MonitoredItem(
-                server.Object,
-                Mock.Of<IAsyncNodeManager>(),
-                new object(),
-                stored);
+            MonitoredItem item;
+            using (RestoredQueueStaging.Begin())
+            {
+                item = new MonitoredItem(
+                    server.Object,
+                    Mock.Of<IAsyncNodeManager>(),
+                    new object(),
+                    stored);
+            }
+            using MonitoredItem restoredItem = item;
             item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            Assert.That(queue.Stored, Is.EqualTo(s_storedValue), "the staged queue keeps its stored contents");
 
             Task commit = Task.Run(item.CommitQueueRestore);
             Assert.That(queue.CommitStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
@@ -316,6 +322,36 @@ namespace Opc.Ua.Server.Tests
             Assert.That(first, Is.Not.SameAs(enqueue), "the value is queued once the commit completed");
             Assert.That(queue.Stored, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
             Assert.That(queue.Stored[^1], Is.EqualTo(3), "the storage ends with the newest value");
+        }
+
+        /// <summary>
+        /// Verifies that a monitored item restored without the subscription manager does not stage its queue:
+        /// the queue writes every change to its storage at once, as before staging existed.
+        /// </summary>
+        [Test]
+        public void RestoreWithoutTheSubscriptionManagerDoesNotStageTheQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            StoredMonitoredItem stored = CreateStoredItem();
+            var queue = new GatedRestorableQueue(stored.Id, telemetry);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                stored);
+
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+
+            Assert.That(queue.BeginRestoreCalled, Is.False);
+            Assert.That(queue.Stored, Is.EqualTo(s_storedValues), "the change is written at once");
         }
 
         private static StoredMonitoredItem StoreItemWithPendingHistoryFailure(
@@ -564,8 +600,11 @@ namespace Opc.Ua.Server.Tests
                 return dequeued;
             }
 
+            public bool BeginRestoreCalled { get; private set; }
+
             public void BeginRestore()
             {
+                BeginRestoreCalled = true;
                 m_staged = true;
             }
 
@@ -619,6 +658,9 @@ namespace Opc.Ua.Server.Tests
             private readonly ManualResetEventSlim m_release = new();
             private volatile bool m_staged;
         }
+
+        private static readonly int[] s_storedValue = [1];
+        private static readonly int[] s_storedValues = [1, 2];
 
         private sealed class NoopDisposable : IDisposable
         {
