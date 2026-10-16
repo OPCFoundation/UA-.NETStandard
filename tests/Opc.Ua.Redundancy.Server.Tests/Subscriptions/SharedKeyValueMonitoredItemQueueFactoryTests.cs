@@ -362,8 +362,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new GatedSharedKeyValueStore(inner);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // One write at a time, so that the write of the restored queue has not started when it is aborted.
             await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, CreateContext(), telemetry: telemetry);
+                kv, CreateContext(), null, telemetry, maxConcurrentWrites: 1);
             IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
                 .ConfigureAwait(false);
 
@@ -393,8 +395,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
             using var inner = new InMemorySharedKeyValueStore();
             var kv = new GatedSharedKeyValueStore(inner);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // One write at a time, so that the write of the restored queue has not started when it is aborted.
             await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
-                kv, CreateContext(), telemetry: telemetry);
+                kv, CreateContext(), null, telemetry, maxConcurrentWrites: 1);
             IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
                 .ConfigureAwait(false);
 
@@ -421,11 +425,113 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await CountStoredDataChangeAsync(factory, 2).ConfigureAwait(false), Is.EqualTo(1));
         }
 
-        private static void CreateMirroredQueue(SharedKeyValueMonitoredItemQueueFactory factory, uint monitoredItemId)
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortDuringAStartedWriteLetsOnlyThatWriteCompleteAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            int writesBefore = kv.StartedWrites(key);
+
+            // The queue is not staged, so its change is written; the write is in progress when it is aborted.
+            Gate held = kv.Hold(key);
+            Enqueue(restored, 2);
+            await held.WaitEnteredAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            Enqueue(restored, 3);
+            ((IDisposable)restored).Dispose();
+            held.Release();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.StartedWrites(key) - writesBefore, Is.EqualTo(1), "no write starts after the abort");
+            Assert.That(
+                await CountStoredAsync(factory, eventQueue).ConfigureAwait(false),
+                Is.EqualTo(2),
+                "the write in progress completes");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StagedQueueStartsNoWriteBeforeItsRestoreIsCommittedAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            int writesBefore = kv.StartedWrites(key);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            await factory.FlushAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            Enqueue(restored, 3);
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.StartedWrites(key), Is.EqualTo(writesBefore), "the staged queue starts no write");
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task WritesOfDifferentQueuesOverlapAndTheWritesOfAQueueKeepTheirOrderAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+
+            // The write of queue 1 holds the drain until queues 2 and 3 changed.
+            Gate first = kv.Hold(DataChangeKey(1));
+            Gate second = kv.Hold(DataChangeKey(2));
+            Gate third = kv.Hold(DataChangeKey(3));
+            CreateMirroredQueue(factory, 1);
+            await first.WaitEnteredAsync().ConfigureAwait(false);
+            IDataChangeMonitoredItemQueue queue2 = CreateMirroredQueue(factory, 2);
+            CreateMirroredQueue(factory, 3);
+            first.Release();
+
+            // Both writes are in progress at once.
+            await second.WaitEnteredAsync().ConfigureAwait(false);
+            await third.WaitEnteredAsync().ConfigureAwait(false);
+
+            // The next change of queue 2 is written after the write in progress completed.
+            queue2.Enqueue(new DataValue(new Variant(22)), ServiceResult.Good);
+            third.Release();
+            await Task.Delay(100).ConfigureAwait(false);
+            second.Release();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.MaxConcurrentWritesOfAKey, Is.EqualTo(1), "the writes of a queue never overlap");
+            Assert.That(kv.StartedWrites(DataChangeKey(2)), Is.GreaterThanOrEqualTo(2));
+            IDataChangeMonitoredItemQueue? stored = await factory.RestoreDataChangeQueueAsync(2)
+                .ConfigureAwait(false);
+            ((IRestorableMonitoredItemQueue)stored!).AbortRestore();
+            Assert.That(stored.ItemsInQueue, Is.EqualTo(2), "the last change of queue 2 is stored last");
+            Assert.That(stored.Dequeue(out DataValue oldest, out _), Is.True);
+            Assert.That(stored.Dequeue(out DataValue newest, out _), Is.True);
+            Assert.That(oldest.WrappedValue, Is.EqualTo(new Variant(2)));
+            Assert.That(newest.WrappedValue, Is.EqualTo(new Variant(22)));
+        }
+
+        private static IDataChangeMonitoredItemQueue CreateMirroredQueue(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            uint monitoredItemId)
         {
             IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, monitoredItemId);
             queue.ResetQueue(5, false);
             queue.Enqueue(new DataValue(new Variant((int)monitoredItemId)), ServiceResult.Good);
+            return queue;
         }
 
         private static async Task<int> CountStoredDataChangeAsync(
@@ -610,10 +716,13 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 m_released.TrySetException(exception);
             }
 
-            public Task<bool> EnterAsync()
+            public async Task EnterAsync(CancellationToken ct)
             {
                 m_entered.TrySetResult(true);
-                return m_released.Task;
+
+                // A held write ends when the factory is disposed, so a failed test does not hang.
+                using CancellationTokenRegistration registration = ct.Register(() => m_released.TrySetCanceled());
+                await m_released.Task.ConfigureAwait(false);
             }
 
             private readonly TaskCompletionSource<bool> m_entered =
@@ -642,6 +751,31 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return gate;
             }
 
+            /// <summary>
+            /// The most writes of one key that were in progress at once.
+            /// </summary>
+            public int MaxConcurrentWritesOfAKey
+            {
+                get
+                {
+                    lock (m_gates)
+                    {
+                        return m_maxConcurrentWritesOfAKey;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The number of writes and removals of the key that started.
+            /// </summary>
+            public int StartedWrites(string key)
+            {
+                lock (m_gates)
+                {
+                    return m_started.TryGetValue(key, out int count) ? count : 0;
+                }
+            }
+
             public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, CancellationToken ct = default)
             {
                 return m_inner.TryGetAsync(key, ct);
@@ -649,8 +783,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public async ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
             {
-                await PassAsync(key).ConfigureAwait(false);
-                await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
+                try
+                {
+                    await PassAsync(key, ct).ConfigureAwait(false);
+                    await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Complete(key);
+                }
             }
 
             public ValueTask<bool> CompareAndSwapAsync(
@@ -664,8 +805,15 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public async ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
             {
-                await PassAsync(key).ConfigureAwait(false);
-                return await m_inner.DeleteAsync(key, ct).ConfigureAwait(false);
+                try
+                {
+                    await PassAsync(key, ct).ConfigureAwait(false);
+                    return await m_inner.DeleteAsync(key, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Complete(key);
+                }
             }
 
             public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
@@ -680,21 +828,36 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return m_inner.WatchAsync(keyPrefix, ct);
             }
 
-            private Task PassAsync(string key)
+            private Task PassAsync(string key, CancellationToken ct)
             {
                 Gate? gate;
                 lock (m_gates)
                 {
+                    m_started[key] = (m_started.TryGetValue(key, out int started) ? started : 0) + 1;
+                    int inFlight = (m_inFlight.TryGetValue(key, out int count) ? count : 0) + 1;
+                    m_inFlight[key] = inFlight;
+                    m_maxConcurrentWritesOfAKey = Math.Max(m_maxConcurrentWritesOfAKey, inFlight);
                     if (m_gates.TryGetValue(key, out gate))
                     {
                         m_gates.Remove(key);
                     }
                 }
-                return gate?.EnterAsync() ?? Task.CompletedTask;
+                return gate?.EnterAsync(ct) ?? Task.CompletedTask;
+            }
+
+            private void Complete(string key)
+            {
+                lock (m_gates)
+                {
+                    m_inFlight[key]--;
+                }
             }
 
             private readonly ISharedKeyValueStore m_inner;
             private readonly Dictionary<string, Gate> m_gates = [];
+            private readonly Dictionary<string, int> m_started = [];
+            private readonly Dictionary<string, int> m_inFlight = [];
+            private int m_maxConcurrentWritesOfAKey;
         }
 
         private sealed class HangingWriteSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable

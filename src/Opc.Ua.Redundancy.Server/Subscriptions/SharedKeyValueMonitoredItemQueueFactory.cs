@@ -70,7 +70,7 @@ namespace Opc.Ua.Redundancy.Server
         /// Drops the snapshots and the removal of the monitored item that are not persisted yet, without
         /// removing its mirrored state (e.g. when the restore that created the queue was aborted). A write of
         /// the monitored item that the background drain already took but has not started is dropped too, and
-        /// is not retried when the drain fails.
+        /// is not retried when the drain fails. A write that already started cannot be recalled and completes.
         /// </summary>
         /// <param name="monitoredItemId">The owning monitored-item id.</param>
         void DiscardPendingQueue(uint monitoredItemId);
@@ -125,6 +125,12 @@ namespace Opc.Ua.Redundancy.Server
     /// <see cref="RestoreEventQueueAsync"/> read the snapshot back and rebuild a mirroring queue that keeps
     /// mirroring for a subsequent failover. Durable (large, disk-backed) queues are out of scope, so
     /// <see cref="SupportsDurableQueues"/> is <c>false</c>.
+    /// <para>
+    /// The drain writes the queues of different monitored items concurrently, up to a fixed limit; the writes
+    /// of one queue never overlap and land in the order the queue changed. Aborting the restore of a queue
+    /// (<see cref="IRestorableMonitoredItemQueue.AbortRestore"/>) drops every write of the queue that has not
+    /// started; a write already in progress completes.
+    /// </para>
     /// </remarks>
     public sealed class SharedKeyValueMonitoredItemQueueFactory :
         IMonitoredItemQueueFactory,
@@ -148,7 +154,26 @@ namespace Opc.Ua.Redundancy.Server
             IServiceMessageContext context,
             IRecordProtector? protector = null,
             ITelemetryContext? telemetry = null)
+            : this(store, context, protector, telemetry, DefaultMaxConcurrentWrites)
         {
+        }
+
+        /// <summary>
+        /// Creates a shared key/value backed monitored-item queue factory that starts at most
+        /// <paramref name="maxConcurrentWrites"/> storage writes at a time.
+        /// </summary>
+        internal SharedKeyValueMonitoredItemQueueFactory(
+            ISharedKeyValueStore store,
+            IServiceMessageContext context,
+            IRecordProtector? protector,
+            ITelemetryContext? telemetry,
+            int maxConcurrentWrites)
+        {
+            if (maxConcurrentWrites < 1)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxConcurrentWrites));
+            }
+            m_maxConcurrentWrites = maxConcurrentWrites;
             m_store = store ?? throw new ArgumentNullException(nameof(store));
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
@@ -447,54 +472,89 @@ namespace Opc.Ua.Redundancy.Server
                 m_pendingRemovals.Clear();
             }
 
-            // The writes start one after the other, so that a write of a queue discarded while the drain
-            // runs is dropped before it starts.
-            var retry = new List<MirrorWrite>();
-            List<Exception>? failures = null;
+            // A batch holds at most one write per storage key, and the next batch starts once this one
+            // completed, so the writes of one queue never overlap and keep their order. The writes of different
+            // queues run concurrently up to the limit; each write checks whether its queue was discarded
+            // immediately before it starts.
+            bool[] retry = new bool[batch.Count];
+            Exception?[] failures = new Exception?[batch.Count];
+            var inFlight = new List<Task>(Math.Min(batch.Count, m_maxConcurrentWrites));
+            int started = 0;
             try
             {
-                for (int index = 0; index < batch.Count; index++)
+                for (; started < batch.Count; started++)
                 {
                     (string Key, ByteString Payload)? record;
                     try
                     {
-                        record = Encode(batch[index]);
+                        record = Encode(batch[started]);
                     }
                     catch (Exception ex)
                     {
                         // A snapshot that cannot be encoded is not retried.
-                        (failures ??= []).Add(ex);
+                        failures[started] = ex;
                         continue;
                     }
 
-                    try
+                    while (inFlight.Count >= m_maxConcurrentWrites)
                     {
-                        await WriteAsync(batch[index], record, cancellationToken).ConfigureAwait(false);
+                        inFlight.Remove(await Task.WhenAny(inFlight).ConfigureAwait(false));
                     }
-                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                    {
-                        retry.AddRange(batch.Skip(index));
-                        throw;
-                    }
-                    catch (Exception ex)
-                    {
-                        retry.Add(batch[index]);
-                        (failures ??= []).Add(ex);
-                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    inFlight.Add(RunWriteAsync(batch[started], record, started, retry, failures, cancellationToken));
                 }
             }
             finally
             {
-                CompleteBatch(retry);
+                // The writes complete on their own, also when the drain is cancelled.
+                await Task.WhenAll(inFlight).ConfigureAwait(false);
+
+                var retried = new List<MirrorWrite>();
+                for (int index = 0; index < batch.Count; index++)
+                {
+                    if (retry[index] || index >= started)
+                    {
+                        retried.Add(batch[index]);
+                    }
+                }
+                CompleteBatch(retried);
             }
 
-            if (failures != null)
+            cancellationToken.ThrowIfCancellationRequested();
+            List<Exception> errors = [.. failures.OfType<Exception>()];
+            if (errors.Count == 1)
             {
-                if (failures.Count == 1)
-                {
-                    ExceptionDispatchInfo.Capture(failures[0]).Throw();
-                }
-                throw new AggregateException(failures);
+                ExceptionDispatchInfo.Capture(errors[0]).Throw();
+            }
+            if (errors.Count > 1)
+            {
+                throw new AggregateException(errors);
+            }
+        }
+
+        /// <summary>
+        /// Writes a record of the batch and records whether it is retried; never throws.
+        /// </summary>
+        private async Task RunWriteAsync(
+            MirrorWrite write,
+            (string Key, ByteString Payload)? record,
+            int index,
+            bool[] retry,
+            Exception?[] failures,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await WriteAsync(write, record, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                retry[index] = true;
+            }
+            catch (Exception ex)
+            {
+                retry[index] = true;
+                failures[index] = ex;
             }
         }
 
@@ -735,10 +795,12 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         private const int QueueSnapshotFormatVersion = 1;
+        private const int DefaultMaxConcurrentWrites = 16;
         private const int ChannelCapacity = 1024;
         private const string DataChangePrefix = "monitored-item-queue/data/";
         private const string EventPrefix = "monitored-item-queue/event/";
         private readonly ISharedKeyValueStore m_store;
+        private readonly int m_maxConcurrentWrites;
         private readonly IServiceMessageContext m_context;
         private readonly IRecordProtector m_protector;
         private readonly ITelemetryContext m_telemetry;

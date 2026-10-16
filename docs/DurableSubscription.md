@@ -72,8 +72,12 @@ Typically the following porting steps are necessary:
   logs it and writes on its next change; the server logs an exception it throws
   and commits the other queues. When the restore
   fails or is cancelled the server calls `AbortRestore` and disposes the queue;
-  the queue must drop writes it has not completed, never write again, and keep
-  its stored contents on dispose, because the retry reads them again. A queue
+  the queue must drop every write it has not started, never start a write
+  again, and not remove its stored contents on dispose, because the retry reads
+  them again. A write already in progress when `AbortRestore` is called cannot
+  be recalled and may complete; a queue staged by `BeginRestore` starts no
+  write before `CommitRestore`, so its stored contents stay exactly as they
+  were. A queue
   disposed after `BeginRestore` but before `CommitRestore`, e.g. because a node
   manager failed to create its monitored item, must keep its stored contents as
   well. The mirrored queues of `SharedKeyValueMonitoredItemQueueFactory`

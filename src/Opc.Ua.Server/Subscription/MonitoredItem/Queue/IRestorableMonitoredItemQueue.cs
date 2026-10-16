@@ -58,10 +58,15 @@ namespace Opc.Ua.Server
     /// <para>
     /// When the restore fails or is cancelled, the server calls
     /// <see cref="AbortRestore"/> and then disposes the queue. The queue must not
-    /// write to its storage again, must drop any write it has not completed yet, and
-    /// disposing it must keep the stored contents, which a retry of the restore reads
-    /// again. <see cref="AbortRestore"/> may also be called on a queue
-    /// <see cref="BeginRestore"/> was not called on.
+    /// start a write to its storage again, must drop every write it has not started
+    /// yet, and disposing it must not remove the stored contents, which a retry of
+    /// the restore reads again. A write that is already in progress when
+    /// <see cref="AbortRestore"/> is called cannot be recalled and may complete.
+    /// A queue staged by <see cref="BeginRestore"/> starts no write before
+    /// <see cref="CommitRestore"/>, so aborting it keeps the stored contents exactly
+    /// as they were before the restore. <see cref="AbortRestore"/> may also be called
+    /// on a queue <see cref="BeginRestore"/> was not called on; its storage then keeps
+    /// what its writes started before the abort stored.
     /// </para>
     /// <para>
     /// A queue that is disposed after <see cref="BeginRestore"/> and before
@@ -90,8 +95,9 @@ namespace Opc.Ua.Server
         void CommitRestore();
 
         /// <summary>
-        /// Stops the queue from writing to or removing its storage for good, so
-        /// that disposing the queue releases only its local contents.
+        /// Stops the queue from starting writes to or removals of its storage for
+        /// good and drops the writes it has not started, so that disposing the queue
+        /// releases only its local contents. A write already in progress may complete.
         /// </summary>
         void AbortRestore();
     }
