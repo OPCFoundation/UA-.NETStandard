@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 using Opc.Ua.Client.FileSystem;
 using Opc.Ua.Machinery.Result;
 using ResultBrowseNames = Opc.Ua.Machinery.Result.BrowseNames;
@@ -107,15 +108,33 @@ namespace Opc.Ua.Machinery.Client
             }
             cancellationToken.ThrowIfCancellationRequested();
 
-            NodeId transfer = await ResolveBoundedResultTransferAsync(machine, cancellationToken)
-                .ConfigureAwait(false);
-            var client = new TemporaryFileTransferClient(Session, transfer);
-            var options = new ResultTransferOptionsDataType { ResultId = resultId };
-            return await client.CopyToAsync(
-                Variant.FromStructure(options),
-                destination,
-                maxBytes,
-                cancellationToken).ConfigureAwait(false);
+            SessionRequestContext? requestContext = Session is ManagedSession
+                ? await SessionRequestContext.CaptureAsync(Session, cancellationToken).ConfigureAwait(false)
+                : null;
+            try
+            {
+                MachineryClient scoped = requestContext is null
+                    ? this
+                    : new MachineryClient(requestContext.Session, Telemetry);
+                NodeId sessionId = scoped.Session.SessionId;
+                NodeId transfer = await scoped.ResolveBoundedResultTransferAsync(machine, cancellationToken)
+                    .ConfigureAwait(false);
+                scoped.VerifySessionIdentity(sessionId);
+                var client = new TemporaryFileTransferClient(scoped.Session, transfer);
+                var options = new ResultTransferOptionsDataType { ResultId = resultId };
+                return await client.CopyToAsync(
+                    Variant.FromStructure(options),
+                    destination,
+                    maxBytes,
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (requestContext is not null)
+                {
+                    await requestContext.DisposeAsync().ConfigureAwait(false);
+                }
+            }
         }
 
         private async ValueTask<NodeId> ResolveBoundedResultTransferAsync(

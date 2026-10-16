@@ -333,21 +333,9 @@ namespace Opc.Ua.Machinery.Client
             return valid ? text : default;
         }
 
-        private void ValidateArrayCount(ReadValueSet values, QualifiedName name, int count)
+        private static bool HasNumericType(Variant value)
         {
-            if (m_options is not null && count > m_options.MaximumReadArrayItems)
-            {
-                throw ReadFailure(
-                    StatusCodes.BadEncodingLimitsExceeded,
-                    values.EvidenceOf(name)[0],
-                    "The Machinery read array limit was exceeded.");
-            }
-        }
-
-        private static bool IsNumber(Variant value)
-        {
-            return value.TypeInfo.ValueRank == ValueRanks.Scalar &&
-                value.TypeInfo.BuiltInType is
+            return value.TypeInfo.BuiltInType is
                     BuiltInType.SByte or BuiltInType.Byte or BuiltInType.Int16 or BuiltInType.UInt16 or
                     BuiltInType.Int32 or BuiltInType.UInt32 or BuiltInType.Int64 or BuiltInType.UInt64 or
                     BuiltInType.Float or BuiltInType.Double;

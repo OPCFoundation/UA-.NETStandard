@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Machinery.Client
 {
@@ -49,17 +50,45 @@ namespace Opc.Ua.Machinery.Client
             {
                 return [];
             }
+            SessionRequestContext? requestContext = Session is ManagedSession
+                ? await SessionRequestContext.CaptureAsync(Session, cancellationToken).ConfigureAwait(false)
+                : null;
+            try
+            {
+                MachineryClient scoped = requestContext is null
+                    ? this
+                    : new MachineryClient(requestContext.Session, Telemetry);
+                return await scoped.BrowseBoundedCoreAsync(
+                    parent, nodeClass, referenceTypeId, budget, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (requestContext is not null)
+                {
+                    await requestContext.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async ValueTask<ArrayOf<MachineEntry>> BrowseBoundedCoreAsync(
+            NodeId parent,
+            NodeClass nodeClass,
+            NodeId referenceTypeId,
+            BrowseBudget budget,
+            CancellationToken cancellationToken)
+        {
+            NodeId sessionId = Session.SessionId;
             MachineryReadValue evidence = UnresolvedField(parent, [], StatusCodes.Good);
             ValidateLocalNode(parent, evidence);
             var entries = new List<MachineEntry>();
             var seen = new HashSet<NodeId>();
-            var continuations = new HashSet<ByteString>();
             ByteString owned = default;
             ArrayOf<BrowseResult> pending = [];
             Exception? failure = null;
             try
             {
                 budget.BeginPage(evidence);
+                VerifySessionIdentity(sessionId);
                 BrowseResponse response = await Session.BrowseAsync(
                     null, null, (uint)Math.Max(1, Math.Min(64, budget.RemainingReferences)),
                     [
@@ -118,12 +147,8 @@ namespace Opc.Ua.Machinery.Client
                     {
                         break;
                     }
-                    if (!continuations.Add(owned))
-                    {
-                        throw ReadFailure(
-                            StatusCodes.BadDecodingError, evidence, "A browse continuation point was repeated.");
-                    }
                     budget.BeginPage(evidence);
+                    VerifySessionIdentity(sessionId);
                     BrowseNextResponse next = await Session.BrowseNextAsync(
                         null, false, [owned], cancellationToken).ConfigureAwait(false) ??
                         throw ReadFailure(
@@ -143,7 +168,7 @@ namespace Opc.Ua.Machinery.Client
                 failure = exception;
             }
 
-            Exception? cleanupFailure = await ReleaseBrowseContinuationsAsync(owned, pending, evidence)
+            Exception? cleanupFailure = await ReleaseBrowseContinuationsAsync(owned, pending, evidence, sessionId)
                 .ConfigureAwait(false);
             if (failure is not null && cleanupFailure is not null)
             {
@@ -164,7 +189,8 @@ namespace Opc.Ua.Machinery.Client
         private async ValueTask<Exception?> ReleaseBrowseContinuationsAsync(
             ByteString owned,
             ArrayOf<BrowseResult> pending,
-            MachineryReadValue evidence)
+            MachineryReadValue evidence,
+            NodeId sessionId)
         {
             if (owned.IsEmpty && pending.Count == 0)
             {
@@ -184,11 +210,17 @@ namespace Opc.Ua.Machinery.Client
                     {
                         continue;
                     }
+                    VerifySessionIdentity(sessionId);
                     BrowseNextResponse response = await Session.BrowseNextAsync(
-                        null, true, [token], cleanup.Token).ConfigureAwait(false) ??
+                        null, true, [token], cleanup.Token).AsTask().WaitAsync(cleanup.Token).ConfigureAwait(false) ??
                         throw ReadFailure(StatusCodes.BadDecodingError, evidence, "The release response is missing.");
                     ValidateStrictResponse(
-                        response.ResponseHeader, response.Results.Count, 1, response.DiagnosticInfos.Count, evidence);
+                        response.ResponseHeader, response.Results.Count, response.Results.Count == 0 ? 0 : 1,
+                        response.DiagnosticInfos.Count, evidence);
+                    if (response.Results.Count == 0)
+                    {
+                        continue;
+                    }
                     BrowseResult result = response.Results[0] ??
                         throw ReadFailure(StatusCodes.BadDecodingError, evidence, "The release result is missing.");
                     if (result.StatusCode != StatusCodes.BadContinuationPointInvalid)
@@ -211,6 +243,16 @@ namespace Opc.Ua.Machinery.Client
                 }
             }
             return failure;
+        }
+
+        private void VerifySessionIdentity(NodeId expected)
+        {
+            if (Session.SessionId != expected)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSessionIdInvalid,
+                    "The session that owns the Machinery operation has been replaced.");
+            }
         }
 
         private static ByteString ContinuationOf(BrowseResult? result)

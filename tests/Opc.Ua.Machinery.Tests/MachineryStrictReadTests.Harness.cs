@@ -59,6 +59,7 @@ namespace Opc.Ua.Machinery.Tests
                     ProcessValues.Namespaces.MachineryProcessValues,
                     PADIM.Namespaces.PADIM,
                     ECM.Namespaces.ECM,
+                    IA.Namespaces.IA,
                     Energy.Namespaces.MachineryEnergy,
                     Jobs.Namespaces.MachineryJobs,
                     ISA95.JobControl.V2.Namespaces.ISA95JobControlV2,
@@ -72,12 +73,25 @@ namespace Opc.Ua.Machinery.Tests
                 Context.NamespaceUris = Namespaces;
                 Session.SetupGet(s => s.NamespaceUris).Returns(() => Namespaces);
                 Session.SetupGet(s => s.MessageContext).Returns(Context);
+                Session.SetupGet(s => s.SessionId).Returns(() => SessionId);
                 Session.SetupGet(s => s.OperationLimits).Returns(new OperationLimits());
                 Session.SetupGet(s => s.ServerCapabilities).Returns(new ServerCapabilities());
                 Session.SetupGet(s => s.ContinuationPointPolicy).Returns(ContinuationPointPolicy.Default);
+                var typeTree = new TypeTable(Namespaces);
+                typeTree.AddSubtype(Ua.DataTypeIds.BaseDataType, NodeId.Null);
+                typeTree.AddSubtype(Ua.DataTypeIds.Structure, Ua.DataTypeIds.BaseDataType);
+                typeTree.AddSubtype(new NodeId(ECM.DataTypes.AcPeDataType, Index(ECM.Namespaces.ECM)),
+                    Ua.DataTypeIds.Structure);
+                typeTree.AddSubtype(new NodeId(ECM.DataTypes.AcPpDataType, Index(ECM.Namespaces.ECM)),
+                    Ua.DataTypeIds.Structure);
+                Session.SetupGet(s => s.TypeTree).Returns(typeTree);
                 var cache = new Mock<INodeCache>();
                 cache.Setup(c => c.IsTypeOfAsync(It.IsAny<NodeId>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                     .Returns(new ValueTask<bool>(true));
+                cache.Setup(c => c.IsTypeOfAsync(
+                    It.IsAny<NodeId>(), VariableTypeIds.PropertyType, It.IsAny<CancellationToken>()))
+                    .Returns((NodeId type, NodeId _, CancellationToken _) =>
+                        new ValueTask<bool>(type == VariableTypeIds.PropertyType));
                 Session.SetupGet(s => s.NodeCache).Returns(cache.Object);
 
                 Translate = TranslatePaths;
@@ -134,6 +148,11 @@ namespace Opc.Ua.Machinery.Tests
             public Mock<ISession> Session { get; } = new(MockBehavior.Strict);
 
             /// <summary>
+            /// Gets or changes the borrowed session identity to exercise in-place replacement.
+            /// </summary>
+            public NodeId SessionId { get; set; } = new("strict-read-session", 1);
+
+            /// <summary>
             /// Gets or replaces the table to test legitimately absent model namespaces.
             /// </summary>
             public NamespaceTable Namespaces { get; set; } = new();
@@ -152,6 +171,11 @@ namespace Opc.Ua.Machinery.Tests
             /// Gets the stored source values.
             /// </summary>
             public Dictionary<NodeId, DataValue> Values { get; } = [];
+
+            /// <summary>
+            /// Gets explicit wire metadata for typed measurement validation.
+            /// </summary>
+            public Dictionary<(NodeId Node, uint Attribute), DataValue> AttributeValues { get; } = [];
 
             /// <summary>
             /// Gets or sets translation responses.
@@ -273,11 +297,37 @@ namespace Opc.Ua.Machinery.Tests
                 var values = new DataValue[nodes.Count];
                 for (int ii = 0; ii < nodes.Count; ii++)
                 {
-                    values[ii] = Values.TryGetValue(nodes[ii].NodeId, out DataValue value)
-                        ? value
-                        : DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+                    ReadValueId node = nodes[ii];
+                    if (AttributeValues.TryGetValue((node.NodeId, node.AttributeId), out DataValue attribute))
+                    {
+                        values[ii] = attribute;
+                    }
+                    else if (node.AttributeId == Attributes.Value)
+                    {
+                        values[ii] = Values.TryGetValue(node.NodeId, out DataValue value)
+                            ? value
+                            : DataValue.FromStatusCode(StatusCodes.BadNodeIdUnknown);
+                    }
+                    else
+                    {
+                        values[ii] = node.AttributeId switch
+                        {
+                            Attributes.DataType => new DataValue(Variant.From(Ua.DataTypeIds.Double)),
+                            Attributes.ValueRank => new DataValue(Variant.From(ValueRanks.Scalar)),
+                            _ => DataValue.FromStatusCode(StatusCodes.BadAttributeIdInvalid)
+                        };
+                    }
                 }
                 return new ReadResponse { ResponseHeader = new ResponseHeader(), Results = values.ToArrayOf() };
+            }
+
+            /// <summary>
+            /// Sets a measurement's declared DataType and ValueRank independently of its value.
+            /// </summary>
+            public void Declare(NodeId node, NodeId dataType, int valueRank = ValueRanks.Scalar)
+            {
+                AttributeValues[(node, Attributes.DataType)] = new DataValue(Variant.From(dataType));
+                AttributeValues[(node, Attributes.ValueRank)] = new DataValue(Variant.From(valueRank));
             }
 
             /// <summary>

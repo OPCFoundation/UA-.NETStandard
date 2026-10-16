@@ -277,7 +277,7 @@ namespace Opc.Ua.Machinery.Client
         ArrayOf<MachineryMeasurementValue> Measurements)
     {
         /// <summary>
-        /// Gets strict evidence for the application tag and every measurement.
+        /// Gets strict evidence for the application tag, metadata properties and every measurement.
         /// </summary>
         public ArrayOf<MachineryReadValue> Values { get; init; }
     }
@@ -351,7 +351,8 @@ namespace Opc.Ua.Machinery.Client
         public double? LimitValue { get; init; }
 
         /// <summary>
-        /// The warning thresholds, when published.
+        /// The Double-array warning projection, when published in that form.
+        /// Strict scalar thresholds and other numeric array types remain in Values.
         /// </summary>
         public ArrayOf<double> WarningValues { get; init; }
     }

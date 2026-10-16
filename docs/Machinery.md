@@ -925,11 +925,36 @@ last-read state.
 Browse limits are checked **during** Browse/BrowseNext traversal, before
 accumulating a page or deduplicating identities. Duplicate references and empty
 pages count. Process-value discovery shares its budget across the machine and
-Monitoring roots. The strict continuation policy rejects repeated tokens;
-exceeding a budget fails with `BadEncodingLimitsExceeded`, never silently
+Monitoring roots. Continuation points are opaque and may remain unchanged while
+pages advance; the page and reference budgets still bound the traversal.
+Exceeding a budget fails with `BadEncodingLimitsExceeded`, never silently
 truncates a result. Outstanding points are released using an independent
-five-second cancellation deadline. If traversal and cleanup both fail,
+five-second deadline that also bounds an unresponsive release call. Standard
+empty release responses and validated per-point responses are accepted.
+If traversal and cleanup both fail,
 `AggregateException` preserves the primary failure first.
+
+Bounded browsing and selected-result downloads capture one authenticated
+`ManagedSession` generation for their service calls and cleanup. Result-path
+resolution is part of that same download scope. Recovery invalidates the scope
+instead of forwarding an old continuation point, resolved target or handle to
+a replacement session. Ordinary borrowed sessions are checked for a changed
+SessionId; callers must not independently retarget their transport or identity
+while an operation is running.
+
+Strict lifetime counters and a present `EquipmentLife` require `StartValue`
+and `LimitValue`. Their scalar `Number` fields accept floating-point and integer
+values; `WarningValues` accepts either a scalar Number or a one-dimensional
+numeric array. The existing `ArrayOf<double>` warning projection is populated
+only for Double arrays; other valid forms remain unmodified in `Values`.
+Operation durations retain their Double-only wire contract.
+
+Strict meters require `ApplicationTag`, while a published Good-null tag remains
+present. Measurements are checked against their published `DataType` and
+`ValueRank`, including the ECM `AcPeDataType` and `AcPpDataType` structures.
+Properties such as IA `StartTime` remain in `Values` rather than being reported
+as numeric measurements; StartTime must carry a DateTime. Legacy-created clients
+keep their existing tolerant projections.
 
 `MaximumReadArrayItems` bounds decoded arrays and the aggregate modeled array
 items in each job-list or result snapshot, including nested parameter arrays.

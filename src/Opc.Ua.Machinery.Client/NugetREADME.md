@@ -55,9 +55,17 @@ retains its local source NodeId, qualified path and original DataValue. Good-nul
 is present; only genuine optional absence sets `IsAbsent`. Denied/Uncertain
 reads, wrong types, incomplete responses and ambiguous/foreign translations
 throw `MachineryReadException`, preserving status and offending evidence.
-Browse budgets are enforced while following pages, with continuation cleanup
-on cancellation or failure. Decoding and opaque vendor payload sizes still
+Browse budgets are enforced while following pages, including progressing pages
+that reuse opaque continuation tokens. Continuation cleanup accepts standard
+empty release responses and has an independently bounded five-second deadline.
+Decoding and opaque vendor payload sizes still
 depend on session quotas.
+
+Strict lifetime and equipment-life bounds are mandatory Number fields.
+Scalar and one-dimensional numeric warning thresholds remain in their original
+evidence when they are not Double arrays. Strict meters require ApplicationTag,
+keep StartTime and other properties as metadata, and validate measurements
+against their declared data type and rank, including ECM three-phase structures.
 
 Use `EnumeratePublishedResultsAsync` for result identities and
 `ReadPublishedResultAsync` for an explicitly selected variable. Job-list and
@@ -83,6 +91,9 @@ is closed with an independent five-second deadline, even when the download is
 cancelled. If downloading and closing both fail, `AggregateException` preserves
 the download failure first and the close failure second. The session and
 destination stay open; discard any partial destination after failure.
+On a ManagedSession, the result path and transfer share one captured session
+generation. Bounded browse continuations use the same ownership rule; neither
+operation forwards owned state to a replacement session after recovery.
 
 The existing `DownloadResultAsync(machineId, resultId, ct)` overload still returns
 a buffered `ByteString` with its original behavior. Prefer the streaming overload

@@ -238,6 +238,7 @@ namespace Opc.Ua.Machinery.Client
                 [applicationTagName],
                 ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken).ConfigureAwait(false);
+            values.RequirePresent(applicationTagName);
             string? applicationTag = AsString(values, applicationTagName);
 
             var variables = new List<MachineEntry>();
@@ -267,9 +268,31 @@ namespace Opc.Ua.Machinery.Client
                     }
                     measurementValues = await ReadStrictSourcesAsync(sources.ToArrayOf(), cancellationToken)
                         .ConfigureAwait(false);
-                    foreach (MachineryReadValue field in measurementValues)
+                    ArrayOf<(NodeId DataType, int ValueRank)> declarations =
+                        await ReadMeasurementDeclarationsAsync(measurementValues, cancellationToken)
+                            .ConfigureAwait(false);
+                    for (int ii = 0; ii < measurementValues.Count; ii++)
                     {
-                        RequireFieldType(field, IsNumber(field.Value.WrappedValue));
+                        MachineryReadValue field = measurementValues[ii];
+                        await ValidateMeasurementValueAsync(
+                            field, declarations[ii], new ReadArrayBudget(m_options, field), cancellationToken)
+                            .ConfigureAwait(false);
+                        QualifiedName name = field.BrowsePath[0];
+                        bool startTime = name.Name == Ua.BrowseNames.StartTime &&
+                            Session.NamespaceUris.GetString(name.NamespaceIndex) == IA.Namespaces.IA;
+                        if (startTime)
+                        {
+                            RequireFieldType(field, HasType(field.Value.WrappedValue, BuiltInType.DateTime));
+                        }
+                        if (startTime ||
+                            (!variables[ii].TypeDefinitionId.IsNull &&
+                                await Session.NodeCache.IsTypeOfAsync(
+                                    variables[ii].TypeDefinitionId,
+                                    VariableTypeIds.PropertyType,
+                                    cancellationToken).ConfigureAwait(false)))
+                        {
+                            continue;
+                        }
                         measurements.Add(new MachineryMeasurementValue(
                             field.BrowsePath[0], field.Value.WrappedValue)
                         {
@@ -319,6 +342,107 @@ namespace Opc.Ua.Machinery.Client
             {
                 Values = CombineEvidence(values.Values, measurementValues)
             };
+        }
+
+        private async ValueTask<ArrayOf<(NodeId DataType, int ValueRank)>> ReadMeasurementDeclarationsAsync(
+            ArrayOf<MachineryReadValue> fields,
+            CancellationToken cancellationToken)
+        {
+            var requests = new ReadValueId[fields.Count * 2];
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                requests[2 * ii] = new ReadValueId
+                {
+                    NodeId = fields[ii].SourceNodeId,
+                    AttributeId = Attributes.DataType
+                };
+                requests[(2 * ii) + 1] = new ReadValueId
+                {
+                    NodeId = fields[ii].SourceNodeId,
+                    AttributeId = Attributes.ValueRank
+                };
+            }
+            ReadResponse response;
+            try
+            {
+                response = await Session.ReadAsync(
+                    null, 0, TimestampsToReturn.Neither, requests.ToArrayOf(), cancellationToken)
+                    .ConfigureAwait(false) ??
+                    throw ReadFailure(StatusCodes.BadDecodingError, fields[0],
+                        "The measurement declaration response is missing.");
+            }
+            catch (ServiceResultException exception) when (exception is not MachineryReadException)
+            {
+                throw ReadFailure(exception.StatusCode, fields[0], exception.Message, exception);
+            }
+            ValidateStrictResponse(
+                response.ResponseHeader, response.Results.Count, requests.Length, response.DiagnosticInfos.Count,
+                fields[0]);
+            var declarations = new (NodeId DataType, int ValueRank)[fields.Count];
+            for (int ii = 0; ii < fields.Count; ii++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                DataValue dataType = response.Results[2 * ii];
+                DataValue valueRank = response.Results[(2 * ii) + 1];
+                RequireGood(dataType.StatusCode, fields[ii]);
+                RequireGood(valueRank.StatusCode, fields[ii]);
+                if (!HasType(dataType.WrappedValue, BuiltInType.NodeId) ||
+                    !dataType.WrappedValue.TryGetValue(out NodeId type) || type.IsNull ||
+                    !HasType(valueRank.WrappedValue, BuiltInType.Int32) ||
+                    !valueRank.WrappedValue.TryGetValue(out int rank) ||
+                    rank < ValueRanks.ScalarOrOneDimension)
+                {
+                    throw ReadFailure(StatusCodes.BadDecodingError, fields[ii],
+                        "The measurement has an invalid DataType or ValueRank declaration.");
+                }
+                ValidateLocalNode(type, fields[ii]);
+                declarations[ii] = (type, rank);
+            }
+            return declarations.ToArrayOf();
+        }
+
+        private async ValueTask ValidateMeasurementValueAsync(
+            MachineryReadValue field,
+            (NodeId DataType, int ValueRank) declaration,
+            ReadArrayBudget budget,
+            CancellationToken cancellationToken)
+        {
+            Variant value = field.Value.WrappedValue;
+            ValidateVariantArrays(value, budget, cancellationToken);
+            if (value.IsNull)
+            {
+                return;
+            }
+            if (declaration.DataType.NamespaceIndex != 0 &&
+                !await Session.NodeCache.IsTypeOfAsync(
+                    declaration.DataType, DataTypeIds.BaseDataType, cancellationToken).ConfigureAwait(false))
+            {
+                throw ReadFailure(StatusCodes.BadTypeMismatch, field,
+                    "The measurement DataType is not a supported data type.");
+            }
+            Variant checkedValue = value;
+            if (HasType(value, BuiltInType.ExtensionObject) &&
+                value.TryGetValue(out ExtensionObject encoded) && !encoded.IsNull)
+            {
+                IEncodeable? decoded;
+                try
+                {
+                    if (!encoded.TryGetValue(out decoded, Session.MessageContext) || decoded is null)
+                    {
+                        throw ReadFailure(StatusCodes.BadDecodingError, field,
+                            "The measurement structure could not be decoded.");
+                    }
+                }
+                catch (ServiceResultException exception) when (exception is not MachineryReadException)
+                {
+                    throw ReadFailure(exception.StatusCode, field, exception.Message, exception);
+                }
+                RequireFieldType(field, MatchesStructureIdentifier(encoded.TypeId, decoded));
+                checkedValue = Variant.FromStructure(decoded);
+            }
+            RequireFieldType(field, !TypeInfo.IsInstanceOfDataType(
+                checkedValue, declaration.DataType, declaration.ValueRank, Session.NamespaceUris, Session.TypeTree)
+                .IsUnknown);
         }
     }
 }

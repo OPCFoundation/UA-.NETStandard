@@ -427,7 +427,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         /// <summary>
-        /// Lifetime fields must use their modeled Double types, not coercible Float values.
+        /// Lifetime Number fields reject nonnumeric wire values while retaining the original evidence.
         /// </summary>
         [TestCase("Remaining")]
         [TestCase("StartValue")]
@@ -439,15 +439,17 @@ namespace Opc.Ua.Machinery.Tests
             NodeId folder = harness.Add(harness.Machine, [Machinery(harness, BrowseNames.LifetimeCounters)]);
             ReferenceDescription counter = Reference(harness, 1, NodeClass.Variable);
             NodeId source = harness.Add(folder, [counter.BrowseName],
-                new DataValue(field == "Remaining" ? Variant.From(5.0f) : Variant.From(5.0)));
+                new DataValue(field == "Remaining" ? Variant.From("5") : Variant.From(5.0)));
             counter.NodeId = source;
+            harness.Add(source, [Di(harness, DiNames.StartValue)], new DataValue(100.0));
+            harness.Add(source, [Di(harness, DiNames.LimitValue)], new DataValue(0.0));
             NodeId rejected = source;
             if (field != "Remaining")
             {
                 rejected = harness.Add(source, [Di(harness, field)],
                     new DataValue(field == "WarningValues"
-                        ? Variant.From([1.0f])
-                        : Variant.From(1.0f)));
+                        ? Variant.From((ArrayOf<string>)["1"])
+                        : Variant.From("1")));
             }
             harness.Browse = _ => Page([counter]);
             MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>

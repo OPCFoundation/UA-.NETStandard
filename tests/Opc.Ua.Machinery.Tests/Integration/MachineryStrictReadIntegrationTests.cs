@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -54,6 +55,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
         [Test]
         public async Task StrictReadsMatchTheMachineryAddressSpace()
         {
+            var startTime = new DateTime(2026, 10, 10, 8, 0, 0, DateTimeKind.Utc);
             var fixture = new MachineryServerFixture();
             await using ConfiguredAsyncDisposable _ = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
@@ -78,7 +80,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                     .WithStatus())
                 .WithEnergy(energy => energy.AddResource(
                     MachineryEnergyCarrier.CompressedAir,
-                    air => air.Main.WithApplicationTag("air").WithNonElectricalEnergy(12.0, 0)))
+                    air => air.Main.WithApplicationTag("air").WithStartTime(startTime)
+                        .WithNonElectricalEnergy(12.0, 0)))
                 .WithJobManagement(builder => builder.WithJobOrderReceiver(jobs)
                     .WithJobResponseProvider(jobs)
                     .WithJobOrderCatalog(jobs))
@@ -136,7 +139,10 @@ namespace Opc.Ua.Machinery.Tests.Integration
             Assert.That(meters, Has.Count.EqualTo(1));
             Assert.That(meters[0].ApplicationTag, Is.EqualTo("air"));
             Assert.That(meters[0].Measurements.Count, Is.GreaterThan(0));
-            Assert.That(meters[0].Values.Count, Is.EqualTo(meters[0].Measurements.Count + 1));
+            Assert.That(meters[0].Values.Count, Is.EqualTo(meters[0].Measurements.Count + 2));
+            Assert.That(meters[0].Values.ToArray(), Has.Some.Matches<MachineryReadValue>(field =>
+                field.BrowsePath[^1].Name == IA.BrowseNames.StartTime &&
+                field.Value.WrappedValue == Variant.From(startTime)));
             MachineryJobOrdersSnapshot jobSnapshot = await client.ReadJobOrdersSnapshotAsync(machine.NodeId)
                 .ConfigureAwait(false);
             Assert.That(jobSnapshot.Values[0].IsAbsent, Is.False);

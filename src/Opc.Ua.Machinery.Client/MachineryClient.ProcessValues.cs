@@ -337,10 +337,7 @@ namespace Opc.Ua.Machinery.Client
                 return AsDouble(values, name);
             }
             values.TryGetValue(name, out Variant value);
-            bool numeric = value.TypeInfo.BuiltInType is
-                BuiltInType.SByte or BuiltInType.Byte or BuiltInType.Int16 or BuiltInType.UInt16 or
-                BuiltInType.Int32 or BuiltInType.UInt32 or BuiltInType.Int64 or BuiltInType.UInt64 or
-                BuiltInType.Float or BuiltInType.Double;
+            bool numeric = HasNumericType(value);
             values.RequireType(name, numeric && (allowArray || value.TypeInfo.ValueRank == ValueRanks.Scalar));
             if (value.TypeInfo.ValueRank >= ValueRanks.OneDimension)
             {

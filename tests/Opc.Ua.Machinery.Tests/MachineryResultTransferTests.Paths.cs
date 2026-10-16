@@ -121,6 +121,30 @@ namespace Opc.Ua.Machinery.Tests
             AssertNoRequests();
         }
 
+        /// <summary>
+        /// Replacing an ordinary session while resolving the transfer path cannot begin generation on its successor.
+        /// </summary>
+        [Test]
+        public void SessionReplacementDuringTransferTranslationPreventsGeneration()
+        {
+            m_transfer.Translate = path =>
+            {
+                m_transfer.SessionId = new NodeId("replacement-session", 1);
+                return TransferHarness.PathResponse(path);
+            };
+            using var destination = new MemoryStream();
+
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_transfer.Client.DownloadResultAsync(
+                    TransferHarness.MachineId, "selected", destination, 1).ConfigureAwait(false))!;
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(m_transfer.Paths, Has.Count.EqualTo(1));
+            Assert.That(m_transfer.Calls, Is.Empty);
+            Assert.That(destination.Length, Is.Zero);
+            Assert.That(m_transfer.OwnsHandle, Is.False);
+        }
+
         [Test]
         public void ReadMethodResolutionFailureStillClosesTheAcquiredFile()
         {

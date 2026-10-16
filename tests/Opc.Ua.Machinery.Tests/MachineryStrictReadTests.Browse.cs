@@ -148,10 +148,10 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         /// <summary>
-        /// Repeated continuation points fail explicitly and the live token is released once.
+        /// Repeated continuation points remain bounded by the page budget and are released once.
         /// </summary>
         [Test]
-        public void BrowseRejectsRepeatedContinuationAndReleasesIt()
+        public void RepeatedContinuationRemainsBoundedAndIsReleasedOnce()
         {
             var harness = new ReadHarness
             {
@@ -159,10 +159,138 @@ namespace Opc.Ua.Machinery.Tests
                 Next = (_, _) => Task.FromResult(NextPage([], Token(7)))
             };
             MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false));
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            Assert.That(harness.NextRequests, Has.Count.EqualTo(1));
+                async () => await harness.Client(new MachineryClientOptions { MaximumBrowsePages = 3 })
+                    .DiscoverMachinesAsync().ConfigureAwait(false));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(harness.NextRequests, Has.Count.EqualTo(2));
             Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token(7)));
+        }
+
+        /// <summary>
+        /// Opaque continuation tokens may stay unchanged while the server advances through distinct pages.
+        /// </summary>
+        [Test]
+        public async Task ProgressingPagesMayReuseTheSameContinuationToken()
+        {
+            var harness = new ReadHarness();
+            ReferenceDescription first = Reference(harness, 1);
+            ReferenceDescription second = Reference(harness, 2);
+            ReferenceDescription third = Reference(harness, 3);
+            harness.Browse = _ => Page([first], Token(7));
+            harness.Next = (_, _) => Task.FromResult(harness.NextRequests.Count == 1
+                ? NextPage([second], Token(7))
+                : NextPage([third]));
+
+            ArrayOf<NodeId> machines = await harness.Client(new MachineryClientOptions
+            {
+                MaximumBrowsePages = 3,
+                MaximumBrowseReferences = 3
+            }).DiscoverMachinesAsync().ConfigureAwait(false);
+
+            Assert.That(machines.ToArray(), Is.EqualTo(new[] { first, second, third }
+                .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, harness.Namespaces)).ToArray()));
+            Assert.That(harness.NextRequests.ToArray(), Is.EqualTo(new[] { Token(7), Token(7) }));
+            Assert.That(harness.Releases, Is.Empty);
+        }
+
+        /// <summary>
+        /// An ordinary borrowed session cannot receive an old continuation after changing its server identity.
+        /// </summary>
+        [Test]
+        public void ReplacedBorrowedSessionDoesNotReceiveBrowseNextOrRelease()
+        {
+            var harness = new ReadHarness();
+            harness.Browse = _ =>
+            {
+                harness.SessionId = new NodeId("replacement-session", 1);
+                return Page([], Token(9));
+            };
+
+            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+                async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false))!;
+
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(failure.InnerExceptions, Has.All.InstanceOf<ServiceResultException>()
+                .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(harness.NextRequests, Is.Empty);
+            Assert.That(harness.Releases, Is.Empty);
+        }
+
+        /// <summary>
+        /// Standard empty release responses preserve the original browse failure rather than inventing cleanup errors.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EmptyReleaseResponsePreservesThePrimaryFailure(bool invalidDiagnostics)
+        {
+            var harness = new ReadHarness
+            {
+                Browse = _ => Page([], Token(1)),
+                Release = (_, _) => Task.FromResult(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [],
+                    DiagnosticInfos = invalidDiagnostics ? [new DiagnosticInfo()] : []
+                })
+            };
+            Task BrowseAsync() => harness.Client(new MachineryClientOptions { MaximumBrowsePages = 1 })
+                .DiscoverMachinesAsync().AsTask();
+
+            if (invalidDiagnostics)
+            {
+                AggregateException error = Assert.ThrowsAsync<AggregateException>(BrowseAsync)!;
+                Assert.That(error.InnerExceptions[0], Is.TypeOf<MachineryReadException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(error.InnerExceptions[1], Is.TypeOf<MachineryReadException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadDecodingError));
+            }
+            else
+            {
+                MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(BrowseAsync)!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+            Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token(1)));
+        }
+
+        /// <summary>
+        /// A release implementation that ignores its token cannot hide the original failure indefinitely.
+        /// </summary>
+        [Test]
+        public async Task UnresponsiveBrowseReleaseHasAnIndependentDeadline()
+        {
+            var release = new TaskCompletionSource<BrowseNextResponse>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken cleanupToken = default;
+            var harness = new ReadHarness
+            {
+                Browse = _ => Page([], Token(1)),
+                Release = (_, token) =>
+                {
+                    cleanupToken = token;
+                    return release.Task;
+                }
+            };
+            Task<ArrayOf<NodeId>> browsing = harness.Client(
+                new MachineryClientOptions { MaximumBrowsePages = 1 }).DiscoverMachinesAsync().AsTask();
+            try
+            {
+                AggregateException error = Assert.ThrowsAsync<AggregateException>(
+                    async () => await browsing.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false))!;
+                Assert.That(error.InnerExceptions, Has.Count.EqualTo(2));
+                Assert.That(error.InnerExceptions[0], Is.TypeOf<MachineryReadException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(error.InnerExceptions[1], Is.InstanceOf<OperationCanceledException>());
+                Assert.That(cleanupToken.IsCancellationRequested, Is.True);
+                Assert.That(harness.Releases.Single().Cancelled, Is.False);
+            }
+            finally
+            {
+                release.TrySetResult(NextPage([]));
+                await release.Task.ConfigureAwait(false);
+            }
         }
 
         /// <summary>

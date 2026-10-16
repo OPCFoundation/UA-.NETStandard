@@ -145,6 +145,8 @@ namespace Opc.Ua.Machinery.Client
                     [startName, limitName, warningName],
                     ReferenceTypeIds.HierarchicalReferences,
                     cancellationToken).ConfigureAwait(false);
+                children.RequirePresent(startName);
+                children.RequirePresent(limitName);
                 ReadValueSet self = await ReadChildValuesAsync(
                     counters,
                     [entry.BrowseName],
@@ -153,16 +155,23 @@ namespace Opc.Ua.Machinery.Client
 
                 children.TryGetValue(warningName, out Variant warnings);
                 bool hasWarnings = warnings.TryGetValue(out ArrayOf<double> warningValues);
-                children.RequireType(warningName, hasWarnings);
-                ValidateArrayCount(children, warningName, warningValues.Count);
+                if (m_options is not null)
+                {
+                    children.RequireType(warningName,
+                        HasNumericType(warnings) &&
+                        warnings.TypeInfo.ValueRank is ValueRanks.Scalar or ValueRanks.OneDimension);
+                    ValidateVariantArrays(
+                        warnings, new ReadArrayBudget(m_options, children.EvidenceOf(warningName)[0]),
+                        cancellationToken);
+                }
                 yield return new MachineryLifetimeVariable
                 {
                     Values = CombineEvidence(self.Values, children.Values),
                     NodeId = entry.NodeId,
                     BrowseName = entry.BrowseName,
-                    Remaining = AsDouble(self, entry.BrowseName),
-                    StartValue = AsDouble(children, startName),
-                    LimitValue = AsDouble(children, limitName),
+                    Remaining = AsProcessNumber(self, entry.BrowseName),
+                    StartValue = AsProcessNumber(children, startName),
+                    LimitValue = AsProcessNumber(children, limitName),
                     WarningValues = hasWarnings ? warningValues : default
                 };
             }
@@ -234,14 +243,16 @@ namespace Opc.Ua.Machinery.Client
                         [startName, limitName],
                         ReferenceTypeIds.HierarchicalReferences,
                         cancellationToken).ConfigureAwait(false);
+                    lifeValues.RequirePresent(startName);
+                    lifeValues.RequirePresent(limitName);
                     life = new MachineryLifetimeVariable
                     {
                         Values = CombineEvidence(values.EvidenceOf(lifeName), lifeValues.Values),
                         NodeId = lifeNodeId,
                         BrowseName = lifeName,
-                        Remaining = AsDouble(values, lifeName),
-                        StartValue = AsDouble(lifeValues, startName),
-                        LimitValue = AsDouble(lifeValues, limitName)
+                        Remaining = AsProcessNumber(values, lifeName),
+                        StartValue = AsProcessNumber(lifeValues, startName),
+                        LimitValue = AsProcessNumber(lifeValues, limitName)
                     };
                 }
 
