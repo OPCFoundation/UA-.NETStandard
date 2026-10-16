@@ -40,6 +40,7 @@ using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Client.Tests.Stack.Client.Fakes;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 
@@ -615,20 +616,23 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public async Task FailedSwitchToAnAlternateLeavesTheSessionOnItsEndpointAsync()
+        public async Task FailedSwitchToAnAlternateReconcilesTheSessionWithTheAdoptedEndpointAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
             ConfiguredEndpoint primaryEndpoint = CreateEndpoint();
             ConfiguredEndpoint alternateEndpoint = CreateEndpoint();
-            alternateEndpoint.Description.EndpointUrl = "opc.tcp://alternate:4840";
+            const string alternateUrl = "opc.tcp://alternate:4840";
+            alternateEndpoint.Description.EndpointUrl = alternateUrl;
             string primaryUrl = primaryEndpoint.Description.EndpointUrl!;
 
+            // The first channel to the alternate fails to open; every later one opens.
+            int alternateChannels = 0;
             using var harness = new RecordingSessionHarness(
                 configuration,
-                target => target.Description.EndpointUrl == primaryUrl
-                    ? new ServiceResultException(StatusCodes.BadUnexpectedError)
-                    : new ServiceResultException(StatusCodes.BadCommunicationError));
+                target => target.Description.EndpointUrl == alternateUrl && alternateChannels++ == 0
+                    ? new ServiceResultException(StatusCodes.BadCommunicationError)
+                    : null);
             using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
                 configuration,
                 primaryEndpoint,
@@ -642,9 +646,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That((await InvokeHandleConnectAsync(managedSession).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.Good));
             Session inner = managedSession.InnerSession;
-            ConfiguredEndpoint sessionEndpoint = managedSession.ConfiguredEndpoint;
 
-            // The switch to the alternate fails at its channel.
+            // The switch to the alternate fails at its channel; the inner session keeps the alternate.
             harness.ReconnectFailure = StatusCodes.BadSecureChannelClosed;
             ServiceResult switched = await InvokeHandleReconnectAsync(
                     managedSession,
@@ -654,12 +657,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Assert.That(switched.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
                 Assert.That(harness.Recreated, Has.Count.EqualTo(1));
-                Assert.That(harness.Recreated[0].Description.EndpointUrl, Is.EqualTo("opc.tcp://alternate:4840"));
-                Assert.That(managedSession.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
-                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
+                Assert.That(harness.Recreated[0].Description.EndpointUrl, Is.EqualTo(alternateUrl));
+                Assert.That(harness.Recreated[0], Is.Not.SameAs(alternateEndpoint));
+                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(harness.Recreated[0]));
+                Assert.That(managedSession.ConfiguredEndpoint, Is.SameAs(harness.Recreated[0]));
             });
 
-            // The retry recreates the session in place on the endpoint it works on.
+            // The retry recreates the session in place on the alternate and connects.
             harness.ReconnectFailure = StatusCodes.BadSessionIdInvalid;
             ServiceResult retried = await InvokeHandleReconnectAsync(
                     managedSession,
@@ -667,13 +671,13 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(harness.Recreated, Has.Count.EqualTo(2));
-                Assert.That(harness.Recreated[1], Is.SameAs(sessionEndpoint));
-                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
+                Assert.That(harness.Recreated[1], Is.SameAs(harness.Recreated[0]));
+                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(harness.Recreated[0]));
             });
 
-            // The next rediscovery starts from and validates against that endpoint.
+            // The next rediscovery starts from the alternate, validates against it and publishes to it.
             string? refreshedUrl = null;
             string? currentUrl = null;
             managedSession.ValidateRediscoveredEndpoint = (current, _, _) =>
@@ -681,29 +685,28 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 currentUrl = current.EndpointUrl;
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             };
-            try
-            {
-                await managedSession.RefreshEndpointAndRecreateAsync(
-                    inner,
-                    new RetryBudget(TimeSpan.FromSeconds(30)),
-                    (target, _) =>
-                    {
-                        refreshedUrl = target.Description.EndpointUrl;
-                        return Task.CompletedTask;
-                    },
-                    CancellationToken.None).ConfigureAwait(false);
-            }
-            catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUnexpectedError)
-            {
-                // The recreate fails at the channel after the endpoint was accepted.
-            }
+            await managedSession.RefreshEndpointAndRecreateAsync(
+                inner,
+                new RetryBudget(TimeSpan.FromSeconds(30)),
+                (target, _) =>
+                {
+                    refreshedUrl = target.Description.EndpointUrl;
+                    EndpointDescription description = CoreUtils.Clone(target.Description)!;
+                    description.SecurityLevel = 42;
+                    target.Update(description);
+                    return Task.CompletedTask;
+                },
+                CancellationToken.None).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(refreshedUrl, Is.EqualTo(primaryUrl));
-                Assert.That(currentUrl, Is.EqualTo(primaryUrl));
+                Assert.That(refreshedUrl, Is.EqualTo(alternateUrl));
+                Assert.That(currentUrl, Is.EqualTo(alternateUrl));
                 Assert.That(harness.Recreated, Has.Count.EqualTo(3));
-                Assert.That(harness.Recreated[2].Description.EndpointUrl, Is.EqualTo(primaryUrl));
-                Assert.That(alternateEndpoint.Description.EndpointUrl, Is.EqualTo("opc.tcp://alternate:4840"));
+                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(harness.Recreated[2]));
+                Assert.That(harness.Recreated[2].Description.EndpointUrl, Is.EqualTo(alternateUrl));
+                Assert.That(alternateEndpoint.Description.SecurityLevel, Is.EqualTo(42));
+                Assert.That(primaryEndpoint.Description.SecurityLevel, Is.Zero);
+                Assert.That(primaryEndpoint.Description.EndpointUrl, Is.EqualTo(primaryUrl));
             });
         }
 
@@ -2010,16 +2013,18 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         /// Session factory whose sessions run on a mocked managed channel: a
         /// reconnect fails with <see cref="ReconnectFailure"/> on a closed
         /// channel, and a recreate records the endpoint it builds the channel
-        /// for and fails with the configured error.
+        /// for and either fails with the configured error or opens a scripted
+        /// channel when there is none.
         /// </summary>
         private sealed class RecordingSessionHarness : IDisposable
         {
             public RecordingSessionHarness(
                 ApplicationConfiguration configuration,
-                Func<ConfiguredEndpoint, ServiceResultException> recreateFailure)
+                Func<ConfiguredEndpoint, ServiceResultException?> recreateFailure)
             {
                 m_configuration = configuration;
                 IServiceMessageContext messageContext = configuration.CreateMessageContext();
+                m_messageContext = messageContext;
                 m_managedChannel.SetupGet(channel => channel.MessageContext).Returns(messageContext);
                 m_managedChannel.SetupGet(channel => channel.State).Returns(ChannelState.Closed);
 #if NET8_0_OR_GREATER
@@ -2037,12 +2042,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                         It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
                         It.IsAny<ITransportWaitingConnection>(),
                         It.IsAny<CancellationToken>()))
-                    .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
+                    .Returns<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
                         ITransportWaitingConnection?, CancellationToken>(
                         (target, _, _, _) =>
                         {
                             Recreated.Add(target);
-                            throw recreateFailure(target);
+                            ServiceResultException? failure = recreateFailure(target);
+                            if (failure != null)
+                            {
+                                throw failure;
+                            }
+                            return new ValueTask<IManagedTransportChannel>(OpenLease(target));
                         });
             }
 
@@ -2105,7 +2115,18 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
             }
 
+            private IManagedTransportChannel OpenLease(ConfiguredEndpoint target)
+            {
+                var channel = new ScriptedChannel(m_messageContext, TimeProvider.System);
+                Mock<IManagedTransportChannel> lease = channel.Mock.As<IManagedTransportChannel>();
+                lease.SetupGet(value => value.State).Returns(ChannelState.Ready);
+                lease.SetupGet(value => value.Manager).Returns(m_channelManager.Object);
+                channel.OpenForEndpoint(target);
+                return lease.Object;
+            }
+
             private readonly ApplicationConfiguration m_configuration;
+            private readonly IServiceMessageContext m_messageContext;
             private readonly Mock<IManagedTransportChannel> m_managedChannel = new();
             private readonly Mock<IClientChannelManager> m_channelManager = new();
             private readonly List<Session> m_sessions = [];

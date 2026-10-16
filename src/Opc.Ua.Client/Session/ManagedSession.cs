@@ -2044,10 +2044,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refreshes the endpoint the session works on from the server's
         /// discovery endpoint, checks the result against it and recreates the
-        /// session against exactly the endpoint that passed the checks, which
-        /// the session works on from then on, even when the recreate fails.
-        /// The accepted endpoint is also published to the endpoint the
-        /// session's copy was taken from.
+        /// session against exactly the endpoint that passed the checks. The
+        /// inner session adopts that endpoint before it connects and keeps it
+        /// when the recreate fails; the endpoint it adopted is the one the
+        /// session works on. The accepted endpoint is also published to the
+        /// endpoint the session's copy was taken from.
         /// </summary>
         /// <param name="session">The inner session to recreate.</param>
         /// <param name="budget">The retry budget of the reconnect.</param>
@@ -2067,15 +2068,7 @@ namespace Opc.Ua.Client
                 ValidateRediscoveredEndpoint,
                 ct).ConfigureAwait(false);
             RecordAcceptedTarget(publicationTarget, validated);
-            try
-            {
-                await RecreateInPlaceCoreAndRebindAsync(session, validated, budget, ct).ConfigureAwait(false);
-            }
-            catch
-            {
-                session.RestoreConfiguredEndpoint(validated);
-                throw;
-            }
+            await RecreateInPlaceCoreAndRebindAsync(session, validated, budget, ct).ConfigureAwait(false);
         }
 
         private async Task UpdateEndpointFromServerAsync(ConfiguredEndpoint target, CancellationToken ct)
@@ -2254,11 +2247,13 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Switches the session to a copy of <paramref name="target"/>
-        /// through <paramref name="switchAsync"/>. A switch that fails rolls
-        /// the inner session back to the endpoint it worked on; the copy, and
-        /// <paramref name="target"/> as the endpoint accepted rediscoveries
-        /// are published to, are only taken over once the switch succeeded.
+        /// Switches the session to a copy of <paramref name="target"/>, checked
+        /// against what the session accepted for it before, through
+        /// <paramref name="switchAsync"/>. The inner session adopts the copy
+        /// before it connects and keeps it when the switch fails. Once it has
+        /// adopted the copy, whether the switch succeeded or not, the session
+        /// works on the copy and publishes accepted rediscoveries to
+        /// <paramref name="target"/>.
         /// </summary>
         private async Task SwitchEndpointAsync(
             Session session,
@@ -2267,9 +2262,18 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ConfiguredEndpoint detached = await DetachTargetAsync(target, ct).ConfigureAwait(false);
-            await switchAsync(detached).ConfigureAwait(false);
-            m_publicationTarget = target;
-            RecordAcceptedTarget(target, detached);
+            try
+            {
+                await switchAsync(detached).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (ReferenceEquals(session.ConfiguredEndpoint, detached))
+                {
+                    m_publicationTarget = target;
+                    RecordAcceptedTarget(target, detached);
+                }
+            }
         }
 
         /// <summary>

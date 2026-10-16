@@ -479,19 +479,21 @@ is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
 
 Each `ManagedSession` works on its own copy of the `ConfiguredEndpoint` it was
 created with, taken when it connects, and on a copy of a failover or alternate
-endpoint once a switch to it succeeded; a switch that fails leaves the session
-on the endpoint it worked on. Reconnects, recreates and failovers use that copy,
-and both steps above compare against it, so it is always the endpoint the
-session itself last accepted. An accepted rediscovered endpoint is still
-published to the endpoint the copy was taken from, so other consumers of it see
-the update, but no session reads it back: another session sharing that endpoint
-keeps working on, and validating against, its own copy. When a session switches
-back to an endpoint it used before and that endpoint changed since, another
-session published the change; it is checked in both steps above against what
-this session accepted for that endpoint, and a change that is not accepted is
-not taken over.
-`ManagedSession.ConfiguredEndpoint` returns the copy once the session is
-connected.
+endpoint once it switches to it. The session adopts a switch target before it
+connects and keeps it when the switch fails, so a later retry recreates on that
+target; the session then works on that copy and publishes accepted rediscovered
+endpoints to the endpoint it was copied from. Reconnects, recreates and
+failovers use the copy the session adopted, and both steps above compare
+against it, so it is always the endpoint the session itself accepted. An
+accepted rediscovered endpoint is published to the endpoint the copy was taken
+from, so other consumers of it see the update, but no session reads it back:
+another session sharing that endpoint keeps working on, and validating against,
+its own copy. When a session switches back to an endpoint it used before and
+that endpoint changed since, another session published the change; it is
+checked in both steps above against what this session accepted for that
+endpoint before the session adopts it, and a change that is not accepted is not
+taken over. `ManagedSession.ConfiguredEndpoint` returns the copy once the
+session is connected.
 
 ```csharp
 RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
