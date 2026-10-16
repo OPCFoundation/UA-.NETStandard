@@ -491,6 +491,43 @@ See [generation-bound file transfers](FileSystemClient.md#generation-bound-trans
 [role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the
 corresponding client APIs.
 
+#### Opt-in same-Session recovery
+
+An operation that explicitly supports recovery can opt into
+`SessionRequestContext.CaptureRecoverableAsync`. This is separate from the
+default `CaptureAsync` behavior: existing strict contexts still invalidate as
+soon as recovery begins.
+
+```csharp
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureRecoverableAsync(managedSession, ct);
+
+// Keep this context for the operation's lifetime.
+ISession operationSession = context.Session;
+// Send the initial operation once. If its reply is lost, use the protocol's
+// recovery exchange through operationSession; do not repeat the initial operation.
+```
+
+Each request sends once on a physical transport. A fresh exchange can wait for
+recovery outside the managed service gate and then follow a validated
+`ActivateSession` of the original Server Session. Channel readiness or equal
+public Session identifiers alone are not sufficient. A new Session incarnation
+invalidates the context even if the Server reuses those identifiers.
+
+The context rejects changed user identity, client certificate, security policy
+or mode, transport mapping, namespace/server mappings, or encoding limits.
+Anonymous Sessions using Sign are rejected when capturing a recoverable context
+because they cannot reactivate on a replacement SecureChannel. A failure or
+cancellation after dispatch does not trigger replay; cancellation of a readiness
+wait does not close the owner. A completed response remains a known result even
+if the caller cancels immediately afterwards.
+
+This binding does not make ordinary mutations recoverable, guarantee that a
+lost request did not execute, or authorize repeating it. Use it only with a
+protocol that defines separate recovery exchanges and preserves the same
+Session/user ownership. Current Server permissions still apply to every
+exchange. Disposing the context releases only its local borrowed client.
+
 ### Closing a `ManagedSession`
 
 `CloseAsync` requests the close on the connection state machine, which
