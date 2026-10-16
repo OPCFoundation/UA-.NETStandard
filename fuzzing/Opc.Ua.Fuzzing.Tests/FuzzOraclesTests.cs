@@ -107,6 +107,50 @@ namespace Opc.Ua.Fuzzing.Tests
         }
 
         [Test]
+        public void RunTargetReportsAnAllocationFindingThatEveryRunConfirms()
+        {
+            Assume.That(FuzzOracles.IsAllocationMeasurementSupported, Is.True);
+            long overBudget = FuzzOracles.GetAllocationBudget(16) + (1024 * 1024);
+            int runs = 0;
+
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(
+                () => FuzzOracles.RunTarget("Allocating", 16, () =>
+                {
+                    runs++;
+                    _ = FuzzOracles.MeasureAllocation("Allocating", 16, () => AllocateChunks(overBudget));
+                }, budget: 0))!;
+
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Allocation));
+            Assert.That(runs, Is.EqualTo(
+                FuzzOracles.IsAllocationMeasurementPerThread ? 1 : FuzzOracles.AllocationConfirmationRuns + 1));
+        }
+
+        [Test]
+        public void RunTargetIgnoresAnAllocationFindingInflatedByAnotherThread()
+        {
+            // Stands in for the test host allocating on another thread during one decode,
+            // which only the AppDomain counter of .NET Framework sees.
+            Assume.That(FuzzOracles.IsAllocationMeasurementPerThread, Is.False);
+            long overBudget = FuzzOracles.GetAllocationBudget(16) + (1024 * 1024);
+            int runs = 0;
+
+            FuzzOracles.RunTarget("Allocating", 16, () =>
+            {
+                bool inflated = runs++ == 0;
+                _ = FuzzOracles.MeasureAllocation("Allocating", 16, () =>
+                {
+                    if (inflated)
+                    {
+                        Task.Run(() => AllocateChunks(overBudget)).Wait();
+                    }
+                    return 0;
+                });
+            }, budget: 0);
+
+            Assert.That(runs, Is.EqualTo(2));
+        }
+
+        [Test]
         public void TimeBudgetGrowsWithTheInputSize()
         {
             long small = FuzzOracles.GetTimeBudgetMilliseconds(0);
