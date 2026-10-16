@@ -124,6 +124,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             string scenario = Program.Arg("scenario", "native-read");
             int port = Program.ArgInt("port", 48400 + (Environment.ProcessId % 1000));
             bool encrypt = Program.Arg("security", "none") == "encrypt";
+            if (encrypt && scenario == "native-counters")
+            {
+                // the subscription worker gets no identity and connects without security, so the
+                // run would be labelled encrypt but measure an unsecured channel
+                Console.Error.WriteLine("--security encrypt is not supported for native-counters");
+                return 2;
+            }
             string pki = Directory.CreateTempSubdirectory("uaperf-native-").FullName;
             var environment = new Dictionary<string, string>(StringComparer.Ordinal);
             try
@@ -140,7 +147,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     .Append(string.Join(' ', args.Skip(1)))
                     .Append('\n');
                 bool ok = scenario == "native-counters"
-                    ? await RunCountersAsync(server, port, environment, pki, result).ConfigureAwait(false)
+                    ? await RunCountersAsync(server, port, environment, result).ConfigureAwait(false)
                     : await RunReadAsync(server, port, environment, pki, result).ConfigureAwait(false);
                 Console.Write(result.ToString());
                 if (Program.TryGetArg("out", out string? outFile))
@@ -238,7 +245,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             ServerHandle server,
             int port,
             Dictionary<string, string> environment,
-            string pki,
             StringBuilder result)
         {
             string exe = Program.Arg("native-client", "sub_client.exe");
@@ -251,13 +257,20 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 environment);
             string ready = client.WaitFor(l => l.Contains("\"ready\"", StringComparison.Ordinal), TimeSpan.FromSeconds(300));
             Console.WriteLine("client " + ready);
-            // the benchmark coordinator settles the subscription for 2 s before arming
-            await Task.Delay(2000).ConfigureAwait(false);
 
             // measurement_window(): at least 1000 samples and 5 publishes, plus 10% warm-up
             long intervals = Math.Max(5, ((1000L * sampling) + publishing - 1) / publishing);
             long warmupIntervals = (intervals + 9) / 10;
-            long start = NowNs() + 500_000_000;
+            const int SettleMs = 2000;
+            const int ArmLeadMs = 500;
+            // attach the tracer before the window is armed, so that marking is not delayed; by
+            // default it records the settle time, the lead-in and the window plus 2 s
+            long traceSeconds = (SettleMs + ArmLeadMs + ((warmupIntervals + intervals) * publishing) + 999) / 1000 + 2;
+            using Process? tracer = server.StartTracer(Program.ArgInt("duration", (int)traceSeconds));
+            // the benchmark coordinator settles the subscription for 2 s before arming
+            await Task.Delay(SettleMs).ConfigureAwait(false);
+
+            long start = NowNs() + (ArmLeadMs * 1_000_000L);
             long measuredStart = start + (warmupIntervals * publishing * 1_000_000L);
             long measuredEnd = start + ((warmupIntervals + intervals) * publishing * 1_000_000L);
             string arm = FormattableString.Invariant(
@@ -267,9 +280,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             server.Arm(arm);
 
             await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, (measuredStart - NowNs()) / 1e6))).ConfigureAwait(false);
-            using Process? tracer = server.StartTracer();
             await server.MarkAsync().ConfigureAwait(false);
+            TimeSpan clientCpu = client.Cpu;
             await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(0, (measuredEnd - NowNs()) / 1e6))).ConfigureAwait(false);
+            clientCpu = client.Cpu - clientCpu;
             string serverReport = await server.ReportAsync().ConfigureAwait(false);
             string line = client.WaitFor(
                 l => l.Contains("\"result\"", StringComparison.Ordinal),
@@ -280,6 +294,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
 
             JsonElement root = JsonDocument.Parse(line).RootElement;
+            // counts: how far each counter advanced, i.e. the samples the server took
             ulong[] counts = root.GetProperty("counts").EnumerateArray().Select(e => e.GetUInt64()).ToArray();
             double expected = (measuredEnd - measuredStart) / 1e6 / sampling;
             double min = counts.Min() / expected;
@@ -289,15 +304,23 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             double samples = counts.Sum(c => (double)c);
             double seconds = (measuredEnd - measuredStart) / 1e9;
             result.Append(CultureInfo.InvariantCulture,
-                $"  client: notif/s={samples / seconds:F0} items={items} sampling={sampling}ms pub={publishing}ms ")
+                $"  client: samples/s={samples / seconds:F0} ");
+            if (delivery.TryGetProperty("notifications", out JsonElement notifications) &&
+                notifications.ValueKind == JsonValueKind.Number)
+            {
+                // with queue size 1 only the last sample per publishing interval is delivered
+                result.Append(CultureInfo.InvariantCulture, $"notif/s={notifications.GetDouble() / seconds:F0} ");
+            }
+            result.Append(CultureInfo.InvariantCulture,
+                $"items={items} sampling={sampling}ms pub={publishing}ms ")
                 .Append(CultureInfo.InvariantCulture,
                 $"progressMin={min:P2} progressMean={mean:P2} itemsBelow99={below} ")
                 .Append(CultureInfo.InvariantCulture,
                 $"maxGapMs={delivery.GetProperty("max_gap_ms").GetDouble():F1} {(below == 0 ? "PASS" : "FAIL")}\n")
                 .Append("  server: ").Append(serverReport).Append('\n');
-            AppendPerOp(result, serverReport, samples, TimeSpan.Zero, "sample");
+            AppendPerOp(result, serverReport, samples, clientCpu, "sample");
             client.Send("quit");
-            return true;
+            return below == 0;
         }
 
         private static void AppendPerOp(StringBuilder result, string serverReport, double operations, TimeSpan clientCpu, string unit)
@@ -434,9 +457,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return handle;
             }
 
-            public Process? StartTracer()
+            /// <summary>
+            /// Attaches dotnet-trace for <paramref name="durationSeconds"/> (default <c>--duration</c>)
+            /// if <c>--trace</c> is given, and waits 2 s for the session to start.
+            /// </summary>
+            public Process? StartTracer(int? durationSeconds = null)
             {
-                Process? tracer = Program.StartTracer(m_process!.Id, Program.ArgInt("duration", 20), out _);
+                Process? tracer = Program.StartTracer(m_process!.Id, durationSeconds ?? Program.ArgInt("duration", 20), out _);
                 if (tracer != null)
                 {
                     Thread.Sleep(2000);

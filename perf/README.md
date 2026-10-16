@@ -77,7 +77,7 @@ scenarios, with the CPU time of the native workers in `client-per-op:`.
 | Scenario | Workload | Pass / metric |
 |---|---|---|
 | `native-read` | `throughput/open62541/client.c --worker async`: `--clients` processes, each with `--inflight` single-value Reads of ns=1;i=1001..1100 in flight, `--iterations` measured calls after `--warmup-calls`, common start. | Aggregate req/s, server CPU per request. |
-| `native-counters` | `subscription/native/client.c`: one subscription, `--nodes` monitored UInt64 counters, `--sampling` 10 ms, `--pub` 1000 ms, queue size 1. The counters advance in their read callback. | Every item reaches 99 % of the samples in the measured window (10 s at 10/1000 ms). |
+| `native-counters` | `subscription/native/client.c`: one subscription, `--nodes` monitored UInt64 counters, `--sampling` 10 ms, `--pub` 1000 ms, queue size 1. The counters advance in their read callback. | Every item reaches 99 % of the samples in the measured window (10 s at 10/1000 ms); a `FAIL` exits with 1. `samples/s` counts the samples the server took (counter advancement); `notif/s` is shown when the worker reports delivered notifications. |
 
 | Option | Default | Meaning |
 |---|---|---|
@@ -91,10 +91,10 @@ scenarios, with the CPU time of the native workers in `client-per-op:`.
 | `--client-affinity` | all processors | Hexadecimal processor mask of the worker processes, for example the mask of `--server-affinity` to co-locate clients and server. |
 | `--server-priority` | `Normal` | `ProcessPriorityClass` of the server process, for example `BelowNormal` so that co-located workers preempt server threads. |
 | `--thread-states` | 0 | 1: sample the scheduling state of the server threads (see below). |
-| `--security` | `none` | `encrypt`: Basic256Sha256 SignAndEncrypt with DER identities written to `{pki}`. |
+| `--security` | `none` | `encrypt`: Basic256Sha256 SignAndEncrypt with DER identities written to `{pki}` (`native-read` only; the subscription worker has no identity, so `native-counters` rejects it). |
 | `--async-node-manager`, `--counter-lock`, `--queue` | see below | Configuration of the harness child. |
 | `--threads` | 200 | `MaxRequestThreadCount` of the harness child. |
-| `--trace <file>`, `--trace-profile`, `--duration` | | Record the server for `--duration` seconds from the start of the measurement. |
+| `--trace <file>`, `--trace-profile`, `--duration` | | Record the server for `--duration` seconds: `native-read` from the start of the measurement (default 20 s); `native-counters` from before the window is armed, by default long enough for the settle time, the warm-up and the window. |
 | `--verbose` | 0 | 1: echo the worker output. |
 
 Without `--server-exe` the server is the harness child in contract mode (`server --contract 1`):
