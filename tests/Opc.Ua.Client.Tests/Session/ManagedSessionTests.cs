@@ -358,7 +358,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsBad(result), Is.True);
-            Assert.That(capturedEndpoint, Is.SameAs(alternateEndpoint));
+            AssertCopyOf(capturedEndpoint, alternateEndpoint);
         }
 
         [Test]
@@ -407,7 +407,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     CancellationToken _) =>
                 {
                     attemptedEndpoints.Add(endpoint);
-                    StatusCode statusCode = ReferenceEquals(endpoint, primaryEndpoint)
+                    StatusCode statusCode = endpoint.EndpointUrl == primaryEndpoint.EndpointUrl
                         ? StatusCodes.BadSecureChannelClosed
                         : StatusCodes.BadCertificateUntrusted;
                     return Task.FromException<ISession>(new ServiceResultException(statusCode));
@@ -429,7 +429,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
-            Assert.That(attemptedEndpoints, Is.EqualTo(new[] { primaryEndpoint, compatibleEndpoint }));
+            Assert.That(attemptedEndpoints, Has.Count.EqualTo(2));
+            AssertCopyOf(attemptedEndpoints[0], primaryEndpoint);
+            AssertCopyOf(attemptedEndpoints[1], compatibleEndpoint);
         }
 
         [Test]
@@ -442,14 +444,22 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ConfiguredEndpoint sharedEndpoint = CreateEndpoint();
             sharedEndpoint.Description.ServerCertificate = pinned;
 
-            var recreatedA = new List<ConfiguredEndpoint>();
-            var recreatedB = new List<ConfiguredEndpoint>();
-            using Session innerA = CreateRecordingInnerSession(configuration, sharedEndpoint, recreatedA);
-            using Session innerB = CreateRecordingInnerSession(configuration, sharedEndpoint, recreatedB);
+            using var harnessA = new RecordingSessionHarness(
+                configuration,
+                _ => new ServiceResultException(StatusCodes.BadUnexpectedError));
+            using var harnessB = new RecordingSessionHarness(
+                configuration,
+                _ => new ServiceResultException(StatusCodes.BadUnexpectedError));
             using Client.ManagedSession managedA = CreateManagedSessionWithInner(
-                configuration, sharedEndpoint, innerA, telemetry);
+                configuration, sharedEndpoint, null, telemetry, sessionFactory: harnessA.Factory(telemetry));
             using Client.ManagedSession managedB = CreateManagedSessionWithInner(
-                configuration, sharedEndpoint, innerB, telemetry);
+                configuration, sharedEndpoint, null, telemetry, sessionFactory: harnessB.Factory(telemetry));
+            Assert.That((await InvokeHandleConnectAsync(managedA).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await InvokeHandleConnectAsync(managedB).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Session innerA = managedA.InnerSession;
+            Session innerB = managedB.InnerSession;
 
             // Session A pins the certificate it accepted, session B accepts any.
             var currentSeenByA = new List<ByteString>();
@@ -481,9 +491,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Assert.That(recreateB?.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
                 Assert.That(sharedEndpoint.Description.ServerCertificate, Is.EqualTo(replaced));
-                Assert.That(recreatedB, Has.Count.EqualTo(1));
-                Assert.That(recreatedB[0], Is.Not.SameAs(sharedEndpoint));
-                Assert.That(recreatedB[0].Description.ServerCertificate, Is.EqualTo(replaced));
+                Assert.That(harnessB.Recreated, Has.Count.EqualTo(1));
+                Assert.That(harnessB.Recreated[0], Is.Not.SameAs(sharedEndpoint));
+                Assert.That(harnessB.Recreated[0].Description.ServerCertificate, Is.EqualTo(replaced));
+                Assert.That(innerB.ConfiguredEndpoint, Is.SameAs(harnessB.Recreated[0]));
             });
 
             // A validates against the certificate it accepted, not the one B published.
@@ -504,7 +515,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Assert.That(rejectedByA?.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
                 Assert.That(currentSeenByA, Is.EqualTo(new[] { pinned }));
-                Assert.That(recreatedA, Is.Empty);
+                Assert.That(harnessA.Recreated, Is.Empty);
+                Assert.That(innerA.ConfiguredEndpoint.Description.ServerCertificate, Is.EqualTo(pinned));
             });
 
             // A accepts the pinned certificate and recreates against exactly that endpoint.
@@ -526,11 +538,172 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             {
                 Assert.That(recreateA?.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
                 Assert.That(currentSeenByA, Is.EqualTo(new[] { pinned, pinned }));
-                Assert.That(recreatedA, Has.Count.EqualTo(1));
-                Assert.That(recreatedA[0], Is.Not.SameAs(sharedEndpoint));
-                Assert.That(recreatedA[0].Description.ServerCertificate, Is.EqualTo(pinned));
-                Assert.That(innerA.ConfiguredEndpoint, Is.SameAs(recreatedA[0]));
+                Assert.That(harnessA.Recreated, Has.Count.EqualTo(1));
+                Assert.That(harnessA.Recreated[0], Is.Not.SameAs(sharedEndpoint));
+                Assert.That(harnessA.Recreated[0].Description.ServerCertificate, Is.EqualTo(pinned));
+                Assert.That(innerA.ConfiguredEndpoint, Is.SameAs(harnessA.Recreated[0]));
                 Assert.That(innerA.ConfiguredEndpoint.Description.ServerCertificate, Is.EqualTo(pinned));
+            });
+        }
+
+        [Test]
+        public async Task ChannelRecoveryUsesTheSessionsOwnEndpointAfterAnotherSessionPublishedAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ByteString pinned = ByteString.From([1, 1, 1]);
+            ByteString replaced = ByteString.From([2, 2, 2]);
+            ConfiguredEndpoint sharedEndpoint = CreateEndpoint();
+            sharedEndpoint.Description.ServerCertificate = pinned;
+
+            using var harnessA = new RecordingSessionHarness(
+                configuration,
+                target => new ServiceResultException(StatusCodes.BadUnexpectedError));
+            using var harnessB = new RecordingSessionHarness(
+                configuration,
+                target => new ServiceResultException(StatusCodes.BadUnexpectedError));
+            using Client.ManagedSession managedA = CreateManagedSessionWithInner(
+                configuration, sharedEndpoint, null, telemetry, sessionFactory: harnessA.Factory(telemetry));
+            using Client.ManagedSession managedB = CreateManagedSessionWithInner(
+                configuration, sharedEndpoint, null, telemetry, sessionFactory: harnessB.Factory(telemetry));
+            int validationsByA = 0;
+            managedA.ValidateRediscoveredEndpoint = (current, rediscovered, _) =>
+            {
+                validationsByA++;
+                return new ValueTask<ServiceResult>(
+                    rediscovered.ServerCertificate == current.ServerCertificate
+                        ? ServiceResult.Good
+                        : new ServiceResult(StatusCodes.BadCertificateInvalid));
+            };
+            managedB.ValidateRediscoveredEndpoint = (_, _, _) => new ValueTask<ServiceResult>(ServiceResult.Good);
+            Assert.That((await InvokeHandleConnectAsync(managedA).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Assert.That((await InvokeHandleConnectAsync(managedB).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+
+            // B accepts a certificate that A would reject and publishes it.
+            try
+            {
+                await managedB.RefreshEndpointAndRecreateAsync(
+                    managedB.InnerSession,
+                    new RetryBudget(TimeSpan.FromSeconds(30)),
+                    (target, _) => SetServerCertificateAsync(target, replaced),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUnexpectedError)
+            {
+                // The recreate fails at the channel; the endpoint was accepted and published before.
+            }
+            Assert.That(sharedEndpoint.Description.ServerCertificate, Is.EqualTo(replaced));
+
+            // A recovers a closed channel without an alternate: it recreates on its own endpoint.
+            harnessA.ReconnectFailure = StatusCodes.BadSecureChannelClosed;
+            ServiceResult result = await InvokeHandleReconnectAsync(
+                    managedA,
+                    new RetryBudget(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(harnessA.Recreated, Has.Count.EqualTo(1));
+                Assert.That(harnessA.Recreated[0], Is.Not.SameAs(sharedEndpoint));
+                Assert.That(harnessA.Recreated[0], Is.SameAs(managedA.ConfiguredEndpoint));
+                Assert.That(harnessA.Recreated[0].Description.ServerCertificate, Is.EqualTo(pinned));
+                Assert.That(validationsByA, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task FailedSwitchToAnAlternateLeavesTheSessionOnItsEndpointAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
+            ConfiguredEndpoint primaryEndpoint = CreateEndpoint();
+            ConfiguredEndpoint alternateEndpoint = CreateEndpoint();
+            alternateEndpoint.Description.EndpointUrl = "opc.tcp://alternate:4840";
+            string primaryUrl = primaryEndpoint.Description.EndpointUrl!;
+
+            using var harness = new RecordingSessionHarness(
+                configuration,
+                target => target.Description.EndpointUrl == primaryUrl
+                    ? new ServiceResultException(StatusCodes.BadUnexpectedError)
+                    : new ServiceResultException(StatusCodes.BadCommunicationError));
+            using Client.ManagedSession managedSession = CreateManagedSessionWithInner(
+                configuration,
+                primaryEndpoint,
+                null,
+                telemetry,
+                new NetworkRedundancyOptions
+                {
+                    AlternateEndpoints = new ArrayOf<ConfiguredEndpoint>(new[] { alternateEndpoint }.AsMemory())
+                },
+                sessionFactory: harness.Factory(telemetry));
+            Assert.That((await InvokeHandleConnectAsync(managedSession).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+            Session inner = managedSession.InnerSession;
+            ConfiguredEndpoint sessionEndpoint = managedSession.ConfiguredEndpoint;
+
+            // The switch to the alternate fails at its channel.
+            harness.ReconnectFailure = StatusCodes.BadSecureChannelClosed;
+            ServiceResult switched = await InvokeHandleReconnectAsync(
+                    managedSession,
+                    new RetryBudget(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(switched.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+                Assert.That(harness.Recreated, Has.Count.EqualTo(1));
+                Assert.That(harness.Recreated[0].Description.EndpointUrl, Is.EqualTo("opc.tcp://alternate:4840"));
+                Assert.That(managedSession.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
+                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
+            });
+
+            // The retry recreates the session in place on the endpoint it works on.
+            harness.ReconnectFailure = StatusCodes.BadSessionIdInvalid;
+            ServiceResult retried = await InvokeHandleReconnectAsync(
+                    managedSession,
+                    new RetryBudget(TimeSpan.FromSeconds(30)))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(harness.Recreated, Has.Count.EqualTo(2));
+                Assert.That(harness.Recreated[1], Is.SameAs(sessionEndpoint));
+                Assert.That(inner.ConfiguredEndpoint, Is.SameAs(sessionEndpoint));
+            });
+
+            // The next rediscovery starts from and validates against that endpoint.
+            string? refreshedUrl = null;
+            string? currentUrl = null;
+            managedSession.ValidateRediscoveredEndpoint = (current, _, _) =>
+            {
+                currentUrl = current.EndpointUrl;
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            };
+            try
+            {
+                await managedSession.RefreshEndpointAndRecreateAsync(
+                    inner,
+                    new RetryBudget(TimeSpan.FromSeconds(30)),
+                    (target, _) =>
+                    {
+                        refreshedUrl = target.Description.EndpointUrl;
+                        return Task.CompletedTask;
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception) when (exception.StatusCode == StatusCodes.BadUnexpectedError)
+            {
+                // The recreate fails at the channel after the endpoint was accepted.
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(refreshedUrl, Is.EqualTo(primaryUrl));
+                Assert.That(currentUrl, Is.EqualTo(primaryUrl));
+                Assert.That(harness.Recreated, Has.Count.EqualTo(3));
+                Assert.That(harness.Recreated[2].Description.EndpointUrl, Is.EqualTo(primaryUrl));
+                Assert.That(alternateEndpoint.Description.EndpointUrl, Is.EqualTo("opc.tcp://alternate:4840"));
             });
         }
 
@@ -607,7 +780,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     : StatusCodes.BadSecurityPolicyRejected));
             if (hasCompatibleAlternate)
             {
-                Assert.That(capturedEndpoint, Is.SameAs(compatibleEndpoint));
+                AssertCopyOf(capturedEndpoint, compatibleEndpoint);
             }
             else
             {
@@ -800,7 +973,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             factory.SetupGet(value => value.SubscriptionEngineFactory)
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             factory.Setup(value => value.CreateAsync(
-                    configuration, primary, false, false, It.IsAny<string>(), It.IsAny<uint>(),
+                    configuration,
+                    It.Is<ConfiguredEndpoint>(candidate =>
+                        !ReferenceEquals(candidate, primary) && candidate.EndpointUrl == primary.EndpointUrl),
+                    false, false, It.IsAny<string>(), It.IsAny<uint>(),
                     It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(inner);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -813,7 +989,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 new RetryBudget(TimeSpan.FromSeconds(30)), timeout.Token).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
-            Assert.That(attemptedPeer, Is.SameAs(initiallyResolved ? oldPeer : refreshedPeer));
+            AssertCopyOf(attemptedPeer, initiallyResolved ? oldPeer : refreshedPeer);
             var source = new Mock<ISession>();
             source.SetupGet(value => value.ConfiguredEndpoint).Returns(primary);
             source.Setup(value => value.ReadAsync(
@@ -905,7 +1081,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             factory.SetupGet(value => value.SubscriptionEngineFactory)
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             factory.Setup(value => value.CreateAsync(
-                    configuration, primary, false, false, It.IsAny<string>(), It.IsAny<uint>(),
+                    configuration,
+                    It.Is<ConfiguredEndpoint>(candidate =>
+                        !ReferenceEquals(candidate, primary) && candidate.EndpointUrl == primary.EndpointUrl),
+                    false, false, It.IsAny<string>(), It.IsAny<uint>(),
                     It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(inner);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -950,7 +1129,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             ServiceResult result = await failover.WaitAsync(timeout.Token).ConfigureAwait(false);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
-            Assert.That(attemptedPeer, Is.SameAs(backup));
+            AssertCopyOf(attemptedPeer, backup);
             Assert.That(managed.RedundancySupport, Is.EqualTo(mode));
             resolver.Verify(value => value.ResolveAsync(
                 "urn:backup", It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -1828,37 +2007,114 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 #pragma warning restore IDE0051, RCS1213
 
         /// <summary>
-        /// Creates an inner session whose in-place recreate records the
-        /// endpoint it builds the channel for and then fails.
+        /// Session factory whose sessions run on a mocked managed channel: a
+        /// reconnect fails with <see cref="ReconnectFailure"/> on a closed
+        /// channel, and a recreate records the endpoint it builds the channel
+        /// for and fails with the configured error.
         /// </summary>
-        private static Session CreateRecordingInnerSession(
-            ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint,
-            List<ConfiguredEndpoint> recreatedEndpoints)
+        private sealed class RecordingSessionHarness : IDisposable
         {
-            IServiceMessageContext messageContext = configuration.CreateMessageContext();
-            var managedChannel = new Mock<IManagedTransportChannel>();
-            managedChannel.SetupGet(channel => channel.MessageContext).Returns(messageContext);
-            managedChannel.SetupGet(channel => channel.State).Returns(ChannelState.Closed);
+            public RecordingSessionHarness(
+                ApplicationConfiguration configuration,
+                Func<ConfiguredEndpoint, ServiceResultException> recreateFailure)
+            {
+                m_configuration = configuration;
+                IServiceMessageContext messageContext = configuration.CreateMessageContext();
+                m_managedChannel.SetupGet(channel => channel.MessageContext).Returns(messageContext);
+                m_managedChannel.SetupGet(channel => channel.State).Returns(ChannelState.Closed);
+#if NET8_0_OR_GREATER
+                m_channelManager.Setup(manager => manager.ReconnectAsync(
+                        m_managedChannel.Object,
+                        It.IsAny<IRetryBudget>(),
+                        It.IsAny<CancellationToken>()))
+#else
+                m_channelManager.Setup(manager => manager.ReconnectAsync(
+                        m_managedChannel.Object, It.IsAny<CancellationToken>()))
+#endif
+                    .Callback(() => throw new ServiceResultException(ReconnectFailure));
+                m_channelManager.Setup(manager => manager.GetAsync(
+                        It.IsAny<ConfiguredEndpoint>(),
+                        It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
+                        It.IsAny<ITransportWaitingConnection>(),
+                        It.IsAny<CancellationToken>()))
+                    .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
+                        ITransportWaitingConnection?, CancellationToken>(
+                        (target, _, _, _) =>
+                        {
+                            Recreated.Add(target);
+                            throw recreateFailure(target);
+                        });
+            }
 
-            var channelManager = new Mock<IClientChannelManager>();
-            channelManager.Setup(manager => manager.GetAsync(
-                    It.IsAny<ConfiguredEndpoint>(),
-                    It.IsAny<Func<IManagedTransportChannel, IReconnectParticipant>>(),
-                    It.IsAny<ITransportWaitingConnection>(),
-                    It.IsAny<CancellationToken>()))
-                .Callback<ConfiguredEndpoint, Func<IManagedTransportChannel, IReconnectParticipant>,
-                    ITransportWaitingConnection?, CancellationToken>(
-                    (target, _, _, _) => recreatedEndpoints.Add(target))
-                .Throws(new ServiceResultException(StatusCodes.BadUnexpectedError));
+            /// <summary>
+            /// The status a reconnect of the session fails with.
+            /// </summary>
+            public StatusCode ReconnectFailure { get; set; } = StatusCodes.BadSecureChannelClosed;
 
-            var session = new Session(
-                managedChannel.Object,
-                configuration,
-                endpoint,
-                engineFactory: DefaultSubscriptionEngineFactory.Instance);
-            session.BindManagedChannel(channelManager.Object, managedChannel.Object);
-            return session;
+            /// <summary>
+            /// The endpoints the recreates built their channel for.
+            /// </summary>
+            public List<ConfiguredEndpoint> Recreated { get; } = [];
+
+            public ISessionFactory Factory(ITelemetryContext telemetry)
+            {
+                var factory = new Mock<ISessionFactory>();
+                factory.SetupGet(f => f.Telemetry).Returns(telemetry);
+                factory.Setup(f => f.WithSubscriptionEngine(
+                        It.IsAny<ISubscriptionEngineFactory>(),
+                        It.IsAny<TimeProvider?>()))
+                    .Returns(factory.Object);
+                factory.Setup(f => f.CreateAsync(
+                        It.IsAny<ApplicationConfiguration>(),
+                        It.IsAny<ConfiguredEndpoint>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<string>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<IUserIdentity>(),
+                        It.IsAny<ArrayOf<string>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((
+                        ApplicationConfiguration _,
+                        ConfiguredEndpoint endpoint,
+                        bool _,
+                        bool _,
+                        string _,
+                        uint _,
+                        IUserIdentity _,
+                        ArrayOf<string> _,
+                        CancellationToken _) =>
+                    {
+                        var session = new Session(
+                            m_managedChannel.Object,
+                            m_configuration,
+                            endpoint,
+                            engineFactory: DefaultSubscriptionEngineFactory.Instance);
+                        session.BindManagedChannel(m_channelManager.Object, m_managedChannel.Object);
+                        m_sessions.Add(session);
+                        return Task.FromResult<ISession>(session);
+                    });
+                return factory.Object;
+            }
+
+            public void Dispose()
+            {
+                foreach (Session session in m_sessions)
+                {
+                    session.Dispose();
+                }
+            }
+
+            private readonly ApplicationConfiguration m_configuration;
+            private readonly Mock<IManagedTransportChannel> m_managedChannel = new();
+            private readonly Mock<IClientChannelManager> m_channelManager = new();
+            private readonly List<Session> m_sessions = [];
+        }
+
+        private static void AssertCopyOf(ConfiguredEndpoint? actual, ConfiguredEndpoint endpoint)
+        {
+            Assert.That(actual, Is.Not.Null.And.Not.SameAs(endpoint));
+            Assert.That(actual!.EndpointUrl, Is.EqualTo(endpoint.EndpointUrl));
         }
 
         private static Task SetServerCertificateAsync(ConfiguredEndpoint endpoint, ByteString certificate)

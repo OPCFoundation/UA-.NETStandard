@@ -477,13 +477,17 @@ cancellation keeps the endpoint in use and fails the reconnect attempt, which
 the reconnect policy then retries. A Bad validator result is reported as it
 is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
 
-Both steps compare against the endpoint the session itself last accepted: the
-endpoint it connected or failed over to, or the last rediscovered endpoint it
-accepted. An accepted endpoint is still published to the shared
-`ConfiguredEndpoint`, but another session sharing it never validates against
-that publication. The session that accepted the endpoint is recreated against
-exactly the endpoint it validated, so a later publication by another session
-cannot replace it.
+Each `ManagedSession` works on its own copy of the `ConfiguredEndpoint` it was
+created with, taken when it connects, and on a copy of a failover or alternate
+endpoint once a switch to it succeeded; a switch that fails leaves the session
+on the endpoint it worked on. Reconnects, recreates and failovers use that copy,
+and both steps above compare against it, so it is always the endpoint the
+session itself last accepted. An accepted rediscovered endpoint is still
+published to the endpoint the copy was taken from, so other consumers of it see
+the update, but no session reads it back: another session sharing that endpoint
+keeps working on, and validating against, its own copy.
+`ManagedSession.ConfiguredEndpoint` returns the copy once the session is
+connected.
 
 ```csharp
 RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>

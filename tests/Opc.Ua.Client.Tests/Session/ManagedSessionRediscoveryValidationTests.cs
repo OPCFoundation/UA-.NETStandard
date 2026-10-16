@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     (current, rediscovered, _) =>
                     {
@@ -102,7 +102,7 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                endpoint.Description,
+                endpoint,
                 (target, _) => RenewCertificateAsync(target),
                 (_, _, _) =>
                 {
@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests
 
             await global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                endpoint.Description,
+                endpoint,
                 (target, _) => RenewCertificateAsync(target),
                 null,
                 CancellationToken.None).ConfigureAwait(false);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>(
                         new ServiceResult(StatusCodes.UncertainNoCommunicationLastUsableValue)),
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => new ValueTask<ServiceResult>((ServiceResult)null!),
                     CancellationToken.None));
@@ -182,7 +182,7 @@ namespace Opc.Ua.Client.Tests
             System.InvalidOperationException exception = Assert.ThrowsAsync<System.InvalidOperationException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     (_, _, _) => throw new System.InvalidOperationException("validator failed"),
                     CancellationToken.None));
@@ -203,7 +203,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     async (_, _, ct) =>
                     {
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => RenewCertificateAsync(target),
                     async (_, _, _) =>
                     {
@@ -246,7 +246,7 @@ namespace Opc.Ua.Client.Tests
             Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     async (target, _) =>
                     {
                         await RenewCertificateAsync(target).ConfigureAwait(false);
@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Tests
 
             Task refresh = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                endpoint.Description,
+                endpoint,
                 (target, _) =>
                 {
                     refreshed = target;
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => ChangeSecurityAsync(
                         target,
                         MessageSecurityMode.Sign,
@@ -340,7 +340,7 @@ namespace Opc.Ua.Client.Tests
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     (target, _) => ChangeSecurityAsync(
                         target,
                         MessageSecurityMode.SignAndEncrypt,
@@ -367,7 +367,7 @@ namespace Opc.Ua.Client.Tests
             Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     async (target, _) =>
                     {
                         await RenewCertificateAsync(target).ConfigureAwait(false);
@@ -387,7 +387,7 @@ namespace Opc.Ua.Client.Tests
             Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
-                    endpoint.Description,
+                    endpoint,
                     async (target, _) =>
                     {
                         await RenewCertificateAsync(target).ConfigureAwait(false);
@@ -419,7 +419,7 @@ namespace Opc.Ua.Client.Tests
 
             Task first = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                endpoint.Description,
+                endpoint,
                 (target, _) => ReplaceCertificateAsync(target, firstCandidate),
                 async (current, _, _) =>
                 {
@@ -433,7 +433,7 @@ namespace Opc.Ua.Client.Tests
 
             Task second = global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                 endpoint,
-                endpoint.Description,
+                endpoint,
                 (target, _) => ReplaceCertificateAsync(target, secondCandidate),
                 async (current, _, _) =>
                 {

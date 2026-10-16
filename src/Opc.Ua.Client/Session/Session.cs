@@ -3461,6 +3461,28 @@ namespace Opc.Ua.Client
                 ct);
         }
 
+        /// <summary>
+        /// Points the session back at <paramref name="endpoint"/> after an
+        /// in-place recreate against another endpoint failed. The recreate
+        /// adopts its target before it connects and keeps it on failure; an
+        /// owner that only adopts a target once the switch succeeded restores
+        /// the endpoint it works on, so the next reconnect or recreate uses it.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
+        internal void RestoreConfiguredEndpoint(ConfiguredEndpoint endpoint)
+        {
+            if (endpoint == null)
+            {
+                throw new ArgumentNullException(nameof(endpoint));
+            }
+
+            if (!ReferenceEquals(m_endpoint, endpoint))
+            {
+                m_endpoint = endpoint;
+                m_effectiveEndpoint = endpoint;
+            }
+        }
+
         internal Task ReactivateOnNetworkEndpointAsync(
             ConfiguredEndpoint endpoint,
             ITransportWaitingConnection? connection,
