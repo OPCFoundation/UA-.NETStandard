@@ -141,7 +141,9 @@ namespace Opc.Ua.Fuzzing.Tests
                 {
                     if (inflated)
                     {
-                        Task.Run(() => AllocateChunks(overBudget)).Wait();
+                        var other = new Thread(() => AllocateChunks(overBudget));
+                        other.Start();
+                        other.Join();
                     }
                     return 0;
                 });
