@@ -2088,11 +2088,123 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
+        /// <summary>
+        /// Whether <see cref="GeneratorOptions.EmitNodeSetNodesOnly"/> applies:
+        /// the option is set and the target model was read from a NodeSet2.
+        /// </summary>
+        private bool EmitsNodeSetNodesOnly =>
+            m_context.Options.EmitNodeSetNodesOnly &&
+            m_context.ModelDesign is ModelDesignValidator { IsSourceNodeSet: true };
+
+        /// <summary>
+        /// With <see cref="GeneratorOptions.EmitNodeSetNodesOnly"/>, a
+        /// predefined node of a NodeSet2 input gets only the children the
+        /// NodeSet2 declares: a child the generator derives from a supertype
+        /// or a type definition is not added to it.
+        /// <para>
+        /// The child factories of a type are also called by the
+        /// <c>CreateInstanceOf*</c> factories with <c>forInstance: true</c>, so
+        /// in a type the omitted child is still created when its parent is
+        /// created for an instance; only the factories of a predefined instance
+        /// leave it out unconditionally.
+        /// </para>
+        /// </summary>
+        private bool IsOmittedFromNodeSetAddressSpace(NodeToGenerate node)
+        {
+            return EmitsNodeSetNodesOnly &&
+                node.IsNotExplicitlyDefined &&
+                GetRoot(node).InstanceOf == null;
+        }
+
+        /// <summary>
+        /// Whether the predefined instance that <paramref name="node"/> belongs
+        /// to omits the undeclared nodes of its hierarchy, so that a reference
+        /// may only end in a node of the hierarchy that it creates. The
+        /// factories of a type keep their references: they are the ones the
+        /// <c>CreateInstanceOf*</c> factories reuse at run time.
+        /// </summary>
+        private bool OmitsUndeclaredHierarchyNodes(NodeToGenerate node)
+        {
+            return EmitsNodeSetNodesOnly &&
+                !node.RootIsTypeDefinition &&
+                GetRoot(node).InstanceOf == null;
+        }
+
+        /// <summary>
+        /// Whether the predefined instance that <paramref name="node"/> belongs
+        /// to creates the node at <paramref name="path"/> of its hierarchy: the
+        /// node is generated and neither it nor any of its ancestors is
+        /// omitted (see <see cref="IsOmittedFromNodeSetAddressSpace"/>).
+        /// </summary>
+        private static bool IsCreatedInNodeSetAddressSpace(NodeToGenerate node, string path)
+        {
+            NodeToGenerate root = GetRoot(node);
+            if (path == root.Path)
+            {
+                return true;
+            }
+
+            NodeToGenerate? target = FindDescendant(root, path);
+            if (target == null)
+            {
+                return false;
+            }
+
+            for (NodeToGenerate current = target;
+                current.Parent != null;
+                current = current.Parent)
+            {
+                if (current.IsNotExplicitlyDefined)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static NodeToGenerate? FindDescendant(NodeToGenerate node, string path)
+        {
+            foreach (NodeToGenerate child in node.AllChildren)
+            {
+                if (child.Path == path)
+                {
+                    return child;
+                }
+                NodeToGenerate? descendant = FindDescendant(child, path);
+                if (descendant != null)
+                {
+                    return descendant;
+                }
+            }
+            return null;
+        }
+
+        private static NodeToGenerate GetRoot(NodeToGenerate node)
+        {
+            NodeToGenerate root = node;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+            return root;
+        }
+
         private TemplateString? LoadTemplate_ReplaceChild(ILoadContext context)
         {
             if (context.Target is not NodeToGenerate node ||
                 node.Design is not InstanceDesign instance ||
                 node.Design is ViewDesign)
+            {
+                return null;
+            }
+
+            // A predefined instance's factories only build that instance, and a
+            // factory's type-template block only runs for the predefined type
+            // node (forInstance: false), so neither creates the omitted child.
+            bool omittedFromNodeSet = IsOmittedFromNodeSetAddressSpace(node);
+            if (omittedFromNodeSet &&
+                (!node.RootIsTypeDefinition ||
+                    context.Token == Tokens.ListOfOptionalChildNodeStates))
             {
                 return null;
             }
@@ -2228,16 +2340,51 @@ namespace Opc.Ua.SourceGeneration
             string forInstanceVariableValue =
                 node.RootIsTypeDefinition ? "forInstance" :
                 node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
+            if (!omittedFromNodeSet)
+            {
+                EmitChildFactoryCall(
+                    context.Out,
+                    node,
+                    instance,
+                    effectiveRule,
+                    forInstanceVariableValue);
+                return null;
+            }
+
+            // An omitted child of a type is created for an instance only.
+            context.Out.WriteLine("if (forInstance)");
+            context.Out.WriteLine("{");
+            EmitChildFactoryCall(
+                new IndentedTemplateWriter(context.Out),
+                node,
+                instance,
+                effectiveRule,
+                forInstanceVariableValue);
+            context.Out.WriteLine("}");
+            return null;
+        }
+
+        /// <summary>
+        /// Emits the call that creates <paramref name="node"/> and adds it to
+        /// the <c>state</c> of its parent's factory.
+        /// </summary>
+        private void EmitChildFactoryCall(
+            ITemplateWriter output,
+            NodeToGenerate node,
+            InstanceDesign instance,
+            ModellingRule effectiveRule,
+            string forInstanceVariableValue)
+        {
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
                 {
                     case TypeDesign:
-                        context.Out.WriteLine(
+                        output.WriteLine(
                             "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                             instance.SymbolicId.Name,
                             forInstanceVariableValue);
-                        return null;
+                        return;
                     case InstanceDesign parentInstance:
                         if (HasFixedChildSlot(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
@@ -2258,11 +2405,11 @@ namespace Opc.Ua.SourceGeneration
                                     case ModellingRule.Mandatory:
                                     case ModellingRule.Optional:
                                         EmitCreateOrReplaceChild(
-                                            context,
+                                            output,
                                             node,
                                             instance,
                                             forInstanceVariableValue);
-                                        return null;
+                                        return;
                                     case ModellingRule.OptionalPlaceholder:
                                     case ModellingRule.MandatoryPlaceholder:
                                         // TODO
@@ -2279,11 +2426,10 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            context.Out.WriteLine(
+            output.WriteLine(
                 "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);
-            return null;
         }
 
         /// <summary>
@@ -2301,7 +2447,7 @@ namespace Opc.Ua.SourceGeneration
         /// rather than the type-level placeholders.
         /// </summary>
         private void EmitCreateOrReplaceChild(
-            ILoadContext context,
+            ITemplateWriter output,
             NodeToGenerate node,
             InstanceDesign instance,
             string forInstanceVariableValue)
@@ -2313,7 +2459,7 @@ namespace Opc.Ua.SourceGeneration
                     string SingletonChildSymbolicId)> singletonChildren = FindSingletonChildren(node);
             if (singletonChildren.Count == 0)
             {
-                context.Out.WriteLine(
+                output.WriteLine(
                     "state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                         "forInstance: {2}), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
@@ -2327,45 +2473,45 @@ namespace Opc.Ua.SourceGeneration
             // materialising an actual well-known instance subtree. The
             // <paramref name="forInstance"/> gate keeps the type-template
             // emission path (forInstance: false) unchanged.
-            context.Out.WriteLine("if ({0} && parent != null)", forInstanceVariableValue);
-            context.Out.WriteLine("{");
+            output.WriteLine("if ({0} && parent != null)", forInstanceVariableValue);
+            output.WriteLine("{");
             for (int i = 0; i < singletonChildren.Count; i++)
             {
                 (NodeToGenerate singletonRoot, NodeToGenerate _, string singletonChildSymbolicId)
                     = singletonChildren[i];
                 string keyword = i == 0 ? "if" : "else if";
-                context.Out.WriteLine(
+                output.WriteLine(
                     "    {0} (parent.NodeId.Equals({1}))",
                     keyword,
                     singletonRoot.Design.GetNodeIdAsCode(
                         m_context.ModelDesign.Namespaces,
                         kNamespaceTableContextVariable));
-                context.Out.WriteLine("    {");
-                context.Out.WriteLine(
+                output.WriteLine("    {");
+                output.WriteLine(
                     "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                         "forInstance: true), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     singletonChildSymbolicId);
-                context.Out.WriteLine("    }");
+                output.WriteLine("    }");
             }
-            context.Out.WriteLine("    else");
-            context.Out.WriteLine("    {");
-            context.Out.WriteLine(
+            output.WriteLine("    else");
+            output.WriteLine("    {");
+            output.WriteLine(
                 "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                     "forInstance: true), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name);
-            context.Out.WriteLine("    }");
-            context.Out.WriteLine("}");
-            context.Out.WriteLine("else");
-            context.Out.WriteLine("{");
-            context.Out.WriteLine(
+            output.WriteLine("    }");
+            output.WriteLine("}");
+            output.WriteLine("else");
+            output.WriteLine("{");
+            output.WriteLine(
                 "    state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                     "forInstance: {2}), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);
-            context.Out.WriteLine("}");
+            output.WriteLine("}");
         }
 
         private bool WriteTemplate_RolePermissions(IWriteContext context)
@@ -4242,6 +4388,9 @@ namespace Opc.Ua.SourceGeneration
             }
             Hierarchy hierarchy = node.Hierarchy;
             NodeDesign? root = node.Design;
+            // A predefined instance of a NodeSet2 input does not create the
+            // nodes it omits, so no reference may end in one of them.
+            bool omitsUndeclaredNodes = OmitsUndeclaredHierarchyNodes(node);
             HashSet<ReferenceToGenerate> references = [];
             foreach (HierarchyReference reference in hierarchy.References)
             {
@@ -4314,6 +4463,11 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    if (omitsUndeclaredNodes &&
+                        !IsCreatedInNodeSetAddressSpace(node, reference.TargetPath!))
+                    {
+                        continue;
+                    }
                     references.Add(new ReferenceToGenerate(
                         target.Instance!,
                         reference.ReferenceType!,
@@ -4325,6 +4479,11 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 if (!source.ExplicitlyDefined && node.RootIsTypeDefinition)
+                {
+                    continue;
+                }
+                if (omitsUndeclaredNodes &&
+                    !IsCreatedInNodeSetAddressSpace(node, reference.SourcePath!))
                 {
                     continue;
                 }
