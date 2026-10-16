@@ -160,6 +160,9 @@ namespace Opc.Ua.SourceGeneration
         public static string OwnerClassName => nameof(OwnerClassName);
         public static string RequestParameters => nameof(RequestParameters);
         public static string ResponseParameters => nameof(ResponseParameters);
+        public static string ClientRequestVariable => nameof(ClientRequestVariable);
+        public static string ClientResponseVariable => nameof(ClientResponseVariable);
+        public static string LegacyClientMethods => nameof(LegacyClientMethods);
         public static string ServerApi => nameof(ServerApi);
         public static string ServerStubs => nameof(ServerStubs);
         public static string ServiceSet => nameof(ServiceSet);

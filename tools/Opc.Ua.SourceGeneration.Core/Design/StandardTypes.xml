@@ -9676,4 +9676,166 @@
     </opc:References>
   </opc:Object>
 
+  <!-- BEGIN generated experimental Async Services 0.2.0 -->
+  <opc:ObjectType SymbolicName="AsyncServiceCapabilitiesType" BaseType="ua:BaseObjectType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:Description>Supported recoverable Service requests and exact lifetime ranges/defaults. Existing message and operation limits remain applicable.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ContractVersion" DataType="ua:String" ModellingRule="Mandatory">
+        <opc:Description>Experimental contract revision; 0.2.0 for this model.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="SupportedServices" DataType="ua:NodeId" ModellingRule="Mandatory" ValueRank="Array">
+        <opc:Description>The request DataType NodeIds that this Server explicitly supports for recoverable submission.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MinExecutionAllowance" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>The minimum positive execution allowance accepted by this Server.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxExecutionAllowance" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>The maximum finite execution allowance accepted by this Server.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="DefaultExecutionAllowance" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>An execution allowance a Client may explicitly select within the advertised range.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MinResultRetentionTime" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>The minimum positive result/history interval accepted by this Server.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxResultRetentionTime" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>The maximum finite result/history interval accepted by this Server.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="DefaultResultRetentionTime" DataType="ua:Duration" ModellingRule="Mandatory">
+        <opc:Description>A result/history interval a Client may explicitly select within the advertised range.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="AsyncServiceDiagnosticsType" BaseType="ua:BaseObjectType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:Description>Privileged aggregate diagnostics. There is no caller-visible operation list.</opc:Description>
+    <opc:Children>
+      <opc:Variable SymbolicName="ActiveOperationCount" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>Owned invocations that have not actually ended, including those past their protocol deadline.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="RetainedOutcomeCount" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>Outcomes still available for collection.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="RetainedOutcomeBytes" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Charged retained-outcome storage, including storage still leased to in-flight senders.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="TerminalRecordCount" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>Retained metadata records after payload release, including required still-running-work identities.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="AdmittedCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative admitted operations.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="RejectedCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative submissions rejected without a new dispatch.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="AcknowledgedCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative first acknowledgements; retries do not increase this count.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="AbandonedCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative first abandonments; retries do not increase this count.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="ExpiredCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative result-retention expirations.</opc:Description>
+      </opc:Variable>
+      <opc:Variable SymbolicName="ExecutionDeadlineCount" DataType="ua:UInt64" ModellingRule="Mandatory">
+        <opc:Description>Cumulative committed execution-deadline outcomes.</opc:Description>
+      </opc:Variable>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="AuditServiceOperationEventType" BaseType="ua:AuditEventType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:Description>Privileged audit metadata for recoverable operation actions. Tokens, credentials and copied request/result payloads are not fields of this event.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ClientOperationId" DataType="ua:Guid" ModellingRule="Mandatory">
+        <opc:Description>The Client correlation ID, or a null Guid when no operation was identified.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ServiceId" DataType="ua:NodeId" ModellingRule="Mandatory">
+        <opc:Description>The original request DataType NodeId, when known.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Action" DataType="ua:ServiceOperationAuditAction" ModellingRule="Mandatory">
+        <opc:Description>The action recorded by this event.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="OperationState" DataType="ua:ServiceOperationState" ModellingRule="Mandatory">
+        <opc:Description>The reported operation state or Unknown when no record is disclosed.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="OutcomeKind" DataType="ua:ServiceOperationOutcome" ModellingRule="Mandatory">
+        <opc:Description>The recorded outcome kind, without the original response payload.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="OutcomeStatus" DataType="ua:StatusCode" ModellingRule="Mandatory">
+        <opc:Description>The original serviceResult or terminal protocol error when known; the inherited audit Status reports success of the audited action separately.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:Object SymbolicName="ServiceOperationInfoDataType_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:ServiceOperationInfoDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="SubmitServiceRequest_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:SubmitServiceRequest</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="SubmitServiceResponse_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:SubmitServiceResponse</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="GetServiceResultRequest_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:GetServiceResultRequest</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="GetServiceResultResponse_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:GetServiceResultResponse</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ControlServiceExecutionRequest_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:ControlServiceExecutionRequest</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object SymbolicName="ControlServiceExecutionResponse_Encoding_DefaultJson" TypeDefinition="ua:DataTypeEncodingType" Category="RuntimeOptional" ReleaseStatus="Draft">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:ControlServiceExecutionResponse</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <!-- END generated experimental Async Services 0.2.0 -->
 </opc:ModelDesign>

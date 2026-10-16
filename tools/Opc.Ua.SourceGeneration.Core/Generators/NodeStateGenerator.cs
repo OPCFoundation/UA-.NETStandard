@@ -1808,6 +1808,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.Design.IsMethodTypeDesign() ||
                 node.InstanceOf != null ||
                 !IsInAddressSpace(node) ||
+                node.Design!.Category?.Split(',').Contains("RuntimeOptional", StringComparer.Ordinal) == true ||
                 node.Design!.Purpose == DataTypePurpose.Testing)
             {
                 return null;

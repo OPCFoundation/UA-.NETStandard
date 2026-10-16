@@ -98,6 +98,15 @@ namespace Opc.Ua.SourceGeneration
             TestContext.Out.WriteLine($"Run result produced {warnings} warnings");
 
             GeneratorRunResult generatorResult = runResult.Results[0];
+            string clientSource = generatorResult.GeneratedSources
+                .Single(source => source.HintName == "Opc.Ua.Client.g.cs").SourceText.ToString();
+            foreach (string name in new[] { "SubmitService", "GetServiceResult", "ControlServiceExecution" })
+            {
+                Assert.That(clientSource, Does.Contain(name + "Async("));
+                Assert.That(clientSource, Does.Not.Contain(" " + name + "("));
+                Assert.That(clientSource, Does.Not.Contain("Begin" + name + "("));
+                Assert.That(clientSource, Does.Not.Contain("End" + name + "("));
+            }
             generatorResult.Diagnostics.Check(TestContext.Out, out errors, out warnings);
             Assert.That(errors, Is.Zero);
             TestContext.Out.WriteLine($"Generate run produced {warnings} warnings");
