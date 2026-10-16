@@ -620,6 +620,7 @@ static class DurableFile
     const int MOVEFILE_REPLACE_EXISTING = 0x1;
     const int MOVEFILE_WRITE_THROUGH = 0x8;
     const int O_RDONLY = 0; // 0 on Linux, macOS and the BSDs
+    const int F_FULLFSYNC = 51; // macOS
 
     public static void PublishDurably(string tempPath, string finalPath)
     {
@@ -633,7 +634,7 @@ static class DurableFile
             return;
         }
 
-        // rename(2) is atomic; it is durable only once the containing directory is fsynced.
+        // rename(2) is atomic; it is durable only once the containing directory is flushed.
         File.Move(tempPath, finalPath, overwrite: true);
         int fd = open(Path.GetDirectoryName(Path.GetFullPath(finalPath))!, O_RDONLY);
         if (fd < 0)
@@ -642,7 +643,9 @@ static class DurableFile
         }
         try
         {
-            if (fsync(fd) != 0)
+            // On macOS fsync does not flush the drive's volatile cache; F_FULLFSYNC does (see fsync(2)).
+            int flushed = OperatingSystem.IsMacOS() ? fcntl(fd, F_FULLFSYNC) : fsync(fd);
+            if (flushed != 0)
             {
                 throw new Win32Exception(Marshal.GetLastPInvokeError());
             }
@@ -661,6 +664,10 @@ static class DurableFile
 
     [DllImport("libc", SetLastError = true)]
     static extern int fsync(int fd);
+
+    // fcntl is variadic; F_FULLFSYNC takes no argument, so only the fixed parameters are passed.
+    [DllImport("libc", SetLastError = true)]
+    static extern int fcntl(int fd, int cmd);
 
     [DllImport("libc")]
     static extern int close(int fd);
@@ -683,7 +690,7 @@ await using (var stream = new FileStream(
 {
     await stream.WriteAsync(snapshot.Data.Memory, ct);
     await stream.FlushAsync(ct);
-    stream.Flush(flushToDisk: true); // fsync / FlushFileBuffers: the bytes are on disk before the rename
+    stream.Flush(flushToDisk: true); // fsync (F_FULLFSYNC on macOS) / FlushFileBuffers: the bytes are on disk before the rename
 }
 
 // Publish atomically and durably: the file is either absent or complete, also after a power loss.
@@ -728,7 +735,7 @@ Never overwrite the published snapshot in place (for example with `File.WriteAll
 
 - Write the temporary file in the same directory as the snapshots. The rename replaces the target atomically (`rename(2)` on POSIX, `MoveFileEx` on Windows) only on the same filesystem/volume; across volumes it degrades to a non-atomic copy and delete.
 - `Flush(flushToDisk: true)` makes the file contents durable before the rename, so the rename never publishes a file whose data is still in the page cache.
-- An atomic rename is not yet a durable one, and `CompactThroughAsync` must run only after `PublishDurably` returned: if the compaction boundary survived a power loss but the rename did not, `CompactedThrough` would name a missing snapshot and recovery could not proceed. `File.Move` alone guarantees neither: on Windows it does not request write-through, so `PublishDurably` calls `MoveFileEx` with `MOVEFILE_WRITE_THROUGH`; on POSIX the rename is a change to the containing directory, so `PublishDurably` fsyncs that directory after it. .NET offers no managed API for either.
+- An atomic rename is not yet a durable one, and `CompactThroughAsync` must run only after `PublishDurably` returned: if the compaction boundary survived a power loss but the rename did not, `CompactedThrough` would name a missing snapshot and recovery could not proceed. `File.Move` alone guarantees neither: on Windows it does not request write-through, so `PublishDurably` calls `MoveFileEx` with `MOVEFILE_WRITE_THROUGH`; on POSIX the rename is a change to the containing directory, so `PublishDurably` flushes that directory after it — with `fsync` on Linux and the BSDs, and with `fcntl(F_FULLFSYNC)` on macOS, where `fsync` does not flush the drive's volatile cache. .NET offers no managed API for either.
 - Network filesystems and some container volume drivers may not honour these guarantees; keep snapshots on a local or block-backed volume whose atomic-rename and fsync semantics are documented.
 
 `LastIncludedCommand` counts committed application commands, not entries of the consensus engine's own log (which also holds leader no-ops and configuration changes), because `IRaftConsensus` does not expose log indexes. Compacting an engine's log therefore needs the engine to map the position to its own index.
