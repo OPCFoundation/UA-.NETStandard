@@ -675,12 +675,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Keeps the stored contents of the queue when it is disposed.
+        /// The queue, when it supports a staged restore.
         /// </summary>
-        internal void DetachQueueFromStorage()
-        {
-            (m_dataValueQueue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
-        }
+        internal IRestorableMonitoredItemQueue? RestorableQueue => m_dataValueQueue as IRestorableMonitoredItemQueue;
 
         /// <inheritdoc/>
         public void Dispose()

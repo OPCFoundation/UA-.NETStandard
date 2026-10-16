@@ -59,6 +59,19 @@ Typically the following porting steps are necessary:
   returned, so the store may return the same objects to a retry. A server
   startup that fails releases its session and subscription managers, so the
   restore can be retried by starting again.
+- A queue whose contents are kept in storage while the server runs, and which
+  disposing removes from that storage, should implement
+  `IRestorableMonitoredItemQueue`. While the server restores the subscriptions
+  it calls `BeginRestore` before it changes such a queue of a restored
+  monitored item; the queue must then not write to its storage. When every
+  stored subscription was restored the server calls `CommitRestore`, and the
+  queue writes its current contents once and resumes writing. When the restore
+  fails or is cancelled the server calls `AbortRestore` and disposes the queue;
+  the queue must drop writes it has not completed, never write again, and keep
+  its stored contents on dispose, because the retry reads them again. The
+  mirrored queues of `SharedKeyValueMonitoredItemQueueFactory` implement it.
+  An override of `SubscriptionManager.RestoreSubscriptionsAsync` that does not
+  call the base implementation leaves these queues staged.
 - If you implement a custom `INodeManager` or override
   `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
   the `MonitoredItem` constructor. When you check queue length for a durable

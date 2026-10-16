@@ -38,9 +38,10 @@ namespace Opc.Ua.Redundancy.Server
     /// <remarks>
     /// After every mutation an immutable snapshot of the current queue contents is handed to the owning
     /// <see cref="SharedKeyValueMonitoredItemQueueFactory"/>, which coalesces and persists it on a non-blocking
-    /// background drain. Mirroring is suspended while the queue is being repopulated during restore.
+    /// background drain. Mirroring is suspended while the queue is being repopulated during restore, and while
+    /// the server restores the subscription the queue belongs to (<see cref="IRestorableMonitoredItemQueue"/>).
     /// </remarks>
-    internal sealed class MirroringEventMonitoredItemQueue : EventMonitoredItemQueue, IStorageBackedMonitoredItemQueue
+    internal sealed class MirroringEventMonitoredItemQueue : EventMonitoredItemQueue, IRestorableMonitoredItemQueue
     {
         /// <summary>
         /// Creates a mirroring event queue.
@@ -83,15 +84,34 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        public void DetachFromStorage()
+        public void BeginRestore()
         {
-            m_detached = true;
+            m_restoring = true;
+        }
+
+        /// <inheritdoc/>
+        public void CommitRestore()
+        {
+            if (!m_restoring || m_aborted)
+            {
+                return;
+            }
+            m_restoring = false;
+            Mirror();
+        }
+
+        /// <inheritdoc/>
+        public void AbortRestore()
+        {
+            m_aborted = true;
+            m_restoring = false;
+            m_sink.DiscardPendingQueue(MonitoredItemId);
         }
 
         /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && !m_detached)
+            if (disposing && !m_aborted)
             {
                 m_sink.RemoveQueue(MonitoredItemId);
             }
@@ -135,7 +155,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void Mirror()
         {
-            if (m_mirroring && !m_detached)
+            if (m_mirroring && !m_restoring && !m_aborted)
             {
                 m_sink.MirrorEventQueue(MonitoredItemId, CaptureSnapshot());
             }
@@ -143,6 +163,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly IMirroredQueueSink m_sink;
         private volatile bool m_mirroring = true;
-        private volatile bool m_detached;
+        private volatile bool m_restoring;
+        private volatile bool m_aborted;
     }
 }

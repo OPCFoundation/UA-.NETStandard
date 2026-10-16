@@ -353,6 +353,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task FailedRestoreKeepsTheOriginalValuesOfAFullMirroredQueueAsync()
+        {
+            using var queues = new MirroredQueues();
+            await queues.PopulateDataChangeQueueAsync(1002, queueSize: 2).ConfigureAwait(false);
+            using var fixture = new Fixture(
+                store =>
+                {
+                    store
+                        .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(() => new RestoreSubscriptionResult(
+                            true,
+                            [CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 2)), CreateStored(43)]));
+                    queues.Serve(store);
+                },
+                failingSubscriptionId: 43);
+
+            // Restoring the unowned item of 42 queues Bad_NodeIdUnknown into its full
+            // queue, which discards the oldest stored value; then 43 fails, after every
+            // write the restore scheduled reached the storage.
+            fixture.Manager.BeforeFailure = queues.FlushAsync;
+            Assert.ThrowsAsync<AggregateException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+            AssertNothingRestored(fixture);
+            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+
+            fixture.Manager.FailingSubscriptionId = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 42, 1002);
+            Assert.That(queues.DataChangeReads, Has.Count.EqualTo(2));
+            Assert.That(
+                queues.DataChangeReads[1].Values,
+                Is.EqualTo(new[] { new Variant(1), new Variant(2) }),
+                "the retry restores every stored value, in order");
+
+            // The completed restore writes the restored queue.
+            Variant[] stored = await queues.ReadStoredDataChangeValuesAsync(1002).ConfigureAwait(false);
+            Assert.That(stored, Has.Length.EqualTo(2));
+            Assert.That(stored[0], Is.EqualTo(new Variant(2)));
+        }
+
+        [Test]
         public async Task RestoreCancelledDuringItemRestorationKeepsTheMirroredQueuesAsync()
         {
             using var queues = new MirroredQueues();
@@ -671,16 +713,26 @@ namespace Opc.Ua.Server.Tests
 
             public uint FailingSubscriptionId { get; set; }
 
-            protected override ValueTask<ISubscription> RestoreSubscriptionAsync(
+            /// <summary>
+            /// Runs before the restore of the failing subscription fails.
+            /// </summary>
+            public Func<Task>? BeforeFailure { get; set; }
+
+            protected override async ValueTask<ISubscription> RestoreSubscriptionAsync(
                 IStoredSubscription storedSubscription,
                 CancellationToken cancellationToken = default)
             {
                 if (storedSubscription.Id == FailingSubscriptionId)
                 {
+                    if (BeforeFailure != null)
+                    {
+                        await BeforeFailure().ConfigureAwait(false);
+                    }
                     throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
                 }
 
-                return base.RestoreSubscriptionAsync(storedSubscription, cancellationToken);
+                return await base.RestoreSubscriptionAsync(storedSubscription, cancellationToken)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -768,10 +820,16 @@ namespace Opc.Ua.Server.Tests
                     telemetry: telemetry);
             }
 
-            public async Task PopulateDataChangeQueueAsync(uint monitoredItemId)
+            /// <summary>
+            /// The values of every data change queue the restore read from storage, by
+            /// monitored item, in the order the reads happened.
+            /// </summary>
+            public List<(uint MonitoredItemId, Variant[] Values)> DataChangeReads { get; } = [];
+
+            public async Task PopulateDataChangeQueueAsync(uint monitoredItemId, uint queueSize = 10)
             {
                 IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, monitoredItemId);
-                queue.ResetQueue(10, false);
+                queue.ResetQueue(queueSize, false);
                 queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
                 queue.Enqueue(new DataValue(new Variant(2)), ServiceResult.Good);
                 await m_factory.FlushAsync().ConfigureAwait(false);
@@ -785,6 +843,14 @@ namespace Opc.Ua.Server.Tests
                 await m_factory.FlushAsync().ConfigureAwait(false);
             }
 
+            /// <summary>
+            /// Waits until every scheduled write reached the storage.
+            /// </summary>
+            public Task FlushAsync()
+            {
+                return m_factory.FlushAsync().AsTask();
+            }
+
             public void Serve(Mock<ISubscriptionStore> store)
             {
                 store
@@ -792,7 +858,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<uint>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((uint monitoredItemId, CancellationToken cancellationToken) =>
-                        m_factory.RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken));
+                        ReadDataChangeQueueAsync(monitoredItemId, cancellationToken));
                 store
                     .Setup(value => value.RestoreEventMonitoredItemQueueAsync(
                         It.IsAny<uint>(),
@@ -801,21 +867,28 @@ namespace Opc.Ua.Server.Tests
                         m_factory.RestoreEventQueueAsync(monitoredItemId, cancellationToken));
             }
 
-            public async Task AssertDataChangeQueueKeptAsync(uint monitoredItemId)
+            /// <summary>
+            /// Returns the values stored for the data change queue, oldest first.
+            /// </summary>
+            public async Task<Variant[]> ReadStoredDataChangeValuesAsync(uint monitoredItemId)
             {
                 await m_factory.FlushAsync().ConfigureAwait(false);
                 IDataChangeMonitoredItemQueue? queue = await m_factory
                     .RestoreDataChangeQueueAsync(monitoredItemId)
                     .ConfigureAwait(false);
-                Assert.That(queue, Is.Not.Null, "the mirrored data change queue survives the aborted restore");
-                ((IStorageBackedMonitoredItemQueue)queue!).DetachFromStorage();
+                Assert.That(queue, Is.Not.Null, "the mirrored data change queue is stored");
 
-                // The detached item the restore created also queued a Bad_NodeIdUnknown
-                // status after the stored values.
-                Assert.That(queue.Dequeue(out DataValue first, out _), Is.True);
-                Assert.That(queue.Dequeue(out DataValue second, out _), Is.True);
-                Assert.That(first.WrappedValue, Is.EqualTo(new Variant(1)));
-                Assert.That(second.WrappedValue, Is.EqualTo(new Variant(2)));
+                // A queue read only to inspect the storage must not write to it.
+                ((IRestorableMonitoredItemQueue)queue!).AbortRestore();
+                return ValuesOf(queue);
+            }
+
+            public async Task AssertDataChangeQueueKeptAsync(uint monitoredItemId)
+            {
+                Assert.That(
+                    await ReadStoredDataChangeValuesAsync(monitoredItemId).ConfigureAwait(false),
+                    Is.EqualTo(s_storedValues),
+                    "the aborted restore leaves the stored values as they were");
             }
 
             public async Task AssertEventQueueKeptAsync(uint monitoredItemId)
@@ -825,11 +898,39 @@ namespace Opc.Ua.Server.Tests
                     .RestoreEventQueueAsync(monitoredItemId)
                     .ConfigureAwait(false);
                 Assert.That(queue, Is.Not.Null, "the mirrored event queue survives the aborted restore");
-                ((IStorageBackedMonitoredItemQueue)queue!).DetachFromStorage();
+                ((IRestorableMonitoredItemQueue)queue!).AbortRestore();
+                Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
                 Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
                 Assert.That(fields.ClientHandle, Is.EqualTo(7u));
             }
 
+            private async ValueTask<IDataChangeMonitoredItemQueue?> ReadDataChangeQueueAsync(
+                uint monitoredItemId,
+                CancellationToken cancellationToken)
+            {
+                IDataChangeMonitoredItemQueue? queue = await m_factory
+                    .RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (queue is MirroringDataChangeMonitoredItemQueue mirrored)
+                {
+                    DataChangeReads.Add((
+                        monitoredItemId,
+                        [.. mirrored.CaptureSnapshot().Values.Select(entry => entry.Value.WrappedValue)]));
+                }
+                return queue;
+            }
+
+            private static Variant[] ValuesOf(IDataChangeMonitoredItemQueue queue)
+            {
+                var values = new List<Variant>();
+                while (queue.Dequeue(out DataValue value, out _))
+                {
+                    values.Add(value.WrappedValue);
+                }
+                return [.. values];
+            }
+
+            private static readonly Variant[] s_storedValues = [new Variant(1), new Variant(2)];
             public void Dispose()
             {
                 m_factory.Dispose();

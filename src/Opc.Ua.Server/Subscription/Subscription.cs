@@ -703,6 +703,24 @@ namespace Opc.Ua.Server
             return DeleteCoreAsync(null, keepStoredQueues: true);
         }
 
+        /// <summary>
+        /// Writes the queues the restore of the monitored items staged to their
+        /// storage. Called once every stored subscription was restored.
+        /// </summary>
+        internal void CommitRestoredQueues()
+        {
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
+            }
+
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                (monitoredItem as MonitoredItem)?.CommitQueueRestore();
+            }
+        }
+
         private async ValueTask DeleteCoreAsync(OperationContext? context, bool keepStoredQueues)
         {
             // Mark the subscription deleted first so any concurrent service call that reaches a
@@ -730,7 +748,7 @@ namespace Opc.Ua.Server
                 {
                     foreach (IMonitoredItem monitoredItem in monitoredItems)
                     {
-                        (monitoredItem as MonitoredItem)?.DetachQueuesFromStorage();
+                        (monitoredItem as MonitoredItem)?.AbortQueueRestore();
                     }
                 }
 

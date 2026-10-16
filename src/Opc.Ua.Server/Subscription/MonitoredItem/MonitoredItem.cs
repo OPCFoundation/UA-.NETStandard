@@ -2645,6 +2645,9 @@ namespace Opc.Ua.Server
 
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+
                             // initialize with existing queue
                             m_dataChangeQueueHandler = new DataChangeQueueHandler(
                                 restoredQueue,
@@ -2662,6 +2665,7 @@ namespace Opc.Ua.Server
                                 m_monitoredItemQueueFactory,
                                 m_server.Telemetry,
                                 QueueOverflowHandler);
+                            m_dataChangeQueueHandler.RestorableQueue?.BeginRestore();
 
                             m_dataChangeQueueHandler.SetQueueSize(
                                 QueueSize,
@@ -2686,6 +2690,9 @@ namespace Opc.Ua.Server
                         }
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+
                             // initialize with existing queue
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
@@ -2712,6 +2719,7 @@ namespace Opc.Ua.Server
                                 m_server.Telemetry,
                                 QueueOverflowHandler,
                                 null);
+                            m_eventQueueHandler.RestorableQueue?.BeginRestore();
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
@@ -2798,18 +2806,51 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Keeps the stored contents of the queues of the item when they are
-        /// disposed. Used when an aborted restore releases the item: the stored
-        /// contents are needed when the restore is retried.
+        /// Writes the queues the restore of the item staged to their storage. Called
+        /// once every stored subscription was restored.
         /// </summary>
-        internal void DetachQueuesFromStorage()
+        internal void CommitQueueRestore()
         {
+            foreach (IRestorableMonitoredItemQueue queue in GetRestorableQueues())
+            {
+                queue.CommitRestore();
+            }
+        }
+
+        /// <summary>
+        /// Keeps the stored contents of the queues of the item when they are
+        /// disposed, and drops what the restore staged. Used when an aborted restore
+        /// releases the item: the stored contents are needed when the restore is
+        /// retried.
+        /// </summary>
+        internal void AbortQueueRestore()
+        {
+            foreach (IRestorableMonitoredItemQueue queue in GetRestorableQueues())
+            {
+                queue.AbortRestore();
+            }
+        }
+
+        private List<IRestorableMonitoredItemQueue> GetRestorableQueues()
+        {
+            var queues = new List<IRestorableMonitoredItemQueue>(4);
             lock (m_lock)
             {
-                m_dataChangeQueueHandler?.DetachQueueFromStorage();
-                m_eventQueueHandler?.DetachQueueFromStorage();
-                (m_restoredDataChangeQueue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
-                (m_restoredEventQueue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
+                AddRestorableQueue(queues, m_dataChangeQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_eventQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_restoredDataChangeQueue as IRestorableMonitoredItemQueue);
+                AddRestorableQueue(queues, m_restoredEventQueue as IRestorableMonitoredItemQueue);
+            }
+            return queues;
+        }
+
+        private static void AddRestorableQueue(
+            List<IRestorableMonitoredItemQueue> queues,
+            IRestorableMonitoredItemQueue? queue)
+        {
+            if (queue != null && !queues.Exists(existing => ReferenceEquals(existing, queue)))
+            {
+                queues.Add(queue);
             }
         }
 

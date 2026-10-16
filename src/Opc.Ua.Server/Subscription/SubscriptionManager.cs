@@ -434,7 +434,9 @@ namespace Opc.Ua.Server
         /// subscription fails, the store is not told that the restore completed,
         /// so it keeps what it holds. A restore that fails or is cancelled deletes
         /// the subscriptions it already recreated, without storing them, so the
-        /// manager can retry the restore.
+        /// manager can retry the restore. Monitored item queues that implement
+        /// <see cref="IRestorableMonitoredItemQueue"/> write to their storage only
+        /// once the restore completed.
         /// </remarks>
         /// <exception cref="InvalidOperationException">The server is already running.</exception>
         /// <exception cref="ServiceResultException">The subscription store failed.</exception>
@@ -553,6 +555,12 @@ namespace Opc.Ua.Server
                 await RollBackRestoredSubscriptionsAsync(restoredSubscriptions).ConfigureAwait(false);
                 storedState.Revert(m_logger);
                 throw;
+            }
+
+            // Only now may the restored queues change their stored contents.
+            foreach (ISubscription subscription in restoredSubscriptions)
+            {
+                (subscription as Subscription)?.CommitRestoredQueues();
             }
         }
 
@@ -3339,7 +3347,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    (queue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
+                    (queue as IRestorableMonitoredItemQueue)?.AbortRestore();
                     queue.Dispose();
                 }
                 catch (Exception e)

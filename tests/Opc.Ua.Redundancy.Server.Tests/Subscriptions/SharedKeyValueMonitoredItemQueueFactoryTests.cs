@@ -287,6 +287,101 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await factory.RestoreDataChangeQueueAsync(5).ConfigureAwait(false), Is.Null);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StagedRestoreWritesOnlyOnCommitAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+
+            restored.CommitRestore();
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(2));
+
+            Enqueue(restored, 3);
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(3));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortedRestoreKeepsTheStoredQueueAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            restored.AbortRestore();
+            restored.CommitRestore();
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        private static async Task<IRestorableMonitoredItemQueue> StoreAndRestoreAsync(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            bool eventQueue)
+        {
+            if (eventQueue)
+            {
+                IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 9);
+                queue.SetQueueSize(5, false);
+                queue.Enqueue(new EventFieldList { ClientHandle = 1 });
+                await factory.FlushAsync().ConfigureAwait(false);
+                return (IRestorableMonitoredItemQueue)(await factory.RestoreEventQueueAsync(9)
+                    .ConfigureAwait(false))!;
+            }
+
+            IDataChangeMonitoredItemQueue dataChangeQueue = factory.CreateDataChangeQueue(false, 9);
+            dataChangeQueue.ResetQueue(5, false);
+            dataChangeQueue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
+            return (IRestorableMonitoredItemQueue)(await factory.RestoreDataChangeQueueAsync(9)
+                .ConfigureAwait(false))!;
+        }
+
+        private static void Enqueue(IRestorableMonitoredItemQueue queue, int value)
+        {
+            if (queue is IEventMonitoredItemQueue eventQueue)
+            {
+                eventQueue.Enqueue(new EventFieldList { ClientHandle = (uint)value });
+                return;
+            }
+            ((IDataChangeMonitoredItemQueue)queue).Enqueue(new DataValue(new Variant(value)), ServiceResult.Good);
+        }
+
+        private static async Task<int> CountStoredAsync(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            bool eventQueue)
+        {
+            // A queue restored for reading only must not write back, so it is aborted.
+            if (eventQueue)
+            {
+                IEventMonitoredItemQueue? stored = await factory.RestoreEventQueueAsync(9).ConfigureAwait(false);
+                ((IRestorableMonitoredItemQueue)stored!).AbortRestore();
+                return stored.ItemsInQueue;
+            }
+            IDataChangeMonitoredItemQueue? storedValues = await factory.RestoreDataChangeQueueAsync(9)
+                .ConfigureAwait(false);
+            ((IRestorableMonitoredItemQueue)storedValues!).AbortRestore();
+            return storedValues.ItemsInQueue;
+        }
+
         [Test]
         public async Task CleanupRemovesStaleQueuesAsync()
         {
