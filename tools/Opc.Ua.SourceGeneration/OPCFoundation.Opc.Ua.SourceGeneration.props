@@ -11,6 +11,7 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitObjectTypeProxies" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorUseTypeDefinitionModellingRules" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorEmitNodeSetNodesOnly" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorGenerateNodeManager" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
