@@ -1842,13 +1842,47 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             StringTable stringTable)
         {
-            return new ResponseHeader
-            {
-                Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle,
-                StringTable = stringTable.ToArrayOf()
-            };
+            // fill the default header of the response being built, if the caller offered it
+            ResponseHeader? responseHeader = t_responseHeaderToFill;
+            t_responseHeaderToFill = null;
+            responseHeader ??= new ResponseHeader();
+            responseHeader.Timestamp = DateTime.UtcNow;
+            responseHeader.RequestHandle = requestHeader.RequestHandle;
+            responseHeader.StringTable = stringTable.ToArrayOf();
+            return responseHeader;
         }
+
+        /// <summary>
+        /// Creates the response header through
+        /// <see cref="CreateResponse(RequestHeader, StringTable)"/>, letting its base
+        /// implementation fill <paramref name="responseHeaderToFill"/> instead of allocating
+        /// a header.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="responseHeaderToFill"/>, if not null, must be the untouched default
+        /// header of a response the caller just constructed and assigns the result to. The base
+        /// implementation takes it at most once; an override that does not call the base, or
+        /// creates another response header first, returns a header of its own, and the
+        /// default header is then replaced (or owned by that other response) as before.
+        /// </remarks>
+        internal ResponseHeader CreateResponse(
+            RequestHeader requestHeader,
+            StringTable stringTable,
+            ResponseHeader? responseHeaderToFill)
+        {
+            t_responseHeaderToFill = responseHeaderToFill;
+            try
+            {
+                return CreateResponse(requestHeader, stringTable);
+            }
+            finally
+            {
+                t_responseHeaderToFill = null;
+            }
+        }
+
+        [ThreadStatic]
+        private static ResponseHeader? t_responseHeaderToFill;
 
         /// <summary>
         /// Called when the server configuration is changed on disk.
