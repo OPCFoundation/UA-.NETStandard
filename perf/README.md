@@ -88,6 +88,9 @@ scenarios, with the CPU time of the native workers in `client-per-op:`.
 | `--nodes`, `--sampling`, `--pub` | 1, 10, 1000 | Monitored counters, sampling and publishing interval in ms (`native-counters`). |
 | `--server-exe`, `--server-args` | harness child, `--port {port}` | An external server executable and its arguments; `{port}`, `{items}`, `{sampling}` and `{pki}` are replaced. `--server-args` takes the next argument verbatim, even if it starts with `--`. |
 | `--server-affinity` | all processors | Hexadecimal processor mask of the server process, for example `0x1` to compare the throughput per core with a single-threaded server. |
+| `--client-affinity` | all processors | Hexadecimal processor mask of the worker processes, for example the mask of `--server-affinity` to co-locate clients and server. |
+| `--server-priority` | `Normal` | `ProcessPriorityClass` of the server process, for example `BelowNormal` so that co-located workers preempt server threads. |
+| `--thread-states` | 0 | 1: sample the scheduling state of the server threads (see below). |
 | `--security` | `none` | `encrypt`: Basic256Sha256 SignAndEncrypt with DER identities written to `{pki}`. |
 | `--async-node-manager`, `--counter-lock`, `--queue` | see below | Configuration of the harness child. |
 | `--threads` | 200 | `MaxRequestThreadCount` of the harness child. |
@@ -120,6 +123,14 @@ them for the restricted machine:
 SERVER_DOTNET_PROCESSOR_COUNT=4 ServerLoadHarness.exe run --scenario native-read --server-affinity 0xF --native-client <workers>/build/client.exe
 ```
 
+With `--thread-states 1` a thread in the harness samples the threads of the server process
+every ~3 ms during the measurement and appends
+`sched: samples=<n> running=<avg> ready=<avg> readyMax=<max>` to the `server:` line. `ready`
+counts threads in the Ready or Standby state, which wait for a processor: on pinned or shared
+processors that is oversubscription, which delays a GC suspension until the preempted thread
+runs again. The sampler enumerates the server threads every time, so leave it off for
+throughput comparisons.
+
 ```bash
 ServerLoadHarness.exe run --scenario native-read --native-client <workers>/build/client.exe --clients 10 --inflight 100 --iterations 100000 --warmup-calls 10000
 ServerLoadHarness.exe run --scenario native-read --native-client <workers>/build/client.exe --server-exe <workers>/build/server.exe --server-args "--port {port}"
@@ -144,6 +155,7 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll cpu trace.nettra
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll contention trace.nettrace 15
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll gc trace.nettrace
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.nettrace 30
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll suspend trace.nettrace 5
 ```
 
 `cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
@@ -153,6 +165,14 @@ reason and splits each pause into the time needed to suspend the threads and the
 a long suspension means a thread ran for a while without reaching a safe point. `samples`
 lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua` frame),
 including the ones `cpu` leaves out.
+
+`suspend <trace> [thresholdMs]` (default 40) reads a `--trace-profile gc` trace and prints every
+GC suspension that took at least the threshold, with the events recorded between SuspendEE
+start and stop by thread: an `AllocationTick` inside that window comes from a thread that was
+still running managed code, the one that had not reached a safe point. It also counts all
+events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, from
+`GlobalHeapHistory`) and `HANDLEKIND <kind>` (GC handle churn by kind), and ends with
+`SetGCHandle=<count> trace ms=<duration>`.
 
 The sampler suspends running threads at their next GC poll, so many on-CPU samples have
 `Thread.PollGCWorker` as their leaf; `cpu` attributes those to the calling frame instead of

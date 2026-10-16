@@ -72,7 +72,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples <trace> [top] [focus]");
+                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples|suspend <trace> [top|thresholdMs] [focus]");
                 return 1;
             }
 
@@ -97,6 +97,9 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     break;
                 case "samples":
                     Samples(log, top);
+                    break;
+                case "suspend":
+                    Suspensions(log, top);
                     break;
                 default:
                     Allocations(log, top, focus);
@@ -217,6 +220,66 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     FormattableString.Invariant(
                     $"p99={pauses[Math.Min(pauses.Count - 1, (int)(pauses.Count * 0.99))]:F2}ms max={pauses[^1]:F2}ms"));
             }
+        }
+
+        /// <summary>
+        /// Event counts (including the heap counts DATAS chose and the GC handle kinds), and for
+        /// each suspension longer than <paramref name="thresholdMs"/> the events recorded between
+        /// SuspendEE start and stop, by thread: a thread that allocates inside the window had not
+        /// reached a safe point yet.
+        /// </summary>
+        private static void Suspensions(TraceLog log, int thresholdMs)
+        {
+            var names = new Dictionary<string, double>(StringComparer.Ordinal);
+            var window = new List<(double Time, string Text)>();
+            double start = 0;
+            int startThread = 0;
+            string reason = string.Empty;
+            foreach (TraceEvent e in log.Events)
+            {
+                Add(names, e.ProviderName + "/" + e.EventName, 1);
+                if (e.EventName == "GC/GlobalHeapHistory")
+                {
+                    Add(names, FormattableString.Invariant(
+                        $"HEAPS {e.PayloadByName("NumHeaps")} gen0budget~{e.PayloadByName("FinalYoungestDesired")}"), 1);
+                }
+                if (e.EventName == "GC/SetGCHandle")
+                {
+                    Add(names, "HANDLEKIND " + e.PayloadByName("Kind"), 1);
+                }
+                if (e is GCSuspendEETraceData s)
+                {
+                    start = e.TimeStampRelativeMSec;
+                    startThread = e.ThreadID;
+                    reason = s.Reason.ToString();
+                    window.Clear();
+                    continue;
+                }
+                if (start > 0 && e.EventName == "GC/SuspendEEStop")
+                {
+                    double d = e.TimeStampRelativeMSec - start;
+                    if (d >= thresholdMs)
+                    {
+                        Console.WriteLine(FormattableString.Invariant(
+                            $"suspension at {start:F1}ms took {d:F2}ms reason={reason} suspender={startThread} stopThread={e.ThreadID}"));
+                        foreach ((double time, string text) in window)
+                        {
+                            Console.WriteLine(FormattableString.Invariant($"   +{time - start,8:F3} {text}"));
+                        }
+                    }
+                    start = 0;
+                    continue;
+                }
+                if (start > 0 && window.Count < 200)
+                {
+                    window.Add((e.TimeStampRelativeMSec, FormattableString.Invariant(
+                        $"t={e.ThreadID,6} {e.ProviderName}/{e.EventName} {(e.CallStack() is { } cs ? Short(Name(cs)) : string.Empty)}")));
+                }
+            }
+            Dump("events", names, names.Values.Sum(), 60);
+            double handles = names.GetValueOrDefault("Microsoft-Windows-DotNETRuntime/GC/SetGCHandle");
+            Console.WriteLine(FormattableString.Invariant(
+                $"SetGCHandle={handles} trace ms={log.SessionDuration.TotalMilliseconds:F0}"));
         }
 
         private static void Contention(TraceLog log, int top)

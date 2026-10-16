@@ -180,7 +180,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 for (int i = 0; i < clients; i++)
                 {
-                    workers.Add(Worker.Start(
+                    workers.Add(Worker.StartClient(
                         exe,
                         FormattableString.Invariant(
                             $"--endpoint opc.tcp://127.0.0.1:{port} --iterations {iterations} --warmup {warmup} --samples 1 ") +
@@ -245,7 +245,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int items = Program.ArgInt("nodes", 1);
             int sampling = Program.ArgInt("sampling", 10);
             int publishing = Program.ArgInt("pub", 1000);
-            using Worker client = Worker.Start(
+            using Worker client = Worker.StartClient(
                 exe,
                 FormattableString.Invariant($"{port} {items} {sampling} client {publishing}"),
                 environment);
@@ -425,6 +425,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     // e.g. 0x1: one core, to compare the throughput per core with a single-threaded server
                     handle.m_process.ProcessorAffinity = (nint)Convert.ToInt64(affinity, 16);
                 }
+                if (Program.TryGetArg("server-priority", out string? priority))
+                {
+                    handle.m_process.PriorityClass = Enum.Parse<ProcessPriorityClass>(priority, true);
+                }
                 // let the listener settle before the workers connect
                 await Task.Delay(500).ConfigureAwait(false);
                 return handle;
@@ -451,6 +455,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             public async Task MarkAsync()
             {
+                if (Program.ArgInt("thread-states", 0) != 0)
+                {
+                    StartThreadSampler();
+                }
                 m_markTimestamp = Stopwatch.GetTimestamp();
                 if (m_external == null)
                 {
@@ -467,10 +475,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             public async Task<string> ReportAsync()
             {
+                string sched = StopThreadSampler();
                 if (m_external == null)
                 {
                     await m_process!.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
-                    return Program.Take(m_lines!, "REPORT")[7..];
+                    return Program.Take(m_lines!, "REPORT")[7..] + sched;
                 }
                 m_process!.Refresh();
                 double seconds = Stopwatch.GetElapsedTime(m_markTimestamp).TotalSeconds;
@@ -478,7 +487,84 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return FormattableString.Invariant(
                     $"sec={seconds:F2} cpuMs={cpu.TotalMilliseconds:F0} cpuCores={cpu.TotalSeconds / seconds:F2} ") +
                     FormattableString.Invariant(
-                    $"threads={m_process.Threads.Count} wsMB={m_process.WorkingSet64 / 1048576} (external)");
+                    $"threads={m_process.Threads.Count} wsMB={m_process.WorkingSet64 / 1048576} (external)") +
+                    sched;
+            }
+
+            /// <summary>
+            /// Samples the scheduling state of the server threads every ~3 ms until the report:
+            /// Running, and Ready or Standby (waiting for a processor, so the server's processors
+            /// are oversubscribed). Runs in this process, not in the server.
+            /// </summary>
+            private void StartThreadSampler()
+            {
+                m_sampling = true;
+                int pid = m_process!.Id;
+                m_samplerThread = new Thread(() =>
+                {
+                    while (Volatile.Read(ref m_sampling))
+                    {
+                        int running = 0;
+                        int ready = 0;
+                        try
+                        {
+                            using var process = Process.GetProcessById(pid);
+                            foreach (ProcessThread thread in process.Threads)
+                            {
+                                try
+                                {
+                                    System.Diagnostics.ThreadState state = thread.ThreadState;
+                                    if (state == System.Diagnostics.ThreadState.Running)
+                                    {
+                                        running++;
+                                    }
+                                    else if (state is System.Diagnostics.ThreadState.Ready or
+                                        System.Diagnostics.ThreadState.Standby)
+                                    {
+                                        ready++;
+                                    }
+                                }
+                                catch (InvalidOperationException)
+                                {
+                                    // the thread exited
+                                }
+                                finally
+                                {
+                                    thread.Dispose();
+                                }
+                            }
+                        }
+                        catch (ArgumentException)
+                        {
+                            // the server exited
+                            break;
+                        }
+                        m_samples++;
+                        m_running += running;
+                        m_ready += ready;
+                        m_readyMax = Math.Max(m_readyMax, ready);
+                        Thread.Sleep(3);
+                    }
+                })
+                {
+                    IsBackground = true,
+                    Priority = ThreadPriority.AboveNormal
+                };
+                m_samplerThread.Start();
+            }
+
+            private string StopThreadSampler()
+            {
+                if (m_samplerThread == null)
+                {
+                    return string.Empty;
+                }
+                Volatile.Write(ref m_sampling, false);
+                m_samplerThread.Join();
+                return m_samples == 0 ? string.Empty : FormattableString.Invariant(
+                    $" sched: samples={m_samples} running={(double)m_running / m_samples:F2} ") +
+                    FormattableString.Invariant(
+                    $"ready={(double)m_ready / m_samples:F2} readyMax={m_readyMax}");
             }
 
             public async Task StopAsync()
@@ -515,6 +601,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             private Worker? m_external;
             private long m_markTimestamp;
             private TimeSpan m_markCpu;
+            private bool m_sampling;
+            private Thread? m_samplerThread;
+            private long m_samples;
+            private long m_running;
+            private long m_ready;
+            private int m_readyMax;
         }
 
         /// <summary>
@@ -539,6 +631,21 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     Process.Refresh();
                     return Process.TotalProcessorTime;
                 }
+            }
+
+            /// <summary>
+            /// Starts a client worker, on the processors of <c>--client-affinity</c> if given.
+            /// </summary>
+            public static Worker StartClient(string exe, string arguments, Dictionary<string, string> environment)
+            {
+                Worker worker = Start(exe, arguments, environment);
+                if ((OperatingSystem.IsWindows() || OperatingSystem.IsLinux()) &&
+                    Program.TryGetArg("client-affinity", out string? affinity))
+                {
+                    // e.g. the processors of --server-affinity, to co-locate clients and server
+                    worker.Process.ProcessorAffinity = (nint)Convert.ToInt64(affinity, 16);
+                }
+                return worker;
             }
 
             public static Worker Start(string exe, string arguments, Dictionary<string, string> environment)
