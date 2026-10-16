@@ -271,5 +271,101 @@ namespace Opc.Ua.Types.Buffers.Tests
                 }
             }
         }
+
+        /// <summary>
+        /// A writable stream hands its buffers over with the written counts, and writes after
+        /// that go to new buffers the earlier collection does not see.
+        /// </summary>
+        [Test]
+        public void GetBuffersHandsOverTheWrittenBuffersAndTheStreamContinues()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var bufferManager = new BufferManager(nameof(GetBuffersHandsOverTheWrittenBuffersAndTheStreamContinues), 64, telemetry);
+            using var writer = new ArraySegmentStream(bufferManager, 64, 8, 32);
+            byte[] first = new byte[40];
+            for (int ii = 0; ii < first.Length; ii++)
+            {
+                first[ii] = (byte)ii;
+            }
+            writer.Write(first, 0, first.Length);
+
+            BufferCollection buffers = writer.GetBuffers("test");
+
+            Assert.That(buffers, Has.Count.EqualTo(2));
+            Assert.That(buffers[0].Offset, Is.EqualTo(8));
+            Assert.That(buffers[0], Has.Count.EqualTo(32));
+            Assert.That(buffers[1], Has.Count.EqualTo(8));
+            Assert.That(buffers[0].AsSpan().ToArray(), Is.EqualTo(first.AsSpan(0, 32).ToArray()));
+            Assert.That(buffers[1].AsSpan().ToArray(), Is.EqualTo(first.AsSpan(32, 8).ToArray()));
+            Assert.That(writer.Length, Is.Zero);
+
+            writer.WriteByte(0xAB);
+            BufferCollection next = writer.GetBuffers("test");
+
+            Assert.That(next, Is.Not.SameAs(buffers));
+            Assert.That(next, Has.Count.EqualTo(1));
+            Assert.That(next[0], Has.Count.EqualTo(1));
+            Assert.That(next[0].Array![next[0].Offset], Is.EqualTo(0xAB));
+            Assert.That(buffers, Has.Count.EqualTo(2));
+            Assert.That(next[0].Array, Is.Not.SameAs(buffers[0].Array));
+            Assert.That(next[0].Array, Is.Not.SameAs(buffers[1].Array));
+
+            buffers.Release(bufferManager, "test");
+            next.Release(bufferManager, "test");
+        }
+
+        /// <summary>
+        /// An empty writable stream reset with other buffer sizes writes like a new stream with
+        /// them; a stream that still holds buffers returns them before it can be reset.
+        /// </summary>
+        [Test]
+        public void ResetStreamWritesWithTheNewBufferSizes()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var small = new BufferManager(nameof(ResetStreamWritesWithTheNewBufferSizes) + "1", 64, telemetry);
+            var large = new BufferManager(nameof(ResetStreamWritesWithTheNewBufferSizes) + "2", 256, telemetry);
+            using var stream = new ArraySegmentStream(small, 64, 8, 32);
+            stream.Write(new byte[40], 0, 40);
+
+            Assert.That(() => stream.Reset(large, 256, 16, 128), Throws.InvalidOperationException);
+            stream.ReleaseBuffers();
+            Assert.That(stream.Length, Is.Zero);
+
+            stream.Reset(large, 256, 16, 128);
+            stream.Write(new byte[100], 0, 100);
+            BufferCollection buffers = stream.GetBuffers("test");
+
+            Assert.That(buffers, Has.Count.EqualTo(1));
+            Assert.That(buffers[0].Offset, Is.EqualTo(16));
+            Assert.That(buffers[0], Has.Count.EqualTo(100));
+            Assert.That(buffers[0].Array, Has.Length.GreaterThanOrEqualTo(256));
+            buffers.Release(large, "test");
+
+            using var reader = new ArraySegmentStream(new BufferCollection());
+            Assert.That(() => reader.Reset(large, 256, 16, 128), Throws.InvalidOperationException);
+        }
+
+        /// <summary>
+        /// A stream over a caller's collection returns a copy of it and clears it, as before.
+        /// </summary>
+        [Test]
+        public void GetBuffersOfAReadStreamReturnsACopy()
+        {
+            using (var empty = new ArraySegmentStream(new BufferCollection()))
+            {
+                // a read stream owns no buffers to return.
+                Assert.That(empty.ReleaseBuffers, Throws.Nothing);
+            }
+
+            var source = new BufferCollection { new ArraySegment<byte>(new byte[] { 1, 2, 3 }, 0, 3) };
+            using var reader = new ArraySegmentStream(source);
+
+            BufferCollection buffers = reader.GetBuffers("test");
+
+            Assert.That(buffers, Is.Not.SameAs(source));
+            Assert.That(buffers, Has.Count.EqualTo(1));
+            Assert.That(buffers[0], Has.Count.EqualTo(3));
+            Assert.That(source, Is.Empty);
+        }
     }
 }

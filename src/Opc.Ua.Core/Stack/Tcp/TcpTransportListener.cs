@@ -1729,16 +1729,7 @@ namespace Opc.Ua.Bindings
             ValueTask<IServiceResponse> processing;
             try
             {
-                var context = new SecureChannelContext(
-                    channel.GlobalChannelId,
-                    channel.EndpointDescription,
-                    RequestEncoding.Binary,
-                    channel.ClientCertificateRawData,
-                    channel.ServerCertificateRawData,
-                    channel.ChannelThumbprint,
-                    (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
-
-                processing = callback.ProcessRequestAsync(context, request);
+                processing = callback.ProcessRequestAsync(channel.GetRequestContext(), request);
             }
             catch (Exception e)
             {
