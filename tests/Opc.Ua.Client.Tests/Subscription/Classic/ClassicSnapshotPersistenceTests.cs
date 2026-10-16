@@ -44,9 +44,11 @@ namespace Opc.Ua.Client.Tests
     [Category("Session")]
     public sealed class ClassicSnapshotPersistenceTests
     {
-        [TestCase(false)]
-        [TestCase(true)]
-        public void SavedSubscriptionsRetainOriginalTargetsAndRemapNamespaces(bool forwardOnly)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void SavedSubscriptionsRetainOriginalTargetsAndRemapNamespaces(bool forwardOnly, bool beforeReconnect)
         {
             using Session source = CreateSession();
             source.NamespaceUris.Append("urn:classic:root");
@@ -84,8 +86,11 @@ namespace Opc.Ua.Client.Tests
             source.Save(output, [first, second]);
             Assert.That(output.CanWrite, Is.True);
             using Session target = CreateSession();
-            target.NamespaceUris.Append("urn:classic:target");
-            target.NamespaceUris.Append("urn:classic:root");
+            if (!beforeReconnect)
+            {
+                target.NamespaceUris.Append("urn:classic:target");
+                target.NamespaceUris.Append("urn:classic:root");
+            }
             output.Position = 0;
             using var input = new InputStream(output, forwardOnly);
 
@@ -96,15 +101,44 @@ namespace Opc.Ua.Client.Tests
             Assert.That(loaded[1].TransferId, Is.EqualTo(102u));
             MonitoredItem[] items = loaded[0].MonitoredItems.ToArray();
             Assert.That(items, Has.Length.EqualTo(2));
-            Assert.That(items[0].StartNodeId, Is.EqualTo(new NodeId(10, 2)));
-            Assert.That(items[0].ResolvedNodeId, Is.EqualTo(new NodeId(20, 1)));
-            Assert.That(items[0].Status.NodeId, Is.EqualTo(new NodeId(20, 1)));
+            ushort rootIndex = beforeReconnect ? (ushort)1 : (ushort)2;
+            ushort targetIndex = beforeReconnect ? (ushort)2 : (ushort)1;
+            Assert.That(items[0].StartNodeId, Is.EqualTo(new NodeId(10, rootIndex)));
+            Assert.That(items[0].ResolvedNodeId, Is.EqualTo(new NodeId(20, targetIndex)));
+            Assert.That(items[0].Status.NodeId, Is.EqualTo(new NodeId(20, targetIndex)));
             Assert.That(items[0].ServerId, Is.EqualTo(201u));
             Assert.That(items[0].ClientHandle, Is.EqualTo(301u));
             Assert.That(items[0].Filter, Is.InstanceOf<DataChangeFilter>());
             Assert.That(((DataChangeFilter)items[0].Filter!).DeadbandValue, Is.EqualTo(1.5));
-            Assert.That(items[1].ResolvedNodeId, Is.EqualTo(new NodeId(21, 1)));
+            Assert.That(items[1].ResolvedNodeId, Is.EqualTo(new NodeId(21, targetIndex)));
+            Assert.That(target.NamespaceUris.Count, Is.EqualTo(beforeReconnect ? 1 : 3));
             Assert.That(input.CanRead, Is.True);
+        }
+
+        /// <summary>
+        /// Session handles round-trip without an address-space namespace-table dependency.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SavedConfigurationPreservesOpaqueSessionHandles(bool forwardOnly)
+        {
+            using Session source = CreateSession();
+            var sessionId = new NodeId("session", 42);
+            var authenticationToken = new NodeId("token", 43);
+            source.Restore(new SessionConfiguration
+            {
+                SessionId = sessionId,
+                AuthenticationToken = authenticationToken
+            });
+            using var output = new MemoryStream();
+            source.SaveSessionConfiguration(output);
+            output.Position = 0;
+            using var input = new InputStream(output, forwardOnly);
+
+            SessionConfiguration saved = SessionConfiguration.Create(input, NUnitTelemetryContext.Create())!;
+
+            Assert.That(saved.SessionId, Is.EqualTo(sessionId));
+            Assert.That(saved.AuthenticationToken, Is.EqualTo(authenticationToken));
         }
 
         [TestCase(false)]

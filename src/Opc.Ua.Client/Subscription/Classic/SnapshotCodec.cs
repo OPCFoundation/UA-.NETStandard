@@ -66,9 +66,17 @@ namespace Opc.Ua.Client
         {
             byte[] prefix = ReadPrefix(stream);
             using var input = new PrefixReplayStream(stream, prefix);
-            using var decoder = new BinaryDecoder(input, context, true);
+            var decodingContext = new ServiceMessageContext(context, context.Telemetry);
+            using var decoder = new BinaryDecoder(input, decodingContext, true);
             bool legacy = ReadHeader(decoder, prefix, kSubscriptions);
             (NamespaceTable namespaces, StringTable servers) = ReadTables(decoder);
+            // Before reconnect the target has no server namespace table yet.
+            // Preserve saved indices without publishing speculative tables to the live session.
+            if (decodingContext.NamespaceUris.Count <= 1)
+            {
+                decodingContext.NamespaceUris = namespaces;
+                decodingContext.ServerUris = servers;
+            }
             decoder.SetMappingTables(namespaces, servers);
 
             int count = decoder.ReadInt32(null);
@@ -98,7 +106,7 @@ namespace Opc.Ua.Client
                     state = new SubscriptionState();
                     state.Decode(decoder);
                 }
-                ValidateSubscription(state, context.NamespaceUris);
+                ValidateSubscription(state, decodingContext.NamespaceUris);
                 states.Add(state);
             }
             EnsureEnd(input);
@@ -145,8 +153,8 @@ namespace Opc.Ua.Client
                 configuration = new SessionConfiguration();
                 configuration.Decode(decoder);
             }
-            ValidateNodeId(configuration.SessionId, namespaces);
-            ValidateNodeId(configuration.AuthenticationToken, namespaces);
+            // These are opaque server-issued handles, not address-space nodes.
+            // Their namespace indices need not occur in the saved NamespaceArray.
             foreach (SubscriptionState state in configuration.Subscriptions)
             {
                 ValidateSubscription(state, namespaces);
