@@ -357,7 +357,8 @@ namespace Opc.Ua.Machinery.Client
             NodeId parent,
             IReadOnlyList<QualifiedName> browseNames,
             NodeId referenceTypeId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Dictionary<QualifiedName, DataValue>? samples = null)
         {
             var values = new Dictionary<QualifiedName, Variant>();
             if (parent.IsNull || browseNames.Count == 0)
@@ -416,12 +417,16 @@ namespace Opc.Ua.Machinery.Client
             ReadResponse read = await Session.ReadAsync(
                 requestHeader: null,
                 maxAge: 0,
-                timestampsToReturn: TimestampsToReturn.Neither,
+                timestampsToReturn: samples == null ? TimestampsToReturn.Neither : TimestampsToReturn.Both,
                 nodesToRead: reads.ToArray().ToArrayOf(),
                 ct: cancellationToken).ConfigureAwait(false);
 
             for (int ii = 0; ii < read.Results.Count && ii < indices.Count; ii++)
             {
+                if (samples != null)
+                {
+                    samples[browseNames[indices[ii]]] = read.Results[ii];
+                }
                 if (StatusCode.IsGood(read.Results[ii].StatusCode))
                 {
                     values[browseNames[indices[ii]]] = read.Results[ii].WrappedValue;

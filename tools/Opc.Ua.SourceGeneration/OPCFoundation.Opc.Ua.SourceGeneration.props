@@ -15,6 +15,9 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorFluentAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorNamespace" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorClassName" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />
   </ItemGroup>
   <ItemGroup>

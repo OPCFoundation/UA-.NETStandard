@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription :
+    public partial class Subscription :
 
         ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle,
@@ -383,6 +383,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    EndValuePublications();
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
                         monitoredItemKVP.Value?.Value?.Dispose();
@@ -672,6 +673,7 @@ namespace Opc.Ua.Server
             // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
             // operating on a subscription that is being torn down.
             Volatile.Write(ref m_deleted, 1);
+            EndValuePublications();
 
             try
             {
@@ -1443,6 +1445,7 @@ namespace Opc.Ua.Server
                             "Subscription ownership changed during transfer.");
                     }
                     m_subscription.Session = m_destinationSession;
+                    m_subscription.EndValuePublications(StatusCodes.BadInvalidState);
                 }
 
                 if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
@@ -1654,6 +1657,7 @@ namespace Opc.Ua.Server
                         default);
                 }
                 Session = null!;
+                EndValuePublications();
             }
 
             lock (m_diagnosticsLock)
@@ -1849,6 +1853,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 m_expired = true;
+                EndValuePublications();
 
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
                 message.SequenceNumber = m_messageQueue.AssignSequenceNumber();

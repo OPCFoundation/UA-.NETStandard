@@ -354,6 +354,59 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void BaseStreamOfABufferDecoderFollowsTheDecodedPosition()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [0xFF, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0];
+            using var decoder = new BinaryDecoder(buffer, 1, 12, messageContext);
+
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(1));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+
+            // the stream created on first access starts where decoding is.
+            Stream stream = decoder.BaseStream;
+            Assert.That(stream.Position, Is.EqualTo(4));
+            Assert.That(decoder.Position, Is.EqualTo(4));
+            Assert.That(stream.Length, Is.EqualTo(12));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(stream.Position, Is.EqualTo(8));
+
+            // reads through the stream move the decoder.
+            stream.Position = 4;
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(3));
+            Assert.That(decoder.BaseStream, Is.SameAs(stream));
+        }
+
+        [Test]
+        public void BufferDecoderWithoutStreamClosesAndDisposes()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var decoder = new BinaryDecoder([7, 0, 0, 0], messageContext);
+            Assert.That(decoder.ReadInt32(null), Is.EqualTo(7));
+            Assert.That(decoder.Close, Throws.Nothing);
+            Assert.That(decoder.Dispose, Throws.Nothing);
+        }
+
+        [Test]
+        public void BufferDecoderRejectsARangeOutsideTheBuffer()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = new byte[4];
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, -1, 2, messageContext));
+                Assert.Throws<ArgumentOutOfRangeException>(() => new BinaryDecoder(buffer, 0, -1, messageContext));
+                Assert.That(
+                    () => new BinaryDecoder(buffer, 3, 2, messageContext),
+                    Throws.TypeOf<ArgumentException>());
+            });
+        }
+
+        [Test]
         public void DecodeMessageWithStreamThrowsOnNullStream()
         {
             // Arrange

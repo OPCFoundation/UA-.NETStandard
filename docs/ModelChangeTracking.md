@@ -131,6 +131,11 @@ This reporting covers both directions of hierarchical and non-hierarchical
 references to other node managers in the same server. Absolute targets are
 excluded, matching the deletion cleanup path.
 
+The asynchronous runtime deletion overload accepts `emitModelChange: false` for
+callers that own aggregation or roll back unpublished staging. This suppresses
+automatic reporting for that call, including after a committed deletion's cleanup
+fails, without changing the manager-wide policy or deletion lifecycle handling.
+
 ### Manual aggregation across a transaction
 
 `ModelChangeAggregator` is thread-safe and supports arbitrary batching:

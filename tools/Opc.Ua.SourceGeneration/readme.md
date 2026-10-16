@@ -236,6 +236,46 @@ Example (suppress proxy emission for a model that does not need them):
 </PropertyGroup>
 ```
 
+### Optional client member accessors
+
+Client variable accessors and placeholder enumerators are **off by default**.
+A client library can opt in over a referenced model assembly that already supplies
+the matching model URI, C# prefix and generated ObjectType proxies:
+
+```xml
+<PropertyGroup>
+  <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+  <ModelSourceGeneratorClientAccessorNamespace>Example.Client</ModelSourceGeneratorClientAccessorNamespace>
+  <ModelSourceGeneratorClientAccessorClassName>ExampleClientMembers</ModelSourceGeneratorClientAccessorClassName>
+</PropertyGroup>
+```
+
+Reference `Opc.Ua.Client`, the model assembly and the source generator, and supply
+the same NodeSet2 or ModelDesign input as an `AdditionalFile`, with its original
+model URI and prefix metadata. Include any required identifier sidecars.
+Import `OPCFoundation.Opc.Ua.SourceGeneration.props` as for normal model generation.
+
+Only client extensions are emitted: no duplicate states, data types, proxies,
+schemas, or model-dependency metadata. The existing model and dependency readers
+resolve types and codecs; the checked-in XML remains the source of truth.
+This mode cannot be combined with fluent-accessor-only or NodeManager generation.
+A missing or differently prefixed model producer is a generation error.
+
+| Property | Default | Purpose |
+| --- | --- | --- |
+| `ModelSourceGeneratorClientAccessorsOnly` | `false` | Emit client extensions over a referenced model. |
+| `ModelSourceGeneratorClientAccessorNamespace` | Model prefix plus `.Client` | Namespace for the extensions. |
+| `ModelSourceGeneratorClientAccessorClassName` | Model name plus `ClientMembers` | Partial extension class name. |
+
+Each fixed-name declared variable gets a `<Name>Variable()` extension returning
+`ClientVariable<T>`, with exact generated/native codecs and the declared write
+permission. Reads preserve the original `DataValue`, quality and timestamps in
+`ClientRead<T>`; writes still require server authorization. Observations use the
+existing streaming subscription. Repeated Object placeholders get typed
+`Enumerate<Name>Async()` extensions, including conforming vendor subtypes.
+The helpers use the proxy's existing `ISession` or `ManagedSession`, not a second
+connection owner. Unavailable optional variables are not fabricated as defaults.
+
 ## Implementation details
 
 The source generator is implemented using the Roslyn API,which provides a rich set of tools for analyzing

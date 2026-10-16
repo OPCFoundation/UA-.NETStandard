@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.Mcp
 {
@@ -115,6 +116,11 @@ namespace Opc.Ua.Mcp
         public McpExecutionOptions Execution { get; set; } = new();
 
         /// <summary>
+        /// Gets or sets host-approved X.509 user identities selected by name, never by caller-supplied store paths.
+        /// </summary>
+        public ArrayOf<McpCertificateIdentity> CertificateIdentities { get; set; } = [];
+
+        /// <summary>
         /// Creates options from the well-known environment variables the MCP
         /// tools consume.
         /// </summary>
@@ -147,4 +153,11 @@ namespace Opc.Ua.Mcp
             return options;
         }
     }
+
+    /// <summary>
+    /// A named user-certificate selector provisioned by the MCP host.
+    /// </summary>
+    /// <param name="Name">The exact non-secret reference accepted by Connect.</param>
+    /// <param name="Certificate">Store selection; private-key passwords stay with the injected provider.</param>
+    public sealed record McpCertificateIdentity(string Name, X509ClientIdentityOptions Certificate);
 }

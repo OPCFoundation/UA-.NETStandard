@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -66,7 +67,6 @@ namespace Opc.Ua.Server
             UserIdentity = identity!;
             PreferredLocales = Array.Empty<string>();
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -108,7 +108,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
-            StringTable = new StringTable();
             AuditEntryId = requestHeader.AuditEntryId!;
             ClientTimestamp = requestHeader.Timestamp.IsNull
                 ? DateTime.MinValue
@@ -137,7 +136,6 @@ namespace Opc.Ua.Server
             UserIdentity = session.EffectiveIdentity;
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -176,7 +174,6 @@ namespace Opc.Ua.Server
             }
 
             DiagnosticsMask = DiagnosticsMasks.SymbolicId;
-            StringTable = new StringTable();
             AuditEntryId = null!;
             RequestId = 0;
             RequestType = RequestType.Unknown;
@@ -320,7 +317,26 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// This object is thread safe.
         /// </remarks>
-        public StringTable StringTable { get; }
+        public StringTable StringTable
+        {
+            get
+            {
+                StringTable? table = Volatile.Read(ref m_stringTable);
+                if (table != null)
+                {
+                    return table;
+                }
+
+                // created on first use: most requests write no diagnostic strings.
+                table = new StringTable();
+                return Interlocked.CompareExchange(ref m_stringTable, table, null) ?? table;
+            }
+        }
+
+        /// <summary>
+        /// The string table if anything asked for it, else <c>null</c>.
+        /// </summary>
+        internal StringTable? CreatedStringTable => Volatile.Read(ref m_stringTable);
 
         /// <summary>
         /// When the request times out.
@@ -367,6 +383,8 @@ namespace Opc.Ua.Server
                 try
                 {
                     System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                    System.Threading.Interlocked.Exchange(ref m_requestCompletion, null)?
+                        .CompleteAttachedRequest(this);
                 }
                 finally
                 {
@@ -383,6 +401,18 @@ namespace Opc.Ua.Server
         internal void AttachRequestScope(IDisposable requestScope)
         {
             m_requestScope = requestScope;
+        }
+
+        /// <summary>
+        /// Attaches the request manager that tracks this request while it executes, for a
+        /// request that needs no scope object (see
+        /// <see cref="RequestManager.AttachRequestScope(OperationContext)"/>), so that disposing
+        /// the context completes the request exactly once.
+        /// </summary>
+        /// <param name="requestManager">The request manager the request was registered with.</param>
+        internal void AttachRequestCompletion(RequestManager requestManager)
+        {
+            m_requestCompletion = requestManager;
         }
 
         /// <summary>
@@ -553,7 +583,9 @@ namespace Opc.Ua.Server
             m_defaultPermissions = updated;
         }
 
+        private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
+        private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;

@@ -53,6 +53,50 @@ namespace Opc.Ua.Tools.Tests
     public sealed class NuGetPackageSetValidationTests
     {
         /// <summary>
+        /// The approved suite adds exactly twelve package identities and never a separate WMTP package.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryContainsTheTwelveCompanionSuitePackagesAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] prefixes =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.MachineTool",
+                "OPCFoundation.NetStandard.Opc.Ua.GMS",
+                "OPCFoundation.NetStandard.Opc.Ua.CranesHoists",
+                "OPCFoundation.NetStandard.Opc.Ua.WMTP",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.WMTP"
+            ];
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(
+                    id => prefixes.Any(prefix => id.StartsWith(prefix, StringComparison.Ordinal)))
+            ];
+            string[] expected =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.MachineTool",
+                "OPCFoundation.NetStandard.Opc.Ua.MachineTool.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.MachineTool.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool",
+                "OPCFoundation.NetStandard.Opc.Ua.GMS",
+                "OPCFoundation.NetStandard.Opc.Ua.GMS.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.GMS.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS",
+                "OPCFoundation.NetStandard.Opc.Ua.CranesHoists",
+                "OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Client",
+                "OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Server",
+                "OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists"
+            ];
+
+            Assert.That(actual, Is.EquivalentTo(expected));
+            Assert.That(actual, Has.Length.EqualTo(12));
+        }
+
+        /// <summary>
         /// Requires the release inventory to include the intended Vision package boundaries.
         /// </summary>
         [Test]
@@ -82,6 +126,35 @@ namespace Opc.Ua.Tools.Tests
             ];
 
             Assert.That(actual, Is.EquivalentTo(expected));
+        }
+
+        /// <summary>
+        /// Each plastics/rubber family ships exactly its model, client and server packages.
+        /// </summary>
+        [TestCase("Extrusion")]
+        [TestCase("PlasticsRubber")]
+        public async Task ExpectedPackageInventoryIncludesOnlyModelClientAndServerAsync(string family)
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string prefix = "OPCFoundation.NetStandard.Opc.Ua." + family;
+            string[] actual = [.. lines.Select(line => line.Trim())
+                .Where(id => id == prefix || id.StartsWith(prefix + ".", StringComparison.Ordinal))];
+
+            Assert.That(actual, Is.EquivalentTo(new[] { prefix, prefix + ".Client", prefix + ".Server" }));
+        }
+
+        /// <summary>
+        /// Granulate-drying functionality ships in the PlasticsRubber family, not standalone packages.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryHasNoStandaloneGranulateDryingPackagesAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+
+            Assert.That(lines.Any(line => line.Trim().StartsWith(
+                "OPCFoundation.NetStandard.Opc.Ua.GranulateDrying", StringComparison.Ordinal)), Is.False);
         }
 
         [Test]

@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Pumps.Client;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
@@ -63,90 +64,116 @@ namespace Opc.Ua.Pumps.Tests
     {
         private static string s_endpointUrl = string.Empty;
 
-        [Test]
-        public async Task ClientReadsBackEverythingTheServerPublishesAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ClientReadsBackEverythingTheServerPublishesAsync(bool composed)
         {
             IPumpGroupBuilder? liveMeasurements = null;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddOpcUa()
-                .AddServer<StandardServer>(ConfigureServer)
-                .AddPumps()
-                .ConfigurePumps(async context =>
+            IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
+                .AddServer<StandardServer>(ConfigureServer);
+
+            async ValueTask ConfigureAsync(PumpsRuntime runtime, CancellationToken ct)
+            {
+                IPumpBuilder pump = await runtime.CreatePumpAsync(
+                    new QualifiedName("Pump_1", runtime.InstanceNamespaceIndex), ct);
+
+                pump.WithNameplate(new PumpNameplate
                 {
-                    IPumpBuilder pump = await context.Manager.CreatePumpAsync(
-                        new QualifiedName(
-                            "Pump_1",
-                            context.Manager.InstanceNamespaceIndex),
-                        context.CancellationToken);
-
-                    pump.WithNameplate(new PumpNameplate
-                    {
-                        NodeId = NodeId.Null,
-                        Manufacturer = new LocalizedText("Acme Pumps"),
-                        SerialNumber = "SN-001",
-                        Model = new LocalizedText("PumpX-2000"),
-                        ManufacturerUri = "https://example.invalid/acme",
-                        Location = "Plant 1 / Utility Skid",
-                        YearOfConstruction = 2025,
-                        MonthOfConstruction = 4,
-                        CountryOfOrigin = "DE",
-                        ArticleNumber = "ART-4711",
-                        TypeOfProduct = "Centrifugal pump"
-                    });
-
-                    pump.Measurements
-                        .SetAnalog(
-                            BrowseNames.DifferentialPressure,
-                            350_000.0,
-                            new EUInformation { DisplayName = new LocalizedText("Pa") },
-                            new Range { Low = 0, High = 1_000_000 })
-                        .SetAnalog(BrowseNames.MassFlow, 12.5)
-                        .SetAnalog(BrowseNames.PumpEfficiency, 0.78);
-                    liveMeasurements = pump.Measurements;
-
-                    // <Vibration> is an OptionalPlaceholder (OPC 40223 §7.32).
-                    pump.Measurements.AddVibration("DriveEndBearing")
-                        .SetAnalog(
-                            BrowseNames.OverallVibrationVelocityRMS,
-                            2.8,
-                            new EUInformation { DisplayName = new LocalizedText("mm/s") });
-
-                    pump.MultiPump
-                        .Set(BrowseNames.PumpRole, Variant.From(PumpRoleEnum.Master))
-                        .Set(BrowseNames.NumberOfPumps, Variant.From(2u))
-                        .Set(
-                            BrowseNames.RedundantPumpIDs,
-                            Variant.From((ArrayOf<string>)["Pump_2"]));
-
-                    pump.Signals.SetDiscrete(BrowseNames.PumpOperation, true);
-
-                    pump.Design.SetAnalog(BrowseNames.MaximumAllowableWorkingPressure, 1_600_000.0);
-                    pump.SystemRequirements.SetAnalog(BrowseNames.MaximumFlow, 20.0);
-
-                    pump.Supervision(BrowseNames.SupervisionProcessFluid)
-                        .SetDiscrete(BrowseNames.Cavitation, true)
-                        .SetDiscrete(BrowseNames.Dry, false);
-                    pump.Supervision(BrowseNames.SupervisionPumpOperation)
-                        .SetDiscrete(BrowseNames.MotorOverheat, false);
-
-                    pump.MaintenanceCategory(BrowseNames.GeneralMaintenance)
-                        .Set(
-                            BrowseNames.StateOfTheItem,
-                            Variant.From(StateOfTheItemEnum.OperatingState))
-                        .SetAnalog(BrowseNames.OperatingTime, 1234.0);
-
-                    pump.AddPort(PumpPortKind.InletConnection, "Suction")
-                        .Set(BrowseNames.Direction, Variant.From(PortDirectionEnum.In));
-                    pump.AddPort(PumpPortKind.Drive, "Motor");
-
+                    NodeId = NodeId.Null,
+                    Manufacturer = new LocalizedText("Acme Pumps"),
+                    SerialNumber = "SN-001",
+                    Model = new LocalizedText("PumpX-2000"),
+                    ManufacturerUri = "https://example.invalid/acme",
+                    Location = "Plant 1 / Utility Skid",
+                    YearOfConstruction = 2025,
+                    MonthOfConstruction = 4,
+                    CountryOfOrigin = "DE",
+                    ArticleNumber = "ART-4711",
+                    TypeOfProduct = "Centrifugal pump"
                 });
+
+                pump.Measurements
+                    .SetAnalog(
+                        BrowseNames.DifferentialPressure,
+                        350_000.0,
+                        new EUInformation { DisplayName = new LocalizedText("Pa") },
+                        new Range { Low = 0, High = 1_000_000 })
+                    .SetAnalog(BrowseNames.MassFlow, 12.5)
+                    .SetAnalog(BrowseNames.PumpEfficiency, 0.78);
+                liveMeasurements = pump.Measurements;
+
+                // <Vibration> is an OptionalPlaceholder (OPC 40223 §7.32).
+                pump.Measurements.AddVibration("DriveEndBearing")
+                    .SetAnalog(
+                        BrowseNames.OverallVibrationVelocityRMS,
+                        2.8,
+                        new EUInformation { DisplayName = new LocalizedText("mm/s") });
+
+                pump.MultiPump
+                    .Set(BrowseNames.PumpRole, Variant.From(PumpRoleEnum.Master))
+                    .Set(BrowseNames.NumberOfPumps, Variant.From(2u))
+                    .Set(
+                        BrowseNames.RedundantPumpIDs,
+                        Variant.From((ArrayOf<string>)["Pump_2"]));
+
+                pump.Signals.SetDiscrete(BrowseNames.PumpOperation, true);
+
+                pump.Design.SetAnalog(BrowseNames.MaximumAllowableWorkingPressure, 1_600_000.0);
+                pump.SystemRequirements.SetAnalog(BrowseNames.MaximumFlow, 20.0);
+
+                pump.Supervision(BrowseNames.SupervisionProcessFluid)
+                    .SetDiscrete(BrowseNames.Cavitation, true)
+                    .SetDiscrete(BrowseNames.Dry, false);
+                pump.Supervision(BrowseNames.SupervisionPumpOperation)
+                    .SetDiscrete(BrowseNames.MotorOverheat, false);
+
+                pump.MaintenanceCategory(BrowseNames.GeneralMaintenance)
+                    .Set(
+                        BrowseNames.StateOfTheItem,
+                        Variant.From(StateOfTheItemEnum.OperatingState))
+                    .SetAnalog(BrowseNames.OperatingTime, 1234.0);
+
+                pump.AddPort(PumpPortKind.InletConnection, "Suction")
+                    .Set(BrowseNames.Direction, Variant.From(PortDirectionEnum.In));
+                pump.AddPort(PumpPortKind.Drive, "Motor");
+                configured.TrySetResult(true);
+            }
+
+            if (composed)
+            {
+                serverBuilder.AddMachinery(options =>
+                    {
+                        options.Parts = MachineryParts.BuildingBlocks;
+                        options.InstanceNamespaceUri = "urn:opcua:pumps:composition:instances";
+                    })
+                    .AddPumpsToMachinery()
+                    .ConfigurePumpsFor<MachineryNodeManager>(
+                        (context, ct) => ConfigureAsync(context.Runtime, ct));
+            }
+            else
+            {
+                serverBuilder.AddPumps().ConfigurePumps(
+                    context => ConfigureAsync(context.Manager.Runtime, context.CancellationToken));
+            }
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             IHostedService hostedService = provider.GetServices<IHostedService>().Single();
             await hostedService.StartAsync(CancellationToken.None);
             try
             {
+                for (int ii = 0; ii < 300 && !configured.Task.IsCompleted; ii++)
+                {
+                    if (hostedService is BackgroundService { ExecuteTask: { IsFaulted: true } startup })
+                    {
+                        await startup;
+                    }
+                    await Task.Delay(100);
+                }
+                Assert.That(configured.Task.IsCompleted, Is.True, "the Pumps configurator completed");
+
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(
                     System.IO.Path.Combine(
@@ -384,9 +411,10 @@ namespace Opc.Ua.Pumps.Tests
         private static void ConfigureServer(OpcUaServerOptions options)
         {
             string applicationName = nameof(PumpsClientServerE2eTests);
+            // Leave room for ECC certificate filenames under deep net48 artifact paths.
             string testRoot = System.IO.Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                applicationName,
+                "pumps",
                 Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;

@@ -227,6 +227,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Wot:
                 case McpToolProfile.XRegistry:
                 case McpToolProfile.WotDocuments:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
@@ -371,6 +374,9 @@ namespace Opc.Ua.Mcp
                 toolProfiles.Contains(McpToolProfile.Positioning) ||
                 toolProfiles.Contains(McpToolProfile.Wot) ||
                 toolProfiles.Contains(McpToolProfile.XRegistry) ||
+                toolProfiles.Contains(McpToolProfile.MachineTool) ||
+                toolProfiles.Contains(McpToolProfile.Gms) ||
+                toolProfiles.Contains(McpToolProfile.CranesHoists) ||
                 toolProfiles.Contains(McpToolProfile.Full);
         }
 #pragma warning restore RCS1224

@@ -43,10 +43,14 @@ attributes on referenced assemblies and uses them to:
    published by the referenced assembly's `[ModelDependencyAttribute]`, so
    cross-namespace type references emitted into the local code compile
    correctly. The target namespace itself is never rewritten.
-4. **Tie-break** when more than one referenced assembly provides the same model
-   URI by selecting the entry with the highest `(Version, PublicationDate)`
-   lexicographic tuple. The losing entries are reported as `MODELGEN012` info
-   diagnostics.
+4. **Resolve ownership** by preferring the payload-bearing producer over
+   payloadless transitive dependency entries. A dependency with the same prefix,
+   version, publication date, and name describes that producer; it is not a
+   competing provider and does not produce `MODELGEN012`. Distinct producers or
+   conflicting metadata still produce that info diagnostic. Among competing
+   entries, the generator applies the
+   OPC 10000-6 version/publication-date ordering, then the ordinal assembly name
+   (smallest first) to make equal-version producer selection deterministic.
 5. **Import the type-table payload** on self-declaration entries so the
    validator's node table is pre-populated with the upstream's types,
    children, method arguments, DataType fields, and effective variable
@@ -105,6 +109,50 @@ Encoding lives in
   `(SymbolicNamespace, SymbolicName)` so the produced base64 string is
   byte-reproducible across builds.
 
+### Nested instance declarations
+
+Direct child records retain the existing V1 layout. Producers with explicit
+nested instance declarations append an optional, length-prefixed **nested-child
+trailer** (capability bit `0x02`, trailer version `1`). It records each direct
+child's descendants in declaration order, including their modelling rules,
+qualified browse names, reference types, variable metadata/default-value
+namespace tables and method signatures/identities. Type references are not
+recursively expanded into this trailer: recursive optional types remain finite.
+
+Payloads without nested declarations remain unchanged. A new reader accepts
+older V1 payloads with no trailer and treats their descendant lists as empty.
+Older readers can ignore the new trailer; the writer also includes the existing
+extended-identifier trailer flag so those readers continue to interpret an
+unknown fluent-accessor capability correctly. Unknown nested-trailer versions
+are skipped using their length. Readers validate the frame extent and reject
+inconsistent counts, more than 100 nested levels or more than 100,000 nested
+declarations in one payload.
+
+The consumer materializes and links these descendants before hierarchy merging.
+This preserves mandatory parameters below inherited or redeclared generic
+containers such as DI `ParameterSet`, without materializing unrequested
+optional members. Explicit nested placeholder declarations retain their wire
+identifiers and required properties; they are not confused with recursive
+expansion of an inherited placeholder or created as default runtime instances.
+
+Specialized placeholder helpers retain the inherited CLR method signature even
+when the child has a different browse-name namespace. Such helpers explicitly
+hide the base helper with `new`; changing the wire namespace does not make the
+C# method name unique. Unrelated placeholder helpers do not receive `new`.
+
+An explicit NodeSet `MethodDeclarationId` remains the authoritative wire
+identity of a redeclared method. When a dependency payload supplies an inherited
+method's signature and generated state class but not its instance NodeId, the
+consumer resolves the inherited qualified member and attaches the explicit
+identifier to a copy. It neither replaces that identifier with the consumer's
+method NodeId nor modifies the dependency's signature or generated class.
+
+Rebuild model-producing assemblies to publish the richer payload before
+rebuilding consumers that require nested declarations. An older producer's
+flat payload cannot supply descendants it never recorded; the consumer retains
+the previous direct-child behavior rather than inventing missing declarations
+or regenerating the dependency's namespace.
+
 Readers reject unknown versions cleanly and the downstream pipeline falls
 back to explicit `AdditionalFiles` resolution when a payload cannot be
 decoded.
@@ -114,7 +162,7 @@ decoded.
 | ID            | Severity | Meaning                                                            |
 | ------------- | -------- | ------------------------------------------------------------------ |
 | `MODELGEN010` | Warning  | A `[NodeManager]` attribute could not be bound to a model (unmatched selector, or ambiguous when the project has multiple models). |
-| `MODELGEN012` | Info     | Multiple referenced assemblies provide the same model URI.         |
+| `MODELGEN012` | Info     | Distinct model producers or conflicting dependency metadata claim the same URI; matching payloadless transitive declarations are not additional producers. |
 | `MODELGEN013` | Info     | Local model skipped because a referenced assembly provides it.     |
 
 ## Implementation

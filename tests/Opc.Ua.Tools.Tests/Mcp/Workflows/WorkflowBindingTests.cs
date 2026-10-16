@@ -65,7 +65,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
             string[] names = [.. fixture.Services.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
             Assert.That((int)profile, Is.EqualTo(ordinal));
             Assert.That(names.Count(name => name.StartsWith(prefix, StringComparison.Ordinal)), Is.EqualTo(count));
-            Assert.That(names, Has.Length.EqualTo(count + 4));
+            Assert.That(names, Has.Length.EqualTo(count + 5));
             Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(names.Length));
         }
 
@@ -84,8 +84,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
                 .WithOpcUaWorkflowTools(McpToolProfile.Full);
             await using ServiceProvider provider = services.BuildServiceProvider();
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
-            Assert.That(names, Has.Length.EqualTo(78));
-            Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(78));
+            Assert.That(names, Has.Length.EqualTo(79));
+            Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(79));
             Assert.That(provider.GetRequiredService<WorkflowOptions>(), Is.SameAs(options));
         }
 
@@ -103,7 +103,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
             Assert.That(list.Tools.Select(tool => tool.Name), Does.Contain("files_upload"));
             Assert.That(list.Tools.Any(tool => WorkflowFilters.RequiresIdentityAdministration(tool.Name)),
                 Is.False);
-            Assert.That(list.Tools, Has.Count.EqualTo(62));
+            Assert.That(list.Tools, Has.Count.EqualTo(63));
         }
 
         /// <summary>

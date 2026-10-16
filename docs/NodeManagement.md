@@ -106,6 +106,12 @@ AddNodes / DeleteNodes / AddReferences / DeleteReferences requests.
 The reference server's `ReferenceNodeManager` opts in this way; you can
 use it as the working example.
 
+The [Part 10 Program host](Programs.md) deliberately restricts this opt-in.
+Only explicitly enabled registered Program types can be added; deletion must
+target a permitted Halted invocation, not its children or containing folder.
+NodeManagement cannot bypass the Program provider, capacity reservations or
+lifetime policy. The type's Create method is the primary client creation path.
+
 ## Dispatch and routing rules
 
 - **AddNodes**: routed by the namespace of `RequestedNewNodeId` when

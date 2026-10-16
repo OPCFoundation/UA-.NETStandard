@@ -99,6 +99,22 @@ namespace Opc.Ua.Robotics.Server.Builders
             QualifiedName browseName,
             Action<IMotionDeviceBuilder>? configure = null)
         {
+            return AddMotionDevice(
+                browseName,
+                static (context, parent, name) => context.CreateInstanceOfMotionDeviceType(parent, name),
+                configure);
+        }
+
+        /// <summary>
+        /// Stages a derived motion device through the shared topology builder.
+        /// </summary>
+        /// <typeparam name="TState">The generated motion-device subtype.</typeparam>
+        internal IMotionDeviceBuilder AddMotionDevice<TState>(
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, TState> createDevice,
+            Action<IMotionDeviceBuilder>? configure)
+            where TState : MotionDeviceState
+        {
             Scope.EnsureMutable();
             QualifiedName normalized =
                 RoboticsBuilderUtilities.NormalizeBrowseName(BuildContext, browseName);
@@ -108,8 +124,12 @@ namespace Opc.Ua.Robotics.Server.Builders
                 Scope.Context,
                 parent,
                 normalized,
-                (container, name) =>
-                    Scope.Context.CreateInstanceOfMotionDeviceType(container, name));
+                (container, name) => RoboticsBuilderUtilities.CreateCompanionInstance(
+                    Scope.Context,
+                    container,
+                    name,
+                    createDevice,
+                    ObjectTypes.MotionDeviceType));
             var builder = new MotionDeviceBuilder(Scope, state);
             configure?.Invoke(builder);
             return builder;

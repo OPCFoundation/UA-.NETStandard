@@ -1367,6 +1367,52 @@ namespace Opc.Ua.Schema.Model
             UpdateMethodArguments(input, output);
         }
 
+        /// <summary>
+        /// Resolves explicit method declarations after parents are linked. Dependency payloads can carry
+        /// a method's signature and CLR state identity without its instance NodeId; the NodeSet's explicit
+        /// declaration identifier supplies that wire identity without changing the dependency model.
+        /// </summary>
+        private void ResolveInheritedMethodDeclarations()
+        {
+            foreach (UAMethod input in m_nodeset.Items!.OfType<UAMethod>())
+            {
+                if (string.IsNullOrEmpty(input.MethodDeclarationId) ||
+                    !m_settings.NodesById.TryGetValue(ImportNodeId(input.NodeId), out NodeDesign? node) ||
+                    node is not MethodDesign method ||
+                    method.MethodDeclarationNode != null)
+                {
+                    continue;
+                }
+                NodeId declarationId = ImportNodeId(input.MethodDeclarationId);
+                if (declarationId.IsNull)
+                {
+                    continue;
+                }
+                string? declarationNamespace = m_settings.NamespaceUris.GetString(declarationId.NamespaceIndex);
+                TypeDesign? parentType = method.Parent switch
+                {
+                    TypeDesign type => type,
+                    InstanceDesign instance => instance.TypeDefinitionNode,
+                    _ => null
+                };
+                for (TypeDesign? type = parentType; type != null; type = type.BaseTypeNode)
+                {
+                    MethodDesign? inherited = type.Children?.Items?.OfType<MethodDesign>().FirstOrDefault(candidate =>
+                        candidate.SymbolicName == method.SymbolicName &&
+                        candidate.SymbolicId.Namespace == declarationNamespace);
+                    if (inherited == null)
+                    {
+                        continue;
+                    }
+                    var declaration = (MethodDesign)inherited.Copy();
+                    declaration.SetIdentifier(ImportIdentifier(declarationId));
+                    method.MethodDeclarationNode = declaration;
+                    m_settings.NodesById[declarationId] = declaration;
+                    break;
+                }
+            }
+        }
+
         private void UpdateMethodArguments(UAMethod input, MethodDesign output)
         {
             var propertyIds = new List<ExpandedNodeId>();
@@ -2270,6 +2316,8 @@ namespace Opc.Ua.Schema.Model
                     LinkChildToParent(child);
                 }
             }
+
+            ResolveInheritedMethodDeclarations();
 
             foreach (UANode node in m_nodeset.Items)
             {

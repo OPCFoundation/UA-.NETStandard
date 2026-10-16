@@ -18,8 +18,9 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
-Device Integration, ISA-95, Positioning, WoT and xRegistry profiles. Profiles
-compose, for example `--profile machinery,isa95`, `--profile scales,di`, or
+Device Integration, ISA-95, Positioning, MachineTool (with bundled WMTP), GMS,
+CranesHoists, WoT and xRegistry profiles. Profiles compose, for example
+`--profile machinery,isa95`, `--profile machinetool,gms,craneshoists`, or
 `--profile core,wot,xregistry,wot-documents`. `wot-documents` needs no UA connection.
 Additional profiles expose GDS/credential issuance, roles/users, files, alarms,
 history, schemas, PubSub configuration/bridges/SKS and live WoT execution.
@@ -99,7 +100,7 @@ enable them; a profile is never an execution grant.
 
 Tools in the `full` profile cover all OPC UA Part 4 service sets:
 
-- **Connection**: Connect, Disconnect, GetConnectionStatus
+- **Connection**: Connect, ConnectCertificate, Disconnect, GetConnectionStatus
 - **Attribute**: Read, Write, HistoryRead, HistoryUpdate
 - **View**: Browse, BrowseNext, TranslateBrowsePaths, RegisterNodes, UnregisterNodes, QueryFirst, QueryNext
 - **Node Management**: AddNodes, AddReferences, DeleteNodes, DeleteReferences
@@ -112,6 +113,12 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
   bounded operation/mission waits, and same-session `robotics_vision_pick`
 - **Vision**: image capture, structured one-shot inference, result monitoring,
   feedback and frame-graph composition
+- **MachineTool/WMTP**: native monitoring, tools/life, production/jobs, remote
+  files, independent peripheral measurements, records and explicit configuration
+- **GMS**: native equipment/qualification/calibration and result workflows,
+  bounded observations and consented result acknowledgment
+- **CranesHoists**: observed topology and raw measurements with authorized
+  standard speed-limit requests, never physical motion commands
 - **Industrial companions**: asset management, machinery, weighing, pumps,
   device integration, ISA-95 jobs and relative/global positioning. See the
   [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools).
@@ -159,6 +166,9 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool` | MachineTool and bundled wireless-peripheral workflows |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS` | GMS systems, results, downloads and observations |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists` | Crane monitoring and authorized limit requests |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB` | Asset management |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` | Machine monitoring, process values, energy and results |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products and recipes |
@@ -172,8 +182,12 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows` | Roles/users, files, alarms and historical access |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Schema` | Bounded types and XSD/BSD/JSON, PubSub and OpenAPI artifacts |
 
-The Robotics library remains preview-only. The other MCP libraries follow the root release channel and are stable
-when the root release is stable.
+Robotics and CranesHoists libraries remain preview-only, including Debug
+variants. The other MCP libraries, including Vision, MachineTool and GMS,
+follow the root release channel and are stable when the root release is stable.
+WMTP has no separate package/profile. A development root version can still be
+prerelease. Conformance depends on actual endpoints/providers; GMS's documented
+undefined Production-statistics CU does not justify advertising that full facet.
 
 ## Documentation
 

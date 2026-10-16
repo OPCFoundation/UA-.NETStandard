@@ -149,11 +149,19 @@ namespace Opc.Ua.Machinery.Client
                 ProcessValueBrowseNames.AlarmSuppression,
                 processValueNamespaceIndex);
 
+            var samples = new Dictionary<QualifiedName, DataValue>();
             Dictionary<QualifiedName, Variant> objectValues = await ReadChildValuesAsync(
                 processValue,
                 [signalName, setpointName, statusName, suppressionName],
                 Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                samples).ConfigureAwait(false);
+            if (!samples.TryGetValue(signalName, out DataValue sample))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotFound,
+                    "The process value's AnalogSignal disappeared while reading its sample.");
+            }
 
             var lowLowName = new QualifiedName(
                 ProcessValueBrowseNames.LowLowLimit,
@@ -191,6 +199,7 @@ namespace Opc.Ua.Machinery.Client
             {
                 NodeId = processValue,
                 SignalNodeId = signal,
+                Sample = sample,
                 Value = AsDouble(objectValues, signalName),
                 Setpoint = AsDouble(objectValues, setpointName),
                 Status = AsUInt16(objectValues, statusName),

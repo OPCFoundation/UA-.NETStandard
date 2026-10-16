@@ -1811,6 +1811,7 @@ namespace Opc.Ua.Schema.Model
                 model.IsSourceNodeSet = true;
 
                 ExcludeNodes(model); // not consistent with model design, todo: consider removing
+                var assignedNodeIds = new HashSet<NodeId>(settings.NodesById.Keys);
 
                 foreach (NodeDesign node in model.Items)
                 {
@@ -1818,6 +1819,24 @@ namespace Opc.Ua.Schema.Model
 
                     foreach (KeyValuePair<string, HierarchyNode> ii in node.Hierarchy.Nodes)
                     {
+                        if (ii.Key.Length != 0 &&
+                            !ii.Value.ExplicitlyDefined &&
+                            ii.Value.Instance is NodeDesign inheritedChild &&
+                            inheritedChild.HasIdentifier())
+                        {
+                            // Keep a generated identity for inherited children, not the dependency's published ID.
+                            // An explicit string also preserves identifier constants for predefined instances.
+                            string identifier = inheritedChild.SymbolicId.Name;
+                            ushort namespaceIndex = settings.NamespaceUris.GetIndexOrAppend(
+                                inheritedChild.SymbolicId.Namespace);
+                            uint suffix = 0;
+                            while (!assignedNodeIds.Add(new NodeId(identifier, namespaceIndex)))
+                            {
+                                identifier = inheritedChild.SymbolicId.Name + "_" +
+                                    (++suffix).ToString(CultureInfo.InvariantCulture);
+                            }
+                            inheritedChild.SetIdentifier(identifier);
+                        }
                         if (ii.Value.Instance is InstanceDesign instance &&
                             instance.NumericId <= 0 &&
                             instance.StringId == null &&
@@ -6341,7 +6360,8 @@ namespace Opc.Ua.Schema.Model
             bool suppressInverseHierarchicalAtTypeLevel,
             bool inherited,
             int depth,
-            HashSet<XmlQualifiedName> typePath)
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6372,7 +6392,8 @@ namespace Opc.Ua.Schema.Model
                     true,
                     true,
                     depth + 1,
-                    typePath);
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             TranslateReferences(
@@ -6437,7 +6458,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
             typePath.Remove(type.SymbolicId);
@@ -6454,7 +6476,8 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyReference> references,
             bool inherited,
             int depth,
-            HashSet<XmlQualifiedName> typePath)
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6480,7 +6503,8 @@ namespace Opc.Ua.Schema.Model
                     true,
                     inherited,
                     depth + 1,
-                    typePath);
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             if (parent.TypeDefinition != null && parent is MethodDesign method)
@@ -6500,7 +6524,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
 
@@ -6566,9 +6591,11 @@ namespace Opc.Ua.Schema.Model
                         }
                     }
 
-                    if (instance.ModellingRule
-                        is ModellingRule.OptionalPlaceholder
-                        or ModellingRule.MandatoryPlaceholder &&
+                    // Preserve published nested type declarations, but do not materialize
+                    // their placeholders when expanding a concrete instance.
+                    if (!rootIsTypeDefinition &&
+                        (instance.ModellingRule is
+                            ModellingRule.OptionalPlaceholder or ModellingRule.MandatoryPlaceholder) &&
                         depth > 3)
                     {
                         continue;
@@ -6583,7 +6610,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         inherited,
                         depth + 1,
-                        typePath);
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
         }
@@ -6615,7 +6643,8 @@ namespace Opc.Ua.Schema.Model
                         false,
                         false,
                         depth + 1,
-                        []);
+                        [],
+                        rootIsTypeDefinition: true);
                     break;
                 case InstanceDesign instance:
                     BuildInstanceHierarchy(
@@ -6625,7 +6654,8 @@ namespace Opc.Ua.Schema.Model
                         references,
                         false,
                         depth + 1,
-                        []);
+                        [],
+                        rootIsTypeDefinition: false);
                     break;
             }
         }
@@ -7394,6 +7424,17 @@ namespace Opc.Ua.Schema.Model
                     method.MethodDeclarationNode = declaration;
                 }
             }
+            if (c.Children.Count > 0)
+            {
+                var descendants = new InstanceDesign[c.Children.Count];
+                for (int index = 0; index < descendants.Length; index++)
+                {
+                    descendants[index] = MaterialiseDependencyChild(instance.SymbolicId, c.Children[index]);
+                    descendants[index].Parent = instance;
+                }
+                instance.Children = new ListOfChildren { Items = descendants };
+                instance.HasChildren = true;
+            }
             // Mark as inherited-declaration so consumer code paths
             // that iterate children for emission can short-circuit.
             instance.IsDeclaration = true;
@@ -7502,33 +7543,45 @@ namespace Opc.Ua.Schema.Model
                 {
                     continue;
                 }
-                foreach (InstanceDesign instance in type.Children.Items)
+                LinkPayloadChildren(type.Children.Items);
+            }
+        }
+
+        /// <summary>
+        /// Links every explicitly carried descendant, including parameters of generic Object containers.
+        /// </summary>
+        private void LinkPayloadChildren(IEnumerable<InstanceDesign> children)
+        {
+            foreach (InstanceDesign instance in children)
+            {
+                if (instance.Children?.Items != null)
                 {
-                    if (instance.TypeDefinition != null &&
-                        instance.TypeDefinitionNode == null &&
-                        m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
-                    {
-                        instance.TypeDefinitionNode = tdNode as TypeDesign;
-                    }
-                    if (instance is VariableDesign variable &&
-                        variable.DataType != null &&
-                        variable.DataTypeNode == null &&
-                        m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
-                    {
-                        variable.DataTypeNode = dtNode as DataTypeDesign;
-                    }
-                    if (instance is VariableDesign payloadVariable &&
-                        payloadVariable.DefaultValue != null &&
-                        payloadVariable.DecodedValue == null &&
-                        payloadVariable.DecodedValueNamespaceUris != null)
-                    {
-                        LinkPayloadDefaultValue(payloadVariable);
-                    }
-                    if (instance is MethodDesign method)
-                    {
-                        LinkDependencyMethodArguments(method.InputArguments);
-                        LinkDependencyMethodArguments(method.OutputArguments);
-                    }
+                    LinkPayloadChildren(instance.Children.Items);
+                }
+                if (instance.TypeDefinition != null &&
+                    instance.TypeDefinitionNode == null &&
+                    m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
+                {
+                    instance.TypeDefinitionNode = tdNode as TypeDesign;
+                }
+                if (instance is VariableDesign variable &&
+                    variable.DataType != null &&
+                    variable.DataTypeNode == null &&
+                    m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
+                {
+                    variable.DataTypeNode = dtNode as DataTypeDesign;
+                }
+                if (instance is VariableDesign payloadVariable &&
+                    payloadVariable.DefaultValue != null &&
+                    payloadVariable.DecodedValue == null &&
+                    payloadVariable.DecodedValueNamespaceUris != null)
+                {
+                    LinkPayloadDefaultValue(payloadVariable);
+                }
+                if (instance is MethodDesign method)
+                {
+                    LinkDependencyMethodArguments(method.InputArguments);
+                    LinkDependencyMethodArguments(method.OutputArguments);
                 }
             }
         }

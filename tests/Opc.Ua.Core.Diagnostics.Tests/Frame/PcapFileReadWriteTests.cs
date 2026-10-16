@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -42,6 +43,54 @@ namespace Opc.Ua.Pcap.Tests.Frame
     [TestFixture]
     public sealed class PcapFileReadWriteTests : TempDirectoryFixture
     {
+        [TestCase(0)]
+        [TestCase(8)]
+        [TestCase(23)]
+        public async Task CompleteFileValidationRejectsMissingOrPartialGlobalHeadersAsync(int length)
+        {
+            string path = CreateTempPath("partial-global.pcap");
+            await File.WriteAllBytesAsync(path, new byte[length]).ConfigureAwait(false);
+            await Assert.ThatAsync(() => PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, CancellationToken.None)),
+                Throws.TypeOf<PcapDiagnosticsException>()).ConfigureAwait(false);
+            List<PcapRecord> legacy = await PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, CancellationToken.None)).ConfigureAwait(false);
+            Assert.That(legacy, Is.Empty);
+        }
+
+        [Test]
+        public async Task CompleteFileValidationRejectsAPartialTailAfterAValidRecordAsync()
+        {
+            string path = CreateTempPath("partial-tail.pcap");
+            await WriteSinglePacketAsync(path, PcapFileWriter.LinkTypeEthernet).ConfigureAwait(false);
+            var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.None, 4096,
+                FileOptions.Asynchronous);
+            await using (stream.ConfigureAwait(false))
+            {
+                await stream.WriteAsync(new byte[7]).ConfigureAwait(false);
+            }
+            await Assert.ThatAsync(() => PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, CancellationToken.None), maxCount: 2),
+                Throws.TypeOf<PcapDiagnosticsException>()).ConfigureAwait(false);
+            List<PcapRecord> legacy = await PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, CancellationToken.None), maxCount: 2).ConfigureAwait(false);
+            Assert.That(legacy, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task UnrepresentableOriginalPacketLengthProducesAProtocolErrorAsync()
+        {
+            string path = CreateTempPath("original-length.pcap");
+            await WriteSinglePacketAsync(path, PcapFileWriter.LinkTypeEthernet).ConfigureAwait(false);
+            byte[] content = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+            BinaryPrimitives.WriteUInt32LittleEndian(content.AsSpan(36, 4), uint.MaxValue);
+            await File.WriteAllBytesAsync(path, content).ConfigureAwait(false);
+            await Assert.ThatAsync(() => PcapTestHelpers.ToListAsync(
+                PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, CancellationToken.None)),
+                Throws.TypeOf<PcapDiagnosticsException>().With.Message.Contains("original packet length"))
+                .ConfigureAwait(false);
+        }
+
         [Test]
         public async Task OneRecordRoundTrips()
         {

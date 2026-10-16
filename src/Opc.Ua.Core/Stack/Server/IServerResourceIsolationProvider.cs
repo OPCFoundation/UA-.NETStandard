@@ -323,6 +323,40 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Optional classification that also returns the evidence it was derived from, so the
+    /// request queue can confirm an unchanged classification at dispatch without repeating
+    /// the owner, session and classifier lookups for every request.
+    /// </summary>
+    internal interface IResourceIsolationAdmissionEvidence
+    {
+        /// <summary>
+        /// Classifies like <see cref="IServerResourceIsolationProvider.Classify"/>. The
+        /// evidence is <c>null</c> when the classification cannot be confirmed cheaply later;
+        /// the caller then revalidates it in full.
+        /// </summary>
+        ResourceIsolationOwner Classify(
+            SecureChannelContext channelContext,
+            NodeId authenticationToken,
+            bool sessionEstablishment,
+            bool controlRequest,
+            out ResourceIsolationAdmissionEvidence? evidence);
+
+        /// <summary>
+        /// Returns <c>true</c> only when the evidence returned with the classification of this
+        /// request still holds, so a full revalidation would return Good. <c>false</c> means
+        /// only that the caller must revalidate in full, which determines the status.
+        /// </summary>
+        bool IsAdmissionCurrent(ResourceIsolationAdmissionEvidence evidence, SecureChannelContext channelContext);
+    }
+
+    /// <summary>
+    /// The inputs a provider derived a classification from, which it can confirm cheaply at
+    /// dispatch. Only the issuing provider interprets it; the request queue keeps it with the
+    /// request and hands it back.
+    /// </summary>
+    internal abstract record ResourceIsolationAdmissionEvidence;
+
+    /// <summary>
     /// Reports a stage's aggregate capacity including protected floors, so the request queue can
     /// size its physical bound to match the provider's envelope.
     /// </summary>

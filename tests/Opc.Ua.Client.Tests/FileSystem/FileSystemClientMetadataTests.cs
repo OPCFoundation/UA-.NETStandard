@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -120,6 +121,155 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.That(chunks, Is.EqualTo(expectedChunks));
             Assert.That(creates, Is.EqualTo(createFile ? 1 : 0));
             Assert.That(closes, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void FileInfoPublicConstructorsTakeNoCollectionParameter()
+        {
+            System.Reflection.ConstructorInfo[] constructors = typeof(UaFileInfo).GetConstructors();
+            System.Reflection.ConstructorInfo? inDirectory = typeof(UaFileInfo).GetConstructor(
+                [typeof(UaDirectoryInfo), typeof(NodeId), typeof(QualifiedName)]);
+            System.Reflection.ConstructorInfo? detached = typeof(UaFileInfo).GetConstructor(
+                [typeof(FileSystemClient), typeof(NodeId), typeof(QualifiedName)]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(inDirectory, Is.Not.Null, "UaFileInfo(UaDirectoryInfo, NodeId, QualifiedName)");
+                Assert.That(detached, Is.Not.Null, "UaFileInfo(FileSystemClient, NodeId, QualifiedName)");
+                Assert.That(constructors, Has.Length.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public async Task FileInfoCreatedInAKnownDirectoryRefreshesAndDeletesAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var props = new FileProperties
+            {
+                Size = 4_096UL,
+                Writable = false,
+                UserWritable = false,
+                OpenCount = 1
+            };
+            props.Realize();
+            NodeId subdirId = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
+            var fileId = new NodeId(8100u);
+            var name = new QualifiedName("known.bin");
+            harness.RegisterFile(subdirId, name, fileId, props);
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            UaDirectoryInfo subdir = await client.GetDirectoryAsync("/subdir").ConfigureAwait(false);
+
+            var file = new UaFileInfo(subdir, fileId, name);
+            await file.RefreshAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(file.Owner, Is.SameAs(client));
+                Assert.That(file.Parent, Is.SameAs(subdir));
+                Assert.That(file.IsDetached, Is.False);
+                Assert.That(file.NodeId, Is.EqualTo(fileId));
+                Assert.That(file.FullPath, Is.EqualTo("/subdir/known.bin"));
+                Assert.That(file.Size, Is.EqualTo(4_096UL));
+                Assert.That(file.OpenCount, Is.EqualTo(1));
+                Assert.That(file.Proxy, Is.Not.Null);
+            });
+
+            int callsBeforeDelete = harness.CallRequests.Count;
+            await file.DeleteAsync().ConfigureAwait(false);
+
+            Assert.That(harness.CallRequests, Has.Count.EqualTo(callsBeforeDelete + 1));
+            CallMethodRequest request = harness.CallRequests[^1];
+            request.MethodId.TryGetValue(out uint methodId);
+            request.InputArguments[0].TryGetValue(out NodeId deleted);
+            Assert.Multiple(() =>
+            {
+                Assert.That(methodId, Is.EqualTo(Methods.FileDirectoryType_DeleteFileSystemObject));
+                Assert.That(request.ObjectId, Is.EqualTo(subdirId));
+                Assert.That(deleted, Is.EqualTo(fileId));
+            });
+        }
+
+        [Test]
+        public async Task DetachedFileInfoRefreshesButRejectsDeleteMoveAndCopyAsync()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var props = new FileProperties
+            {
+                Size = 2_048UL,
+                Writable = true,
+                UserWritable = true,
+                OpenCount = 0
+            };
+            props.Realize();
+            var fileId = new NodeId(8101u);
+            var name = new QualifiedName("result.bin");
+            harness.RegisterFile(harness.Root, name, fileId, props);
+            var client = new FileSystemClient(harness.Session, harness.Root);
+
+            var file = new UaFileInfo(client, fileId, name);
+            await file.RefreshAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(file.Owner, Is.SameAs(client));
+                Assert.That(file.Parent, Is.Null);
+                Assert.That(file.IsDetached, Is.True);
+                Assert.That(file.Segments, Is.EqualTo(new[] { name }));
+                Assert.That(file.Size, Is.EqualTo(2_048UL));
+            });
+
+            int callsBeforeOperations = harness.CallRequests.Count;
+            int invocationsBeforeOperations = harness.SessionMock.Invocations.Count;
+            InvalidOperationException? delete = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await file.DeleteAsync().ConfigureAwait(false));
+            InvalidOperationException? move = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await file.MoveToAsync(client.Root, "moved.bin").ConfigureAwait(false));
+            InvalidOperationException? copy = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await file.CopyToAsync("/copied.bin").ConfigureAwait(false));
+            // A nested destination is not resolved first: the directory does
+            // not exist, and the detached file is still the reason given.
+            InvalidOperationException? nestedMove = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await file.MoveToAsync("/missing/moved.bin").ConfigureAwait(false));
+            InvalidOperationException? nestedCopy = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await file.CopyToAsync("/missing/copied.bin").ConfigureAwait(false));
+            IOException? root = Assert.ThrowsAsync<IOException>(
+                async () => await client.Root.DeleteAsync().ConfigureAwait(false));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(delete!.Message, Does.Contain("cannot be deleted").And.Contain("not known"));
+                Assert.That(move!.Message, Does.Contain("cannot be moved").And.Contain("not known"));
+                Assert.That(copy!.Message, Does.Contain("cannot be copied").And.Contain("not known"));
+                Assert.That(nestedMove!.Message, Does.Contain("cannot be moved").And.Contain("not known"));
+                Assert.That(nestedCopy!.Message, Does.Contain("cannot be copied").And.Contain("not known"));
+                Assert.That(root!.Message, Does.Contain("root directory"));
+                Assert.That(harness.CallRequests, Has.Count.EqualTo(callsBeforeOperations));
+                Assert.That(harness.SessionMock.Invocations, Has.Count.EqualTo(invocationsBeforeOperations));
+            });
+        }
+
+        [Test]
+        public void FileInfoConstructorsRejectMissingArguments()
+        {
+            var harness = FileSystemSessionHarness.Create();
+            var client = new FileSystemClient(harness.Session, harness.Root);
+            var name = new QualifiedName("file.bin");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => new UaFileInfo((UaDirectoryInfo)null!, new NodeId(1u), name),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => new UaFileInfo(client.Root, NodeId.Null, name),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => new UaFileInfo((FileSystemClient)null!, new NodeId(1u), name),
+                    Throws.ArgumentNullException);
+                Assert.That(
+                    () => new UaFileInfo(client, NodeId.Null, name),
+                    Throws.ArgumentNullException);
+            });
         }
 
         [Test]
