@@ -6,7 +6,7 @@ part of the product build (not in `UA.slnx`) and target `net10.0` only.
 | Path | Purpose |
 |---|---|
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
-| `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention). |
+| `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
 | `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
 | `server-scenarios.txt`, `client-scenarios.txt` | The scenario lists used for the server and client comparisons. |
 
@@ -142,10 +142,27 @@ Windows are lower than on Linux.
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll alloc trace.nettrace 40
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll cpu trace.nettrace 40 Monitor.Enter_Slowpath
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll contention trace.nettrace 15
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll gc trace.nettrace
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.nettrace 30
 ```
 
+`cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
+above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`. `gc` reads a
+trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
+reason and splits each pause into the time needed to suspend the threads and the whole pause;
+a long suspension means a thread ran for a while without reaching a safe point. `samples`
+lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua` frame),
+including the ones `cpu` leaves out.
+
+The sampler suspends running threads at their next GC poll, so many on-CPU samples have
+`Thread.PollGCWorker` as their leaf; `cpu` attributes those to the calling frame instead of
+dropping them as a wait (threads that wait for a real collection land there too, which the
+`gc` mode shows). The poll is often the return from a native call (`DateTime.UtcNow`,
+`TimeProvider.GetTimestamp`), so such frames are over-represented: read the shares as where
+the work happens, not as exact costs.
+
 The sampled thread-time profile also samples blocked threads. The `cpu` mode drops samples
-whose leaf frame is a known wait (thread-pool semaphore, I/O completion poll, GC suspension),
+whose leaf frame is a known wait (thread-pool semaphore, I/O completion poll, sleep),
 so the remaining samples approximate on-CPU time. Spin-waiting in `Monitor.Enter_Slowpath` or
 `Lock.TryEnterSlow` is real CPU and shows up there; check it against a `contention` trace,
 though, because a thread blocked in the native part of `Monitor.Enter` has the same leaf frame.

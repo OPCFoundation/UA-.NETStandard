@@ -60,7 +60,6 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             "IOCompletionPoller.Poll",
             "WaitOneNoCheck",
             "Thread.Sleep",
-            "PollGCWorker|70_0",
             "WaitMultipleIgnoringSyncContext",
             "Monitor.Wait",
             "!?"
@@ -73,7 +72,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         {
             if (args.Length < 2)
             {
-                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention <trace> [top] [focus]");
+                Console.WriteLine("usage: TraceAnalyzer cpu|alloc|contention|gc|samples <trace> [top] [focus]");
                 return 1;
             }
 
@@ -93,11 +92,131 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 case "cpu":
                     Cpu(log, top, focus);
                     break;
+                case "gc":
+                    Collections(log);
+                    break;
+                case "samples":
+                    Samples(log, top);
+                    break;
                 default:
                     Allocations(log, top, focus);
                     break;
             }
             return 0;
+        }
+
+        /// <summary>
+        /// All thread-time samples by type (managed code or external/native, which includes
+        /// threads blocked in the kernel) and the leaf and first Opc.Ua frame of the external
+        /// ones. The cpu mode keeps only managed samples; this shows what it leaves out.
+        /// </summary>
+        private static void Samples(TraceLog log, int top)
+        {
+            var types = new Dictionary<string, double>(StringComparer.Ordinal);
+            var externalLeaves = new Dictionary<string, double>(StringComparer.Ordinal);
+            var externalOurs = new Dictionary<string, double>(StringComparer.Ordinal);
+            var managedLeaves = new Dictionary<string, double>(StringComparer.Ordinal);
+            var managedOurs = new Dictionary<string, double>(StringComparer.Ordinal);
+            double all = 0;
+            double external = 0;
+            double managed = 0;
+            foreach (TraceEvent e in log.Events)
+            {
+                if (e.ProviderName != "Microsoft-DotNETCore-SampleProfiler")
+                {
+                    continue;
+                }
+                all++;
+                object? type = e.PayloadByName("Type");
+                int kind = type == null ? -1 : Convert.ToInt32(type, CultureInfo.InvariantCulture);
+                Add(types, kind == 2 ? "managed" : kind == 1 ? "external" : "other " + kind, 1);
+                TraceCallStack? stack = e.CallStack();
+                if (stack == null || (kind != 1 && kind != 2))
+                {
+                    continue;
+                }
+                Dictionary<string, double> leaves = kind == 1 ? externalLeaves : managedLeaves;
+                Dictionary<string, double> ours = kind == 1 ? externalOurs : managedOurs;
+                if (kind == 1)
+                {
+                    external++;
+                }
+                else
+                {
+                    managed++;
+                }
+                Add(leaves, Short(Name(stack)), 1);
+                for (TraceCallStack? f = stack; f != null; f = f.Caller)
+                {
+                    string n = Short(Name(f));
+                    if (IsOurs(n))
+                    {
+                        Add(ours, n, 1);
+                        break;
+                    }
+                }
+            }
+            Dump("sample types", types, all, top);
+            Dump("external samples by leaf", externalLeaves, external, top);
+            Dump("external samples by first Opc.Ua frame", externalOurs, external, top);
+            Dump("managed samples by leaf", managedLeaves, managed, top);
+            Dump("managed samples by first Opc.Ua frame", managedOurs, managed, top);
+        }
+
+        /// <summary>
+        /// Garbage collections by generation and trigger reason, with pause times
+        /// (a trace recorded with <c>--trace-profile gc</c>).
+        /// </summary>
+        private static void Collections(TraceLog log)
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var pauses = new List<double>();
+            var suspensions = new List<double>();
+            double suspendStart = 0;
+            foreach (TraceEvent e in log.Events)
+            {
+                if (e is GCStartTraceData start)
+                {
+                    string key = FormattableString.Invariant($"gen{start.Depth} {start.Type} {start.Reason}");
+                    counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+                }
+                else if (e is GCSuspendEETraceData)
+                {
+                    suspendStart = e.TimeStampRelativeMSec;
+                }
+                else if (e.EventName == "GC/SuspendEEStop" && suspendStart > 0)
+                {
+                    // time to bring every managed thread to a safe point
+                    suspensions.Add(e.TimeStampRelativeMSec - suspendStart);
+                }
+                else if (e.EventName == "GC/RestartEEStop" && suspendStart > 0)
+                {
+                    pauses.Add(e.TimeStampRelativeMSec - suspendStart);
+                    suspendStart = 0;
+                }
+            }
+            int total = counts.Values.Sum();
+            Console.WriteLine(FormattableString.Invariant($"collections={total}"));
+            foreach (KeyValuePair<string, int> entry in counts.OrderByDescending(c => c.Value))
+            {
+                Console.WriteLine(FormattableString.Invariant($" {entry.Value,7}  {entry.Key}"));
+            }
+            if (suspensions.Count > 0)
+            {
+                suspensions.Sort();
+                Console.WriteLine(FormattableString.Invariant(
+                    $"suspension n={suspensions.Count} total={suspensions.Sum():F1}ms p50={suspensions[suspensions.Count / 2]:F2}ms ") +
+                    FormattableString.Invariant(
+                    $"p99={suspensions[Math.Min(suspensions.Count - 1, (int)(suspensions.Count * 0.99))]:F2}ms max={suspensions[^1]:F2}ms"));
+            }
+            if (pauses.Count > 0)
+            {
+                pauses.Sort();
+                Console.WriteLine(FormattableString.Invariant(
+                    $"pauses n={pauses.Count} total={pauses.Sum():F1}ms p50={pauses[pauses.Count / 2]:F2}ms ") +
+                    FormattableString.Invariant(
+                    $"p99={pauses[Math.Min(pauses.Count - 1, (int)(pauses.Count * 0.99))]:F2}ms max={pauses[^1]:F2}ms"));
+            }
         }
 
         private static void Contention(TraceLog log, int top)
@@ -132,6 +251,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             var inclusive = new Dictionary<string, double>(StringComparer.Ordinal);
             var firstOurs = new Dictionary<string, double>(StringComparer.Ordinal);
             var callers = new Dictionary<string, double>(StringComparer.Ordinal);
+            var ourCallers = new Dictionary<string, double>(StringComparer.Ordinal);
             double total = 0;
             int all = 0;
             foreach (TraceEvent e in log.Events)
@@ -157,11 +277,20 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 {
                     continue;
                 }
+                if (leaf.EndsWith("PollGCWorker|70_0", StringComparison.Ordinal) && stack.Caller != null)
+                {
+                    // The sampler suspends running threads at their next GC poll, so a running
+                    // thread is often sampled there: attribute the sample to the caller. Threads
+                    // that wait for a real collection to finish land here too (see the gc mode).
+                    stack = stack.Caller;
+                    leaf = Short(Name(stack));
+                }
                 total++;
                 Add(exclusive, leaf, 1);
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 bool gotOurs = false;
                 bool focusHit = false;
+                bool ourCallerHit = false;
                 for (TraceCallStack? f = stack; f != null; f = f.Caller)
                 {
                     string n = Short(Name(f));
@@ -173,6 +302,12 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     {
                         gotOurs = true;
                         Add(firstOurs, n, 1);
+                    }
+                    if (focusHit && !ourCallerHit && IsOurs(n))
+                    {
+                        // the first stack frame of the stack above the focus, past framework wrappers
+                        ourCallerHit = true;
+                        Add(ourCallers, n, 1);
                     }
                     if (focus != null && !focusHit && n.Contains(focus, StringComparison.Ordinal))
                     {
@@ -192,6 +327,7 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             if (focus != null)
             {
                 Dump("callers of " + focus, callers, total, top);
+                Dump("first Opc.Ua frame above " + focus, ourCallers, total, top);
             }
         }
 
