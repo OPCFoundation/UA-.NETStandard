@@ -31,6 +31,7 @@ concurrency:
 
 env:
   CTT_REPO: OPCFoundation/UA-.NETStandard-CTT
+  CTT_REPO_BRANCH: main   # branch of CTT_REPO whose workflow runs
   CTT_LABEL: ctt
 
 jobs:
@@ -106,8 +107,8 @@ jobs:
           api() { curl -fsSL -H "Authorization: Bearer $(token)" -H 'Accept: application/vnd.github+json' "$@"; }
           base="https://api.github.com/repos/$CTT_REPO/actions"
           correlation="ua-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          jq -n --arg repo "$GITHUB_REPOSITORY" --arg ref "$REF" --arg sha "$SHA" --arg corr "$correlation" \
-            '{ref: "main", inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr}}' \
+          jq -n --arg branch "$CTT_REPO_BRANCH" --arg repo "$GITHUB_REPOSITORY" --arg ref "$REF" --arg sha "$SHA" \
+            --arg corr "$correlation" '{ref: $branch, inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr}}' \
             | api -X POST "$base/workflows/ctt.yml/dispatches" --data @-
 
           id=''
