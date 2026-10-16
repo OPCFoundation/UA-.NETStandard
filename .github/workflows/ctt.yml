@@ -101,30 +101,40 @@ jobs:
             (umask 077; printf '%s\n' "$APP_KEY" > "$key_file")
             trap 'rm -f "$key_file"' EXIT
           fi
+          # Plain REST calls on Actions endpoints only: that is all the App (or token) is granted. gh CLI
+          # commands also make GraphQL calls that need Contents access.
+          api() { curl -fsSL -H "Authorization: Bearer $(token)" -H 'Accept: application/vnd.github+json' "$@"; }
+          base="https://api.github.com/repos/$CTT_REPO/actions"
           correlation="ua-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
-          GH_TOKEN=$(token) gh workflow run ctt.yml -R "$CTT_REPO" -f ua_repository="$GITHUB_REPOSITORY" \
-            -f ua_ref="$REF" -f expected_sha="$SHA" -f correlation_id="$correlation"
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg ref "$REF" --arg sha "$SHA" --arg corr "$correlation" \
+            '{ref: "main", inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr}}' \
+            | api -X POST "$base/workflows/ctt.yml/dispatches" --data @-
 
           id=''
           for i in $(seq 1 30); do
             sleep 10
-            id=$(GH_TOKEN=$(token) gh run list -R "$CTT_REPO" --workflow ctt.yml --event workflow_dispatch --limit 30 \
-              --json databaseId,displayTitle --jq "[.[] | select(.displayTitle | endswith(\" $correlation\"))][0].databaseId // empty")
+            id=$(api "$base/workflows/ctt.yml/runs?event=workflow_dispatch&per_page=30" | jq -r --arg c " $correlation" \
+              '[.workflow_runs[] | select(.display_title | endswith($c))][0].id // empty') || id=''
             [ -n "$id" ] && break
           done
           if [ -z "$id" ]; then echo '::error::The CTT run did not show up'; exit 1; fi
           echo "CTT run $id"
 
           # Runs queue behind each other in the CTT repository (one CTT at a time).
-          while [ "$(GH_TOKEN=$(token) gh run view "$id" -R "$CTT_REPO" --json status --jq .status || echo unknown)" != completed ]; do
+          while true; do
+            run=$(api "$base/runs/$id") || { sleep 60; continue; }
+            [ "$(jq -r .status <<< "$run")" = completed ] && break
             sleep 60
           done
-          conclusion=$(GH_TOKEN=$(token) gh run view "$id" -R "$CTT_REPO" --json conclusion --jq .conclusion)
+          conclusion=$(jq -r .conclusion <<< "$run")
           echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
           echo "CTT run $id: $conclusion"
 
           mkdir -p ctt-summary
-          if ! GH_TOKEN=$(token) gh run download "$id" -R "$CTT_REPO" -n ctt-public-summary -D ctt-summary; then
+          url=$(api "$base/runs/$id/artifacts?name=ctt-public-summary" | jq -r '.artifacts[0].archive_download_url // empty') || url=''
+          if [ -n "$url" ] && api -o ctt-summary.zip "$url" && unzip -o -q ctt-summary.zip -d ctt-summary; then
+            echo 'Downloaded the public summary'
+          else
             printf '### CTT\n\nThe CTT run ended before it produced results.\n' > ctt-summary/public-summary.md
           fi
           cat ctt-summary/public-summary.md >> "$GITHUB_STEP_SUMMARY"
