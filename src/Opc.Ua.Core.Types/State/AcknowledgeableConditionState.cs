@@ -64,6 +64,7 @@ namespace Opc.Ua
             }
 
             AckedState!.Timestamp = DateTimeUtc.Now; // ConditionState.Initialize creates AckedState
+            UpdateRetainState();
             ClearChangeMasks(context, includeChildren: true);
         }
 
@@ -86,6 +87,7 @@ namespace Opc.Ua
 
             ConfirmedState?.Timestamp = DateTimeUtc.Now;
 
+            UpdateRetainState();
             ClearChangeMasks(context, includeChildren: true);
         }
 

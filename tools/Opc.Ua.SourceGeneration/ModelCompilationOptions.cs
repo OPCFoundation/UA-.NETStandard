@@ -161,6 +161,21 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Opts into client accessor-only generation over a referenced model's existing proxies.
+        /// </summary>
+        public bool ClientAccessorsOnly { get; set; }
+
+        /// <summary>
+        /// Overrides the namespace of the generated client accessor extensions.
+        /// </summary>
+        public string ClientAccessorNamespace { get; set; }
+
+        /// <summary>
+        /// Overrides the generated partial extension class name.
+        /// </summary>
+        public string ClientAccessorClassName { get; set; }
+
+        /// <summary>
         /// Suppresses event-record generation.
         /// </summary>
         public bool OmitEventRecords { get; set; }
@@ -202,6 +217,12 @@ namespace Opc.Ua.SourceGeneration
                     nameof(OmitFluentApi)),
                 FluentAccessorsOnly = provider.GlobalOptions.GetBool(
                     nameof(FluentAccessorsOnly)),
+                ClientAccessorsOnly = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsOnly)),
+                ClientAccessorNamespace = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorNamespace)),
+                ClientAccessorClassName = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorClassName)),
                 OmitEventRecords = provider.GlobalOptions.GetBool(
                     nameof(OmitEventRecords))
             };

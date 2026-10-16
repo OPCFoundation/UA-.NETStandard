@@ -1,0 +1,160 @@
+{
+  "revision": "96a08945425d0295edb3607d2a38f6841ef44046",
+  "hashNormalization": "UTF-8 source bytes with CRLF and CR normalized to LF; repository files use CRLF.",
+  "families": {
+    "MachineTool": {
+      "specification": "OPC-40501-1",
+      "edition": "1.02.0",
+      "model": "Opc.Ua.MachineTool.NodeSet2.xml",
+      "sources": [
+        {
+          "file": "Opc.Ua.MachineTool.NodeSet2.xml",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/MachineTool/Opc.Ua.MachineTool.NodeSet2.xml",
+          "sha256": "ada2158cf4b307e571a243d5944422496cc80e93d33831ae92c4162505e3b2c0",
+          "normalizedSha256": "ada2158cf4b307e571a243d5944422496cc80e93d33831ae92c4162505e3b2c0"
+        },
+        {
+          "file": "Opc.Ua.MachineTool.NodeIds.csv",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/MachineTool/Opc.Ua.MachineTool.NodeIds.csv",
+          "sha256": "32708d4914c41ab06b2ee9b464769fd621ecfa10d4d33263c55b0e7026791c0c",
+          "normalizedSha256": "32708d4914c41ab06b2ee9b464769fd621ecfa10d4d33263c55b0e7026791c0c"
+        },
+        {
+          "file": "Opc.Ua.MachineTool.Nodeset2.documentation.csv",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/MachineTool/Opc.Ua.MachineTool.Nodeset2.documentation.csv",
+          "sha256": "d23a4c0f44f5c5020c775cff3d202c83e507ad8edf70c8cda19f6fd615a9c011",
+          "normalizedSha256": "d23a4c0f44f5c5020c775cff3d202c83e507ad8edf70c8cda19f6fd615a9c011"
+        }
+      ],
+      "models": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/MachineTool/",
+          "Version": "1.02.0",
+          "PublicationDate": "2024-11-01T00:00:00Z",
+          "ModelVersion": "1.2.0",
+          "requiredModels": [
+            {
+              "ModelUri": "http://opcfoundation.org/UA/",
+              "Version": "1.05.02",
+              "PublicationDate": "2022-11-01T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/DI/",
+              "Version": "1.04.0",
+              "PublicationDate": "2022-11-03T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+              "Version": "1.03.0",
+              "PublicationDate": "2023-08-01T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/IA/",
+              "Version": "1.01.2",
+              "PublicationDate": "2024-02-28T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/ISA95-JOBCONTROL_V2/",
+              "Version": "2.0.0",
+              "PublicationDate": "2024-01-31T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/Machinery/Jobs/",
+              "Version": "1.0.1",
+              "PublicationDate": "2024-05-01T00:00:00Z"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "DataType": 10,
+        "Variable": 356,
+        "VariableType": 1,
+        "ObjectType": 62,
+        "Object": 150,
+        "Method": 10
+      },
+      "referenceUrl": "https://reference.opcfoundation.org/specs/OPC-40501-1"
+    },
+    "WMTP": {
+      "specification": "OPC-40505",
+      "edition": "1.0.0",
+      "model": "Opc.Ua.WMTP.Nodeset2.xml",
+      "sources": [
+        {
+          "file": "Opc.Ua.WMTP.Nodeset2.xml",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/WMTP/Opc.Ua.WMTP.Nodeset2.xml",
+          "sha256": "421aba93c231dadd672d10300830be5c65f214a7325ac18465f66609c56c5efc",
+          "normalizedSha256": "421aba93c231dadd672d10300830be5c65f214a7325ac18465f66609c56c5efc"
+        },
+        {
+          "file": "Opc.Ua.WMTP.NodeIds.csv",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/WMTP/Opc.Ua.WMTP.NodeIds.csv",
+          "sha256": "b12b5d8dc05ee99a441d233b295273417a8104c17f0e5f743e5fa0a56b09925d",
+          "normalizedSha256": "b12b5d8dc05ee99a441d233b295273417a8104c17f0e5f743e5fa0a56b09925d"
+        },
+        {
+          "file": "Opc.Ua.WMTP.NodeSet2.documentation.csv",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/WMTP/Opc.Ua.WMTP.NodeSet2.documentation.csv",
+          "sha256": "b0604486584f067f9b3e380cab809177b648303c4bcb59b2d0445a289a887a2c",
+          "normalizedSha256": "b0604486584f067f9b3e380cab809177b648303c4bcb59b2d0445a289a887a2c"
+        },
+        {
+          "file": "Opc.Ua.WMTP.NodeSet2.profiles.xml",
+          "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/WMTP/Opc.Ua.WMTP.NodeSet2.profiles.xml",
+          "sha256": "536546ea79d46f4e240dc50770da83f661168a030f865a0c2434596addf5386f",
+          "normalizedSha256": "536546ea79d46f4e240dc50770da83f661168a030f865a0c2434596addf5386f"
+        }
+      ],
+      "models": [
+        {
+          "ModelUri": "http://opcfoundation.org/UA/WMTP/",
+          "Version": "1.0.0",
+          "PublicationDate": "2025-11-01T00:00:00Z",
+          "ModelVersion": "1.0.0",
+          "requiredModels": [
+            {
+              "ModelUri": "http://opcfoundation.org/UA/",
+              "Version": "1.05.05",
+              "PublicationDate": "2025-06-30T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/DI/",
+              "Version": "1.04.0",
+              "PublicationDate": "2022-11-03T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/Machinery/",
+              "Version": "1.03.0",
+              "PublicationDate": "2023-08-01T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/Dictionary/IRDI",
+              "Version": "1.01.0",
+              "PublicationDate": "2023-10-27T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/PADIM/",
+              "Version": "1.01.0",
+              "PublicationDate": "2023-10-27T00:00:00Z"
+            },
+            {
+              "ModelUri": "http://opcfoundation.org/UA/Machinery/ProcessValues/",
+              "Version": "1.00.0",
+              "PublicationDate": "2023-05-01T00:00:00Z"
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "DataType": 1,
+        "Variable": 253,
+        "VariableType": 1,
+        "ObjectType": 4,
+        "Object": 23,
+        "Method": 50
+      },
+      "referenceUrl": "https://reference.opcfoundation.org/specs/OPC-40505"
+    }
+  }
+}

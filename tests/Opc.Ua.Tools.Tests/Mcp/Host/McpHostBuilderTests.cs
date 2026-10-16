@@ -375,6 +375,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(composed, Is.EquivalentTo(legacyVision));
         }
 
+        /// <summary>
+        /// Pins complete registration counts without hiding duplicate names or excluding companion tools.
+        /// </summary>
         [TestCase("core", 15)]
         [TestCase("services", 47)]
         [TestCase("administration", 14)]
@@ -382,7 +385,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("diagnostics", 10)]
         [TestCase("robotics", 42)]
         [TestCase("vision", 43)]
-        [TestCase("full", 378)]
+        [TestCase("machinetool", 25)]
+        [TestCase("gms", 10)]
+        [TestCase("craneshoists", 10)]
+        [TestCase("machinetool,gms,craneshoists", 37)]
+        [TestCase("full", 525)]
         public void ExistingProfilesRegisterTheExpectedToolCount(string profile, int expectedCount)
         {
             var toolProfiles = McpToolProfileSet.Parse(profile);
@@ -391,13 +398,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpHostBuilder.ConfigureMcpTools(builder, toolProfiles, diagnosticsToolsEnabled: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var tools = provider
+            string[] tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
-                .Where(name => !IsIndustrialCompanionTool(name))
-                .ToHashSet(StringComparer.Ordinal);
+                .ToArray();
 
-            Assert.That(tools, Has.Count.EqualTo(expectedCount),
+            Assert.That(tools, Is.Unique);
+            Assert.That(tools, Has.Length.EqualTo(expectedCount),
                 $"Profile '{profile}' must publish exactly {expectedCount} tools.");
         }
 
@@ -647,7 +654,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         /// <summary>
-        /// Distinguishes the additive industrial catalog from the compatibility catalog.
+        /// Identifies industrial tools that require a named OPC UA session.
         /// </summary>
         private static bool IsIndustrialCompanionTool(string name)
         {
@@ -657,7 +664,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 name.StartsWith("pumps_", StringComparison.Ordinal) ||
                 name.StartsWith("di_", StringComparison.Ordinal) ||
                 name.StartsWith("isa95_", StringComparison.Ordinal) ||
-                name.StartsWith("positioning_", StringComparison.Ordinal);
+                name.StartsWith("positioning_", StringComparison.Ordinal) ||
+                name.StartsWith("machinetool_", StringComparison.Ordinal) ||
+                name.StartsWith("wmtp_", StringComparison.Ordinal) ||
+                name.StartsWith("gms_", StringComparison.Ordinal) ||
+                name.StartsWith("craneshoists_", StringComparison.Ordinal);
         }
 
         private static HashSet<string> GetToolNames(

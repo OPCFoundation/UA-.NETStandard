@@ -209,6 +209,7 @@ namespace Opc.Ua
             string browseName,
             CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
             int nsIdx = Session.MessageContext.NamespaceUris.GetIndex(namespaceUri);
             if (nsIdx < 0)
             {
@@ -238,14 +239,30 @@ namespace Opc.Ua
             TranslateBrowsePathsToNodeIdsResponse response =
                 await Session.TranslateBrowsePathsToNodeIdsAsync(null, paths, ct)
                     .ConfigureAwait(false);
-            if (response.Results.Count == 0 ||
-                StatusCode.IsBad(response.Results[0].StatusCode) ||
-                response.Results[0].Targets.Count == 0)
+            ClientBase.ValidateResponse(response.Results, paths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, paths);
+            BrowsePathResult result = response.Results[0];
+            if (result.StatusCode == StatusCodes.BadNoMatch || result.StatusCode == StatusCodes.BadNotFound)
             {
                 return NodeId.Null;
             }
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                throw ServiceResultException.Create(
+                    result.StatusCode,
+                    "Could not resolve child '{0}' of object '{1}'.",
+                    browseName,
+                    ObjectId);
+            }
+            if (result.Targets.Count == 0)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "Resolving child '{0}' returned success without a target.",
+                    browseName);
+            }
             return ExpandedNodeId.ToNodeId(
-                response.Results[0].Targets[0].TargetId,
+                result.Targets[0].TargetId,
                 Session.MessageContext.NamespaceUris);
         }
 
@@ -276,6 +293,10 @@ namespace Opc.Ua
                 requests,
                 ct).ConfigureAwait(false);
 
+            if (StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, requests);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, requests);
 

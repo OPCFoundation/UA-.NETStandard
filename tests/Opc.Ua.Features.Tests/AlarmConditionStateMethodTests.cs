@@ -82,6 +82,51 @@ namespace Opc.Ua.Features.Tests
             setter(state);
         }
 
+        /// <summary>
+        /// Both acknowledgement orders use the same standard active/acknowledged retention formula.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ActiveAndAcknowledgedSettersRecalculateRetain(bool acknowledgeBeforeClear)
+        {
+            AlarmConditionState alarm = CreateAlarm();
+            alarm.LatchedState = null;
+            alarm.ConfirmedState = null;
+            alarm.SetActiveState(m_context, true);
+            alarm.SetAcknowledgedState(m_context, false);
+            Assert.That(alarm.Retain!.Value, Is.True);
+            if (acknowledgeBeforeClear)
+            {
+                alarm.SetAcknowledgedState(m_context, true);
+                Assert.That(alarm.Retain.Value, Is.True, "An active alarm remains retained after acknowledgement.");
+            }
+
+            alarm.SetActiveState(m_context, false);
+
+            Assert.That(alarm.Retain.Value, Is.EqualTo(!acknowledgeBeforeClear));
+            alarm.SetAcknowledgedState(m_context, true);
+            Assert.That(alarm.Retain.Value, Is.False);
+        }
+
+        /// <summary>
+        /// Optional confirmation remains an obligation after acknowledgement until the confirm setter completes it.
+        /// </summary>
+        [Test]
+        public void ConfirmedSetterRecalculatesRetainAfterInactiveAcknowledgedState()
+        {
+            AlarmConditionState alarm = CreateAlarm();
+            alarm.LatchedState = null;
+            AddTwoStateChild(alarm, BrowseNames.ConfirmedState, state => alarm.ConfirmedState = state);
+            alarm.SetActiveState(m_context, false);
+            alarm.SetAcknowledgedState(m_context, true);
+            alarm.SetConfirmedState(m_context, false);
+            Assert.That(alarm.Retain!.Value, Is.True);
+
+            alarm.SetConfirmedState(m_context, true);
+
+            Assert.That(alarm.Retain.Value, Is.False);
+        }
+
         [Test]
         public void SetSilenceStateUpdatesValueAndTransitionTime()
         {

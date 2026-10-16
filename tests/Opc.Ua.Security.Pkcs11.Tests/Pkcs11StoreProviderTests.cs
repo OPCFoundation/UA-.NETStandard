@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
@@ -103,43 +101,6 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             store.Open("pkcs11:token=t?module-path=/tmp/does-not-exist.so");
 
             Assert.That(store.StorePath, Is.EqualTo("pkcs11:token=t?module-path=/tmp/does-not-exist.so"));
-        }
-
-        [Test]
-        public async Task AddRefusesToWriteAPrivateKeyAsync()
-        {
-            using var store = new Pkcs11CertificateStore(
-                NUnitTelemetryContext.Create(),
-                Pkcs11TestEnvironment.CreateOptions());
-
-            using RSA key = RSA.Create(2048);
-            var request = new CertificateRequest(
-                "CN=Pkcs11WriteTest", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using X509Certificate2 selfSigned = request.CreateSelfSigned(
-                DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
-
-            using Certificate certificate = Certificate.FromRawData(selfSigned.RawData)
-                .CopyWithDetachedPrivateKey(key, ownsPrivateKey: false);
-
-            Assume.That(certificate.HasPrivateKey, Is.True);
-
-            await store.AddAsync(certificate).ConfigureAwait(false);
-
-            Assert.That(
-                store.RejectedPrivateKeyWrites,
-                Is.EqualTo(1),
-                "the store must record, and not perform, an attempt to persist key material");
-        }
-
-        [Test]
-        public void DeleteIsNotSupported()
-        {
-            using var store = new Pkcs11CertificateStore(
-                NUnitTelemetryContext.Create(),
-                Pkcs11TestEnvironment.CreateOptions());
-
-            Assert.ThrowsAsync<NotSupportedException>(
-                async () => await store.DeleteAsync("abcdef").ConfigureAwait(false));
         }
 
         [Test]

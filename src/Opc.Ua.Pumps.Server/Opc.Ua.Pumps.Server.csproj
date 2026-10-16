@@ -28,6 +28,7 @@
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Pumps\Opc.Ua.Pumps.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
   </ItemGroup>
   <ItemGroup>

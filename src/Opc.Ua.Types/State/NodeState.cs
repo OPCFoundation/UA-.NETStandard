@@ -2922,6 +2922,22 @@ namespace Opc.Ua
         /// <param name="e">The event to report.</param>
         public virtual void ReportEvent(ISystemContext context, IFilterTarget e)
         {
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                ReportEventCore(context, e);
+            }
+        }
+
+        /// <summary>
+        /// Reports one visited node to its sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected void ReportEventCore(ISystemContext context, IFilterTarget e)
+        {
             OnReportEvent?.Invoke(context, this, e);
 
             // Drive an asynchronous report sink too, so a node whose only report sink is
@@ -2988,6 +3004,26 @@ namespace Opc.Ua
             ISystemContext context,
             IFilterTarget e,
             CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            bool entered = TryBeginEventReport(e, out IDisposable scope);
+            using (scope)
+            {
+                if (!entered)
+                {
+                    return;
+                }
+                await ReportEventCoreAsync(context, e, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Awaits one visited node's sinks and inverse notifiers within the current event propagation.
+        /// </summary>
+        protected async ValueTask ReportEventCoreAsync(
+            ISystemContext context,
+            IFilterTarget e,
+            CancellationToken cancellationToken)
         {
             OnReportEvent?.Invoke(context, this, e);
 
@@ -7139,7 +7175,20 @@ namespace Opc.Ua
     /// </summary>
     /// <param name="Result">Operation result.</param>
     public readonly record struct AttributeWriteResult(
-        ServiceResult Result);
+        ServiceResult Result)
+    {
+        /// <summary>
+        /// Gets whether the handler or an external publisher owns updates to the cached value,
+        /// quality, source timestamp and value-change mask after a successful write.
+        /// </summary>
+        /// <remarks>
+        /// The default is false, preserving ordinary write-through behavior. When true, the
+        /// asynchronous write pipeline returns <see cref="Result"/> without updating the cache.
+        /// Access, type, status and timestamp validation still apply. For indexed writes, the
+        /// handler remains responsible for applying the requested range to its authoritative data.
+        /// </remarks>
+        public bool SuppressCacheUpdate { get; init; }
+    }
 
     /// <summary>
     /// Asynchronous sibling of <see cref="NodeValueEventHandler"/> for the

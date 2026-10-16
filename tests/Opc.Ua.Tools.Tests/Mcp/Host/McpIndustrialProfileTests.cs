@@ -95,6 +95,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("full,di,amb")]
         [TestCase("wot,xregistry")]
         [TestCase("wot,wot-documents,xregistry,core")]
+        [TestCase("machinetool,gms,craneshoists")]
+        [TestCase("machinery,machinetool,gds,gms,craneshoists")]
+        [TestCase("full,machinetool,gms,craneshoists")]
         public void IndustrialCompositionsAreExactUnionsWithoutDuplicates(string profiles)
         {
             var set = McpToolProfileSet.Parse(profiles);

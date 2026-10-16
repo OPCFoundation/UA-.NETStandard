@@ -39,6 +39,7 @@ using Opc.Ua;
 using Opc.Ua.AMB;
 using Opc.Ua.AMB.Client;
 using Opc.Ua.Client;
+using AmbClientOptions = AmbSample.Client.AmbClientOptions;
 
 AmbClientOptions options = AmbClientOptions.Parse(args);
 

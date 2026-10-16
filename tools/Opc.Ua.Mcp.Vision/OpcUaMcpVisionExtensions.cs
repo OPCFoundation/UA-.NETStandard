@@ -108,6 +108,9 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Wot:
                 case McpToolProfile.XRegistry:
                 case McpToolProfile.WotDocuments:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
                 case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:

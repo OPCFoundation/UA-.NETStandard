@@ -106,7 +106,7 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(string.Join(",", profiles.Enumerate().Select(profile => (int)profile)))
                 .IsEqualTo("31,32");
             await Assert.That(profiles.Contains(McpToolProfile.Core)).IsFalse();
-            await Assert.That(profiles.Contains((McpToolProfile)33)).IsFalse();
+            await Assert.That(profiles.Contains(McpToolProfile.MachineTool)).IsFalse();
             await Assert.That(host.Tools.Length).IsEqualTo(22);
             await Assert.That(host.Tools.Select(tool => tool.ProtocolTool.Name)
                 .Distinct(StringComparer.Ordinal).Count()).IsEqualTo(22);

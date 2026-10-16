@@ -1297,16 +1297,33 @@ namespace Opc.Ua.Client
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = m_configuredEndpoint;
-            var attempted = new HashSet<ConfiguredEndpoint> { endpoint };
+            ConfiguredEndpoint requiredEndpoint = endpoint;
+            var attempted = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                GetEndpointUrl(endpoint)
+            };
             while (true)
             {
-                ServiceResult result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
-                if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
+                ServiceResultException? mismatch = ReferenceEquals(endpoint, requiredEndpoint)
+                    ? null
+                    : GetSecurityConfigurationMismatch(requiredEndpoint.Description, endpoint.Description);
+                ServiceResult result;
+                if (mismatch != null)
                 {
-                    return result;
+                    m_logger.ManagedSessionConnectFailed(mismatch);
+                    result = new ServiceResult(mismatch);
                 }
+                else
+                {
+                    result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
+                    if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
+                    {
+                        return result;
+                    }
+                }
+
                 ConfiguredEndpoint? alternate = SelectNextNetworkEndpoint(endpoint);
-                if (alternate == null || !attempted.Add(alternate))
+                if (alternate == null || !attempted.Add(GetEndpointUrl(alternate)))
                 {
                     return result;
                 }
@@ -1717,7 +1734,7 @@ namespace Opc.Ua.Client
                         }
                         else
                         {
-                            await ReactivateNetworkEndpointAsync(session, alternateEndpoint, budget, ct)
+                            await ReactivateNextNetworkEndpointAsync(session, budget, sre, ct)
                                 .ConfigureAwait(false);
                         }
                     }
@@ -1754,11 +1771,8 @@ namespace Opc.Ua.Client
                             throw;
                         }
 
-                        await ReactivateNetworkEndpointAsync(
-                            session,
-                            alternateEndpoint,
-                            budget,
-                            ct).ConfigureAwait(false);
+                        await ReactivateNextNetworkEndpointAsync(session, budget, sre, ct)
+                            .ConfigureAwait(false);
                     }
                 }
 
@@ -1802,6 +1816,89 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint currentEndpoint)
         {
             return m_networkEndpointSelector?.SelectNext(currentEndpoint);
+        }
+
+        private async Task ReactivateNextNetworkEndpointAsync(
+            Session session,
+            IRetryBudget budget,
+            ServiceResultException originalFailure,
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint currentEndpoint = session.ConfiguredEndpoint;
+            var attempted = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                GetEndpointUrl(currentEndpoint)
+            };
+            ServiceResultException? securityConfigurationMismatch = null;
+            ServiceResultException? lastConnectivityFailure = null;
+            while (true)
+            {
+                ConfiguredEndpoint? candidate = SelectNextNetworkEndpoint(currentEndpoint);
+                if (candidate == null || !attempted.Add(GetEndpointUrl(candidate)))
+                {
+                    break;
+                }
+                currentEndpoint = candidate;
+                ServiceResultException? mismatch = GetSecurityConfigurationMismatch(
+                    session.ConfiguredEndpoint.Description,
+                    candidate.Description);
+                if (mismatch != null)
+                {
+                    securityConfigurationMismatch ??= mismatch;
+                    continue;
+                }
+
+                try
+                {
+                    await ReactivateNetworkEndpointAsync(session, candidate, budget, ct)
+                        .ConfigureAwait(false);
+                    return;
+                }
+                catch (ServiceResultException exception) when (IsConnectivityFailure(exception.StatusCode))
+                {
+                    lastConnectivityFailure = exception;
+                }
+            }
+
+            throw lastConnectivityFailure ?? securityConfigurationMismatch ?? originalFailure;
+        }
+
+        private static string GetEndpointUrl(ConfiguredEndpoint endpoint)
+        {
+            return endpoint.Description.EndpointUrl ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Creates an error when a candidate endpoint changes an explicitly
+        /// configured mode or policy.
+        /// </summary>
+        private static ServiceResultException? GetSecurityConfigurationMismatch(
+            EndpointDescription required,
+            EndpointDescription candidate)
+        {
+            if (required.SecurityMode != MessageSecurityMode.Invalid &&
+                required.SecurityMode != candidate.SecurityMode)
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeRejected,
+                    "The endpoint security mode '{0}' does not match the required mode '{1}'.",
+                    candidate.SecurityMode,
+                    required.SecurityMode);
+            }
+
+            if (!string.IsNullOrEmpty(required.SecurityPolicyUri) &&
+                !string.Equals(
+                    required.SecurityPolicyUri,
+                    candidate.SecurityPolicyUri,
+                    StringComparison.Ordinal))
+            {
+                return ServiceResultException.Create(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    $"The endpoint security policy '{candidate.SecurityPolicyUri}' does not match the required policy " +
+                    $"'{required.SecurityPolicyUri}'.");
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -2207,6 +2304,18 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            if (endpoint != null)
+            {
+                ServiceResultException? securityConfigurationMismatch =
+                    GetSecurityConfigurationMismatch(
+                        session.ConfiguredEndpoint.Description,
+                        endpoint.Description);
+                if (securityConfigurationMismatch != null)
+                {
+                    throw securityConfigurationMismatch;
+                }
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
@@ -2227,6 +2336,15 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            ServiceResultException? securityConfigurationMismatch =
+                GetSecurityConfigurationMismatch(
+                    session.ConfiguredEndpoint.Description,
+                    endpoint.Description);
+            if (securityConfigurationMismatch != null)
+            {
+                throw securityConfigurationMismatch;
+            }
+
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
