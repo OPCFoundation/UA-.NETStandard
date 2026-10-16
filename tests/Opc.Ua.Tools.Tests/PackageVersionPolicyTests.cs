@@ -382,7 +382,8 @@ namespace Opc.Ua.Tools.Tests
                     Assert.That(
                         result.GetProperty("coreDev").GetString(),
                         Is.EqualTo("2.0.0-preview.9"),
-                        "An unaffected package with a preview base version also reuses it unchanged (everyone shares the root version while it is prerelease).");
+                        "An unaffected package with a preview base version also reuses it unchanged " +
+                        "(everyone shares the root version while it is prerelease).");
                 });
         }
 
