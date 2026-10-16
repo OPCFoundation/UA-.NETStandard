@@ -207,10 +207,10 @@ namespace Opc.Ua.Server
             catch
             {
                 // The subscription is not returned, so release its monitored items
-                // and diagnostics here.
+                // and diagnostics here; the stored item queues are kept for a retry.
                 try
                 {
-                    await subscription.DeleteAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    await subscription.ReleaseAbortedRestoreAsync().ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -687,7 +687,23 @@ namespace Opc.Ua.Server
         /// Once deletion starts, monitored-item cleanup is not cancelled. Diagnostics
         /// teardown follows that cleanup so cancellation or shutdown cannot leave items registered.
         /// </remarks>
-        public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
+        public ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
+        {
+            return DeleteCoreAsync(context, keepStoredQueues: false);
+        }
+
+        /// <summary>
+        /// Releases a subscription whose restore was aborted. Its monitored items are
+        /// removed from the node managers and disposed and its diagnostics are deleted
+        /// as by <see cref="DeleteAsync"/>, but the stored contents of the item queues
+        /// are kept, because a retry of the restore needs them.
+        /// </summary>
+        internal ValueTask ReleaseAbortedRestoreAsync()
+        {
+            return DeleteCoreAsync(null, keepStoredQueues: true);
+        }
+
+        private async ValueTask DeleteCoreAsync(OperationContext? context, bool keepStoredQueues)
         {
             // Mark the subscription deleted first so any concurrent service call that reaches a
             // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
@@ -708,6 +724,14 @@ namespace Opc.Ua.Server
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                     ClearReadyCandidates();
+                }
+
+                if (keepStoredQueues)
+                {
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        (monitoredItem as MonitoredItem)?.DetachQueuesFromStorage();
+                    }
                 }
 
                 if (monitoredItems.Count > 0)

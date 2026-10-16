@@ -40,7 +40,7 @@ namespace Opc.Ua.Redundancy.Server
     /// <see cref="SharedKeyValueMonitoredItemQueueFactory"/>, which coalesces and persists it on a non-blocking
     /// background drain. Mirroring is suspended while the queue is being repopulated during restore.
     /// </remarks>
-    internal sealed class MirroringDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
+    internal sealed class MirroringDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue, IStorageBackedMonitoredItemQueue
     {
         /// <summary>
         /// Creates a mirroring data-change queue.
@@ -90,9 +90,15 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
+        public void DetachFromStorage()
+        {
+            m_detached = true;
+        }
+
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && !m_detached)
             {
                 m_sink.RemoveQueue(MonitoredItemId);
             }
@@ -155,7 +161,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void Mirror()
         {
-            if (m_mirroring)
+            if (m_mirroring && !m_detached)
             {
                 m_sink.MirrorDataChangeQueue(MonitoredItemId, CaptureSnapshot());
             }
@@ -163,5 +169,6 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly IMirroredQueueSink m_sink;
         private volatile bool m_mirroring = true;
+        private volatile bool m_detached;
     }
 }

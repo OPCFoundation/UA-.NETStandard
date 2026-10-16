@@ -36,7 +36,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Redundancy;
+using Opc.Ua.Redundancy.Server;
 using Opc.Ua.Server.Tests.NodeManager;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -286,6 +289,217 @@ namespace Opc.Ua.Server.Tests
             AssertBothRestored(fixture, 42u, 43u);
         }
 
+        [Test]
+        public async Task RetryWithTheSameStoredObjectsRestoresTheirMonitoredItemsAsync()
+        {
+            // The store returns the same objects to every restore, and 43 fails after
+            // its event item was recreated.
+            var stored = new RestoreSubscriptionResult(
+                true,
+                [
+                    CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 1)),
+                    CreateStored(43, CreateStoredEventItem(1003, 43))
+                ]);
+            var source = new EventSourceNodeManager { FailRestoreOf = 1003 };
+            using var fixture = new Fixture(
+                store => store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(stored),
+                nodeManager: source.Object);
+
+            Assert.ThrowsAsync<AggregateException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+            AssertNothingRestored(fixture);
+            Assert.That(
+                stored.Subscriptions!.SelectMany(subscription => subscription.MonitoredItems)
+                    .Select(item => item.IsRestored),
+                Is.All.False,
+                "the stored objects are returned to the store as it provided them");
+
+            source.FailRestoreOf = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 42, 1002);
+            AssertMonitoredItems(fixture, 43, 1003);
+        }
+
+        [Test]
+        public async Task FailedRestoreKeepsTheMirroredQueuesOfTheRecreatedSubscriptionsAsync()
+        {
+            using var queues = new MirroredQueues();
+            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            using var fixture = new Fixture(
+                store =>
+                {
+                    store
+                        .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(() => new RestoreSubscriptionResult(
+                            true,
+                            [CreateStored(41), CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 10))]));
+                    queues.Serve(store);
+                },
+                failingSubscriptionId: 41);
+
+            Assert.ThrowsAsync<AggregateException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
+            AssertNothingRestored(fixture);
+
+            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+
+            fixture.Manager.FailingSubscriptionId = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 42, 1002);
+        }
+
+        [Test]
+        public async Task RestoreCancelledDuringItemRestorationKeepsTheMirroredQueuesAsync()
+        {
+            using var queues = new MirroredQueues();
+            await queues.PopulateDataChangeQueueAsync(1002).ConfigureAwait(false);
+            await queues.PopulateEventQueueAsync(1003).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            var source = new EventSourceNodeManager
+            {
+                FailRestoreOf = 1003,
+                RestoreFailure = () =>
+                {
+                    cancellation.Cancel();
+                    return new OperationCanceledException(cancellation.Token);
+                }
+            };
+            using var fixture = new Fixture(
+                store =>
+                {
+                    store
+                        .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(() => new RestoreSubscriptionResult(
+                            true,
+                            [
+                                CreateStored(42, CreateStoredDataItem(1002, 42, queueSize: 10)),
+                                CreateStored(43, CreateStoredEventItem(1003, 43))
+                            ]));
+                    queues.Serve(store);
+                },
+                nodeManager: source.Object);
+
+            // 43's event item is recreated, then the restore of its other items is cancelled.
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
+                    .ConfigureAwait(false));
+            AssertNothingRestored(fixture);
+            Assert.That(fixture.Events.GetMonitoredItems(), Is.Empty);
+
+            await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
+            await queues.AssertEventQueueKeptAsync(1003).ConfigureAwait(false);
+
+            source.FailRestoreOf = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 42, 1002);
+            AssertMonitoredItems(fixture, 43, 1003);
+        }
+
+        [Test]
+        public async Task RestoreCancelledWhileSubscribingAnEventItemReleasesItAsync()
+        {
+            using var cancellation = new CancellationTokenSource();
+            var source = new EventSourceNodeManager
+            {
+                FailSubscribeOf = 1003,
+                SubscribeFailure = () =>
+                {
+                    cancellation.Cancel();
+                    return new OperationCanceledException(cancellation.Token);
+                }
+            };
+            using var fixture = new Fixture(
+                store => store
+                    .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(() => new RestoreSubscriptionResult(
+                        true,
+                        [CreateStored(42), CreateStored(43, CreateStoredEventItem(1003, 43))])),
+                nodeManager: source.Object);
+
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
+                    .ConfigureAwait(false));
+            AssertNothingRestored(fixture);
+            Assert.That(
+                fixture.Events.GetMonitoredItems(),
+                Is.Empty,
+                "the event item registered before the cancellation is released");
+
+            source.FailSubscribeOf = 0;
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 43, 1003);
+            Assert.That(fixture.Events.GetMonitoredItems(), Has.Count.EqualTo(1));
+        }
+
+        private static void AssertMonitoredItems(Fixture fixture, uint subscriptionId, params uint[] monitoredItemIds)
+        {
+            Assert.That(fixture.Manager.TryGetSubscription(subscriptionId, out ISubscription? subscription), Is.True);
+            subscription!.GetMonitoredItems(out ArrayOf<uint> ids, out _);
+            Assert.That(ids.ToArray(), Is.EquivalentTo(monitoredItemIds));
+        }
+
+        private static StoredMonitoredItem CreateStoredDataItem(uint id, uint subscriptionId, uint queueSize)
+        {
+            // No node manager owns the node, so the item is restored detached.
+            return new StoredMonitoredItem
+            {
+                Id = id,
+                SubscriptionId = subscriptionId,
+                TypeMask = MonitoredItemTypeMask.DataChange,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = new NodeId(id),
+                AttributeId = Attributes.Value,
+                QueueSize = queueSize,
+                DiscardOldest = true,
+                SamplingInterval = 1000,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                FilterToUse = new MonitoringFilter(),
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                LastValue = new DataValue(new Variant(0))
+            };
+        }
+
+        private static StoredMonitoredItem CreateStoredEventItem(uint id, uint subscriptionId)
+        {
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        AttributeId = Attributes.Value,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventId)]
+                    }
+                ]
+            };
+            return new StoredMonitoredItem
+            {
+                Id = id,
+                SubscriptionId = subscriptionId,
+                TypeMask = MonitoredItemTypeMask.Events,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = EventSourceNodeManager.SourceId,
+                AttributeId = Attributes.EventNotifier,
+                QueueSize = 10,
+                DiscardOldest = true,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.None,
+                OriginalFilter = filter,
+                FilterToUse = filter,
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null
+            };
+        }
+
         private static void AssertNothingRestored(Fixture fixture)
         {
             Assert.Multiple(() =>
@@ -331,7 +545,7 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
-        internal static StoredSubscription CreateStored(uint id)
+        internal static StoredSubscription CreateStored(uint id, params StoredMonitoredItem[] monitoredItems)
         {
             return new StoredSubscription
             {
@@ -344,7 +558,7 @@ namespace Opc.Ua.Server.Tests
                 SequenceNumber = 1,
                 UserIdentityToken = new AnonymousIdentityToken(),
                 SentMessages = [],
-                MonitoredItems = []
+                MonitoredItems = monitoredItems
             };
         }
 
@@ -352,7 +566,8 @@ namespace Opc.Ua.Server.Tests
         {
             public Fixture(
                 Action<Mock<ISubscriptionStore>> setupStore,
-                uint failingSubscriptionId = 0)
+                uint failingSubscriptionId = 0,
+                IAsyncNodeManager? nodeManager = null)
             {
                 var clock = new FakeTimeProvider();
                 Mock<IServerInternal> server = DeterministicServerMock.Create(
@@ -402,8 +617,15 @@ namespace Opc.Ua.Server.Tests
                         MaxDurableSubscriptionLifetimeInHours = 24
                     }
                 };
-                m_master = new MasterNodeManager(server.Object, configuration, null, [], null);
+                m_master = new MasterNodeManager(
+                    server.Object,
+                    configuration,
+                    null,
+                    nodeManager == null ? [] : [nodeManager],
+                    null);
                 server.SetupGet(value => value.NodeManager).Returns(m_master);
+                Events = new EventManager(server.Object, 100, 100);
+                server.SetupGet(value => value.EventManager).Returns(Events);
                 Manager = new FailingSubscriptionManager(
                     server.Object,
                     configuration,
@@ -417,6 +639,8 @@ namespace Opc.Ua.Server.Tests
 
             public ServerDiagnosticsSummaryDataType ServerDiagnostics { get; }
 
+            public EventManager Events { get; }
+
             public FailingSubscriptionManager Manager { get; }
 
             public RecordingLogger Logs { get; }
@@ -424,6 +648,7 @@ namespace Opc.Ua.Server.Tests
             public void Dispose()
             {
                 Manager.Dispose();
+                Events.Dispose();
                 m_master.Dispose();
                 m_queueFactory.Dispose();
             }
@@ -457,6 +682,162 @@ namespace Opc.Ua.Server.Tests
 
                 return base.RestoreSubscriptionAsync(storedSubscription, cancellationToken);
             }
+        }
+
+        /// <summary>
+        /// Node manager that owns an event source and can fail the subscription to
+        /// it or the restore of the items it owns.
+        /// </summary>
+        private sealed class EventSourceNodeManager
+        {
+            public static NodeId SourceId { get; } = new NodeId("RestoreSource", 1);
+
+            public EventSourceNodeManager()
+            {
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = SourceId,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                m_mock = new Mock<IAsyncNodeManager>();
+                m_mock.SetupGet(value => value.NamespaceUris).Returns([DeterministicServerMock.TestNamespaceUri]);
+                m_mock.Setup(value => value.GetManagerHandleAsync(SourceId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<object>(source));
+                m_mock
+                    .Setup(value => value.SubscribeToEventsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<object>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<IEventMonitoredItem>(),
+                        It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((
+                        OperationContext _,
+                        object _,
+                        uint _,
+                        IEventMonitoredItem monitoredItem,
+                        bool unsubscribe,
+                        CancellationToken _) =>
+                        !unsubscribe && monitoredItem.Id == FailSubscribeOf
+                            ? throw SubscribeFailure()
+                            : new ValueTask<ServiceResult>(ServiceResult.Good));
+                m_mock
+                    .Setup(value => value.RestoreMonitoredItemsAsync(
+                        It.IsAny<IList<IStoredMonitoredItem>>(),
+                        It.IsAny<IList<IMonitoredItem>>(),
+                        It.IsAny<IUserIdentity>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((
+                        IList<IStoredMonitoredItem> itemsToRestore,
+                        IList<IMonitoredItem> _,
+                        IUserIdentity _,
+                        CancellationToken _) =>
+                        itemsToRestore.Any(item => item.Id == FailRestoreOf)
+                            ? throw RestoreFailure()
+                            : default);
+            }
+
+            public IAsyncNodeManager Object => m_mock.Object;
+
+            public uint FailSubscribeOf { get; set; }
+
+            public Func<Exception> SubscribeFailure { get; set; } =
+                () => new InvalidOperationException("subscribe failed");
+
+            public uint FailRestoreOf { get; set; }
+
+            public Func<Exception> RestoreFailure { get; set; } =
+                () => new InvalidOperationException("restore failed");
+
+            private readonly Mock<IAsyncNodeManager> m_mock;
+        }
+
+        /// <summary>
+        /// Monitored item queues mirrored to a shared key/value store, served to the
+        /// restore by the subscription store.
+        /// </summary>
+        private sealed class MirroredQueues : IDisposable
+        {
+            public MirroredQueues()
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                m_store = new InMemorySharedKeyValueStore();
+                m_factory = new SharedKeyValueMonitoredItemQueueFactory(
+                    m_store,
+                    ServiceMessageContext.Create(telemetry),
+                    telemetry: telemetry);
+            }
+
+            public async Task PopulateDataChangeQueueAsync(uint monitoredItemId)
+            {
+                IDataChangeMonitoredItemQueue queue = m_factory.CreateDataChangeQueue(false, monitoredItemId);
+                queue.ResetQueue(10, false);
+                queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+                queue.Enqueue(new DataValue(new Variant(2)), ServiceResult.Good);
+                await m_factory.FlushAsync().ConfigureAwait(false);
+            }
+
+            public async Task PopulateEventQueueAsync(uint monitoredItemId)
+            {
+                IEventMonitoredItemQueue queue = m_factory.CreateEventQueue(false, monitoredItemId);
+                queue.SetQueueSize(10, false);
+                queue.Enqueue(new EventFieldList { ClientHandle = 7 });
+                await m_factory.FlushAsync().ConfigureAwait(false);
+            }
+
+            public void Serve(Mock<ISubscriptionStore> store)
+            {
+                store
+                    .Setup(value => value.RestoreDataChangeMonitoredItemQueueAsync(
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((uint monitoredItemId, CancellationToken cancellationToken) =>
+                        m_factory.RestoreDataChangeQueueAsync(monitoredItemId, cancellationToken));
+                store
+                    .Setup(value => value.RestoreEventMonitoredItemQueueAsync(
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((uint monitoredItemId, CancellationToken cancellationToken) =>
+                        m_factory.RestoreEventQueueAsync(monitoredItemId, cancellationToken));
+            }
+
+            public async Task AssertDataChangeQueueKeptAsync(uint monitoredItemId)
+            {
+                await m_factory.FlushAsync().ConfigureAwait(false);
+                IDataChangeMonitoredItemQueue? queue = await m_factory
+                    .RestoreDataChangeQueueAsync(monitoredItemId)
+                    .ConfigureAwait(false);
+                Assert.That(queue, Is.Not.Null, "the mirrored data change queue survives the aborted restore");
+                ((IStorageBackedMonitoredItemQueue)queue!).DetachFromStorage();
+
+                // The detached item the restore created also queued a Bad_NodeIdUnknown
+                // status after the stored values.
+                Assert.That(queue.Dequeue(out DataValue first, out _), Is.True);
+                Assert.That(queue.Dequeue(out DataValue second, out _), Is.True);
+                Assert.That(first.WrappedValue, Is.EqualTo(new Variant(1)));
+                Assert.That(second.WrappedValue, Is.EqualTo(new Variant(2)));
+            }
+
+            public async Task AssertEventQueueKeptAsync(uint monitoredItemId)
+            {
+                await m_factory.FlushAsync().ConfigureAwait(false);
+                IEventMonitoredItemQueue? queue = await m_factory
+                    .RestoreEventQueueAsync(monitoredItemId)
+                    .ConfigureAwait(false);
+                Assert.That(queue, Is.Not.Null, "the mirrored event queue survives the aborted restore");
+                ((IStorageBackedMonitoredItemQueue)queue!).DetachFromStorage();
+                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
+                Assert.That(fields.ClientHandle, Is.EqualTo(7u));
+            }
+
+            public void Dispose()
+            {
+                m_factory.Dispose();
+                m_store.Dispose();
+            }
+
+            private readonly InMemorySharedKeyValueStore m_store;
+            private readonly SharedKeyValueMonitoredItemQueueFactory m_factory;
         }
 
         private sealed class RecordingLogger : ILogger

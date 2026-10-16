@@ -2797,6 +2797,22 @@ namespace Opc.Ua.Server
             eventQueueHandler?.Dispose();
         }
 
+        /// <summary>
+        /// Keeps the stored contents of the queues of the item when they are
+        /// disposed. Used when an aborted restore releases the item: the stored
+        /// contents are needed when the restore is retried.
+        /// </summary>
+        internal void DetachQueuesFromStorage()
+        {
+            lock (m_lock)
+            {
+                m_dataChangeQueueHandler?.DetachQueueFromStorage();
+                m_eventQueueHandler?.DetachQueueFromStorage();
+                (m_restoredDataChangeQueue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
+                (m_restoredEventQueue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
+            }
+        }
+
         private readonly Lock m_lock = new();
 
         /// <summary>

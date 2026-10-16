@@ -487,8 +487,13 @@ namespace Opc.Ua.Server
                     "The subscription store reported that the durable subscriptions could not be restored.");
             }
 
-            if (restoreResult.Subscriptions == null ||
-                !restoreResult.Subscriptions.Any())
+            if (restoreResult.Subscriptions == null)
+            {
+                return;
+            }
+
+            List<IStoredSubscription> storedSubscriptions = [.. restoreResult.Subscriptions];
+            if (storedSubscriptions.Count == 0)
             {
                 return;
             }
@@ -497,10 +502,11 @@ namespace Opc.Ua.Server
             var restoredSubscriptions = new List<ISubscription>();
             List<Exception>? failures = null;
             uint lastSubscriptionId = m_lastSubscriptionId;
+            var storedState = StoredRestoreState.Capture(storedSubscriptions);
 
             try
             {
-                foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
+                foreach (IStoredSubscription storedSubscription in storedSubscriptions)
                 {
                     ISubscription subscription;
 
@@ -521,7 +527,7 @@ namespace Opc.Ua.Server
                     createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
                 }
 
-                m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
+                m_lastSubscriptionId = storedSubscriptions.Max(s => s.Id);
 
                 if (failures != null)
                 {
@@ -540,17 +546,20 @@ namespace Opc.Ua.Server
             }
             catch
             {
-                // A failed or cancelled restore leaves the manager as it was, so that
-                // it can be retried; the store still holds what it returned.
+                // A failed or cancelled restore leaves the manager, and the stored
+                // objects the store returned, as they were, so that it can be retried;
+                // the store still holds what it returned.
                 m_lastSubscriptionId = lastSubscriptionId;
                 await RollBackRestoredSubscriptionsAsync(restoredSubscriptions).ConfigureAwait(false);
+                storedState.Revert(m_logger);
                 throw;
             }
         }
 
         /// <summary>
         /// Deletes the subscriptions that a failed restore recreated, with their
-        /// monitored items and diagnostics, without storing them.
+        /// monitored items and diagnostics, without storing them. The stored
+        /// contents of their monitored item queues are kept for a retry.
         /// </summary>
         private async ValueTask RollBackRestoredSubscriptionsAsync(List<ISubscription> restoredSubscriptions)
         {
@@ -562,7 +571,26 @@ namespace Opc.Ua.Server
 
                 RaiseSubscriptionEvent(subscription, true);
 
-                await DiscardRejectedSubscriptionAsync(null!, subscription).ConfigureAwait(false);
+                try
+                {
+                    if (subscription is Subscription restored)
+                    {
+                        await restored.ReleaseAbortedRestoreAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // Other implementations have no restore-abort release.
+                        await subscription.DeleteAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+                catch (Exception e)
+                {
+                    m_logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                }
 
                 uint publishingIntervalCount = GetPublishingIntervalCount();
 
@@ -1181,7 +1209,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases a created subscription that is not, or no longer, registered with the manager.
+        /// Releases a created subscription that was never registered with the manager.
         /// </summary>
         private async ValueTask DiscardRejectedSubscriptionAsync(
             OperationContext context,
@@ -3189,6 +3217,144 @@ namespace Opc.Ua.Server
             public NotificationMessage? Message;
         }
 
+        /// <summary>
+        /// The fields of the stored subscriptions and monitored items that a restore
+        /// writes, captured before the restore so that an aborted restore returns the
+        /// stored objects to the store as it provided them. A store may return the
+        /// same objects to the retry, and the node managers skip an item that is
+        /// marked restored.
+        /// </summary>
+        /// <remarks>
+        /// Reverting the fields keeps the store contract unchanged: the restore does
+        /// not need to copy objects whose concrete types and optional interfaces only
+        /// the store knows.
+        /// </remarks>
+        private sealed class StoredRestoreState
+        {
+            private StoredRestoreState(
+                List<StoredSubscriptionFields> subscriptions,
+                List<StoredMonitoredItemFields> monitoredItems)
+            {
+                m_subscriptions = subscriptions;
+                m_monitoredItems = monitoredItems;
+            }
+
+            public static StoredRestoreState Capture(List<IStoredSubscription> storedSubscriptions)
+            {
+                var subscriptions = new List<StoredSubscriptionFields>(storedSubscriptions.Count);
+                var monitoredItems = new List<StoredMonitoredItemFields>();
+                foreach (IStoredSubscription storedSubscription in storedSubscriptions)
+                {
+                    subscriptions.Add(new StoredSubscriptionFields(storedSubscription));
+                    if (storedSubscription.MonitoredItems == null)
+                    {
+                        continue;
+                    }
+                    foreach (IStoredMonitoredItem storedMonitoredItem in storedSubscription.MonitoredItems)
+                    {
+                        monitoredItems.Add(new StoredMonitoredItemFields(storedMonitoredItem));
+                    }
+                }
+                return new StoredRestoreState(subscriptions, monitoredItems);
+            }
+
+            /// <summary>
+            /// Restores the captured fields. Queues the aborted restore read from the
+            /// store and left on the stored items are released without removing their
+            /// stored contents.
+            /// </summary>
+            public void Revert(ILogger logger)
+            {
+                foreach (StoredSubscriptionFields subscription in m_subscriptions)
+                {
+                    subscription.Revert();
+                }
+                foreach (StoredMonitoredItemFields monitoredItem in m_monitoredItems)
+                {
+                    monitoredItem.Revert(logger);
+                }
+            }
+
+            private readonly List<StoredSubscriptionFields> m_subscriptions;
+            private readonly List<StoredMonitoredItemFields> m_monitoredItems;
+        }
+
+        private sealed class StoredSubscriptionFields
+        {
+            public StoredSubscriptionFields(IStoredSubscription storedSubscription)
+            {
+                m_storedSubscription = storedSubscription;
+                m_publishingInterval = storedSubscription.PublishingInterval;
+                m_maxKeepaliveCount = storedSubscription.MaxKeepaliveCount;
+                m_maxLifetimeCount = storedSubscription.MaxLifetimeCount;
+                m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
+            }
+
+            public void Revert()
+            {
+                m_storedSubscription.PublishingInterval = m_publishingInterval;
+                m_storedSubscription.MaxKeepaliveCount = m_maxKeepaliveCount;
+                m_storedSubscription.MaxLifetimeCount = m_maxLifetimeCount;
+                m_storedSubscription.MaxNotificationsPerPublish = m_maxNotificationsPerPublish;
+            }
+
+            private readonly IStoredSubscription m_storedSubscription;
+            private readonly double m_publishingInterval;
+            private readonly uint m_maxKeepaliveCount;
+            private readonly uint m_maxLifetimeCount;
+            private readonly uint m_maxNotificationsPerPublish;
+        }
+
+        private sealed class StoredMonitoredItemFields
+        {
+            public StoredMonitoredItemFields(IStoredMonitoredItem storedMonitoredItem)
+            {
+                m_storedMonitoredItem = storedMonitoredItem;
+                m_isRestored = storedMonitoredItem.IsRestored;
+                m_queueSize = storedMonitoredItem.QueueSize;
+                m_restoredDataChangeQueue = storedMonitoredItem.RestoredDataChangeQueue;
+                m_restoredEventQueue = storedMonitoredItem.RestoredEventQueue;
+            }
+
+            public void Revert(ILogger logger)
+            {
+                IDataChangeMonitoredItemQueue? dataChangeQueue = m_storedMonitoredItem.RestoredDataChangeQueue;
+                if (dataChangeQueue != null && !ReferenceEquals(dataChangeQueue, m_restoredDataChangeQueue))
+                {
+                    ReleaseQueue(dataChangeQueue, m_storedMonitoredItem.Id, logger);
+                }
+                IEventMonitoredItemQueue? eventQueue = m_storedMonitoredItem.RestoredEventQueue;
+                if (eventQueue != null && !ReferenceEquals(eventQueue, m_restoredEventQueue))
+                {
+                    ReleaseQueue(eventQueue, m_storedMonitoredItem.Id, logger);
+                }
+
+                m_storedMonitoredItem.IsRestored = m_isRestored;
+                m_storedMonitoredItem.QueueSize = m_queueSize;
+                m_storedMonitoredItem.RestoredDataChangeQueue = m_restoredDataChangeQueue;
+                m_storedMonitoredItem.RestoredEventQueue = m_restoredEventQueue;
+            }
+
+            private static void ReleaseQueue(IDisposable queue, uint monitoredItemId, ILogger logger)
+            {
+                try
+                {
+                    (queue as IStorageBackedMonitoredItemQueue)?.DetachFromStorage();
+                    queue.Dispose();
+                }
+                catch (Exception e)
+                {
+                    logger.ReleasingQueueOfAbortedRestoreFailed(e, monitoredItemId);
+                }
+            }
+
+            private readonly IStoredMonitoredItem m_storedMonitoredItem;
+            private readonly bool m_isRestored;
+            private readonly uint m_queueSize;
+            private readonly IDataChangeMonitoredItemQueue? m_restoredDataChangeQueue;
+            private readonly IEventMonitoredItemQueue? m_restoredEventQueue;
+        }
+
         private ConditionRefreshTask? m_runningConditionRefresh;
 
         /// <summary>
@@ -3549,5 +3715,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             int failedCount,
             int storedCount);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 33, Level = LogLevel.Warning,
+            Message = "Releasing the queue of monitored item {MonitoredItemId} after an aborted restore failed")]
+        public static partial void ReleasingQueueOfAbortedRestoreFailed(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId);
     }
 }
