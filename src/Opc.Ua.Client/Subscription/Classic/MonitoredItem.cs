@@ -140,26 +140,44 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public virtual void Restore(MonitoredItemState state)
         {
-            State = state;
-            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, state.ClientId);
-            ClientHandle = state.ClientId;
-            ServerId = state.ServerId;
-            TriggeringItemId = state.TriggeringItemId;
-            TriggeredItems = state.TriggeredItems;
-            CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
+            if (state == null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+            lock (m_cache)
+            {
+                if (Status.Creating)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "Cannot restore an item while creation is in progress.");
+                }
+                State = state;
+                Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, state.ClientId);
+                ClientHandle = state.ClientId;
+                ServerId = state.ServerId;
+                ResolvedNodeId = state.ResolvedNodeId;
+                Status.RestoreTarget(ResolvedNodeId);
+                TriggeringItemId = state.TriggeringItemId;
+                TriggeredItems = state.TriggeredItems;
+                CacheQueueSize = state.CacheQueueSize < 1 ? 1 : state.CacheQueueSize;
+            }
         }
 
         /// <inheritdoc/>
         public virtual void Snapshot(out MonitoredItemState state)
         {
-            state = new MonitoredItemState(State)
+            lock (m_cache)
             {
-                ServerId = Status.Id,
-                ClientId = ClientHandle,
-                TriggeringItemId = TriggeringItemId,
-                TriggeredItems = TriggeredItems,
-                CacheQueueSize = CacheQueueSize
-            };
+                state = new MonitoredItemState(State)
+                {
+                    ServerId = Status.Id,
+                    ClientId = ClientHandle,
+                    TriggeringItemId = TriggeringItemId,
+                    TriggeredItems = TriggeredItems,
+                    CacheQueueSize = CacheQueueSize,
+                    ResolvedNodeId = Created ? Status.NodeId : ResolvedNodeId
+                };
+            }
         }
 
         /// <summary>
@@ -179,25 +197,48 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The start node id
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// A different target is assigned after creation has started.
+        /// </exception>
         public NodeId StartNodeId
         {
             get => State.StartNodeId;
-            set => State = State with { StartNodeId = value };
+            set
+            {
+                lock (m_cache)
+                {
+                    if (value == State.StartNodeId)
+                    {
+                        return;
+                    }
+                    VerifyTargetCanChange();
+                    ResolvedNodeId = NodeId.Null;
+                    State = State with { StartNodeId = value };
+                }
+            }
         }
 
         /// <summary>
         /// The relative path
         /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// A different path is assigned after creation has started.
+        /// </exception>
         public string? RelativePath
         {
             get => State.RelativePath;
             set
             {
-                if (value != State.RelativePath)
+                lock (m_cache)
                 {
+                    if (value == State.RelativePath)
+                    {
+                        return;
+                    }
+                    VerifyTargetCanChange();
                     ResolvedNodeId = NodeId.Null;
+                    State = State with { RelativePath = value };
                 }
-                State = State with { RelativePath = value };
             }
         }
 
@@ -347,7 +388,22 @@ namespace Opc.Ua.Client
         public uint ServerId
         {
             get => Status.Id;
-            set => Status.Id = value;
+            set
+            {
+                lock (m_cache)
+                {
+                    if (Status.Id != value)
+                    {
+                        m_targetRevision++;
+                        if (value == 0)
+                        {
+                            ResolvedNodeId = NodeId.Null;
+                            Status.RestoreTarget(NodeId.Null);
+                        }
+                        Status.Id = value;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -384,18 +440,32 @@ namespace Opc.Ua.Client
         /// <summary>
         /// The node id to monitor after applying any relative path.
         /// </summary>
+        /// <remarks>
+        /// May be null for an existing relative-path item restored from a legacy
+        /// snapshot without resolved metadata. Adoption and maintenance use its handles.
+        /// </remarks>
         public NodeId ResolvedNodeId
         {
             get
             {
-                // just return the start id if relative path is empty.
-                if (string.IsNullOrEmpty(State.RelativePath))
+                lock (m_cache)
                 {
-                    return StartNodeId;
+                    // just return the start id if relative path is empty.
+                    if (string.IsNullOrEmpty(State.RelativePath))
+                    {
+                        return StartNodeId;
+                    }
+                    return field;
                 }
-                return field;
             }
-            internal set;
+            internal set
+            {
+                lock (m_cache)
+                {
+                    field = value;
+                    m_targetRevision++;
+                }
+            }
         } = NodeId.Null;
 
         /// <summary>
@@ -665,30 +735,82 @@ namespace Opc.Ua.Client
             ArrayOf<DiagnosticInfo> diagnosticInfos,
             ResponseHeader responseHeader)
         {
-            ServiceResult? error = null;
-
-            if (StatusCode.IsBad(result.StatusCode))
+            lock (m_cache)
             {
-                error = ClientBase.GetResult(
-                    result.StatusCode,
-                    index,
-                    diagnosticInfos,
-                    responseHeader);
+                SetResolvePathResultCore(result, index, diagnosticInfos, responseHeader);
             }
-            else
-            {
-                ResolvedNodeId = NodeId.Null;
+        }
 
-                // update the node id.
-                if (result.Targets.Count > 0 && Subscription?.Session != null)
+        /// <summary>
+        /// Reserves an uncreated item and captures its configuration before asynchronous creation.
+        /// </summary>
+        internal bool TryPrepareCreate(out MonitoredItemOptions options, out long revision)
+        {
+            lock (m_cache)
+            {
+                options = State;
+                revision = m_targetRevision;
+                if (Status.Created || Status.Creating)
                 {
-                    ResolvedNodeId = ExpandedNodeId.ToNodeId(
-                        result.Targets[0].TargetId,
-                        Subscription.Session.NamespaceUris);
+                    return false;
                 }
+                Status.Creating = true;
+                revision = ++m_targetRevision;
+                return true;
             }
+        }
 
-            Status.SetResolvePathResult(error);
+        /// <summary>
+        /// Captures an unresolved target without reserving creation.
+        /// </summary>
+        internal bool TryPrepareResolve(out MonitoredItemOptions options, out long revision)
+        {
+            lock (m_cache)
+            {
+                options = State;
+                revision = m_targetRevision;
+                if (Status.Created || Status.Creating ||
+                    string.IsNullOrEmpty(options.RelativePath) || !ResolvedNodeId.IsNull)
+                {
+                    return false;
+                }
+                revision = ++m_targetRevision;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Releases this item's creation reservation after preparation or service completion.
+        /// </summary>
+        internal void CompleteCreate()
+        {
+            lock (m_cache)
+            {
+                Status.Creating = false;
+                m_targetRevision++;
+            }
+        }
+
+        /// <summary>
+        /// Applies translation only to the configuration that requested it.
+        /// </summary>
+        internal void SetResolvePathResult(
+            long revision,
+            BrowsePathResult result,
+            int index,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            ResponseHeader responseHeader)
+        {
+            lock (m_cache)
+            {
+                if (revision != m_targetRevision || Status.Created)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "Monitored item target changed while its browse path was being resolved.");
+                }
+                SetResolvePathResultCore(result, index, diagnosticInfos, responseHeader);
+            }
         }
 
         /// <summary>
@@ -712,8 +834,14 @@ namespace Opc.Ua.Client
                     responseHeader);
             }
 
-            Status.SetCreateResult(request, result, error);
-            AttributesModified = false;
+            lock (m_cache)
+            {
+                bool creating = Status.Creating;
+                Status.SetCreateResult(request, result, error);
+                Status.Creating = creating;
+                m_targetRevision++;
+                AttributesModified = false;
+            }
         }
 
         /// <summary>
@@ -746,11 +874,15 @@ namespace Opc.Ua.Client
         /// </summary>
         protected internal void SetTransferResult(uint clientHandle)
         {
-            // ensure the global counter is not duplicating future handle ids
-            Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, clientHandle);
-            ClientHandle = clientHandle;
-            Status.SetTransferResult(this);
-            AttributesModified = false;
+            lock (m_cache)
+            {
+                // ensure the global counter is not duplicating future handle ids
+                Utils.SetIdentifierToAtLeast(ref s_globalClientHandle, clientHandle);
+                ClientHandle = clientHandle;
+                Status.SetTransferResult(this);
+                m_targetRevision++;
+                AttributesModified = false;
+            }
         }
 
         /// <summary>
@@ -769,7 +901,14 @@ namespace Opc.Ua.Client
                 error = ClientBase.GetResult(result, index, diagnosticInfos, responseHeader);
             }
 
-            Status.SetDeleteResult(error);
+            lock (m_cache)
+            {
+                Status.SetDeleteResult(error);
+                if (!Status.Created)
+                {
+                    ResolvedNodeId = NodeId.Null;
+                }
+            }
         }
 
         /// <summary>
@@ -1089,7 +1228,46 @@ namespace Opc.Ua.Client
             return filter;
         }
 
+        /// <summary>
+        /// Rejects retargeting an existing or reserved server item.
+        /// </summary>
+        private void VerifyTargetCanChange()
+        {
+            if (Status.Created || Status.Creating)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "Cannot modify item target after creation has started.");
+            }
+        }
+
+        /// <summary>
+        /// Updates the cached target and resolution status under the item's state lock.
+        /// </summary>
+        private void SetResolvePathResultCore(
+            BrowsePathResult result,
+            int index,
+            ArrayOf<DiagnosticInfo> diagnosticInfos,
+            ResponseHeader responseHeader)
+        {
+            ServiceResult? error = null;
+            ResolvedNodeId = NodeId.Null;
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                error = ClientBase.GetResult(result.StatusCode, index, diagnosticInfos, responseHeader);
+            }
+            else if (result.Targets.Count > 0 && Subscription?.Session != null)
+            {
+                ResolvedNodeId = ExpandedNodeId.ToNodeId(
+                    result.Targets[0].TargetId, Subscription.Session.NamespaceUris);
+            }
+            Status.SetResolvePathResult(error);
+        }
+
         private static uint s_globalClientHandle;
+
+        /// <summary>The generation of the target and its in-flight resolution.</summary>
+        private long m_targetRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
         private readonly Lock m_cache = new();
         private MonitoredItemDataCache? m_dataCache;
