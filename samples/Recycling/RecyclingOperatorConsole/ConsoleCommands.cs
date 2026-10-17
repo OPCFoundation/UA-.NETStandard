@@ -227,7 +227,7 @@ internal sealed class ConsoleCommands(
         status == StatusCodes.BadInvalidArgument || status == StatusCodes.BadInvalidState ||
         status == StatusCodes.BadOutOfRange || status == StatusCodes.BadUserAccessDenied ||
         status == StatusCodes.BadIdentityTokenRejected || status == StatusCodes.BadNotSupported ||
-        status == StatusCodes.BadTooManyOperations;
+        status == StatusCodes.BadTooManyOperations || status == StatusCodes.BadNotFound;
 
     /// <summary>
     /// Creates a non-authoritative pending workstation receipt.
