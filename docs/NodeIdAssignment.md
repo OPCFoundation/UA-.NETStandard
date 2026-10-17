@@ -10,9 +10,18 @@ class does.
 
 - [The contract](#the-contract)
 - [DefaultNodeIdFactory](#defaultnodeidfactory)
+  - [The canonical path](#the-canonical-path)
+  - [Modes](#modes)
+  - [Collision detection](#collision-detection)
+  - [Which namespace](#which-namespace)
+  - [When an existing NodeId is kept](#when-an-existing-nodeid-is-kept)
+  - [Nodes with no derivable path](#nodes-with-no-derivable-path)
 - [Types and instances](#types-and-instances)
 - [What the source generator emits](#what-the-source-generator-emits)
 - [NodeManager behaviour](#nodemanager-behaviour)
+  - [CustomNodeManager2](#customnodemanager2)
+  - [AsyncCustomNodeManager](#asynccustomnodemanager)
+  - [FluentNodeManagerBase and the fluent builders](#fluentnodemanagerbase-and-the-fluent-builders)
 - [Configuring the factory](#configuring-the-factory)
 - [Who forces a fresh identifier](#who-forces-a-fresh-identifier)
 

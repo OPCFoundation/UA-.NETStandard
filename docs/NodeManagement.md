@@ -16,15 +16,16 @@ override the four `StandardServer` service methods themselves.
 
 ## Contents
 
-- [Architecture](#architecture)
-- [Opting in: `INodeManagementAsyncNodeManager`](#opting-in-inodemanagementasyncnodemanager)
-- [Dispatch and routing rules](#dispatch-and-routing-rules)
-- [Request handling on `AsyncCustomNodeManager`](#request-handling-on-asynccustomnodemanager)
-- [Error codes returned](#error-codes-returned)
-- [Audit events](#audit-events)
-- [Client-side example](#client-side-example)
-- [Custom behavior](#custom-behavior)
-- [See also](#see-also)
+- [NodeManagement service set](#nodemanagement-service-set)
+  - [Architecture](#architecture)
+  - [Opting in: `INodeManagementAsyncNodeManager`](#opting-in-inodemanagementasyncnodemanager)
+  - [Dispatch and routing rules](#dispatch-and-routing-rules)
+  - [Request handling on `AsyncCustomNodeManager`](#request-handling-on-asynccustomnodemanager)
+  - [Error codes returned](#error-codes-returned)
+  - [Audit events](#audit-events)
+  - [Client-side example](#client-side-example)
+  - [Custom behavior](#custom-behavior)
+  - [See also](#see-also)
 
 ## Architecture
 

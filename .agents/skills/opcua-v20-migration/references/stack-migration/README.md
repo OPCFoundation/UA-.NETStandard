@@ -31,9 +31,10 @@ find the sub-doc that matches the symptom you are seeing.
 
 ## Contents
 
-- [Migration sub-doc index](#migration-sub-doc-index)
-- [All sub-documents](#all-sub-documents)
-- [See also](#see-also)
+- [Migrating from 1.5.378 to 2.0.x](#migrating-from-15378-to-20x)
+  - [Migration sub-doc index](#migration-sub-doc-index)
+  - [All sub-documents](#all-sub-documents)
+  - [See also](#see-also)
 
 ## Migration sub-doc index
 

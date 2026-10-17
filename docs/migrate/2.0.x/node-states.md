@@ -10,6 +10,7 @@
   - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
   - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
   - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+  - [Declare complete browser dependencies when requested](#declare-complete-browser-dependencies-when-requested)
   - [NodeBrowser gains an async iteration seam](#nodebrowser-gains-an-async-iteration-seam)
 - [`INodeCache` changes](#inodecache-changes)
 

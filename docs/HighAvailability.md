@@ -21,7 +21,7 @@ For distributed PubSub active/standby publishers and subscribers, see the PubSub
 - [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
 - [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
   - [Server.ServerRedundancy model](#serverserverredundancy-model)
-  - [Add* and Use* API convention](#add-and-use-api-convention)
+  - [Add\* and Use\* API convention](#add-and-use-api-convention)
 - [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
 - [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
 - [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)

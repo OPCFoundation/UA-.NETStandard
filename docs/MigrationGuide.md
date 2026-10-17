@@ -7,9 +7,9 @@ covers cross-cutting changes.
 
 ## Contents
 
-- [General principles](#general-principles)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
+- [General principles](#general-principles)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
   - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
@@ -21,7 +21,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
-- [Migrating code that called IServerInternal.Set* mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
@@ -36,6 +36,7 @@ covers cross-cutting changes.
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
+- [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)

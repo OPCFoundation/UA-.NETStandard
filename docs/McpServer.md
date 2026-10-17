@@ -13,8 +13,8 @@ to the owning package's `NugetREADME.md`, linked from each catalogue below.
 ## Contents
 
 - [What It Does](#what-it-does)
+  - [Packet capture tools](#packet-capture-tools)
 - [Tool Profiles](#tool-profiles)
-  - [MachineTool, WMTP, GMS and CranesHoists](#machinetool-wmtp-gms-and-craneshoists)
   - [MachineTool, WMTP, GMS and CranesHoists](#machinetool-wmtp-gms-and-craneshoists)
   - [Vision-guided Robotics](#vision-guided-robotics)
   - [Robot Intent tools](#robot-intent-tools)

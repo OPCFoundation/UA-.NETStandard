@@ -21,7 +21,7 @@ aggregate value per interval.
 - [Overview](#overview)
 - [Supported aggregate functions](#supported-aggregate-functions)
 - [Architecture](#architecture)
-  - [`AnnotationCount`](#annotationcount)
+  - [AnnotationCount](#annotationcount)
 - [Server configuration](#server-configuration)
 - [Client usage](#client-usage)
 - [Notes and limitations](#notes-and-limitations)

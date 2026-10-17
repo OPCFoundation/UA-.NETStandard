@@ -8,6 +8,8 @@ suppression, alarm metrics, and streaming alarm records.
 For the formal model, see
 [OPC UA Part 9 — Alarms and Conditions](https://reference.opcfoundation.org/specs/OPC-10000-9/full).
 
+## Contents
+
 - [Quick reference](#quick-reference)
 - [Server side](#server-side)
   - [Creating an alarm](#creating-an-alarm)
@@ -25,6 +27,7 @@ For the formal model, see
   - [`AlarmClient` — typed operations](#alarmclient--typed-operations)
   - [Subscribing to alarms with `IAsyncEnumerable`](#subscribing-to-alarms-with-iasyncenumerable)
   - [Typed alarm records](#typed-alarm-records)
+  - [Source-generated decoders + `EventRecordDecoderRegistry`](#source-generated-decoders--eventrecorddecoderregistry)
   - [Per-record event filters](#per-record-event-filters)
   - [Dialog conditions](#dialog-conditions)
   - [`ConditionRefresh`](#conditionrefresh)

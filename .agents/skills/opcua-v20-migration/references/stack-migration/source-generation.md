@@ -4,11 +4,12 @@
 
 ## Contents
 
-- [Migrating model projects](#migrating-model-projects)
-- [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
-- [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
-- [MIG01 resolution playbook](#mig01-resolution-playbook)
-- [Project Structure](#project-structure)
+- [Source Generation](#source-generation)
+  - [Migrating model projects](#migrating-model-projects)
+  - [Default value of boolean properties in source-generated data types is now false](#default-value-of-boolean-properties-in-source-generated-data-types-is-now-false)
+  - [Server default Aggregate configuration now treats Uncertain as Bad (Part 13)](#server-default-aggregate-configuration-now-treats-uncertain-as-bad-part-13)
+  - [MIG01 resolution playbook](#mig01-resolution-playbook)
+  - [Project Structure](#project-structure)
 
 ## Migrating model projects
 

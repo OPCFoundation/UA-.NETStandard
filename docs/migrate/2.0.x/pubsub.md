@@ -11,13 +11,14 @@ required for existing consumers.
 
 ## Contents
 
-- [1. PubSub assemblies and NuGet packages renamed and split](#1-pubsub-assemblies-and-nuget-packages-renamed-and-split)
-- [2. `UaPubSubApplication.Create*` and the legacy 1.04 API are replaced](#2-uapubsubapplicationcreate-and-the-legacy-104-api-are-replaced)
-- [3. JSON encoder switched to System.Text.Json](#3-json-encoder-switched-to-systemtextjson)
-- [4. `JsonEncodingMode` Reversible/Non-Reversible encodings removed](#4-jsonencodingmode-reversiblenon-reversible-encodings-removed)
-- [5. UADP RawData bounded-field wire-compatibility break](#5-uadp-rawdata-bounded-field-wire-compatibility-break)
-- [6. Compatibility matrix](#6-compatibility-matrix)
-- [See also](#see-also)
+- [PubSub (Part 14)](#pubsub-part-14)
+  - [1. PubSub assemblies and NuGet packages renamed and split](#1-pubsub-assemblies-and-nuget-packages-renamed-and-split)
+  - [2. `UaPubSubApplication.Create*` and the legacy 1.04 API are replaced](#2-uapubsubapplicationcreate-and-the-legacy-104-api-are-replaced)
+  - [3. JSON encoder switched to System.Text.Json](#3-json-encoder-switched-to-systemtextjson)
+  - [4. `JsonEncodingMode` Reversible/Non-Reversible encodings removed](#4-jsonencodingmode-reversiblenon-reversible-encodings-removed)
+  - [5. UADP RawData bounded-field wire-compatibility break](#5-uadp-rawdata-bounded-field-wire-compatibility-break)
+  - [6. Compatibility matrix](#6-compatibility-matrix)
+  - [See also](#see-also)
 
 ## 1. PubSub assemblies and NuGet packages renamed and split
 

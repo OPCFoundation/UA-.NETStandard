@@ -17,6 +17,7 @@ production equipment adds depending on its use case.
 - [Quick start — client](#quick-start--client)
 - [Server hosting model](#server-hosting-model)
 - [Coexisting with a server that already owns DI or ISA-95](#coexisting-with-a-server-that-already-owns-di-or-isa-95)
+  - [Bindings on an externally registered root](#bindings-on-an-externally-registered-root)
 - [Builder reference](#builder-reference)
   - [OPC 40001-1 building blocks](#opc-40001-1-building-blocks)
   - [OPC 40001-2 process values](#opc-40001-2-process-values)
@@ -27,9 +28,20 @@ production equipment adds depending on its use case.
 - [State machines are server-driven](#state-machines-are-server-driven)
 - [Client](#client)
   - [Bounded, evidenced inspection](#bounded-evidenced-inspection)
+  - [Job endpoints and streamed results](#job-endpoints-and-streamed-results)
 - [Conformance matrix](#conformance-matrix)
+  - [OPC 40001-1 building blocks](#opc-40001-1-building-blocks-1)
+  - [OPC 40001-2 process values](#opc-40001-2-process-values-1)
+  - [OPC 40001-3 job management](#opc-40001-3-job-management-1)
+  - [OPC 40001-4 energy](#opc-40001-4-energy-1)
+  - [OPC 40001-101 results](#opc-40001-101-results-1)
+  - [Client and hosting](#client-and-hosting)
+  - [Where the facet URIs come from](#where-the-facet-uris-come-from)
 - [Model sources and identifier tables](#model-sources-and-identifier-tables)
+  - [What the identifier table is and is not](#what-the-identifier-table-is-and-is-not)
+  - [Why the published tables need deriving](#why-the-published-tables-need-deriving)
 - [Cross-assembly generator behavior](#cross-assembly-generator-behavior)
+- [See also](#see-also)
 
 ## Library layout
 

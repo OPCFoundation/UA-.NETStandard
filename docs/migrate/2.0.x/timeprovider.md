@@ -4,8 +4,9 @@
 
 ## Contents
 
-- [Adopting TimeProvider](#adopting-timeprovider)
-- [Monotonic timestamps for duration calculations](#monotonic-timestamps-for-duration-calculations)
+- [Time and Timer Abstraction (TimeProvider)](#time-and-timer-abstraction-timeprovider)
+  - [Adopting TimeProvider](#adopting-timeprovider)
+  - [Monotonic timestamps for duration calculations](#monotonic-timestamps-for-duration-calculations)
 
 ## Adopting TimeProvider
 

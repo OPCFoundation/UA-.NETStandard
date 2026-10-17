@@ -10,12 +10,20 @@ to integrate with web-based tooling.
 ## Contents
 
 - [Transport profile matrix](#transport-profile-matrix)
+  - [Committed session bindings](#committed-session-bindings)
+  - [Incomplete-message resource limits](#incomplete-message-resource-limits)
 - [Assembly layout](#assembly-layout)
 - [Server-side configuration](#server-side-configuration)
+  - [Security configuration](#security-configuration)
 - [Client-side usage](#client-side-usage)
 - [Discovery](#discovery)
 - [Opt-in: Kestrel-hosted `opc.tcp`](#opt-in-kestrel-hosted-opctcp)
 - [Implementing a custom byte transport](#implementing-a-custom-byte-transport)
+  - [When you need this](#when-you-need-this)
+  - [Contract summary](#contract-summary)
+  - [Implementation checklist](#implementation-checklist)
+  - [Wiring the transport into the channel pipeline](#wiring-the-transport-into-the-channel-pipeline)
+  - [Worked example](#worked-example)
 - [See also](#see-also)
 
 ## Transport profile matrix

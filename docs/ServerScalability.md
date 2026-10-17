@@ -4,15 +4,16 @@ This document describes how the reference server scales to large numbers of conc
 
 ## Contents
 
-- [How a session is established](#how-a-session-is-established)
-- [What bounds single-node scale](#what-bounds-single-node-scale)
-- [Admission control and rate limiting](#admission-control-and-rate-limiting)
-- [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
-- [Session diagnostics cost](#session-diagnostics-cost)
-- [Garbage collector mode](#garbage-collector-mode)
-- [Configuration](#configuration)
-- [Scaling out](#scaling-out)
-- [See also](#see-also)
+- [Server session scalability](#server-session-scalability)
+  - [How a session is established](#how-a-session-is-established)
+  - [What bounds single-node scale](#what-bounds-single-node-scale)
+  - [Admission control and rate limiting](#admission-control-and-rate-limiting)
+  - [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
+  - [Session diagnostics cost](#session-diagnostics-cost)
+  - [Garbage collector mode](#garbage-collector-mode)
+  - [Configuration](#configuration)
+  - [Scaling out](#scaling-out)
+  - [See also](#see-also)
 
 ## How a session is established
 

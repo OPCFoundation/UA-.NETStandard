@@ -20,10 +20,10 @@ Transport (MQTT) brokers and REST APIs.
 
 - [Architecture](#architecture)
 - [Client API](#client-api)
-  - [`KeyCredentialServiceClient`](#keycredentialserviceclient)
+  - [KeyCredentialServiceClient](#keycredentialserviceclient)
   - [Discovering the Service NodeId](#discovering-the-service-nodeid)
 - [Server-Side: Implementing a Provider](#server-side-implementing-a-provider)
-  - [`IKeyCredentialRequestStore`](#ikeycredentialrequeststore)
+  - [IKeyCredentialRequestStore](#ikeycredentialrequeststore)
   - [Built-in Implementation](#built-in-implementation)
   - [Writing a Custom Implementation](#writing-a-custom-implementation)
   - [Wiring into the GDS Server](#wiring-into-the-gds-server)

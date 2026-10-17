@@ -12,14 +12,15 @@ PubSub redundancy is implemented by the opt-in `Opc.Ua.Redundancy.PubSub` librar
 
 ## Contents
 
-- [Overview](#overview-as-per-part-14-916)
-- [How it maps onto the stack](#how-it-maps-onto-the-stack)
-- [Sequence-number continuity](#sequence-number-continuity-hot-standby)
-- [Shared security keys](#shared-security-keys-sks)
-- [Consistency: eventual vs strong](#consistency-eventual-vs-strong)
-- [Kubernetes](#kubernetes)
-- [Security considerations](#security-considerations)
-- [See also](#see-also)
+- [PubSub High Availability](#pubsub-high-availability)
+  - [Overview (as per Part 14 §9.1.6)](#overview-as-per-part-14-916)
+  - [How it maps onto the stack](#how-it-maps-onto-the-stack)
+  - [Sequence-number continuity (Hot standby)](#sequence-number-continuity-hot-standby)
+  - [Shared security keys (SKS)](#shared-security-keys-sks)
+  - [Consistency: eventual vs strong](#consistency-eventual-vs-strong)
+  - [Kubernetes](#kubernetes)
+  - [Security considerations](#security-considerations)
+  - [See also](#see-also)
 
 ## Overview (as per Part 14 §9.1.6)
 

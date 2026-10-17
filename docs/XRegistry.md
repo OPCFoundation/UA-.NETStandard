@@ -19,6 +19,8 @@ Thing Model documents.
   - [Structural identity and content lookup](#structural-identity-and-content-lookup)
   - [Opaque-NodeId fast path](#opaque-nodeid-fast-path)
   - [Registration lifecycle and auto-bootstrap](#registration-lifecycle-and-auto-bootstrap)
+  - [Resource Meta and default-Version views](#resource-meta-and-default-version-views)
+  - [Source-derived identifier allocation](#source-derived-identifier-allocation)
   - [File open modes](#file-open-modes)
   - [Resource storage](#resource-storage)
   - [Transport security](#transport-security)

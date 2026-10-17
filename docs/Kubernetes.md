@@ -29,7 +29,7 @@ sample.
 
 - [Redundancy shapes on Kubernetes](#redundancy-shapes-on-kubernetes)
 - [Running with Kubernetes API integration](#running-with-kubernetes-api-integration)
-  - [Application setup with full K8s integration](#application-setup-with-full-k8s-integration)
+  - [Application setup with "full" K8s integration](#application-setup-with-full-k8s-integration)
 - [Running without Kubernetes API integration](#running-without-kubernetes-api-integration)
   - [Simple setup option](#simple-setup-option)
 - [RBAC](#rbac)

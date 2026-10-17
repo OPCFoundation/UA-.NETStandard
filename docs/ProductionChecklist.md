@@ -9,14 +9,15 @@ review of your deployment.
 
 ## Contents
 
-- [Application identity and certificates](#application-identity-and-certificates)
-- [Endpoints and message security](#endpoints-and-message-security)
-- [Users and permissions](#users-and-permissions)
-- [Secrets and private keys](#secrets-and-private-keys)
-- [Resource limits](#resource-limits)
-- [Diagnostics and auditing](#diagnostics-and-auditing)
-- [Clients](#clients)
-- [Deployment and operation](#deployment-and-operation)
+- [Production readiness checklist](#production-readiness-checklist)
+  - [Application identity and certificates](#application-identity-and-certificates)
+  - [Endpoints and message security](#endpoints-and-message-security)
+  - [Users and permissions](#users-and-permissions)
+  - [Secrets and private keys](#secrets-and-private-keys)
+  - [Resource limits](#resource-limits)
+  - [Diagnostics and auditing](#diagnostics-and-auditing)
+  - [Clients](#clients)
+  - [Deployment and operation](#deployment-and-operation)
 
 ## Application identity and certificates
 

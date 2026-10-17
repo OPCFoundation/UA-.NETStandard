@@ -12,16 +12,28 @@ exactly as it did before the provider model existed.
 
 - [The short version](#the-short-version)
 - [Holding a private key in a device](#holding-a-private-key-in-a-device)
+  - [Using a PKCS#11 token](#using-a-pkcs11-token)
+  - [Why not `CopyWithPrivateKey`?](#why-not-copywithprivatekey)
+  - [Lifetime](#lifetime)
 - [Selecting a provider per purpose and per policy](#selecting-a-provider-per-purpose-and-per-policy)
+  - [Where resolution happens](#where-resolution-happens)
 - [Generating a key inside a device](#generating-a-key-inside-a-device)
 - [Certificate renewal with a device held key](#certificate-renewal-with-a-device-held-key)
 - [Validation status, compliance and audit](#validation-status-compliance-and-audit)
 - [What can and cannot be claimed about FIPS](#what-can-and-cannot-be-claimed-about-fips)
+  - [What `FipsOnly` actually enforces at startup](#what-fipsonly-actually-enforces-at-startup)
+  - [Output a provider did not produce is refused](#output-a-provider-did-not-produce-is-refused)
 - [Substituting the symmetric primitives](#substituting-the-symmetric-primitives)
+  - [What it costs when you do not use it](#what-it-costs-when-you-do-not-use-it)
+  - [A provider that cannot do what it was bound to](#a-provider-that-cannot-do-what-it-was-bound-to)
 - [Using a key served over a network](#using-a-key-served-over-a-network)
 - [PubSub](#pubsub)
+  - [What device custody can and cannot mean here](#what-device-custody-can-and-cannot-mean-here)
 - [Contributing a security policy](#contributing-a-security-policy)
+  - [Resolving the policy set](#resolving-the-policy-set)
+  - [Reaching the secure channel and the session](#reaching-the-secure-channel-and-the-session)
 - [Limitations](#limitations)
+- [Related](#related)
 
 ## The short version
 

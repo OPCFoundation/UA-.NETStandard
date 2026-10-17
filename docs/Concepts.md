@@ -7,19 +7,20 @@ API. Each section links to the guide with complete contracts and examples.
 
 ## Contents
 
-- [Applications](#applications)
-- [Endpoints, secure channels, and sessions](#endpoints-secure-channels-and-sessions)
-- [Application trust and user identity](#application-trust-and-user-identity)
-- [The address space](#the-address-space)
-- [Node identity and namespaces](#node-identity-and-namespaces)
-- [Values, status codes, and timestamps](#values-status-codes-and-timestamps)
-- [Service results and errors](#service-results-and-errors)
-- [Subscriptions and monitored items](#subscriptions-and-monitored-items)
-- [Events and alarms](#events-and-alarms)
-- [Information models and companion specifications](#information-models-and-companion-specifications)
-- [Client/server and PubSub](#clientserver-and-pubsub)
-- [How the SDK is organized](#how-the-sdk-is-organized)
-- [Where to go next](#where-to-go-next)
+- [OPC UA concepts for SDK users](#opc-ua-concepts-for-sdk-users)
+  - [Applications](#applications)
+  - [Endpoints, secure channels, and sessions](#endpoints-secure-channels-and-sessions)
+  - [Application trust and user identity](#application-trust-and-user-identity)
+  - [The address space](#the-address-space)
+  - [Node identity and namespaces](#node-identity-and-namespaces)
+  - [Values, status codes, and timestamps](#values-status-codes-and-timestamps)
+  - [Service results and errors](#service-results-and-errors)
+  - [Subscriptions and monitored items](#subscriptions-and-monitored-items)
+  - [Events and alarms](#events-and-alarms)
+  - [Information models and companion specifications](#information-models-and-companion-specifications)
+  - [Client/server and PubSub](#clientserver-and-pubsub)
+  - [How the SDK is organized](#how-the-sdk-is-organized)
+  - [Where to go next](#where-to-go-next)
 
 ## Applications
 
