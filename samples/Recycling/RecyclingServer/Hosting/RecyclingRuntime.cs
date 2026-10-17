@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -453,6 +454,46 @@ namespace Opc.Ua.Recycling
             m_membershipGate.Dispose();
         }
 
+        /// <summary>
+        /// Bounds repeated live genealogy to each stage's latest result and the latest source admission.
+        /// Complete retained history remains available through coordinator ReadSnapshot and ReadGenealogy.
+        /// </summary>
+        internal static SnapshotDataType CreateLiveSnapshot(CommittedSnapshot snapshot)
+        {
+            var latest = new Dictionary<int, MaterialExecution>();
+            foreach (MaterialExecution execution in snapshot.History)
+            {
+                latest[execution.Stage] = execution;
+            }
+            return RecyclingModelMapping.ToWire(snapshot with
+            {
+                History = latest.Values.OrderBy(execution => execution.Id).ToArrayOf()
+            });
+        }
+
+        /// <summary>
+        /// Identifies temporary coordinator or channel unavailability without retrying protocol rejections.
+        /// </summary>
+        internal static bool IsTransportFailure(Exception exception)
+        {
+            if (exception is IOException)
+            {
+                return true;
+            }
+            if (exception is not ServiceResultException serviceError)
+            {
+                return false;
+            }
+            StatusCode status = serviceError.StatusCode;
+            return status == StatusCodes.BadNoCommunication || status == StatusCodes.BadCommunicationError ||
+                status == StatusCodes.BadConnectionClosed || status == StatusCodes.BadSecureChannelClosed ||
+                status == StatusCodes.BadSessionClosed || status == StatusCodes.BadSessionIdInvalid ||
+                status == StatusCodes.BadTimeout || status == StatusCodes.BadRequestTimeout ||
+                status == StatusCodes.BadServerNotConnected ||
+                status == StatusCodes.BadNotConnected || status == StatusCodes.BadOutOfService ||
+                status == StatusCodes.BadServerHalted || status == StatusCodes.BadShutdown;
+        }
+
         private void BindReads(BaseVariableState snapshot, BaseVariableState available)
         {
             m_snapshotNode = snapshot;
@@ -779,28 +820,6 @@ namespace Opc.Ua.Recycling
             }
         }
 
-        /// <summary>
-        /// Identifies temporary coordinator or channel unavailability without retrying protocol rejections.
-        /// </summary>
-        internal static bool IsTransportFailure(Exception exception)
-        {
-            if (exception is IOException)
-            {
-                return true;
-            }
-            if (exception is not ServiceResultException serviceError)
-            {
-                return false;
-            }
-            StatusCode status = serviceError.StatusCode;
-            return status == StatusCodes.BadNoCommunication || status == StatusCodes.BadCommunicationError ||
-                status == StatusCodes.BadConnectionClosed || status == StatusCodes.BadSecureChannelClosed ||
-                status == StatusCodes.BadSessionClosed || status == StatusCodes.BadSessionIdInvalid ||
-                status == StatusCodes.BadTimeout || status == StatusCodes.BadServerNotConnected ||
-                status == StatusCodes.BadNotConnected || status == StatusCodes.BadOutOfService ||
-                status == StatusCodes.BadServerHalted || status == StatusCodes.BadShutdown;
-        }
-
         private async ValueTask MarkUnavailableAsync(CancellationToken cancellationToken)
         {
             await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -835,7 +854,7 @@ namespace Opc.Ua.Recycling
             CancellationToken cancellationToken)
         {
             Volatile.Write(ref m_projection, new ProjectionFrame(
-                snapshot, RecyclingModelMapping.ToWire(snapshot), available));
+                snapshot, CreateLiveSnapshot(snapshot), available));
             await NotifyProjectionAsync(cancellationToken).ConfigureAwait(false);
         }
 

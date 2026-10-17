@@ -95,6 +95,9 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that the data type references every encoding it exposes.
+        /// </summary>
         [Test]
         public void TheDataTypeReferencesEveryEncodingItExposes()
         {
@@ -105,16 +108,17 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 (type.References ?? [])
                     .Where(r => string.Equals(
-                        r.ReferenceType, "HasEncoding", StringComparison.Ordinal) && r.IsForward)
+                        r.ReferenceType, "HasEncoding", StringComparison.Ordinal) &&
+                        r.IsForward)
                     .Select(r => r.Value)
                     .OrderBy(v => v, StringComparer.Ordinal)
                     .ToArray(),
-                Is.EqualTo(new[]
-                {
+                Is.EqualTo(
+                [
                     TypeId + "/Default Binary",
                     TypeId + "/Default JSON",
                     TypeId + "/Default XML"
-                }));
+                ]));
         }
 
         /// <summary>
@@ -174,7 +178,8 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(Encodings(nodeSet), Is.Empty, EncodingNames(nodeSet));
                 Assert.That(
-                    nodeSet.Items!.OfType<UADataType>().Single().References is { } refs && refs
+                    nodeSet.Items!.OfType<UADataType>().Single().References is { } refs &&
+                    refs
                         .Any(r => string.Equals(
                             r.ReferenceType, "HasEncoding", StringComparison.Ordinal)),
                     Is.False);
@@ -301,6 +306,356 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that an inherited field cannot change its data type.
+        /// </summary>
+        [Test]
+        public void AnInheritedFieldCannotChangeItsDataType()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                """
+                {
+                  "@id": "urn:test:pump#Base",
+                  "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Base",
+                  "uav:fields": [{ "uav:fieldName": "A", "uav:fieldDataTypeId": "i=1" }]
+                },
+                {
+                  "@id": "urn:test:pump#Derived",
+                  "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Derived",
+                  "uav:dataTypeSubtypeOf": { "@id": "urn:test:pump#Base" },
+                  "uav:fields": [{ "uav:fieldName": "A", "uav:fieldDataTypeId": "i=12" }]
+                }
+                """);
+
+            Assert.That(result.HasErrors, Is.True, Messages(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid), Is.True, Messages(result));
+        }
+
+        /// <summary>
+        /// Verifies that subtype cycles through data type IDs are rejected.
+        /// </summary>
+        [Test]
+        public void SubtypeCyclesThroughDataTypeIdsAreRejected()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                """
+                {
+                  "@id": "urn:test:pump#A",
+                  "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:A",
+                  "uav:dataTypeId": "nsu=urn:test:pump;i=2001",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "nsu=urn:test:pump;i=2002" },
+                  "uav:fields": []
+                },
+                {
+                  "@id": "urn:test:pump#B",
+                  "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:B",
+                  "uav:dataTypeId": "nsu=urn:test:pump;i=2002",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "nsu=urn:test:pump;i=2001" },
+                  "uav:fields": []
+                }
+                """);
+
+            Assert.That(result.HasErrors, Is.True, Messages(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                diagnostic.Message.Contains("ancestor", StringComparison.Ordinal)), Is.True, Messages(result));
+        }
+
+        /// <summary>
+        /// Verifies that simple aliases cannot terminate at an abstract numeric type.
+        /// </summary>
+        [TestCase("i=26")]
+        [TestCase("i=27")]
+        [TestCase("i=28")]
+        public void SimpleAliasesCannotTerminateAtAnAbstractNumericType(string terminal)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                $$"""
+                {
+                  "@id": "urn:test:pump#Scalar",
+                  "@type": "uav:SimpleDataType",
+                  "uav:dataTypeName": "pump:Scalar",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "{{terminal}}" }
+                }
+                """);
+
+            Assert.That(result.HasErrors, Is.True, Messages(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                diagnostic.Message.Contains(terminal, StringComparison.Ordinal)), Is.True, Messages(result));
+        }
+
+        /// <summary>
+        /// Verifies that an option set may use an unsigned simple alias.
+        /// </summary>
+        [Test]
+        public void AnOptionSetMayUseAnUnsignedSimpleAlias()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                """
+                {
+                  "@id": "urn:test:pump#Word",
+                  "@type": "uav:SimpleDataType",
+                  "uav:dataTypeName": "pump:Word",
+                  "uav:dataTypeId": "nsu=urn:test:pump;i=3001",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "i=5" }
+                },
+                {
+                  "@id": "urn:test:pump#Flags",
+                  "@type": "uav:EnumDefinition",
+                  "uav:dataTypeName": "pump:Flags",
+                  "uav:dataTypeId": "nsu=urn:test:pump;i=3002",
+                  "uav:isOptionSet": true,
+                  "uav:dataTypeSubtypeOf": { "@id": "urn:test:pump#Word" },
+                  "uav:enumFields": [{ "uav:enumName": "First", "uav:enumValue": 0 }]
+                }
+                """);
+
+            Assert.That(result.HasErrors, Is.False, Messages(result));
+            UADataType flags = result.Value!.Items!.OfType<UADataType>()
+                .Single(node => node.NodeId == "ns=1;i=3002");
+            Assert.That(flags.References!.Single(reference =>
+                reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value,
+                Is.EqualTo("ns=1;i=3001"));
+            Assert.That(flags.Definition!.IsOptionSet, Is.True);
+            Assert.That(flags.Definition.Field!.Single().Name, Is.EqualTo("First"));
+            Assert.That(flags.Definition.Field!.Single().Value, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that every inherited field attribute is validated.
+        /// </summary>
+        /// <param name="baseAttributes">The base attributes used by this test case.</param>
+        /// <param name="derivedAttributes">The derived attributes used by this test case.</param>
+        /// <param name="structureType">The structure type used by this test case.</param>
+        [TestCase("\"uav:valueRank\":1", "\"uav:valueRank\":2", "Structure", "ValueRank")]
+        [TestCase("\"uav:valueRank\":2,\"uav:arrayDimensions\":[2,3]",
+            "\"uav:valueRank\":2,\"uav:arrayDimensions\":[2,4]", "Structure", "ArrayDimensions")]
+        [TestCase("\"uav:isOptional\":false", "\"uav:isOptional\":true",
+            "StructureWithOptionalFields", "IsOptional")]
+        [TestCase("\"uav:allowSubtypes\":false", "\"uav:allowSubtypes\":true",
+            "StructureWithSubtypedValues", "AllowSubTypes")]
+        [TestCase("\"uav:maxStringLength\":10", "\"uav:maxStringLength\":20", "Structure", "MaxStringLength")]
+        [TestCase("\"title\":\"First\"", "\"title\":\"Second\"", "Structure", "DisplayName")]
+        [TestCase("\"description\":\"First\"", "\"description\":\"Second\"", "Structure", "Description")]
+        public void EveryInheritedFieldAttributeIsValidated(
+            string baseAttributes,
+            string derivedAttributes,
+            string structureType,
+            string attribute)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                $$"""
+                {
+                  "@id": "urn:test:pump#Base", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Base", "uav:dataTypeId": "nsu=urn:test:pump;i=2201",
+                  "uav:structureType": "{{structureType}}",
+                  "uav:fields": [{ "uav:fieldName": "A", "uav:fieldDataTypeId": "i=12", {{baseAttributes}} }]
+                },
+                {
+                  "@id": "urn:test:pump#Derived", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Derived", "uav:dataTypeId": "nsu=urn:test:pump;i=2202",
+                  "uav:structureType": "{{structureType}}",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "nsu=urn:test:pump;i=2201" },
+                  "uav:fields": [{ "uav:fieldName": "A", "uav:fieldDataTypeId": "i=12", {{derivedAttributes}} }]
+                }
+                """);
+
+            Assert.That(result.Success, Is.False);
+            WotDiagnostic error = result.Diagnostics.Single(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid);
+            Assert.That(error.Message, Does.Contain(attribute));
+            Assert.That(error.Location?.NodeId, Is.EqualTo("nsu=urn:test:pump;i=2202"));
+            Assert.That(error.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/1/uav:fields/0"));
+        }
+
+        /// <summary>
+        /// Verifies that every resolved subtype reference form participates in cycle checks.
+        /// </summary>
+        /// <param name="baseOfA">The base of a used by this test case.</param>
+        /// <param name="baseOfB">The base of b used by this test case.</param>
+        [TestCase(/*lang=json,strict*/ """{"@id":"urn:test:pump#B"}""", /*lang=json,strict*/ """{"@id":"urn:test:pump#A"}""")]
+        [TestCase("\"urn:test:pump#B\"", "\"urn:test:pump#A\"")]
+        [TestCase("\"nsu=urn:test:pump;i=2302\"", "\"nsu=urn:test:pump;i=2301\"")]
+        [TestCase(/*lang=json,strict*/ """{"uav:dataTypeName":"pump:B"}""", /*lang=json,strict*/ """{"uav:dataTypeName":"pump:A"}""")]
+        [TestCase("\"pump:B\"", "\"pump:A\"")]
+        public void EveryResolvedSubtypeReferenceFormParticipatesInCycleChecks(string baseOfA, string baseOfB)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                $$"""
+                {
+                  "@id": "urn:test:pump#A", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:A", "uav:dataTypeId": "nsu=urn:test:pump;i=2301",
+                  "uav:dataTypeSubtypeOf": {{baseOfA}}, "uav:fields": []
+                },
+                {
+                  "@id": "urn:test:pump#B", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:B", "uav:dataTypeId": "nsu=urn:test:pump;i=2302",
+                  "uav:dataTypeSubtypeOf": {{baseOfB}}, "uav:fields": []
+                }
+                """);
+
+            Assert.That(result.Success, Is.False);
+            WotDiagnostic[] cycles = result.Diagnostics.Where(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                diagnostic.Message.Contains("ancestor", StringComparison.Ordinal)).ToArray();
+            Assert.That(cycles, Has.Length.EqualTo(2));
+            WotDiagnostic cycle = cycles.Single(diagnostic =>
+                diagnostic.Location?.NodeId == "nsu=urn:test:pump;i=2301");
+            Assert.That(cycle.Location?.NodeId, Is.EqualTo("nsu=urn:test:pump;i=2301"));
+            Assert.That(cycle.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/0/uav:dataTypeSubtypeOf"));
+            WotDiagnostic second = cycles.Single(diagnostic =>
+                diagnostic.Location?.NodeId == "nsu=urn:test:pump;i=2302");
+            Assert.That(second.Location?.JsonPointer, Is.EqualTo("/uav:dataTypeDefinitions/1/uav:dataTypeSubtypeOf"));
+        }
+
+        /// <summary>
+        /// Verifies that option set alias chains use the terminal unsigned width.
+        /// </summary>
+        /// <param name="invalid">The invalid flag for this test case.</param>
+        [TestCase("i=3", 7, false)]
+        [TestCase("i=3", 8, true)]
+        [TestCase("i=5", 15, false)]
+        [TestCase("i=5", 16, true)]
+        [TestCase("i=7", 31, false)]
+        [TestCase("i=7", 32, true)]
+        [TestCase("i=9", 63, false)]
+        [TestCase("i=9", 64, true)]
+        public void OptionSetAliasChainsUseTheTerminalUnsignedWidth(string terminal, int bit, bool invalid)
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                $$"""
+                {
+                  "@id": "urn:test:pump#Word1", "@type": "uav:SimpleDataType",
+                  "uav:dataTypeName": "pump:Word1", "uav:dataTypeId": "nsu=urn:test:pump;i=2401",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeId": "{{terminal}}" }
+                },
+                {
+                  "@id": "urn:test:pump#Word2", "@type": "uav:SimpleDataType",
+                  "uav:dataTypeName": "pump:Word2", "uav:dataTypeId": "nsu=urn:test:pump;i=2402",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeName": "pump:Word1" }
+                },
+                {
+                  "@id": "urn:test:pump#Flags", "@type": "uav:EnumDefinition",
+                  "uav:dataTypeName": "pump:Flags", "uav:dataTypeId": "nsu=urn:test:pump;i=2403",
+                  "uav:isOptionSet": true, "uav:dataTypeSubtypeOf": "pump:Word2",
+                  "uav:enumFields": [{ "uav:enumName": "Flag", "uav:enumValue": {{bit}} }]
+                }
+                """);
+
+            Assert.That(result.HasErrors, Is.EqualTo(invalid), Messages(result));
+            UADataType flags = result.Value!.Items!.OfType<UADataType>().Single(node => node.NodeId == "ns=1;i=2403");
+            Assert.That(flags.References!.Single(reference =>
+                reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value,
+                Is.EqualTo("ns=1;i=2402"));
+            if (invalid)
+            {
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                    diagnostic.Message.Contains("bit " + bit, StringComparison.Ordinal)), Is.True);
+            }
+            else
+            {
+                Assert.That(flags.Definition!.Field!.Single().Value, Is.EqualTo(bit));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that union kinds and abstractness cannot contradict their definition.
+        /// </summary>
+        /// <param name="structureType">The structure type used by this test case.</param>
+        /// <param name="baseType">The base type used by this test case.</param>
+        /// <param name="isAbstract">The abstract flag for this test case.</param>
+        [TestCase("Structure", "i=12756", false)]
+        [TestCase("Union", "i=22", false)]
+        [TestCase("Union", "i=12756", true)]
+        public void UnionKindsAndAbstractnessCannotContradictTheirDefinition(
+            string structureType,
+            string baseType,
+            bool isAbstract)
+        {
+            string extra = "\"uav:dataTypeSubtypeOf\":{\"uav:dataTypeId\":\"" +
+                baseType +
+                "\"}," +
+                "\"uav:isAbstract\":" +
+                (isAbstract ? "true" : "false") +
+                ",";
+            WotConversionResult<UANodeSet> result = Convert(Structure(structureType, extra));
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                diagnostic.Location?.JsonPointer == (isAbstract
+                    ? "/uav:dataTypeDefinitions/0/uav:isAbstract"
+                    : "/uav:dataTypeDefinitions/0/uav:dataTypeSubtypeOf")), Is.True, Messages(result));
+        }
+
+        /// <summary>
+        /// Verifies that inherited field defaults and identity aliases are equivalent.
+        /// </summary>
+        [Test]
+        public void InheritedFieldDefaultsAndIdentityAliasesAreEquivalent()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                """
+                {
+                  "@id": "urn:test:pump#Base", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Base", "uav:dataTypeId": "nsu=urn:test:pump;i=2701",
+                  "uav:fields": [{ "uav:fieldName": "A", "uav:fieldDataTypeName": "ua:String" }]
+                },
+                {
+                  "@id": "urn:test:pump#Derived", "@type": "uav:StructureDefinition",
+                  "uav:dataTypeName": "pump:Derived", "uav:dataTypeId": "nsu=urn:test:pump;i=2702",
+                  "uav:dataTypeSubtypeOf": "pump:Base",
+                  "uav:fields": [{
+                    "uav:fieldName": "A", "uav:fieldDataTypeId": "nsu=http://opcfoundation.org/UA/;i=12",
+                    "uav:valueRank": -1, "uav:arrayDimensions": [],
+                    "uav:isOptional": false, "uav:allowSubtypes": false, "uav:maxStringLength": 0
+                  }]
+                }
+                """);
+
+            Assert.That(result.Success, Is.True, Messages(result));
+            UADataType derived = result.Value!.Items!.OfType<UADataType>().Single(node => node.NodeId == "ns=1;i=2702");
+            Assert.That(derived.Definition!.Field!.Single().DataType, Is.EqualTo("i=12"));
+            Assert.That(derived.References!.Single(reference =>
+                reference.ReferenceType == "HasSubtype" && !reference.IsForward).Value,
+                Is.EqualTo("ns=1;i=2701"));
+        }
+
+        /// <summary>
+        /// Verifies that an inherited enumeration field cannot change its value.
+        /// </summary>
+        [Test]
+        public void AnInheritedEnumerationFieldCannotChangeItsValue()
+        {
+            WotConversionResult<UANodeSet> result = Convert(
+                """
+                {
+                  "@id": "urn:test:pump#Base", "@type": "uav:EnumDefinition",
+                  "uav:dataTypeName": "pump:Base",
+                  "uav:enumFields": [{ "uav:enumName": "A", "uav:enumValue": 0 }]
+                },
+                {
+                  "@id": "urn:test:pump#Derived", "@type": "uav:EnumDefinition",
+                  "uav:dataTypeName": "pump:Derived",
+                  "uav:dataTypeSubtypeOf": { "uav:dataTypeName": "pump:Base" },
+                  "uav:enumFields": [{ "uav:enumName": "A", "uav:enumValue": 1 }]
+                }
+                """);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.DataTypeDefinitionInvalid &&
+                diagnostic.Message.Contains("Value", StringComparison.Ordinal) &&
+                diagnostic.Location?.JsonPointer == "/uav:dataTypeDefinitions/1/uav:enumFields/0"), Is.True);
+        }
+
         private static List<UAObject> Encodings(UANodeSet nodeSet)
         {
             return [.. nodeSet.Items!
@@ -330,7 +685,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":\"uav:StructureDefinition\"," +
                 "\"uav:dataTypeName\":\"pump:SampleSet\"," +
                 extra +
-                "\"uav:structureType\":\"" + structureType + "\"," +
+                "\"uav:structureType\":\"" +
+                structureType +
+                "\"," +
                 "\"uav:fields\":[{\"@type\":\"uav:StructureField\"," +
                 "\"uav:fieldName\":\"Sample\"," +
                 "\"uav:fieldDataTypeName\":\"ua:Double\"," +
@@ -358,9 +715,11 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"@type\":[\"tm:ThingModel\",\"uav:objectType\"]," +
                 "\"title\":\"PumpType\",\"uav:browseName\":\"pump:PumpType\"," +
                 "\"uav:id\":\"nsu=urn:test:pump;i=1001\"," +
-                "\"uav:dataTypeDefinitions\":[" + definition + "]}");
+                "\"uav:dataTypeDefinitions\":[" +
+                definition +
+                "]}");
 
-            using WotDocument document = WotDocument.Parse(json);
+            using var document = WotDocument.Parse(json);
             return WotNodeSetConverter.ToNodeSetResult(document);
         }
     }

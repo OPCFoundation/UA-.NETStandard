@@ -66,25 +66,4 @@ namespace Opc.Ua.Recycling
             RecyclingCommand command,
             CancellationToken cancellationToken = default);
     }
-
-    /// <summary>
-    /// View-local coordination status, distinct from transport, machine and material-disposition state.
-    /// </summary>
-    public enum RecyclingMembershipState
-    {
-        /// <summary>No membership has been established yet.</summary>
-        Uninitialized,
-        /// <summary>The authenticated session's role is initialized and its lease is current.</summary>
-        Ready,
-        /// <summary>A bounded revision-conflict round must retry on the same connection.</summary>
-        RevisionContention,
-        /// <summary>A former session's known owned lease must expire before a replacement can register.</summary>
-        WaitingForPreviousLease,
-        /// <summary>The transport/session or remote coordinator is unavailable and may require reconnection.</summary>
-        TransportUnavailable,
-        /// <summary>Authorization was refused; no retry may reinterpret this as contention.</summary>
-        Rejected,
-        /// <summary>A non-transport protocol/configuration failure requires attention.</summary>
-        Faulted
-    }
 }

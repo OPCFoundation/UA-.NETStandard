@@ -62,6 +62,10 @@ namespace Opc.Ua.Recycling
             m_logger = telemetry.CreateLogger<RecyclingCoordinator>();
             m_checkpoint = checkpoint;
             m_current = checkpoint.Snapshot;
+            m_lastOperationalRevision = checkpoint.Snapshot.Revision;
+            m_lastControlRevision = checkpoint.Snapshot.Revision;
+            m_membershipRevisions = Enum.GetValues<RecyclingProcess>()
+                .ToDictionary(static process => process, _ => checkpoint.Snapshot.Revision);
         }
 
         /// <summary>
@@ -152,6 +156,12 @@ namespace Opc.Ua.Recycling
                     await coordinator.PersistAsync(stoppedViews, checkpoint.Receipts, forceCheckpoint: false)
                         .ConfigureAwait(false);
                 }
+                coordinator.m_lastOperationalRevision = coordinator.Current.Revision;
+                coordinator.m_lastControlRevision = coordinator.Current.Revision;
+                foreach (RecyclingProcess process in Enum.GetValues<RecyclingProcess>())
+                {
+                    coordinator.m_membershipRevisions[process] = coordinator.Current.Revision;
+                }
                 journal = null;
                 return coordinator;
             }
@@ -195,8 +205,15 @@ namespace Opc.Ua.Recycling
                     }
                 }
                 CommittedSnapshot before = Current;
+                bool membership = command.Kind is RecyclingCommandKind.Register or RecyclingCommandKind.Initialize or
+                    RecyclingCommandKind.Heartbeat or RecyclingCommandKind.Disconnect;
+                bool operatorTarget = command.Kind is RecyclingCommandKind.EnableProcess or
+                    RecyclingCommandKind.DisableProcess or RecyclingCommandKind.DisposeHold;
+                long earliestRevision = membership
+                    ? m_membershipRevisions[command.Process]
+                    : operatorTarget ? m_lastControlRevision : m_lastOperationalRevision;
                 if (command.LineId != LineId || command.RunId != before.RunId ||
-                    command.ExpectedRevision != before.Revision)
+                    command.ExpectedRevision < earliestRevision || command.ExpectedRevision > before.Revision)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadInvalidState, "Stale line, run or state revision.");
@@ -225,6 +242,15 @@ namespace Opc.Ua.Recycling
                 cancellationToken.ThrowIfCancellationRequested();
                 await PersistAsync(
                     proposed, receipts, command.Kind == RecyclingCommandKind.Checkpoint).ConfigureAwait(false);
+                if (!membership || proposed.Lifecycle != before.Lifecycle)
+                {
+                    m_lastOperationalRevision = proposed.Revision;
+                    m_lastControlRevision = proposed.Revision;
+                }
+                if (membership)
+                {
+                    m_membershipRevisions[command.Process] = proposed.Revision;
+                }
                 m_logger.CommandCommitted(command.Kind, proposed.Revision);
                 return outcome;
             }
@@ -270,6 +296,17 @@ namespace Opc.Ua.Recycling
                 next = next with { Revision = checked(before.Revision + 1) };
                 cancellationToken.ThrowIfCancellationRequested();
                 await PersistAsync(next, m_checkpoint.Receipts, forceCheckpoint: false).ConfigureAwait(false);
+                if (next.Tick != before.Tick || next.Lifecycle != before.Lifecycle)
+                {
+                    m_lastOperationalRevision = next.Revision;
+                }
+                foreach (ProcessParticipant participant in before.Participants)
+                {
+                    if (participant.Initialized && participant.LeaseExpiresUtc <= now)
+                    {
+                        m_membershipRevisions[participant.Process] = next.Revision;
+                    }
+                }
                 return next;
             }
             finally
@@ -500,7 +537,7 @@ namespace Opc.Ua.Recycling
                 participants.RemoveAll(participant => participant.Process == command.Process);
                 participants.Add(new ProcessParticipant(
                     command.Process, principal.Identity, principal.ConnectionId, false,
-                    now.AddSeconds(m_configuration.LeaseSeconds), before.Revision));
+                    now.AddSeconds(m_configuration.LeaseSeconds), command.ExpectedRevision));
             }
             else
             {
@@ -523,7 +560,7 @@ namespace Opc.Ua.Recycling
                     LeaseExpiresUtc = command.Kind == RecyclingCommandKind.Disconnect
                         ? now
                         : now.AddSeconds(m_configuration.LeaseSeconds),
-                    ObservedRevision = before.Revision
+                    ObservedRevision = command.ExpectedRevision
                 });
             }
             bool ready = participants.Count == 10 && participants.All(participant =>
@@ -725,6 +762,14 @@ namespace Opc.Ua.Recycling
         private readonly Lock m_observerLock = new();
         private readonly List<Channel<CoordinatorNotification>> m_observers = [];
         private RecyclingCheckpoint m_checkpoint;
+        /// <summary>
+        /// Oldest control revision still current after membership-only metadata commits; recovery resets this fence.
+        /// </summary>
+        private long m_lastOperationalRevision;
+        /// <summary>Latest explicit control change; material movement cannot starve equipment or hold actions.</summary>
+        private long m_lastControlRevision;
+        /// <summary>Latest membership or lease-expiry revision for each independently owned process role.</summary>
+        private readonly Dictionary<RecyclingProcess, long> m_membershipRevisions;
         private CommittedSnapshot m_current;
         private Exception? m_failure;
         private Task? m_disposeTask;

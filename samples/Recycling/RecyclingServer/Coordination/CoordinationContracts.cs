@@ -36,13 +36,21 @@ namespace Opc.Ua.Recycling
     /// </summary>
     public enum RecyclingAccess
     {
-        /// <summary>Read-only observer.</summary>
+        /// <summary>
+        /// Read-only observer.
+        /// </summary>
         Observer,
-        /// <summary>Own-role registration, initialization and lease maintenance only.</summary>
+        /// <summary>
+        /// Own-role registration, initialization and lease maintenance only.
+        /// </summary>
         ProcessView,
-        /// <summary>Equipment enable/disable and explicit product disposition.</summary>
+        /// <summary>
+        /// Equipment enable/disable and explicit product disposition.
+        /// </summary>
         Operator,
-        /// <summary>Simulator lifecycle, bounded stepping, reset and checkpoint administration.</summary>
+        /// <summary>
+        /// Simulator lifecycle, bounded stepping, reset and checkpoint administration.
+        /// </summary>
         SimulatorAdministrator
     }
 
@@ -57,101 +65,6 @@ namespace Opc.Ua.Recycling
         string CertificateSha256 = "");
 
     /// <summary>
-    /// Typed command verbs in the sample coordination model, not added to any official companion method.
-    /// </summary>
-    public enum RecyclingCommandKind
-    {
-        /// <summary>Claims a distinct authenticated process role for the line.</summary>
-        Register,
-        /// <summary>Acknowledges receipt of the initial committed image.</summary>
-        Initialize,
-        /// <summary>Renews an initialized process view's wall-clock lease.</summary>
-        Heartbeat,
-        /// <summary>Explicitly relinquishes this session's availability.</summary>
-        Disconnect,
-        /// <summary>Freezes material time.</summary>
-        Pause,
-        /// <summary>Resumes a paused or deliberately stopped run.</summary>
-        Resume,
-        /// <summary>Stops material time without discarding inventory.</summary>
-        Stop,
-        /// <summary>Enables a process's equipment, without overriding availability or utility interlocks.</summary>
-        EnableProcess,
-        /// <summary>Disables a process's equipment.</summary>
-        DisableProcess,
-        /// <summary>Performs a bounded number of explicit steps while paused.</summary>
-        Step,
-        /// <summary>Creates a new run identity without reusing production history.</summary>
-        Reset,
-        /// <summary>Records an explicit authorized hold disposition.</summary>
-        DisposeHold,
-        /// <summary>Creates a durable checkpoint of the applied administrative revision.</summary>
-        Checkpoint
-    }
-
-    /// <summary>
-    /// A bounded optimistic command. Fields not used by a verb must retain their default values.
-    /// </summary>
-    public sealed record RecyclingCommand
-    {
-        /// <summary>
-        /// Caller-generated stable request identifier; retries must retain the entire payload.
-        /// </summary>
-        public string RequestId { get; init; } = string.Empty;
-
-        /// <summary>
-        /// Intended generic line identity.
-        /// </summary>
-        public string LineId { get; init; } = string.Empty;
-
-        /// <summary>
-        /// Run identity observed before submitting the command.
-        /// </summary>
-        public string RunId { get; init; } = string.Empty;
-
-        /// <summary>
-        /// Revision observed before submitting the command.
-        /// </summary>
-        public long ExpectedRevision { get; init; }
-
-        /// <summary>
-        /// Explicit sample command verb.
-        /// </summary>
-        public RecyclingCommandKind Kind { get; init; }
-
-        /// <summary>
-        /// Process selection for membership or equipment commands.
-        /// </summary>
-        public RecyclingProcess Process { get; init; }
-
-        /// <summary>
-        /// Inspection identifier for a disposition command.
-        /// </summary>
-        public long HoldId { get; init; }
-
-        /// <summary>
-        /// Authorized release or rejection, never an implicit clearance.
-        /// </summary>
-        public HoldDisposition Disposition { get; init; }
-
-        /// <summary>
-        /// Bounded number of material ticks for an administrative step.
-        /// </summary>
-        public int Steps { get; init; }
-    }
-
-    /// <summary>
-    /// Original durable outcome returned again for identical authenticated retries.
-    /// </summary>
-    public sealed record RecyclingCommandOutcome(
-        string RequestId,
-        string RunId,
-        long Revision,
-        long Tick,
-        uint Status,
-        string Message);
-
-    /// <summary>
     /// Auditable command receipt retained with production state before acknowledgement.
     /// </summary>
     public sealed record RecyclingCommandReceipt(
@@ -162,9 +75,39 @@ namespace Opc.Ua.Recycling
         DateTime CommittedUtc);
 
     /// <summary>
-    /// A coalescible current-state projection notification, never an alternative material/event ledger.
+    /// View-local coordination status, distinct from transport, machine and material-disposition state.
     /// </summary>
-    public sealed record CoordinatorNotification(CommittedSnapshot Snapshot, bool IsAvailable, string Detail);
+    public enum RecyclingMembershipState
+    {
+        /// <summary>
+        /// No membership has been established yet.
+        /// </summary>
+        Uninitialized,
+        /// <summary>
+        /// The authenticated session's role is initialized and its lease is current.
+        /// </summary>
+        Ready,
+        /// <summary>
+        /// A bounded revision-conflict round must retry on the same connection.
+        /// </summary>
+        RevisionContention,
+        /// <summary>
+        /// A former session's known owned lease must expire before a replacement can register.
+        /// </summary>
+        WaitingForPreviousLease,
+        /// <summary>
+        /// The transport/session or remote coordinator is unavailable and may require reconnection.
+        /// </summary>
+        TransportUnavailable,
+        /// <summary>
+        /// Authorization was refused; no retry may reinterpret this as contention.
+        /// </summary>
+        Rejected,
+        /// <summary>
+        /// A non-transport protocol/configuration failure requires attention.
+        /// </summary>
+        Faulted
+    }
 
     /// <summary>
     /// Complete versioned state of one single-writer journal commit.

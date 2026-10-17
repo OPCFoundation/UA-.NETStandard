@@ -231,6 +231,24 @@ namespace Opc.Ua.Recycling.Samples.Tests
         }
 
         /// <summary>
+        /// Explicitly exchanges public application certificates with the coordinator and each owned view.
+        /// </summary>
+        internal async Task TrustClientApplicationAsync(
+            ApplicationConfiguration client, CancellationToken cancellationToken)
+        {
+            foreach (IHost host in new[] { ServerHost }.Concat(m_views))
+            {
+                ApplicationConfiguration server = await ConfigurationAsync(host, cancellationToken)
+                    .ConfigureAwait(false);
+                await TrustApplicationsAsync(server, client, Telemetry, cancellationToken).ConfigureAwait(false);
+                await server.CertificateManager!.UpdateAsync(
+                    server.SecurityConfiguration, server.ApplicationUri, cancellationToken).ConfigureAwait(false);
+            }
+            await client.CertificateManager!.UpdateAsync(
+                client.SecurityConfiguration, client.ApplicationUri, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Initializes ten distinct role identities across the real secure OPC UA service boundary.
         /// </summary>
         internal async Task InitializeRolesAsync(CancellationToken cancellationToken)

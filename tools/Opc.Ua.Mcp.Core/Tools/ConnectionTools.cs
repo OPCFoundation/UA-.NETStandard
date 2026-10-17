@@ -111,7 +111,7 @@ namespace Opc.Ua.Mcp.Tools
         [Description("Connect anonymously or with username/password; defaults to the strongest endpoint. " +
             "For X.509 use ConnectCertificate. Returns a confirmation with session name/ID and security settings, " +
             "or JSON {error:true, statusCode, message}.")]
-        public static Task<string> ConnectAsync(
+        public static Task<string> ConnectWithOptionsAsync(
             OpcUaSessionManager sessionManager,
             [Description("Server URL, e.g. opc.tcp://localhost:4840.")] string endpointUrl,
             [Description("None, Sign or SignAndEncrypt; default strongest.")]
@@ -152,9 +152,9 @@ namespace Opc.Ua.Mcp.Tools
         }
 
         /// <summary>
-        /// Retains the C# connection overload accepting every authentication option.
+        /// Retains the original C# connection signature with an explicit cancellation token.
         /// </summary>
-        public static async Task<string> ConnectAsync(
+        public static Task<string> ConnectAsync(
             OpcUaSessionManager sessionManager,
             string endpointUrl,
             string? securityMode,
@@ -164,7 +164,26 @@ namespace Opc.Ua.Mcp.Tools
             string? password,
             bool autoAcceptCerts,
             string? name,
-            string? certificateIdentity,
+            CancellationToken ct)
+        {
+            return ConnectAsync(sessionManager, endpointUrl, securityMode, securityPolicy,
+                authType, username, password, autoAcceptCerts, name, certificateIdentity: null, ct);
+        }
+
+        /// <summary>
+        /// Connects with optional named, host-provisioned X.509 user-certificate authentication.
+        /// </summary>
+        public static async Task<string> ConnectAsync(
+            OpcUaSessionManager sessionManager,
+            string endpointUrl,
+            string? securityMode = null,
+            string? securityPolicy = null,
+            string authType = "Anonymous",
+            string? username = null,
+            string? password = null,
+            bool autoAcceptCerts = false,
+            string? name = null,
+            string? certificateIdentity = null,
             CancellationToken ct = default)
         {
             try
