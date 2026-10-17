@@ -205,7 +205,9 @@ namespace Quickstarts.Servers
                         new StringTable(serverUris.Memory.ToArray()));
                     template = DecodeEventQueue(decoder);
                 }
-                File.Delete(targetFile);
+                // The snapshot is kept until the restore completes
+                // (CleanStoredQueues), so a restore that fails and is retried
+                // still finds the queued notifications.
 
                 var queue = new DurableEventMonitoredItemQueue(template, m_batchPersistor);
                 m_eventQueues.AddOrUpdate(id, queue, (_, _) => queue);
@@ -246,7 +248,9 @@ namespace Quickstarts.Servers
                         new StringTable(serverUris.Memory.ToArray()));
                     template = DecodeDataChangeQueue(decoder);
                 }
-                File.Delete(targetFile);
+                // The snapshot is kept until the restore completes
+                // (CleanStoredQueues), so a restore that fails and is retried
+                // still finds the queued notifications.
 
                 var queue = new DurableDataChangeMonitoredItemQueue(template, m_batchPersistor);
                 m_dataChangeQueues.AddOrUpdate(id, queue, (_, _) => queue);
