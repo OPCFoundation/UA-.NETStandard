@@ -28,6 +28,7 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
     <ProjectReference Include="..\..\src\Opc.Ua.AutoID\Opc.Ua.AutoID.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Client\Opc.Ua.AutoID.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Server\Opc.Ua.AutoID.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
