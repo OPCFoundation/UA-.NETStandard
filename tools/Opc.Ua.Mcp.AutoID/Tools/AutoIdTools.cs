@@ -314,7 +314,7 @@ namespace Opc.Ua.Mcp.Tools
                 var items = new JsonArray();
                 foreach (LocationTypeEnumeration type in types)
                 {
-                    items.Add(type.ToString());
+                    items.Add((JsonNode?)JsonValue.Create(type.ToString()));
                 }
                 return new JsonObject { ["supportedLocationTypes"] = items };
             }, ct);

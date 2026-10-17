@@ -145,7 +145,7 @@ namespace Opc.Ua.Mcp.Tools
             var items = new JsonArray();
             foreach (AntennaNameIdPair pair in antennas)
             {
-                items.Add(new JsonObject { ["antennaId"] = pair.AntennaId, ["antennaName"] = pair.AntennaName });
+                items.Add((JsonNode)new JsonObject { ["antennaId"] = pair.AntennaId, ["antennaName"] = pair.AntennaName });
             }
             return items;
         }
