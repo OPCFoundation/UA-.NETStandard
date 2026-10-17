@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <AssemblyName>Opc.Ua.Recycling.Client</AssemblyName>
+    <RootNamespace>Opc.Ua.Recycling</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <IsAotCompatible>true</IsAotCompatible>
+    <Description>Shared typed model and managed-session client for the recycling samples.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Recycling.Samples.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Recycling.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation.org:sample:recycling</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>RecyclingModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Recycling.Model</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <EmbeddedResource Include="Model\Recycling.xml" LogicalName="Recycling.Model.xml" />
+  </ItemGroup>
+  <Import Project="..\..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+</Project>
