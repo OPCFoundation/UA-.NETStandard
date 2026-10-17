@@ -95,7 +95,8 @@ namespace Opc.Ua.Server.Tests
                         pending.Add(monitored.OnMonitoredNodeChangedAsync(
                             server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).AsTask());
                     }
-                    Assert.That(pending.Count(static task => task.IsCompletedSuccessfully), Is.LessThanOrEqualTo(2),
+                    Assert.That(pending.Count(static task => task.Status == TaskStatus.RanToCompletion),
+                        Is.LessThanOrEqualTo(2),
                         "A slow consumer must backpressure the next update, not retain a stale-state backlog.");
                 }
                 finally
