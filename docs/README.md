@@ -225,6 +225,9 @@ For more examples, including the Pumps and Machinery models, see the
 The [generic recycling simulation](../samples/Recycling/README.md) combines a causal production
 model with separately hosted process views; its guide identifies the remaining companion
 integration limits.
+The optional [recycling operator console](../samples/Recycling/README.md#operator-console) adds a local ASP.NET Core 10
+browser schematic, strict UA trust and role-limited commands; its guide covers standalone and
+Compose setup, image publication and the synthetic sample's operational/security limits.
 
 To expose these typed client interfaces to an agent, use the
 [industrial companion MCP tools](McpServer.md#industrial-companion-tools). Select one family or

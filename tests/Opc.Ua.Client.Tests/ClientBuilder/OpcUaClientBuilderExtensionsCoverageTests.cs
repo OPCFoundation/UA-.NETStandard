@@ -294,6 +294,56 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(url.AbsolutePath, Is.EqualTo("/path"));
         }
 
+        /// <summary>
+        /// Discovered endpoints inherit explicitly bounded application quotas instead of the 2 MiB defaults.
+        /// </summary>
+        [Test]
+        public void AddDiscoveryAndConnectPreservesApplicationTransportQuotas()
+        {
+            ApplicationConfiguration configuration = CreateConfig();
+            configuration.TransportQuotas = new TransportQuotas
+            {
+                MaxMessageSize = 16 * 1024 * 1024,
+                MaxByteStringLength = 16 * 1024 * 1024,
+                MaxArrayLength = 100_000
+            };
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(options => options.Configuration = configuration)
+                .AddDiscoveryAndConnect(options =>
+                {
+                    options.DiscoveryUrl = "opc.tcp://localhost:4840";
+                    options.SecurityMode = MessageSecurityMode.None;
+                    options.SecurityPolicyUri = SecurityPolicies.None;
+                });
+            services.AddSingleton<IOpcUaDiscoveryService>(new EndpointDiscoveryStub(
+            [
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                }
+            ]));
+            ConfiguredEndpoint? connected = null;
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.Setup(value => value.ConnectAsync(It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, CancellationToken>((endpoint, _) => connected = endpoint)
+                .ThrowsAsync(new OperationCanceledException());
+            services.AddSingleton(factory.Object);
+            using ServiceProvider provider = services.BuildServiceProvider();
+            Func<CancellationToken, Task<Client.ManagedSession>> connect =
+                provider.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+
+            Assert.CatchAsync<OperationCanceledException>(() => connect(CancellationToken.None));
+
+            Assert.That(connected, Is.Not.Null);
+            EndpointConfiguration quotas = connected!.Configuration ??
+                throw new InvalidOperationException("Endpoint quotas are required.");
+            Assert.That(quotas.MaxMessageSize, Is.EqualTo(16 * 1024 * 1024));
+            Assert.That(quotas.MaxByteStringLength, Is.EqualTo(16 * 1024 * 1024));
+            Assert.That(quotas.MaxArrayLength, Is.EqualTo(100_000));
+        }
+
         [Test]
         public async Task ApplyManagedSessionOptionsTimeProviderAsync()
         {

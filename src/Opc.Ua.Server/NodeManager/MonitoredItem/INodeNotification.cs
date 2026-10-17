@@ -61,8 +61,11 @@ namespace Opc.Ua.Server
         /// subscriber, keyed by monitored item id. Only captured when the reporter was denied
         /// reading a value whose user access level depends on the user, so a subscriber that may
         /// read it receives the value of this change rather than a later one.
+        /// Session and identity attribution prevent a later attachment or transfer from inheriting
+        /// a value captured for a different owner.
         /// </summary>
-        public Dictionary<uint, DataValue>? SubscriberValueSnapshots { get; set; }
+        public Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
+            SubscriberValueSnapshots { get; set; }
     }
 
     /// <summary>
