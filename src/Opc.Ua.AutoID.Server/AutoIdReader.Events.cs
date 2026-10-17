@@ -178,6 +178,20 @@ namespace Opc.Ua.AutoID.Server
         /// Raises the access event (OPC 30010 7.10 and 7.11) when access events are enabled.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
+        private void TryRaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
+        {
+            // The operation has already happened: a failure to publish its audit event must not
+            // turn an executed command into a failed call.
+            try
+            {
+                RaiseAccessEvent(client, command, results);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.ReaderShutdownStepFailed(ex, Name.Name, "publishing the access event");
+            }
+        }
+
         private void RaiseAccessEvent(string client, string command, ArrayOf<AccessResult> results)
         {
             if (!Runtime.Options.PublishAccessEvents || results.Count == 0)

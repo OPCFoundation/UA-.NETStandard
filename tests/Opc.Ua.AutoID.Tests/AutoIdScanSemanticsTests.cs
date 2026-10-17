@@ -359,6 +359,36 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public async Task ASynchronousScanIsRefusedWhileTheProviderStillStopsTheAsynchronousScanAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            var stopping = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            provider.OnStop = async ct =>
+            {
+                stopping.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+            };
+            await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
+
+            Task<ServiceResult> stop = StopAsync(device).AsTask();
+            await stopping.Task.ConfigureAwait(false);
+            ScanRfidReaderDeviceTypeMethodStateResult duringStop = await ScanAsync(
+                device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false);
+            release.SetResult(true);
+            ServiceResult stopped = await stop.ConfigureAwait(false);
+            ScanRfidReaderDeviceTypeMethodStateResult afterStop = await ScanAsync(
+                device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(duringStop.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(ServiceResult.IsGood(stopped), Is.True);
+                Assert.That(ServiceResult.IsGood(afterStop.ServiceResult), Is.True);
+            });
+        }
+
+        [Test]
         public async Task ScanStartWithInvalidSettingsFailsAndInfiniteSettingsAreAllowedAsync()
         {
             (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);

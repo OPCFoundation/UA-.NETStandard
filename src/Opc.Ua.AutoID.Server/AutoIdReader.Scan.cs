@@ -119,7 +119,7 @@ namespace Opc.Ua.AutoID.Server
                     if (results.Count > 0)
                     {
                         PublishLastScan(results[0]);
-                        RaiseAccessEvent(ClientOf(context), "Scan", AccessResultsOf(results));
+                        TryRaiseAccessEvent(ClientOf(context), "Scan", AccessResultsOf(results));
                     }
                     return new ScanCallOutcome(ServiceResult.Good, results, outcome.Status);
                 }
@@ -311,6 +311,7 @@ namespace Opc.Ua.AutoID.Server
                 }
                 try
                 {
+                    long generation;
                     lock (m_lock)
                     {
                         if (m_activity != ScanActivity.Asynchronous ||
@@ -318,13 +319,18 @@ namespace Opc.Ua.AutoID.Server
                         {
                             return false;
                         }
-                        m_activity = ScanActivity.Idle;
-                        m_scanOwner = NodeId.Null;
-                        m_generation++;
-                        UpdateStatusLocked();
+                        generation = m_generation;
                     }
-                    PublishStatus();
-                    await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
+                    try
+                    {
+                        // The reader stays busy until the provider has stopped, so no other scan
+                        // starts on the hardware in the meantime.
+                        await provider.StopScanAsync(linked.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        EndAsynchronousScan(generation);
+                    }
                     return true;
                 }
                 finally

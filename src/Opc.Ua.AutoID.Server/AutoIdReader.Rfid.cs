@@ -299,7 +299,7 @@ namespace Opc.Ua.AutoID.Server
                 access.RWData = new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = data };
                 access.EncodingMask |= (uint)(RfidAccessResultFields.CodeTypeRWData | RfidAccessResultFields.RWData);
             }
-            RaiseAccessEvent(ClientOf(context), command, new AccessResult[] { access }.ToArrayOf());
+            TryRaiseAccessEvent(ClientOf(context), command, new AccessResult[] { access }.ToArrayOf());
         }
 
         /// <summary>

@@ -79,7 +79,7 @@ namespace Opc.Ua.AutoID.Server
         public async ValueTask<AutoIdScanOutcome> ScanAsync(ScanSettings settings, CancellationToken cancellationToken)
         {
             DateTime deadline = settings.Duration > 0
-                ? DateTime.UtcNow.AddMilliseconds(settings.Duration)
+                ? DateTime.UtcNow.AddMilliseconds(Math.Min(settings.Duration, 86_400_000d))
                 : DateTime.MaxValue;
             int cycle = 0;
             ArrayOf<ScanResult> found;
@@ -164,7 +164,7 @@ namespace Opc.Ua.AutoID.Server
             CancellationToken cancellationToken)
         {
             DateTime deadline = settings.Duration > 0
-                ? DateTime.UtcNow.AddMilliseconds(settings.Duration)
+                ? DateTime.UtcNow.AddMilliseconds(Math.Min(settings.Duration, 86_400_000d))
                 : DateTime.MaxValue;
             int cycle = 0;
             try
@@ -196,8 +196,8 @@ namespace Opc.Ua.AutoID.Server
                         if (owned)
                         {
                             owner.Dispose();
+                            await sink.CompleteScanAsync(CancellationToken.None).ConfigureAwait(false);
                         }
-                        await sink.CompleteScanAsync(CancellationToken.None).ConfigureAwait(false);
                         return;
                     }
                     await Task.Delay(Next(deadline), cancellationToken).ConfigureAwait(false);
@@ -210,6 +210,33 @@ namespace Opc.Ua.AutoID.Server
             catch (ObjectDisposedException)
             {
                 // The reader shut down while the loop reported.
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // The sink rejected a report: end the loop and let the reader return to idle
+                // instead of leaving it scanning with a dead loop.
+                bool owned;
+                lock (m_lock)
+                {
+                    owned = ReferenceEquals(m_cancel, owner);
+                    if (owned)
+                    {
+                        m_loop = null;
+                        m_cancel = null;
+                    }
+                }
+                if (owned)
+                {
+                    owner.Dispose();
+                    try
+                    {
+                        await sink.CompleteScanAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        // The reader is already gone.
+                    }
+                }
             }
         }
 

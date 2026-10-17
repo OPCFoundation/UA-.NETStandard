@@ -114,10 +114,23 @@ namespace Opc.Ua.AutoID.Client
             {
                 if (!slots.TryGetValue(name, out int slot))
                 {
+                    if (required)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadNotFound,
+                            "The device {0} does not expose the required variable {1}.",
+                            reader.BrowseName.Name ?? string.Empty,
+                            name);
+                    }
                     return new DataValue(Variant.Null, StatusCodes.BadNotFound);
                 }
                 DataValue value = response.Results[slot];
-                if (StatusCode.IsBad(value.StatusCode) && (required || value.StatusCode != StatusCodes.BadNotFound))
+                if (StatusCode.IsBad(value.StatusCode) && !required)
+                {
+                    // An optional variable the session may not read is reported as absent.
+                    return new DataValue(Variant.Null, StatusCodes.BadNotFound);
+                }
+                if (StatusCode.IsBad(value.StatusCode))
                 {
                     throw ServiceResultException.Create(
                         value.StatusCode,

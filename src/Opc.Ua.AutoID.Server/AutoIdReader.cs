@@ -256,7 +256,9 @@ namespace Opc.Ua.AutoID.Server
                     stopScan = m_activity == ScanActivity.Asynchronous;
                     m_activity = ScanActivity.Idle;
                     m_generation++;
+                    UpdateStatusLocked();
                 }
+                PublishStatus();
                 if (stopScan && m_asyncProvider != null)
                 {
                     await TryAsync(

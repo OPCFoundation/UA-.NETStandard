@@ -233,7 +233,7 @@ namespace Opc.Ua.AutoID.Server
             {
                 foreach (AutoIdReader reader in Snapshot())
                 {
-                    await reader.DisposeAsync().ConfigureAwait(false);
+                    await DisposeQuietlyAsync(reader).ConfigureAwait(false);
                 }
             }
             finally
@@ -359,6 +359,11 @@ namespace Opc.Ua.AutoID.Server
                 {
                     await DisposeQuietlyAsync(reader).ConfigureAwait(false);
                 }
+                else if (builder.OwnsProviderOnDispose)
+                {
+                    // The reader never took ownership of the provider.
+                    await DisposeProviderQuietlyAsync(builder.Provider, builder.BrowseName.Name).ConfigureAwait(false);
+                }
                 await RemoveUnregisteredDeviceAsync(parentNode, device).ConfigureAwait(false);
                 throw;
             }
@@ -393,6 +398,25 @@ namespace Opc.Ua.AutoID.Server
                     }
                 }
             );
+        }
+
+        private async ValueTask DisposeProviderQuietlyAsync(IAutoIdReaderProvider provider, string? name)
+        {
+            try
+            {
+                if (provider is IAsyncDisposable asyncDisposable)
+                {
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (provider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.ReaderRollbackFailed(ex, name);
+            }
         }
 
         private async ValueTask DisposeQuietlyAsync(AutoIdReader reader)
