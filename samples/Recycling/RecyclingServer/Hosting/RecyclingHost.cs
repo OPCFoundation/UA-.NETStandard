@@ -120,6 +120,7 @@ namespace Opc.Ua.Recycling
                 configuration.MaxByteStringLength = 16 * 1024 * 1024;
                 configuration.MaxMessageSize = 16 * 1024 * 1024;
                 configuration.OperationTimeoutMs = 15000;
+                configuration.ConfigureBuilder = static selected => selected.SetMaxMessageQueueSize(2);
                 configuration.UserTokenPolicies.Add(new OpcUaUserTokenPolicy
                 {
                     TokenType = UserTokenType.Certificate
@@ -210,12 +211,19 @@ namespace Opc.Ua.Recycling
     /// <summary>
     /// Opens durable state before the OPC UA endpoint starts.
     /// </summary>
-    internal sealed class RecyclingStartupService(RecyclingRuntime runtime) : IHostedService
+    internal sealed class RecyclingStartupService(
+        RecyclingRuntime runtime, IOpcUaApplicationConfigurationProvider configuration) : IHostedService
     {
         /// <inheritdoc/>
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
-            return runtime.StartAsync(cancellationToken).AsTask();
+            ApplicationConfiguration application = await configuration.GetAsync(cancellationToken).ConfigureAwait(false);
+            TransportQuotas quotas = application.TransportQuotas ??
+                throw new InvalidOperationException("Application transport quotas are required.");
+            quotas.MaxMessageSize = 16 * 1024 * 1024;
+            quotas.MaxByteStringLength = 16 * 1024 * 1024;
+            quotas.MaxArrayLength = 100_000;
+            await runtime.StartAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

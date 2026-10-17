@@ -61,7 +61,7 @@ to the owning package's `NugetREADME.md`, linked from each catalogue below.
 
 ## What It Does
 
-The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. The server exposes tools through a [tool profile](#tool-profiles) — a named, bounded catalog selected at startup — rather than a single fixed tool count. The default `full` profile registers all modules, but host-disabled privileged and live tools remain hidden. A narrower profile exposes only the subset relevant to its workflow. The table below describes the general service surface; domain and higher-level workflows have their own profiles.
+The MCP server wraps the OPC UA .NET Standard client library, translating between JSON-based MCP tool calls and OPC UA binary protocol operations. A [tool profile](#tool-profiles) selects the catalog at startup. The default `full` profile registers all modules, but host-disabled privileged and live tools remain hidden. A narrower profile exposes only the subset relevant to its workflow. The table below describes the general service surface; domain and higher-level workflows have their own profiles.
 
 | Service Set | Tools | Description |
 |---|---|---|
@@ -109,7 +109,7 @@ access. For registration, selectors, paths and output formats, see the
 
 ## Tool Profiles
 
-The server selects its tool catalog through a **tool profile** — a bounded set of tool classes registered at startup. Profiles let a client request only the tools it needs (smaller catalogs are easier for an LLM to reason about and reduce prompt size), while `full` preserves the complete surface for clients that want everything.
+The server selects its tool catalog through a **tool profile**, a set of tool classes registered at startup. Selecting a profile limits the tool descriptions sent to the client; `full` includes the complete catalog.
 
 | Profile | Tool classes registered | Typical use case |
 |---|---|---|
@@ -152,7 +152,7 @@ The [BinPickingClient sample](../samples/Robotics/BinPickingClient) uses this
 composition; see the [Vision package reference](../tools/Opc.Ua.Mcp.Vision/NugetREADME.md#composed-with-robotics)
 for embedding it.
 
-Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
+Tool counts, including those in `full`, change as tools are added or removed. Use the tables above or `tools/list` to inspect the catalog exposed by a running server.
 
 The [industrial companion tools](#industrial-companion-tools) cover additional
 families, cross-family handoffs, bounded observations and configured file
@@ -175,8 +175,8 @@ documented tool sets. Profiles select a catalogue, not permissions.
 | `gms_download_result`, `gms_observe`, `gms_acknowledge_results` | Bounded transfer/observation and separate consented result acknowledgment |
 
 WMTP belongs to the MachineTool package/profile, not a separate profile.
-`machinetool_list_devices` works without a fictitious machine on WMTP-only
-endpoints. Measurement `nodeId` targets configuration; `valueNodeId` identifies
+`machinetool_list_devices` also works on WMTP-only endpoints, which need no machine
+object. Measurement `nodeId` targets configuration; `valueNodeId` identifies
 the actual AnalogSignal variable for `machinetool_observe_values`.
 
 DataValue replies preserve quality, source/server time and numeric type.
@@ -696,8 +696,12 @@ $env:McpServer__CertificateIdentities__observer__StorePath = 'D:\OpcUaIdentities
 $env:McpServer__CertificateIdentities__observer__SubjectName = 'CN=PlantObserver'
 ```
 
-Call `ConnectCertificate` with the `endpointUrl` and `certificateIdentity: "observer"`.
-`Connect` retains the existing anonymous/username arguments; certificate login has its own compact tool.
+Call `ConnectCertificate` with `endpointUrl` and `certificateIdentity: "observer"`.
+It always uses Certificate authentication and accepts the same `securityMode`,
+`securityPolicy`, and `name` selectors as `Connect`, but no automatic-trust switch.
+`Connect` retains its original eight arguments for Anonymous and Username authentication;
+`authType: "Certificate"` on that tool fails without an identity selector.
+The public C# `ConnectAsync` overload accepting `certificateIdentity` remains available.
 Tool arguments cannot supply certificate-store paths, private keys or key passwords.
 An embedding host can inject `ICertificatePasswordProvider` for protected keys.
 Missing, unknown or ambiguous references fail rather than falling back to another identity.
