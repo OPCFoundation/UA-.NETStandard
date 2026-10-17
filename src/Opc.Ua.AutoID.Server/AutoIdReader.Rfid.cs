@@ -149,8 +149,8 @@ namespace Opc.Ua.AutoID.Server
             IAutoIdRfidProvider provider = RfidProviderFor(AutoIdRfidOperations.LockTag);
             ServiceResult invalid = ValidateIdentifier(identifier, codeType);
             if (ServiceResult.IsGood(invalid) &&
-                (!Enum.IsDefined(region) ||
-                    !Enum.IsDefined(lockOperation)))
+                (!AutoIdCompat.IsDefined(region) ||
+                    !AutoIdCompat.IsDefined(lockOperation)))
             {
                 invalid = BadResult(StatusCodes.BadInvalidArgument, "The lock region or lock operation is not defined.");
             }
@@ -177,7 +177,7 @@ namespace Opc.Ua.AutoID.Server
         {
             IAutoIdRfidProvider provider = RfidProviderFor(AutoIdRfidOperations.SetTagPassword);
             ServiceResult invalid = ValidateIdentifier(identifier, codeType);
-            if (ServiceResult.IsGood(invalid) && !Enum.IsDefined(passwordType))
+            if (ServiceResult.IsGood(invalid) && !AutoIdCompat.IsDefined(passwordType))
             {
                 invalid = BadResult(StatusCodes.BadInvalidArgument, "The password type is not defined.");
             }

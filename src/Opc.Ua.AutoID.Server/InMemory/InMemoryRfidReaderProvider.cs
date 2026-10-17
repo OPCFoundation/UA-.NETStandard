@@ -556,7 +556,7 @@ namespace Opc.Ua.AutoID.Server
                 case "RAW:STRING" when identifier.SwitchField == ScanDataFields.String:
                     try
                     {
-                        epc = ByteString.From(Convert.FromHexString(identifier.String ?? string.Empty));
+                        epc = ByteString.From(AutoIdCompat.FromHexString(identifier.String ?? string.Empty));
                     }
                     catch (FormatException)
                     {

@@ -454,7 +454,7 @@ namespace Opc.Ua.AutoID.Server
                 return BadResult(StatusCodes.BadInvalidArgument, "The scan cycles must not be negative, 0 is infinite.");
             }
             if ((settings.EncodingMask & (uint)ScanSettingsFields.LocationType) != 0 &&
-                !Enum.IsDefined(settings.LocationType))
+                !AutoIdCompat.IsDefined(settings.LocationType))
             {
                 return BadResult(StatusCodes.BadInvalidArgument, "The scan location type is not defined.");
             }

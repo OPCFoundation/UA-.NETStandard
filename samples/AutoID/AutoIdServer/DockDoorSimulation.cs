@@ -48,13 +48,13 @@ namespace AutoIdSample
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
             bool inRange = false;
             int tick = 0;
             try
             {
-                while (await timer.WaitForNextTickAsync(stoppingToken).ConfigureAwait(false))
+                while (true)
                 {
+                    await Task.Delay(TimeSpan.FromSeconds(2), stoppingToken).ConfigureAwait(false);
                     tick++;
                     if (m_dock.Reader is null)
                     {

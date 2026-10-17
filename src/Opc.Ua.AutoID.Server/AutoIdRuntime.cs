@@ -485,7 +485,7 @@ namespace Opc.Ua.AutoID.Server
 
         private static void ValidateProvider(IAutoIdReaderProvider provider)
         {
-            if (!Enum.IsDefined(provider.Kind))
+            if (!AutoIdCompat.IsDefined(provider.Kind))
             {
                 throw new ArgumentException("The provider reports an unknown reader kind.", nameof(provider));
             }
@@ -534,7 +534,7 @@ namespace Opc.Ua.AutoID.Server
                 }
                 foreach (LocationTypeEnumeration type in rtls.SupportedLocationTypes)
                 {
-                    if (!Enum.IsDefined(type))
+                    if (!AutoIdCompat.IsDefined(type))
                     {
                         throw new ArgumentException(
                             "An RTLS provider reports an unknown location type.",

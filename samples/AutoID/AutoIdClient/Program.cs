@@ -98,7 +98,7 @@ foreach (ScanResult result in scan.Results)
 {
     var tag = (RfidScanResult)result;
     RfidSighting? sighting = tag.Sighting.Count > 0 ? tag.Sighting[0] : null;
-    Console.WriteLine($"  {Convert.ToHexString(tag.ScanData.Epc.UId.Span)}  " +
+    Console.WriteLine($"  {Hex(tag.ScanData.Epc.UId)}  " +
         $"antenna {sighting?.Antenna}, {sighting?.Strength} dBm");
 }
 
@@ -109,13 +109,13 @@ if (scan.Results.Count > 0)
     AutoIdTagReadResponse label = await autoId.ReadTagAsync(rfid, id, "EPC", 3, 0, 11, cancellationToken: ct)
         .ConfigureAwait(false);
     Console.WriteLine();
-    Console.WriteLine($"ReadTag user memory: {label.Status}, \"{Encoding.ASCII.GetString(label.Data.Span)}\"");
+    Console.WriteLine($"ReadTag user memory: {label.Status}, \"{Encoding.ASCII.GetString(label.Data.Memory.ToArray())}\"");
     AutoIdOperationStatusEnumeration written = await autoId.WriteTagAsync(
         rfid, id, "EPC", 3, 16, ByteString.From(Encoding.ASCII.GetBytes("CHECKED")), cancellationToken: ct)
         .ConfigureAwait(false);
     AutoIdTagReadResponse back = await autoId.ReadTagAsync(rfid, id, "EPC", 3, 16, 7, cancellationToken: ct)
         .ConfigureAwait(false);
-    Console.WriteLine($"WriteTag: {written}; read back: \"{Encoding.ASCII.GetString(back.Data.Span)}\"");
+    Console.WriteLine($"WriteTag: {written}; read back: \"{Encoding.ASCII.GetString(back.Data.Memory.ToArray())}\"");
 }
 
 if (options.WatchSeconds > 0)
@@ -136,7 +136,7 @@ if (options.WatchSeconds > 0)
         {
             Console.WriteLine($"  scan event at {scanEvent.Time:HH:mm:ss}: " +
                 string.Join(", ", scanEvent.ScanResult!.Select(r =>
-                    Convert.ToHexString(r.ScanData.Epc.UId.Span)[^6..])));
+                    Hex(r.ScanData.Epc.UId)[^6..])));
         }
     }
     catch (OperationCanceledException) when (window.IsCancellationRequested)
@@ -149,6 +149,15 @@ if (options.WatchSeconds > 0)
 }
 
 return 0;
+
+static string Hex(ByteString value)
+{
+#if NET5_0_OR_GREATER
+    return Convert.ToHexString(value.Span);
+#else
+    return BitConverter.ToString(value.Memory.ToArray()).Replace("-", string.Empty);
+#endif
+}
 
 static async Task WatchPresenceAsync(
     AutoIdClient autoId,
