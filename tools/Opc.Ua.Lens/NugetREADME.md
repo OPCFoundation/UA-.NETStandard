@@ -24,6 +24,6 @@ Use the .NET 10 SDK to install the root package. It selects the matching
 `win-x64`, `linux-x64` or `osx-arm64` payload automatically. The selector and
 all three platform packages must be available at the same version in the feed;
 the suffixed packages are not installed directly. Other RIDs have no
-RID-agnostic fallback. Platform-specific rendering prerequisites and
-qualification limits still apply; see
+RID-agnostic fallback. For rendering prerequisites and the scope of platform
+checks, see
 [artifact qualification](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/tools/Opc.Ua.Lens/README.md#publish-and-package).

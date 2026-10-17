@@ -35,9 +35,9 @@ for example `UaLens__SecurityMode`, `UaLens__SecurityPolicy`,
 
 ## Publish and package
 
-The dedicated [artifact workflow](../../.github/workflows/ualens-artifacts.yml)
-builds all three desktop TFMs and validates two separate distributions on this
-explicit matrix:
+The [artifact workflow](../../.github/workflows/ualens-artifacts.yml) builds all
+three desktop TFMs and validates NativeAOT executables and installed managed
+tools on these runners:
 
 | Runner | Native RID | Native executable | Managed tool shim | Desktop prerequisite |
 | --- | --- | --- | --- | --- |
@@ -82,8 +82,8 @@ The selector and all three RID package IDs are listed in the shared
 [package inventory](../../.azurepipelines/expected-packages.txt), so the publishing
 gate requires the complete tool alongside the library packages.
 
-The dedicated artifact workflow verifies deployment behavior that ordinary
-solution builds and unit tests do not: installation through the tool selector,
+The artifact workflow verifies deployment behavior that ordinary solution builds
+and unit tests do not: installation through the tool selector,
 native-library/resource loading, the platform desktop event loop, retained
 camera readback, changed pixels and bounded shutdown. Cocoa must run on the
 process main thread. These checks supplement the shared CI matrix; they do not
@@ -223,7 +223,7 @@ identity on each installation host.
 
 `--smoke-test` runs the real classic desktop lifetime. It loads the compiled
 application/theme resources, opens a Subscription Bench document through the
-normal document factory/workspace, waits for actual visual-tree attachment,
+normal document factory/workspace, waits for visual-tree attachment,
 verifies its chart is attached and laid out,
 renders deterministic data with the document's ScottPlot/Skia renderer, and
 awaits window, workspace, connection and service-container cleanup. It stays

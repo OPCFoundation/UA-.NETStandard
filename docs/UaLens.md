@@ -388,8 +388,8 @@ the same configured store and PKI through the restart. The Quickstarts provider
 does not promise persistence after an abrupt process kill.
 
 A configured cold peer can recreate a subscription when transfer is rejected.
-The lab reports that outcome as **recreation**, not seamless transfer or recovered
-queued data. It also reports retained source resources whose deletion is
+The lab reports that outcome as **recreation**, not a completed transfer or recovery
+of queued data. It also reports retained source resources whose deletion is
 unconfirmed; matching numeric subscription IDs on different servers are not
 deletion evidence. Stopping the lab closes its target session, not the borrowed
 primary workspace session.
@@ -642,7 +642,7 @@ Overview with identity, health, item state, operation mode and available counter
 Changing the **Section** selects Process values, Jobs, Energy or Results; it does
 not start subscriptions or load the other sections. Lists are paged in groups of
 32. Default-named JobManagement and ResultManagement objects exposed directly
-under Objects appear as **Direct management objects**, not as a fictional machine.
+under Objects appear as **Direct management objects**, without a machine parent.
 
 Select an item and choose **Inspect selected** for its current evidence and
 details. Energy and result lists initially load identities only; inspection reads
@@ -756,7 +756,7 @@ transformer and are rejected by this tool rather than implicitly projected.
 A zone shows its rigid-fit dimension, rank, residuals and invertibility.
 **Preview local point in the zone** accepts finite X/Y/Z coordinates within
 plus or minus ten million local units and 3-128 ground control points. A 2D
-calibration requires Z = 0 and does not invent a height. A 3D preview retains
+calibration requires Z = 0; no height is inferred. A 3D preview retains
 its calibrated elevation. Preparation pins the calibration and connection for
 up to five minutes, is single-use, and is invalidated by changes or cancellation.
 No position is written, map loaded, geocoder contacted or renderer started.
@@ -796,8 +796,8 @@ V2 may also offer Pause, Resume and Abort. Review the resulting job/state after
 each command.
 
 Machinery JobManagement exposes only JobOrderControl and JobOrderResults. UaLens
-recognizes that exact typed two-facet association without inventing a response
-receiver, and reuses the same ISA-95 preparation, typed input and state readback.
+uses that exact typed two-facet association for ISA-95 preparation, typed input and
+state readback. It does not add a response receiver.
 Mutating this two-facet target requires the matching opted-in owned Machinery
 simulator and fresh confirmation. Ordinary ISA-95 deployments retain their
 configured deployment-rule policy.
@@ -816,8 +816,7 @@ The published **Robotics** provider inspects device systems, controllers, axes,
 telemetry and program state. Individual system-operation and task-control targets
 offer only methods whose live types, state, signature and permissions match the
 prepared operation. The normal `MinimalRobotServer` sample has no program or
-operation handlers, so those targets remain observational rather than gaining
-invented commands.
+operation handlers, so those targets are read-only.
 
 **Robot Intent** is a separate **draft** provider. Its local preview is not server
 admission, path planning or a safety guarantee. Submission is limited to positive,
