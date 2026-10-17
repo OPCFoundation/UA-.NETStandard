@@ -595,7 +595,7 @@ namespace Opc.Ua.Server.Tests
 
             Variant[] stored = await queues.ReadStoredDataChangeValuesAsync(1002).ConfigureAwait(false);
             Assert.That(stored, Has.Length.EqualTo(3), "the restored queue writes its changes");
-            Assert.That(stored[..2], Is.EqualTo(new[] { new Variant(1), new Variant(2) }));
+            Assert.That(stored.Take(2), Is.EqualTo(new[] { new Variant(1), new Variant(2) }));
 
             await subscription.DeleteAsync(null!).ConfigureAwait(false);
             await queues.FlushAsync().ConfigureAwait(false);

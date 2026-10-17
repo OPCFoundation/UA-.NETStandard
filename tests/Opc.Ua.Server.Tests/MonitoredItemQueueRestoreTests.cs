@@ -329,8 +329,9 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(first, Is.Not.SameAs(enqueue), "the value is queued once the commit completed");
-            Assert.That(queue.Stored, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
-            Assert.That(queue.Stored[^1], Is.EqualTo(3), "the storage ends with the newest value");
+            int[] persisted = queue.Stored;
+            Assert.That(persisted, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
+            Assert.That(persisted[persisted.Length - 1], Is.EqualTo(3), "the storage ends with the newest value");
         }
 
         /// <summary>
@@ -596,7 +597,7 @@ namespace Opc.Ua.Server.Tests
             public override void OverwriteLastValue(DataValue value, ServiceResult error)
             {
                 base.OverwriteLastValue(value, error);
-                Change(values => values[^1] = ValueOf(value));
+                Change(values => values[values.Count - 1] = ValueOf(value));
             }
 
             public override bool Dequeue(out DataValue value, out ServiceResult error)
