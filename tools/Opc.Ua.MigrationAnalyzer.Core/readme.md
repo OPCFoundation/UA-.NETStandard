@@ -7,7 +7,7 @@ analyzer + code-fixer + source-generator DLLs.
 
 ## Directory convention
 
-Source files mirror the project layout in `src/` and `src/`,
+Source files mirror the project layout in `src/`,
 flattened directly under the project root. For example:
 
 | Source project              | Shim path           |

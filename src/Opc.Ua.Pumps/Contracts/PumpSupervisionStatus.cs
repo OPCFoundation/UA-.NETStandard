@@ -107,9 +107,11 @@ namespace Opc.Ua.Pumps
         /// (group browse name, signal) pairs.
         /// </summary>
         /// <remarks>
-        /// A signal that the server publishes as <c>false</c>, or with a bad
-        /// status, is not raised and is left out. An empty result therefore
-        /// means "nothing is being reported", which is the healthy case.
+        /// Includes signals whose value is Boolean <c>true</c> and whose status
+        /// is not bad. False, bad-status and non-Boolean readings are excluded.
+        /// An empty result means no active signal was found in the available
+        /// readings; it does not establish that the pump is healthy. Check the
+        /// group readings, status codes and expected signal coverage separately.
         /// </remarks>
         public IEnumerable<KeyValuePair<string, PumpValue>> ActiveSignals
         {

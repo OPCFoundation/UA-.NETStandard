@@ -239,7 +239,7 @@ JsonObject document = generator.Generate(
 Without `includeSchemas` the document holds the paths and operations only
 (about 12 KB for all 28 services). With it, every request, response and the
 structures and enumerations they contain become component schemas (about 46 KB),
-which is what OpenAPI client generators need. The schemas describe the Compact
+as required by OpenAPI client generators. The schemas describe the Compact
 JSON encoding with the property names and types the published OPC Foundation
 documents use; [OPC UA over OpenAPI](OpenApi.md) lists the differences and the
 tests that keep the document correct. Pass an `IDataTypeDefinitionResolver` to

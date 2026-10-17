@@ -480,9 +480,14 @@ TrustList changes made with `AddCertificateAsync` / `RemoveCertificateAsync` / `
   `regeneratePrivateKey: true` with `Bad_NotSupported` before generating or
   saving a key. Existing-key signing requests and updates remain supported.
   The provider's explicit `TryTakeAsync` API remains available.
-- `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **genuinely mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
+- `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
+- `IPushConfigurationTrustListEffectHandler` (default: `PushConfigurationTrustListEffectHandler`) applies the post-`ApplyChanges` TrustList effects required by §7.10.9.
 
-Both are also constructor parameters on `ConfigurationNodeManager`/`MainNodeManagerFactory` for applications that construct the server directly instead of through DI; omitting them lets `ConfigurationNodeManager` create its own private defaults.
+`ConfigurationNodeManager` and `MainNodeManagerFactory` also accept
+`IPushConfigurationTransactionCoordinator`, `IPendingCertificateKeyStore`,
+`IPushCertificateKeyGenerator` and `IPushConfigurationTrustListEffectHandler`
+through constructor parameters. Passing null selects the manager's default
+implementation.
 
 Two further collaborators are internal to the stack and not replaceable: the `NamespaceMetadataRegistry` behind the Part 5 `NamespaceMetadata` members of `IConfigurationNodeManager`, and the `CertificateAlarmScheduler` that refreshes and evaluates the §7.8.3 alarms. `ConfigurationNodeManager` itself is a partial class split into one `ConfigurationNodeManager.*.cs` file per concern (Push methods, push validation, certificate slots, ApplyChanges, trust material, certificate alarms, namespace metadata).
 
@@ -490,7 +495,8 @@ Two further collaborators are internal to the stack and not replaceable: the `Na
 replica has its own PushManagement transaction. Two administrators using
 different replicas could therefore stage conflicting changes.
 `UseDistributedPushConfiguration()` (from `Opc.Ua.Redundancy.Server`)
-replaces the two collaborators above with shared-store-backed variants. The
+replaces `IPushConfigurationTransactionCoordinator` and
+`IPendingCertificateKeyStore` with shared-store-backed implementations. The
 transaction is then shared **across the replica set**:
 
 - `DistributedPushConfigurationTransactionCoordinator` wraps the per-server
@@ -542,7 +548,7 @@ A malformed subject returns `Bad_InvalidArgument` before key generation or
 pending-key changes; the active certificate and any earlier pending key remain
 unchanged.
 
-`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
+`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. The server-generated random seed is always included. The caller's `Nonce` supplements that seed rather than replacing it. On .NET Framework the platform cannot import a private-only EC scalar, so additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
 
 TrustList file operations reject a closed handle with `Bad_InvalidArgument`;
 another Session's live handle remains protected with `Bad_UserAccessDenied`.
@@ -730,13 +736,13 @@ immediately.
 ### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest
-TrustList a Client may write (`0` = unlimited). Enforcing a truly unbounded
+TrustList a Client may write (`0` = unlimited). Enforcing an unbounded
 write would expose the server to unbounded allocation, so the server bounds
-actual enforcement by a **resource-protection safety ceiling** and — crucially —
+actual enforcement by a **resource-protection safety ceiling** and
 advertises the *effective* limit it actually enforces rather than a `0` that
 hides a cap.
 
-The effective, actually-enforced limit is derived from the advertised
+The effective limit is derived from the advertised
 `MaxTrustListSize` and `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling`
 (default 1 MiB):
 
@@ -790,10 +796,10 @@ the managed session ALSO automatically reacts:
 
 - **`ApplicationCertificateUpdated`** — calls
   `Session.ReloadInstanceCertificateAsync` (so the next ActivateSession
-  is signed with the rotated client cert) and triggers a reconnect via
-  the state machine. The new client cert takes effect within
-  milliseconds rather than at the next `SecurityTokenLifetime` rekey
-  (Part 4 §5.5.2).
+  is signed with the rotated client cert), then requests a reconnect via
+  the state machine rather than waiting for the next scheduled
+  security-token renewal (Part 4 §5.5.2). Completion time depends on
+  connection availability, in-flight work and the reconnect policy.
 - **`TrustListUpdated` / `CrlUpdated`** — wakes a long-lived
   per-session revalidation loop that:
   1. Debounces a burst of events (250 ms window) on the injected

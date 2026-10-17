@@ -308,8 +308,8 @@ actual asynchronous node-removal hook, not a value change-mask callback.
 
 ### OPC 40001-1 building blocks
 
-Every block is attached to its machinery item with `HasAddIn`, which is what
-OPC 40001-1 uses — not `HasComponent`.
+Every block is attached to its machinery item with `HasAddIn`, as specified by
+OPC 40001-1 — not `HasComponent`.
 
 For a companion-created or vendor-derived Components AddIn,
 `machine.WithComponents(existingComponents, configure)` reuses the existing
@@ -417,7 +417,7 @@ limits from `WithLimits`, deviations from `WithDeviationLimits` — points the
 condition at the signal as its `InputNode`, gives it the source, name and
 enable state OPC 10000-9 needs, registers it as a root notifier, and
 re-evaluates it on every `SetValueAsync`. An alarm that is only created never
-activates and never reports, which is what the objects alone amount to.
+activates and never reports.
 
 `WithZeroPointAdjustment` binds the optional OPC 30081 method and reports a
 `ZeroPointAdjustmentEventType` event on **every** call — the part's conformance
@@ -632,8 +632,8 @@ sees the result, whichever kind of store it is.
 
 #### Filtering and ordering the result list
 
-`GetResultIdListFiltered` evaluates both arguments OPC 40001-101 §7.1.3
-defines:
+The arguments to `GetResultIdListFiltered` control filtering, ordering and the
+maximum number of returned results, as defined by OPC 40001-101 §7.1.3:
 
 - **`filter`** is a `ContentFilter` whose BrowsePaths "can be built from the
   fields of the `ResultReadyEventType`, the `ResultType` VariableType or the
@@ -698,7 +698,7 @@ OPC 10000-20 names a code for: `GenerateFileForWrite` returns
 which stays open and is closed with the file's own `Close`.
 
 `WithResultsFolder` publishes the most recent results as `ResultType` variables
-as well, which is what the `Machinery-Result ResultVariables` unit asks for —
+as well, as required by the `Machinery-Result ResultVariables` unit —
 an empty folder satisfies nothing. The variables are a fixed ring created with
 the machine: the newest result lands in the first slot and the others shift
 down, so a client can subscribe to a slot once and keep receiving results, and
@@ -1016,8 +1016,8 @@ NodeSet2 input the NodeIds come from the XML
 `NodeSetToModelDesign.Import`; only ModelDesign inputs use the CSV fallback).
 It is a **drift guard**: the generator validates every row against the imported
 symbols and fails the build with `MODELGEN022`…`MODELGEN029` when the vendored
-model and the pinned mapping disagree. That is how a silently dropped type gets
-caught instead of quietly disappearing from the generated API.
+model and the pinned mapping disagree. This catches types dropped from the
+generated API.
 
 `Model/*.Upstream.NodeIds.csv` is the OPC Foundation's publication unmodified
 and is deliberately kept out of `<AdditionalFiles>`, so the two can be diffed to
@@ -1098,7 +1098,7 @@ Two OPC 40001-2 members were affected, both inherited from OPC 30081 PA-DIM:
 
 The same member reached the other way — `ProcessValueType.AnalogSignal`'s
 `EngineeringUnits`, generated as a grandchild of the object type — was correct,
-which is what made the inconsistency visible. `SignalTag` is mandatory, and
+which exposed the inconsistency. `SignalTag` is mandatory, and
 `EngineeringUnits` in namespace 0 is where a Data Access client reads the unit,
 so both matter for the OPC 40001-2 base facet.
 
@@ -1117,7 +1117,7 @@ too, not only one rebuilt against the new generator.
 The former stop-gap `ProcessValueBuilder.RepairInheritedPadimMembers` is gone;
 what remains of it is `ApplyDefaultSignalTag`, which was never a workaround but
 the OPC 30081 default value for a mandatory tag. Only the in-process tests
-missed the defect; the end-to-end test over `opc.tcp` is what surfaced it,
+missed the defect; the end-to-end test over `opc.tcp` surfaced it,
 because a filtered Browse is where a null reference type finally shows, and
 `MachineryProcessValueTests
 .TheSignalKeepsThePadimBrowseNameAndTheNarrowerTypeAsync` pins all four

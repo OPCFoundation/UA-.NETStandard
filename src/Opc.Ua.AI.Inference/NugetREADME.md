@@ -1,6 +1,6 @@
 # Inference backends for OPC UA AI Model Management
 
-The `IInferenceBackend` contract, and backends that implement it. One abstraction covers a hosted service and an on-device runtime, which is the property clause 8.1 asserts: where inference runs changes the trust boundary and the latency and nothing else.
+The `IInferenceBackend` contract provides a common invocation interface for hosted services and on-device runtimes. Backend capabilities, model behavior and deployment requirements can differ; the shared interface does not make those properties equivalent.
 
 Part of the [OPC UA .NET Standard](https://github.com/OPCFoundation/UA-.NETStandard) stack.
 

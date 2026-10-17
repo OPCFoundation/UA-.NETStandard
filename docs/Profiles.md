@@ -293,7 +293,7 @@ Client-side feature coverage:
   (`ManagedSession.DefaultStreaming`, `TakeUntilAsync` /
   `WithTimeoutAsync` helpers). See
   [Subscriptions and Monitored Items](Subscriptions.md).
-- **Transfer Subscriptions** — Subscription transfer between servers;
+- **Transfer Subscriptions** — Transfer existing subscriptions between sessions;
   see [Transfer Subscriptions](TransferSubscription.md). An opt-in
   `SubscriptionRecoveryPolicy` lets the client tolerate
   `Good_SubscriptionTransferred` notifications from the server.

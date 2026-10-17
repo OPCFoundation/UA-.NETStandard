@@ -708,7 +708,7 @@ or [Approved promotion](#approved-promotion).
    | Symptom | Cause and safe next action |
    | --- | --- |
    | `validate-preview-package-ordering.ps1` lists package IDs whose published versions are not below the candidate's `-preview.N` | Ordinary `master` development published a higher `<base>-preview.{height}` while this release was being prepared. Raise `PreviewPackageBuildNumber` in `preview-version.props` above every listed version, via a normal PR against the release branch, then build and validate a **new** candidate. Never lower a published version or delete packages to make room. |
-   | The script throws while querying nuget.org or GitHub Packages (for example `401`/`403`, or any non-`404` error status) | The gate deliberately fails closed: it cannot prove ordering, so it refuses to let the release proceed. Do **not** bypass it. Confirm the workflow passes a token with `packages: read`/`packages: write` for the owner being queried, and that the feed is reachable, then re-run the same workflow. A genuinely unpublished package ID returns `404`, which the script treats as "nothing to compare" and allows. |
+   | The script throws while querying nuget.org or GitHub Packages (for example `401`/`403`, or any non-`404` error status) | The gate deliberately fails closed: it cannot prove ordering, so it refuses to let the release proceed. Do **not** bypass it. Confirm the workflow passes a token with `packages: read`/`packages: write` for the owner being queried, and that the feed is reachable, then re-run the same workflow. An unpublished package ID returns `404`, which the script treats as "nothing to compare" and allows. |
 
 3. **If nuget.org already has some non-Debug packages, or GitHub Packages has
    some expected packages** for the version (a partial push - `dotnet nuget
@@ -738,7 +738,7 @@ or [Approved promotion](#approved-promotion).
    | Symptom | Cause and safe next action |
    | --- | --- |
    | `assert-published-packages-match.ps1` reports a feed that "already serves ... with different content" | A different build permanently claimed this candidate's immutable version. NuGet versions cannot be overwritten, so this candidate can never be published under it. Do **not** bypass the gate. Move to step 4 and release a new version. |
-   | The script throws while downloading a package for comparison (any non-`404` error status) | It fails closed: it cannot decide whether the version is taken, so it refuses to push. Confirm feed reachability and the token, then re-run. A genuinely unpublished version returns `404`, which the script treats as "nothing to prove" and allows. |
+   | The script throws while downloading a package for comparison (any non-`404` error status) | It fails closed: it cannot decide whether the version is taken, so it refuses to push. Confirm feed reachability and the token, then re-run. An unpublished version returns `404`, which the script treats as "nothing to prove" and allows. |
 
 4. **If the version needs to change entirely** (e.g. the approved candidate
    turned out to be wrong before any push happened): do not reuse the

@@ -185,7 +185,7 @@ Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMai
 
 ### Master node manager
 
-`MasterNodeManager` is not an address-space model in the same sense as an application manager. It is the coordinator that the server stores as `IServerInternal.NodeManager` and exposes through `IMasterNodeManager`. Service implementations route through it for reads, writes, browsing, TranslateBrowsePaths, method calls, node management, monitored-item setup, history, and event-related operations.
+`MasterNodeManager` is not an address-space model in the same sense as an application manager. The server stores this coordinator as `IServerInternal.NodeManager` and exposes it through `IMasterNodeManager`. Service implementations route through it for reads, writes, browsing, TranslateBrowsePaths, method calls, node management, monitored-item setup, history, and event-related operations.
 
 Internally, service-call dispatch and lifecycle coordination are separated. The session-service implementations live in the internal `NodeManagerServiceDispatcher`, which depends only on the lock-free routing-table snapshot and never acquires lifecycle semaphores; `MasterNodeManager` keeps the public service surface (every virtual entry point and protected helper delegates to the dispatcher, so derived classes are unaffected) together with NodeManager lifecycle coordination. The node-management services (AddNodes, DeleteNodes, AddReferences, DeleteReferences) sit between the two: they dispatch per item like other services but serialize address-space mutation with runtime NodeManager lifecycle operations.
 
@@ -682,7 +682,7 @@ table.
 | Runtime | `INodeManagerLifecycle.AddAsync` / `ReloadAsync` / `RemoveAsync` | While the server is running and serving Clients |
 
 Compile-time and startup registration are the normal path. Use runtime registration only when the
-set of models genuinely has to change without restarting the server.
+set of models has to change without restarting the server.
 
 ### Startup registration
 
@@ -847,7 +847,7 @@ is the one value that is never discarded: once the queue is full, an incoming va
 instead of the notification, so a full queue cannot swallow it.
 
 This applies only when queuing is enabled. At the default `queueSize` of 1 the MonitoredItem has no
-queue at all — the last sampled value is what the Client is served — so the notification simply
+queue at all — the Client receives the last sampled value — so the notification simply
 becomes that value, and a value sampled after the deletion replaces it in the usual way. Losing
 values is the accepted behaviour of a MonitoredItem without queuing. Issue
 [#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the underlying
@@ -1205,8 +1205,8 @@ the `OnNodeAdded` handler of its own node.
 
 ### Opting in
 
-Add the generator analyzer to your project (this is what
-`OPCFoundation.Opc.Ua.SourceGeneration.props` is for) and choose **one**
+Add the generator analyzer to your project through
+`OPCFoundation.Opc.Ua.SourceGeneration.props` and choose **one**
 of the two opt-in modes:
 
 #### Per-class opt-in via `[NodeManager]` (recommended)
@@ -1745,8 +1745,8 @@ Three properties make this usable straight from `Configure`:
 - **Creation is staged, not immediate.** Created nodes are held until
   the manager calls `RegisterAuthoredNodesAsync`, which the generated
   `CreateAddressSpaceAsync` emits after the `Configure` partials and
-  before `CompleteConfigureAsync`. That ordering is what lets a node
-  name a sibling created moments earlier, and what gets references to
+  before `CompleteConfigureAsync`. That ordering lets a node
+  name a sibling created moments earlier and gets references to
   externally owned nodes (the `Objects` folder above) mirrored into
   `externalReferences` by the same reverse-reference pass described in
   [Creating nodes under other managers' nodes](#creating-nodes-under-other-managers-nodes-objects-folder).
@@ -2264,8 +2264,9 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`samples/MinimalApi/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
-warnings** (~29 MB self-contained EXE).
+`samples/MinimalApi/MinimalBoilerServer` demonstrates Native AOT publishing.
+Publish for your target runtime to check AOT/trimming diagnostics and measure
+the resulting executable size.
 
 ### Runtime NodeSet alternative
 
@@ -2391,8 +2392,9 @@ automatically when `Configure` completes; see
 `INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
 new `BaseObjectState` child under the current node and returns a typed
 builder for the new object. NodeIds follow the
-`{parentIdentifier}_{childName}` pattern used by the source generator's
-default factory. The helper registers the created node with the owning
+owning NodeManager's assignment policy; do not assume a fixed parent-and-child
+string format. See [NodeId assignment](NodeIdAssignment.md) for the available
+modes and custom-factory behavior. The helper registers the created node with the owning
 `AsyncCustomNodeManager`, so the object is immediately browseable and
 addressable by NodeId.
 
@@ -2866,7 +2868,7 @@ object and variable types. Ordinary references are preserved in both contexts.
 
 Notes:
 
-* An explicit `browseName` is what marks a *dynamically materialised
+* An explicit `browseName` marks a *dynamically materialised
   instance*. `CreateInstanceOf<Type>()` without one (as used by the
   generated `NodeStateActivator`s and when replacing a well-known
   singleton) keeps the declaration NodeIds.

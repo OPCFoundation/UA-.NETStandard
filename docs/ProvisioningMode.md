@@ -2,7 +2,7 @@
 
 ## Overview
 
-Provisioning mode is a special server startup mode designed to facilitate secure certificate provisioning and initial server configuration. When enabled, the server starts with a limited default namespace and enhanced security settings to allow administrators to safely configure the server before exposing the full application functionality.
+Provisioning mode starts the server with a limited default namespace and the security settings described below. Administrators can provision certificates and configure the server before exposing application functionality.
 
 ## Contents
 
@@ -157,7 +157,9 @@ var server = new ReferenceServer
 
 ### Limitations
 
-- Auto-accept mode accepts all certificates (including potentially malicious ones)
+- Auto-accept allows an untrusted certificate to pass the trust-list check
+  (`BadCertificateUntrusted`). It does not disable other certificate validation
+  or user authentication.
 - Should only be used during controlled setup/configuration periods
 - Not intended for long-term operation
 

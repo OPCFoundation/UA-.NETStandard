@@ -45,7 +45,7 @@ See `src/Opc.Ua.Server/RoleBasedUserManagement/` for the source.
 
 ### IRoleManager
 
-The `IRoleManager` interface (`Opc.Ua.Server.IRoleManager`) is the server-side extensibility surface. The default implementation `Opc.Ua.Server.RoleManager` is fully in-memory; integrators that need persistence implement `IRoleManager` directly and inject the instance via `IServerInternal.SetRoleManager` before the server starts.
+The `IRoleManager` interface (`Opc.Ua.Server.IRoleManager`) is the server-side extensibility surface. The default implementation `Opc.Ua.Server.RoleManager` is fully in-memory; integrators that need persistence implement `IRoleManager` directly. For DI-hosted servers, register the implementation through `AddRoleManager(instance)` or `AddRoleManager<TManager>()` on the server builder before building the host. For a custom non-DI `StandardServer`, override `CreateRoleManager`.
 
 Every mutator returns a `ServiceResult` that mirrors the spec-defined status codes:
 
@@ -168,29 +168,32 @@ Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedR
 
 The Part 18 §5 `UserManagementType` is bound to the standard
 `Server.ServerConfiguration.UserManagement` object (NodeId `i=24290`).
-Integrators inject an `IUserManagement` instance via
-`IServerInternal.SetUserManagement` before the configuration node manager
-binds the address space; the default `UserManagement` implementation wraps
+For DI-hosted servers, register `IUserManagement` in the service collection
+before building the host. For a custom non-DI `StandardServer`, override
+`CreateUserManagement`. These startup hooks supply the implementation before
+the configuration node manager binds the address space. The default
+`UserManagement` implementation wraps
 an existing `IUserDatabase` for credential persistence. Built-in
 `LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
-`UserConfigurationMask` and description:
+`UserConfigurationMask` and description.
+
+With an `IUserDatabase` already registered, configure the host's service
+collection before building it:
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 
-var users = new LinqUserDatabase();
-users.CreateUser("alice", "secret"u8, [Role.AuthenticatedUser]);
-
-var userManagement = new UserManagement(
-    users,
-    passwordLength: new Range { Low = 8, High = 256 },
-    passwordOptions:
-        PasswordOptionsMask.SupportDisableUser
-        | PasswordOptionsMask.SupportInitialPasswordChange
-        | PasswordOptionsMask.RequiresDigitCharacters);
-
-serverInternal.SetUserManagement(userManagement);
+services.Replace(ServiceDescriptor.Singleton<IUserManagement>(provider =>
+    new UserManagement(
+        provider.GetRequiredService<IUserDatabase>(),
+        passwordLength: new Opc.Ua.Range { Low = 8, High = 256 },
+        passwordOptions:
+            Opc.Ua.PasswordOptionsMask.SupportDisableUser
+            | Opc.Ua.PasswordOptionsMask.SupportInitialPasswordChange
+            | Opc.Ua.PasswordOptionsMask.RequiresDigitCharacters)));
 ```
 
 `IUserDatabase` commits credentials and metadata together, so disabled and

@@ -107,7 +107,7 @@ access. For registration, selectors, paths and output formats, see the
 
 ## Tool Profiles
 
-The server selects its tool catalog through a **tool profile** — a bounded set of tool classes registered at startup. Profiles let a client request only the tools it needs (smaller catalogs are easier for an LLM to reason about and reduce prompt size), while `full` preserves the complete surface for clients that want everything.
+The server selects its tool catalog through a **tool profile** — a bounded set of tool classes registered at startup. Profiles let a client request only the tools it needs, reducing the advertised tool metadata, while `full` preserves the complete catalog.
 
 | Profile | Tool classes registered | Typical use case |
 |---|---|---|

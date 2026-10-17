@@ -100,8 +100,7 @@ callers:
   [package dependency migration](packages.md#newtonsoftjson---what-really-changed).
 - Numeric round-trips honour the .NET native precision instead of the Newtonsoft
   default (e.g. `double` → 17 significant digits, not 15).
-- The new encoder is `Utf8JsonWriter`-backed; allocations on the hot path drop
-  ~70 % vs. the Newtonsoft pipeline.
+- The new encoder uses `Utf8JsonWriter`.
 - The decoder uses `Utf8JsonReader` and validates structurally; it rejects
   trailing junk where the old decoder silently truncated.
 

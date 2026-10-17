@@ -46,10 +46,9 @@ namespace Opc.Ua.Server
     /// A NIST SP&#160;800-90A HMAC&#8209;DRBG (over HMAC&#8209;SHA256) is
     /// instantiated from a fresh server-side cryptographic random seed
     /// concatenated with the caller nonce, and the private-key material is
-    /// derived exclusively from that DRBG. Because the server seed is always
-    /// present, a weak or adversarial nonce can never <i>weaken</i> the key;
-    /// a strong nonce genuinely <i>adds</i> entropy, exactly as §7.10.10
-    /// intends.
+    /// derived exclusively from that DRBG. The server-generated random seed
+    /// is always included. The caller nonce supplements that seed rather
+    /// than replacing it.
     /// </para>
     /// <para>
     /// For RSA certificate types the key is generated from managed

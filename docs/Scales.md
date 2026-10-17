@@ -438,7 +438,7 @@ and synchronous: no I/O, no waiting and no calls into other locks.
   `CompleteCalibration`, `PublishFeeder`, …) take the lock but skip the
   interceptor: the equipment reports what happened, it does not ask.
 - **Node writes** need no node-manager lock. A `NodeState` guards its own
-  attributes, and the scale's lock is what keeps related values consistent.
+  attributes, and the scale's lock keeps related values consistent.
 
 **Weighing arithmetic (§9.3):**
 

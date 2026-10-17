@@ -172,8 +172,7 @@ maximum, avoiding unnecessary retained capacity for small chunks.
 
 ## Assembly layout
 
-* **`Opc.Ua.Core`** (this is what every Server / Client application
-  references):
+* **`Opc.Ua.Core`** (referenced by every Server / Client application):
   - `IUaSCByteTransport` — the runtime transport boundary used by the
     UA Secure Conversation channel pipeline.
   - `TcpByteTransport`, `TcpByteTransportFactory` — TCP implementation.
@@ -183,8 +182,8 @@ maximum, avoiding unnecessary retained capacity for small chunks.
     `OpcHttpsTransportChannelFactory` — polymorphic client-side channel
     that handles both `https-uabinary` and `https-uajson` based on the
     endpoint's `TransportProfileUri`.
-* **`Opc.Ua.Bindings.Https`** (Kestrel-dependent; pulled in
-  automatically when an HTTPS or WSS endpoint is configured):
+* **`Opc.Ua.Bindings.Https`** (optional, Kestrel-dependent; requires
+  an explicit package reference and transport registration):
   - `HttpsTransportListener` — Kestrel-hosted listener that dispatches
     requests on `(Upgrade, ContentType)` to the binary / JSON / WSS
     handlers.
@@ -208,6 +207,8 @@ For both WSS variants the HTTPS / WSS factories live in
 `RegisterChannelFactory` directly for non-DI hosts. Applications must
 reference `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` directly; Server
 and GDS packages do not pull the optional binding transitively.
+Configuring an endpoint URL alone does not add the package or register
+these factories.
 
 `AddHttpsTransport(options => ...)` is available as a one-shot registration
 for the Kestrel HTTPS stack. It registers HTTPS and WSS by default and can
@@ -526,7 +527,7 @@ wire.
       channel for chunks that span multiple buffers (typical for the
       asymmetric handshake). If your transport does not support
       vectored writes, concatenate the segments into a single buffer
-      before sending (this is what `WebSocketByteTransportBase` does).
+      before sending (as `WebSocketByteTransportBase` does).
 - [ ] Client vs server. Client transports implement `ConnectAsync` to
       dial outbound; server transports built from an
       already-accepted connection should throw `NotSupportedException`

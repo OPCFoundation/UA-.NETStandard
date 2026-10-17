@@ -510,7 +510,7 @@ The historian dispatcher relies on `systemContext.Server` for:
 
 ## Provider author guide
 
-A provider is a class that implements `IHistorianProvider` (the umbrella) plus any subset of the seven narrow capability interfaces. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
+A provider implements `IHistorianProvider` plus the capability interfaces for the operations its backend supports; see the [capability table](#capability-interfaces) below. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
 
 ### Recommended base class
 

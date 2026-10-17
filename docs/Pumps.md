@@ -439,7 +439,7 @@ OPC 40223 §7.32 declares vibration measurements as the OptionalPlaceholder
 `<Vibration>` of `MeasurementsType`, typed `VibrationMeasurementType` (§7.33,
 35 analog values after IEC 61987 plus `ReferenceStandardForVibrationMeasurement`).
 A pump publishes one instance per measuring point, each named by the
-application, which is what `AddVibration` creates:
+application and created with `AddVibration`:
 
 ```csharp
 pump.Measurements.AddVibration("DriveEndBearing")
@@ -484,8 +484,8 @@ pump.Supervision(BrowseNames.SupervisionProcessFluid)
 
 Every `Set`, `SetAnalog` and `SetDiscrete` stamps the value with status
 `Good` and the current time and publishes the change. `PumpsNodeManager`
-reports data changes by exception, so this publish is what makes a monitored
-item fire; a client subscribed to `MassFlow` sees each update, and
+reports data changes by exception, so publishing triggers monitored
+items; a client subscribed to `MassFlow` sees each update, and
 `PumpsClientServerE2eTests` checks exactly that over a real subscription.
 For a signal object the publish happens on the `DiscreteInputValue` /
 `DiscreteOutputValue` child that carries the state, which is also the node a
@@ -590,8 +590,11 @@ unit for its analog variables. That costs one extra round trip per group.
 | `IncludeTimestamps` | `false` | Return source timestamps |
 | `PumpReadOptions.ValuesOnly` | | One browse and one read, no metadata |
 
-Read once with the defaults and poll with `ValuesOnly`: the metadata does not
-change.
+If the server guarantees stable engineering units and ranges during polling,
+read once with the defaults, retain that metadata, and poll with `ValuesOnly`.
+Refresh the metadata after relevant server or device configuration changes.
+Otherwise, keep metadata reads enabled. `ValuesOnly` does not include
+previously read metadata in its results.
 
 ### Supervision
 
@@ -611,9 +614,11 @@ if (supervision?.HasActiveSignals == true)
 }
 ```
 
-`ActiveSignals` yields only signals that are currently raised. A signal
-published as `false`, or with a bad status, is left out; an empty result is
-the healthy case.
+`ActiveSignals` includes signals whose value is Boolean `true` and whose
+status is not bad. False, bad-status and non-Boolean readings are excluded.
+An empty result means no active signal was found in the available readings;
+it does not establish that the pump is healthy. Check the group readings,
+status codes and expected signal coverage separately.
 
 ### Maintenance
 
@@ -792,7 +797,7 @@ DI and Machinery models are newer and satisfy them.
 
 The generated state classes implement
 `NodeState.CreateChild(context, browseName)` for every optional child the
-model declares, which is what lets one builder cover all ~3,000 of them. That
+model declares. One builder can therefore cover all ~3,000 of them. That
 generic path creates a child of the right CLR type and browse name, but does
 **not** stamp the modelling metadata: the child comes back with no
 `ReferenceTypeId`, no `TypeDefinitionId` and `BaseDataType` as its data type.
@@ -808,7 +813,7 @@ The same applies to `TranslateBrowsePathsToNodeIds`.
 instance declaration on the type, copying `ReferenceTypeId`,
 `TypeDefinitionId`, `DataType`, `ValueRank`, access levels and sampling
 interval before registering it, and filling only members the generic path
-left unset. `PumpsClientServerE2eTests` is what catches a regression here.
+left unset. `PumpsClientServerE2eTests` catches regressions here.
 
 ## See also
 

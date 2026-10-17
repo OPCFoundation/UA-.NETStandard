@@ -49,9 +49,7 @@ Use `-Renderer D3D12`, `-PumpCount`, `-GeneratorCount`, or `-Keep` to override
 the defaults. `-ViewerBundlePath` can point at an already published connector
 and viewport directory.
 
-To start each process manually, run:
-
-Start the two device servers, then the site server:
+To start each process manually, start the two device servers, then the site server:
 
 ```
 dotnet run --project samples/DI/PumpDeviceIntegrationServer -- --host localhost --port 62542 --pumps 3

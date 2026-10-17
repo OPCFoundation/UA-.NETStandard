@@ -1,6 +1,6 @@
 # OPC UA .NET Standard — PKCS#11 certificate store
 
-`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` lets an OPC UA application keep its private keys inside a hardware token, smart card or HSM. The key is used for signing and decryption but is never present in process memory and can never be exported.
+`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` delegates private-key signing and decryption to a PKCS#11 module. Its RSA/ECDSA wrappers do not export private key parameters. Hardware-backed modules can keep key material inside the device when provisioned with appropriate key attributes; software modules such as SoftHSM do not provide that hardware-isolation guarantee. Verify the module's key-generation, storage and export policies for the deployment.
 
 This package is optional. `OPCFoundation.NetStandard.Opc.Ua.Core` does not reference it, so applications that do not use a token are unaffected.
 
@@ -83,7 +83,7 @@ This is a property of the interop library, not of this package, and applies to a
 
 This package is marked `IsAotCompatible` on `net10.0` and is exercised by the `Opc.Ua.Aot.Tests` project. Despite `Pkcs11Interop` carrying no trim or AOT annotations of its own, the ILCompiler analysis produces no trim or AOT warnings for the paths this package uses.
 
-The module itself is resolved through native interop at run time, which trimming does not affect. Note that a native library that is genuinely absent fails the same way in an AOT binary as in a JIT one — see the `libdl.so` note above.
+The module itself is resolved through native interop at run time, which trimming does not affect. A missing native library fails the same way in an AOT binary as in a JIT one — see the `libdl.so` note above.
 
 ## Additional documentation
 

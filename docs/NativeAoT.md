@@ -177,10 +177,10 @@ tests/Opc.Ua.Aot.Tests/
 ### Why TUnit Instead of NUnit?
 
 The project uses the [TUnit](https://tunit.dev/) test framework instead of
-NUnit. TUnit relies on **source generation** rather than runtime reflection for
-test discovery, which makes it fully compatible with Native AOT and the IL
-trimmer. NUnit (and most traditional .NET test frameworks) depend heavily on
-reflection, which is not supported in trimmed / AOT-published applications.
+NUnit. TUnit generates test-discovery code at compile time, avoiding
+unrestricted runtime discovery. Native AOT and trimming can support reflection
+when the required types and members are preserved; test code and dependencies
+must still be validated under Native AOT.
 
 ### Test Fixture Pattern
 
@@ -305,9 +305,10 @@ public class MyFeatureAotTests(AotTestFixture fixture)
   supported.
 - **Prefer concrete generic instantiations.** The trimmer must see every generic
   type combination at compile time.
-- **Annotate when necessary.** Use `[DynamicallyAccessedMembers]` or
-  `[RequiresUnreferencedCode]` attributes to preserve metadata the trimmer would
-  otherwise remove.
+- **Annotate when necessary.** Use `[DynamicallyAccessedMembers]` to declare
+  reflection requirements or `[DynamicDependency]` to preserve specific
+  dependencies. `[RequiresUnreferencedCode]` declares trimming incompatibility
+  and warns callers; it does not preserve metadata or make code trim-safe.
 
 ### 4. Handle Trimming Warnings
 

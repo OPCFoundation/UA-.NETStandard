@@ -42,8 +42,8 @@ produced by the model compiler. This stack does not ship those files. The
 routes in `WebApiServiceRoutes` and the structure definitions of the
 request and response types are the source of truth for what the binding
 accepts and sends, so the document is generated from them at runtime by
-`WebApiOpenApiGenerator` (package `Opc.Ua.Core.Schema`). It cannot drift
-from the wire format, and a test compares it with the published documents
+`WebApiOpenApiGenerator` (package `Opc.Ua.Core.Schema`). A test compares the
+generated document with the published documents
 (see [How the document is kept correct](#how-the-document-is-kept-correct)).
 
 Two levels of detail keep the size in check. The published documents are

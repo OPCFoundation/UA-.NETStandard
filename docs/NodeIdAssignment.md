@@ -62,11 +62,11 @@ decorate `DefaultNodeIdFactory` with a custom rule—for example, claim one
 subtree and delegate other nodes—instead of overriding `New` on the
 NodeManager and scattering the rule across it.
 
-The property is nullable, and null means *do not assign*. A node copy
-deliberately hides the factory from the children it materialises, so code
-that cannot work without one calls
-`ISystemContext.RequireNodeIdFactory()` and fails with a diagnosable
-error rather than a `NullReferenceException`.
+The property is nullable; a null factory disables automatic assignment.
+Code that requires a factory should call `ISystemContext.RequireNodeIdFactory()`
+for a diagnosable failure when none is configured. Node copying suppresses new
+identifier assignment with `assignInstanceNodeIds: false`; the original context
+and its factory remain available.
 
 `New` may be called more than once for the same node — `AssignNodeIds`
 walks a subtree on every create pass — so an implementation has to be
@@ -103,7 +103,7 @@ Segments are qualified by namespace:
 | `u:<uri>:` | in another namespace, named by URI |
 | `x:<index>:` | in another namespace that has no URI registered |
 
-The URI form is what makes an identifier independent of namespace-table
+The URI form makes an identifier independent of namespace-table
 ordering. The index form is a fallback for an unregistered namespace; it
 is deliberately distinct so identifiers minted before the namespace was
 registered cannot collide with the ones minted after.
@@ -141,8 +141,7 @@ inherit that hash's collision probability — negligible for `Guid` and
 A 32 bit identifier is a birthday problem: distinct browse paths are
 expected to land on one after roughly 2^16 of them. Left alone that is
 silent damage, because the predefined-node index takes the last writer —
-one node would simply replace the other and the address space would be
-quietly wrong.
+one node would replace the other.
 
 So the factory records what it mints and raises
 `BadConfigurationError` when a second browse path lands on an identifier
@@ -178,8 +177,10 @@ Three consequences worth knowing:
 
 `Counter` is for nodes whose browse paths repeat over time — per-session
 diagnostics objects, inference jobs, rediscovered assets. Its counter
-starts above `0x40000000`, out of reach of any authored model, so a
-long-running server cannot walk a runtime instance onto a type node.
+starts above `0x40000000`, separating its initial allocations from lower
+numeric identifiers. This is not a reserved range or a guarantee against
+authored-ID collisions. Keep model and instance identifiers appropriately
+separated and coordinate explicit assignments within a shared namespace.
 (The predefined-node index takes the last writer, so such a collision
 silently replaces the type rather than failing.)
 
@@ -227,8 +228,8 @@ child below it, each with a NodeId fixed by the NodeSet. When a server
 creates an instance, `NodeState.CreateInstance` copies that subtree — and
 the copy carries the declaration's NodeIds.
 
-Rebasing the copy onto per-instance identifiers is what
-`NodeState.AssignNodeIds` does: it walks the subtree calling
+`NodeState.AssignNodeIds` rebases the copy onto per-instance identifiers:
+it walks the subtree calling
 `INodeIdFactory.New` on each node, collects an old-to-new mapping table,
 and hands it to `UpdateReferenceTargets` so references inside the subtree
 follow.
@@ -236,7 +237,7 @@ follow.
 If `New` returns the declaration NodeId unchanged, every instance of the
 type aliases onto the type's own nodes. The failure is silent: the
 predefined-node index replaces rather than rejects, so the ObjectType
-quietly becomes an instance node. Guarding against that is the reason
+becomes an instance node. Guarding against that is the reason
 `DefaultNodeIdFactory` re-mints anything it did not mint itself, and the
 reason the generator's helpers check the declaration constant before
 rebasing.

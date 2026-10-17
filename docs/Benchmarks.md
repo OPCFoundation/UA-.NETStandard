@@ -125,8 +125,7 @@ detailed below.
 
 Aggregate allocation across the 409 matched benchmarks is **0.93×**. The value-type
 redesign means most messages, node ids, values, and byte strings no longer allocate
-individual heap objects. This is the headline win of 2.0 and shows up across client,
-server, and encode paths.
+individual heap objects across client, server, and encode paths.
 
 #### Client read / browse: ~20–33% faster, ~half the allocation
 
@@ -335,7 +334,7 @@ activator pooling feature added in support of `ManagedSessionBuilder.WithPoolNot
 
 ### Source
 
-`tests/Opc.Ua.Client.Tests/Subscription/PooledNotificationBenchmarks.cs`
+`tests/Opc.Ua.Subscriptions.Tests/PooledNotificationBenchmarks.cs`
 
 ### Methodology
 
@@ -379,8 +378,8 @@ separate `DataValue` heap object.
 For the dominant publish-payload allocator (`MonitoredItemNotification`,
 which arrives in arrays of arbitrary length on every data-change publish):
 
-- Mean time per item drops from ~35 µs/1000 to ~23 µs/1000 — a **33%
-  throughput improvement** on the synthetic benchmark.
+- Mean time per 1,000 allocate/use iterations drops from 34.874 µs to
+  23.323 µs — a roughly **33% time reduction** in this synthetic benchmark.
 - Allocations per 1000 ops drop from 104 KB to 408 B — **~256× reduction**.
 - Gen-0 collections per 1000 ops drop from 24.17 to 0.09 — **~263× reduction**.
 
@@ -393,26 +392,24 @@ For `DataChangeNotification` (container + inner items + backing array):
 
 For `EventFieldList`:
 
-- The baseline `new` path is already cheap (~9 µs) because the empty
-  `EventFields` `ArrayOf<Variant>` is a zero-allocation default. The
-  pooled path adds `Interlocked.CompareExchange` + pool round-trip
-  overhead (~22 µs). Under realistic dispatch where each `EventFieldList`
-  carries a non-empty `EventFields` array, the allocation savings
-  dominate and the pooled path wins.
+- In the measured empty-`EventFields` benchmark, pooling lowers allocations
+  but increases mean time from 8.967 µs to 22.280 µs per 1,000 iterations.
+  These results do not establish performance for populated events or full
+  dispatch; those workloads need separate measurements.
 
 ### Reproducing
 
 ```pwsh
 # Build release
-dotnet build tests/Opc.Ua.Client.Tests -c Release -f net10.0
+dotnet build tests/Opc.Ua.Subscriptions.Tests -c Release -f net10.0
 
 # Run BDN harness
-cd tests/Opc.Ua.Client.Tests/bin/Release/net10.0
-dotnet Opc.Ua.Client.Tests.dll --filter "*PooledNotificationBenchmarks*"
+cd tests/Opc.Ua.Subscriptions.Tests/bin/Release/net10.0
+dotnet Opc.Ua.Subscriptions.Tests.dll --filter "*PooledNotificationBenchmarks*"
 ```
 
 Artifacts (markdown, csv, html) are written to
-`tests/Opc.Ua.Client.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
+`tests/Opc.Ua.Subscriptions.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
 
 ### Out of scope
 

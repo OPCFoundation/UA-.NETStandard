@@ -497,15 +497,15 @@ on its second invocation to surface the misuse early.
 #### `ConfigureDevicesFor<TNodeManager>(action)`
 
 Registers a post-setup configurator targeted at a specific manager
-type. The runner invokes each matching delegate **after**:
+type. The runner invokes each matching delegate after:
 
-- the manager's `LoadPredefinedNodesAsync` has populated
-  `PredefinedNodes`;
-- the manager's `CreateAddressSpaceAsync` base has wired up the type
-  tree and root notifiers;
-- (for `FluentNodeManagerBase` subclasses) the user's
-  `ConfigureAsync(builder, ct)` / `Configure(builder)` wiring and the
-  subsequent `await builder.SealAsync(ct)` are complete.
+- predefined-node loading through `LoadPredefinedNodesAsync`;
+- the manager's `ConfigureAsync(builder, ct)` wiring;
+- authored-node registration through `RegisterAuthoredNodesAsync`;
+- `CompleteConfigureAsync`.
+
+The configurators run **before** `SealConfigurationAsync`. The base class
+then seals the builder and starts the manager's registries.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -573,8 +573,8 @@ The runner is injected into the manager via the factory. The base
   hook to materialise instances and drive the fluent
   `INodeManagerBuilder`. Because the hook is awaited, asynchronous
   setup and synchronous wiring live in one method; the base class owns
-  node registration and sealing. The runner fires automatically once
-  the builder is sealed — subclasses do not need to call
+  node registration and sealing. The runner fires automatically before
+  `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
 
 ```mermaid
@@ -659,7 +659,7 @@ adds a single extension method on `IOpcUaClientBuilder`:
 IOpcUaClientBuilder AddOpcUaDi();
 ```
 
-This registers four .NET-DI-friendly services that wrap the lazy
+This registers the following services and client factories over the lazy
 `ManagedSession` accessor produced by `AddClient(...)`:
 
 - `IDiDiscoveryService` — recursive device discovery from the
@@ -675,6 +675,8 @@ This registers four .NET-DI-friendly services that wrap the lazy
   topology browser for the Device Integration well-known folders.
 - `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` —
   software-version reader for a SoftwareUpdate instance.
+- `Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>` —
+  client wrapper for `TransferServicesType`.
 
 Requires `AddClient(...)` to be called first — the extension throws
 `InvalidOperationException` if the managed-session accessor is

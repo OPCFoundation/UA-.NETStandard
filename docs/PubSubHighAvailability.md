@@ -32,7 +32,7 @@ Part 14 defines the redundancy mode as a deployment behavior rather than a stand
 | `None` | No standby state. | The default non-redundant behavior; every instance is always active. |
 | `Cold` | Rebuild from shared configuration, runtime-state, and security-key stores only after failover. | Lowest standby cost; failover recreates local runtime state and may restart sequence numbers. |
 | `Warm` | Configuration is loaded and the components are paused. | Faster failover than Cold because the standby already knows the configured connections, writer groups, reader groups, writers, and readers. |
-| `Hot` | Warm state plus live sequence and keep-alive checkpoints. | Seamless takeover mode; a promoted standby resumes with strictly increasing sequence numbers and current keep-alive context. |
+| `Hot` | Warm state plus shared writer sequence checkpoints. | A promoted standby restores writer sequence checkpoints with a fixed offset; continuity depends on checkpoint freshness and sequence-number wrap handling. |
 
 Broker transports also have their own high-availability mechanisms. Kafka consumer groups (Part 14 Annex B.2, used by the stack's Kafka transport) and MQTT shared subscriptions help scale and fail over subscribers at the broker layer. Those broker mechanisms complement, but do not replace, the application-level active/standby ownership described here.
 
@@ -78,9 +78,9 @@ The intended high-level service-collection API is `AddPubSubRedundancy(Action<Pu
 
 OPC UA Part 14 §7.2.5.4.1 defines the subscriber de-duplication key as `(PublisherId, DataSetWriterId, SequenceNumber)`. For a redundant publisher, the shared `PublisherId` and identical writer configuration mean the promoted standby must continue the same logical sequence stream.
 
-Hot standby is the seamless mode because the standby tracks live sequence and keep-alive checkpoints. On promotion, it resumes at `last-checkpoint + margin`, so the next published sequence number is strictly greater than the last sequence number that subscribers may have accepted from the failed active. A forward gap is valid: subscribers can detect and log the missing range. A reset to a lower number is different; it collides with the de-duplication window and forces the subscriber to reset its de-duplication state.
+Hot standby restores each writer from its stored sequence checkpoint with a fixed offset of 1,000, advancing the local counter only if the calculated value is higher. This does not guarantee continuity beyond every message accepted from the failed publisher: checkpoint age, publication rate, store lag and sequence-number wrap affect the result. A strongly consistent store prevents stale reads of committed checkpoints, but cannot recover sequence advances that were never checkpointed. Validate failover and subscriber duplicate handling for the deployment; Hot mode alone does not guarantee lossless or gap-free delivery.
 
-Cold and Warm deployments may restart a writer without a current sequence checkpoint. That can create a sequence reset and therefore a subscriber de-duplication reset, producing an observable data gap. Use Hot when the deployment requires seamless publisher failover rather than only process availability.
+Cold and Warm deployments may restart a writer without a current sequence checkpoint. That can create a sequence reset and require subscriber de-duplication state to be reset, producing an observable data gap. Hot adds checkpoint-based restoration, but deployments requiring sequence continuity must account for the limitations above. Normal sequence-number wrap must be distinguished from a restart; a lower numeric value alone does not establish a reset.
 
 ## Shared security keys (SKS)
 
@@ -97,7 +97,7 @@ The reusable redundancy layer exposes `RedundancyConsistencyMode`:
 - **Eventual.** Bulk replicated state uses the leaderless CRDT / gossip store, while linearizable keyspaces are routed to a strong store. This is the default model for high-throughput state that can tolerate convergence delay.
 - **Strong.** All shared state uses a linearizable Raft-backed `ISharedKeyValueStore`. Choose this when every write must be quorum-confirmed.
 
-PubSub leases and leader election need compare-and-swap and therefore a strong keyspace. `SharedStorePubSubLeaseStore` uses `CompareAndSwapAsync` for acquisition, renewal, release, and fencing-token advancement, so it must run on a store that provides linearizable CAS for the `lease/pubsub/` keyspace. Bulk runtime state, Cold / Warm component state, SKS record discovery, and Hot sequence / keep-alive checkpoints can tolerate eventual consistency when the failover policy accepts the resulting checkpoint lag; deployments that require no stale checkpoint reads can place those keyspaces on the strong store as well.
+PubSub leases and leader election need compare-and-swap and therefore a strong keyspace. `SharedStorePubSubLeaseStore` uses `CompareAndSwapAsync` for acquisition, renewal, release, and fencing-token advancement, so it must run on a store that provides linearizable CAS for the `lease/pubsub/` keyspace. Bulk runtime state, Cold / Warm component state, SKS record discovery, and Hot writer sequence checkpoints can use eventual consistency when the failover policy accepts the resulting state lag. Deployments that require no stale checkpoint reads can place those keyspaces on the strong store as well, but that alone does not establish [sequence-number continuity](#sequence-number-continuity-hot-standby).
 
 ## Kubernetes
 

@@ -299,7 +299,8 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
 
-> The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
+> The viewport requires .NET 8 or later, a matching optional viewer assembly, and the OpenUSD packages
+> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
 > correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.8.0-alpha`, a
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
@@ -307,9 +308,9 @@ and the callback fires when that target changes.
 > own RID:
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
-> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
+> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -f net10.0 -r win-x64 --self-contained false -o out
 > ```
-> Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
+> Publishing both into the same directory puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
 
 #### Viewport colour, materials and cameras

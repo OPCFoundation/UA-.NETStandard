@@ -198,7 +198,7 @@ pattern end-to-end.
 - A logger/meter created in the outer class can be passed to inner
   classes created inside the outer class — for example
   PubSub message objects.
-- If a class genuinely cannot obtain a logger yet (gradual migration),
+- If a class cannot obtain a logger yet (gradual migration),
   initialize the field with `Telemetry.NullLogger.Instance`. In
   release builds this is a no-op; in debug builds it is a debug-check
   logger that asserts on use, surfacing the missing wiring. This is
@@ -497,7 +497,7 @@ the OpenTelemetry MeterProvider.
 
 ### Opt-out / no-op contexts
 
-Pass a no-op `ITelemetryContext` when telemetry is genuinely
+Pass a no-op `ITelemetryContext` when telemetry is
 unwanted (typically only in unit tests or constrained AOT
 scenarios):
 
@@ -664,8 +664,7 @@ diagnostic update callbacks; subsequent reads reflect the removal.
 
 Server vendors that need additional diagnostics should expose them
 under their own object hierarchy rather than mutating the
-spec-defined tree. The spec-defined tree is what tooling such as
-UaExpert relies on.
+spec-defined tree. Tooling such as UaExpert relies on that tree.
 
 ### Performance considerations
 
@@ -888,7 +887,8 @@ environment:
    `EnvironmentFile`) and that the destination directory is owned by
    the service account with mode `0700`. See the
    **Environment-variable configuration** section above.
-7. Subscribe to upstream CVE feeds for `SharpPcap` and `PacketDotNet`
+7. Subscribe to upstream CVE feeds for `SharpPcap`, `PacketDotNet` and the
+   native capture backend used by the deployment
    (see the **Dependencies and governance** section near the bottom of
    this document).
 
@@ -905,10 +905,11 @@ operationally or accept as residual risk.
   vulnerability in the OPC UA Client) can read keys directly from
   process memory before the encrypt-at-rest path runs. Mitigation
   options:
-  1. Run the host under a **dedicated service account with no shell
-     access** so a compromise can't pivot. The keylog files are
-     already mode `0600` and confined to the per-user data
-     directory; the service account boundary is the missing piece.
+  1. Run the host under a **dedicated, least-privilege service account**
+     with interactive shell access disabled. Restrict its filesystem and
+     network permissions to those required. This limits exposure but does
+     not protect in-memory keys from a compromised capture process or
+     prevent access to resources the account is allowed to use.
   2. Register a custom `IKeyEscrowProvider` that hands keys to a
      KMS (e.g., Azure Key Vault HSM) instead of the disk writer.
      The disk writer is then unused.
@@ -921,10 +922,12 @@ operationally or accept as residual risk.
   deployments. Keep the default (`false`) and add telemetry if you
   must override it.
 
-- **Native dependencies on libpcap / Npcap.** `SharpPcap` and
-  `PacketDotNet` are unmanaged native loads (see the **Dependencies
-  and governance** section). Subscribe to upstream CVE feeds and bump
-  within 30 days for HIGH or CRITICAL advisories.
+- **Native dependencies on libpcap / Npcap.** `SharpPcap` is a managed
+  capture API that uses libpcap/Npcap for NIC capture; `PacketDotNet`
+  provides managed packet parsing. Maintain the selected native backend
+  as well as the managed packages (see **Dependencies and governance**).
+  Subscribe to upstream CVE feeds and update within 30 days for HIGH or
+  CRITICAL advisories.
 
 ### When to use it
 
@@ -960,8 +963,7 @@ reads from that same global registry — picks the wrapped
 factory up automatically. There is no extra wiring code; the
 composition is pure layering at the transport binding level.
 
-Three properties of the channel manager flow through to capture for
-free:
+Capture preserves three channel-manager behaviors:
 
 - **Sharing.** When multiple participants share a single
   `IManagedTransportChannel` (the refcount + key-equivalence model in
@@ -1033,8 +1035,7 @@ server, a `ServerBase`/`StandardServer` host that is not built around
 `Microsoft.Extensions.DependencyInjection`, or any client that creates
 sessions through the static/fluent APIs.
 
-There are **two independent steps**, and forgetting the second is the
-most common reason "nothing is captured":
+Capture requires both binding installation and an active capture session:
 
 1. **Install a binding** so the affected channels become
    capture-*aware*. This alone records nothing.
@@ -1387,18 +1388,20 @@ promised.
 
 ### Dependencies and governance
 
-The packet-capture binding has two native-code transitive
-dependencies:
+The packet-capture binding uses the managed packages below. NIC capture
+additionally requires the native libpcap/Npcap backend installed for the host.
 
-| Package | Native binding | Upstream advisories |
+| Package | Role and native requirements | Upstream advisories |
 |---|---|---|
-| `PacketDotNet` | Wireshark-style packet decode | https://github.com/dotpcap/packetnet/security/advisories |
-| `SharpPcap` | `libpcap` / `Npcap` capture | https://github.com/dotpcap/sharppcap/security/advisories |
+| `PacketDotNet` | Managed packet parsing; not a native capture library | https://github.com/dotpcap/packetnet/security/advisories |
+| `SharpPcap` | Managed capture API over the native `libpcap` / `Npcap` backend | https://github.com/dotpcap/sharppcap/security/advisories |
 
-Both are pinned in `Directory.Packages.props` and tracked in the
-project SBOM. Operators deploying this binding should subscribe to
-the upstream advisory feeds and review at least monthly. HIGH or
-CRITICAL CVEs should be addressed within 30 days.
+Both packages are pinned in `Directory.Packages.props` and tracked in the
+project SBOM. Operators should maintain the selected native backend
+separately; a NuGet package update does not necessarily update the installed
+capture library or driver. Subscribe to advisory feeds for the managed
+packages and native backend and review at least monthly. HIGH or CRITICAL
+CVEs should be addressed within 30 days.
 
 Run `dotnet list package --vulnerable --include-transitive` against
 `src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj` in

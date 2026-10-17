@@ -332,7 +332,25 @@ You enable mirroring by registering the seams below on the server builder; each 
 - Replicas of a non-transparent (HotAndMirrored) set have their own ApplicationUri and certificate. The record carries the certificate of the server that created the session, and a restored session accepts a client signature over either that certificate or the restoring replica's own one (the stack's client signs the failover server's certificate). Encrypted user tokens must still be decryptable by the restoring replica: with RSA user token policies the client encrypts for the certificate it signs, and a session whose user token is encrypted with an ECC or RSA-DH `EphemeralKey` is not restored at all, because the private part of that key never leaves the replica that issued it — the reconnect is rejected before anything is consumed and the client re-creates the session.
 - A periodic sweep (`SweepInterval`, default five minutes) removes the records of sessions that can no longer be restored — for example those of a replica that crashed or shut down, which nobody closes — and the consumed-nonce markers that no live record references and that are older than `NonceMarkerRetention` (default one hour). A restore that finds an expired record deletes it as well.
 - `SharedKeyValueSessionStore` and `DistributedSessionManagerFactory` refuse an external (non in-memory) store without an `IRecordProtector`, like the dependency injection registration; pass `NullRecordProtector.Instance` explicitly to knowingly store session secrets unprotected.
-- Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. Version 4 also mirrors whether the client application certificate passed validation when the Session was created; a Session whose certificate error an `OnApplicationCertificateError` override accepted is restored without the `TrustedApplication` role or application-based role mappings, like the original. A version 3 record is still restored, with its certificate treated as not validated. Version 5 adds the liveness heartbeat, the owning replica, the original server certificate and whether the user token needs an `EphemeralKey`; version 3 and 4 records are still restored, without an owner. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
+- Mirrored session records carry a `SecurityStateVersion`. The current
+  implementation restores eligible records with versions **3 through 5**,
+  subject to the other security checks. Records outside that supported range
+  fail closed and require the client to recreate the Session.
+
+  | Version | State available during restoration |
+  |---|---|
+  | 3 | Identity continuity state; the client certificate is treated as not validated, and no owner is recorded. |
+  | 4 | Also records whether the client application certificate passed validation when the Session was created; no owner is recorded. |
+  | 5 | Also records the liveness heartbeat, owning replica, original server certificate and whether the user token requires an `EphemeralKey`. |
+
+  A Session whose certificate error an `OnApplicationCertificateError` override
+  accepted is restored without the `TrustedApplication` role or
+  application-based role mappings, like the original. The stored user identity
+  is an encoded continuity key (token type plus a delimited issuer and subject),
+  not the human-readable `ClientUserIdOfSession` diagnostic value. Activation
+  records are stamped with a per-Session activation sequence so that when two
+  activations overlap the mirror keeps the newest `serverNonce` instead of
+  whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore` as `ISubscriptionStore`. It mirrors subscription definitions and monitored-item definitions: publishing interval, lifetime, keepalive, priority, node id, attribute id, monitoring mode, sampling interval, queue size, filters, discard policy, and related metadata. It also installs `SharedKeyValueMonitoredItemQueueFactory` as the `IMonitoredItemQueueFactory`, which continuously mirrors each monitored item's data/event queue contents to the shared store through a non-blocking, coalesced background drain (protected at rest by the configured `IRecordProtector`); on promotion the store's asynchronous restore members re-hydrate those queues so queued-but-unpublished notifications survive a failover.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
 - `IContinuationPointStore` mirrors the generic Browse continuation envelope.
@@ -530,7 +548,7 @@ services.AddOpcUa()
     .UseReplicatedSessions();
 ```
 
-Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
+Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values may contain confidential process or business information. Apply the deployment's confidentiality requirements as well as integrity and authenticity protection: a forged high-clock update can win LWW convergence.
 
 > For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
@@ -719,7 +737,7 @@ Security. The store is treated as an untrusted conduit: every direction and endp
 
 ### Client-side high availability (replica sets)
 
-OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Client.Redundancy`.
+OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client`.
 
 ```mermaid
 flowchart LR
@@ -752,7 +770,7 @@ ISession session = provider.GetRequiredService<ISession>();
 BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks until this replica leads
 ```
 
-Under the hood it reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
+It reuses the server's interfaces, shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
 
 - **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
 - **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.

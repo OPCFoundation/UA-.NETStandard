@@ -778,7 +778,7 @@ configuration.SecurityConfiguration.MinimumCertificateKeySize = 2048;
 
 - **Type**: `bool`
 - **Default**: `false`
-- **Description**: When `true`, skips validation for certificates that have already been successfully validated in the current session. This improves performance by caching validation results.
+- **Description**: When `true`, the validator can reuse a previously accepted certificate and skip rebuilding chain policy. Issuer discovery and revocation checks still run before cached acceptance is used; a detected revocation prevents reuse. The cache is maintained by the validator rather than per Session.
 - **Example**:
 
 ```csharp
@@ -798,7 +798,11 @@ configuration.SecurityConfiguration.MaxRejectedCertificates = 10;
 
 ### Suppressible Validation Errors
 
-The following validation errors can be suppressed by handling the `CertificateValidation` event and setting `e.Accept = true`:
+Use `CertificateValidationOptions.AcceptError` to accept an individual
+suppressible validation error when application policy permits it. This callback
+cannot override non-suppressible errors; inspect the returned validation result.
+See the [certificate-validation migration example](migrate/2.0.x/certificates.md#migrating-the-certificatevalidatorcertificatevalidation-event)
+for the replacement of the legacy event. The following errors are suppressible:
 
 - **BadCertificateUntrusted**: The certificate is not trusted (not in the trusted store or chain).
 - **BadCertificateHostNameInvalid**: The domain name in the endpoint URL does not match any domain in the certificate.

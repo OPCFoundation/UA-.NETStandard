@@ -1,31 +1,29 @@
 # Source generation for OPC UA .NET Standard Library
 
-This project uses C# source generators to create parts of the OPC UA .NET Standard Library at compile time. 
-Source generators are a powerful feature in C# that allow developers to generate additional source code 
-during the compilation process, enabling more efficient and maintainable codebases.
+This project uses C# source generators to create parts of the OPC UA .NET Standard Library at compile time.
 
-The OPC UA source generator is designed to automate working with the OPC UA core library in that it supports
-several ways to generate code at design time.
+The OPC UA source generator supports several ways to generate code for the OPC UA core library:
 
 1. Generate all required classes for servers and clients from a given OPC UA information model. The model
    can be provided in various formats, such as NodeSet2 XML files or Model design xml file. 
 
-2. **DataType Generators**: These generators create classes and structures that represent OPC UA data types,
-   ensuring that the generated code adheres to the OPC UA specifications.
+2. **DataType Generators**: These generators create classes and structures that represent OPC UA data types
+   according to the OPC UA specifications.
 
 
 
 ## Generate code from OPC UA Information Models
 
-To generate code from OPC UA information models, you need to include the source generator in your project.
-This can be done by adding the appropriate NuGet package to your project file.
+To generate code from OPC UA information models, add the source generator NuGet package to your project file.
 
 ```xml
-<PackageReference Include="Opc.Ua.SourceGeneration" Version="x.y.z" />
+<PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.SourceGeneration" Version="x.y.z" PrivateAssets="all" />
 ```
 
-Once the package is added, you can configure the source generator to process your OPC UA information models.
-You can do this by adding an `ItemGroup` to your project file that specifies the model files to be processed.
+Replace `x.y.z` with the selected package version. The generator is a build-time
+development dependency; `PrivateAssets="all"` keeps it from flowing to consumers.
+
+Then add an `ItemGroup` to your project file that specifies the model files to process.
 
 ```xml
 <ItemGroup>
@@ -127,7 +125,7 @@ by annotating your existing code with specific attributes. Here are some of the 
 
 Generates IEncodeable implementation for your class. Simply annotate your class with the `[DataType]` attribute 
 to generate the necessary serialization and deserialization code and other required implementation. 
-The `[DataContract}` and `[DataMember]` attributes from `System.Runtime.Serialization` can be used to
+The `[DataContract]` and `[DataMember]` attributes from `System.Runtime.Serialization` can be used to
 control the serialization behavior.
 
 ```csharp
@@ -149,16 +147,13 @@ methods for encoding and decoding the data type.  If the type extends another ty
 be annotated with the `[DataType]` attribute to be included in the source generation. Only the properties
 of the annotated type will be part of the generated implementation.
 
-If the structure is abstract the type will be generated as abstract as well. 
-
-The following functionality will be implemented over time
-
-- Record types and structs
-- Support for generating structures with optional fields, option set and union types
-- Support to understand nullable annotation for optional fields
-- Support for generating collection types (arrays, lists, etc.)
-- Support for generating complex types with nested data types. If the type references other data types, these 
-  must be built in or implement IEncodeable to be included.
+The attribute-driven generator supports partial classes and record classes,
+supported `ArrayOf<T>` / `MatrixOf<T>` fields and nested encodeable types.
+It does not accept structs or abstract annotated classes. Nullable annotations
+alone do not enable optional-field structure encoding. For model-defined optional
+structures, unions and option sets, use the information-model generation path.
+See [Source-Generated Data Types](../../docs/SourceGeneratedDataTypes.md) for
+supported field types, class shapes and generation constraints.
 
 ## ObjectType client proxies
 
@@ -271,8 +266,9 @@ connection owner. Unavailable optional variables are not fabricated as defaults.
 
 ## Implementation details
 
-The source generator is implemented using the Roslyn API,which provides a rich set of tools for analyzing
+The source generator is implemented using the Roslyn API for analyzing
 and generating C# code. The generator finds all marker attributes such as `[DataType]` in your code and
 builds the model design from it. It then processes the model design to generate the necessary C# code.
 The annotated types are grouped by namespace. Each namespace will result in a separate generated file.
-A namespace can be annotated with a namespace URI which 
+For OPC UA namespace selection, see
+[Namespace Resolution Order](../../docs/SourceGeneratedDataTypes.md#namespace-resolution-order).

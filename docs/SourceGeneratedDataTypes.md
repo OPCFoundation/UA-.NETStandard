@@ -459,7 +459,7 @@ preserved when the field is absent from an XML configuration file.
 [Flags]
 public enum DefaultValueHandling
 {
-    Exclude = 0,                       // Omit type defaults on write, keep declared default for missing XML
+    Exclude = 0,                       // Omit type defaults when safe; keep declared default for missing XML
     Emit = 1,                          // Always write, even if default value
     SetIfMissing = 2,                  // Always set on read, even if absent
     Include = Emit | SetIfMissing      // Always write AND read (legacy behavior)
@@ -473,7 +473,7 @@ declared-default leniency only for XML decoding:
 
 | Value | Encode Behavior | Decode Behavior |
 |---|---|---|
-| `Exclude` (default) | Omits the field from XML/Compact JSON only if its value is the type default *and* the declared default (initializer) is the type default too; a field with any other declared default is always written. Binary and Verbose JSON always write. | JSON: a missing field is the type default. XML: a missing field keeps the declared (constructor/initializer) default, so configuration files that predate a field still load. Binary always reads. |
+| `Exclude` (default) | The generated code omits a type-default value from XML/Compact JSON only when the declared default is known to be the type default, accounting for initializers and constructor assignments. Non-type-default or unknown declared defaults are always passed to the encoder. Binary and Verbose JSON always write. | JSON: a missing field is the type default. XML: a missing field keeps the declared (constructor/initializer) default, so configuration files that predate a field still load. Binary always reads. |
 | `Emit` | Always writes the field, even if default. | Same as `Exclude` for decode. |
 | `SetIfMissing` | Omits the field from XML/Compact JSON if its value is the type default. | A missing field is the type default in every encoding (overwrites the declared default). |
 | `Include` | Always writes. | Always reads and assigns. |
@@ -527,9 +527,9 @@ public partial class SecuritySettings
     [DataTypeField(Order = 0)]
     public int NonceLength { get; set; } = 32;
 
-    // Include: always write and read — use for bool fields that default
-    // to true, since false (the type default) is a valid explicit value
-    [DataTypeField(Order = 1, DefaultValueHandling = DefaultValueHandling.Include)]
+    // Exclude: constructor assignment prevents generated omission of false;
+    // missing XML keeps true, while missing JSON becomes false
+    [DataTypeField(Order = 1)]
     public bool RejectExpiredCertificates { get; set; }
 
     // Exclude (default): omit false from XML, preserve false when absent
@@ -538,10 +538,12 @@ public partial class SecuritySettings
 }
 ```
 
-> **Guideline**: Use `DefaultValueHandling.Include` for bool properties that
-> default to `true` in the constructor. Since `false` is the type default,
-> `Exclude` would omit an explicit `false` on encode. `Include` ensures the
-> value always round-trips correctly.
+> **Guideline**: `Exclude` preserves an explicit `false` for the
+> constructor-assigned Boolean shown here. A missing XML field keeps the
+> constructor value; a missing JSON field becomes the type default.
+> Choose `Include` when an absent XML field should overwrite the constructor
+> value with the type default, not merely because the constructor sets the
+> property to `true`.
 
 ## Partial Init Properties
 

@@ -61,7 +61,10 @@ processes for the window (`server:`, `client-process:`), and the allocated bytes
 per request (or per notification) of the server (`per-op:`) and of the client
 (`client-per-op:`). Classic sessions are created without diagnostics in responses, as an
 application would; the test fixture otherwise asks for them. Allocated bytes per operation are
-deterministic and the most reliable signal. On a shared machine, throughput and latency vary
+process-wide allocation deltas divided by completed operations. Compare them under the same
+workload, runtime and configuration; background activity and batching can change the ratio.
+Use repeated paired runs to assess allocation, throughput and latency changes.
+On a shared machine, throughput and latency vary
 from run to run, so compare builds with `ab.sh` rather than with two separate runs.
 
 ## Analyse a trace

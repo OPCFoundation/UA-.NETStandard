@@ -82,8 +82,8 @@ dotnet run --project samples/DI/PumpDeviceIntegrationServer -c Release -f net10.
 ```
 
 Wait for `OPC UA server listening at opc.tcp://localhost:62810/PumpDeviceIntegrationServer.`
-The pump simulation drives `MassFlow`, `BearingTemperature`, and `DifferentialPressure`,
-which is what makes the render *live*.
+The pump simulation drives `MassFlow`, `BearingTemperature`, and `DifferentialPressure`.
+Those updates animate the render.
 
 ### 4. Run the connector (terminal 2)
 

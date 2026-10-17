@@ -12,10 +12,10 @@ with a full live simulation, wired through the fluent
 `INodeManagerBuilder` API and the additive OPC 10000-100 topology-element
 builder integration.
 
-The pump sample is the integration test for every fluent API extension
-shipped under `src/Opc.Ua.Server/Fluent/`. Each extension is
-documented in
-[Source-generated NodeManagers — Building richer node managers](../../../docs/NodeManagers.md#building-richer-node-managers--the-fluent-extension-surface).
+The pump sample exercises fluent server APIs for simulation, alarms and
+historical access. See
+[Building richer node managers](../../../docs/NodeManagers.md#building-richer-node-managers--the-fluent-extension-surface)
+for the fluent extension surface.
 
 The simulated asset is a *SimPump Corp PumpX-2000*. Its nameplate,
 engineering ranges, alarm trip points and simulation profile are all
@@ -37,12 +37,12 @@ so document and address space cannot drift apart.
 | Bearing-temperature trip points | 363.15 K high, 373.15 K high-high |
 | Full specification | [`DATASHEET.md`](./DATASHEET.md) |
 
-Volumetric flow is the only independent variable in the simulation.
-Head, differential pressure, mass flow, efficiency and shaft power all
-follow from the datasheet characteristic curves
+Head, differential pressure, mass flow, efficiency and shaft power are
+derived from volumetric flow using the datasheet characteristic curves
 (`H(Q) = 32 − 0.0104·Q²`, `η(Q) = 72·(1 − 0.6·((Q−25)/25)²)`,
-`P = ρ·g·Q·H/η`), so the published values are mutually consistent at
-every tick rather than being independent sine waves.
+`P = ρ·g·Q·H/η`). Bearing temperature also includes a timed cooling-fault
+excursion; fluid temperature, suction level and the start counter follow
+the time-based models in the datasheet.
 
 ## Running the sample
 
@@ -255,19 +255,18 @@ turns its descendants into a shared prototype, and a shared prototype
 cannot carry the per-pump impeller rotation, casing colour or needle
 positions that make each machine read as its own.
 
-`Assets/Plant.usda` models the pump as a real machine: a horizontal
-long-coupled end-suction centrifugal pump built to **EN 733** (formerly
-DIN 24255), size **65-200**, following the published dimensions of the
-Grundfos NK 65-200 / KSB Etanorm 65-200 family and driven by an
-**IEC 160M** motor on a fabricated baseplate.
+`Assets/Plant.usda` depicts a horizontal long-coupled end-suction centrifugal
+pump with a motor and fabricated baseplate. The table below records the sample
+asset's modeled dimensions; it is not a manufacturer datasheet or a claim of
+EN 733, EN 1092-2 or IEC dimensional conformity.
 
 | Item | Value |
 | --- | --- |
 | Baseplate | 1.80 × 0.46 × 0.12 m |
-| Shaft centreline above baseplate | 0.160 m (the IEC 160M frame number *is* the shaft height) |
+| Shaft centreline above baseplate | 0.160 m |
 | Volute casing | 0.355 m outer diameter × 0.110 m wide |
-| Suction flange | DN80 axial, OD 0.200 m (EN 1092-2 PN16) |
-| Discharge flange | DN65 vertical, OD 0.185 m (EN 1092-2 PN16) |
+| Suction flange | DN80 axial, OD 0.200 m |
+| Discharge flange | DN65 vertical, OD 0.185 m |
 | Impeller | 0.198 m, six backward-curved vanes |
 | Motor frame | 0.254 m outer diameter × 0.615 m long |
 | Bay pitch | 2.4 m |
@@ -346,9 +345,8 @@ standard namespace-0 declaration NodeIds — which
 `PumpInstanceNodeIdRegressionTests` pins — so every pump's alarm shares
 one `ActiveState`, `Severity` and `AckedState` node, and binding those
 would ring every pump in the hall at once. The per-pump supervision
-states are the alarm indication instead: they are genuinely per instance,
-and they are what drives the condition through `ActivatesAlarm` in the
-first place.
+states are the alarm indication instead: they are per instance
+and drive the condition through `ActivatesAlarm`.
 
 A real pump shaft is horizontal, but the binding contract fixes the
 driven operation as `xformOp:rotateZ`. `Impeller` therefore carries a
@@ -463,13 +461,13 @@ tag scheme.
 | Push-style monitored value updates via `Bind(out IValueUpdater<T>)` | `CreatePumpSimulation` |
 | Discrete `NumberOfStarts` counter published on change | `CreatePumpSimulation` |
 | One 250 ms simulation tick for all phase-shifted pumps | `Configure` → `AdvanceSimulation` |
-| Datasheet-driven simulation (one independent variable, derived values) | `PumpDatasheet.cs` + `PumpSimulationState.Publish` |
+| Datasheet-driven simulation (flow-derived hydraulic quantities and time-driven signals) | `PumpDatasheet.cs` + `PumpSimulationState.Publish` |
 | Browsable/subscribable limit alarm with thresholds and acknowledge handler via `CreateLimitAlarm(...).WithLimits(...).MonitorVariable(...)` | `CreatePumpSimulation` |
 | Boolean supervision (TwoStateDiscreteState) → alarm activation, condition raise/clear, and reported events via `.ActivatesAlarm(...)` | `CreatePumpSimulation` |
 | `EventNotifier`, `HasNotifier`, and `HasEventSource` instance wiring | `PumpNodeManager.cs` + fluent alarm builders |
 | Cross-namespace path resolution (Pump_1 in Pumps NS → Operational in Machinery NS → Measurements in Pumps NS, all in one unqualified browse path) | `src/Opc.Ua.Server/Fluent/BrowsePathResolver.cs` |
 | Declarative `ConfigureDevicesFor` topology-element configuration adding an application-namespace Diagnostics functional group to every generated `PumpType` instance | `Program.cs` |
-| In-memory historian wiring so NodeSet-declared historical access is genuinely serviceable for all analog measurements and historized supervision booleans | `PumpNodeManager.Configure.cs` `UseHistorian()` / `Historize()` |
+| In-memory historian wiring that serves NodeSet-declared historical access for all analog measurements and historized supervision booleans | `PumpNodeManager.Configure.cs` `UseHistorian()` / `Historize()` |
 | One OpenUSD twin per configured pump: per-pump prim, signals and bindings, composed from one component asset by a `Many` component binding | `OpenUsdRepresentation.cs` + `OpenUsdComposition.cs` |
 
 ## Architecture

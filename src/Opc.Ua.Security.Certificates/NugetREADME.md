@@ -19,7 +19,7 @@ Reference this package directly when you need to:
 - implement a custom `ICertificateStoreType`.
 
 The package is referenced transitively from `Opc.Ua.Core` so server
-and client consumers get it for free.
+and client consumers do not need a separate reference.
 
 ## Target frameworks
 

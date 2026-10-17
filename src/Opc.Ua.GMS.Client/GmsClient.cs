@@ -287,7 +287,7 @@ namespace Opc.Ua.GMS.Client
         /// <summary>The immutable per-workflow resource limits.</summary>
         private readonly GmsClientOptions m_options;
 
-        /// <summary>Whether this facade closes a session explicitly opened by its factory.</summary>
+        /// <summary>Whether the internal constructor explicitly assigned session ownership to this facade.</summary>
         private readonly bool m_ownsSession;
 
         /// <summary>The injected clock used to bound preparation as well as subscription observation.</summary>

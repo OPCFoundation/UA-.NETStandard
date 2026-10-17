@@ -22,8 +22,10 @@ review of your deployment.
 
 - [ ] Give each installation a unique `ApplicationUri` that matches its
   application certificate. See [Concepts: applications](Concepts.md#applications).
-- [ ] Set `PkiRoot` to a persistent, access-controlled directory. The hosted
-  client and server default to a folder in the system temporary directory. See
+- [ ] Ensure `PkiRoot` points to persistent, access-controlled storage. When no
+  root is configured, hosted clients and servers use the running account's
+  `LocalApplicationData/OPC Foundation/{ApplicationName}/pki`; samples may
+  override this location. See
   [Application identity and certificate defaults](DependencyInjection.md#application-identity-and-certificate-defaults).
 - [ ] Keep `AutoAcceptUntrustedCertificates` disabled, and provision the
   trusted and issuer certificates, or CA-issued certificates, before peers

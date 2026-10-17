@@ -116,8 +116,9 @@ public class EncoderTests : FuzzTargetTestsBase
    a logical seed bucket and is auto-discovered by
    `TestAssetUtils.DiscoverTestcaseEncoderSuffixes`.
 6. **Add a dictionary.** Put `<NewArea>.dict` under `fuzzing/Dictionaries/` with common
-   tokens / magic bytes / length sentinels — this dramatically improves libFuzzer coverage
-   progression. Every line must be a loadable libFuzzer entry (`name="token"` or `"token"`)
+   tokens, magic bytes and length sentinels so libFuzzer can use format-specific values
+   during mutation. Measure its effect on coverage with the target and corpus you use.
+   Every line must be a loadable libFuzzer entry (`name="token"` or `"token"`)
    with a nonempty token and escaped inner quotes. libFuzzer aborts the entire campaign on a
    single malformed line, so an unloadable dictionary silently disables every target that
    declares it; `validate-fuzz-manifest.ps1` enforces this. Dictionaries are optional per target.

@@ -115,7 +115,12 @@ Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreU
 
 `OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
 
-> **⚠ Silent regression.** Source-compatible, but **binary-incompatible**. Pre-compiled assemblies whose overrides still target the old `OnAfterCreate(ISystemContext, NodeState)` signature will silently no-op at runtime against 2.0 - the CLR resolves virtual overrides by exact signature, finds no match, and falls back to the base implementation. **No runtime exception is thrown** to alert the developer. The only fix is to **recompile** the consuming assembly against 2.0 so the override binds to the new three-argument signature.
+> **Override migration required.** Update every override to include
+> `CancellationToken ct = default`, pass it to the base call, and recompile
+> against 2.0. The optional parameter preserves calls that omit the token, not
+> overrides with the old signature; those produce `CS0115` when rebuilt. Do not
+> assume previously compiled overrides remain compatible. Verify that the
+> callback runs after rebuilding.
 
 ```csharp
 protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)

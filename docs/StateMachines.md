@@ -636,7 +636,7 @@ sub-SM transitions:
   snapshot. Sub-SM transitions occurring while the parent is in a
   different state are silently discarded.
 
-Under the hood all discovered sub-SMs are subscribed once up-front and
+All discovered sub-SMs are subscribed once up-front and
 their notifications are multiplexed through a `Channel<T>`; sub-SM
 events are filtered against the parent's currently-active state.
 If any source fails (including a follow-up state read), the combined stream

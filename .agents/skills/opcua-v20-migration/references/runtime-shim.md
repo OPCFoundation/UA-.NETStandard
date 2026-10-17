@@ -32,7 +32,7 @@ C# 14 to call those members:
 
 ### Newly-shimmed (genuinely-removed) members
 
-API 2.0 genuinely removed — the shim re-introduces it under the original name
+API 2.0 removed — the shim re-introduces it under the original name
 so call sites bind:
 
 - `EncodeableFactory.GlobalFactory` (UA0020) — returns a process-singleton
@@ -60,21 +60,19 @@ so call sites bind:
 
 ## Sync-over-async caveat
 
-The sync shims wrap their `*Async` counterparts via:
+The synchronous shims block the calling thread until their asynchronous
+counterparts complete. For example, the `Session.Reconnect` shim waits with:
 
 ```csharp
-Task.Run(() => xxxAsync(...)).GetAwaiter().GetResult()
+session.ReconnectAsync().GetAwaiter().GetResult();
 ```
 
 This is intended as a **migration aid only** — keep the build green while you
 port the call chain to `async`/`await`. Do **not** leave these calls on
 production hot paths because:
 
-- Each sync call thread-pool-hops twice (`Task.Run` + `GetResult()`'s
-  synchronous wait); under load this exhausts the thread pool.
-- The wrapper synchronously blocks a thread that 2.0's async code path
-  otherwise would have released. On constrained hosts (containers with low
-  vCPU budget, Kestrel under load) this surfaces as request timeouts.
+- Under load, blocked worker threads can delay other requests and contribute
+  to thread-pool starvation or timeouts.
 - Synchronous blocking obscures the async call chain and complicates timeout
   and cancellation handling.
 
@@ -113,7 +111,7 @@ no `Opc.Ua.MigrationAnalyzer.Core.dll` is shipped or loaded at runtime.
 | `net9.0` | ✅ | STS |
 | `net10.0` | ✅ | LTS (current) |
 
-If your consumer targets a TFM not in this list (e.g. `net6.0`), the migration
-package still installs but the shim DLL won't apply — the runtime fallback is
-the analyzer + source generator only, which is sufficient for ~70% of the
-migration patterns.
+Consumers on unsupported target frameworks must retarget before using the
+bundled migration package. See the
+[compatibility matrix](compatibility-matrix.md#supported-consumer-target-frameworks)
+for supported frameworks and migration prerequisites.

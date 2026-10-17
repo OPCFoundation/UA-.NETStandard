@@ -1,20 +1,16 @@
 # OPC UA .NET Standard — Core.Types
 
-`OPCFoundation.NetStandard.Opc.Ua.Core.Types` is the core type
-infrastructure that backs every OPC UA encoded message: the built-in
-data types (`NodeId`, `Variant`, `DataValue`, `LocalizedText`,
-`QualifiedName`, `StatusCode`, `ExtensionObject`, `DiagnosticInfo`,
-`ByteString`, `ArrayOf<T>`, …), the
-`IServiceMessageContext` surface, and the standard `StringTable` /
-`NamespaceTable` plumbing the encoders use.
+`OPCFoundation.NetStandard.Opc.Ua.Core.Types` provides generated standard
+OPC UA NodeSet model and state types. It depends on
+`OPCFoundation.NetStandard.Opc.Ua.Types`, which supplies built-in values,
+encoding/context infrastructure and the node-state base classes.
 
 ## Overview
 
-Most consumers reach for `Opc.Ua.Types` (the generated type assembly)
-or `Opc.Ua.Core` (which depends on this package). Reference
-`Opc.Ua.Core.Types` directly when you need a strict subset — for
-example a library that only encodes / decodes UA primitives without
-pulling in the channel layer.
+Reference this package when you need generated standard model types without
+the channel layer in `Opc.Ua.Core`. A library that needs only UA built-in
+values and foundational type infrastructure can reference `Opc.Ua.Types`.
+The stack source generator emits the standard model types in this assembly.
 
 ## Target frameworks
 
@@ -24,7 +20,7 @@ pulling in the channel layer.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Types migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/types.md)
-for the full built-in type design, value representation rules, and the
-migration notes (especially around the readonly-struct conversion of
-`NodeId`, `Variant`, `DataValue`, etc. in 2.0).
+and the [Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md)
+for generated-type authoring. The
+[Types migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/types.md)
+covers changes to the foundational value types supplied by `Opc.Ua.Types`.

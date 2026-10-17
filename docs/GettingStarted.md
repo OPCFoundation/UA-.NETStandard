@@ -54,7 +54,10 @@ bash where they differ.
 | Other requirements | Git, and internet access to restore NuGet packages on the first build | Internet access to nuget.org |
 | TCP port | 62541 | 62560 |
 
-Route B was verified with package version `2.0.0`.
+Route B was verified against package version `2.0.0`; see the
+[validation record in #4713](https://github.com/OPCFoundation/UA-.NETStandard/pull/4713).
+The unpinned commands install the current stable packages, which may differ
+from that verified version.
 
 ## Route A: Run the repository samples
 
@@ -437,8 +440,9 @@ exercise with new certificates.
 To use the client with another server, change `DiscoveryUrl` to that server's
 URL. Set `SecurityMode` and `SecurityPolicyUri` to values that one of its
 endpoints offers. Trust the server certificate as in [B3](#b3-trust-each-application),
-and ask the server's administrator to trust your client certificate from
-`GettingStartedClient/pki/certs`. The client connects as an anonymous user; if
+and ask the server's administrator to trust the client's public `.der`
+certificate from `GettingStartedClient/pki/certs`. Do not send files from
+`GettingStartedClient/pki/private`. The client connects as an anonymous user; if
 the server requires user authentication, see
 [Identity providers](IdentityProviders.md). The client only browses, reads, and
 monitors; it does not change the server.

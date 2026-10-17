@@ -2,7 +2,7 @@
 
 The **xRegistry** libraries implement the generic, registry-agnostic *abstract registry base model*
 for OPC UA. They provide the substrate a concrete registry builds on: **structural xRegistry
-identity**, an **Opaque-NodeId content fast path** that resolves a document in a single `Read`, a
+identity**, an **Opaque-NodeId content fast path** that reads a document directly without browsing, a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
@@ -80,8 +80,9 @@ Opaque node while replacing or deleting one Version releases only that Version's
 ### Opaque-NodeId fast path
 
 A registered resource is reachable at an **Opaque `NodeId`** in the registry namespace whose
-Identifier is the *raw content-id bytes*. A consumer that received the id on the wire therefore needs
-no Browse and no fingerprint recomputation — one `Read` of that node's `Value` returns the document:
+Identifier is the *raw content-id bytes*. A consumer that received the id on the wire needs
+no Browse or fingerprint recomputation. It reads the node's `Value` directly;
+larger documents can require multiple range-based `Read` requests:
 
 ```csharp
 var fastPathNodeId = new NodeId(contentId, registryNamespaceIndex);
@@ -685,7 +686,8 @@ abstract XRegistryClient
    └── WotRegistryClient     (domain)
 ```
 
-Resolving a resource from an id received on the wire is a single call. It reads through
+Resolving a resource from an id received on the wire is one client API call, which may
+issue multiple wire requests. It reads through
 `ReadBytesAsync`, so a document larger than the session's `MaxByteStringLength` is fetched with
 range-based reads rather than failing. It returns a **null** `ByteString` — check `IsNull` — when no
 fast-path node is registered, so the caller can fall back to a Browse or a registry-specific download:
@@ -746,7 +748,7 @@ elements and still deconstruct when that reads better:
 (NodeId nodeId, string versionId, bool created) = resource;
 ```
 
-The typed proxies are also available directly, which is what a domain client builds on:
+The typed proxies are also available directly for domain clients to build on:
 ```csharp
 GroupTypeClient group = client.GetGroup(groupNodeId);
 (NodeId nodeId, string versionId, uint fileHandle) =

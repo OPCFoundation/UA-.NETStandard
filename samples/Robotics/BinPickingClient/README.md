@@ -17,10 +17,10 @@ model can drive the cell while a human watches. With `--view`, it can also open
 the in-process OpenUSD viewport so the same session is observable in 3-D while
 the agent runs.
 
-The MCP catalogue exposed to the agent contains **81 tools** measured from the
-running host: `43` Vision tools + `42` Robotics tools − `4` shared connection
-tools. This includes `vision_get_frame`, which returns the eye-in-hand camera
-image as an MCP `ImageContentBlock` so the model genuinely sees pixels; the
+The MCP catalogue combines Vision and Robotics tools over a shared connection.
+Query the running host's `tools/list` for the catalogue exposed by that build.
+This includes `vision_get_frame`, which returns the eye-in-hand camera
+image as an MCP `ImageContentBlock` so the model sees pixels; the
 one-call `robotics_vision_pick`; typed intent/mission tools; and the state,
 authority, paging and bounded-wait tools needed to plan against refusals.
 
@@ -105,9 +105,8 @@ stop.
 
 ## Scripted demonstration mode
 
-Use `--demo` to run the whole loop without an agent attached. This is what makes
-the sample runnable in CI and by someone without an MCP client, and it is how
-the loop is proven:
+Use `--demo` to run and verify the whole loop without an agent attached,
+in CI or without an MCP client:
 
 ```powershell
 dotnet run --project samples\Robotics\BinPickingCell\BinPickingCell.csproj -- --insecure
@@ -155,13 +154,13 @@ Place operation terminal state: Succeeded failure=None
 ### Notes on Vision inference in the current cell
 
 The client resolves the cell's Vision nodes by browse path from the Vision root,
-so a Server that materialises Vision as instances in its own namespace — which
-is what the fluent builder produces, and what this cell is — is discovered
+so a Server that materialises Vision as instances in its own namespace —
+as the fluent builder does for this cell — is discovered
 correctly. `--demo` verifies the world change through the client-side detection
 loop: it captures the detections before the Pick, submits Pick and Place,
 re-runs inference, and reports whether the target part is still where it was.
 
-The check is honest in both directions. If the part was never detected before
+If the part was never detected before
 the Pick, the run is reported as **inconclusive** rather than as a pass, because
 "it is gone now" proves nothing about a part that was never there.
 
