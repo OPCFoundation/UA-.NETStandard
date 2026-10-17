@@ -17,6 +17,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Pumps.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Scales.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Extrusion.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.AutoID.Server" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
