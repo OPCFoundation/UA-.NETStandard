@@ -44,7 +44,8 @@ namespace Opc.Ua.Redundancy.Server
     {
         /// <summary>
         /// Registers the consistency-mode-appropriate <see cref="ISharedKeyValueStore"/>, the shared
-        /// <see cref="IRaftConsensus"/> replica, and (by default) a native <see cref="RaftLeaderElection"/>.
+        /// <see cref="IRaftConsensus"/> replica, the <see cref="IRaftSnapshotManager"/> of the store, and (by
+        /// default) a native <see cref="RaftLeaderElection"/>.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -81,6 +82,13 @@ namespace Opc.Ua.Redundancy.Server
 
             builder.Services.TryAddSingleton(sp =>
                 CreateStore(sp, options));
+
+            // Snapshot management of the Raft state machine, injectable next to
+            // the store it manages (the Hybrid store delegates to its Raft store).
+            builder.Services.TryAddSingleton(sp =>
+                sp.GetRequiredService<ISharedKeyValueStore>() as IRaftSnapshotManager ??
+                throw new InvalidOperationException(
+                    "The registered ISharedKeyValueStore does not manage Raft snapshots."));
 
             if (options.UseRaftLeaderElection)
             {

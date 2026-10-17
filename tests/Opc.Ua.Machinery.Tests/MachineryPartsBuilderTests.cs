@@ -1140,6 +1140,36 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
+        public async Task EmptyResultSlotsHaveNoModelDefaultValueAsync()
+        {
+            ResultManagementState? management = null;
+            IMachineHandle<BaseObjectState> machine = await NewMachine("Empty-Results")
+                .WithResultManagement(results =>
+                {
+                    management = results.State;
+                    results.WithInMemoryStore(4).WithResultsFolder(publishedResults: 2);
+                })
+                .BuildAsync();
+            var slots = new List<BaseInstanceState>();
+            management!.Results!.GetChildren(m_fixture!.Manager.SystemContext, slots);
+            Assert.That(slots, Has.Count.EqualTo(2));
+            foreach (BaseInstanceState instance in slots)
+            {
+                var slot = (ResultState)instance;
+                Assert.That(slot.WrappedValue.IsNull, Is.True, "An empty slot must not expose model-default XML.");
+                Assert.That(slot.ResultMetaData!.WrappedValue.IsNull, Is.True);
+                if (slot.ResultContent is { } content)
+                {
+                    Assert.That(content.WrappedValue.IsNull, Is.True);
+                }
+            }
+            await machine.Results!.PublishAsync(new MachineryResult(
+                new ResultDataType { ResultMetaData = new ResultMetaDataType { ResultId = "first-result" } }));
+            Assert.That(((ResultState)slots[0]).Value!.ResultMetaData!.ResultId, Is.EqualTo("first-result"));
+            Assert.That(((ResultState)slots[1]).WrappedValue.IsNull, Is.True);
+        }
+
+        [Test]
         public async Task PublishedResultsLandInTheResultsFolderAsync()
         {
             ResultManagementState? management = null;

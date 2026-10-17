@@ -28,6 +28,30 @@
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
   </ItemGroup>
+  <!-- A DI companion NodeSet2 generated with EmitNodeSetNodesOnly: its
+       predefined nodes must be exactly the nodes of the NodeSet2, which is
+       embedded as well to compare against. -->
+  <PropertyGroup>
+    <ModelSourceGeneratorEmitNodeSetNodesOnly>true</ModelSourceGeneratorEmitNodeSetNodesOnly>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Assets\NodeSetNodesOnlyPump.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://test.org/UA/NodeSetNodesOnlyPump/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>NodeSetNodesOnlyPump</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>NodeSetNodesOnlyPump</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <EmbeddedResource Include="Assets\NodeSetNodesOnlyPump.NodeSet2.xml">
+      <LogicalName>Opc.Ua.Di.Tests.Assets.NodeSetNodesOnlyPump.NodeSet2.xml</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
