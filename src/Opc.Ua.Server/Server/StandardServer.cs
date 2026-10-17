@@ -1269,44 +1269,12 @@ namespace Opc.Ua.Server
 
             try
             {
-                // activate the session.
-                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
-                        context,
-                        requestHeader.AuthenticationToken,
-                        clientSignature,
-                        userIdentityToken,
-                        userTokenSignature,
-                        localeIds,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                // The activation has committed and the session now expects the next
-                // request to be signed over serverNonce, which only this response
-                // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
-                // turning their failure into a fault would leave the client with a
-                // nonce the server no longer accepts. Only a session that was closed
-                // concurrently still fails the request with Bad_SessionClosed; its
-                // nonce is moot. The activation gate is already released, so a close
-                // can also start during the steps below; it is checked again after
-                // them.
+                (serverNonce, ServiceResult activationStatus) =
+                    ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                        ? await batchHost.DispatchSessionActivationAsync(
+                            context, ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
+                        : await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
-
-                if (identityChanged)
-                {
-                    try
-                    {
-                        // post-commit: not bound to the request token, a cancellation
-                        // could only abort the work while the client still gets Good.
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            session.Id,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
-                    }
-                }
 
                 AdditionalParametersType? parameters = null;
                 try
@@ -1406,6 +1374,33 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
+            }
+
+            async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateAndNotifyAsync()
+            {
+                (bool identityChanged, ByteString nonce, ServiceResult status) =
+                    await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                ISession activatedSession = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
+                if (identityChanged)
+                {
+                    try
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ActivateSessionPostCommitStepFailed(e, activatedSession.Id);
+                    }
+                }
+                return (nonce, status);
             }
         }
 
@@ -4499,6 +4494,7 @@ namespace Opc.Ua.Server
             ISubscriptionManager? unregisteredSubscriptionManager = null;
             try
             {
+                ((NodeManagerLifecycle)NodeManagerLifecycle).BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -4805,9 +4801,44 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
+            // Capture initial ownership before Running admits runtime registrations.
+            ArrayOf<IAsyncNodeManager> initialManagers = [.. m_serverInternal.NodeManager.AsyncNodeManagers];
             // set the server status as running, or NoConfiguration while the
             // application is in the application setup state (OPC 10000-12 G.2).
             SetServerState(StartupServerState);
+
+            try
+            {
+                await ((NodeManagerLifecycle)NodeManagerLifecycle)
+                    .CompleteStartupAsync(initialManagers, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.Message(ex, "A NodeManager failed during startup readiness.");
+                Exception? cleanupFailure = null;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(ServerError))
+                    {
+                        cleanupFailure = new ServiceResultException(ServerError);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
+                {
+                    cleanupFailure = cleanupException;
+                }
+                if (cleanupFailure is not null)
+                {
+                    var failure = new AggregateException(
+                        "NodeManager startup readiness and server cleanup failed.", ex, cleanupFailure);
+                    ServerError = new ServiceResult(failure);
+                    throw failure;
+                }
+                ServerError = new ServiceResult(ex);
+                throw;
+            }
 
             // all initialization is complete.
             m_logger.ServerStarted();
@@ -5759,9 +5790,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
         /// </summary>
-        internal async ValueTask RefreshComplexTypesAsync(
+        /// <param name="server">The server whose custom data types are loaded.</param>
+        /// <param name="additionalNodeManager">An additional NodeManager to read types from, if any.</param>
+        /// <param name="publishResolver">Whether to publish the resolver on the server.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The refreshed resolver, or null when complex-type loading is disabled.</returns>
+        internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
+            bool publishResolver = true,
             CancellationToken cancellationToken = default)
         {
             if (LoadComplexTypes)
@@ -5785,8 +5822,13 @@ namespace Opc.Ua.Server
                             additionalNodeManager,
                             cancellationToken)
                         .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
+                if (publishResolver)
+                {
+                    ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
+                return resolver;
             }
+            return null;
         }
 
         /// <inheritdoc/>

@@ -392,7 +392,10 @@ namespace Opc.Ua.Server.TestFramework
                     retryStartServer = true;
                 }
 
-                await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                if (retryStartServer)
+                {
+                    await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
+                }
             } while (retryStartServer);
 
             return Server;

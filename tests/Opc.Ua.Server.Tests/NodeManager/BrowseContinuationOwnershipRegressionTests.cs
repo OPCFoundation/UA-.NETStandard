@@ -530,7 +530,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     RequestedNodeId = Metadata.NodeId,
                     MaxResultsToReturn = 1,
                     ResultMask = BrowseResultMask.All,
-                    Data = resource.Object
+                    Data = new BrowseContinuationData(Metadata.NodeId, resource.Object)
                 };
             }
 
@@ -545,7 +545,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Returns((OperationContext _, ContinuationPoint current, IList<ReferenceDescription> references,
                         CancellationToken _) =>
                     {
-                        references.Add(new ReferenceDescription { NodeId = Metadata.NodeId });
+                            current.Data ??= new BrowseContinuationData(Metadata.NodeId);
+                            references.Add(new ReferenceDescription { NodeId = Metadata.NodeId });
                         return new ValueTask<ContinuationPoint?>(current);
                     });
             }
@@ -565,6 +566,30 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Owns the monitored-item queue resources supplied by the deterministic server.
             /// </summary>
             private readonly MonitoredItemQueueFactory m_queues;
+        }
+
+        private sealed class BrowseContinuationData : IDisposable, IBrowseContinuationDependencies
+        {
+            public BrowseContinuationData(ExpandedNodeId targetId, IDisposable? resource = null)
+            {
+                m_targetId = targetId;
+                m_resource = resource;
+            }
+
+            public bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+            {
+                // This fixture's remaining pages all repeat the same reference without advancing here.
+                targetIds = [m_targetId];
+                return true;
+            }
+
+            public void Dispose()
+            {
+                m_resource?.Dispose();
+            }
+
+            private readonly ExpandedNodeId m_targetId;
+            private readonly IDisposable? m_resource;
         }
     }
 }
