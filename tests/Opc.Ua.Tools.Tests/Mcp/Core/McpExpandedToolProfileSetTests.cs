@@ -88,7 +88,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             (McpToolProfile.WotRuntime, "WotRuntime", 32, "wot-runtime"),
             (McpToolProfile.MachineTool, "MachineTool", 33, "MachineTool"),
             (McpToolProfile.Gms, "Gms", 34, "Gms"),
-            (McpToolProfile.CranesHoists, "CranesHoists", 35, "CranesHoists")
+            (McpToolProfile.CranesHoists, "CranesHoists", 35, "CranesHoists"),
+            (McpToolProfile.AutoId, "AutoId", 36, "AutoId")
         ];
 
         private static readonly McpToolProfile[] s_highPair =
@@ -107,7 +108,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private static readonly (McpToolProfile Profile, string Text)[] s_undefinedProfiles =
         [
             ((McpToolProfile)(-1), "-1"),
-            ((McpToolProfile)36, "36"),
+            ((McpToolProfile)37, "37"),
             ((McpToolProfile)63, "63"),
             ((McpToolProfile)64, "64"),
             ((McpToolProfile)int.MinValue, "-2147483648"),
@@ -120,8 +121,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] actualNames = Enum.GetNames<McpToolProfile>();
             McpToolProfile[] actualProfiles = Enum.GetValues<McpToolProfile>();
 
-            Assert.That(actualNames, Has.Length.EqualTo(36));
-            Assert.That(actualProfiles, Has.Length.EqualTo(36));
+            Assert.That(actualNames, Has.Length.EqualTo(37));
+            Assert.That(actualProfiles, Has.Length.EqualTo(37));
             Assert.That(actualNames, Is.EqualTo(s_profileOracle.Select(row => row.Name)));
             Assert.That(actualProfiles, Is.EqualTo(s_profileOracle.Select(row => row.Profile)));
             Assert.That(
@@ -190,14 +191,14 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(AllProfileInputs))]
-        public void AllProfilesFormExactDeduplicatedThirtySixMemberUnion(McpToolProfile[] input)
+        public void AllProfilesFormExactDeduplicatedThirtySevenMemberUnion(McpToolProfile[] input)
         {
             McpToolProfile[] expected = GetAllProfiles();
             string expectedDisplay = GetExpectedDisplay(expected);
             var set = new McpToolProfileSet(input);
 
             AssertSet(set, expected, expectedDisplay);
-            Assert.That(set.Count, Is.EqualTo(36));
+            Assert.That(set.Count, Is.EqualTo(37));
             Assert.That(set.Enumerate().Count(profile => profile == McpToolProfile.Full), Is.EqualTo(1));
             foreach ((McpToolProfile Profile, string Text) in s_undefinedProfiles)
             {

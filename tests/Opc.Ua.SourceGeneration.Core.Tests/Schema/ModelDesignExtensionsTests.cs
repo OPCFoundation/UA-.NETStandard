@@ -9464,6 +9464,68 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// An override that changes only the type argument of one generic
+        /// node state class is a refinement to an unrelated class; a
+        /// different class, the same class or a non-generic base class is
+        /// not.
+        /// </summary>
+        [TestCase("PropertyState<ArrayOf<ScanResult>>", "PropertyState<ArrayOf<RfidScanResult>>", true)]
+        [TestCase("PropertyState<ScanResult>", "PropertyState<RfidScanResult>", true)]
+        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", true)]
+        [TestCase("PropertyState<int>", "PropertyState<int>", false)]
+        [TestCase("PropertyState<int>", "PropertyState", false)]
+        [TestCase("PropertyState", "PropertyState<int>", false)]
+        [TestCase("AnalogItemState<int>", "BaseDataVariableState<int>", false)]
+        [TestCase("PropertyState", "DataItemState", false)]
+        public void IsOverriddenWithRefinedGenericClassDetectsTypeArgumentRefinement(
+            string mergedClassName, string overriddenClassName, bool expected)
+        {
+            var mockInstance = new InstanceDesign
+            {
+                ModellingRule = ModellingRule.Mandatory,
+                OveriddenNode = new InstanceDesign
+                {
+                    TypeDefinitionNode = new ObjectTypeDesign { ClassName = overriddenClassName }
+                },
+                TypeDefinitionNode = new ObjectTypeDesign { ClassName = mergedClassName }
+            };
+
+            bool result = mockInstance.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []);
+
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A child that does not override anything, or a placeholder, is no refinement.
+        /// </summary>
+        [TestCase(ModellingRule.Mandatory, false)]
+        [TestCase(ModellingRule.OptionalPlaceholder, true)]
+        public void IsOverriddenWithRefinedGenericClassIsFalseWithoutOverride(
+            ModellingRule modellingRule, bool hasOverriddenNode)
+        {
+            var mockInstance = new InstanceDesign
+            {
+                ModellingRule = modellingRule,
+                OveriddenNode = hasOverriddenNode ? new InstanceDesign() : null!,
+                TypeDefinitionNode = new ObjectTypeDesign { ClassName = "PropertyState<int>" }
+            };
+
+            Assert.That(mockInstance.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []), Is.False);
+        }
+
+        /// <summary>
+        /// IsOverriddenWithRefinedGenericClass rejects a null instance.
+        /// </summary>
+        [Test]
+        public void IsOverriddenWithRefinedGenericClassNullInstanceThrows()
+        {
+            InstanceDesign? instance = null;
+
+            Assert.Throws<ArgumentNullException>(() =>
+                instance!.IsOverriddenWithRefinedGenericClass("http://test.org/UA/", []));
+        }
+
+        /// <summary>
         /// Tests that IsOverriddenWithSameClass returns false when class names are different.
         /// Input: Merged class name is "PropertyState", overridden class name is "DataItemState".
         /// Expected: Returns false.

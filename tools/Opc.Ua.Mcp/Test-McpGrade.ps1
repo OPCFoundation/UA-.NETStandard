@@ -37,7 +37,7 @@ param(
         'amb', 'machinery', 'scales', 'pumps', 'di', 'isa95', 'positioning', 'wot', 'xregistry',
         'wot-documents', 'gds', 'certificates', 'credentials', 'onboarding', 'roles', 'users', 'files',
         'alarms', 'history', 'schemas', 'pubsub-runtime', 'pubsub-configuration', 'pubsub-bridge',
-        'pubsub-security', 'wot-runtime', 'machinetool', 'gms', 'craneshoists', 'full')]
+        'pubsub-security', 'wot-runtime', 'machinetool', 'gms', 'craneshoists', 'autoid', 'full')]
     [string[]] $Profiles = @('core', 'full', 'machinetool', 'gms', 'craneshoists'),
     [string[]] $AdditionalProfiles = @(),
     [switch] $IncludePrivilegedCatalogues,

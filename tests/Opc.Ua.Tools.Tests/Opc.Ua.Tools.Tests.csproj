@@ -61,6 +61,10 @@
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.GMS\Opc.Ua.Mcp.GMS.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.AutoID\Opc.Ua.Mcp.AutoID.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Server\Opc.Ua.AutoID.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.GMS.Server\Opc.Ua.GMS.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Server\Opc.Ua.MachineTool.Server.csproj"
