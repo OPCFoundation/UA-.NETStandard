@@ -214,7 +214,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// The shared session lifecycle tools.
         /// </summary>
         private static readonly string[] kConnections =
-            ["Connect", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif

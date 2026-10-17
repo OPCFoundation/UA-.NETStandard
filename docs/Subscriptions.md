@@ -950,6 +950,46 @@ reconciliation, etc.) along with the recommended V2 alternative.
 
 ### Persistence (save / load)
 
+Classic snapshots preserve the original resolved target of relative-path items
+as SDK-owned metadata. `Session.Load(..., transferSubscriptions: true)` restores
+`ResolvedNodeId` and `Status.NodeId` on the local monitored-item objects before
+`TransferSubscriptionsAsync` or `ReactivateSubscriptionsAsync` is called.
+These operations use the saved handles without translating the path again, so
+a changed browse relationship or lost browse permission does not retarget an
+existing server monitored item.
+
+```csharp
+// Before deliberately closing the origin session:
+origin.DeleteSubscriptionsOnClose = false;
+origin.Save(snapshotStream, origin.Subscriptions);
+
+// With a connected target session and the snapshot stream positioned at its start:
+var restored = new SubscriptionCollection(
+    target.Load(snapshotStream, transferSubscriptions: true));
+if (!await target.TransferSubscriptionsAsync(restored, sendInitialValues: true, ct))
+{
+    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+}
+
+foreach (Subscription subscription in restored)
+{
+    await subscription.ApplyChangesAsync(ct);
+}
+```
+
+Attach notification handlers after loading and before transfer. Loading only
+restores local objects; it does not perform the server transfer. For a restored
+session, use `ReactivateSubscriptionsAsync` after reactivating that session
+instead. No call to `ResolveItemNodeIdsAsync` or a resolution-state setter is
+needed for transfer, reactivation, or subsequent maintenance.
+
+Loading for recreation or creating a replacement server subscription resolves
+paths afresh instead of reusing the saved target. Changing `StartNodeId` or
+`RelativePath` on a created item, or while its creation is in flight, throws
+`BadInvalidState` immediately; assigning the same value is allowed. Delete the
+server item successfully before changing its target, or replace the item.
+Failed deletion retains its handle and target for retry.
+
 | Classic | V2 |
 |---|---|
 | `session.Save(Stream, IEnumerable<Subscription>)` (BinaryEncoder + `SubscriptionState.Encode`) | `ISubscriptionManager.SaveAsync(Stream, IServiceMessageContext, IEnumerable<ISubscription>?, CancellationToken)`, with fluent `ManagedSession.SaveSubscriptionsAsync(stream)` extension. |

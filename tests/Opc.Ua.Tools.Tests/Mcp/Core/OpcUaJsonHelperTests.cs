@@ -31,6 +31,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
@@ -247,6 +248,162 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             Assert.That(OpcUaJsonHelper.VariantToObject(Variant.Null), Is.Null);
             Assert.That(OpcUaJsonHelper.VariantToObject(default), Is.Null);
+        }
+
+        /// <summary>
+        /// Generic reads preserve structured fields rather than returning only a CLR type name.
+        /// </summary>
+        [Test]
+        public void StructuredValuesRetainTheirFields()
+        {
+            var argument = new Argument
+            {
+                Name = "Command",
+                DataType = DataTypeIds.String,
+                ValueRank = ValueRanks.Scalar
+            };
+            string text = OpcUaJsonHelper.Serialize(OpcUaJsonHelper.VariantToObject(Variant.FromStructure(argument)));
+            using JsonDocument document = JsonDocument.Parse(text);
+
+            Assert.That(document.RootElement.GetProperty("body").ValueKind, Is.EqualTo(JsonValueKind.Object));
+            Assert.That(document.RootElement.GetProperty("body").GetProperty("Name").GetString(),
+                Is.EqualTo("Command"));
+            Assert.That(document.RootElement.GetProperty("body").GetProperty("ValueRank").GetInt32(),
+                Is.EqualTo(ValueRanks.Scalar));
+        }
+
+        /// <summary>
+        /// Explicit UA JSON inputs round-trip native scalar and structure types instead of becoming strings.
+        /// </summary>
+        [Test]
+        public void TypedCallArgumentsPreserveTypesAndLegacyStrings()
+        {
+            IServiceMessageContext context = ServiceMessageContext.Create(null!);
+            ArrayOf<Variant> expected =
+            [
+                Variant.From(0L), Variant.From(false),
+                Variant.FromStructure(new Argument { Name = "Input", DataType = DataTypeIds.UInt32 })
+            ];
+            using var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            encoder.WriteVariantArray("Arguments", expected);
+            using JsonDocument document = JsonDocument.Parse(encoder.CloseAndReturnText());
+            ArrayOf<Variant> decoded = OpcUaJsonHelper.ParseCallArguments(
+                null, document.RootElement.GetProperty("Arguments").GetRawText(), context);
+
+            Assert.That(decoded, Is.EqualTo(expected));
+            ArrayOf<Variant> legacy = OpcUaJsonHelper.ParseCallArguments(["42", "false"], null, context);
+            Assert.That(legacy[0].TryGetValue(out string text), Is.True);
+            Assert.That(text, Is.EqualTo("42"));
+            Assert.That(legacy[1].TryGetValue(out string booleanText), Is.True);
+            Assert.That(booleanText, Is.EqualTo("false"));
+        }
+
+        /// <summary>
+        /// Malformed or ambiguous typed input is refused before a method is dispatched.
+        /// </summary>
+        [TestCase("{}", false)]
+        [TestCase("null", false)]
+        [TestCase("[", false)]
+        [TestCase("[]", true)]
+        public void TypedCallArgumentsRejectInvalidShapeOrConflictingInputs(string json, bool legacy)
+        {
+            Assert.Throws<ServiceResultException>(() => OpcUaJsonHelper.ParseCallArguments(
+                legacy ? ["text"] : null, json, ServiceMessageContext.Create(null!)));
+        }
+
+        /// <summary>
+        /// Multibyte arguments are bounded by their UTF-8 payload size, including the exact limit.
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(1)]
+        public void TypedCallArgumentsEnforceUtf8ByteLimit(int byteOffset)
+        {
+            const int maxBytes = 4 * 1024 * 1024;
+            string value = new('\u4E2D', 2700);
+            string item = "{\"UaType\":12,\"Value\":\"" + value + "\"}";
+            string prefix = "[" + string.Join(",", Enumerable.Repeat(item, 511)) + ",{\"UaType\":12,\"Value\":\"";
+            const string suffix = "\"}]";
+            int padding = maxBytes + byteOffset - Encoding.UTF8.GetByteCount(prefix) -
+                Encoding.UTF8.GetByteCount(value) - suffix.Length;
+            string finalValue = value + new string('x', padding);
+            string json = prefix + finalValue + suffix;
+            IServiceMessageContext context = ServiceMessageContext.Create(null!);
+
+            Assert.That(Encoding.UTF8.GetByteCount(json), Is.EqualTo(maxBytes + byteOffset));
+            Assert.That(json, Has.Length.LessThan(maxBytes));
+            if (byteOffset > 0)
+            {
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    OpcUaJsonHelper.ParseCallArguments(null, json, context))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+            else
+            {
+                ArrayOf<Variant> decoded = OpcUaJsonHelper.ParseCallArguments(null, json, context);
+                Assert.That(decoded.Count, Is.EqualTo(512));
+                Assert.That(decoded[0].TryGetValue(out string first), Is.True);
+                Assert.That(first, Is.EqualTo(value));
+                Assert.That(decoded[^1].TryGetValue(out string last), Is.True);
+                Assert.That(last, Is.EqualTo(finalValue));
+            }
+        }
+
+        /// <summary>
+        /// Oversized multibyte input is refused before malformed JSON can reach the parser.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TypedCallArgumentsRejectOversizeBeforeParsing(bool multibyte)
+        {
+            const int maxBytes = 4 * 1024 * 1024;
+            string json = multibyte ? new('\u4E2D', maxBytes / 3 + 1) : new('x', maxBytes + 1);
+
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                OpcUaJsonHelper.ParseCallArguments(null, json, ServiceMessageContext.Create(null!)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        /// <summary>
+        /// A non-null value without a usable type tag must not silently become Variant.Null.
+        /// </summary>
+        [TestCase("[{\"Value\":42}]")]
+        [TestCase("[{\"Value\":0}]")]
+        [TestCase("[{\"Value\":false}]")]
+        [TestCase("[{\"Value\":\"\"}]")]
+        [TestCase("[{\"Value\":[]}]")]
+        [TestCase("[{\"Value\":{}}]")]
+        [TestCase("[{\"UaTyp\":6,\"Value\":42}]")]
+        [TestCase("[{\"uaType\":6,\"Value\":42}]")]
+        [TestCase("[{\"UaType\":null,\"Value\":42}]")]
+        public void TypedCallArgumentsRejectMissingType(string json)
+        {
+            ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                OpcUaJsonHelper.ParseCallArguments(null, json, ServiceMessageContext.Create(null!)))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        /// <summary>
+        /// Compact null encodings and omitted typed defaults remain valid alongside explicit zero and false.
+        /// </summary>
+        [Test]
+        public void TypedCallArgumentsPreserveNullAndTypedDefaults()
+        {
+            const string json =
+                "[null,{},{\"Value\":null},{\"UaType\":0},{\"UaType\":6}," +
+                "{\"UaType\":1,\"Value\":false},{\"UaType\":6,\"Value\":0}]";
+            ArrayOf<Variant> expected =
+            [
+                Variant.Null, Variant.Null, Variant.Null, Variant.Null,
+                Variant.From(0), Variant.From(false), Variant.From(0)
+            ];
+
+            ArrayOf<Variant> actual = OpcUaJsonHelper.ParseCallArguments(
+                null, json, ServiceMessageContext.Create(null!));
+
+            Assert.That(actual, Is.EqualTo(expected));
         }
 
         [Test]

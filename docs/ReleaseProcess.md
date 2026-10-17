@@ -68,6 +68,10 @@ without any other context.
 - **Candidate** - a signed, validated package set produced by a
   `nuget-publish.yml` run, retained as its `opcua-packages-<run id>` GitHub
   Actions artifact.
+- **Debug packages** - Debug-configuration packages use the `.Debug` suffix,
+  or `.Debug.<rid>` for a platform-specific tool payload. The shared
+  `Test-DebugPackageId` policy recognizes both forms. They are retained on
+  GitHub Packages and excluded from nuget.org publication and verification.
 
 ## Common preflight
 

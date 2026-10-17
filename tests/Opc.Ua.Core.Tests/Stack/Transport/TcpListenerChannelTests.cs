@@ -272,6 +272,50 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }, Throws.Nothing);
         }
 
+        // ── Request context ───────────────────────────────────────────────────
+
+        [Test]
+        public void RequestContextIsSharedUntilTheTokenOrTransportChanges()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TcpListenerChannel channel = BuildChannel(listenerMock);
+            channel.ChannelThumbprint = [1, 2, 3];
+
+            SecureChannelContext first = channel.GetRequestContext();
+            SecureChannelContext again = channel.GetRequestContext();
+
+            Assert.That(again, Is.SameAs(first));
+            Assert.That(first.SecureChannelId, Is.EqualTo(channel.GlobalChannelId));
+            Assert.That(first.MessageEncoding, Is.EqualTo(RequestEncoding.Binary));
+            Assert.That(first.ChannelThumbprint.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+
+            // a renewed token signs a new thumbprint.
+            channel.ChannelThumbprint = [4, 5, 6];
+            SecureChannelContext renewed = channel.GetRequestContext();
+            Assert.That(renewed, Is.Not.SameAs(first));
+            Assert.That(renewed.ChannelThumbprint.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
+            Assert.That(first.ChannelThumbprint.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
+            Assert.That(channel.GetRequestContext(), Is.SameAs(renewed));
+
+            // a transport attached to the channel gets a context of its own.
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var buffers = new BufferManager("context-test", 8192, telemetry);
+            (InProcessTransport transport, InProcessTransport peer) =
+                InProcessTransport.CreatePair(buffers, 8192, telemetry);
+            try
+            {
+                channel.Attach(channelId: 1, transport: transport);
+                SecureChannelContext attached = channel.GetRequestContext();
+                Assert.That(attached, Is.Not.SameAs(renewed));
+                Assert.That(attached.SecureChannelId, Is.EqualTo(channel.GlobalChannelId));
+                Assert.That(channel.GetRequestContext(), Is.SameAs(attached));
+            }
+            finally
+            {
+                peer.Close();
+            }
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static Mock<ITcpChannelListener> CreateListenerMock()

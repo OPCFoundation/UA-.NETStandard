@@ -31,9 +31,10 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
-using Opc.Ua.OpenUsd.Client;
 using Opc.Ua.OpenUsd.Connector.Viewer;
 using OpenUsd.Rendering;
 using OpenUsd.Viewer;
@@ -198,6 +199,144 @@ namespace Opc.Ua.OpenUsd.Client.Tests
 
             Assert.That(outcome, Is.EqualTo(RendererPickFailureFallback.None));
             Assert.That(fallbackStarts, Is.Zero);
+        }
+
+        /// <summary>
+        /// Disabled renderer callbacks do not resolve or start the fallback machinery.
+        /// </summary>
+        [TestCase(false, UsdViewPickMode.Auto)]
+        [TestCase(true, UsdViewPickMode.CommandPrim)]
+        public void NonRendererModesDoNotCreatePickCallbacks(bool hasCallback, UsdViewPickMode mode)
+        {
+            int resolutions = 0;
+            var options = new UsdViewOptions
+            {
+                PickMode = mode,
+                PrimPicked = hasCallback ? static (_, _) => Task.CompletedTask : null
+            };
+
+            Func<ViewerPickEventArgs, CancellationToken, Task>? callback = ViewerPickCallback.CreateHandler(
+                options,
+                () =>
+                {
+                    resolutions++;
+                    return null;
+                },
+                NullLogger.Instance,
+                CancellationToken.None);
+
+            Assert.That(callback, Is.Null);
+            Assert.That(resolutions, Is.Zero);
+        }
+
+        /// <summary>
+        /// The actual factory callback reports its failure through the documented warning event.
+        /// </summary>
+        [Test]
+        public async Task FactoryCallbackReportsTheOriginalExceptionExactlyOnce()
+        {
+            var failure = new InvalidOperationException("Owned callback failure.");
+            var logger = new Mock<ILogger>(MockBehavior.Strict);
+            logger.Setup(value => value.IsEnabled(LogLevel.Warning)).Returns(true);
+            logger.Setup(
+                value => value.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
+                    It.IsAny<It.IsAnyType>(),
+                    failure,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()));
+            var options = new UsdViewOptions
+            {
+                PickMode = UsdViewPickMode.Renderer,
+                PrimPicked = (_, _) => throw failure
+            };
+            Func<ViewerPickEventArgs, CancellationToken, Task>? callback = ViewerPickCallback.CreateHandler(
+                options,
+                static () => null,
+                logger.Object,
+                CancellationToken.None);
+            Assert.That(callback, Is.Not.Null);
+
+            await callback!(CreatePickArgs(Hit("/World/Target")), CancellationToken.None).ConfigureAwait(false);
+
+            logger.Verify(value => value.IsEnabled(LogLevel.Warning), Times.Once);
+            logger.Verify(
+                value => value.Log(
+                    LogLevel.Warning,
+                    It.Is<EventId>(id => id.Id == OpenUsdViewerEventIds.ViewHost + 2),
+                    It.IsAny<It.IsAnyType>(),
+                    failure,
+                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+                Times.Once);
+            logger.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Either lifetime cancels an in-flight callback without reporting normal cancellation as failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FactoryCallbackLinksHostAndPickCancellationWithoutWarning(bool cancelHost)
+        {
+            using var host = new CancellationTokenSource();
+            using var pick = new CancellationTokenSource();
+            var entered = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var logger = new Mock<ILogger>(MockBehavior.Strict);
+            var options = new UsdViewOptions
+            {
+                PickMode = UsdViewPickMode.Renderer,
+                PrimPicked = (_, token) =>
+                {
+                    entered.SetResult(token);
+                    return release.Task.WaitAsync(token);
+                }
+            };
+            Func<ViewerPickEventArgs, CancellationToken, Task>? callback = ViewerPickCallback.CreateHandler(
+                options,
+                static () => null,
+                logger.Object,
+                host.Token);
+            Assert.That(callback, Is.Not.Null);
+            Task pending = callback!(CreatePickArgs(Hit("/World/Target")), pick.Token);
+            try
+            {
+                CancellationToken effective = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                Assert.That(pending.IsCompleted, Is.False);
+                await (cancelHost ? host : pick).CancelAsync().ConfigureAwait(false);
+                await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(effective.IsCancellationRequested, Is.True);
+                logger.VerifyNoOtherCalls();
+            }
+            finally
+            {
+                release.TrySetResult();
+                await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Repeated renderer failure cannot duplicate a watcher that the host has already started.
+        /// </summary>
+        [Test]
+        public void AlreadyStartedCommandWatcherIsNotRestartedAfterRepeatedRendererFailure()
+        {
+            int reports = 0;
+            int starts = 0;
+            var controller = new RendererPickFallbackController(
+                UsdViewPickMode.Auto,
+                true,
+                _ => reports++,
+                () => starts++);
+            controller.MarkCommandPrimWatcherStarted();
+
+            Assert.That(controller.DisableRenderer(null), Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(
+                controller.DisableRenderer(new InvalidOperationException("Repeated failure.")),
+                Is.EqualTo(RendererPickFailureFallback.None));
+            Assert.That(reports, Is.EqualTo(1));
+            Assert.That(starts, Is.Zero);
         }
 
         private static ViewerPickEventArgs CreatePickArgs(RenderPickResult result)

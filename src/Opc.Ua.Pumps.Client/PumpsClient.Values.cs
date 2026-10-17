@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,13 +72,19 @@ namespace Opc.Ua.Pumps.Client
             PumpReadOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            return ReadValueSetAsync(group, options ?? PumpReadOptions.Default, 0, cancellationToken);
+            return ReadValueSetAsync(
+                group,
+                options ?? PumpReadOptions.Default,
+                0,
+                new ValueReadBudget(m_maximumBrowseReferences),
+                cancellationToken);
         }
 
         private async ValueTask<PumpValueSet> ReadValueSetAsync(
             NodeId group,
             PumpReadOptions options,
             int depth,
+            ValueReadBudget budget,
             CancellationToken cancellationToken)
         {
             if (group.IsNull)
@@ -88,6 +95,7 @@ namespace Opc.Ua.Pumps.Client
             (List<ValueTarget> targets, List<ValueTarget> nested) = await CollectValueTargetsAsync(
                 group,
                 cancellationToken).ConfigureAwait(false);
+            budget.Add(targets.Count + nested.Count);
 
             PumpValueSet values;
             if (targets.Count == 0)
@@ -119,6 +127,7 @@ namespace Opc.Ua.Pumps.Client
                     target.NodeId,
                     options,
                     depth + 1,
+                    budget,
                     cancellationToken).ConfigureAwait(false);
                 if (!child.IsEmpty || child.Groups.Count > 0)
                 {
@@ -134,6 +143,7 @@ namespace Opc.Ua.Pumps.Client
         /// Browses a group and resolves the node that actually carries each
         /// child's value.
         /// </summary>
+        /// <exception cref="ServiceResultException">The bounded group contains ambiguous value names.</exception>
         private async ValueTask<(List<ValueTarget> Targets, List<ValueTarget> Nested)> CollectValueTargetsAsync(
             NodeId group,
             CancellationToken cancellationToken)
@@ -141,12 +151,13 @@ namespace Opc.Ua.Pumps.Client
             var targets = new List<ValueTarget>();
             var discreteObjects = new List<ValueTarget>();
             var nested = new List<ValueTarget>();
+            var names = new HashSet<string>(StringComparer.Ordinal);
             ushort pumpsNamespace = NamespaceIndexOf(Namespaces.Pumps);
 
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    group,
-                    NodeClass.Variable | NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                group,
+                NodeClass.Variable | NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 if (nodeId.IsNull)
@@ -157,6 +168,12 @@ namespace Opc.Ua.Pumps.Client
                 if (name.Length == 0)
                 {
                     continue;
+                }
+                if (m_maximumBrowseReferences != 0 && !names.Add(name))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameDuplicated,
+                        "A pump group contains ambiguous value names.");
                 }
                 var target = new ValueTarget(name, nodeId)
                 {
@@ -224,6 +241,7 @@ namespace Opc.Ua.Pumps.Client
                     null,
                     paths.ToArray().ToArrayOf(),
                     cancellationToken).ConfigureAwait(false);
+            ValidateBoundedResponse(response.ResponseHeader, response.Results.Count, paths.Count);
 
             for (int ii = 0; ii < discreteObjects.Count; ii++)
             {
@@ -273,6 +291,7 @@ namespace Opc.Ua.Pumps.Client
                     null,
                     paths.ToArray().ToArrayOf(),
                     cancellationToken).ConfigureAwait(false);
+            ValidateBoundedResponse(response.ResponseHeader, response.Results.Count, paths.Count);
 
             int cursor = 0;
             foreach (ValueTarget target in targets)
@@ -323,6 +342,7 @@ namespace Opc.Ua.Pumps.Client
                     : TimestampsToReturn.Neither,
                 nodesToRead: reads.ToArray().ToArrayOf(),
                 ct: cancellationToken).ConfigureAwait(false);
+            ValidateBoundedResponse(response.ResponseHeader, response.Results.Count, reads.Count);
 
             var values = new List<PumpValue>(targets.Count);
             foreach (ValueTarget target in targets)
@@ -332,19 +352,20 @@ namespace Opc.Ua.Pumps.Client
                     continue;
                 }
                 DateTimeUtc timestamp = value.SourceTimestamp;
-                values.Add(new PumpValue
-                {
-                    NodeId = target.ValueNodeId,
-                    Name = target.Name,
-                    Value = value.WrappedValue,
-                    StatusCode = value.StatusCode,
-                    SourceTimestamp = options.IncludeTimestamps &&
-                        timestamp.ToDateTime() != System.DateTime.MinValue
-                            ? timestamp.ToDateTime()
-                            : null,
-                    EngineeringUnits = Decode<EUInformation>(response, target.UnitsIndex),
-                    EuRange = Decode<Range>(response, target.RangeIndex)
-                });
+                values.Add(
+                    new PumpValue
+                    {
+                        NodeId = target.ValueNodeId,
+                        Name = target.Name,
+                        Value = value.WrappedValue,
+                        StatusCode = value.StatusCode,
+                        SourceTimestamp = options.IncludeTimestamps &&
+                            timestamp.ToDateTime() != System.DateTime.MinValue
+                                ? timestamp.ToDateTime()
+                                : null,
+                        EngineeringUnits = Decode<EUInformation>(response, target.UnitsIndex),
+                        EuRange = Decode<Range>(response, target.RangeIndex)
+                    });
             }
             return new PumpValueSet(group, values);
         }
@@ -382,6 +403,30 @@ namespace Opc.Ua.Pumps.Client
                 return NodeId.Null;
             }
             BrowsePathResult result = response.Results[index];
+            if (m_maximumBrowseReferences != 0)
+            {
+                if (result.StatusCode == StatusCodes.BadNoMatch)
+                {
+                    return NodeId.Null;
+                }
+                RequireGoodResponse(result.StatusCode);
+                if (result.Targets.Count != 1 ||
+                    result.Targets[0].RemainingPathIndex != uint.MaxValue ||
+                    result.Targets[0].TargetId.ServerIndex != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadDecodingError,
+                        "A pump member did not resolve to one local node.");
+                }
+                NodeId target = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris);
+                if (target.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        "The pump member namespace could not be resolved.");
+                }
+                return target;
+            }
             if (!StatusCode.IsGood(result.StatusCode) || result.Targets.Count == 0)
             {
                 return NodeId.Null;
@@ -410,19 +455,32 @@ namespace Opc.Ua.Pumps.Client
         /// <c>Range</c> - from a read result.
         /// </summary>
         /// <typeparam name="T">The structured type to decode.</typeparam>
+        /// <exception cref="ServiceResultException">A bounded read returned invalid engineering metadata.</exception>
         private T? Decode<T>(ReadResponse response, int index)
             where T : class, IEncodeable
         {
+            if (m_maximumBrowseReferences != 0 && index >= 0)
+            {
+                RequireGoodResponse(response.Results[index].StatusCode);
+                if (!response.Results[index].WrappedValue.TryGetValue<T>(
+                    out T? metadata,
+                    Session.MessageContext) ||
+                    metadata is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTypeMismatch,
+                        "Pump engineering metadata has an unexpected data type.");
+                }
+                return metadata;
+            }
             if (!TryResultAt(response, index, out DataValue value) ||
                 StatusCode.IsBad(value.StatusCode))
             {
                 return null;
             }
-#pragma warning disable CS8600 // TryGetValue is [MaybeNullWhen(false)]
-            bool decodedOk = value.WrappedValue.TryGetValue(
-                out T decoded,
+            bool decodedOk = value.WrappedValue.TryGetValue<T>(
+                out T? decoded,
                 Session.MessageContext);
-#pragma warning restore CS8600
             return decodedOk ? decoded : null;
         }
 

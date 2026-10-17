@@ -73,6 +73,21 @@ namespace Opc.Ua.Machinery.Client
         }
 
         /// <summary>
+        /// Creates a client with bounded discovery and strict, evidenced reads.
+        /// </summary>
+        /// <param name="session">The borrowed, connected session.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="options">Positive limits, copied and validated at construction.</param>
+        public MachineryClient(
+            ISession session,
+            ITelemetryContext telemetry,
+            MachineryClientOptions options)
+            : this(session, telemetry)
+        {
+            m_options = (options ?? throw new ArgumentNullException(nameof(options))).CopyAndValidate();
+        }
+
+        /// <summary>
         /// Gets the connected session.
         /// </summary>
         public ISession Session { get; }
@@ -98,7 +113,7 @@ namespace Opc.Ua.Machinery.Client
             get
             {
                 int namespaceIndex = Session.NamespaceUris.GetIndex(
-                    Opc.Ua.Machinery.Namespaces.Machinery);
+                    Namespaces.Machinery);
                 return namespaceIndex < 0
                     ? NodeId.Null
                     : new NodeId(Objects.Machines, (ushort)namespaceIndex);
@@ -190,11 +205,18 @@ namespace Opc.Ua.Machinery.Client
             NodeId machineryItem,
             CancellationToken cancellationToken = default)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(Di.Namespaces.OpcUaDi, out _) &&
+                !TryGetNamespaceIndex(Namespaces.Machinery, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<NodeId>(NodeId.Null);
+            }
             return ResolveChildAsync(
                 machineryItem,
                 new QualifiedName(
                     DiBrowseNames.Identification,
-                    NamespaceIndexOf(Opc.Ua.Di.Namespaces.OpcUaDi)),
+                    NamespaceIndexOf(Di.Namespaces.OpcUaDi)),
                 cancellationToken);
         }
 
@@ -203,8 +225,14 @@ namespace Opc.Ua.Machinery.Client
             string browseName,
             CancellationToken cancellationToken)
         {
+            if (m_options is not null &&
+                !TryGetNamespaceIndex(Namespaces.Machinery, out _))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return new ValueTask<NodeId>(NodeId.Null);
+            }
             ushort namespaceIndex = NamespaceIndexOf(
-                Opc.Ua.Machinery.Namespaces.Machinery);
+                Namespaces.Machinery);
             return ResolveChildAsync(
                 parent,
                 new QualifiedName(browseName, namespaceIndex),
@@ -216,6 +244,10 @@ namespace Opc.Ua.Machinery.Client
             QualifiedName browseName,
             CancellationToken cancellationToken)
         {
+            if (m_options is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
             if (parent.IsNull)
             {
                 return NodeId.Null;
@@ -229,6 +261,11 @@ namespace Opc.Ua.Machinery.Client
             CancellationToken cancellationToken,
             params QualifiedName[] browseNames)
         {
+            if (m_options is not null)
+            {
+                return await ResolveStrictPathAsync(
+                    parent, browseNames.ToArrayOf(), cancellationToken).ConfigureAwait(false);
+            }
             if (parent.IsNull || browseNames.Length == 0)
             {
                 return NodeId.Null;
@@ -239,7 +276,7 @@ namespace Opc.Ua.Machinery.Client
             {
                 elements[ii] = new RelativePathElement
                 {
-                    ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                    ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                     IsInverse = false,
                     IncludeSubtypes = true,
                     TargetName = browseNames[ii]
@@ -353,14 +390,35 @@ namespace Opc.Ua.Machinery.Client
         /// result: nearly everything OPC 40001 declares is optional, so a
         /// missing child is the normal case and not an error.
         /// </remarks>
-        internal async ValueTask<Dictionary<QualifiedName, Variant>> ReadChildValuesAsync(
+        internal async ValueTask<ReadValueSet> ReadChildValuesAsync(
             NodeId parent,
-            IReadOnlyList<QualifiedName> browseNames,
+            ArrayOf<QualifiedName> browseNames,
             NodeId referenceTypeId,
             CancellationToken cancellationToken,
             Dictionary<QualifiedName, DataValue>? samples = null)
         {
-            var values = new Dictionary<QualifiedName, Variant>();
+            var values = new ReadValueSet();
+            if (m_options is not null)
+            {
+                var strictPaths = new ArrayOf<QualifiedName>[browseNames.Count];
+                for (int ii = 0; ii < strictPaths.Length; ii++)
+                {
+                    strictPaths[ii] = [browseNames[ii]];
+                }
+                ArrayOf<MachineryReadValue> fields = await ReadStrictFieldsAsync(
+                    parent, strictPaths.ToArrayOf(), referenceTypeId, cancellationToken).ConfigureAwait(false);
+                if (samples is not null)
+                {
+                    foreach (MachineryReadValue field in fields)
+                    {
+                        if (!field.IsAbsent)
+                        {
+                            samples[field.BrowsePath[^1]] = field.Value;
+                        }
+                    }
+                }
+                return new ReadValueSet(fields);
+            }
             if (parent.IsNull || browseNames.Count == 0)
             {
                 return values;
@@ -429,20 +487,24 @@ namespace Opc.Ua.Machinery.Client
                 }
                 if (StatusCode.IsGood(read.Results[ii].StatusCode))
                 {
-                    values[browseNames[indices[ii]]] = read.Results[ii].WrappedValue;
+                    values.Add(browseNames[indices[ii]], read.Results[ii].WrappedValue);
                 }
             }
             return values;
         }
 
+        /// <summary>
+        /// Projects a floating-point field without silently accepting a wrong strict type.
+        /// </summary>
         internal static double? AsDouble(
-            Dictionary<QualifiedName, Variant> values,
+            ReadValueSet values,
             QualifiedName name)
         {
             if (!values.TryGetValue(name, out Variant value))
             {
                 return null;
             }
+            values.RequireType(name, HasType(value, BuiltInType.Double));
             if (value.TryGetValue(out double number))
             {
                 return number;
@@ -450,14 +512,17 @@ namespace Opc.Ua.Machinery.Client
             return value.TryGetValue(out float single) ? single : null;
         }
 
+        /// <summary>
+        /// Projects a string field while keeping strict validation tied to its evidence.
+        /// </summary>
         internal static string? AsString(
-            Dictionary<QualifiedName, Variant> values,
+            ReadValueSet values,
             QualifiedName name)
         {
-            return values.TryGetValue(name, out Variant value) &&
-                value.TryGetValue(out string text)
-                ? text
-                : null;
+            values.TryGetValue(name, out Variant value);
+            bool valid = value.TryGetValue(out string? text);
+            values.RequireType(name, valid);
+            return valid ? text : null;
         }
 
         internal IAsyncEnumerable<MachineEntry> EnumerateChildObjectsAsync(
@@ -495,7 +560,7 @@ namespace Opc.Ua.Machinery.Client
             return BrowseChildrenAsync(
                 parent,
                 nodeClass,
-                Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                Types.ReferenceTypeIds.HierarchicalReferences,
                 cancellationToken);
         }
 
@@ -505,6 +570,18 @@ namespace Opc.Ua.Machinery.Client
             NodeId referenceTypeId,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            if (m_options is not null)
+            {
+                ArrayOf<MachineEntry> entries = await BrowseBoundedAsync(
+                    parent, nodeClass, referenceTypeId, new BrowseBudget(m_options), cancellationToken)
+                    .ConfigureAwait(false);
+                for (int ii = 0; ii < entries.Count; ii++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return entries[ii];
+                }
+                yield break;
+            }
             if (parent.IsNull)
             {
                 yield break;
@@ -566,5 +643,8 @@ namespace Opc.Ua.Machinery.Client
                         Session.NamespaceUris));
             }
         }
+
+        private readonly MachineryClientOptions? m_options;
+        private static readonly MachineryClientOptions s_defaultReadOptions = new();
     }
 }

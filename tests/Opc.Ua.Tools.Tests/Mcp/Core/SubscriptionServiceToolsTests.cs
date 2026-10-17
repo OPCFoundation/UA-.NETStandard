@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 #if NET10_0
+using System;
+using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Mcp.Tools;
@@ -39,6 +42,163 @@ namespace Opc.Ua.Tools.Tests.Mcp
     [NonParallelizable]
     public sealed class SubscriptionServiceToolsTests
     {
+        /// <summary>
+        /// Missing or unequal acknowledgement arrays must not silently discard a caller's acknowledgements.
+        /// </summary>
+        [TestCase(-1, 1)]
+        [TestCase(1, -1)]
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        [TestCase(1, 2)]
+        [TestCase(2, 1)]
+        public async Task PublishRejectsMismatchedAcknowledgementsAsync(int subscriptionCount, int sequenceCount)
+        {
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                uint[]? subscriptions = subscriptionCount < 0
+                    ? null : Enumerable.Repeat(subscriptionId, subscriptionCount).ToArray();
+                uint[]? sequences = sequenceCount < 0 ? null : Enumerable.Repeat(1u, sequenceCount).ToArray();
+
+                string json = await SubscriptionServiceTools.PublishAsync(
+                    McpTestEnvironment.SessionManager,
+                    subscriptions,
+                    sequences,
+                    McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+                using JsonDocument document = JsonDocument.Parse(json);
+                AssertErrorPayload(document.RootElement, "BadInvalidArgument");
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Omitted and empty acknowledgement collections both represent a request without acknowledgements.
+        /// </summary>
+        [TestCase(-1, -1)]
+        [TestCase(-1, 0)]
+        [TestCase(0, -1)]
+        [TestCase(0, 0)]
+        public async Task PublishAcceptsEmptyAcknowledgementsAsync(int subscriptionCount, int sequenceCount)
+        {
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                string json = await SubscriptionServiceTools.PublishAsync(
+                    McpTestEnvironment.SessionManager,
+                    subscriptionCount < 0 ? null : [],
+                    sequenceCount < 0 ? null : [],
+                    McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+                using JsonDocument document = JsonDocument.Parse(json);
+                AssertSuccessPayload(document.RootElement);
+                Assert.That(GetRequiredProperty(document.RootElement, "subscriptionId").GetUInt32(),
+                    Is.EqualTo(subscriptionId));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A successful Publish service response still exposes each acknowledgement's failure in request order.
+        /// </summary>
+        [Test]
+        public async Task PublishPreservesAcknowledgementResultsAsync()
+        {
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            try
+            {
+                string json = await SubscriptionServiceTools.PublishAsync(
+                    McpTestEnvironment.SessionManager,
+                    [0, subscriptionId],
+                    [1, uint.MaxValue],
+                    McpTestEnvironment.SessionName).ConfigureAwait(false);
+
+                using JsonDocument document = JsonDocument.Parse(json);
+                AssertSuccessPayload(document.RootElement);
+                JsonElement results = GetRequiredProperty(document.RootElement, "results");
+                Assert.That(results.GetArrayLength(), Is.EqualTo(2));
+                Assert.That(results[0].GetString(), Is.EqualTo("BadSubscriptionIdInvalid"));
+                Assert.That(results[1].GetString(), Is.EqualTo("BadSequenceNumberUnknown"));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Matching acknowledgements reach the server and remove the acknowledged notification from retransmission.
+        /// </summary>
+        [Test]
+        public async Task PublishAcknowledgesTheRequestedNotificationAsync()
+        {
+            uint subscriptionId = await CreateSubscriptionAsync().ConfigureAwait(false);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                string monitored = await MonitoredItemServiceTools.CreateMonitoredItemsAsync(
+                    McpTestEnvironment.SessionManager,
+                    subscriptionId,
+                    [VariableIds.Server_ServerStatus_CurrentTime.ToString()],
+                    samplingInterval: 50,
+                    sessionName: McpTestEnvironment.SessionName,
+                    ct: timeout.Token).ConfigureAwait(false);
+                using JsonDocument monitoredDocument = JsonDocument.Parse(monitored);
+                AssertSuccessPayload(monitoredDocument.RootElement);
+                Assert.That(GetRequiredProperty(monitoredDocument.RootElement, "results")[0]
+                    .GetProperty("statusCode").GetString(), Is.EqualTo("Good"));
+
+                uint sequenceNumber = 0;
+                for (int attempt = 0; attempt < 10 && sequenceNumber == 0; attempt++)
+                {
+                    string published = await SubscriptionServiceTools.PublishAsync(
+                        McpTestEnvironment.SessionManager,
+                        sessionName: McpTestEnvironment.SessionName,
+                        ct: timeout.Token).ConfigureAwait(false);
+                    using JsonDocument publishedDocument = JsonDocument.Parse(published);
+                    AssertSuccessPayload(publishedDocument.RootElement);
+                    JsonElement notification = GetRequiredProperty(
+                        publishedDocument.RootElement, "notificationMessage");
+                    if (GetRequiredProperty(notification, "notificationDataCount").GetInt32() > 0)
+                    {
+                        sequenceNumber = GetRequiredProperty(notification, "sequenceNumber").GetUInt32();
+                    }
+                }
+                Assert.That(sequenceNumber, Is.Positive);
+
+                string acknowledged = await SubscriptionServiceTools.PublishAsync(
+                    McpTestEnvironment.SessionManager,
+                    [subscriptionId],
+                    [sequenceNumber],
+                    McpTestEnvironment.SessionName,
+                    timeout.Token).ConfigureAwait(false);
+                using JsonDocument acknowledgedDocument = JsonDocument.Parse(acknowledged);
+                AssertSuccessPayload(acknowledgedDocument.RootElement);
+                JsonElement results = GetRequiredProperty(acknowledgedDocument.RootElement, "results");
+                Assert.That(results.GetArrayLength(), Is.EqualTo(1));
+                Assert.That(results[0].GetString(), Is.EqualTo("Good"));
+
+                string republished = await SubscriptionServiceTools.RepublishAsync(
+                    McpTestEnvironment.SessionManager,
+                    subscriptionId,
+                    sequenceNumber,
+                    McpTestEnvironment.SessionName,
+                    timeout.Token).ConfigureAwait(false);
+                using JsonDocument republishedDocument = JsonDocument.Parse(republished);
+                AssertErrorPayload(republishedDocument.RootElement, "BadMessageNotAvailable");
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(subscriptionId).ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task SubscriptionLifecycleAsync()
         {

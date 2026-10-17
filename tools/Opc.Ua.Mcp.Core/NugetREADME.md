@@ -55,13 +55,24 @@ authority.
 
 ## Arguments and JSON results
 
-`Connect` returns a session name. Pass `sessionName` on later calls; omission is
+`Connect` and `ConnectCertificate` return a session name. Pass `sessionName` on later calls; omission is
 valid only when one session is connected. `Disconnect` closes only the selected
 session. For example, `ReadValue` accepts:
 
 ```json
 { "nodeId": "ns=2;s=Temperature", "sessionName": "plant" }
 ```
+
+`Connect` keeps its anonymous/username arguments. For certificate authentication,
+use `ConnectCertificate` with a non-secret `certificateIdentity` name configured
+by the host. It always validates server trust and has no auto-accept switch. The executable reads
+`McpServer:CertificateIdentities:<name>` with `StoreType`, `StorePath`, and exactly
+one of `SubjectName` or `Thumbprint`. Embedders populate
+`OpcUaMcpOptions.CertificateIdentities` with `McpCertificateIdentity` entries and
+can inject `ICertificatePasswordProvider` for protected keys. The existing
+certificate store/provider and user-token policy selection perform authentication;
+tool callers cannot supply private keys or arbitrary certificate-store locations.
+Unknown references fail closed. Expose these identities only to trusted MCP clients.
 
 NodeIds use OPC UA string notation:
 
@@ -78,6 +89,27 @@ Views `i=87`, Server `i=2253` and ServerStatus.CurrentTime `i=2258`.
 `WriteValue` takes explicit `dataType` plus the encoded `value`; `CallMethod`
 uses `objectId`, `methodId` and ordered `inputArguments`. Use the running
 catalogue's schema for each service's typed request shape.
+
+`Call` and `CallMethod` additionally accept `inputArgumentsJson` instead of the
+legacy string array. It is an OPC UA JSON Variant array, for example
+`[{"UaType":8,"Value":"0"},{"UaType":6,"Value":1}]` for Int64/Int32 arguments.
+Structure values use `UaType: 22` and a `Value` object containing `UaTypeId` and
+the structure's fields. Load custom types with `schema_load_types` first.
+Conflicting argument forms and invalid JSON are rejected before dispatch.
+Typed input is limited to 4 MiB of UTF-8 JSON and 1,024 arguments. A non-null
+`Value` requires an explicit `UaType`; a missing or misspelled type tag is not
+silently interpreted as a null argument. Null encodings and typed defaults remain supported.
+Existing `inputArguments` strings are never implicitly reinterpreted as JSON.
+
+Generic read/call results retain an ExtensionObject's `typeId` and decoded `body`
+fields through UA codecs. Unregistered encoded bodies remain explicitly encoded;
+they are not reduced to a type name or silently omitted.
+
+`Publish` pairs `ackSubscriptionIds` and `ackSequenceNumbers` by index. Their
+lengths must match; omitted and empty arrays both mean no acknowledgements.
+Its `results` array preserves each acknowledgement's status in request order,
+including failures such as `BadSequenceNumberUnknown` even when the service
+response itself is `Good`.
 
 UA JSON preserves types, quality and timestamps. Variant serialization uses
 `BuiltInType`, so Boolean `false` and numeric zero do not become Variant.Null.

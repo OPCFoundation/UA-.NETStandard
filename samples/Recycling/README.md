@@ -232,6 +232,11 @@ executable independently defaults to `healthy`, so another scenario must be pass
 the coordinator and all ten views. For `--scenario <file.json>`, every role needs a readable
 copy with identical effective settings; container copies are mounted read-only.
 
+JSON scenario files override the documented top-level defaults: omitted fields retain
+their defaults, while explicit zero values, nulls and unknown members still undergo
+normal validation. The checked-in scenario files have the same effective settings as
+their corresponding named scenarios.
+
 Views compare the full configuration/model hash before membership or projection. It includes
 residence, seconds per tick, source settings, fault schedules, leases and bounds—not just the
 scenario name. A mismatch or missing identity reports `BadConfigurationError` and stops automatic

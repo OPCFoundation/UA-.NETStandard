@@ -79,6 +79,16 @@ namespace Opc.Ua.Machinery.Server.Results
                         StatusCodes.BadTypeDefinitionInvalid,
                         "The companion result factory must create a ResultType variable or a subtype.");
                 }
+                // Model-default XML is not a published result. Empty slots expose a real null value.
+                slot.WrappedValue = Variant.Null;
+                if (slot.ResultMetaData is not null)
+                {
+                    slot.ResultMetaData.WrappedValue = Variant.Null;
+                }
+                if (slot.ResultContent is not null)
+                {
+                    slot.ResultContent.WrappedValue = Variant.Null;
+                }
                 slots.Add(slot);
             }
             return new MachineryResultVariables(slots);

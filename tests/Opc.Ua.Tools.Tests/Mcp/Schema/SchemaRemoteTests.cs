@@ -210,8 +210,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// <summary>
         /// Client loading uses the real AOT-safe factory and never browses the BaseDataType tree or dictionaries.
         /// </summary>
-        [Test]
-        public async Task ExplicitLoadingUsesFiniteDefaultFactoryAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ExplicitLoadingUsesFiniteDefaultFactoryAsync(bool includeEnumeration)
         {
             await using var local = new SchemaTestContext();
             await using RemoteModelTestSession remote =
@@ -221,6 +222,19 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             NodeId encoding = remote.Id("RecordBinary");
             StructureDefinition definition = SchemaTestContext.Structure(
                 SchemaTestContext.Field("Count", DataTypeIds.Int32));
+            if (includeEnumeration)
+            {
+                NodeId enumeration = remote.Id("Mode");
+                SetType(remote, enumeration, new QualifiedName("Mode", remote.InstanceNamespace), new EnumDefinition
+                {
+                    Fields =
+                    [
+                        new EnumField { Name = "Stopped", Value = 0 },
+                        new EnumField { Name = "Running", Value = 1 }
+                    ]
+                });
+                definition.Fields = definition.Fields.AddItem(SchemaTestContext.Field("Mode", enumeration));
+            }
             definition.DefaultEncodingId = encoding;
             SetType(remote, id, new QualifiedName("Record", remote.InstanceNamespace), definition);
             remote.Browse(id, ReferenceTypeIds.HasEncoding,

@@ -147,6 +147,106 @@ namespace Opc.Ua.Server.Tests
             Assert.That(header.StringTable[0], Is.EqualTo("diagnostic"));
         }
 
+        /// <summary>
+        /// The default header a service offers is filled and returned instead of a new one,
+        /// with every field the response header had before.
+        /// </summary>
+        [Test]
+        public void OfferedHeaderIsFilledWithEveryField()
+        {
+            using var server = new HookServer();
+            var offered = new ResponseHeader();
+            OperationContext context = NewContext();
+            context.StringTable.Append("diagnostic");
+            DateTimeUtc before = DateTimeUtc.Now;
+
+            ResponseHeader header = server.CreateResponse(new RequestHeader { RequestHandle = 9 }, context, offered);
+
+            Assert.That(header, Is.SameAs(offered));
+            Assert.That(header.RequestHandle, Is.EqualTo(9u));
+            Assert.That(header.Timestamp, Is.GreaterThanOrEqualTo(before));
+            Assert.That(header.Timestamp, Is.LessThanOrEqualTo(DateTimeUtc.Now));
+            Assert.That(header.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(header.ServiceDiagnostics, Is.Null);
+            Assert.That(header.StringTable.Count, Is.EqualTo(1));
+            Assert.That(header.StringTable[0], Is.EqualTo("diagnostic"));
+        }
+
+        /// <summary>
+        /// An override that does not call the base keeps returning its own header, the
+        /// offered header stays untouched, and a later call does not get it.
+        /// </summary>
+        [Test]
+        public void OverrideWithoutBaseKeepsItsOwnHeader()
+        {
+            using var server = new HookServer();
+            var own = new ResponseHeader { RequestHandle = 5 };
+            server.Hook = (header, strings) => own;
+            var offered = new ResponseHeader();
+
+            ResponseHeader result = server.CreateResponse(new RequestHeader { RequestHandle = 9 }, NewContext(), offered);
+
+            Assert.That(result, Is.SameAs(own));
+            Assert.That(offered.RequestHandle, Is.Zero);
+            Assert.That(offered.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
+
+            server.Hook = null;
+            ResponseHeader next = server.CreateResponse(new RequestHeader { RequestHandle = 10 }, NewContext());
+            Assert.That(next, Is.Not.SameAs(offered));
+            Assert.That(next.RequestHandle, Is.EqualTo(10u));
+        }
+
+        /// <summary>
+        /// An override that calls the base gets the offered header and may change it.
+        /// </summary>
+        [Test]
+        public void OverrideCallingBaseFillsTheOfferedHeader()
+        {
+            using var server = new HookServer();
+            server.Hook = (header, strings) =>
+            {
+                ResponseHeader created = server.BaseCreateResponse(header, strings);
+                created.ServiceResult = StatusCodes.GoodCallAgain;
+                return created;
+            };
+            var offered = new ResponseHeader();
+
+            ResponseHeader result = server.CreateResponse(new RequestHeader { RequestHandle = 3 }, NewContext(), offered);
+
+            Assert.That(result, Is.SameAs(offered));
+            Assert.That(result.RequestHandle, Is.EqualTo(3u));
+            Assert.That(result.ServiceResult, Is.EqualTo(StatusCodes.GoodCallAgain));
+        }
+
+        /// <summary>
+        /// A response created while the hook runs (re-entrantly) never shares the header
+        /// offered for the outer response.
+        /// </summary>
+        [Test]
+        public void ReentrantResponseDoesNotShareTheOfferedHeader()
+        {
+            using var server = new HookServer();
+            ResponseHeader? inner = null;
+            server.Hook = (header, strings) =>
+            {
+                if (inner == null)
+                {
+                    server.Hook = null;
+                    inner = server.CreateResponse(new RequestHeader { RequestHandle = 2 }, NewContext());
+                    server.Hook = (h, s) => server.BaseCreateResponse(h, s);
+                }
+                return server.BaseCreateResponse(header, strings);
+            };
+            var offered = new ResponseHeader();
+
+            ResponseHeader outer = server.CreateResponse(new RequestHeader { RequestHandle = 1 }, NewContext(), offered);
+
+            Assert.That(inner, Is.Not.Null);
+            Assert.That(inner, Is.Not.SameAs(outer));
+            Assert.That(inner!.RequestHandle, Is.EqualTo(2u));
+            Assert.That(outer.RequestHandle, Is.EqualTo(1u));
+        }
+
         private static OperationContext NewContext()
         {
             return new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);

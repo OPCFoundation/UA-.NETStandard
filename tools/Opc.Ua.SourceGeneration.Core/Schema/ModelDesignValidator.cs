@@ -89,6 +89,13 @@ namespace Opc.Ua.Schema.Model
         /// <inheritdoc/>
         public bool UseAllowSubtypes { get; set; }
 
+        /// <summary>
+        /// Whether the target model was read from a NodeSet2 rather than
+        /// from a ModelDesign. Internal provenance for the generators; it is
+        /// deliberately not part of <see cref="IModelDesign"/>.
+        /// </summary>
+        internal bool IsSourceNodeSet { get; private set; }
+
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris { get; private set; } = null!;
 
@@ -431,6 +438,7 @@ namespace Opc.Ua.Schema.Model
                 namespaces,
                 designFilePaths[0],
                 identifierFilePath);
+            IsSourceNodeSet = targetModel.IsSourceNodeSet;
 
             for (int ii = targetIndex - 1; ii >= 0; ii--)
             {

@@ -150,7 +150,7 @@ findings for every host (libFuzzer, AFL, `--replay`, Tools playback and the NUni
 |---|---|---|
 | Stack | `FuzzMethods`, NUnit replay | Every input runs on a worker thread with a 256 KB stack. Recursion that is unguarded, or guarded only by `MaxEncodingNestingLevels`, overflows at a depth mutation can reach instead of only past about 200 levels on a 1 MB thread. The overflow ends the process like any crash. |
 | Time | `FuzzMethods`, NUnit replay | An input over 1 s + 100 ms per KB is re-run twice; it is a `ResourceBudgetException` only if the fastest run is still over budget, so JIT, GC and CI noise are not reported. |
-| Allocation | decode cores (Binary/JSON/XML, built-in types, PubSub UADP/JSON, UADP reassembler) | The decode allocated more than 64x its input + 8 MB, whether it returned or threw. It uses the per-thread allocation counter, or the AppDomain counter on .NET Framework. |
+| Allocation | decode cores (Binary/JSON/XML, built-in types, PubSub UADP/JSON, UADP reassembler) | The decode allocated more than 64x its input + 8 MB, whether it returned or threw. It uses the per-thread allocation counter, or the AppDomain counter on .NET Framework. The AppDomain counter includes other threads, so .NET Framework findings require confirmation by two re-runs of the target. |
 | Limit | Encoders decode cores | A decoded string, NodeId/QualifiedName/LocalizedText text, ByteString or array is longer than the limits of the context. Matrices are also boxed the legacy way, so a value no consumer can materialise fails. |
 
 The Encoders fuzz `MessageContext` uses `MaxStringLength` 4096, `MaxByteStringLength` 8192 and

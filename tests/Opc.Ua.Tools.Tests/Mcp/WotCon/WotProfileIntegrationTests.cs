@@ -72,11 +72,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string[] names = await NamesAsync(McpToolProfileSet.Parse("wot,xregistry,wot-documents"))
                 .ConfigureAwait(false);
 
-            Assert.That(names, Has.Length.EqualTo(39));
+            Assert.That(names, Has.Length.EqualTo(40));
             Assert.That(names, Is.Unique);
             Assert.That(names.Count(name => name.StartsWith("wot_", StringComparison.Ordinal)), Is.EqualTo(21));
             Assert.That(names.Count(name => name.StartsWith("xregistry_", StringComparison.Ordinal)), Is.EqualTo(14));
             Assert.That(names.Count(name => name == "Connect"), Is.EqualTo(1));
+            Assert.That(names.Count(name => name == "ConnectCertificate"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "Disconnect"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetEndpoints"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetConnectionStatus"), Is.EqualTo(1));

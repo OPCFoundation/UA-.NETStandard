@@ -17,13 +17,41 @@ capture request by:
 2. Resolving the camera prim (view + off-centre projection built from
    `UsdGeomCamera.GetState(time)` and `GetTransform(time)`) - or rendering
    the automatic default framing when no prim path is supplied.
-3. Creating a fresh `OpenUsdSilkSession` for the request (the SDK's
-   reuse-with-different-camera path is known to silently render nothing).
-4. Capturing an RGBA8 frame with `SilkFrameCapture.Capture` on a shared
+3. Retaining an `OpenUsdSilkSession` while requests use the same stage.
+4. Capturing successive RGBA8 frames with `SilkFrameCapturer` on a shared
    `ISilkGraphicsDevice` picked at construction time.
 5. Encoding to PNG with an in-repo, dependency-free encoder.
 6. Refusing to hand back an all-zero / no-mesh frame as if it succeeded -
    returning `SceneCameraCaptureStatus.BlankFrame` with a reason instead.
+
+## Capturing an already-running viewport
+
+`RetainedSceneCameraCaptureProvider` adapts an injected `IRetainedSceneFrameSource`
+to the same `ISceneCameraCaptureProvider` contract. It does not probe a device,
+open a stage, acquire a server media lease or start inference. Its owner controls
+startup, camera selection, cancellation and disposal.
+
+```csharp
+ISceneCameraCaptureProvider capture =
+    new RetainedSceneCameraCaptureProvider(retainedFrameSource, telemetry);
+```
+
+The adapter rejects a different stage identity, unsupported image format,
+non-finite time, non-UTC timestamps, excessive dimensions and excessive RGBA8 bytes
+before calling the source. Only one capture may be active. The default bounds are
+2048 pixels per dimension and 16 MiB of raw image data. Returned dimensions, storage,
+draw counts, mesh counts and pixel variation are checked before PNG encoding.
+No failure is represented by a successful blank image.
+
+The connector's `EmbeddedUsdViewport` implements this source. It captures the
+currently selected camera, time and physical dimensions from the retained renderer,
+without synchronizing geometry into a second renderer. D3D12 uses
+`SilkFrameCapture.CaptureRetained`; the Vulkan and Metal composition callbacks
+read back their actual retained presentation targets. Requests are serialized with
+presentation and cancellation drains a started readback. Platform/driver and
+NativeAOT qualification remain per-RID, not implied by another host's result.
+Backend-owned Vulkan/Metal presenters do not expose adapter classification;
+their descriptors set `IsSoftwareKnown = false` rather than implying hardware.
 
 ## Device selection
 

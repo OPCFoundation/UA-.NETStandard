@@ -194,8 +194,9 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "Publish")]
         [Description("Send a publish request to collect queued notification messages from subscriptions. Returns " +
-            "JSON with responseHeader, subscriptionId, moreNotifications, notificationMessage summary, and " +
-            "availableSequenceNumbers; on failure returns {error:true, statusCode, message}.")]
+            "JSON with responseHeader, subscriptionId, moreNotifications, notificationMessage summary, " +
+            "availableSequenceNumbers, and results (per-acknowledgement status codes in request order). " +
+            "Mismatched acknowledgement arrays are rejected; on failure returns {error:true, statusCode, message}.")]
         public static async Task<string> PublishAsync(
             OpcUaSessionManager sessionManager,
             [Description(
@@ -208,10 +209,15 @@ namespace Opc.Ua.Mcp.Tools
 
             try
             {
+                if ((ackSubscriptionIds?.Length ?? 0) != (ackSequenceNumbers?.Length ?? 0))
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                        "Acknowledgement subscription IDs and sequence numbers must have the same number of items.");
+                }
                 ArrayOf<SubscriptionAcknowledgement> acks = [];
                 if (ackSubscriptionIds != null && ackSequenceNumbers != null)
                 {
-                    acks = Enumerable.Range(0, Math.Min(ackSubscriptionIds.Length, ackSequenceNumbers.Length))
+                    acks = Enumerable.Range(0, ackSubscriptionIds.Length)
                         .Select(i => new SubscriptionAcknowledgement
                         {
                             SubscriptionId = ackSubscriptionIds[i],
@@ -237,7 +243,8 @@ namespace Opc.Ua.Mcp.Tools
                         ["notificationDataCount"] = response.NotificationMessage.NotificationData.Count
                     },
                     ["availableSequenceNumbers"] = response.AvailableSequenceNumbers.IsNull
-                        ? null : response.AvailableSequenceNumbers.ToArray()
+                        ? null : response.AvailableSequenceNumbers.ToArray(),
+                    ["results"] = OpcUaJsonHelper.StatusCodesToStrings(response.Results)
                 });
             }
             catch (ServiceResultException ex)

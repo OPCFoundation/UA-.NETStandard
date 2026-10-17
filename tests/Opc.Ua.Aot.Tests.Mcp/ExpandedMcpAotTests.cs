@@ -51,7 +51,7 @@ namespace Opc.Ua.Aot.Tests
     /// Exercises the expanded packages' real registrations and binders with JSON reflection disabled.
     /// </summary>
     /// <remarks>
-    /// Only the four legacy connection registrations are isolated. Their existing CORE limitation remains
+    /// Only the five shared connection registrations are isolated. Their existing CORE limitation remains
     /// pinned by McpAotTests; none of these tests substitutes metadata for an expanded production registration.
     /// Protocol effects are confined to explicit local definitions, owned temporary artifacts and typed fakes.
     /// </remarks>
@@ -83,7 +83,7 @@ namespace Opc.Ua.Aot.Tests
             await using var host = new ExpandedHost(new McpToolProfileSet(profile));
             string[] names = [.. host.Tools.Select(tool => tool.ProtocolTool.Name)];
 
-            await Assert.That(host.IsolatedConnectionCount).IsEqualTo(4);
+            await Assert.That(host.IsolatedConnectionCount).IsEqualTo(5);
             await Assert.That(names.Length).IsEqualTo(expectedCount);
             await Assert.That(names.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(expectedCount);
             await Assert.That(names.Count(name => name.StartsWith(prefix, StringComparison.Ordinal)))
