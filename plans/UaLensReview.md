@@ -58,7 +58,7 @@ PNGs use grayscale text antialiasing, restore the original rendering options,
 and retain the eight-opaque-pixel/RGB-tolerance-2 assertion. These are live
 client-visual captures, not physical-display or OS-compositor screenshots.
 
-The native desktop commands, strict expected-count gate, DPI configuration and
+The current NUnit desktop commands, DPI configuration and
 evidence boundaries are documented in
 [`DesktopTesting.md`](../tools/Opc.Ua.Lens/DesktopTesting.md). The artifact
 commands and platform matrix are in the

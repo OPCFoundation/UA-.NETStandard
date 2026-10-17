@@ -143,6 +143,13 @@ namespace Opc.Ua.Tools.Tests
             string[] expected = [prefix, prefix + ".win-x64", prefix + ".linux-x64", prefix + ".osx-arm64"];
 
             Assert.That(actual, Is.EquivalentTo(expected));
+            XDocument project = XDocument.Load(
+                Path.Combine(FindRepositoryRoot(), "tools", "Opc.Ua.Lens", "Opc.Ua.Lens.csproj"));
+            string[] runtimeIdentifiers = project.Descendants("ToolPackageRuntimeIdentifiers").Single().Value
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+            Assert.That(project.Descendants("RuntimeIdentifiers").Single().Value,
+                Is.EqualTo("$(ToolPackageRuntimeIdentifiers)"));
+            Assert.That(expected.Skip(1), Is.EquivalentTo(runtimeIdentifiers.Select(rid => prefix + "." + rid)));
         }
 
         /// <summary>

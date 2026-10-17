@@ -1,6 +1,6 @@
 # UaLens desktop tests
 
-See [Testing UaLens](../../docs/DeveloperGuide.md#testing-ualens) for the three
+See [Testing UaLens](../../docs/DeveloperGuide.md#testing-ualens) for the four
 test assemblies, standard commands, coverage and evidence boundaries.
 
 ## Native desktop prerequisites
@@ -10,30 +10,31 @@ a reachable X11 display and the Avalonia native dependencies. At the minimum
 980 by 640 DIP client size, a 200% scale needs at least 1960 by 1280 physical
 pixels plus window chrome. No headless rendering backend is substituted.
 
-## Exact-count regression gate
+## Desktop test assembly
 
-Build the application-desktop assembly, then run the gate:
+Run the complete application-desktop assembly with NUnit:
 
 ```powershell
-dotnet build tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj `
-  -c Release -f net10.0 -p:CustomTestTarget=net10.0
-pwsh .github\scripts\test-lens-desktop.ps1 -Configuration Release -NoBuild
+dotnet test tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj `
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0 `
+  --logger trx --results-directory TestResults\lens-desktop `
+  -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
 ```
 
-The gate runs 24 named cases and checks exact identities, passing counters and
-zero skips. Results go to `TestResults/lens-desktop/desktop.trx`. Use
-`-ResultsDirectory` for a different repository-relative directory.
-
-On Linux, wrap the PowerShell command with Xvfb:
+NUnit discovers the cases from the assembly; no second list of test methods is
+maintained in a script. On Linux, provide a display with Xvfb:
 
 ```bash
 xvfb-run -a -s '-screen 0 1280x1024x24 -nolisten tcp' \
-  pwsh .github/scripts/test-lens-desktop.ps1 -Configuration Release -NoBuild
+  dotnet test tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj \
+    -c Release -f net10.0 -p:CustomTestTarget=net10.0 \
+    --logger trx --results-directory TestResults/lens-desktop \
+    -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
 ```
 
 The complete `Opc.Ua.Lens.Desktop.Tests` project also runs the NodeSet and namespace
 highlighting cases. The opt-in `NodeSetImportResponsivenessTests` case requires
-`UALENS_NODESET_REPRO_FILE` naming a local file; it is not part of the count gate.
+`UALENS_NODESET_REPRO_FILE` naming a local file and is excluded from ordinary runs.
 
 ## Workflow tests
 
@@ -46,7 +47,7 @@ dotnet test tests\Opc.Ua.Lens.Workflow.Tests\Opc.Ua.Lens.Workflow.Tests.csproj `
 ```
 
 The normal matrix schedules both native assemblies on their supported platforms.
-The artifact workflow runs the count gate and workflow assembly separately.
+The artifact workflow runs the desktop and workflow assemblies separately.
 
 ## Captures and guard checks
 
@@ -55,12 +56,17 @@ The validation/contrast case writes nine verified PNGs and two CSV reports under
 the test result. Captures render the client visual after a dispatcher frame.
 Color-vision simulations are diagnostics; only normal-source contrast is gated.
 
-The Python guard tests exercise missing reports, incorrect counts, failures,
-skips and duplicate or unrelated identities:
+Artifact acceptance tests cover markers, nonzero exits, timeouts, stale or corrupt
+PNGs, uniform frames and unchanged decoded pixels. They use the standard NUnit
+runner and do not start UaLens or a renderer:
 
 ```powershell
-python .github\scripts\test_desktop_result_guard.py
+dotnet test tests\Opc.Ua.Lens.Artifacts.Tests\Opc.Ua.Lens.Artifacts.Tests.csproj `
+  -c Release -f net10.0 -p:CustomTestTarget=net10.0
 ```
+
+The real artifact fixture is `[Explicit]` and requires a selected published or
+installed executable. See [artifact qualification](README.md#native-renderer-artifact-check).
 
 Historical DPI and platform results are recorded in
 [`plans/UaLensReview.md`](../../plans/UaLensReview.md). They do not qualify a

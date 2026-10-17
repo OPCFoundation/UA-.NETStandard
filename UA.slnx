@@ -349,6 +349,7 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />

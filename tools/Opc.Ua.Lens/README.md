@@ -52,9 +52,10 @@ integration are not covered by this matrix. The managed package requires a
 .NET 10 runtime; the native artifact does not.
 
 All jobs install the exact .NET SDK pinned in [`global.json`](../../global.json)
-and need package-feed access during restore and Python 3 for the bounded process
-runner. The workflow uses Python's standard library
-and adds no NuGet dependencies. Linux prerequisites are installed explicitly
+and restore their dependencies from nuget.org. Artifact checks use NUnit in
+`Opc.Ua.Lens.Artifacts.Tests`; the test project does not reference the application.
+PowerShell 7 is used by the workflow and the process-runner regression fixtures.
+Linux prerequisites are installed explicitly
 in the workflow. The Windows and macOS jobs use their hosted runner's compiler
 and desktop; do not substitute a service-only runner or a headless Avalonia backend.
 
@@ -65,7 +66,9 @@ the native-artifact jobs separately produce NativeAOT executables on their
 matching Windows, Linux and macOS hosts. The other installable tools, such as
 `opcua-mcp`, currently use managed, RID-agnostic tool packaging. UaLens needs
 RID-specific payloads because its OpenUSD libraries and plugin resource paths
-are platform-specific.
+are platform-specific. The root selector contains no runnable payload: installing
+it requires the matching RID package. These are the three platform implementations
+of the tool, not additional host applications.
 
 .NET 10 supports NativeAOT tool packages, but the SDK does not build their
 cross-platform payloads from one host. Making the NuGet distribution NativeAOT
@@ -101,8 +104,8 @@ New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
 dotnet publish $project -c Release -f net10.0 -p:CustomTestTarget=net10.0 -r $rid --self-contained true -p:PackAsTool=false -p:PublishAotEnabled=true -p:SuppressTrimAnalysisWarnings=false -p:TrimmerSingleWarn=false -m:2 -o artifacts/lens/native -bl:artifacts/lens/logs/native.binlog '-flp:logfile=artifacts/lens/logs/native.log;verbosity=normal'
 if ($LASTEXITCODE -ne 0) { throw 'Native publish failed.' }
 
-# Windows; launch the published executable, not dotnet run:
-python tools/Opc.Ua.Lens/validate-artifact.py --executable artifacts/lens/native/UaLens.exe --log-directory artifacts/lens/logs/native-smoke
+# Select the published executable for the NUnit checks below:
+$env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path artifacts\lens\native\UaLens.exe).Path
 ```
 
 `PublishAotEnabled=true` enables the application's net10.0 NativeAOT setting.
@@ -110,23 +113,9 @@ Do not pass `PublishAot=true` or `PublishTrimmed=true` as global MSBuild
 properties: those also reach the netstandard source-generator projects, which
 cannot themselves be published with NativeAOT.
 
-On Ubuntu, launch with a real X server, using this command when no display
-is already available:
-
-```bash
-xvfb-run --auto-servernum --server-args="-screen 0 1600x1000x24 -dpi 96" \
-  python3 tools/Opc.Ua.Lens/validate-artifact.py \
-  --executable artifacts/lens/native/UaLens \
-  --log-directory artifacts/lens/logs/native-smoke
-```
-
-On macOS:
-
-```bash
-python3 tools/Opc.Ua.Lens/validate-artifact.py \
-  --executable artifacts/lens/native/UaLens \
-  --log-directory artifacts/lens/logs/native-smoke
-```
+On Linux and macOS, select `artifacts/lens/native/UaLens` instead.
+Run [the NUnit artifact fixture](#native-renderer-artifact-check) against that
+executable, not `dotnet run` or a development build.
 
 Keep the complete publish directory together; it includes native resources
 needed by the desktop. The workflow retains the publish output, text log,
@@ -197,23 +186,20 @@ $env:DOTNET_CLI_HOME = Join-Path $root 'cli'
 dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens --version $version --tool-path (Join-Path $root 'tool') --configfile $config --no-cache
 if ($LASTEXITCODE -ne 0) { throw 'Isolated tool install failed.' }
 
-# Windows; never invoke an unrelated ualens from PATH:
-python tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens.exe') --log-directory artifacts/lens/logs/managed-smoke
+# Windows; select this installation, never an unrelated ualens from PATH:
+$env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path (Join-Path $root 'tool/ualens.exe')).Path
 ```
 
 Run the install commands in a disposable shell so the isolated NuGet/CLI
-environment does not affect later development commands. For Linux or macOS,
-replace the final Windows launch command with the matching PowerShell command:
+environment does not affect later development commands. On Linux or macOS,
+the installed shim has no `.exe` extension:
 
 ```powershell
-# Ubuntu:
-xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens') --log-directory artifacts/lens/logs/managed-smoke
-
-# macOS:
-python3 tools/Opc.Ua.Lens/validate-artifact.py --executable (Join-Path $root 'tool/ualens') --log-directory artifacts/lens/logs/managed-smoke
+$env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path (Join-Path $root 'tool/ualens')).Path
 ```
 
-Remove `$root` after inspection. Each CI job gets a fresh installation directory,
+Use that path with [the NUnit artifact fixture](#native-renderer-artifact-check).
+Remove `$root` after the checks and inspection. Each CI job gets a fresh installation directory,
 empty NuGet cache, and a configuration containing only the local artifact feed.
 The artifact workflow packs once, then installs that same package set on all
 three platforms. It does not build different package contents under the same
@@ -249,20 +235,30 @@ Artifact startup uses the runner's default system theme at
 
 ### Native renderer artifact check
 
-The separate `--native-viewport` runner option starts an explicitly owned,
-bounded native viewport through the application's process-main-thread desktop
-lifetime. This is also the supported way to exercise Cocoa/Metal without the
-Windows/Linux NUnit desktop thread.
+The `[Explicit]` `PublishedArtifactTests` fixture runs the selected executable
+twice: `StartupDrainsAsync` checks ordinary startup, and
+`NativeViewportRendersAndDrainsAsync` checks native rendering. Both execute in the
+application's own process-main-thread desktop lifetime, including Cocoa/Metal.
+They never load the application into the NUnit host.
+
+Set `UALENS_ARTIFACT_EXECUTABLE` to the published executable or installed shim as
+shown above, then run:
 
 ```powershell
-python tools\Opc.Ua.Lens\validate-artifact.py `
-    --executable artifacts\lens\native\UaLens.exe `
-    --native-viewport --log-directory artifacts\lens\logs\native-viewport
+$env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path (Get-Location) 'artifacts\lens\logs'
+dotnet test tests\Opc.Ua.Lens.Artifacts.Tests\Opc.Ua.Lens.Artifacts.Tests.csproj `
+    -c Release -f net10.0 -p:CustomTestTarget=net10.0 `
+    --filter FullyQualifiedName~PublishedArtifactTests `
+    --logger trx --results-directory artifacts\lens\logs\nunit `
+    -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
 ```
 
-Use the corresponding `UaLens` executable and `python3` on Linux/macOS;
-Linux additionally needs a real display or `xvfb-run`. CI runs this check on both
-the NativeAOT artifact and the installed managed tool for every supported RID.
+On Linux, set `UALENS_ARTIFACT_X11_VULKAN=true` and run the same `dotnet test`
+command under `xvfb-run --auto-servernum --server-args="-screen 0 1600x1000x24 -dpi 96"`
+when no display is available. `UALENS_ARTIFACT_ALLOW_SOFTWARE_GL=true` is a separate
+opt-in for Mesa llvmpipe diagnosis; neither option relaxes acceptance.
+On macOS, run the NUnit command from a logged-in desktop.
+CI runs these cases on both the NativeAOT artifact and installed managed tool for every supported RID.
 The ordinary startup check remains separate and does not activate OpenUSD.
 
 The native check renders one local cube through D3D12, Vulkan or Metal, captures
@@ -274,17 +270,14 @@ The runner requires both success markers and exit zero. It rejects stale,
 missing, corrupt, oversized or uniform PNGs and unchanged decoded pixels;
 `result.json` retains dimensions and file/pixel SHA-256 hashes.
 
-The runner supplies the internal `--smoke-native-viewport` and
+The NUnit fixture supplies the internal `--smoke-native-viewport` and
 `--smoke-artifact-directory` application arguments. Desktop smoke modes ignore
 automatic connection environment configuration and never connect to a server.
 This gate proves the selected native rendering path, not physical display,
 screen-reader or exhaustive device compatibility. A missing native dependency or
 unsupported compositor must fail explicitly, not become a startup-only pass.
-Failed macOS native gates also collect matching `.ips` crash reports and one
-bounded LLDB reproduction under `macos-diagnostics`. This uses the runner's
-existing Xcode tools and does not change the original failure result.
-Objective-C zombie detection is enabled only in that diagnostic replay to
-identify over-released objects; its output cannot satisfy the normal runtime gate.
+Failures retain the test result and process logs; no automatic debugger replay
+runs in the artifact workflow.
 
 ## Development diagnostics
 

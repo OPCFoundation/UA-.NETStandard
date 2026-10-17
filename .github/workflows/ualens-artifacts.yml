@@ -8,6 +8,7 @@ on:
     - 'tests/Opc.Ua.Lens.Tests/**'
     - 'tests/Opc.Ua.Lens.Workflow.Tests/**'
     - 'tests/Opc.Ua.Lens.Desktop.Tests/**'
+    - 'tests/Opc.Ua.Lens.Artifacts.Tests/**'
     - 'src/**'
     - '*.props'
     - 'Directory.Build.targets'
@@ -15,12 +16,6 @@ on:
     - 'global.json'
     - 'version.json'
     - '.github/workflows/ualens-artifacts.yml'
-    - '.github/scripts/test-lens-desktop.ps1'
-    - '.github/scripts/test_desktop_result_guard.py'
-    - '.github/scripts/test_ualens_artifact.py'
-    - '.github/scripts/prepare_ualens_candidate.py'
-    - '.github/scripts/test_ualens_candidate.py'
-    - '.github/scripts/diagnose_ualens_macos.py'
   push:
     branches: [master, main, develop/*]
     paths:
@@ -29,6 +24,7 @@ on:
     - 'tests/Opc.Ua.Lens.Tests/**'
     - 'tests/Opc.Ua.Lens.Workflow.Tests/**'
     - 'tests/Opc.Ua.Lens.Desktop.Tests/**'
+    - 'tests/Opc.Ua.Lens.Artifacts.Tests/**'
     - 'src/**'
     - '*.props'
     - 'Directory.Build.targets'
@@ -36,44 +32,25 @@ on:
     - 'global.json'
     - 'version.json'
     - '.github/workflows/ualens-artifacts.yml'
-    - '.github/scripts/test-lens-desktop.ps1'
-    - '.github/scripts/test_desktop_result_guard.py'
-    - '.github/scripts/test_ualens_artifact.py'
-    - '.github/scripts/prepare_ualens_candidate.py'
-    - '.github/scripts/test_ualens_candidate.py'
-    - '.github/scripts/diagnose_ualens_macos.py'
   workflow_dispatch:
-    inputs:
-      candidate_manifest:
-        description: Optional checkout-relative immutable candidate manifest; never changes production pins
-        type: string
-        default: ''
-  workflow_call:
-    inputs:
-      candidate_manifest:
-        description: Checkout-relative immutable candidate manifest for artifact-only qualification
-        type: string
-        default: ''
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: >-
-    ualens-artifacts-${{ github.event.pull_request.number || github.ref }}-${{
-    inputs.candidate_manifest != '' && 'candidate' || 'production' }}
+  group: ualens-artifacts-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   DOTNET_NOLOGO: 'true'
   DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
   PROJECT: tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj
+  ARTIFACT_TEST_PROJECT: tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj
 
 jobs:
   desktop-targets:
     name: Desktop diagnostics (${{ matrix.tfm }})
-    if: ${{ !inputs.candidate_manifest }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
@@ -87,15 +64,12 @@ jobs:
     - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
-    - name: Verify desktop result guard negative cases
+    - name: Run artifact validation unit tests with NUnit
       if: matrix.tfm == 'net10.0'
-      run: python3 .github/scripts/test_desktop_result_guard.py
-    - name: Verify native artifact acceptance and image-evidence guards
-      if: matrix.tfm == 'net10.0'
-      run: python3 .github/scripts/test_ualens_artifact.py
-    - name: Verify candidate provenance and isolation guards
-      if: matrix.tfm == 'net10.0'
-      run: python3 .github/scripts/test_ualens_candidate.py
+      shell: pwsh
+      run: |
+        dotnet test $env:ARTIFACT_TEST_PROJECT -c Release -f net10.0 -p:CustomTestTarget=net10.0 --logger 'trx;LogFileName=guards.trx' --results-directory artifacts/lens/logs/guards -- RunConfiguration.TreatNoTestsAsError=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Build with normal analyzer and obsolete guards
       shell: pwsh
       run: |
@@ -111,7 +85,6 @@ jobs:
 
   desktop-regressions:
     name: Windows desktop regressions
-    if: ${{ !inputs.candidate_manifest }}
     runs-on: windows-2022
     timeout-minutes: 40
     steps:
@@ -127,23 +100,18 @@ jobs:
         New-Item -ItemType Directory -Force artifacts/lens/desktop-logs | Out-Null
         dotnet build tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 -m:2 --nologo -v:minimal -bl:artifacts/lens/desktop-logs/build.binlog '-flp:logfile=artifacts/lens/desktop-logs/build.log;verbosity=normal'
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Execute explicit real-desktop fixtures and validate the expected results
+    - name: Run the complete desktop test assembly with NUnit
       timeout-minutes: 5
       shell: pwsh
       run: |
-        pwsh -NoProfile -File .github/scripts/test-lens-desktop.ps1 -Configuration Release -NoBuild
+        dotnet test tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --blame-hang --blame-hang-timeout 3min --logger 'trx;LogFileName=desktop.trx' --results-directory TestResults/lens-desktop -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Execute connected desktop workflows in a separate process
       timeout-minutes: 25
       shell: pwsh
       run: |
-        dotnet test tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --blame-hang --blame-hang-timeout 3min --logger 'trx;LogFileName=workflow.trx' --results-directory TestResults/lens-desktop-workflow -- NUnit.NumberOfTestWorkers=0
+        dotnet test tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --blame-hang --blame-hang-timeout 3min --logger 'trx;LogFileName=workflow.trx' --results-directory TestResults/lens-desktop-workflow -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        [xml] $report = Get-Content TestResults/lens-desktop-workflow/workflow.trx -Raw
-        $counts = $report.TestRun.ResultSummary.Counters
-        if ([int] $counts.total -le 0 -or [int] $counts.passed -ne [int] $counts.total) {
-          throw 'Every selected desktop workflow must execute and pass.'
-        }
     - uses: actions/upload-artifact@v7
       if: always()
       with:
@@ -178,20 +146,6 @@ jobs:
     - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
-    - name: Prepare immutable candidate inputs without editing production pins
-      if: inputs.candidate_manifest != ''
-      env:
-        GH_TOKEN: ${{ github.token }}
-        CANDIDATE_MANIFEST: ${{ inputs.candidate_manifest }}
-      shell: pwsh
-      run: |
-        python .github/scripts/test_ualens_candidate.py
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        python .github/scripts/prepare_ualens_candidate.py `
-          --manifest $env:CANDIDATE_MANIFEST `
-          --work-directory (Join-Path $env:RUNNER_TEMP 'ualens-candidate') `
-          --evidence artifacts/lens/candidate-input.json --github-env $env:GITHUB_ENV
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Linux native compiler and desktop prerequisites
       if: runner.os == 'Linux'
       run: |
@@ -207,38 +161,20 @@ jobs:
         # Preserve Unix executable permissions through artifact upload/download.
         tar -czf artifacts/lens/ualens-${{ matrix.rid }}.tar.gz -C artifacts/lens/native .
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Launch the native artifact on a desktop and require drained exit
-      timeout-minutes: 3
+    - name: Validate native startup and rendering with NUnit
+      timeout-minutes: 5
       shell: pwsh
       run: |
-        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', 'artifacts/lens/native/${{ matrix.executable }}', '--log-directory', 'artifacts/lens/logs/smoke')
+        $env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path 'artifacts/lens/native/${{ matrix.executable }}').Path
+        $env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path $env:GITHUB_WORKSPACE 'artifacts/lens/logs'
+        $env:UALENS_ARTIFACT_X11_VULKAN = $IsLinux.ToString()
+        $arguments = @('test', $env:ARTIFACT_TEST_PROJECT, '-c', 'Release', '-f', 'net10.0', '-p:CustomTestTarget=net10.0', '--filter', 'FullyQualifiedName~PublishedArtifactTests', '--logger', 'trx;LogFileName=artifact.trx', '--results-directory', 'artifacts/lens/logs/nunit', '--', 'NUnit.NumberOfTestWorkers=0', 'RunConfiguration.TreatNoTestsAsError=true')
         if ($IsLinux) {
-          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
-        } elseif ($IsMacOS) {
-          python3 @arguments
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' dotnet @arguments
         } else {
-          python @arguments
+          dotnet @arguments
         }
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Require real native viewport capture, stage update and drained allocations
-      id: native_viewport
-      timeout-minutes: 3
-      shell: pwsh
-      run: |
-        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', 'artifacts/lens/native/${{ matrix.executable }}', '--native-viewport', '--log-directory', 'artifacts/lens/logs/native-viewport')
-        if ($IsLinux) {
-          $arguments += '--x11-vulkan'
-          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
-        } elseif ($IsMacOS) {
-          python3 @arguments
-        } else {
-          python @arguments
-        }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Collect owned macOS native crash evidence
-      if: ${{ failure() && runner.os == 'macOS' && steps.native_viewport.outcome == 'failure' }}
-      timeout-minutes: 3
-      run: python3 .github/scripts/diagnose_ualens_macos.py --result artifacts/lens/logs/native-viewport/result.json
     - uses: actions/upload-artifact@v7
       if: always()
       with:
@@ -257,20 +193,6 @@ jobs:
     - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json
-    - name: Prepare immutable candidate inputs without editing production pins
-      if: inputs.candidate_manifest != ''
-      env:
-        GH_TOKEN: ${{ github.token }}
-        CANDIDATE_MANIFEST: ${{ inputs.candidate_manifest }}
-      shell: pwsh
-      run: |
-        python .github/scripts/test_ualens_candidate.py
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        python .github/scripts/prepare_ualens_candidate.py `
-          --manifest $env:CANDIDATE_MANIFEST `
-          --work-directory (Join-Path $env:RUNNER_TEMP 'ualens-candidate') `
-          --evidence artifacts/lens/candidate-input.json --github-env $env:GITHUB_ENV
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - name: Restore and pack managed tool (never reuse native output)
       shell: pwsh
       run: |
@@ -320,7 +242,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y libopengl0 libvulkan1 mesa-vulkan-drivers libice6 libsm6 libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
     - name: Install only the freshly packed local artifact into an isolated directory
-      id: tool_install
       shell: pwsh
       run: |
         $root = Join-Path $env:RUNNER_TEMP 'ualens-installed'
@@ -359,63 +280,19 @@ jobs:
         }
         dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens --version $version --tool-path (Join-Path $root 'tool') --configfile $config --no-cache
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        "version=$version" >> $env:GITHUB_OUTPUT
-    - name: Launch the installed shim on a desktop and require drained exit
-      timeout-minutes: 3
-      shell: pwsh
-      run: |
-        $executable = Join-Path $env:RUNNER_TEMP 'ualens-installed/tool/${{ matrix.command }}'
-        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', $executable, '--log-directory', 'artifacts/lens/logs/smoke')
-        if ($IsLinux) {
-          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
-        } elseif ($IsMacOS) {
-          python3 @arguments
-        } else {
-          python @arguments
-        }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Require native viewport capture through the installed shim
-      id: native_viewport
-      timeout-minutes: 3
-      shell: pwsh
-      run: |
-        $executable = Join-Path $env:RUNNER_TEMP 'ualens-installed/tool/${{ matrix.command }}'
-        $arguments = @('tools/Opc.Ua.Lens/validate-artifact.py', '--executable', $executable, '--native-viewport', '--log-directory', 'artifacts/lens/logs/native-viewport')
-        if ($IsLinux) {
-          $arguments += '--x11-vulkan'
-          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' python3 @arguments
-        } elseif ($IsMacOS) {
-          python3 @arguments
-        } else {
-          python @arguments
-        }
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    - name: Collect owned macOS managed-host crash evidence
-      if: ${{ failure() && runner.os == 'macOS' && steps.native_viewport.outcome == 'failure' }}
-      timeout-minutes: 3
-      run: python3 .github/scripts/diagnose_ualens_macos.py --result artifacts/lens/logs/native-viewport/result.json
-    - name: Require Windows candidate rendering beyond the legacy path limit
-      if: runner.os == 'Windows' && inputs.candidate_manifest != ''
+    - name: Validate installed startup and rendering with NUnit
       timeout-minutes: 5
-      env:
-        ARTIFACT_VERSION: ${{ steps.tool_install.outputs.version }}
       shell: pwsh
       run: |
-        $root = Join-Path $env:RUNNER_TEMP 'ualens-installed'
-        $deep = Join-Path $root ('native-long-path-' + ('x' * 96))
-        $env:NUGET_PACKAGES = Join-Path $root 'cache'
-        $env:DOTNET_CLI_HOME = Join-Path $root 'cli'
-        dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens `
-          --version $env:ARTIFACT_VERSION --tool-path $deep `
-          --configfile (Join-Path $root 'NuGet.config') --no-cache
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        $assemblies = @(Get-ChildItem (Join-Path $deep '.store') -Filter 'UaLens.dll' -File -Recurse)
-        if ($assemblies.Count -ne 1 -or $assemblies[0].DirectoryName.Length -lt 260) {
-          throw 'The candidate path gate must execute from an application directory of at least 260 characters.'
+        $env:UALENS_ARTIFACT_EXECUTABLE = Join-Path $env:RUNNER_TEMP 'ualens-installed/tool/${{ matrix.command }}'
+        $env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path $env:GITHUB_WORKSPACE 'artifacts/lens/logs'
+        $env:UALENS_ARTIFACT_X11_VULKAN = $IsLinux.ToString()
+        $arguments = @('test', $env:ARTIFACT_TEST_PROJECT, '-c', 'Release', '-f', 'net10.0', '-p:CustomTestTarget=net10.0', '--filter', 'FullyQualifiedName~PublishedArtifactTests', '--logger', 'trx;LogFileName=artifact.trx', '--results-directory', 'artifacts/lens/logs/nunit', '--', 'NUnit.NumberOfTestWorkers=0', 'RunConfiguration.TreatNoTestsAsError=true')
+        if ($IsLinux) {
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' dotnet @arguments
+        } else {
+          dotnet @arguments
         }
-        python tools/Opc.Ua.Lens/validate-artifact.py `
-          --executable (Join-Path $deep 'ualens.exe') --native-viewport `
-          --log-directory artifacts/lens/logs/native-long-path
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - uses: actions/upload-artifact@v7
       if: always()

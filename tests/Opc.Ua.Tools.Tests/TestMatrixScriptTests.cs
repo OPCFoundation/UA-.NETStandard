@@ -64,16 +64,35 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// SDK changes requalify both production and candidate artifacts.
+        /// SDK changes requalify the published-package artifact workflow.
         /// </summary>
         [TestCase("ualens-artifacts.yml", 2)]
-        [TestCase("ualens-candidate.yml", 1)]
         public async Task ArtifactTriggersIncludeTheRepositorySdkAsync(string workflow, int expectedTriggers)
         {
             string path = Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflow);
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
 
             Assert.That(lines.Count(line => line == "    - 'global.json'"), Is.EqualTo(expectedTriggers));
+        }
+
+        /// <summary>
+        /// Artifact qualification uses NUnit and cannot opt into an unpublished dependency overlay.
+        /// </summary>
+        [Test]
+        public async Task ArtifactWorkflowUsesNUnitWithoutCandidateOverridesAsync()
+        {
+            string root = FindRepositoryRoot();
+            string source = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "ualens-artifacts.yml")).ConfigureAwait(false);
+
+            Assert.That(source, Does.Contain("tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj"));
+            Assert.That(source, Does.Contain("RunConfiguration.TreatNoTestsAsError=true"));
+            Assert.That(source, Does.Not.Contain("candidate_manifest"));
+            Assert.That(source, Does.Not.Contain("python"));
+            Assert.That(source, Does.Not.Contain("lldb"));
+            Assert.That(source, Does.Not.Contain("test-lens-desktop.ps1"));
+            Assert.That(source.Split("FullyQualifiedName~PublishedArtifactTests", StringSplitOptions.None),
+                Has.Length.EqualTo(3), "Both the native executable and installed shim must be checked.");
         }
 
         [TestCase(true, "test", LensProjectFile, true)]

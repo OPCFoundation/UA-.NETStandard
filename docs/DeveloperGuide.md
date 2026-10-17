@@ -200,13 +200,14 @@ replacement-session creation to finish.
 
 ### Testing UaLens
 
-All three assemblies are registered in `UA.slnx` and use the normal NUnit runner:
+All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:
 
 | Project | Scope |
 | --- | --- |
 | `tests/Opc.Ua.Lens.Tests` | Protocol, model, offline and unit tests; no desktop application |
 | `tests/Opc.Ua.Lens.Workflow.Tests` | Native-window workflows with injected protocol clients and an owned dispatcher |
 | `tests/Opc.Ua.Lens.Desktop.Tests` | Application resources, shell/dialog regressions, NodeSet and namespace UI |
+| `tests/Opc.Ua.Lens.Artifacts.Tests` | Offline artifact-validator tests and explicitly selected published/installed executable checks |
 
 Run from the repository root with an interactive Windows desktop. Linux native
 tests require X11 or `xvfb-run`; the shared CI runner supplies Xvfb. Cocoa requires
@@ -218,6 +219,7 @@ $env:CustomTestTarget = 'net10.0'
 dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
 dotnet test tests\Opc.Ua.Lens.Workflow.Tests\Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0
 dotnet test tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Artifacts.Tests\Opc.Ua.Lens.Artifacts.Tests.csproj -c Release -f net10.0
 ```
 
 The assemblies isolate native dispatcher lifetimes without category-dependent
@@ -258,10 +260,11 @@ target-selection providers. Its cold peer has no mirrored subscription state:
 recreation and uncertain source cleanup are explicit expected outcomes, not
 evidence of hot/mirrored queue recovery.
 
-The [desktop count gate](../tools/Opc.Ua.Lens/DesktopTesting.md) also selects
-24 named regressions and rejects missing, skipped, duplicate or failed results.
-It includes pending-write shutdown, dialog cancellation, keyboard navigation,
-inspector publication and minimum-size checks. Native publishing and managed-tool
+The [desktop test assembly](../tools/Opc.Ua.Lens/DesktopTesting.md) runs its full
+NUnit-discovered suite, including pending-write shutdown, dialog cancellation,
+keyboard navigation, inspector publication, minimum-size, NodeSet and namespace
+checks. The external-file responsiveness probe remains `[Explicit]`.
+Native publishing and managed-tool
 installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md#publish-and-package).
 Managed packaging produces one selector and three RID-specific payloads;
 the artifact workflow installs the same package set on Windows, Linux and macOS.
@@ -271,24 +274,16 @@ Both artifact forms also run a separate opt-in native viewport check through the
 application's main-thread desktop lifetime, including Cocoa/Metal. It retains two
 validated PNGs around a live stage update and requires native allocations to drain;
 ordinary startup success alone is not native rendering acceptance. The runner's
-negative acceptance cases can be exercised without a desktop with
-`python .github/scripts/test_ualens_artifact.py`.
-On macOS, a failed native artifact check stages only crash reports matching the
-owned executable and runs one bounded LLDB reproduction with isolated user state.
-The original runtime failure remains failed; diagnostic capture is not acceptance.
+negative acceptance cases run as ordinary NUnit tests in
+`Opc.Ua.Lens.Artifacts.Tests`, without a desktop or renderer. Its `[Explicit]`
+`PublishedArtifactTests` fixture launches the selected executable in a separate
+process; the test project does not reference the application. Tests retain TRX,
+stdout/stderr, image digests and timeout/exit evidence. A failed native check
+remains a failure; no debugger replay supplies acceptance.
 
-The separate **UaLens unpublished candidate qualification** workflow reuses those
-installed-tool and NativeAOT gates for the immutable inputs in
-`.github/ualens-openusd-candidate.json`. It verifies the upstream run/source,
-artifact and package hashes, and nuspec identities before creating an isolated
-NuGet feed, cache and CPM overlay. All Avalonia family overrides stay aligned.
-Production dependency pins and their ordinary CI remain unchanged. Candidate
-artifacts include `candidate-input.json`; neither candidate success nor a failed
-upstream run with usable input packages establishes release acceptance. Run the
-provenance/isolation guards with `python .github/scripts/test_ualens_candidate.py`.
-The Windows candidate also repeats native rendering from an installed application
-directory of at least 260 characters, without changing host long-path policy or
-shortening native resource paths.
+Artifact builds use the public nuget.org dependency versions pinned in
+`Directory.Packages.props` and the checked-in `NuGet.config`. Installation checks
+use only the UaLens packages built by that workflow, not an older published tool.
 Native smoke deadline failures report the compositor status and retained-frame
 counters. The viewport keeps its bounded presentation loop active after a
 successful frame so queued camera captures and live stage edits also render on
