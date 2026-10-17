@@ -136,9 +136,10 @@ SERVER_DOTNET_PROCESSOR_COUNT=4 ServerLoadHarness.exe run --scenario native-read
 With `--thread-states 1` a thread in the harness samples the threads of the server process
 every ~3 ms during the measurement and appends
 `sched: samples=<n> running=<avg> ready=<avg> readyMax=<max>` to the `server:` line. `ready`
-counts threads in the Ready or Standby state, which wait for a processor: on pinned or shared
-processors that is oversubscription, which delays a GC suspension until the preempted thread
-runs again. The sampler enumerates the server threads every time, so leave it off for
+counts threads in the Ready or Standby state. Sustained runnable-thread pressure can indicate
+CPU contention, but this count alone does not establish oversubscription or explain a GC
+suspension. Correlate it with CPU availability, affinity and scheduling events.
+The sampler enumerates the server threads every time, so leave it off for
 throughput comparisons.
 
 ```bash
@@ -154,8 +155,10 @@ Clone it and build its workers separately. On Windows they build with `zig cc` a
 CMake against the open62541 commit the benchmark pins (`deps/open62541`, OpenSSL backend,
 `UA_ENABLE_DEBUG_SANITIZER=OFF`, Release). The subscription workers additionally need `poll()` on
 stdin replaced by `PeekNamedPipe` and unbuffered control output (the C runtime treats `_IOLBF` as
-full buffering). The open62541 win32 event loop is `select()` based, so open62541 numbers on
-Windows are lower than on Linux.
+full buffering). The open62541 win32 event loop is `select()` based. That implementation
+difference alone does not establish whether Windows or Linux is faster. Compare matched
+hardware, build settings, security configuration and workloads before drawing a
+cross-platform performance conclusion.
 
 ## Analyse a trace
 
@@ -173,21 +176,26 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.ne
 above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, and the frame's
 direct callees. `gc` reads a
 trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
-reason and splits each pause into the time needed to suspend the threads and the whole pause;
-a long suspension means a thread ran for a while without reaching a safe point. `samples`
+reason and reports the interval between suspension start and stop separately from the whole
+pause. A long suspension can involve delays in reaching a safe point or in scheduling threads;
+duration alone does not identify the cause. `samples`
 lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua` frame),
 including the ones `cpu` leaves out.
 
 `suspend <trace> [thresholdMs]` (default 40) reads a `--trace-profile gc` trace and prints every
 GC suspension that took at least the threshold, with the events recorded between SuspendEE
-start and stop by thread: an `AllocationTick` inside that window comes from a thread that was
-still running managed code, the one that had not reached a safe point. It also counts all
+start and stop by thread. An `AllocationTick` inside that window records allocation activity
+on the reporting thread during suspension. It does not, by itself, identify the thread
+responsible for the delay; examine event ordering and scheduling evidence as well. It also counts all
 events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, from
 `GlobalHeapHistory`) and `HANDLEKIND <kind>` (GC handle churn by kind), and ends with
 `SetGCHandle=<count> trace ms=<duration>`.
 
 `threads` lists the busy share of each thread (its on-CPU samples over all of its samples) with
-its main roles; one thread near 100 % while the process has idle cores is a serialized stage.
+its main roles. This is a sample ratio, not a measurement of wall-clock CPU utilization.
+A high ratio while other cores are idle can suggest serialized work, but can also reflect
+a dedicated worker with little demand elsewhere. Check the call stacks, work distribution
+and throughput before treating it as a serialization bottleneck.
 
 The `sub` and `events` scenarios add a `per-op2` line with the server cost per written value or
 per generated event. Async methods with loops run on-stack-replaced code that the trace rundown

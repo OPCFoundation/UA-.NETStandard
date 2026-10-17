@@ -1188,7 +1188,9 @@ than symbolic names. **IRDI** has no published table at all and therefore
 carries no drift guard.
 
 The numeric ids and node classes agree with the NodeSets in all nine models.
-The vendored NodeSets therefore require no normative corrections.
+This establishes consistency for those two properties, not complete conformance
+to the companion specifications. Requirements for references, data types,
+modelling rules and behavior need separate validation.
 
 <a id="generator-gaps-found-while-adding-these-models"></a>
 

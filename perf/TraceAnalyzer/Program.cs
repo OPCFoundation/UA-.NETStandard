@@ -171,8 +171,8 @@ namespace Opc.Ua.Perf.TraceAnalyzer
 
         /// <summary>
         /// On-CPU samples per thread: the busy share of each thread (its on-CPU samples over all
-        /// of its samples) and its top first Opc.Ua frames. A thread near 100 % busy while the
-        /// process has idle cores is a serialized stage.
+        /// of its samples) and its top first Opc.Ua frames. This sample ratio is not wall-clock
+        /// CPU utilization and does not by itself establish a serialization bottleneck.
         /// </summary>
         private static void Threads(TraceLog log, int top)
         {
@@ -293,8 +293,8 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         /// <summary>
         /// Event counts (including the heap counts DATAS chose and the GC handle kinds), and for
         /// each suspension longer than <paramref name="thresholdMs"/> the events recorded between
-        /// SuspendEE start and stop, by thread: a thread that allocates inside the window had not
-        /// reached a safe point yet.
+        /// SuspendEE start and stop, by thread. Allocation events identify activity in that
+        /// interval, not necessarily the thread responsible for the suspension delay.
         /// </summary>
         private static void Suspensions(TraceLog log, int thresholdMs)
         {
