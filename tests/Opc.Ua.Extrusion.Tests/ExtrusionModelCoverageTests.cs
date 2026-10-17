@@ -217,13 +217,17 @@ namespace Opc.Ua.Extrusion.Tests
             ExtrusionDeviceState bound = await ExtrusionFixture.CreateAsync(m_fixture.Runtime, 2, options)
                 .ConfigureAwait(false);
             var boundLine = (Line.ExtrusionLine_InterfaceState)bound;
+            (ServiceResult result, DataValue read) = await boundLine.MaterialList!.DensityUnit!.ReadAttributeAsync(
+                m_fixture.Runtime.SystemContext, Attributes.Value, NumericRange.Null,
+                QualifiedName.Null, new DataValue()).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(unboundLine.MaterialList!.DensityUnit!.Value, Is.Null);
-                Assert.That(boundLine.MaterialList!.DensityUnit!.Value, Is.Not.Null);
-                Assert.That(boundLine.MaterialList.DensityUnit.Value.UnitId,
-                    Is.EqualTo(ExtrusionFixture.KilogramPerCubicMetre.UnitId));
+                Assert.That(ServiceResult.IsBad(result), Is.False);
+                Assert.That(read.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(read.WrappedValue.TryGetStructure<EUInformation>(out EUInformation? unit), Is.True);
+                Assert.That(unit?.UnitId, Is.EqualTo(ExtrusionFixture.KilogramPerCubicMetre.UnitId));
                 Assert.That(boundLine.MaterialList.DensityUnit.Value,
                     Is.Not.SameAs(options.Common.MaterialDensityUnit));
             });

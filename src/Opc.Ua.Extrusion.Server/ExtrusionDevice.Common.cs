@@ -107,7 +107,9 @@ namespace Opc.Ua.Extrusion.Server
                     case MaterialListState materials:
                         if (materials.DensityUnit != null && m_common.MaterialDensityUnit != null)
                         {
-                            materials.DensityUnit.Value = (EUInformation)m_common.MaterialDensityUnit.Clone();
+                            SetProtocolValue(materials.DensityUnit, new DataValue(
+                                Variant.FromStructure((EUInformation)m_common.MaterialDensityUnit.Clone()),
+                                StatusCodes.Good, DateTimeUtc.Now));
                         }
                         if (m_common.Materials != null ||
                             materials.AddMaterial != null || materials.RemoveMaterialById != null)
