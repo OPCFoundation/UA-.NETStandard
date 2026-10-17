@@ -37,6 +37,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -160,6 +161,99 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(SourceHref + "#/properties/Value"));
             Assert.That(plan.ToJsonString(), Is.EqualTo(originalPlan));
             Assert.That(source.ToJsonString(), Is.EqualTo(originalSource));
+        }
+
+        /// <summary>
+        /// Verifies that generated forms retain host-owned recursive schemas after remote documents are disposed.
+        /// </summary>
+        /// <param name="nestedSource">Whether the remote source is itself a projection.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GeneratedHostFormsRetainRecursiveSchemaOwnershipAfterRemoteResolution(bool nestedSource)
+        {
+            JsonObject plan = HostPlan();
+            plan["schemaDefinitions"] = new JsonObject
+            {
+                ["Response"] = new JsonObject
+                {
+                    ["type"] = "object",
+                    ["properties"] = new JsonObject
+                    {
+                        ["next"] = new JsonObject { ["$ref"] = "#/schemaDefinitions/Response" }
+                    }
+                }
+            };
+            JsonObject source = Source();
+            source["properties"]!["Value"]!["type"] = "number";
+            source["schemaDefinitions"] = new JsonObject
+            {
+                ["Response"] = new JsonObject { ["type"] = "string" }
+            };
+            var documents = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            if (nestedSource)
+            {
+                const string leafHref = "https://origin.test/models/leaf.td.json";
+                source["id"] = leafHref;
+                JsonObject nested = Plan();
+                nested["id"] = SourceHref;
+                nested["uav:projects"]![0]!["href"] = "leaf.td.json";
+                nested["properties"] = new JsonObject
+                {
+                    ["Value"] = new JsonObject { ["tm:ref"] = "leaf.td.json#/properties/Value" }
+                };
+                plan["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+                documents.Setup(resolver => resolver.ResolveThingAsync(
+                        SourceHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(nested.ToJsonString())));
+                documents.Setup(resolver => resolver.ResolveThingAsync(
+                        leafHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            }
+            else
+            {
+                documents.Setup(resolver => resolver.ResolveThingAsync(
+                        SourceHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(source.ToJsonString())));
+            }
+            int calls = 0;
+            var provider = new ProjectionFormProvider((request, token) =>
+            {
+                token.ThrowIfCancellationRequested();
+                calls++;
+                Assert.That(request.ProjectionDocument.Id, Is.EqualTo("https://host.test/views/provider.json"));
+                Assert.That(request.SourceLocation, Is.EqualTo(SourceHref));
+                Assert.That(request.SourcePointer, Is.EqualTo("/properties/Value"));
+                return new ValueTask<ArrayOf<JsonElement>>([ParseHostForm(/*lang=json,strict*/ """
+                    {
+                      "href":"values",
+                      "additionalResponses":[{"success":true,"schema":"Response"}]
+                    }
+                    """)]);
+            });
+            var options = new WotNodeSetConverterOptions { ProjectionFormProvider = provider };
+            WotConversionResult<WotDocument> result;
+            using (var document = WotDocument.Parse(Encoding.UTF8.GetBytes(plan.ToJsonString())))
+            {
+                var resolver = new WotProjectionResolver(documents.Object, options);
+                result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            }
+            using WotDocument view = result.Value.Required();
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(calls, Is.EqualTo(1));
+            JsonElement form = view.Properties["Value"].GetProperty("forms")[0];
+            Assert.That(form.GetProperty("href").GetString(), Is.EqualTo("https://host.test/runtime/values"));
+            Assert.That(form.GetProperty("additionalResponses")[0].GetProperty("schema").GetString(),
+                Is.EqualTo("Response"));
+            JsonElement response = view.RootElement.GetProperty("schemaDefinitions").GetProperty("Response");
+            Assert.That(response.GetProperty("type").GetString(), Is.EqualTo("object"));
+            Assert.That(response.GetProperty("properties").GetProperty("next").GetProperty("$ref").GetString(),
+                Is.EqualTo("#/schemaDefinitions/Response"));
+            Assert.That(view.Properties["Value"].GetProperty("type").GetString(), Is.EqualTo("number"));
+            documents.Verify(resolver => resolver.ResolveThingAsync(
+                It.IsAny<string>(), It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()),
+                Times.Exactly(nestedSource ? 2 : 1));
+            documents.VerifyNoOtherCalls();
         }
 
         /// <summary>

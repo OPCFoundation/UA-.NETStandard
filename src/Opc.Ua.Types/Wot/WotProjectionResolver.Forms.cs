@@ -130,13 +130,13 @@ namespace Opc.Ua.Wot
                             diagnostics.Add(limit!);
                             return false;
                         }
-                        WotDocument owner = CreateHostFormDocument(selection, member, forms, openDocuments);
-                        if (!ValidateContexts(owner, diagnostics) ||
-                            !ValidateSecurityDefinitions(owner, context.Options.MaxDepth, diagnostics))
+                        ReferenceOwner owner = CreateHostFormDocument(selection, member, forms, openDocuments);
+                        if (!ValidateContexts(owner.Document, diagnostics) ||
+                            !ValidateSecurityDefinitions(owner.Document, context.Options.MaxDepth, diagnostics))
                         {
                             return false;
                         }
-                        if (!WotDocument.TryEvaluatePointer(owner.RootElement, pointer + "/forms",
+                        if (!WotDocument.TryEvaluatePointer(owner.Document.RootElement, pointer + "/forms",
                             out JsonElement originals))
                         {
                             return Fail("The generated forms lost their owning document.", pointer);
@@ -146,9 +146,9 @@ namespace Opc.Ua.Wot
                         {
                             JsonObject form = CloneObject(original);
                             form["href"] = ResolveHref(hostBase, original.GetProperty("href").GetString()!);
-                            List<string> security = EffectiveSecurity(form, owner);
+                            List<string> security = EffectiveSecurity(form, owner.Document);
                             CopySecurityClosure(
-                                null, owner, selection.DocumentHref, security,
+                                null, owner.Document, selection.DocumentHref, security,
                                 selection, diagnostics);
                             if (security.Count != 0)
                             {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Wot
                             carried.Add(form);
                         }
                         member.Value["forms"] = carried;
-                        member.GeneratedFormOwner = new ReferenceOwner(owner, selection.DocumentHref, null);
+                        member.GeneratedFormOwner = owner;
                     }
                     catch (Exception exception) when (
                         exception is JsonException or FormatException or InvalidOperationException or ArgumentException)
@@ -184,7 +184,15 @@ namespace Opc.Ua.Wot
             }
         }
 
-        private WotDocument CreateHostFormDocument(
+        /// <summary>
+        /// Creates the generated forms' reference owner and registers its document for disposal.
+        /// </summary>
+        /// <param name="selection">The host selection supplying the document context.</param>
+        /// <param name="member">The affordance receiving the generated forms.</param>
+        /// <param name="forms">The host-supplied forms.</param>
+        /// <param name="openDocuments">The documents disposed when the current view finishes resolving.</param>
+        /// <returns>The reference owner of the generated forms.</returns>
+        private ReferenceOwner CreateHostFormDocument(
             Selection selection,
             ResolvedAffordance member,
             ArrayOf<JsonElement> forms,
@@ -212,7 +220,7 @@ namespace Opc.Ua.Wot
             affordance["forms"] = ownedForms;
             WotDocument document = WotDocument.Parse(Serialize(root), m_options);
             openDocuments.Add(document);
-            return document;
+            return new ReferenceOwner(document, selection.DocumentHref, null);
         }
 
         private static bool ValidateHostForm(JsonElement form, string hostBase)
