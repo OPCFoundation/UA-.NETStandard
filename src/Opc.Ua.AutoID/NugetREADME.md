@@ -86,6 +86,6 @@ symbolic-name drift guard derived from it with
 `tools\nodesets\derive-identifier-table.py`. NodeIds always come from the
 NodeSet.
 
-Server hosting of reader devices, the Scan/StartScan/StopScan and tag access
-method implementations, typed clients and MCP tools are separate runtime work,
-not functionality supplied by this model package.
+Server hosting of reader devices (`Opc.Ua.AutoID.Server`), the typed client
+(`Opc.Ua.AutoID.Client`) and the MCP tools (`Opc.Ua.Mcp.AutoID`) are separate
+packages; this model package carries no runtime and makes no conformance claim.
