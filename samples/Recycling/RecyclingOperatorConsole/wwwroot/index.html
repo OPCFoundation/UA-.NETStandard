@@ -1,0 +1,200 @@
+<!doctype html>
+<!-- ========================================================================
+Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+OPC Foundation MIT License 1.00
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR
+THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+The complete license agreement can be found here:
+http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light">
+    <title>Recycling Operator Console</title>
+    <link rel="stylesheet" href="styles/site.css">
+</head>
+<body>
+<!--
+THESIS: A browser operator sees a real recycling line as a readable process schematic, refusing the generic KPI-card dashboard and any theatrical fake plant animation.
+OWN-WORLD: Light industrial floor, charcoal technical linework, system UI type, tabular measurements, cool-blue selection, amber/red exceptions, and gray hatched uncertainty.
+STORY: Connect with one configured UA identity, assess source-to-bagging flow, inspect native measurements and provenance, then submit only authorized exact-payload commands.
+FIRST VIEWPORT: Header/status strip on top, left task rail, central serpentine ten-process SVG schematic at full scale, persistent right inspector, and bottom faults/holds/outcomes tray.
+FORM: Operate mode, first-ranked industrial 2D schematic, compact workstation staging, no concept reapproval; backend contract remains authoritative through the adapter boundary.
+-->
+    <noscript>
+        <main class="noscript">
+            <h1>JavaScript is required</h1>
+            <p>The Recycling Operator Console renders an authenticated live OPC UA feed in the browser.</p>
+        </main>
+    </noscript>
+
+    <div id="app" class="app app--booting" data-testid="app-root">
+        <section class="connect-page" data-testid="connect-page" aria-labelledby="connect-title">
+            <div class="connect-page__plate" aria-hidden="true">
+                <svg class="connect-page__mark" viewBox="0 0 220 140" role="img" aria-label="Recycling process line schematic">
+                    <use href="assets/symbols.svg#symbol-line-mark"></use>
+                </svg>
+            </div>
+            <div class="connect-card">
+                <p class="surface-label">Synthetic recycling simulation · local workstation</p>
+                <h1 id="connect-title">Connect the operator console</h1>
+                <p class="connect-card__copy">Open this console with the external bootstrap token file generated for the workstation. The host owns OPC UA endpoint, certificate, and role configuration.</p>
+                <form id="connect-form" class="connect-form" data-testid="connect-form" autocomplete="off">
+                    <label class="field field--wide">
+                        <span>Bootstrap token</span>
+                        <input name="bootstrapToken" type="password" data-testid="connect-bootstrap-token" inputmode="text" spellcheck="false" placeholder="Paste the external 32-byte hex key file content" required>
+                    </label>
+                    <div class="connect-facts field--wide" data-testid="connect-config-facts">
+                        <div><strong>HTTP</strong><span>Configured local address, same-origin commands</span></div>
+                        <div><strong>Default role</strong><span>Observer until host configuration authorizes more</span></div>
+                        <div><strong>Bootstrap</strong><span>HttpOnly Strict session cookie, no browser storage</span></div>
+                    </div>
+                    <div class="connect-form__actions">
+                        <button class="button button--primary" type="submit" data-testid="connect-submit">Authenticate locally</button>
+                        <p class="connect-form__note">No passwords, keys, or server trust changes are stored in JavaScript or localStorage.</p>
+                    </div>
+                </form>
+                <div id="connect-message" class="inline-status" data-testid="connect-message" role="status"></div>
+            </div>
+        </section>
+
+        <section class="operator-shell" data-testid="operator-shell" aria-label="Recycling operator console">
+            <header class="topbar" data-testid="topbar">
+                <div class="brand-lockup">
+                    <span class="brand-lockup__glyph" aria-hidden="true">↻</span>
+                    <div>
+                        <p class="surface-label">Synthetic simulation</p>
+                        <h1>Recycling line</h1>
+                    </div>
+                </div>
+                <div id="top-summary" class="top-summary" data-testid="top-summary" aria-live="polite"></div>
+                <div id="session-status" class="session-status" data-testid="session-status"></div>
+            </header>
+
+            <div class="workspace">
+                <nav class="task-rail" data-testid="task-rail" aria-label="Console sections">
+                    <button class="rail-tab is-active" type="button" data-panel="plant" data-testid="nav-plant">Plant</button>
+                    <button class="rail-tab" type="button" data-panel="trends" data-testid="nav-trends">Trends</button>
+                    <button class="rail-tab" type="button" data-panel="material" data-testid="nav-material">Material</button>
+                    <button class="rail-tab" type="button" data-panel="holds" data-testid="nav-holds">Holds</button>
+                    <button class="rail-tab rail-tab--drawer" type="button" data-action="toggle-inspector" data-testid="nav-inspector">Inspector</button>
+                </nav>
+
+                <main class="plant-workbench" data-testid="plant-workbench">
+                    <div id="system-banner" class="system-banner" data-testid="system-banner" role="status"></div>
+                    <section class="panel panel--plant" data-panel-name="plant" data-testid="plant-panel" aria-label="Plant schematic">
+                        <div class="panel__heading">
+                            <div>
+                                <h2>Process schematic</h2>
+                                <p>Authoritative feed only. Flow pulses appear only after committed transfer changes.</p>
+                            </div>
+                            <div id="plant-quality" class="quality-strip" data-testid="data-quality"></div>
+                        </div>
+                        <div id="schematic" class="schematic" data-testid="plant-schematic"></div>
+                        <div id="process-list" class="process-list" data-testid="process-list" aria-label="Keyboard process list"></div>
+                    </section>
+
+                    <section class="panel panel--secondary" data-panel-name="trends" data-testid="trends-panel" aria-label="Trends" hidden>
+                        <div class="panel__heading">
+                            <div>
+                                <h2>Trends since console connection</h2>
+                                <p>Bounded samples, reset markers, and observation gaps stay visible.</p>
+                            </div>
+                        </div>
+                        <div id="trends-content" data-testid="trends-content"></div>
+                    </section>
+
+                    <section class="panel panel--secondary" data-panel-name="material" data-testid="material-panel" aria-label="Material trace" hidden>
+                        <div class="panel__heading">
+                            <div>
+                                <h2>Material and genealogy</h2>
+                                <p>Run-scoped 64-bit identifiers remain strings in the browser.</p>
+                            </div>
+                            <div class="command-actions">
+                                <button class="button" type="button" data-action="load-material" data-testid="material-load-more">Load material page</button>
+                                <button class="button" type="button" data-action="load-history" data-testid="history-load-more">Load history page</button>
+                            </div>
+                        </div>
+                        <div id="material-content" data-testid="material-content"></div>
+                    </section>
+
+                    <section class="panel panel--secondary" data-panel-name="holds" data-testid="holds-panel" aria-label="Quality holds" hidden>
+                        <div class="panel__heading">
+                            <div>
+                                <h2>Quality holds</h2>
+                                <p>Run-scoped pages include every retained hold, including released and rejected records.</p>
+                            </div>
+                        </div>
+                        <div class="command-actions" aria-label="Retained hold pages">
+                            <label for="holds-disposition">Disposition</label>
+                            <select id="holds-disposition" data-testid="holds-disposition">
+                                <option value="Held">Outstanding</option>
+                                <option value="All">All dispositions</option>
+                                <option value="Released">Released</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                            <button class="button" type="button" data-action="holds-previous"
+                                data-testid="holds-previous" disabled>Previous page</button>
+                            <button class="button" type="button" data-action="holds-next"
+                                data-testid="holds-next" disabled>Next page</button>
+                            <button class="button" type="button" data-action="holds-refresh"
+                                data-testid="holds-refresh">Refresh page</button>
+                            <span id="holds-page-status" data-testid="holds-page-status" role="status"></span>
+                        </div>
+                        <div id="holds-content" data-testid="holds-content"></div>
+                    </section>
+                </main>
+
+                <aside id="inspector" class="inspector" data-testid="inspector" aria-label="Selected process inspector"></aside>
+            </div>
+
+            <footer class="exception-dock" data-testid="exceptions-panel" aria-label="Faults, holds, and command outcomes">
+                <section>
+                    <h2>Active faults / constraints</h2>
+                    <div id="fault-list" class="exception-list" data-testid="fault-list"></div>
+                </section>
+                <section>
+                    <h2>Quality holds</h2>
+                    <div id="hold-list" class="exception-list" data-testid="hold-list"></div>
+                </section>
+                <section>
+                    <h2>Recent command outcomes</h2>
+                    <div id="command-outcomes" class="exception-list" data-testid="command-outcomes"></div>
+                </section>
+            </footer>
+        </section>
+    </div>
+
+    <dialog id="command-dialog" class="command-dialog" data-testid="confirm-dialog" aria-labelledby="command-dialog-title">
+        <form method="dialog">
+            <h2 id="command-dialog-title">Confirm command</h2>
+            <p id="command-dialog-copy"></p>
+            <pre id="command-dialog-payload" class="payload-preview" data-testid="command-payload"></pre>
+            <div class="dialog-actions">
+                <button class="button" value="cancel" data-testid="confirm-cancel">Cancel</button>
+                <button class="button button--danger" value="confirm" data-testid="confirm-submit">Submit exact payload</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script type="module" src="scripts/app.js"></script>
+</body>
+</html>
