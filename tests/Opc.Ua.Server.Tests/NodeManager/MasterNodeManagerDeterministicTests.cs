@@ -151,6 +151,33 @@ namespace Opc.Ua.Server.Tests
             Assert.That(sut.NodeManagers, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Cleanup callbacks after routing withdrawal must see an unresolved node rather than index a missing core.
+        /// </summary>
+        [TestCase(false, (ushort)0)]
+        [TestCase(true, (ushort)0)]
+        [TestCase(false, ushort.MaxValue)]
+        [TestCase(true, ushort.MaxValue)]
+        public async Task HandleResolutionAfterRoutingWithdrawalReturnsUnresolvedAsync(bool synchronous, ushort ns)
+        {
+            MasterNodeManager manager = CreateMasterNodeManager();
+            await manager.DisposeAsync().ConfigureAwait(false);
+            var nodeId = new NodeId(1, ns);
+            if (synchronous)
+            {
+                object? handle = manager.GetManagerHandle(nodeId, out INodeManager? owner);
+                Assert.That(handle, Is.Null);
+                Assert.That(owner, Is.Null);
+            }
+            else
+            {
+                (object? handle, IAsyncNodeManager? owner) = await manager.GetManagerHandleAsync(nodeId)
+                    .ConfigureAwait(false);
+                Assert.That(handle, Is.Null);
+                Assert.That(owner, Is.Null);
+            }
+        }
+
         [Test]
         public void IsolatedDispatchersPreserveRunningServerPublicationOwnership()
         {

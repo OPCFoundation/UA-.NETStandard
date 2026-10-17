@@ -1776,8 +1776,7 @@ namespace Opc.Ua.Bindings
         {
             if (chunks.Count == 1)
             {
-                using var decoder = new BinaryDecoder(chunks[0], Quotas.MessageContext);
-                return decoder.DecodeMessage<IServiceRequest>();
+                return DecodeMessage<IServiceRequest>(chunks[0], Quotas.MessageContext);
             }
 
             using var stream = new ArraySegmentStream(chunks);

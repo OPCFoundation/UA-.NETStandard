@@ -237,8 +237,10 @@ namespace Opc.Ua.Security.Pkcs11
         /// </summary>
         /// <returns>
         /// Pairs of DER encoded certificate and the CKA_ID that links it to a key.
+        /// The CKA_ID is <c>null</c> when the token reports that it cannot be
+        /// read; such a certificate must not be paired with a key.
         /// </returns>
-        public IReadOnlyList<KeyValuePair<byte[], byte[]>> FindCertificatesWithIds()
+        public IReadOnlyList<KeyValuePair<byte[], byte[]?>> FindCertificatesWithIds()
         {
             lock (m_lock)
             {
@@ -251,7 +253,7 @@ namespace Opc.Ua.Security.Pkcs11
 
                 AddObjectFilters(search);
 
-                var results = new List<KeyValuePair<byte[], byte[]>>();
+                var results = new List<KeyValuePair<byte[], byte[]?>>();
 
                 foreach (IObjectHandle handle in m_session.FindAllObjects(search))
                 {
@@ -259,17 +261,158 @@ namespace Opc.Ua.Security.Pkcs11
                         handle,
                         [(ulong)CKA.CKA_VALUE, (ulong)CKA.CKA_ID]);
 
-                    byte[] encoded = values[0].GetValueAsByteArray();
+                    byte[]? encoded = ReadBytes(values[0]);
 
                     if (encoded is { Length: > 0 })
                     {
-                        results.Add(new KeyValuePair<byte[], byte[]>(
+                        results.Add(new KeyValuePair<byte[], byte[]?>(
                             encoded,
-                            values[1].GetValueAsByteArray() ?? []));
+                            ReadBytes(values[1])));
                     }
                 }
 
                 return results;
+            }
+        }
+
+        /// <summary>
+        /// Writes an X.509 certificate object to the token.
+        /// </summary>
+        /// <param name="value">The DER encoded certificate.</param>
+        /// <param name="id">The CKA_ID that links the certificate to its key.</param>
+        /// <param name="label">The CKA_LABEL of the object.</param>
+        /// <param name="subject">The DER encoded subject name.</param>
+        /// <param name="issuer">The DER encoded issuer name.</param>
+        /// <param name="serialNumber">The DER encoded serial number.</param>
+        public void CreateCertificate(
+            byte[] value,
+            byte[] id,
+            string label,
+            byte[] subject,
+            byte[] issuer,
+            byte[] serialNumber)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> template =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE),
+                    m_factories.ObjectAttributeFactory.Create(
+                        CKA.CKA_CERTIFICATE_TYPE,
+                        (ulong)CKC.CKC_X_509),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_TOKEN, true),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_PRIVATE, false),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_LABEL, label),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_ID, id),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_SUBJECT, subject),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_ISSUER, issuer),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_SERIAL_NUMBER, serialNumber),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_VALUE, value)
+                ];
+
+                m_session.CreateObject(template);
+            }
+        }
+
+        /// <summary>
+        /// Destroys the certificate objects, subject to any object label or id
+        /// filter in the options, whose encoding matches. Key objects are
+        /// never touched.
+        /// </summary>
+        /// <param name="match">Selects the DER encoded certificates to destroy.</param>
+        /// <returns>The number of objects destroyed.</returns>
+        public int DestroyCertificates(Func<byte[], bool> match)
+        {
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> search =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE)
+                ];
+
+                AddObjectFilters(search);
+
+                int destroyed = 0;
+
+                foreach (IObjectHandle handle in m_session.FindAllObjects(search))
+                {
+                    List<IObjectAttribute> values = m_session.GetAttributeValue(
+                        handle,
+                        [(ulong)CKA.CKA_VALUE]);
+
+                    byte[]? encoded = ReadBytes(values[0]);
+
+                    if (encoded is { Length: > 0 } && match(encoded))
+                    {
+                        m_session.DestroyObject(handle);
+                        destroyed++;
+                    }
+                }
+
+                return destroyed;
+            }
+        }
+
+        /// <summary>
+        /// Finds the CKA_ID of a key object whose attributes hold all the given
+        /// public values, for example the modulus and the public exponent of an
+        /// RSA key, or the point and the curve of an EC key.
+        /// </summary>
+        /// <remarks>
+        /// The token searches by the first attribute; the others are read back
+        /// and compared, and a key whose value of such an attribute cannot be
+        /// read does not match. The big integers CKA_MODULUS and
+        /// CKA_PUBLIC_EXPONENT are compared without leading zero bytes.
+        /// </remarks>
+        /// <param name="objectClass">The class of key object to search.</param>
+        /// <param name="keyType">The key type to search.</param>
+        /// <param name="match">The attributes and the public values they must hold.</param>
+        /// <returns>The CKA_ID, or <c>null</c> when no key matches.</returns>
+        public byte[]? FindKeyId(CKO objectClass, CKK keyType, params (CKA Attribute, byte[] Value)[] match)
+        {
+            if (match == null || match.Length == 0)
+            {
+                throw new ArgumentException("At least one attribute must be matched.", nameof(match));
+            }
+
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+
+                List<IObjectAttribute> search =
+                [
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, objectClass),
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType),
+                    m_factories.ObjectAttributeFactory.Create(match[0].Attribute, match[0].Value)
+                ];
+                var read = new List<ulong>(match.Length) { (ulong)CKA.CKA_ID };
+                for (int ii = 1; ii < match.Length; ii++)
+                {
+                    read.Add((ulong)match[ii].Attribute);
+                }
+
+                foreach (IObjectHandle handle in m_session.FindAllObjects(search))
+                {
+                    List<IObjectAttribute> values = m_session.GetAttributeValue(handle, read);
+
+                    if (!HoldsValues(values, match))
+                    {
+                        continue;
+                    }
+
+                    byte[]? id = ReadBytes(values[0]);
+
+                    if (id is { Length: > 0 })
+                    {
+                        return id;
+                    }
+                }
+
+                return null;
             }
         }
 
@@ -476,6 +619,52 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 throw new ObjectDisposedException(nameof(Pkcs11Token));
             }
+        }
+
+        private static bool HoldsValues(List<IObjectAttribute> values, (CKA Attribute, byte[] Value)[] match)
+        {
+            for (int ii = 1; ii < match.Length; ii++)
+            {
+                byte[]? actual = ReadBytes(values[ii]);
+
+                if (actual == null || actual.Length == 0)
+                {
+                    return false;
+                }
+
+                bool equal = match[ii].Attribute is CKA.CKA_MODULUS or CKA.CKA_PUBLIC_EXPONENT
+                    ? TrimLeadingZeros(actual).SequenceEqual(TrimLeadingZeros(match[ii].Value))
+                    : actual.AsSpan().SequenceEqual(match[ii].Value);
+
+                if (!equal)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Reads a byte array attribute, or returns <c>null</c> when the token
+        /// reports that the attribute cannot be read (it does not exist on the
+        /// object or is sensitive); reading such an attribute's value throws.
+        /// </summary>
+        private static byte[]? ReadBytes(IObjectAttribute attribute)
+        {
+            return attribute.CannotBeRead ? null : attribute.GetValueAsByteArray();
+        }
+
+        private static ReadOnlySpan<byte> TrimLeadingZeros(byte[] value)
+        {
+            int start = 0;
+
+            while (start < value.Length - 1 && value[start] == 0)
+            {
+                start++;
+            }
+
+            return value.AsSpan(start);
         }
 
         private readonly System.Threading.Lock m_lock = new();

@@ -37,7 +37,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   certified through an OPC Foundation Certification Test Lab and is
   continuously verified against the latest
   [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/).
-- **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
+- **Companion-spec coverage** — Part 9 (Alarms & Conditions),
+  [Part 10 (Programs)](docs/Programs.md), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
   Transfer), Part 100 (Device Integration), Part 110 (Asset Management
@@ -50,9 +51,14 @@ across industrial control, manufacturing, energy, and IoT systems.
   Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
   (PA-DIM), OPC 40010-1 (Robotics), OPC 40100-1/-2
   ([Machine Vision control and asset management](docs/Vision.md)),
+  OPC 40501-1 and OPC 40505
+  ([Machine Tools and independent wireless peripherals](docs/MachineTool.md)),
+  OPC 40210 ([Geometric Measurement Systems](docs/GMS.md), with its documented
+  upstream Production-facet exception), OPC 40020-1
+  ([Cranes and Hoists](docs/CranesHoists.md)),
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
-- **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
+- **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
   LLMs / Copilot can drive an OPC UA client.
@@ -67,6 +73,10 @@ To run a first OPC UA client and server, from NuGet packages or from the
 samples in this repository, follow **[Getting started](docs/GettingStarted.md)**.
 The **[documentation index](docs/README.md)** then leads from the core concepts
 to advanced and experimental features.
+
+The [recycling operator console](samples/Recycling/README.md#operator-console-walkthrough) demonstrates
+live browser monitoring, native companion-specification inspection, material genealogy,
+and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:
@@ -91,12 +101,14 @@ only through a manually approved promotion from a `release/<major>.<minor>`
 branch — that is where the `2.0.0-preview.N` packages already on nuget.org
 came from, via the earlier `release/2.0.0` line. To use those, enable
 prerelease packages and float with `2.0.0-preview.*` until `2.0.0` is
-released. The XRegistry, WoT Connectivity, Robotics,
+released. The XRegistry, WoT Connectivity, Robotics, CranesHoists,
 Redundancy, Positioning, OpenUSD, and AI package families, the Vision.OpenUsd
 renderer, and the Robotics MCP extension remain
 preview packages when the root version is promoted to a stable version, and
-keep their own `-preview.N` versions on nuget.org. The Vision and MachineVision
-model/client/server packages and the Vision MCP package follow the root version
+keep their own `-preview.N` versions on nuget.org. This includes all CranesHoists
+model/server/client/MCP packages and their Debug variants.
+The Vision, MachineVision, MachineTool (including WMTP), and GMS
+model/client/server packages and their MCP packages follow the root version
 without a preview-only override;
 development builds still inherit the root prerelease version. See
 [docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
@@ -104,9 +116,8 @@ versions are released.
 
 ### Samples
 
-The stack also includes a large collection of
-[platform-independent sample applications](docs/Samples.md) that turn its
-core services and companion models into runnable client/server workflows.
+The [platform-independent sample applications](docs/Samples.md) show how to use
+the stack's core services and companion models in client/server workflows.
 More applications, including platform-specific examples, are available in
 the companion
 [OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
@@ -143,8 +154,8 @@ Most of the mechanical migration work is automated:
   [`opcua-v20-migration`](.agents/skills/opcua-v20-migration/SKILL.md)
   skill walks Copilot / Claude / any coding agent through installing
   the NuGet, running `dotnet format analyzers` to apply auto-fixes,
-  and handling the small residual manual patterns. The skill knows
-  which sub-doc to load for each symptom so it stays context-efficient.
+  and handling the remaining manual changes. It selects the migration
+  sub-document for each symptom.
 
 Copilot CLI discovers the skill automatically inside a clone. To install it
 for use in any repository:

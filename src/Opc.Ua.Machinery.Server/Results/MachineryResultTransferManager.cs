@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -50,8 +51,10 @@ namespace Opc.Ua.Machinery.Server.Results
     /// <c>GenerateFileForWrite</c> / <c>CloseAndCommit</c> for Device
     /// Integration software packages. This is the read half, built to the same
     /// shape: one transient <c>FileState</c> per handle, the handle bound to
-    /// the session that opened it, a hard cap on concurrent handles, and a
-    /// timeout after which an abandoned handle is reclaimed.
+    /// the session that opened it, a hard cap including pending generation, and a
+    /// timeout after which an abandoned handle is reclaimed. Session closure
+    /// awaits removal of that session's transient files, independently of
+    /// whether its subscriptions are retained.
     /// </para>
     /// <para>
     /// The two write-side methods <c>TemporaryFileTransferType</c> makes
@@ -61,11 +64,12 @@ namespace Opc.Ua.Machinery.Server.Results
     /// define for a read-only file and a handle that was never a write handle.
     /// </para>
     /// <para>
-    /// Reclaiming is swept rather than timed: it runs at the start of every
+    /// Inactivity expiry is swept rather than timed: it runs at the start of every
     /// <c>GenerateFileForRead</c>, which is the only moment the cap can
     /// actually bite. That keeps the manager free of a background timer per
-    /// result object, at the cost of an abandoned handle surviving until the
-    /// next download starts — where it costs nothing but a transient node.
+    /// result object, at the cost of an inactive handle in a live session surviving
+    /// until the next download starts. Session closure and shutdown independently
+    /// await their owned generation, rollback and node deletion.
     /// </para>
     /// <para>
     /// <c>GenerateFileForRead</c> returns a <c>completionStateMachine</c>
@@ -75,10 +79,13 @@ namespace Opc.Ua.Machinery.Server.Results
     /// for "no completion state machine".
     /// </para>
     /// </remarks>
-    internal sealed class MachineryResultTransferManager : IAsyncDisposable
+    internal sealed partial class MachineryResultTransferManager : IAsyncDisposable
     {
         private const byte OpenModeRead = 1;
 
+        /// <summary>
+        /// Binds read-only transfer methods and awaited session-resource cleanup.
+        /// </summary>
         public MachineryResultTransferManager(
             ResultTransferState transfer,
             AsyncCustomNodeManager manager,
@@ -93,6 +100,7 @@ namespace Opc.Ua.Machinery.Server.Results
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             m_timeProvider = timeProvider ?? TimeProvider.System;
+            m_sessionRegistration = m_manager.RegisterSessionClosingHandler(OnSessionClosingAsync);
 
             m_transfer.ClientProcessingTimeout?.Value =
                 m_options.ResultTransferTimeout.TotalMilliseconds;
@@ -113,25 +121,9 @@ namespace Opc.Ua.Machinery.Server.Results
             m_transfer.CloseAndCommit?.OnCall = OnCloseAndCommit;
         }
 
-        public async ValueTask DisposeAsync()
-        {
-            List<DownloadSlot> slots;
-            lock (m_gate)
-            {
-                if (m_disposed)
-                {
-                    return;
-                }
-                m_disposed = true;
-                slots = [.. m_slots.Values];
-                m_slots.Clear();
-            }
-            for (int ii = 0; ii < slots.Count; ii++)
-            {
-                await DetachAsync(slots[ii]).ConfigureAwait(false);
-            }
-        }
-
+        /// <summary>
+        /// Admits generation before calling the store, retaining ownership until registration or rollback completes.
+        /// </summary>
         private async ValueTask<ServiceResult> OnGenerateFileForReadAsync(
             ISystemContext context,
             MethodState method,
@@ -142,6 +134,7 @@ namespace Opc.Ua.Machinery.Server.Results
         {
             _ = method;
             _ = objectId;
+            cancellationToken.ThrowIfCancellationRequested();
 
             string? resultId = ExtractResultId(inputArguments[0]);
             if (string.IsNullOrEmpty(resultId))
@@ -152,32 +145,21 @@ namespace Opc.Ua.Machinery.Server.Results
                     "carrying the ResultId to download.");
             }
 
-            MachineryResult? result = await m_store
-                .GetResultByIdAsync(resultId!, cancellationToken)
-                .ConfigureAwait(false);
-            if (result == null)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadNotFound,
-                    "No result with id '{0}' is available.",
-                    resultId!);
-            }
-            if (result.FileContent.IsNull || result.FileContent.Span.Length == 0)
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadNothingToDo,
-                    "Result '{0}' carries no transferable data on file.",
-                    resultId!);
-            }
-
             await ReclaimExpiredHandlesAsync().ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
+            NodeId sessionId = SessionIdOf(context);
+            ISession? owner = FindLiveSession(sessionId);
             DownloadSlot slot;
             lock (m_gate)
             {
                 if (m_disposed)
                 {
                     return StatusCodes.BadInvalidState;
+                }
+                if (owner is { IsClosing: true } or { HasExpired: true })
+                {
+                    return StatusCodes.BadSessionClosed;
                 }
                 if (m_slots.Count >= m_options.MaxConcurrentResultTransfers)
                 {
@@ -186,43 +168,126 @@ namespace Opc.Ua.Machinery.Server.Results
                         "Concurrent result-transfer handle limit reached.");
                 }
 
-                uint handle = ++m_nextHandle;
+                uint handle;
+                do
+                {
+                    handle = ++m_nextHandle;
+                }
+                while (handle == 0 || m_slots.ContainsKey(handle));
+
                 slot = new DownloadSlot(
                     handle,
-                    SessionIdOf(context),
-                    result,
+                    sessionId,
                     m_timeProvider.GetUtcNow());
 
-                // The handle is reserved before its file node exists, so a
-                // concurrent call already counts it against the cap.
+                // Pending store reads and registrations belong to the owner too.
                 m_slots[handle] = slot;
             }
 
+            ServiceResult status = StatusCodes.BadInvalidState;
+            Exception? failure = null;
             try
             {
-                await AttachFileStateAsync(slot).ConfigureAwait(false);
+                using var generation = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, slot.Shutdown.Token);
+                status = await GenerateFileAsync(slot, owner, resultId!, outputArguments, generation.Token)
+                    .ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                lock (m_gate)
+                failure = ex;
+            }
+            finally
+            {
+                slot.GenerationCompleted.TrySetResult(true);
+            }
+
+            if (!slot.Published)
+            {
+                try
                 {
-                    m_slots.Remove(slot.Handle);
+                    await CleanupSlotAsync(slot).ConfigureAwait(false);
                 }
-                m_logger.FailedToCreateTransientResultFile(ex, slot.Handle);
+                catch (Exception ex)
+                {
+                    failure = failure == null
+                        ? ex
+                        : new AggregateException("Result generation and rollback failed.", failure, ex);
+                }
+            }
+            if (failure != null)
+            {
+                ExceptionDispatchInfo.Capture(failure).Throw();
+            }
+            return status;
+        }
+
+        /// <summary>
+        /// Reads and registers a file while its admitted generation remains cancellable and drainable.
+        /// </summary>
+        private async ValueTask<ServiceResult> GenerateFileAsync(
+            DownloadSlot slot,
+            ISession? owner,
+            string resultId,
+            List<Variant> outputArguments,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            MachineryResult? result = await m_store.GetResultByIdAsync(resultId, cancellationToken)
+                .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result == null)
+            {
                 return ServiceResult.Create(
-                    ex,
-                    StatusCodes.BadInternalError,
-                    "Failed to create the transient result FileState.");
+                    StatusCodes.BadNotFound,
+                    "No result with id '{0}' is available.",
+                    resultId);
+            }
+            if (result.FileContent.IsNull || result.FileContent.Span.Length == 0)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadNothingToDo,
+                    "Result '{0}' carries no transferable data on file.",
+                    resultId);
             }
 
             lock (m_gate)
             {
-                if (!m_disposed)
+                if (m_disposed || slot.Closing)
+                {
+                    return StatusCodes.BadInvalidState;
+                }
+                if (owner is { IsClosing: true } or { HasExpired: true })
+                {
+                    return StatusCodes.BadSessionClosed;
+                }
+                slot.SetResult(result);
+            }
+            try
+            {
+                await AttachFileStateAsync(slot, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.FailedToCreateTransientResultFile(ex, slot.Handle);
+                return ServiceResult.Create(
+                    ex, StatusCodes.BadInternalError, "Failed to create the transient result FileState.");
+            }
+
+            lock (m_gate)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (owner is { IsClosing: true } or { HasExpired: true })
+                {
+                    return StatusCodes.BadSessionClosed;
+                }
+                if (!m_disposed && !slot.Closing)
                 {
                     // OPC 10000-5: the handle GenerateFileForRead returns is
                     // already open. A client reads straight from it and closes
                     // it when it is done - it never calls Open.
                     slot.Open(m_timeProvider.GetUtcNow());
+                    slot.Published = true;
                     outputArguments[0] = Variant.From(slot.FileNodeId);
                     outputArguments[1] = Variant.From(slot.Handle);
                     outputArguments[2] = Variant.From(NodeId.Null);
@@ -230,9 +295,6 @@ namespace Opc.Ua.Machinery.Server.Results
                 }
             }
 
-            // DisposeAsync drained the handles while the file node was being
-            // added, so it could not remove a node that did not exist yet.
-            await DetachAsync(slot).ConfigureAwait(false);
             return StatusCodes.BadInvalidState;
         }
 
@@ -307,8 +369,12 @@ namespace Opc.Ua.Machinery.Server.Results
             return generateOptions.TryGetValue(out string resultId) ? resultId : null;
         }
 
-        private async ValueTask AttachFileStateAsync(DownloadSlot slot)
+        /// <summary>
+        /// Retains the staged file before registration so cancellation can roll back even a partially indexed tree.
+        /// </summary>
+        private async ValueTask AttachFileStateAsync(DownloadSlot slot, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             ServerSystemContext context = m_manager.SystemContext;
             var browseName = new QualifiedName(
                 $"ResultFile_{slot.Handle}",
@@ -324,9 +390,9 @@ namespace Opc.Ua.Machinery.Server.Results
 
             file.Writable?.Value = false;
             file.UserWritable?.Value = false;
-            file.Size?.Value = (ulong)slot.Payload.Length;
+            file.Size?.Value = (ulong)slot.Payload.Span.Length;
             file.OpenCount?.Value = 0;
-            file.MimeType?.Value = slot.Result.MimeType;
+            file.MimeType?.Value = slot.MimeType;
             file.Open?.OnCall = OpenSlot;
             file.Read?.OnCall = ReadSlot;
             file.Close?.OnCallAsync = CloseSlotAsync;
@@ -334,20 +400,17 @@ namespace Opc.Ua.Machinery.Server.Results
             file.SetPosition?.OnCall = SetPositionSlot;
             file.Write?.OnCall = WriteSlot;
 
-            m_transfer.AddChild(file);
-            try
+            lock (m_gate)
             {
-                // Not the call's token: a registration abandoned half way
-                // would leave a node the handle table no longer knows about.
-                await m_manager.AddPredefinedNodeAsync(file, CancellationToken.None)
-                    .ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_disposed || slot.Closing)
+                {
+                    throw new OperationCanceledException(slot.Shutdown.Token);
+                }
+                slot.AttachFile(file);
+                m_transfer.AddChild(file);
             }
-            catch
-            {
-                m_transfer.RemoveChild(file);
-                throw;
-            }
-            slot.AttachFile(file);
+            await m_manager.AddPredefinedNodeAsync(file, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -452,7 +515,7 @@ namespace Opc.Ua.Machinery.Server.Results
         {
             _ = method;
             _ = objectId;
-            _ = cancellationToken;
+            cancellationToken.ThrowIfCancellationRequested();
             DownloadSlot slot;
             lock (m_gate)
             {
@@ -460,9 +523,9 @@ namespace Opc.Ua.Machinery.Server.Results
                 {
                     return new CloseMethodStateResult { ServiceResult = err };
                 }
-                m_slots.Remove(fileHandle);
+                slot.Closing = true;
             }
-            await DetachAsync(slot).ConfigureAwait(false);
+            await CleanupSlotAsync(slot).ConfigureAwait(false);
             return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
         }
 
@@ -502,7 +565,7 @@ namespace Opc.Ua.Machinery.Server.Results
                 {
                     return err;
                 }
-                if (position > (ulong)slot.Payload.Length)
+                if (position > (ulong)slot.Payload.Span.Length)
                 {
                     return ServiceResult.Create(
                         StatusCodes.BadInvalidArgument,
@@ -513,76 +576,13 @@ namespace Opc.Ua.Machinery.Server.Results
             return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Drops handles that have seen no activity for longer than the
-        /// configured timeout. Called before a new handle is minted, so the
-        /// concurrency cap is measured against handles a client is still
-        /// plausibly using.
-        /// </summary>
-        private async ValueTask ReclaimExpiredHandlesAsync()
-        {
-            List<DownloadSlot>? expired = null;
-            DateTimeOffset now = m_timeProvider.GetUtcNow();
-            lock (m_gate)
-            {
-                foreach (KeyValuePair<uint, DownloadSlot> entry in m_slots)
-                {
-                    if (now - entry.Value.LastActivity > m_options.ResultTransferTimeout)
-                    {
-                        (expired ??= []).Add(entry.Value);
-                    }
-                }
-                if (expired != null)
-                {
-                    for (int ii = 0; ii < expired.Count; ii++)
-                    {
-                        m_slots.Remove(expired[ii].Handle);
-                    }
-                }
-            }
-            if (expired == null)
-            {
-                return;
-            }
-            for (int ii = 0; ii < expired.Count; ii++)
-            {
-                m_logger.ResultTransferHandleExpired(expired[ii].Handle);
-                await DetachAsync(expired[ii]).ConfigureAwait(false);
-            }
-        }
-
-        private async ValueTask DetachAsync(DownloadSlot slot)
-        {
-            FileState? file = slot.DetachFile();
-            if (file == null)
-            {
-                return;
-            }
-            try
-            {
-                // Cleanup runs to completion whoever triggered it, so a
-                // cancelled close or dispose cannot leave the node behind.
-                await m_manager
-                    .DeleteNodeAsync(m_manager.SystemContext, file.NodeId, CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_logger.FailedToRemoveTransientResultFile(ex, file.NodeId);
-            }
-            finally
-            {
-                m_transfer.RemoveChild(file);
-            }
-        }
-
         private bool TryGetOwnedSlotLocked(
             ISystemContext context,
             uint fileHandle,
             out DownloadSlot slot,
             out ServiceResult error)
         {
-            if (!m_slots.TryGetValue(fileHandle, out DownloadSlot? located))
+            if (!m_slots.TryGetValue(fileHandle, out DownloadSlot? located) || located.Closing)
             {
                 slot = null!;
                 error = ServiceResult.Create(
@@ -619,7 +619,7 @@ namespace Opc.Ua.Machinery.Server.Results
             }
             foreach (DownloadSlot slot in m_slots.Values)
             {
-                if (ReferenceEquals(slot.FileObject, parent))
+                if (!slot.Closing && ReferenceEquals(slot.FileObject, parent))
                 {
                     return slot;
                 }
@@ -647,47 +647,124 @@ namespace Opc.Ua.Machinery.Server.Results
         private uint m_nextHandle;
         private bool m_disposed;
 
+        /// <summary>
+        /// An admitted generation, its published file, and the shared completion of its cleanup.
+        /// </summary>
         private sealed class DownloadSlot
         {
+            /// <summary>
+            /// Reserves a handle before any provider or registration callback can yield.
+            /// </summary>
             public DownloadSlot(
                 uint handle,
                 NodeId ownerSessionId,
-                MachineryResult result,
                 DateTimeOffset created)
             {
                 Handle = handle;
                 OwnerSessionId = ownerSessionId;
-                Result = result;
-                Payload = result.FileContent.Span.ToArray();
                 LastActivity = created;
             }
 
+            /// <summary>
+            /// Gets the unique handle while its reservation exists.
+            /// </summary>
             public uint Handle { get; }
 
+            /// <summary>
+            /// Gets the owning session, or null for an internal caller.
+            /// </summary>
             public NodeId OwnerSessionId { get; }
 
-            public MachineryResult Result { get; }
+            /// <summary>
+            /// Gets the copied payload after the store returns.
+            /// </summary>
+            public ByteString Payload { get; private set; }
 
-            public byte[] Payload { get; }
+            /// <summary>
+            /// Gets the file's media type.
+            /// </summary>
+            public string MimeType { get; private set; } = string.Empty;
 
+            /// <summary>
+            /// Gets the staged or published file until deletion completes.
+            /// </summary>
             public FileState? FileObject => Volatile.Read(ref m_file);
 
+            /// <summary>
+            /// Gets the transient file identifier.
+            /// </summary>
             public NodeId FileNodeId => FileObject?.NodeId ?? NodeId.Null;
 
+            /// <summary>
+            /// Gets whether the read handle has been opened.
+            /// </summary>
             public bool IsOpen { get; private set; }
 
+            /// <summary>
+            /// Gets the current read position.
+            /// </summary>
             public long Position { get; private set; }
 
+            /// <summary>
+            /// Gets the last activity used by the expiry sweep.
+            /// </summary>
             public DateTimeOffset LastActivity { get; private set; }
 
+            /// <summary>
+            /// Gets or sets whether the file was returned to a client.
+            /// </summary>
+            public bool Published { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether admission and file access are closed.
+            /// </summary>
+            public bool Closing { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether cleanup released the reservation and cancellation source.
+            /// </summary>
+            public bool Removed { get; set; }
+
+            /// <summary>
+            /// Gets cancellation for a pending generation.
+            /// </summary>
+            public CancellationTokenSource Shutdown { get; } = new();
+
+            /// <summary>
+            /// Gets completion of all store and registration work, before rollback is joined.
+            /// </summary>
+            public TaskCompletionSource<bool> GenerationCompleted { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets or sets the shared removal attempt, protected by the transfer gate.
+            /// </summary>
+            public TaskCompletionSource<bool>? CleanupCompleted { get; set; }
+
+            /// <summary>
+            /// Gets or sets the deletion snapshot retained across a failed removal attempt.
+            /// </summary>
+            public List<NodeId>? FileNodes { get; set; }
+
+            /// <summary>
+            /// Copies store data so later provider mutations cannot change an open file.
+            /// </summary>
+            public void SetResult(MachineryResult result)
+            {
+                Payload = new ByteString(result.FileContent.Span.ToArray());
+                MimeType = result.MimeType;
+            }
+
+            /// <summary>
+            /// Retains the staged node before registration starts.
+            /// </summary>
             public void AttachFile(FileState file)
             {
                 Volatile.Write(ref m_file, file);
             }
 
             /// <summary>
-            /// Takes the file node out of the slot. Exactly one caller gets
-            /// it, so a close and a concurrent dispose never delete it twice.
+            /// Drops the file only after all node removal has completed.
             /// </summary>
             public FileState? DetachFile()
             {
@@ -695,6 +772,9 @@ namespace Opc.Ua.Machinery.Server.Results
                 return Interlocked.Exchange(ref m_file, null);
             }
 
+            /// <summary>
+            /// Opens the returned read handle.
+            /// </summary>
             public void Open(DateTimeOffset now)
             {
                 IsOpen = true;
@@ -706,27 +786,33 @@ namespace Opc.Ua.Machinery.Server.Results
                 }
             }
 
+            /// <summary>
+            /// Reads a bounded slice of the immutable payload.
+            /// </summary>
             public ByteString Read(int length, DateTimeOffset now)
             {
                 LastActivity = now;
-                long remaining = Payload.LongLength - Position;
+                long remaining = Payload.Span.Length - Position;
                 if (remaining <= 0 || length == 0)
                 {
                     return ByteString.Empty;
                 }
                 int take = (int)Math.Min(remaining, length);
-                var chunk = new byte[take];
-                Array.Copy(Payload, Position, chunk, 0, take);
+                byte[] chunk = Payload.Span.Slice((int)Position, take).ToArray();
                 Position += take;
                 return new ByteString(chunk);
             }
 
+            /// <summary>
+            /// Updates the position and activity timestamp.
+            /// </summary>
             public void Seek(long position, DateTimeOffset now)
             {
                 Position = position;
                 LastActivity = now;
             }
 
+            /// <summary>The staged or published file retained until removal completes.</summary>
             private FileState? m_file;
         }
     }

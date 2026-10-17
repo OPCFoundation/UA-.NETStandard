@@ -37,16 +37,18 @@ without any other context.
   [Versioning](DeveloperGuide.md#versioning)). Every package in the solution
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity,
-  Robotics, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Vision.OpenUsd renderer, the Robotics MCP extension, and the OpenUSD connector
+  Robotics, CranesHoists, Redundancy, Positioning, OpenUSD, and AI package
+  families, the Vision.OpenUsd renderer, the Robotics and CranesHoists MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in
   `version.targets` (build-time) and `Test-PreviewPackageId` in
   `.azurepipelines/package-version-policy.ps1` (validation-time) - both must
   always list the same families.
-  The Vision and MachineVision model/client/server packages and the Vision MCP
-  package follow the root version instead.
+  Debug variants of these families follow the same preview-only classification.
+  The Vision, MachineVision, MachineTool (including bundled WMTP), and GMS
+  model/client/server packages and the Vision, MachineTool and GMS MCP packages
+  follow the root version instead. WMTP has no separate package or profile.
 - **Channel** - `stable` when the root version has no prerelease label or
   build metadata (e.g. `2.0.0`); `preview` otherwise (e.g. `2.0.0-preview.6`,
   `2.0.1-preview.4+gabc123`). `validate-nuget-package-set.ps1` writes this as
@@ -66,6 +68,10 @@ without any other context.
 - **Candidate** - a signed, validated package set produced by a
   `nuget-publish.yml` run, retained as its `opcua-packages-<run id>` GitHub
   Actions artifact.
+- **Debug packages** - Debug-configuration packages use the `.Debug` suffix,
+  or `.Debug.<rid>` for a platform-specific tool payload. The shared
+  `Test-DebugPackageId` policy recognizes both forms. They are retained on
+  GitHub Packages and excluded from nuget.org publication and verification.
 
 ## Common preflight
 

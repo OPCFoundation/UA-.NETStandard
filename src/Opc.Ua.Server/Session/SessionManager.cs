@@ -1368,6 +1368,7 @@ namespace Opc.Ua.Server
                     state.ClientUserId,
                     state.SecurityPolicyUri,
                     state.SecurityMode);
+                binding.Liveness = new BindingLiveness(this, session, state, binding);
                 if (state.BindingContext?.SecureChannelId != binding.SecureChannelId)
                 {
                     RemoveSessionBinding(state);
@@ -2850,6 +2851,64 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed record ImpersonatedIdentity(IUserIdentity Identity, IUserIdentity EffectiveIdentity);
 
+        /// <summary>
+        /// Confirms a committed binding for a request that was classified with it. Runs the
+        /// checks of <see cref="TryGetSessionContext"/> whose outcome can change while the
+        /// binding and the request's channel context stay the same, without looking up the
+        /// token and the session again.
+        /// </summary>
+        /// <remarks>
+        /// Removing the session or committing another activation replaces the dispatch binding
+        /// (a commit always creates a new instance), and only a shutdown empties the token
+        /// index without that. A change of the session's client channel certificate, which
+        /// requests are validated against, does not replace the binding: it is detected
+        /// through <see cref="SessionActivationState.CertificateVersion"/>.
+        /// </remarks>
+        private sealed class BindingLiveness : ISessionBindingLiveness
+        {
+            public BindingLiveness(
+                SessionManager manager,
+                ISession session,
+                SessionActivationState state,
+                SessionBindingContext binding)
+            {
+                m_manager = manager;
+                m_session = session;
+                m_state = state;
+                m_binding = binding;
+                m_certificateVersion = state.CertificateVersion;
+            }
+
+            /// <inheritdoc/>
+            public bool IsCurrent(SecureChannelContext channelContext)
+            {
+                ISession? session = Volatile.Read(ref m_session);
+                return session != null &&
+                    ReferenceEquals(m_state.DispatchBinding, m_binding) &&
+                    m_state.CertificateVersion == m_certificateVersion &&
+                    !Volatile.Read(ref m_manager.m_stopping) &&
+                    session.Activated &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
+                    !session.HasExpired &&
+                    session.IsSecureChannelValid(channelContext.SecureChannelId);
+            }
+
+            /// <summary>
+            /// Drops the session once the binding was replaced, so the owners that still
+            /// reference the binding do not keep a closed session alive.
+            /// </summary>
+            public void Release()
+            {
+                Volatile.Write(ref m_session, null);
+            }
+
+            private readonly SessionManager m_manager;
+            private readonly SessionActivationState m_state;
+            private readonly SessionBindingContext m_binding;
+            private readonly int m_certificateVersion;
+            private ISession? m_session;
+        }
+
         private sealed class SessionActivationState
         {
             public SessionActivationState(
@@ -2870,7 +2929,25 @@ namespace Opc.Ua.Server
             /// </summary>
             public long CreationSequence { get; } = Interlocked.Increment(ref s_lastCreationSequence);
 
-            public ByteString OriginalClientChannelCertificate { get; set; }
+            public ByteString OriginalClientChannelCertificate
+            {
+                get => m_originalClientChannelCertificate;
+                set
+                {
+                    m_originalClientChannelCertificate = value;
+                    Interlocked.Increment(ref m_certificateVersion);
+                }
+            }
+
+            /// <summary>
+            /// Incremented whenever <see cref="OriginalClientChannelCertificate"/> is set. A
+            /// binding liveness check detects through it that the certificate requests are
+            /// validated against changed after the binding was committed.
+            /// </summary>
+            public int CertificateVersion => Volatile.Read(ref m_certificateVersion);
+
+            private ByteString m_originalClientChannelCertificate;
+            private int m_certificateVersion;
 
             public string SecurityPolicyUri { get; set; }
 
@@ -2900,8 +2977,14 @@ namespace Opc.Ua.Server
                 get => m_bindingContext;
                 set
                 {
+                    SessionBindingContext? previous = m_bindingContext;
                     m_bindingContext = value;
                     PublishDispatchBinding();
+                    // A replaced binding is never dispatched again: let it release the session.
+                    if (!ReferenceEquals(previous, value))
+                    {
+                        (previous?.Liveness as BindingLiveness)?.Release();
+                    }
                 }
             }
 

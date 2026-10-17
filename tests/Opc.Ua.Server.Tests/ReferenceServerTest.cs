@@ -327,6 +327,106 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A response carries an empty string table when the request asked for no
+        /// diagnostics, the diagnostic strings when it did, and an empty one again for the
+        /// next request without diagnostics.
+        /// </summary>
+        [Test]
+        public async Task ResponseStringTableHoldsOnlyTheRequestsDiagnosticsAsync()
+        {
+            ArrayOf<ReadValueId> nodesToRead =
+            [
+                new ReadValueId { NodeId = new NodeId("Scalar_Simulation_Int32", 2), AttributeId = Attributes.Value },
+                new ReadValueId { NodeId = new NodeId("DoesNotExist", 2), AttributeId = Attributes.Value }
+            ];
+
+            var plain = (RequestHeader)m_requestHeader.Clone();
+            plain.ReturnDiagnostics = (uint)DiagnosticsMasks.None;
+            ReadResponse response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+
+            var diagnostics = (RequestHeader)m_requestHeader.Clone();
+            diagnostics.ReturnDiagnostics = (uint)DiagnosticsMasks.All;
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, diagnostics, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.GreaterThan(0));
+
+            response = await m_server.ReadAsync(
+                m_secureChannelContext, plain, 0, TimestampsToReturn.Both, nodesToRead, RequestLifetime.None)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.StringTable.IsNull, Is.False);
+            Assert.That(response.ResponseHeader.StringTable.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// The response headers of Read, Write and Browse carry the timestamp, the request
+        /// handle, a good service result, no service diagnostics and an empty string table,
+        /// and every response gets a header of its own.
+        /// </summary>
+        [Test]
+        public async Task ResponseHeadersKeepEveryFieldAsync()
+        {
+            var nodeId = new NodeId("Scalar_Simulation_Int32", 2);
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.RequestHandle = 4711;
+            DateTimeUtc before = DateTimeUtc.Now;
+
+            ReadResponse read1 = await m_server.ReadAsync(
+                m_secureChannelContext, requestHeader, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }],
+                RequestLifetime.None).ConfigureAwait(false);
+            ReadResponse read2 = await m_server.ReadAsync(
+                m_secureChannelContext, requestHeader, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }],
+                RequestLifetime.None).ConfigureAwait(false);
+            WriteResponse write = await m_server.WriteAsync(
+                m_secureChannelContext, requestHeader,
+                [new WriteValue { NodeId = nodeId, AttributeId = Attributes.Value, Value = read1.Results[0] }],
+                RequestLifetime.None).ConfigureAwait(false);
+            BrowseResponse browse = await m_server.BrowseAsync(
+                m_secureChannelContext, requestHeader, null!, 0,
+                [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder, BrowseDirection = BrowseDirection.Forward }],
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(read2.ResponseHeader, Is.Not.SameAs(read1.ResponseHeader));
+            foreach (ResponseHeader header in new[]
+                { read1.ResponseHeader, read2.ResponseHeader, write.ResponseHeader, browse.ResponseHeader })
+            {
+                Assert.That(header.RequestHandle, Is.EqualTo(4711u));
+                Assert.That(header.Timestamp, Is.GreaterThanOrEqualTo(before));
+                Assert.That(header.Timestamp, Is.LessThanOrEqualTo(DateTimeUtc.Now));
+                Assert.That(header.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(header.ServiceDiagnostics, Is.Null);
+                Assert.That(header.StringTable.IsNull, Is.False);
+                Assert.That(header.StringTable.Count, Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// A service that fails reports its status through the exception the transport turns
+        /// into a service fault, not through a half-filled response header.
+        /// </summary>
+        [Test]
+        public void FailedReadThrowsTheServiceResult()
+        {
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.ReturnDiagnostics = (uint)DiagnosticsMasks.All;
+
+            ServiceResultException? e = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_server.ReadAsync(
+                    m_secureChannelContext, requestHeader, -1, TimestampsToReturn.Both,
+                    [new ReadValueId { NodeId = new NodeId("Scalar_Simulation_Int32", 2), AttributeId = Attributes.Value }],
+                    RequestLifetime.None).ConfigureAwait(false));
+
+            Assert.That(e!.StatusCode, Is.EqualTo(StatusCodes.BadMaxAgeInvalid));
+        }
+
+        /// <summary>
         /// Read all nodes.
         /// </summary>
         [Test]

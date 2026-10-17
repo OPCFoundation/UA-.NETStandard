@@ -51,9 +51,9 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
     {
         [TestCase(McpToolProfile.PubSub, 14)]
         [TestCase(McpToolProfile.PubSubRuntime, 10)]
-        [TestCase(McpToolProfile.PubSubConfiguration, 24)]
-        [TestCase(McpToolProfile.PubSubBridge, 14)]
-        [TestCase(McpToolProfile.PubSubSecurity, 16)]
+        [TestCase(McpToolProfile.PubSubConfiguration, 25)]
+        [TestCase(McpToolProfile.PubSubBridge, 15)]
+        [TestCase(McpToolProfile.PubSubSecurity, 17)]
         public async Task ProfilesRemainBoundedAndDeduplicateMixedRegistrationAsync(McpToolProfile profile, int count)
         {
             var services = new ServiceCollection();

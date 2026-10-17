@@ -291,6 +291,62 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             Assert.That(certificates, Is.Not.Null);
         }
 
+        [Test]
+        public async Task AddWritesACertificateAndDeleteRemovesItAsync()
+        {
+            using Pkcs11CertificateStore store = OpenStore();
+            using var key = RSA.Create(2048);
+            var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                "CN=Pkcs11 Trusted Peer " + Guid.NewGuid().ToString("N"),
+                key,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            using System.Security.Cryptography.X509Certificates.X509Certificate2 created =
+                request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
+            using Certificate peer = Certificate.FromRawData(created.RawData);
+
+            await store.AddAsync(peer).ConfigureAwait(false);
+            using CertificateCollection added = await store
+                .FindByThumbprintAsync(peer.Thumbprint)
+                .ConfigureAwait(false);
+
+            bool deleted = await store.DeleteAsync(peer.Thumbprint).ConfigureAwait(false);
+            using CertificateCollection remaining = await store
+                .FindByThumbprintAsync(peer.Thumbprint)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(added, Has.Count.EqualTo(1), "the certificate must be written to the token");
+                Assert.That(deleted, Is.True);
+                Assert.That(remaining, Is.Empty, "the certificate must be removed from the token");
+            });
+        }
+
+        [Test]
+        public async Task ReplacedIdentityCertificateIsPairedWithItsKeyOnTheTokenAsync()
+        {
+            using Pkcs11CertificateStore store = OpenStore();
+            using Certificate? identity = await LoadFirstKeyAsync(store).ConfigureAwait(false);
+            Assert.That(identity, Is.Not.Null);
+            using Certificate publicOnly = Certificate.FromRawData(identity!.RawData);
+
+            bool deleted = await store.DeleteAsync(publicOnly.Thumbprint).ConfigureAwait(false);
+            await store.AddAsync(publicOnly).ConfigureAwait(false);
+
+            using Certificate? reloaded = await store
+                .LoadPrivateKeyAsync(publicOnly.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(deleted, Is.True);
+                Assert.That(reloaded, Is.Not.Null, "the written certificate must carry the CKA_ID of its key");
+                Assert.That(reloaded!.HasPrivateKey, Is.True);
+                Assert.That(store.RejectedPrivateKeyWrites, Is.Zero);
+            });
+        }
+
         private static async Task AssertSignRoundTripAsync(RSASignaturePadding padding)
         {
             using Pkcs11CertificateStore store = OpenStore();

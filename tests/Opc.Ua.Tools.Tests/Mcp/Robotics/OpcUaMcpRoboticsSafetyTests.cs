@@ -161,7 +161,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.PubSubConfiguration,
                     McpToolProfile.PubSubBridge,
                     McpToolProfile.PubSubSecurity,
-                    McpToolProfile.WotRuntime
+                    McpToolProfile.WotRuntime,
+                    McpToolProfile.MachineTool,
+                    McpToolProfile.Gms,
+                    McpToolProfile.CranesHoists
                 ]));
 
             foreach (McpToolProfile profile in profiles)

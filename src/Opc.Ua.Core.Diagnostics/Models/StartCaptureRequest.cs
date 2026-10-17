@@ -84,6 +84,12 @@ namespace Opc.Ua.Pcap.Models
         public string? PcapFilePath { get; init; }
 
         /// <summary>
+        /// Requires a complete PCAP global header and record boundaries during offline replay.
+        /// Defaults to false so existing active-file snapshot readers keep tolerating a partial trailing header.
+        /// </summary>
+        public bool RequireCompleteReplay { get; init; }
+
+        /// <summary>
         /// Path to the keylog file to write to (in-process capture
         /// sources) or to read from
         /// (<see cref="CaptureSourceKind.Replay"/>).

@@ -1374,7 +1374,7 @@ namespace Opc.Ua.Server
                 // TrustList must pass the OPC 10000-4 validation process.
                 try
                 {
-                    result = await ValidateNewTrustListAsync(
+                    result = await ValidateNewTrustListCoreAsync(
                         issuerCertificates,
                         trustedCertificates,
                         issuerCrls,
@@ -2230,7 +2230,64 @@ namespace Opc.Ua.Server
         /// The stores being replaced are never consulted for a specified list.
         /// Certificates in IssuerCertificates must be CA certificates.
         /// </summary>
-        private async Task<ServiceResult> ValidateNewTrustListAsync(
+        /// <remarks>
+        /// This is the check <c>CloseAndUpdate</c> applies before it commits
+        /// a new TrustList. It is public so that an application that applies
+        /// a TrustList by other means (for example a GDS push it receives
+        /// through its own channel) can apply the same check first. Every
+        /// certificate of the resulting TrustList is validated, including the
+        /// certificates retained from a store that is not replaced: removing
+        /// an issuer that a retained certificate needs is rejected.
+        /// </remarks>
+        /// <param name="issuerCertificates">The new issuer certificates, or a
+        /// null <see cref="ArrayOf{T}"/> to keep the current issuer store.</param>
+        /// <param name="trustedCertificates">The new trusted certificates, or a
+        /// null <see cref="ArrayOf{T}"/> to keep the current trusted store.</param>
+        /// <param name="issuerCrls">The new issuer CRLs, or a null
+        /// <see cref="ArrayOf{T}"/> to keep the current ones.</param>
+        /// <param name="trustedCrls">The new trusted CRLs, or a null
+        /// <see cref="ArrayOf{T}"/> to keep the current ones.</param>
+        /// <param name="securityConfiguration">The security configuration the
+        /// certificates are validated with.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>Good, or the reason the TrustList would be rejected.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="securityConfiguration"/>
+        /// is <c>null</c>.</exception>
+        public async Task<ServiceResult> ValidateNewTrustListAsync(
+            ArrayOf<Certificate> issuerCertificates,
+            ArrayOf<Certificate> trustedCertificates,
+            ArrayOf<X509CRL> issuerCrls,
+            ArrayOf<X509CRL> trustedCrls,
+            SecurityConfiguration securityConfiguration,
+            CancellationToken cancellationToken = default)
+        {
+            if (securityConfiguration == null)
+            {
+                throw new ArgumentNullException(nameof(securityConfiguration));
+            }
+
+            // The collections add their own reference to each certificate, so
+            // disposing them leaves the caller's certificates untouched.
+            using CertificateCollection? issuers = issuerCertificates.IsNull
+                ? null
+                : new CertificateCollection(issuerCertificates.Memory.ToArray());
+            using CertificateCollection? trusted = trustedCertificates.IsNull
+                ? null
+                : new CertificateCollection(trustedCertificates.Memory.ToArray());
+            return await ValidateNewTrustListCoreAsync(
+                issuers,
+                trusted,
+                issuerCrls.IsNull ? null : new X509CRLCollection(issuerCrls.Memory.ToArray()),
+                trustedCrls.IsNull ? null : new X509CRLCollection(trustedCrls.Memory.ToArray()),
+                securityConfiguration,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates every certificate of the TrustList that results from the
+        /// update; see <see cref="ValidateNewTrustListAsync"/>.
+        /// </summary>
+        private async Task<ServiceResult> ValidateNewTrustListCoreAsync(
             CertificateCollection? issuerCertificates,
             CertificateCollection? trustedCertificates,
             X509CRLCollection? issuerCrls,
@@ -2283,7 +2340,10 @@ namespace Opc.Ua.Server
                 m_telemetry);
             await using (validator.ConfigureAwait(false))
             {
-                foreach (Certificate certificate in (issuerCertificates ?? []).Concat(trustedCertificates ?? []))
+                // Every certificate of the resulting TrustList, including the
+                // ones retained from a store that is not replaced: a retained
+                // certificate whose issuer this update removes is rejected.
+                foreach (Certificate certificate in pool)
                 {
                     ServiceResult validation = await ValidateCertificateAsync(
                         validator,

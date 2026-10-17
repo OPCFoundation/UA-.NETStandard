@@ -96,6 +96,15 @@ namespace Opc.Ua.SourceGeneration
         public bool UseTypeDefinitionModellingRules { get; set; }
 
         /// <summary>
+        /// When set to <c>true</c>, the predefined nodes generated for a
+        /// NodeSet2 input are exactly the nodes of the NodeSet2. See
+        /// <c>GeneratorOptions.EmitNodeSetNodesOnly</c>.
+        /// Surfaced from MSBuild via the
+        /// <c>ModelSourceGeneratorEmitNodeSetNodesOnly</c> property.
+        /// </summary>
+        public bool EmitNodeSetNodesOnly { get; set; }
+
+        /// <summary>
         /// Override for whether the generator emits the
         /// <c>[assembly: ModelDependencyAttribute]</c> + corresponding
         /// <c>[assembly: ModelSnapshotAttribute]</c> metadata for the
@@ -161,6 +170,21 @@ namespace Opc.Ua.SourceGeneration
         public bool FluentAccessorsOnly { get; set; }
 
         /// <summary>
+        /// Opts into client accessor-only generation over a referenced model's existing proxies.
+        /// </summary>
+        public bool ClientAccessorsOnly { get; set; }
+
+        /// <summary>
+        /// Overrides the namespace of the generated client accessor extensions.
+        /// </summary>
+        public string ClientAccessorNamespace { get; set; }
+
+        /// <summary>
+        /// Overrides the generated partial extension class name.
+        /// </summary>
+        public string ClientAccessorClassName { get; set; }
+
+        /// <summary>
         /// Suppresses event-record generation.
         /// </summary>
         public bool OmitEventRecords { get; set; }
@@ -196,12 +220,20 @@ namespace Opc.Ua.SourceGeneration
                     nameof(ObjectTypeProxyNamespace)),
                 UseTypeDefinitionModellingRules = provider.GlobalOptions.GetBool(
                     nameof(UseTypeDefinitionModellingRules)),
+                EmitNodeSetNodesOnly = provider.GlobalOptions.GetBool(
+                    nameof(EmitNodeSetNodesOnly)),
                 EmitDependencyMetadata = ParseEmitMode(provider.GlobalOptions.GetString(
                     nameof(EmitDependencyMetadata))),
                 OmitFluentApi = provider.GlobalOptions.GetBool(
                     nameof(OmitFluentApi)),
                 FluentAccessorsOnly = provider.GlobalOptions.GetBool(
                     nameof(FluentAccessorsOnly)),
+                ClientAccessorsOnly = provider.GlobalOptions.GetBool(
+                    nameof(ClientAccessorsOnly)),
+                ClientAccessorNamespace = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorNamespace)),
+                ClientAccessorClassName = provider.GlobalOptions.GetString(
+                    nameof(ClientAccessorClassName)),
                 OmitEventRecords = provider.GlobalOptions.GetBool(
                     nameof(OmitEventRecords))
             };

@@ -100,6 +100,22 @@ namespace Opc.Ua.Robotics.Server.Builders
             QualifiedName browseName,
             Action<IAxisBuilder>? configure = null)
         {
+            return AddAxis(
+                browseName,
+                static (context, parent, name) => context.CreateInstanceOfAxisType(parent, name),
+                configure);
+        }
+
+        /// <summary>
+        /// Stages a derived axis through the shared topology builder.
+        /// </summary>
+        /// <typeparam name="TState">The generated axis subtype.</typeparam>
+        internal IAxisBuilder AddAxis<TState>(
+            QualifiedName browseName,
+            Func<ISystemContext, NodeState, QualifiedName, TState> createAxis,
+            Action<IAxisBuilder>? configure)
+            where TState : AxisState
+        {
             Scope.EnsureMutable();
             QualifiedName normalized =
                 RoboticsBuilderUtilities.NormalizeBrowseName(BuildContext, browseName);
@@ -109,8 +125,12 @@ namespace Opc.Ua.Robotics.Server.Builders
                 Scope.Context,
                 parent,
                 normalized,
-                (container, name) =>
-                    Scope.Context.CreateInstanceOfAxisType(container, name));
+                (container, name) => RoboticsBuilderUtilities.CreateCompanionInstance(
+                    Scope.Context,
+                    container,
+                    name,
+                    createAxis,
+                    ObjectTypes.AxisType));
             var builder = new AxisBuilder(Scope, state);
             Axes.Add(builder);
             configure?.Invoke(builder);

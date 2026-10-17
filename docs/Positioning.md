@@ -229,6 +229,30 @@ GPOS structured types are registered with both the session and message-context
 encodeable factories before reads, so binary `ExtensionObject` values decode to
 the generated types.
 
+Use the read-options overloads to enable strict quality checks and resource
+limits. Constructors without read options use tolerant reads:
+
+```csharp
+var limits = new PositioningClientReadOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    MaximumFrameChainLength = 64,
+    MaximumReadArrayItems = 128
+};
+var rsl = new RelativeSpatialLocationClient(session, telemetry, limits);
+var gpos = new GlobalPositioningClient(session, telemetry, limits);
+```
+
+The options also work with `AddPositioningClient(limits)`. Strict reads reject
+bad/uncertain quality, malformed values, invalid geometry and excessive arrays.
+They read a frame and its Base together and bound continuation traversal.
+Continuation cleanup accepts an empty successful release response while still
+checking service quality; cleanup failure preserves the original read failure or cancellation.
+Unencoded optional geometry fields are not treated as supplied values. Array
+bounds are checked after decoding; the session's transport quotas bound
+incoming messages. The supplied session remains caller-owned.
+
 ## Transform conventions
 
 RSL uses a right-handed coordinate system:
@@ -262,3 +286,16 @@ elevation drive live custom attributes.
 
 The generic OpenUSD connector has no Positioning dependency; it handles core
 `ThreeDCartesianCoordinates`, `ThreeDOrientation`, and `ThreeDFrame` values.
+
+The server supports an explicit private PKI and finite managed run:
+
+```powershell
+$pkiRoot = Join-Path $env:TEMP 'robot-positioning-pki'
+dotnet run --project samples\Robotics\MinimalRobotServer -c Release -f net10.0 -- `
+  --host 127.0.0.1 --port 62830 --pki-root $pkiRoot --autoaccept false --run-seconds 60
+```
+
+`--pki-root` must be absolute; `--run-seconds` accepts 1-3600 seconds. Without
+the runtime option, the server runs until stopped interactively. Standalone
+defaults bind all interfaces and automatically accept certificates; use
+explicit secure options for controlled runs.

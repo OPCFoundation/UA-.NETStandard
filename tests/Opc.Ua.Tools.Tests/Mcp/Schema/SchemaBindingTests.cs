@@ -49,7 +49,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
     public sealed class SchemaBindingTests
     {
         /// <summary>
-        /// Repeated and composed registration exposes precisely six domain tools and four deduplicated connections.
+        /// Repeated and composed registration exposes precisely six domain tools and five deduplicated connections.
         /// </summary>
         [Test]
         public async Task SchemaCatalogueContainsSixToolsWithDeduplicatedConnectionsAsync()
@@ -63,7 +63,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string[] names = [.. provider.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name)];
 
             Assert.That(names, Is.Unique);
-            Assert.That(names, Has.Length.EqualTo(10));
+            Assert.That(names, Has.Length.EqualTo(11));
             Assert.That(names.Where(name => name.StartsWith("schema_", StringComparison.Ordinal)),
                 Is.EquivalentTo(s_names));
             Assert.That(names.Where(name => !name.StartsWith("schema_", StringComparison.Ordinal)),
@@ -424,7 +424,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
 
         /// <summary>The shared connection catalogue appears exactly once.</summary>
         private static readonly string[] s_connectionNames =
-            ["Connect", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
 
         /// <summary>All PubSub mask choices must be explicit.</summary>
         private static readonly string[] s_pubSubMasks =

@@ -69,7 +69,8 @@ namespace Opc.Ua.Bindings
         /// <param name="count">The count.</param>
         public ArraySegmentStream(BufferManager bufferManager, int bufferSize, int start, int count)
         {
-            m_buffers = [];
+            // most messages fit one buffer
+            m_buffers = new BufferCollection(1);
 
             m_bufferManager = bufferManager;
             m_bufferSize = bufferSize;
@@ -117,22 +118,77 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Lets a writable stream that holds no buffers write the next message with other
+        /// buffer sizes, in the state of a stream newly created with them. The channels encode
+        /// one message at a time on a thread and reuse one stream for it.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The stream still holds buffers, or
+        /// does not take its buffers from a buffer manager.</exception>
+        internal void Reset(BufferManager bufferManager, int bufferSize, int start, int count)
+        {
+            if (m_bufferManager == null || m_buffers == null || m_buffers.Count != 0)
+            {
+                throw new InvalidOperationException("Only an empty writable stream can be reset.");
+            }
+            m_bufferManager = bufferManager;
+            m_bufferSize = bufferSize;
+            m_start = start;
+            m_count = count;
+            ClearBuffers();
+        }
+
+        /// <summary>
+        /// Returns the buffers the stream still holds to the buffer manager, as disposing the
+        /// stream does, and leaves it empty and writable.
+        /// </summary>
+        internal void ReleaseBuffers()
+        {
+            if (m_buffers == null || m_bufferManager == null)
+            {
+                return;
+            }
+            for (int ii = 0; ii < m_buffers.Count; ii++)
+            {
+                m_bufferManager.ReturnBuffer(m_buffers[ii].Array, "ArraySegmentStream.ReleaseBuffers");
+            }
+            ClearBuffers();
+        }
+
+        /// <summary>
         /// Returns ownership of the buffers stored in the stream.
         /// </summary>
         /// <param name="owner">The owner.</param>
         public BufferCollection GetBuffers(string owner)
         {
-            var buffers = new BufferCollection(m_buffers.Count);
-
-            for (int ii = 0; ii < m_buffers.Count; ii++)
+            if (m_bufferManager == null)
             {
-                m_bufferManager?.TransferBuffer(m_buffers[ii].Array, owner);
-                buffers.Add(new ArraySegment<byte>(
-                    m_buffers[ii].GetArray(),
-                    m_buffers[ii].Offset,
-                    GetBufferCount(ii)));
+                // a stream over a caller's collection returns a copy.
+                var copy = new BufferCollection(m_buffers.Count);
+                for (int ii = 0; ii < m_buffers.Count; ii++)
+                {
+                    copy.Add(new ArraySegment<byte>(
+                        m_buffers[ii].GetArray(),
+                        m_buffers[ii].Offset,
+                        GetBufferCount(ii)));
+                }
+
+                ClearBuffers();
+                return copy;
             }
 
+            // A stream that took its buffers from the buffer manager owns its collection: it
+            // hands it over with the counts written and continues with an empty one.
+            BufferCollection buffers = m_buffers;
+            for (int ii = 0; ii < buffers.Count; ii++)
+            {
+                m_bufferManager.TransferBuffer(buffers[ii].Array, owner);
+                buffers[ii] = new ArraySegment<byte>(
+                    buffers[ii].GetArray(),
+                    buffers[ii].Offset,
+                    GetBufferCount(ii));
+            }
+
+            m_buffers = new BufferCollection(1);
             ClearBuffers();
 
             return buffers;
@@ -661,9 +717,9 @@ namespace Opc.Ua.Bindings
         private int m_currentPosition;
         private BufferCollection m_buffers;
         private BufferManager? m_bufferManager;
-        private readonly int m_start;
-        private readonly int m_count;
-        private readonly int m_bufferSize;
+        private int m_start;
+        private int m_count;
+        private int m_bufferSize;
         private int m_endOfLastBuffer;
     }
 }

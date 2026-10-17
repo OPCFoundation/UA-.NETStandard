@@ -88,7 +88,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="RaftLeaderElection"/> for a client replica set, both sharing one <see cref="IRaftConsensus"/>
         /// replica. Unlike <see cref="AddCrdtClientSharedStore"/>, the linearizable store gives the promoted follower
         /// a consistent view of the leader's session secrets, and the election decides the primary client without a
-        /// separate leader-election registration.
+        /// separate leader-election registration. The store's <see cref="IRaftSnapshotManager"/> is registered too.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="consensusFactory">
@@ -113,6 +113,7 @@ namespace Opc.Ua.Redundancy.Client
                 sp.GetRequiredService<IRaftConsensus>(),
                 ownsConsensus: false
             ));
+            AddRaftSnapshotManager(services);
 
             services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
                 sp.GetRequiredService<IRaftConsensus>(),
@@ -127,7 +128,8 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="RaftLeaderElection"/> for a client replica set:
         /// <see cref="RedundancyConsistencyMode.Strong"/> uses a <see cref="RaftSharedKeyValueStore"/>;
         /// <see cref="RedundancyConsistencyMode.Eventual"/> uses a <see cref="HybridSharedKeyValueStore"/> over a CRDT
-        /// bulk store (gossiped on <paramref name="replicatedTransportFactory"/>) and a Raft strong store.
+        /// bulk store (gossiped on <paramref name="replicatedTransportFactory"/>) and a Raft strong store. The store's
+        /// <see cref="IRaftSnapshotManager"/> is registered too.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="mode">The consistency model.</param>
@@ -166,6 +168,7 @@ namespace Opc.Ua.Redundancy.Client
             services.TryAddSingleton(sp => raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
             services.TryAddSingleton(sp => CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
+            AddRaftSnapshotManager(services);
 
             services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
                 sp.GetRequiredService<IRaftConsensus>(),
@@ -237,6 +240,19 @@ namespace Opc.Ua.Redundancy.Client
                 ServiceDescriptor.Singleton<IHostedService, RedundantClientSessionHostedService>()
             );
             return services;
+        }
+
+        /// <summary>
+        /// Registers the snapshot management of the Raft state machine, injectable next to the store it manages (the
+        /// Hybrid store delegates to its Raft store).
+        /// </summary>
+        private static void AddRaftSnapshotManager(IServiceCollection services)
+        {
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<ISharedKeyValueStore>() as IRaftSnapshotManager ??
+                throw new InvalidOperationException(
+                    "The registered ISharedKeyValueStore does not manage Raft snapshots."
+                ));
         }
 
         private static ISharedKeyValueStore CreateClientStore(

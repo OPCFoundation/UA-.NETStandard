@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Redundancy.Server
@@ -38,9 +39,10 @@ namespace Opc.Ua.Redundancy.Server
     /// <remarks>
     /// After every mutation an immutable snapshot of the current queue contents is handed to the owning
     /// <see cref="SharedKeyValueMonitoredItemQueueFactory"/>, which coalesces and persists it on a non-blocking
-    /// background drain. Mirroring is suspended while the queue is being repopulated during restore.
+    /// background drain. Mirroring is suspended while the queue is being repopulated during restore, and while
+    /// the server restores the subscription the queue belongs to (<see cref="IRestorableMonitoredItemQueue"/>).
     /// </remarks>
-    internal sealed class MirroringDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue
+    internal sealed class MirroringDataChangeMonitoredItemQueue : DataChangeMonitoredItemQueue, IRestorableMonitoredItemQueue
     {
         /// <summary>
         /// Creates a mirroring data-change queue.
@@ -90,11 +92,53 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
+        public void BeginRestore()
+        {
+            m_restoring = true;
+        }
+
+        /// <inheritdoc/>
+        public void CommitRestore()
+        {
+            if (!m_restoring || m_aborted)
+            {
+                return;
+            }
+            m_restoring = false;
+            try
+            {
+                Mirror();
+            }
+            catch (Exception ex)
+            {
+                // The restore must not fail once it was committed; the next change mirrors the queue.
+                m_logger.FailedToMirrorRestoredMonitoredItemQueue(ex, MonitoredItemId);
+            }
+        }
+
+        /// <inheritdoc/>
+        public void AbortRestore()
+        {
+            m_aborted = true;
+            m_restoring = false;
+            m_sink.DiscardPendingQueue(MonitoredItemId);
+        }
+
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                m_sink.RemoveQueue(MonitoredItemId);
+                if (m_restoring || m_aborted)
+                {
+                    // a queue released before its restore was committed does not own the
+                    // stored queue: the stored contents stay for a retry of the restore.
+                    AbortRestore();
+                }
+                else
+                {
+                    m_sink.RemoveQueue(MonitoredItemId);
+                }
             }
             base.Dispose(disposing);
         }
@@ -155,7 +199,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private void Mirror()
         {
-            if (m_mirroring)
+            if (m_mirroring && !m_restoring && !m_aborted)
             {
                 m_sink.MirrorDataChangeQueue(MonitoredItemId, CaptureSnapshot());
             }
@@ -163,5 +207,7 @@ namespace Opc.Ua.Redundancy.Server
 
         private readonly IMirroredQueueSink m_sink;
         private volatile bool m_mirroring = true;
+        private volatile bool m_restoring;
+        private volatile bool m_aborted;
     }
 }

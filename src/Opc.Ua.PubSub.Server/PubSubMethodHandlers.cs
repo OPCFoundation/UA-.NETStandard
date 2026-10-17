@@ -488,7 +488,19 @@ namespace Opc.Ua.PubSub.Server
                 selectedFields,
                 filter,
                 null);
-            return AddPublishedDataSet(dataSet, selectedFields.Length, outputArguments, includeConfigurationVersion: true);
+            var dataSetOutputs = new List<Variant>();
+            ServiceResult result = AddPublishedDataSet(
+                dataSet,
+                selectedFields.Length,
+                dataSetOutputs,
+                includeConfigurationVersion: true);
+            if (StatusCode.IsBad(result.StatusCode))
+            {
+                return result;
+            }
+            outputArguments.Add(dataSetOutputs[1]);
+            outputArguments.Add(dataSetOutputs[0]);
+            return result;
         }
 
         /// <summary>
