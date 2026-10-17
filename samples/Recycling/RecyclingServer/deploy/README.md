@@ -40,7 +40,7 @@ and wall-clock pacing may remain independent.
 
 Use the stack's [certificate manager](../../../../docs/CertificateManager.md) and
 [certificate-store guidance](../../../../docs/Certificates.md). Do not enable automatic
-acceptance of unknown certificates to make startup appear successful.
+acceptance of unknown certificates.
 
 Provision a separate data directory for each role:
 
@@ -112,7 +112,8 @@ DNS names and trust matching certificates; publishing a port does not rewrite OP
 URLs or certificate names. Configure deployment-appropriate endpoints rather than disabling
 domain validation.
 
-Views can start before the coordinator is usable and retry without inventing local production.
+Views can start before the coordinator is usable and retry the connection. Their material
+state continues to come from the coordinator.
 The new run starts only after all ten roles authenticate, register, and initialize. Inspect
 the typed `Coordinator.State` and view availability with an authenticated OPC UA client;
 an existing container or an open TCP port does not prove the material flow is running.
@@ -127,7 +128,7 @@ reset the run as a substitute for recovery.
 
 ### Optional operator console
 
-The separate [operator console](../../../../docs/RecyclingOperatorConsole.md) is an optional
+The separate [operator console](../../README.md#operator-console) is an optional
 local browser host, not another process participant. Closing it cannot reset/stop the run
 or renew the process servers' leases.
 
@@ -178,7 +179,7 @@ server's `RECYCLING_IMAGE`.
 The ten native inspector mappings and coordinator endpoint use the Compose DNS names and
 container port 62570, not the host-published ports. The servers' application certificates must
 match those names; port publishing does not rewrite discovery or bypass hostname checks.
-Read the console guide for session/CSRF protection, strict UA trust, command confirmation,
+Read the sample guide for session/CSRF protection, strict UA trust, command confirmation,
 unknown outcomes and version-one limits. The Kubernetes example remains server-only.
 
 ## Kubernetes
