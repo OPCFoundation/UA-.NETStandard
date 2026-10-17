@@ -44,7 +44,7 @@ if (args.Length == 0 || args.Contains("--help", StringComparer.Ordinal))
         "Views also require --coordinator <opc.tcp-url> --identity-store <store> --identity-subject <subject>.\n" +
         "Optional: --line-id <id> --endpoint <opc.tcp-url> --pki-root <path> --state-root <path> " +
         "--scenario <healthy|sorter-drift|utility-disturbance|combined|recovery|equipment-faults|file.json> " +
-        "--pace-ms <100..60000>.\n" +
+        "--pace-ms <100..60000> --view-poll-ms <100..less-than-half-lease-ms>.\n" +
         "Trust is explicit; unknown peer/user certificates are never automatically accepted.\n" +
         "Native companion data bindings are read-only. No controls connect to physical equipment. " +
         "See the sample README.");

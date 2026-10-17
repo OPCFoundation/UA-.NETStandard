@@ -51,8 +51,11 @@ Minimal Client together.
 
 - [Generic recycling simulation](../samples/Recycling/README.md) — one durable causal coordinator
   and ten process views with typed OPC UA coordination, native companion equipment,
-  material genealogy and read-only committed measurements. The guide distinguishes synthetic
-  simulation from calibration, original-source parity and formal companion certification.
+  material genealogy and read-only committed measurements. Its optional
+  [operator console walkthrough](../samples/Recycling/README.md#operator-console-walkthrough)
+  covers browser inspection and role-limited controls with screenshots and an animated tour.
+  The guide distinguishes synthetic simulation from calibration, original-source parity
+  and formal companion certification.
 - [Pump Device Integration Server](../samples/DI/PumpDeviceIntegrationServer/README.md) —
   Device Integration Part 100 server using `Opc.Ua.Di.Server`'s fluent
   builder.

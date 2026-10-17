@@ -407,7 +407,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(tools, Is.Unique);
             Assert.That(tools, Has.Length.EqualTo(expectedCount),
                 $"Profile '{profile}' must publish exactly {expectedCount} tools.");
-            Assert.That(tools.Count(name => name == "ConnectCertificate"), Is.EqualTo(profile == "pubsub" ? 0 : 1));
+            Assert.That(tools.Count(name => name == "ConnectCertificate"),
+                Is.EqualTo(profile == "pubsub" ? 0 : 1));
         }
 
         [TestCase("true", true)]
