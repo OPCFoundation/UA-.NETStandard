@@ -1188,6 +1188,43 @@ namespace Opc.Ua.Client.Tests
                 It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// Legacy unknown target metadata is not an obstacle to adopting and maintaining an item.
+        /// </summary>
+        [Test]
+        public async Task RestoredRelativePathItemAllowsApplyWithoutTranslationAsync()
+        {
+            using Subscription subscription = CreateSubscription();
+            MonitoredItem item = CreateItem(500u, "RestoredPath");
+            item.Restore(new MonitoredItemState
+            {
+                StartNodeId = ObjectIds.ObjectsFolder,
+                RelativePath = "/Child",
+                ServerId = 55,
+                ClientId = 500
+            });
+            subscription.AddItem(item);
+            Mock<ISession> session = CreateGetMonitoredItemsSession([55u], [500u]);
+            subscription.Session = session.Object;
+            Assert.That(await subscription.TransferAsync(session.Object, 9, []).ConfigureAwait(false), Is.True);
+
+            await subscription.ApplyChangesAsync().ConfigureAwait(false);
+            await subscription.ResolveItemNodeIdsAsync().ConfigureAwait(false);
+
+            Assert.That(item.ServerId, Is.EqualTo(55u));
+            Assert.That(item.ResolvedNodeId.IsNull, Is.True);
+            session.Verify(s => s.TranslateBrowsePathsToNodeIdsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<ArrayOf<BrowsePath>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(s => s.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(),
+                It.IsAny<uint>(),
+                It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static Mock<ISession> CreateItemSession(uint subscriptionId, Action? onCreateItems = null)
         {
             var session = new Mock<ISession>();

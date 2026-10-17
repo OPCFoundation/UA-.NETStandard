@@ -68,6 +68,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineIdentification
     {
         /// <summary>
+        /// Gets this operation's original fields in strict mode, including optional absence.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// Manufacturer. Mandatory in OPC 40001-1.
         /// </summary>
         public LocalizedText Manufacturer { get; init; }
@@ -159,6 +164,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryProcessValue
     {
         /// <summary>
+        /// Gets strict source evidence from the object and its AnalogSignal.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// The process value object.
         /// </summary>
         public required NodeId NodeId { get; init; }
@@ -178,12 +188,14 @@ namespace Opc.Ua.Machinery.Client
         public DataValue Sample { get; init; }
 
         /// <summary>
-        /// The current reading.
+        /// The scalar reading. In strict mode a valid Number array is retained
+        /// in Values rather than coerced into a scalar.
         /// </summary>
         public double? Value { get; init; }
 
         /// <summary>
-        /// The setpoint the value is steered to.
+        /// The scalar setpoint. In strict mode a valid Number array is retained
+        /// in Values rather than coerced into a scalar.
         /// </summary>
         public double? Setpoint { get; init; }
 
@@ -241,6 +253,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryMeasurementValue(QualifiedName BrowseName, Variant Value)
     {
         /// <summary>
+        /// Gets the original measurement value, quality and timestamps in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// The NodeId of the variable the reading was taken from - the node a
         /// client subscribes to for live values.
         /// </summary>
@@ -257,13 +274,24 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryMeteringPoint(
         NodeId NodeId,
         string? ApplicationTag,
-        ArrayOf<MachineryMeasurementValue> Measurements);
+        ArrayOf<MachineryMeasurementValue> Measurements)
+    {
+        /// <summary>
+        /// Gets strict evidence for the application tag, metadata properties and every measurement.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+    }
 
     /// <summary>
     /// A machinery item's OPC 40001-1 operation counters.
     /// </summary>
     public sealed record MachineryOperationCounters
     {
+        /// <summary>
+        /// Gets this operation's original counter fields in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// The counters' functional group.
         /// </summary>
@@ -293,6 +321,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryLifetimeVariable
     {
         /// <summary>
+        /// Gets the original counter and metadata fields in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// The variable's NodeId.
         /// </summary>
         public required NodeId NodeId { get; init; }
@@ -318,7 +351,8 @@ namespace Opc.Ua.Machinery.Client
         public double? LimitValue { get; init; }
 
         /// <summary>
-        /// The warning thresholds, when published.
+        /// The Double-array warning projection, when published in that form.
+        /// Strict scalar thresholds and other numeric array types remain in Values.
         /// </summary>
         public ArrayOf<double> WarningValues { get; init; }
     }
@@ -328,6 +362,11 @@ namespace Opc.Ua.Machinery.Client
     /// </summary>
     public sealed record MachineryEquipmentItem
     {
+        /// <summary>
+        /// Gets strict evidence for this equipment's fields and lifetime metadata.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// The equipment's NodeId.
         /// </summary>

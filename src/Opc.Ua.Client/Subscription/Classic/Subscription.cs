@@ -1029,6 +1029,13 @@ namespace Opc.Ua.Client
             // belongs to another server subscription. Reset it, otherwise the
             // item is taken as created and never created on the new one.
             ResetMonitoredItemServerIds(createdOnly: true);
+            lock (m_cache)
+            {
+                foreach (MonitoredItem item in m_monitoredItems.Values)
+                {
+                    item.ResolvedNodeId = NodeId.Null;
+                }
+            }
 
             // create the subscription.
             uint revisedMaxKeepAliveCount = KeepAliveCount;
@@ -1267,43 +1274,25 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Resolves all relative paths to nodes on the server.
+        /// Resolves relative paths for items that have not started creation.
         /// </summary>
         public async Task ResolveItemNodeIdsAsync(CancellationToken ct = default)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
             VerifySessionAndSubscriptionState(true);
 
-            // collect list of browse paths.
-            (ArrayOf<BrowsePath> browsePaths, ArrayOf<MonitoredItem> itemsToBrowse) = PrepareResolveItemNodeIds();
-
-            // nothing to do.
-            if (browsePaths.Count == 0)
+            var items = new List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)>();
+            lock (m_cache)
             {
-                return;
+                foreach (MonitoredItem item in m_monitoredItems.Values)
+                {
+                    if (item.TryPrepareResolve(out MonitoredItemOptions options, out long revision))
+                    {
+                        items.Add((item, options, revision));
+                    }
+                }
             }
-
-            // translate browse paths.
-            TranslateBrowsePathsToNodeIdsResponse response = await Session
-                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
-                .ConfigureAwait(false);
-
-            ArrayOf<BrowsePathResult> results = response.Results;
-            ClientBase.ValidateResponse(results, browsePaths);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
-
-            // update results.
-            for (int ii = 0; ii < results.Count; ii++)
-            {
-                itemsToBrowse[ii]
-                    .SetResolvePathResult(
-                        results[ii],
-                        ii,
-                        response.DiagnosticInfos,
-                        response.ResponseHeader);
-            }
-
-            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+            await ResolveItemNodeIdsAsync(items, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1362,14 +1351,12 @@ namespace Opc.Ua.Client
                     }
                 }
             }
-            catch
+            finally
             {
-                // Clear the Creating flag on all items if an exception occurs
                 foreach (MonitoredItem monitoredItem in itemsToCreate)
                 {
-                    monitoredItem.Status.Creating = false;
+                    monitoredItem.CompleteCreate();
                 }
-                throw;
             }
 
             m_changeMask |= SubscriptionChangeMask.ItemsCreated;
@@ -1488,7 +1475,7 @@ namespace Opc.Ua.Client
                     foreach (MonitoredItem monitoredItem in itemsToDelete)
                     {
                         m_deletingItems.Remove(monitoredItem);
-                        if (succeeded)
+                        if (succeeded && !monitoredItem.Created)
                         {
                             m_deletedItems.Remove(monitoredItem);
                         }
@@ -3035,6 +3022,10 @@ namespace Opc.Ua.Client
                     }
                 }
 
+                foreach (MonitoredItem monitoredItem in m_deletedItems)
+                {
+                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                }
                 m_deletedItems.Clear();
                 m_deletingItems.Clear();
             }
@@ -3526,53 +3517,70 @@ namespace Opc.Ua.Client
         {
             VerifySessionAndSubscriptionState(true);
 
-            await ResolveItemNodeIdsAsync(ct).ConfigureAwait(false);
-
-            var requestItems = new List<MonitoredItemCreateRequest>();
-            var itemsToCreate = new List<MonitoredItem>();
+            var prepared = new List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)>();
             lock (m_cache)
             {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                foreach (MonitoredItem item in m_monitoredItems.Values)
                 {
-                    // ignore items that have been created or are being created.
-                    if (monitoredItem.Status.Created || monitoredItem.Status.Creating)
+                    if (item.TryPrepareCreate(out MonitoredItemOptions options, out long revision))
                     {
+                        prepared.Add((item, options, revision));
+                    }
+                }
+            }
+
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                await ResolveItemNodeIdsAsync(prepared, ct).ConfigureAwait(false);
+                var requestItems = new List<MonitoredItemCreateRequest>(prepared.Count);
+                var itemsToCreate = new List<MonitoredItem>(prepared.Count);
+                foreach ((MonitoredItem monitoredItem, MonitoredItemOptions targetOptions, _) in prepared)
+                {
+                    if (!string.IsNullOrEmpty(targetOptions.RelativePath) &&
+                        monitoredItem.ResolvedNodeId.IsNull &&
+                        ServiceResult.IsBad(monitoredItem.Status.Error))
+                    {
+                        monitoredItem.CompleteCreate();
                         continue;
                     }
 
+                    MonitoredItemOptions options = monitoredItem.State;
                     // build item request.
                     var request = new MonitoredItemCreateRequest();
 
                     request.ItemToMonitor.NodeId = monitoredItem.ResolvedNodeId;
-                    request.ItemToMonitor.AttributeId = monitoredItem.AttributeId;
-                    request.ItemToMonitor.IndexRange = monitoredItem.IndexRange;
-                    request.ItemToMonitor.DataEncoding = monitoredItem.Encoding;
+                    request.ItemToMonitor.AttributeId = options.AttributeId;
+                    request.ItemToMonitor.IndexRange = options.IndexRange;
+                    request.ItemToMonitor.DataEncoding = options.Encoding;
 
-                    request.MonitoringMode = monitoredItem.MonitoringMode;
+                    request.MonitoringMode = options.MonitoringMode;
 
                     request.RequestedParameters.ClientHandle = monitoredItem.ClientHandle;
-                    request.RequestedParameters.SamplingInterval = monitoredItem.SamplingInterval;
-                    request.RequestedParameters.QueueSize = monitoredItem.QueueSize;
-                    request.RequestedParameters.DiscardOldest = monitoredItem.DiscardOldest;
+                    request.RequestedParameters.SamplingInterval = options.SamplingInterval;
+                    request.RequestedParameters.QueueSize = options.QueueSize;
+                    request.RequestedParameters.DiscardOldest = options.DiscardOldest;
 
-                    if (monitoredItem.Filter != null)
+                    if (options.Filter != null)
                     {
                         request.RequestedParameters.Filter
-                            = new ExtensionObject(monitoredItem.Filter);
+                            = new ExtensionObject(options.Filter);
                     }
 
                     requestItems.Add(request);
                     itemsToCreate.Add(monitoredItem);
                 }
 
-                // Mark all items as being created before releasing the lock
-                // to prevent duplicate creation requests in multi-threaded scenarios
-                foreach (MonitoredItem monitoredItem in itemsToCreate)
-                {
-                    monitoredItem.Status.Creating = true;
-                }
+                return (requestItems, itemsToCreate);
             }
-            return (requestItems, itemsToCreate);
+            catch
+            {
+                foreach ((MonitoredItem item, _, _) in prepared)
+                {
+                    item.CompleteCreate();
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -3652,49 +3660,71 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Resolves captured targets and rejects results for superseded item configurations.
+        /// </summary>
+        private async Task ResolveItemNodeIdsAsync(
+            List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)> items,
+            CancellationToken ct)
+        {
+            VerifySessionAndSubscriptionState(true);
+            (ArrayOf<BrowsePath> browsePaths, List<(MonitoredItem Item, long Revision)> itemsToBrowse)
+                = PrepareResolveItemNodeIds(items);
+            if (browsePaths.Count == 0)
+            {
+                return;
+            }
+
+            TranslateBrowsePathsToNodeIdsResponse response = await Session
+                .TranslateBrowsePathsToNodeIdsAsync(null, browsePaths, ct)
+                .ConfigureAwait(false);
+
+            ArrayOf<BrowsePathResult> results = response.Results;
+            ClientBase.ValidateResponse(results, browsePaths);
+            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, browsePaths);
+
+            for (int ii = 0; ii < results.Count; ii++)
+            {
+                itemsToBrowse[ii].Item.SetResolvePathResult(
+                    itemsToBrowse[ii].Revision,
+                    results[ii],
+                    ii,
+                    response.DiagnosticInfos,
+                    response.ResponseHeader);
+            }
+            m_changeMask |= SubscriptionChangeMask.ItemsModified;
+        }
+
+        /// <summary>
         /// Prepare the ResolveItem to NodeId service call.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private (ArrayOf<BrowsePath>, ArrayOf<MonitoredItem>) PrepareResolveItemNodeIds()
+        private (ArrayOf<BrowsePath>, List<(MonitoredItem Item, long Revision)>) PrepareResolveItemNodeIds(
+            List<(MonitoredItem Item, MonitoredItemOptions Options, long Revision)> items)
         {
             List<BrowsePath> browsePaths = [];
-            List<MonitoredItem> itemsToBrowse = [];
-            lock (m_cache)
+            List<(MonitoredItem Item, long Revision)> itemsToBrowse = [];
+            foreach ((MonitoredItem item, MonitoredItemOptions options, long revision) in items)
             {
-                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                if (!string.IsNullOrEmpty(options.RelativePath) && item.ResolvedNodeId.IsNull)
                 {
-                    if (!string.IsNullOrEmpty(monitoredItem.RelativePath) &&
-                        monitoredItem.ResolvedNodeId.IsNull)
+                    var browsePath = new BrowsePath
                     {
-                        // cannot change the relative path after an item is created.
-                        if (monitoredItem.Created)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadInvalidState,
-                                "Cannot modify item path after it is created.");
-                        }
+                        StartingNode = options.StartNodeId
+                    };
 
-                        var browsePath = new BrowsePath
-                        {
-                            StartingNode = monitoredItem.StartNodeId
-                        };
-
-                        // parse the relative path.
-                        try
-                        {
-                            browsePath.RelativePath = RelativePath.Parse(
-                                monitoredItem.RelativePath!,
-                                Session!.TypeTree);
-                        }
-                        catch (Exception e)
-                        {
-                            monitoredItem.SetError(new ServiceResult(e));
-                            continue;
-                        }
-
-                        browsePaths.Add(browsePath);
-                        itemsToBrowse.Add(monitoredItem);
+                    // parse the relative path.
+                    try
+                    {
+                        browsePath.RelativePath = RelativePath.Parse(options.RelativePath!, Session!.TypeTree);
                     }
+                    catch (Exception e)
+                    {
+                        item.SetError(new ServiceResult(e));
+                        continue;
+                    }
+
+                    browsePaths.Add(browsePath);
+                    itemsToBrowse.Add((item, revision));
                 }
             }
             return (browsePaths, itemsToBrowse);

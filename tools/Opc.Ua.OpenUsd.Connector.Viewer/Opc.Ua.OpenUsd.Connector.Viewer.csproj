@@ -14,8 +14,15 @@
     <RootNamespace>Opc.Ua.OpenUsd.Connector.Viewer</RootNamespace>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Avalonia and the OpenUSD interop layer are not trim/AOT clean, and the
-         connector reaches this assembly reflectively, so AOT is not offered here. -->
+    <!-- Native resource manifests must follow the consuming application's RID,
+         rather than falling back to the build host across project references. -->
+    <IsRidAgnostic>false</IsRidAgnostic>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- Native package post-build steps require the libraries in this assembly's output directory. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <!-- The legacy IUsdViewHost shell is loaded reflectively. The separately
+         qualified EmbeddedUsdViewport path is typed, but the whole assembly
+         does not advertise the older shell as an AOT compatibility contract. -->
     <IsAotCompatible>false</IsAotCompatible>
     <!-- The OpenUSD/Avalonia viewport has no net48 asset, so legacy CustomTestTarget
          solution legs build this project as a no-op shell. -->
@@ -26,9 +33,12 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Lens.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Lens.Workflow.Tests" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.OpenUsd\Opc.Ua.Vision.OpenUsd.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="OpenUsd" />
