@@ -8,7 +8,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 - "Resolved / fixed" in Mantis means the fix is in the CTT script repository. It ships with a script
   build after 1.05.513, so an installed 1.05.513 still shows the failure.
-- The ids (1–19, C1–C57, U1–U5) are stable references for notes and commit messages; missing ids were
+- The ids (1–19, C1–C60, U1–U5) are stable references for notes and commit messages; missing ids were
   withdrawn or no longer fail against the reference server.
 - Mantis states were last checked on 2026-09-25.
 
@@ -130,6 +130,16 @@ CTT project configuration notes follow the tables. The procedure for running the
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
   thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
   and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
+- **C60. A & C Exclusive/Non-Exclusive Limit/Level `Test_003.js`–`Test_006.js`** (and any A&C CU that shares
+  the alarm thread) fail with "Filtered Event counts are not equal" when the CTT's native session publish thread
+  stops sending Publish requests. A traced server answered every Publish of the session (413 requests, 413
+  responses); after the last response the session sent only Read requests at 1 s intervals on the same channel.
+  Its Subscriptions then expire. The Limit/Level CUs run five Subscriptions on one publish thread with one
+  outstanding Publish request: with *Default Subscription Publish Interval* 150 ms a keep-alive is nearly always
+  due, about 40 % of the Publish requests are answered at once, and on a GitHub-hosted runner the stall hit 6 of
+  9 A&C runs (on an older server build too, so no server change). With 250 ms it passed 3 of 3. Workaround: the
+  CTT CI uses 250 ms for the A&C project, and its patched alarm thread reports a stalled publish thread and
+  starts a new one for the next CU. Not filed: native CTT code, no script fix.
 - **C54. GDS AliasName Discovery `002.js`, `004.js`, `006.js`, `007.js`, `009.js`, `011.js`, `012.js`, `014.js`,
   `015.js`** compare each AliasFor target the GDS replicated with the target read from the AliasName source
   using `UaExpandedNodeId.equals()` (`AssertAliasNamesReplicated`, `library/GDS/AliasNameDiscoveryHelpers.js`
