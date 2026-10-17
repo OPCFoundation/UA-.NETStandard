@@ -47,7 +47,11 @@ namespace Opc.Ua.Server
     /// </remarks>
     public class MonitoredNode2 : IDisposable, IAsyncDisposable
     {
-        private const int k_defaultChannelCapacity = 4096;
+        /// <summary>
+        /// Bounds retained enqueue-time values, including large structures and subscriber-specific copies,
+        /// by applying asynchronous producer backpressure before thousands of snapshots accumulate.
+        /// </summary>
+        private const int k_defaultChannelCapacity = 2;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
@@ -474,7 +478,8 @@ namespace Opc.Ua.Server
             // The reporter may be denied a value whose user access level depends on the user
             // (Part 3 5.6.3). A subscriber that may read it must still receive the value of
             // this change, so it is read now in each subscriber's context.
-            Dictionary<uint, DataValue>? subscriberValueSnapshots = null;
+            Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
+                subscriberValueSnapshots = null;
             if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
                 reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
                 node is BaseVariableState { OnReadUserAccessLevel: not null })
@@ -500,7 +505,8 @@ namespace Opc.Ua.Server
                             DateTime.MinValue,
                             m_timeProvider.GetUtcNow().UtcDateTime),
                         cancellationToken).ConfigureAwait(false);
-                    (subscriberValueSnapshots ??= [])[kvp.Key] = subscriberValue;
+                    (subscriberValueSnapshots ??= [])[kvp.Key] = (
+                        subscriberValue, subscriberContext.OperationContext?.Session, subscriberContext.UserIdentity);
                 }
             }
 
@@ -822,13 +828,20 @@ namespace Opc.Ua.Server
                             // the reporter could not read the value, but the subscriber can:
                             // use the value of this change read in the subscriber's context
                             // when it was reported, never a later value of the node.
-                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied &&
-                                snapshot.SubscriberValueSnapshots != null &&
-                                snapshot.SubscriberValueSnapshots.TryGetValue(
-                                    monitoredItem.Id,
-                                    out DataValue subscriberValue))
+                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied)
                             {
-                                snapshotValue = subscriberValue;
+                                if (snapshot.SubscriberValueSnapshots == null ||
+                                    !snapshot.SubscriberValueSnapshots.TryGetValue(
+                                        monitoredItem.Id, out var captured) ||
+                                    !ReferenceEquals(captured.Session, monitoredItem.Session) ||
+                                    !ReferenceEquals(captured.Identity,
+                                        monitoredItem.Session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity))
+                                {
+                                    // The subscriber joined after this change was captured. Neither the
+                                    // reporter's denied value nor a later reread belongs to this notification.
+                                    continue;
+                                }
+                                snapshotValue = captured.Value;
                             }
                         }
 

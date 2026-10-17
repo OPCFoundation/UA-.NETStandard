@@ -104,7 +104,16 @@ count can therefore differ from released-product count.
 The coordinator writes complete state and accepted command outcomes before acknowledging them.
 Requests carry line/run identity, expected revision and a caller-owned request ID. Identical
 control-command retries return the original outcome, including after restart; conflicting reuse
-or stale revisions are rejected. Reconnection and repeated projections do not duplicate material.
+or operationally stale revisions are rejected. Membership-only metadata changes do not invalidate an
+otherwise current control precondition; material ticks, other controls, lifecycle changes and coordinator
+recovery do. Membership requests separately fence changes to their own role and its lease,
+without conflicting on material ticks, controls or unrelated roles' metadata. Their observed
+revision records the image actually applied by the view. Authenticated session ownership is unchanged.
+Equipment and hold actions separately fence explicit control changes, so continuous material
+ticks cannot starve a confirmed enable/disable or hold-disposition action.
+Request IDs and submitted
+payloads are never rewritten to obtain this compatibility. Reconnection and repeated projections do
+not duplicate material.
 
 The journal uses length-delimited SHA-256 frames, atomic same-directory publication and an
 exclusive `writer.lock`. Checkpoints precede removal of superseded generations. Recovery checks
@@ -129,9 +138,14 @@ at 64 MiB and UA messages at 16 MiB.
 
 `Coordinator.State` is a structured `SnapshotDataType`, not JSON in a UA string. It contains
 run/lifecycle identity, revision, logical tick/time, stages, parcels, complete packages, sinks,
-source contributions, holds, execution history, participant leases and electrical/thermal energy.
-`ProcessView.State` exposes the same committed snapshot alongside `Process`, `LineId`,
-`Available` and `CompanionBindingsComplete`.
+source contributions, holds, the latest execution per stage and source admission, participant leases and
+electrical/thermal energy.
+`ProcessView.State` exposes the same live projection alongside `Process`, `LineId`,
+`Available` and `CompanionBindingsComplete`. Live values are coalescible current state, not a
+genealogy archive: repeating all historical executions in every monitored notification causes
+serialization, cloning and delivery backpressure as a run grows. `Coordinator.ReadSnapshot`
+still returns the complete retained snapshot; `Coordinator.ReadGenealogy` pages every retained
+execution. No journal records or authoritative material history are discarded.
 
 Every sample stage also exposes `RunState`, `Available`, `Timestamp`, `MachineId`, `Process`, `RunId`,
 `Revision`, `Tick`, `Stage`, `Material`, `Contributions`, `SourceIds`, `SourceBinId`, `SourceZone`,
@@ -244,8 +258,8 @@ Views compare the full configuration/model hash before membership or projection.
 residence, seconds per tick, source settings, fault schedules, leases and bounds—not just the
 scenario name. A mismatch or missing identity reports `BadConfigurationError` and stops automatic
 reconnect, retaining the last compatible image as unavailable. Correcting the view's inputs/build
-and restarting it preserves the coordinator's retained state. Host endpoints, certificate stores
-and `--pace-ms` may differ; they are outside the simulation identity.
+and restarting it preserves the coordinator's retained state. Host endpoints, certificate stores,
+`--pace-ms`, and `--view-poll-ms` may differ; they are outside the simulation identity.
 
 ### Build and start the roles
 

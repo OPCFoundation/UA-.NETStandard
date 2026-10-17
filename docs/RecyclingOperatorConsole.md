@@ -10,6 +10,18 @@ processes. Starting or closing a browser or console does not start/reset product
 process membership or stop equipment. A new run starts at the existing ten-participant
 initialization barrier, not at an invented Start button.
 
+For an extended preview, size the recipe's active-parcel and history capacities alongside
+its finite source plan. Accumulated held material still consumes capacity. `ResourceLimited`
+is an intentional production stop, not a frozen browser; refreshing or enabling equipment
+does not remove the bound or discard retained material. Preserve the journal before starting
+a separate fresh run when a preview has exhausted its configured capacity.
+Process views retry both `BadTimeout` and `BadRequestTimeout` as temporary coordinator
+communication failures. Authorization and configuration rejections remain terminal rather
+than being hidden by an automatic retry.
+For large retained snapshots, `--view-poll-ms 10000` reduces each view's durable lease-refresh
+and fallback-read traffic with the default 30-second lease. This does not slow the separate
+UA subscription. The period must remain below half the lease duration; the default is 2 seconds.
+
 ## Build and configure
 
 Use the .NET 10 SDK from the repository root:
@@ -109,6 +121,10 @@ Retained HTTP observations remain read-only until a fresh event arrives on the l
 a successful one-off refresh cannot re-enable controls. Browsers without SSE remain read-only.
 Loss of live delivery also cancels an outstanding destructive-action confirmation.
 
+Live updates patch existing equipment, SVG symbols and action buttons in place, preserving
+pointer gestures, keyboard focus and open inspector sections. They do not reload icon resources
+or replace an equipment button between pointer down and pointer up.
+
 The exception dock is a compact preview of recent outstanding holds. The **Holds** section
 pages the complete retained history, with Outstanding/All/Released/Rejected filters and
 Previous/Next navigation. Pages carry their run and revision, so holds beyond the preview
@@ -127,6 +143,32 @@ a stopped run. Stop is simulator administration, **not a physical emergency stop
 Submission revalidates the run/lifecycle/revision. Stale input is a visible conflict; the host
 does not silently rewrite and resubmit a mutation.
 
+For a **new, unsubmitted action**, the confirmation's displayed revision follows live
+observations until Submit. The target process, hold and run do not change. Submission freezes
+the displayed envelope; an explicit retry never follows newer revisions or creates a new request
+ID. A run/configuration change or loss of live delivery cancels the confirmation instead.
+Rejections remain in recent outcomes and a visible status notice across subsequent live updates.
+No command is automatically resubmitted after a conflict.
+
+The coordinator distinguishes operational revisions from membership-only metadata changes.
+A confirmed control remains valid across those metadata-only commits; material ticks, other
+controls, lifecycle changes, and recovery still invalidate older
+preconditions. Future revisions and mismatched runs are rejected. The HTTP host forwards the
+original expected revision unchanged and leaves this decision to the authoritative coordinator.
+Equipment enable/disable and hold disposition use the explicit-control revision fence:
+material movement does not change the selected equipment's enabled flag or dispose the
+selected hold, so it cannot indefinitely invalidate those confirmed target actions.
+Another control, run change or recovery still invalidates an older control precondition.
+Membership commands separately fence the owning process role: material progress, controls
+and another role's metadata cannot starve initialization or lease renewal. A same-role
+change, lease expiry or recovery invalidates an older membership request. The recorded
+observed revision remains the caller's actual observation, not the latest material revision.
+Authenticated live-session ownership remains enforced.
+
+**Enable process** is disabled while all of that process's substeps are already enabled.
+After an accepted Disable is reflected in the authoritative feed, Enable becomes available.
+A rejected command does not change either button's underlying plant state.
+
 A request keeps its original request ID and envelope. A timeout or generic server/response
 failure is an unknown outcome, not success or a proven rejection: a response failure can occur
 after a durable journal commit. Only an explicit retry reuses that exact envelope. Browser HTTP success does not
@@ -136,6 +178,17 @@ recoverable after host restart; the coordinator's durable receipts remain author
 Transport recovery marks retained observations unavailable even if a managed session retains
 its session ID. A channel returning to Ready does not by itself make old data fresh; the console
 requires a new usable coordinator observation before enabling controls again.
+Persistent Publish failures also invalidate retained observations even if channel keep-alives
+remain healthy. A subsequent usable delivered value supersedes transient subscription failures.
+The sample clients and servers use matching bounded 16 MiB message/byte-string quotas and
+100,000-element array quotas; discovered endpoints inherit those application quotas. Enlarged
+recipes must still fit these limits: an oversized response is a delivery failure, not a frozen
+but healthy plant. Certificate validation and authorization are unchanged.
+Servers retain at most two retransmission messages per subscription. Live snapshots include
+each stage's latest execution and the latest source admission, rather than repeatedly publishing the accumulated
+genealogy archive to every subscriber. Complete retained history remains available through
+`ReadSnapshot` and paged `ReadGenealogy`; no authoritative or journal records are dropped.
+This is a latest-state sample, not a lossless notification archive.
 
 Version one does not edit recipes, inject faults, switch scenarios, launch/stop server processes,
 or add acknowledgement/shelving semantics to boolean fault flags. The schematic is an

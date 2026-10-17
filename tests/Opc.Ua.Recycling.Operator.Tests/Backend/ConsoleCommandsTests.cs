@@ -76,19 +76,39 @@ public sealed class ConsoleCommandsTests
     }
 
     /// <summary>
-    /// A stale optimistic revision is a conflict, never an automatic refreshed mutation.
+    /// A future revision cannot be submitted against an older browser feed.
     /// </summary>
     [Test]
-    public async Task StaleRevisionIsVisibleAndDoesNotCallCoordinator()
+    public async Task FutureRevisionIsVisibleAndDoesNotCallCoordinator()
     {
         Mock<IOperatorPlantFeed> feed = Feed();
         var commands = Administrator(feed);
-        var result = await commands.SubmitAsync(Request("Pause") with { ExpectedRevision = "6" },
+        var result = await commands.SubmitAsync(Request("Pause") with { ExpectedRevision = "8" },
             CancellationToken.None).ConfigureAwait(false);
         Assert.That(result.Status, Is.EqualTo(409));
         Assert.That(result.Error, Does.Contain("Stale"));
         feed.Verify(item => item.ExecuteAsync(
             It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    /// <summary>
+    /// Only the authoritative coordinator can distinguish operational changes from lease-only revisions.
+    /// </summary>
+    [Test]
+    public async Task OlderRevisionIsForwardedExactlyOnceWithoutRewritingAsync()
+    {
+        Mock<IOperatorPlantFeed> feed = Feed();
+        feed.Setup(item => item.ExecuteAsync(It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ValueTask.FromException<RecyclingCommandOutcome>(
+                new ServiceResultException(StatusCodes.BadInvalidState)));
+        var commands = Administrator(feed);
+        var result = await commands.SubmitAsync(Request("Pause") with { ExpectedRevision = "6" },
+            CancellationToken.None).ConfigureAwait(false);
+        Assert.That(result.Result!.State, Is.EqualTo("Rejected"));
+        Assert.That(result.Result.Status, Is.EqualTo("BadInvalidState"));
+        feed.Verify(item => item.ExecuteAsync(
+            It.Is<RecyclingCommand>(command => command.ExpectedRevision == 6),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>

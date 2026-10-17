@@ -128,6 +128,8 @@ namespace Opc.Ua.Recycling
 
         /// <summary>
         /// Observes committed typed UA structures through a real monitored item.
+        /// Live history contains each stage's latest execution and the latest source admission.
+        /// Use ReadSnapshotAsync or paged ReadHistoryAsync for complete retained genealogy.
         /// Non-Good source status is surfaced as unavailable with its original status and timestamps.
         /// The last Good snapshot is retained without promoting Uncertain data to usable production state.
         /// </summary>

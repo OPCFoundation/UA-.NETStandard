@@ -192,6 +192,21 @@ through an asynchronous push path. This path does not block a thread when a
 node uses an asynchronous value-read handler or when the per-node notification
 channel applies back-pressure.
 
+The per-node channel admits two pending notifications behind the active consumer. Each
+notification retains its enqueue-time attribute values, including large structures and subscriber-specific
+copies. Producers asynchronously wait when that bound is reached; accepted data changes and
+events are preserved in order rather than discarded. Await the asynchronous reporting APIs
+so a slow consumer cannot accumulate thousands of retained snapshots.
+
+Subscriber-specific access checks use values captured for that subscriber at enqueue time.
+A subscriber joining behind an already queued change does not inherit the reporter's denied
+value when no value was captured for the new subscriber. It receives its initial value and
+subsequent changes instead; the dispatcher does not reread later data to fabricate the older
+notification. Actual subscriber access denials remain explicit.
+Captured subscriber-specific values also retain their session and identity attribution.
+Attaching or transferring an item before dispatch cannot make it inherit an older owner's
+captured value or unauthenticated access-denied result.
+
 `NodeState` exposes asynchronous counterparts of its change-notification API alongside the existing synchronous members:
 
 | Synchronous | Asynchronous |

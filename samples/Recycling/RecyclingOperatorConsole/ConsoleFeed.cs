@@ -137,7 +137,7 @@ internal sealed class ConsoleFeed(
             try
             {
                 ManagedSession session = await connect(stoppingToken).ConfigureAwait(false);
-                using var health = new SessionHealth(session);
+                using var health = new SessionHealth(session, timeProvider ?? TimeProvider.System);
                 var client = new RecyclingCoordinatorClient(session, telemetry);
                 await using var clientScope = client.ConfigureAwait(false);
                 Volatile.Write(ref m_client, client);
@@ -186,7 +186,7 @@ internal sealed class ConsoleFeed(
                                 {
                                     Available = false,
                                     Connection = "Reconnecting",
-                                    Detail = "Managed transport disconnected; source time is not a liveness clock.",
+                                    Detail = "Coordinator data delivery failed; source time is not a liveness clock.",
                                     Quality = status.ToString()
                                 });
                             }
@@ -202,12 +202,18 @@ internal sealed class ConsoleFeed(
                                 "Managed transport became unavailable; rebuilding typed bindings.");
                         }
                     }
+                    bool hasNext = await next.ConfigureAwait(false);
+                    if (hasNext &&
+                        notifications.Current.IsAvailable && StatusCode.IsGood(notifications.Current.StatusCode))
+                    {
+                        health.ConfirmObservation();
+                    }
                     if (health.Failure.IsCompleted)
                     {
                         throw new ServiceResultException(await health.Failure.ConfigureAwait(false),
                             "A new usable observation is required after transport recovery.");
                     }
-                    if (!await next.ConfigureAwait(false))
+                    if (!hasNext)
                     {
                         break;
                     }
@@ -451,9 +457,12 @@ internal sealed class ConsoleFeed(
         /// <summary>
         /// Attaches to actual channel and keep-alive failures for one owned connection.
         /// </summary>
-        internal SessionHealth(ManagedSession session)
+        internal SessionHealth(ManagedSession session, TimeProvider clock)
         {
             m_session = session;
+            m_clock = clock;
+            m_subscriptions = session.TryGetSubscriptionManager(out var manager) ? manager : null;
+            m_initialPublishFailures = m_subscriptions?.BadPublishRequestCount ?? 0;
             session.ChannelStateChanged += ChannelChanged;
             session.KeepAlive += KeepAliveChanged;
         }
@@ -461,7 +470,31 @@ internal sealed class ConsoleFeed(
         /// <summary>
         /// First failure; Ready transitions cannot make a retained image fresh again.
         /// </summary>
-        internal Task<StatusCode> Failure => m_failure.Task;
+        internal Task<StatusCode> Failure
+        {
+            get
+            {
+                if (m_subscriptions is { } manager &&
+                    manager.BadPublishRequestCount > m_initialPublishFailures)
+                {
+                    m_publishFailureSince ??= m_clock.GetTimestamp();
+                    if (m_clock.GetElapsedTime(m_publishFailureSince.Value) >= TimeSpan.FromSeconds(2))
+                    {
+                        m_failure.TrySetResult(StatusCodes.BadCommunicationError);
+                    }
+                }
+                return m_failure.Task;
+            }
+        }
+
+        /// <summary>
+        /// A usable delivered value supersedes transient failures from subscription creation or recovery.
+        /// </summary>
+        internal void ConfirmObservation()
+        {
+            m_initialPublishFailures = m_subscriptions?.BadPublishRequestCount ?? 0;
+            m_publishFailureSince = null;
+        }
 
         /// <inheritdoc/>
         public void Dispose()
@@ -493,6 +526,14 @@ internal sealed class ConsoleFeed(
             }
         }
 
+        /// <summary>The subscription diagnostics for this owned session.</summary>
+        private readonly Opc.Ua.Client.Subscriptions.ISubscriptionManager? m_subscriptions;
+        /// <summary>Publish failures already present before this feed attached.</summary>
+        private int m_initialPublishFailures;
+        /// <summary>Monotonic time for a persistent delivery failure, never the source timestamp.</summary>
+        private long? m_publishFailureSince;
+        /// <summary>The injected monotonic liveness clock.</summary>
+        private readonly TimeProvider m_clock;
         /// <summary>The connection whose transport events are observed.</summary>
         private readonly ManagedSession m_session;
         /// <summary>The first transport failure for this connection.</summary>

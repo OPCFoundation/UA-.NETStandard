@@ -58,6 +58,11 @@ internal sealed class ConsoleConnections(IServiceProvider services, ConsoleOptio
                 ApplicationConfiguration configuration = await services
                     .GetRequiredService<IOpcUaApplicationConfigurationProvider>()
                     .GetAsync(cancellationToken).ConfigureAwait(false);
+                TransportQuotas quotas = configuration.TransportQuotas ??
+                    throw new InvalidOperationException("Application transport quotas are required.");
+                quotas.MaxMessageSize = 16 * 1024 * 1024;
+                quotas.MaxByteStringLength = 16 * 1024 * 1024;
+                quotas.MaxArrayLength = 100_000;
                 configuration.SecurityConfiguration.TrustedPeerCertificates = new CertificateTrustList
                 {
                     StoreType = CertificateStoreType.Directory,
@@ -103,8 +108,12 @@ internal sealed class ConsoleConnections(IServiceProvider services, ConsoleOptio
             Host = requested.Host,
             Port = requested.Port
         }.Uri.ToString();
+        ApplicationConfiguration application = await services
+            .GetRequiredService<IOpcUaApplicationConfigurationProvider>()
+            .GetAsync(cancellationToken).ConfigureAwait(false);
         return await services.GetRequiredService<IManagedSessionFactory>()
-            .ConnectAsync(new ConfiguredEndpoint(null, selected, null), cancellationToken).ConfigureAwait(false);
+            .ConnectAsync(new ConfiguredEndpoint(null, selected, EndpointConfiguration.Create(application)),
+                cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Single-flight certificate/trust initialization.</summary>

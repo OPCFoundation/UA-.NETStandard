@@ -33,6 +33,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
@@ -45,6 +46,139 @@ namespace Opc.Ua.Recycling.Samples.Tests
     [TestFixture]
     public sealed class RecyclingClientTests
     {
+        /// <summary>
+        /// Empty, singleton and grown histories preserve the latest source/stage results and all other state.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(5000)]
+        public void LiveSnapshotBoundsHistoryWithoutChangingOtherCommittedFields(int count)
+        {
+            var engine = new RecyclingEngine(new RecyclingConfiguration());
+            CommittedSnapshot snapshot = engine.CreateRun("live-history");
+            snapshot = snapshot with
+            {
+                History = Enumerable.Range(0, count).Select(index => new MaterialExecution(
+                    index + 1, index, (index % 3) - 1, [index], [index + 1],
+                    default, default, default, default, default)).ToArrayOf()
+            };
+            Model.SnapshotDataType full = RecyclingModelMapping.ToWire(snapshot);
+            Model.SnapshotDataType live = RecyclingRuntime.CreateLiveSnapshot(snapshot);
+            Assert.That(live.History.Count, Is.EqualTo(Math.Min(count, 3)));
+            Assert.That(live.History.Span.ToArray().Select(item => item.Id),
+                Is.EqualTo(snapshot.History.Span.ToArray().GroupBy(item => item.Stage)
+                    .Select(group => group.Last()).OrderBy(item => item.Id).Select(item => item.Id)));
+            Assert.That(snapshot.History.Count, Is.EqualTo(count));
+            live.History = full.History;
+            Assert.That(live.IsEqual(full), Is.True);
+        }
+
+        /// <summary>
+        /// Live values retain each stage's latest result without repeatedly transporting the genealogy archive.
+        /// Full snapshot and paged genealogy reads retain every committed execution.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task LiveSubscriptionPreservesControlsAndLatestResultsWithoutReplayingHistoryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(timeout.Token)
+                .ConfigureAwait(false);
+            await environment.InitializeRolesAsync(timeout.Token).ConfigureAwait(false);
+            for (int tick = 0; tick < 100; tick++)
+            {
+                await environment.Coordinator.TickAsync(timeout.Token).ConfigureAwait(false);
+            }
+            RecyclingCoordinatorClient client = await environment.ConnectAsync("operator", timeout.Token)
+                .ConfigureAwait(false);
+            CommittedSnapshot full = await client.ReadSnapshotAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(full.History.Count, Is.GreaterThan(full.Stages.Count));
+            Assert.That(full.History, Is.EqualTo(environment.Coordinator.Current.History));
+            await using IAsyncEnumerator<CoordinatorNotification> changes = client.WatchAsync(timeout.Token)
+                .GetAsyncEnumerator(timeout.Token);
+            CoordinatorNotification live;
+            do
+            {
+                Assert.That(await changes.MoveNextAsync().ConfigureAwait(false), Is.True);
+                live = changes.Current;
+            }
+            while (!live.IsAvailable || live.Snapshot.Revision < full.Revision);
+            Assert.That(live.Snapshot.History.Count, Is.LessThanOrEqualTo(full.Stages.Count + 1));
+            Assert.That(live.Snapshot.History.Span.ToArray().Select(item => item.Id),
+                Is.EqualTo(full.History.Span.ToArray().GroupBy(item => item.Stage)
+                    .Select(group => group.Last()).OrderBy(item => item.Id).Select(item => item.Id)));
+            ArrayOf<MaterialExecution> history = await client.ReadHistoryAsync(0, 32, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(history, Is.EqualTo(full.History.Span.ToArray().Take(32).ToArrayOf()));
+            foreach (bool enabled in new[] { false, true })
+            {
+                CommittedSnapshot before = await client.ReadSnapshotAsync(timeout.Token).ConfigureAwait(false);
+                RecyclingCommandOutcome outcome = await client.ExecuteAsync(new RecyclingCommand
+                {
+                    RequestId = Guid.NewGuid().ToString("D"),
+                    LineId = environment.ServerOptions.LineId,
+                    RunId = before.RunId,
+                    ExpectedRevision = before.Revision,
+                    Kind = enabled ? RecyclingCommandKind.EnableProcess : RecyclingCommandKind.DisableProcess,
+                    Process = RecyclingProcess.Collection
+                }, timeout.Token).ConfigureAwait(false);
+                Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good));
+                do
+                {
+                    Assert.That(await changes.MoveNextAsync().ConfigureAwait(false), Is.True);
+                    live = changes.Current;
+                }
+                while (!live.IsAvailable || live.Snapshot.Revision < outcome.Revision);
+                Assert.That(live.Snapshot.Stages.Span.ToArray()
+                    .Where(stage => stage.Process == RecyclingProcess.Collection)
+                    .All(stage => stage.Enabled == enabled), Is.True);
+            }
+            Assert.That((await client.ReadSnapshotAsync(timeout.Token).ConfigureAwait(false)).History,
+                Is.EqualTo(full.History));
+        }
+
+        /// <summary>
+        /// Notification cloning must retain the enabled flag in nested generated stage structures.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SnapshotClonePreservesEquipmentControlFlags(bool enabled)
+        {
+            var engine = new RecyclingEngine(new RecyclingConfiguration());
+            CommittedSnapshot snapshot = engine.CreateRun("clone-control");
+            snapshot = snapshot with
+            {
+                Stages = snapshot.Stages.Span.ToArray()
+                    .Select(stage => stage with { Enabled = enabled }).ToArrayOf()
+            };
+            Model.SnapshotDataType wire = RecyclingModelMapping.ToWire(snapshot);
+            Model.SnapshotDataType clone = CoreUtils.Clone(wire)!;
+            Assert.That(clone.Stages.Count, Is.EqualTo(snapshot.Stages.Count));
+            Assert.That(clone.Stages.Span.ToArray().All(stage => stage.Enabled == enabled), Is.True);
+            Assert.That(clone.Revision, Is.EqualTo(wire.Revision));
+        }
+
+        /// <summary>
+        /// A new committed revision and equipment state must pass the default monitored-item change filter.
+        /// </summary>
+        [Test]
+        public void SnapshotEquipmentControlChangePassesMonitoredItemFilter()
+        {
+            var engine = new RecyclingEngine(new RecyclingConfiguration());
+            CommittedSnapshot before = engine.CreateRun("filter-control");
+            CommittedSnapshot after = before with
+            {
+                Revision = before.Revision + 1,
+                Stages = before.Stages.Span.ToArray()
+                    .Select(stage => stage with { Enabled = false }).ToArrayOf()
+            };
+            var previous = new DataValue(Variant.FromStructure(RecyclingModelMapping.ToWire(before)));
+            var current = new DataValue(Variant.FromStructure(RecyclingModelMapping.ToWire(after)));
+            Assert.That(Server.MonitoredItem.ValueChanged(
+                current, ServiceResult.Good, previous, ServiceResult.Good, null!, 0), Is.True);
+        }
+
         /// <summary>
         /// Uncertain and Bad qualities that must never establish usable production state.
         /// </summary>

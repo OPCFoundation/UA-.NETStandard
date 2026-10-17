@@ -203,6 +203,113 @@ namespace Opc.Ua.Recycling.Operator.Tests
         }
 
         /// <summary>
+        /// A first confirmation displays live revisions without submitting until the operator confirms.
+        /// </summary>
+        [Test]
+        public async Task ConfirmationTracksLiveRevisionUntilSubmissionAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            string requestId = await fixture.Page.Locator("#command-dialog-payload")
+                .EvaluateAsync<string>("element => JSON.parse(element.textContent).requestId").ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.Locator("#command-dialog-payload"))
+                .ToContainTextAsync("9007199254740994").ConfigureAwait(false);
+            Assert.That(fixture.Commands, Is.Empty);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(1));
+            Assert.That(fixture.Commands[0]["requestId"]!.GetValue<string>(), Is.EqualTo(requestId));
+            Assert.That(fixture.Commands[0]["expectedRevision"]!.GetValue<string>(), Is.EqualTo("9007199254740994"));
+            Assert.That(fixture.Commands[0]["process"]!.GetValue<string>(), Is.EqualTo("Washing"));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// An accepted receipt alone is not an optimistic disable; actual disabled substeps make Enable available.
+        /// </summary>
+        [Test]
+        public async Task EnableBecomesAvailableAfterAuthoritativeDisableAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            ILocator enable = fixture.Page.GetByTestId("command-EnableProcess-Washing");
+            await Assertions.Expect(enable).ToBeDisabledAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+            await Assertions.Expect(enable).ToBeDisabledAsync().ConfigureAwait(false);
+            foreach (JsonNode? process in fixture.State["processes"]!.AsArray())
+            {
+                if (process!["name"]!.GetValue<string>() == "Washing")
+                {
+                    foreach (JsonNode? stage in process["stages"]!.AsArray())
+                    {
+                        stage!["enabled"] = false;
+                    }
+                }
+            }
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(enable).ToBeEnabledAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("process-disable")).ToBeDisabledAsync()
+                .ConfigureAwait(false);
+            Task<IResponse> enabled = fixture.Page.WaitForResponseAsync(response =>
+                response.Url.EndsWith("/api/commands", StringComparison.Ordinal) &&
+                response.Request.Method == "POST");
+            await enable.ClickAsync().ConfigureAwait(false);
+            await enabled.ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("EnableProcess")
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(2));
+            Assert.That(fixture.Commands[1]["kind"]!.GetValue<string>(), Is.EqualTo("EnableProcess"));
+            Assert.That(fixture.Commands[1]["expectedRevision"]!.GetValue<string>(), Is.EqualTo("9007199254740994"));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Live revision updates never rewrite an ambiguous command's already-submitted retry payload.
+        /// </summary>
+        [Test]
+        public async Task RetryConfirmationPreservesExactPayloadAcrossLiveUpdatesAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            fixture.CommandStatus = 500;
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-disable").ClickAsync().ConfigureAwait(false);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Unknown")
+                .ConfigureAwait(false);
+            string requestId = fixture.Commands[0]["requestId"]!.GetValue<string>();
+            await fixture.Page.GetByTestId("command-retry-" + requestId).ClickAsync().ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.Locator("#command-dialog-payload"))
+                .ToContainTextAsync("9007199254740993").ConfigureAwait(false);
+            fixture.CommandStatus = 200;
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(2));
+            JsonNode expected = fixture.Commands[0].DeepClone();
+            expected["retry"] = true;
+            Assert.That(fixture.Commands[1].ToJsonString(), Is.EqualTo(expected.ToJsonString()));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
         /// Escape on a reused dialog cancels only that action, even after an earlier confirmed command.
         /// </summary>
         [Test]
@@ -327,6 +434,15 @@ namespace Opc.Ua.Recycling.Operator.Tests
             await fixture.Page.GetByTestId("admin-pause").ClickAsync().ConfigureAwait(false);
             await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Rejected")
                 .ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Rejected")
+                .ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("system-banner")).ToContainTextAsync("not accepted")
+                .ConfigureAwait(false);
             Assert.That(fixture.Commands, Has.Count.EqualTo(1));
             Assert.That(fixture.Commands[0]["expectedRevision"]!.GetValue<string>(), Is.EqualTo("9007199254740993"));
             Assert.That(fixture.Commands[0]["retry"]!.GetValue<bool>(), Is.False);
@@ -357,6 +473,81 @@ namespace Opc.Ua.Recycling.Operator.Tests
                 .ConfigureAwait(false);
             await Assertions.Expect(fixture.Page.GetByTestId("admin-drawer")).ToHaveAttributeAsync("open", string.Empty)
                 .ConfigureAwait(false);
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// A live update cannot replace an equipment icon or destroy the target between pointer down and up.
+        /// </summary>
+        [Test]
+        public async Task LiveUpdatesPreserveEquipmentIconsAndPointerClicksAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            ILocator sorting = fixture.Page.GetByTestId("process-Sorting");
+            await Assertions.Expect(sorting).ToBeVisibleAsync().ConfigureAwait(false);
+            await fixture.Page.EvaluateAsync("""
+                () => {
+                    window.savedProcess = document.querySelector("[data-testid='process-Sorting']");
+                    window.savedIcon = window.savedProcess.querySelector("use");
+                }
+                """).ConfigureAwait(false);
+            var box = await sorting.BoundingBoxAsync().ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The real SVG process is not visible.");
+            await fixture.Page.Mouse.MoveAsync(box.X + 35, box.Y + 30).ConfigureAwait(false);
+            await fixture.Page.Mouse.DownAsync().ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await fixture.Page.Mouse.UpAsync().ConfigureAwait(false);
+            Assert.That(await fixture.Page.EvaluateAsync<bool>("""
+                () => window.savedProcess === document.querySelector("[data-testid='process-Sorting']")
+                    && window.savedIcon === window.savedProcess.querySelector("use")
+                    && window.savedIcon.isConnected
+                """).ConfigureAwait(false), Is.True, "Live updates must not tear down external SVG icon nodes.");
+            await Assertions.Expect(fixture.Page.GetByTestId("inspector-name")).ToContainTextAsync("Sorting")
+                .ConfigureAwait(false);
+            Assert.That(fixture.InspectorRequests, Has.Count.EqualTo(1));
+            Assert.That(fixture.PageErrors, Is.Empty);
+        }
+
+        /// <summary>
+        /// Live updates preserve action targets and their current payload without accumulating click handlers.
+        /// </summary>
+        [Test]
+        public async Task LiveUpdatesPreserveCommandButtonsAndSubmitOnceAsync()
+        {
+            await using OperatorBrowserHarness fixture = await OperatorBrowserHarness.CreateAsync("Operator")
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("process-Washing").ClickAsync().ConfigureAwait(false);
+            ILocator disable = fixture.Page.GetByTestId("process-disable");
+            await Assertions.Expect(disable).ToBeEnabledAsync().ConfigureAwait(false);
+            await disable.ScrollIntoViewIfNeededAsync().ConfigureAwait(false);
+            await fixture.Page.EvaluateAsync("""
+                () => { window.savedCommandButton = document.querySelector("[data-testid='process-disable']"); }
+                """).ConfigureAwait(false);
+            var box = await disable.BoundingBoxAsync().ConfigureAwait(false)
+                ?? throw new InvalidOperationException("The action button is not visible.");
+            await fixture.Page.Mouse.MoveAsync(box.X + 15, box.Y + 10).ConfigureAwait(false);
+            await fixture.Page.Mouse.DownAsync().ConfigureAwait(false);
+            fixture.State["tick"] = "43";
+            fixture.State["revision"] = "9007199254740994";
+            await fixture.PublishAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("session-status")).ToContainTextAsync("Tick 43")
+                .ConfigureAwait(false);
+            await fixture.Page.Mouse.UpAsync().ConfigureAwait(false);
+            Assert.That(await fixture.Page.EvaluateAsync<bool>("""
+                () => window.savedCommandButton === document.querySelector("[data-testid='process-disable']")
+                """).ConfigureAwait(false), Is.True);
+            await Assertions.Expect(fixture.Page.GetByTestId("confirm-dialog")).ToBeVisibleAsync()
+                .ConfigureAwait(false);
+            await fixture.Page.GetByTestId("confirm-submit").ClickAsync().ConfigureAwait(false);
+            await Assertions.Expect(fixture.Page.GetByTestId("command-outcomes")).ToContainTextAsync("Accepted")
+                .ConfigureAwait(false);
+            Assert.That(fixture.Commands, Has.Count.EqualTo(1));
+            Assert.That(fixture.Commands[0]["expectedRevision"]!.GetValue<string>(), Is.EqualTo("9007199254740994"));
             Assert.That(fixture.PageErrors, Is.Empty);
         }
 

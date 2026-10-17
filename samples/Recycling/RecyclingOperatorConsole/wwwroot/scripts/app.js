@@ -73,6 +73,8 @@ const commandOutcomes = document.querySelector("#command-outcomes");
 const commandDialog = document.querySelector("#command-dialog");
 const commandDialogCopy = document.querySelector("#command-dialog-copy");
 const commandDialogPayload = document.querySelector("#command-dialog-payload");
+const processBindings = new WeakSet();
+const closeBindings = new WeakSet();
 
 const state = {
     session: null,
@@ -89,6 +91,8 @@ const state = {
     previousTransfers: new Map(),
     activeTransfers: new Set(),
     commandEnvelopes: new Map(),
+    commandResults: new Map(),
+    commandNotice: "",
     pendingCommandKeys: new Set(),
     activeConfirmation: null,
     materialPage: null,
@@ -251,8 +255,23 @@ function applyState(nextState) {
         closeIncompatibleConfirmation();
     }
 
+    for (const command of [...(normalized.commands ?? [])].reverse()) {
+        const previous = state.commandResults.get(command.requestId);
+        if (["Accepted", "Rejected"].includes(previous?.state) &&
+            !["Accepted", "Rejected"].includes(command.state)) {
+            continue;
+        }
+        state.commandResults.delete(command.requestId);
+        state.commandResults.set(command.requestId, command);
+    }
+    boundMap(state.commandResults, 50);
+    normalized.commands = [...state.commandResults.values()].reverse();
     state.activeTransfers = changedContext ? new Set() : detectTransferChanges(normalized);
     state.plant = normalized;
+    if (state.activeConfirmation && !state.activeConfirmation.envelope.retry) {
+        state.activeConfirmation.envelope.expectedRevision = normalized.revision;
+        commandDialogPayload.textContent = JSON.stringify(state.activeConfirmation.envelope, null, 2);
+    }
     if (!normalized.processes.some(process => process.name === state.selectedProcess)) {
         state.selectedProcess = normalized.processes[0]?.name ?? "Collection";
     }
@@ -273,6 +292,9 @@ function renderAll() {
     renderSessionStatus(sessionStatus, state.session, state.plant);
     renderSystemBanner(systemBanner, state.plant);
     appendBrowserStreamStatus();
+    if (state.commandNotice) {
+        systemBanner.textContent += `${systemBanner.textContent ? " " : ""}${state.commandNotice}`;
+    }
     renderPlantQuality(plantQuality, state.plant);
     renderSchematic(schematic, state.plant, state.selectedProcess, state.activeTransfers);
     renderProcessList(processList, state.plant, state.selectedProcess);
@@ -292,11 +314,11 @@ function renderAll() {
 
 function bindProcessSelection() {
     for (const element of document.querySelectorAll("[data-process]")) {
-        if (element.dataset.boundSelect === "true") {
+        if (processBindings.has(element)) {
             continue;
         }
 
-        element.dataset.boundSelect = "true";
+        processBindings.add(element);
         element.addEventListener("click", event => {
             const processName = event.currentTarget.dataset.process;
             if (processName) {
@@ -317,11 +339,11 @@ function bindProcessSelection() {
 
 function bindInspectorClose() {
     const closeButton = document.querySelector("[data-testid='inspector-close']");
-    if (!closeButton || closeButton.dataset.boundClose === "true") {
+    if (!closeButton || closeBindings.has(closeButton)) {
         return;
     }
 
-    closeButton.dataset.boundClose = "true";
+    closeBindings.add(closeButton);
     closeButton.addEventListener("click", () => {
         inspector?.classList.remove("is-open");
         document.querySelector("[data-testid='nav-inspector']")?.focus({ preventScroll: true });
@@ -494,7 +516,7 @@ async function submitCommand(candidate) {
         confirmed: true,
         retry: false
     };
-    const pendingKey = commandKey(confirmedEnvelope);
+    let pendingKey = commandKey(confirmedEnvelope);
     if (state.pendingCommandKeys.has(pendingKey)) {
         systemBanner.textContent = "That exact command is already pending in this browser session.";
         return;
@@ -510,8 +532,14 @@ async function submitCommand(candidate) {
         systemBanner.textContent = "Live state delivery changed; the command was not submitted.";
         return;
     }
+    pendingKey = commandKey(confirmedEnvelope);
+    if (state.pendingCommandKeys.has(pendingKey)) {
+        systemBanner.textContent = "That exact command is already pending in this browser session.";
+        return;
+    }
 
     const originalEnvelope = Object.freeze({ ...confirmedEnvelope });
+    state.commandNotice = "";
     const commandConfigurationId = state.plant?.configurationId ?? "";
     try {
         state.commandEnvelopes.set(originalEnvelope.requestId, originalEnvelope);
@@ -535,6 +563,7 @@ async function submitCommand(candidate) {
             return;
         }
 
+        state.commandNotice = `${originalEnvelope.kind}: ${result.state}. ${result.message ?? ""}`;
         applyState({
             ...state.plant,
             commands: [result, ...(state.plant?.commands ?? []).filter(item => item.requestId !== result.requestId)]
@@ -545,9 +574,10 @@ async function submitCommand(candidate) {
             return;
         }
 
+        state.commandNotice = `${originalEnvelope.kind} was not accepted: ${error.message}`;
         prependCommand({
             requestId: originalEnvelope.requestId,
-            state: [401, 403, 409].includes(error.status) ? "Rejected" : "Unknown",
+            state: [400, 401, 403, 409].includes(error.status) ? "Rejected" : "Unknown",
             kind: originalEnvelope.kind,
             runId: originalEnvelope.runId,
             expectedRevision: originalEnvelope.expectedRevision,
@@ -620,9 +650,12 @@ function confirmCommand(envelope) {
     state.activeConfirmation = {
         runId: envelope.runId,
         configurationId: state.plant?.configurationId ?? "",
-        requestId: envelope.requestId
+        requestId: envelope.requestId,
+        envelope
     };
-    commandDialogCopy.textContent = commandCopy(envelope);
+    commandDialogCopy.textContent = commandCopy(envelope) + (envelope.retry
+        ? " This retry keeps the original exact payload."
+        : " The displayed revision follows live state until submission; submission freezes the exact payload.");
     commandDialogPayload.textContent = JSON.stringify(envelope, null, 2);
 
     if (typeof commandDialog.showModal !== "function") {
@@ -729,6 +762,8 @@ function clearRunScopedState() {
     state.previousTransfers = new Map();
     state.activeTransfers = new Set();
     state.pendingCommandKeys.clear();
+    state.commandResults.clear();
+    state.commandNotice = "";
 }
 
 function closeIncompatibleConfirmation(reason = "The run or configuration changed") {

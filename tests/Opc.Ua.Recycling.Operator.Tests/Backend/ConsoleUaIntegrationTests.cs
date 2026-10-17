@@ -71,10 +71,17 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             VerifyCoordinatorAsync(null, outage: false, historyReset: true);
 
         /// <summary>
+        /// A healthy secure channel cannot conceal rejected Publish responses and leave controls enabled.
+        /// </summary>
+        [Test]
+        public Task OversizedPublishInvalidatesRetainedDataOnAHealthyChannelAsync() =>
+            VerifyCoordinatorAsync(null, outage: false, publishFailure: true);
+
+        /// <summary>
         /// Composes the actual workstation, trusted server and optional native projection.
         /// </summary>
         private static async Task VerifyCoordinatorAsync(
-            RecyclingProcess? nativeProcess, bool outage, bool historyReset = false)
+            RecyclingProcess? nativeProcess, bool outage, bool historyReset = false, bool publishFailure = false)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(180));
             await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(timeout.Token)
@@ -134,6 +141,29 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
                 builder.Logging.ClearProviders();
             }, services =>
             {
+                if (publishFailure)
+                {
+                    ServiceDescriptor registration = services.Last(descriptor =>
+                        descriptor.ServiceType == typeof(IManagedSessionFactory));
+                    services.Remove(registration);
+                    services.AddSingleton(provider =>
+                    {
+                        IManagedSessionFactory actual = registration.ImplementationFactory != null
+                            ? (IManagedSessionFactory)registration.ImplementationFactory(provider)
+                            : ActivatorUtilities.CreateInstance<DefaultManagedSessionFactory>(provider);
+                        var constrained = new Mock<IManagedSessionFactory>();
+                        constrained.Setup(factory => factory.ConnectAsync(
+                            It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                            .Returns((ConfiguredEndpoint endpoint, CancellationToken ct) =>
+                            {
+                                EndpointConfiguration quotas = endpoint.Configuration ??
+                                    throw new InvalidOperationException("Endpoint quotas are required.");
+                                quotas.MaxMessageSize = 64 * 1024;
+                                return actual.ConnectAsync(endpoint, ct);
+                            });
+                        return constrained.Object;
+                    });
+                }
                 if (!historyReset)
                 {
                     return;
@@ -195,6 +225,34 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             Assert.That(feed.Snapshot!.RunId, Is.EqualTo(environment.Coordinator.Current.RunId));
             Assert.That(feed.Snapshot.SourceMass, Is.EqualTo(environment.Coordinator.Current.SourceMass));
             Assert.That(feed.State.Quality, Is.EqualTo("Good"));
+            if (publishFailure)
+            {
+                var delivery = feed.Subscribe()!;
+                try
+                {
+                    for (int tick = 0; tick < 40; tick++)
+                    {
+                        await environment.Coordinator.TickAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    using var deliveryTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                    ConsoleState unavailable;
+                    do
+                    {
+                        unavailable = await delivery.Reader.ReadAsync(deliveryTimeout.Token).ConfigureAwait(false);
+                    }
+                    while (unavailable.Available);
+                    Assert.That(unavailable.Quality, Does.StartWith("Bad"));
+                    Assert.That(unavailable.RunId, Is.EqualTo(environment.Coordinator.Current.RunId));
+                    Assert.That(unavailable.Connection, Is.Not.EqualTo("Connected"));
+                    Assert.That(unavailable.Detail, Is.Not.Empty);
+                }
+                finally
+                {
+                    feed.Unsubscribe(delivery);
+                }
+                await app.StopAsync(timeout.Token).ConfigureAwait(false);
+                return;
+            }
             if (historyReset)
             {
                 frozenSnapshot = feed.Snapshot ?? throw new InvalidOperationException("A cached run is required.");
@@ -367,6 +425,28 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             }
             session.ChannelStateChanged += ChannelFailed;
             session.KeepAlive += KeepAliveFailed;
+            session.TryGetSubscriptionManager(out var subscriptions);
+            int publishFailures = subscriptions?.BadPublishRequestCount ?? 0;
+            using var monitorStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            async Task ObservePublishFailureAsync()
+            {
+                try
+                {
+                    while (!monitorStop.IsCancellationRequested && !retainedSession.Task.IsCompleted)
+                    {
+                        if (subscriptions != null && subscriptions.BadPublishRequestCount > publishFailures)
+                        {
+                            retainedSession.TrySetResult(session.Connected && session.SessionId == sessionId);
+                            return;
+                        }
+                        await Task.Delay(10, monitorStop.Token).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (monitorStop.IsCancellationRequested)
+                {
+                }
+            }
+            Task publishMonitor = ObservePublishFailureAsync();
             var updates = feed.Subscribe()!;
             try
             {
@@ -396,6 +476,8 @@ namespace Opc.Ua.Recycling.Operator.Tests.Backend
             }
             finally
             {
+                await monitorStop.CancelAsync().ConfigureAwait(false);
+                await publishMonitor.ConfigureAwait(false);
                 session.ChannelStateChanged -= ChannelFailed;
                 session.KeepAlive -= KeepAliveFailed;
                 feed.Unsubscribe(updates);

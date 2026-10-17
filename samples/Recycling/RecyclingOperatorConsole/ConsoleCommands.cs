@@ -130,7 +130,7 @@ internal sealed class ConsoleCommands(
                 {
                     return (null, 503, "No usable coordinator state.");
                 }
-                if (snapshot.RunId != request.RunId || snapshot.Revision != revision)
+                if (snapshot.RunId != request.RunId || revision > snapshot.Revision)
                 {
                     return (null, 409, "Stale run or expected revision; inspect current state before a new action.");
                 }

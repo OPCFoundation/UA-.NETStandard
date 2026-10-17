@@ -109,6 +109,97 @@ const connectorPairs = [
     ["Pelletizing", "Bagging"]
 ];
 
+const actionBindings = new WeakMap();
+
+// Retain live SVG resources and pointer targets; updating a snapshot must not replace the equipment.
+function updateMarkup(root, markup) {
+    const template = document.createElement("template");
+    template.innerHTML = markup;
+    updateChildren(root, template.content);
+}
+
+function nodeKey(node) {
+    return node.nodeType === Node.ELEMENT_NODE
+        ? node.getAttribute("id") ?? node.getAttribute("data-testid")
+        : null;
+}
+
+function compatibleNode(current, next) {
+    return current.nodeType === next.nodeType &&
+        current.nodeName === next.nodeName && current.namespaceURI === next.namespaceURI;
+}
+
+function updateChildren(root, desired) {
+    const keyed = new Map();
+    for (const child of root.childNodes) {
+        const key = nodeKey(child);
+        if (key !== null) {
+            const matches = keyed.get(key) ?? [];
+            matches.push(child);
+            keyed.set(key, matches);
+        }
+    }
+    let cursor = root.firstChild;
+    for (const next of desired.childNodes) {
+        const key = nodeKey(next);
+        const matches = key === null ? [] : keyed.get(key) ?? [];
+        let current = key === null
+            ? cursor && nodeKey(cursor) === null && compatibleNode(cursor, next) ? cursor : null
+            : matches.shift();
+        if (current && !compatibleNode(current, next)) {
+            current = null;
+        }
+        if (!current) {
+            current = next.cloneNode(true);
+        } else if (current.nodeType === Node.ELEMENT_NODE) {
+            for (const attribute of [...current.attributes]) {
+                if (!next.hasAttributeNS(attribute.namespaceURI, attribute.localName) &&
+                    !(current.localName === "details" && attribute.name === "open")) {
+                    current.removeAttributeNS(attribute.namespaceURI, attribute.localName);
+                }
+            }
+            for (const attribute of next.attributes) {
+                if (current.getAttributeNS(attribute.namespaceURI, attribute.localName) !== attribute.value) {
+                    current.setAttributeNS(attribute.namespaceURI, attribute.name, attribute.value);
+                }
+            }
+            updateChildren(current, next);
+        } else if (current.nodeValue !== next.nodeValue) {
+            current.nodeValue = next.nodeValue;
+        }
+        if (current !== cursor) {
+            root.insertBefore(current, cursor);
+        }
+        cursor = current.nextSibling;
+    }
+    while (cursor) {
+        const removed = cursor;
+        cursor = cursor.nextSibling;
+        removed.remove();
+    }
+}
+
+function bindActions(root, submitCommand, retryCommand) {
+    let binding = actionBindings.get(root);
+    if (!binding) {
+        binding = {};
+        actionBindings.set(root, binding);
+        root.addEventListener("click", event => {
+            const button = event.target.closest("button[data-command], button[data-retry]");
+            if (!button || !root.contains(button) || button.disabled) {
+                return;
+            }
+            if (button.dataset.command) {
+                binding.submitCommand?.(JSON.parse(button.dataset.command));
+            } else {
+                binding.retryCommand?.(button.dataset.retry);
+            }
+        });
+    }
+    binding.submitCommand = submitCommand;
+    binding.retryCommand = retryCommand;
+}
+
 export function normalizeState(state) {
     const processMap = new Map((state?.processes ?? []).map(process => [process.name, process]));
     return {
@@ -134,19 +225,19 @@ export function renderTopSummary(root, state) {
         ["Thermal", summaryValue(summary.thermalJoules, formatEnergy, noRun)]
     ];
 
-    root.innerHTML = cells.map(([label, value]) => `
+    updateMarkup(root, cells.map(([label, value]) => `
         <div class="summary-cell" data-testid="summary-${testIdPart(label)}">
             <span>${escapeHtml(label)}</span>
             <strong title="${escapeHtml(value)}">${escapeHtml(value)}</strong>
         </div>
-    `).join("");
+    `).join(""));
 }
 
 export function renderSessionStatus(root, session, state) {
     const connection = state?.connection ?? "Connecting";
     const role = session?.role ?? "Unknown";
     const lifecycle = state?.lifecycle ?? "Unavailable";
-    root.innerHTML = `
+    updateMarkup(root, `
         <div class="status-line">
             <span class="status-pill status-pill--${statusClass(connection)}" data-testid="connection-status">${escapeHtml(connection)}</span>
             <span class="badge ${lifecycleBadgeClass(lifecycle)}" data-testid="lifecycle-status">${escapeHtml(lifecycle)}</span>
@@ -159,7 +250,7 @@ export function renderSessionStatus(root, session, state) {
             <span title="${escapeHtml(state?.configurationId ?? "")}">Run ${escapeHtml(state?.runId || "No run")}</span>
             <span>Tick ${escapeHtml(state?.tick || "—")}</span>
         </div>
-    `;
+    `);
 }
 
 export function renderSystemBanner(root, state) {
@@ -187,11 +278,11 @@ export function renderPlantQuality(root, state) {
         ["Source", displayTimestamp(state?.sourceUtc)],
         ["Received", displayTimestamp(state?.receivedUtc)]
     ];
-    root.innerHTML = chips.map(([label, value]) => `
+    updateMarkup(root, chips.map(([label, value]) => `
         <span class="quality-chip quality-chip--${statusClass(value)}" data-testid="quality-${testIdPart(label)}">
             ${escapeHtml(label)}: ${escapeHtml(value)}
         </span>
-    `).join("");
+    `).join(""));
 }
 
 export function renderSchematic(root, state, selectedProcess, activeTransfers) {
@@ -201,7 +292,7 @@ export function renderSchematic(root, state, selectedProcess, activeTransfers) {
     const connectors = connectorPairs.map(([from, to]) => connectorPath(from, to, activeTransfers.has(to) && !paused && !unavailable, unavailable)).join("");
     const nodes = normalized.processes.map(process => renderProcessNode(process, selectedProcess, unavailable)).join("");
 
-    root.innerHTML = `
+    updateMarkup(root, `
         <svg class="plant-svg" viewBox="0 0 890 620" role="img" aria-label="Serpentine recycling process schematic">
             <defs>
                 <pattern id="staleHatch" patternUnits="userSpaceOnUse" width="12" height="12" patternTransform="rotate(45)">
@@ -215,12 +306,12 @@ export function renderSchematic(root, state, selectedProcess, activeTransfers) {
             <g class="connectors" marker-end="url(#arrow)">${connectors}</g>
             <g class="processes">${nodes}</g>
         </svg>
-    `;
+    `);
 }
 
 export function renderProcessList(root, state, selectedProcess) {
     const normalized = normalizeState(state);
-    root.innerHTML = normalized.processes.map(process => {
+    updateMarkup(root, normalized.processes.map(process => {
         const selected = process.name === selectedProcess;
         const stateLabel = processStateLabel(process);
         const inventory = sumStageString(process, "inventoryMg");
@@ -230,7 +321,7 @@ export function renderProcessList(root, state, selectedProcess) {
                 <span>${escapeHtml(inventory ? formatMass(inventory) : stateLabel)}</span>
             </button>
         `;
-    }).join("");
+    }).join(""));
 }
 
 export function renderInspector(root, state, session, selectedProcess, inspector, submitCommand) {
@@ -239,14 +330,14 @@ export function renderInspector(root, state, session, selectedProcess, inspector
         inspector?.configurationId === state?.configurationId;
     const process = normalizeState(state).processes.find(item => item.name === selectedProcess);
     if (!process) {
-        root.innerHTML = `<div class="inspector__header"><h2>No process selected</h2></div>`;
+        updateMarkup(root, `<div class="inspector__header"><h2>No process selected</h2></div>`);
         return;
     }
 
     const stage = latestStage(process);
     const readings = validInspector ? inspector?.readings ?? [] : [];
     const title = processLabels[process.name] ?? process.name;
-    root.innerHTML = `
+    updateMarkup(root, `
         <div class="inspector__header" data-testid="inspector-header">
             <div class="inspector__title-row">
                 <div>
@@ -266,11 +357,8 @@ export function renderInspector(root, state, session, selectedProcess, inspector
             ${renderStageList(process)}
             ${renderCommandActions(process, state, session)}
         </div>
-    `;
-
-    root.querySelectorAll("[data-command]").forEach(button => {
-        button.addEventListener("click", () => submitCommand(JSON.parse(button.dataset.command ?? "{}")));
-    });
+    `);
+    bindActions(root, submitCommand);
 }
 
 export function renderExceptionDock(faultRoot, holdRoot, commandRoot, state, retryCommand) {
@@ -288,7 +376,7 @@ export function renderExceptionDock(faultRoot, holdRoot, commandRoot, state, ret
         }
     }
 
-    faultRoot.innerHTML = faults.length === 0
+    updateMarkup(faultRoot, faults.length === 0
         ? `<div class="empty-state" data-testid="fault-empty">No active equipment faults or constraints.</div>`
         : faults.map(item => `
             <div class="exception-item exception-item--fault" data-testid="fault-row-${testIdPart(item.process)}">
@@ -296,45 +384,39 @@ export function renderExceptionDock(faultRoot, holdRoot, commandRoot, state, ret
                 <strong>${escapeHtml(item.reason)}</strong>
                 <span>${item.stage ? `Stage ${escapeHtml(item.stage.index)} · ${escapeHtml(item.stage.name)}` : "Process membership / native data"}</span>
             </div>
-        `).join("");
+        `).join(""));
 
     const holds = state?.holds ?? [];
-    holdRoot.innerHTML = holds.length === 0
+    updateMarkup(holdRoot, holds.length === 0
         ? `<div class="empty-state" data-testid="hold-empty">No quality holds in the bounded state view.</div>`
-        : holds.map(hold => renderHoldRow(hold, true)).join("");
+        : holds.map(hold => renderHoldRow(hold, true)).join(""));
 
     const commands = state?.commands ?? [];
-    commandRoot.innerHTML = commands.length === 0
+    updateMarkup(commandRoot, commands.length === 0
         ? `<div class="empty-state" data-testid="command-empty">No commands submitted in this workstation session.</div>`
-        : commands.map(command => renderCommandResult(command)).join("");
-
-    commandRoot.querySelectorAll("button[data-retry]").forEach(button => {
-        button.addEventListener("click", () => retryCommand(button.dataset.retry));
-    });
+        : commands.map(command => renderCommandResult(command)).join(""));
+    bindActions(commandRoot, null, retryCommand);
 }
 
 export function renderHolds(root, state, session, submitCommand) {
     root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const holds = state?.holds ?? [];
     const canDispose = (session?.role === "Operator" || session?.role === "SimulatorAdministrator") && canMutate(state);
-    root.innerHTML = holds.length === 0
+    updateMarkup(root, holds.length === 0
         ? `<div class="empty-state" data-testid="holds-empty">No quality holds are present in the latest bounded state.</div>`
-        : `<div class="table-like">${holds.map(hold => renderHoldRow(hold, false, canDispose)).join("")}</div>`;
-
-    root.querySelectorAll("[data-command]").forEach(button => {
-        button.addEventListener("click", () => submitCommand(JSON.parse(button.dataset.command ?? "{}")));
-    });
+        : `<div class="table-like">${holds.map(hold => renderHoldRow(hold, false, canDispose)).join("")}</div>`);
+    bindActions(root, submitCommand);
 }
 
 export function renderTrends(root, state) {
     root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const trends = state?.trends ?? [];
     if (trends.length === 0) {
-        root.innerHTML = `<div class="empty-state" data-testid="trends-empty">No trend observations have arrived since this console connected.</div>`;
+        updateMarkup(root, `<div class="empty-state" data-testid="trends-empty">No trend observations have arrived since this console connected.</div>`);
         return;
     }
 
-    root.innerHTML = `
+    updateMarkup(root, `
         <div class="trend-board">
             ${renderTrendSvg(trends)}
             <div class="table-like" data-testid="trend-rows">
@@ -349,14 +431,14 @@ export function renderTrends(root, state) {
                 `).join("")}
             </div>
         </div>
-    `;
+    `);
 }
 
 export function renderMaterial(root, materialPage, historyPage) {
     root.closest(".panel--secondary")?.setAttribute("tabindex", "0");
     const materialItems = materialPage?.items ?? [];
     const historyItems = historyPage?.items ?? [];
-    root.innerHTML = `
+    updateMarkup(root, `
         <div class="trend-board">
             <section class="section-card">
                 <h3>Material page</h3>
@@ -373,7 +455,7 @@ export function renderMaterial(root, materialPage, historyPage) {
                 <p class="connect-form__note" data-testid="history-next-after">Next page: ${escapeHtml(historyPage?.nextAfter ?? "none")}</p>
             </section>
         </div>
-    `;
+    `);
 }
 
 export function buildCommand(kind, state, values = {}) {
@@ -551,6 +633,7 @@ function renderCommandActions(process, state, session) {
         <section class="section-card" data-testid="command-section">
             <h3>Authorized commands</h3>
             <div class="command-actions">${actions.join("")}</div>
+            ${canOperate ? `<p class="connect-form__note" data-testid="process-control-state">${hasDisabledStage ? "One or more substeps are disabled; Enable is available." : "All substeps are enabled. Enable becomes available after Disable is accepted."}</p>` : ""}
             ${canAdmin ? `<details class="admin-drawer" data-testid="admin-drawer"><summary data-testid="admin-open">Simulator administration</summary><div class="command-actions">${adminActions.join("")}</div><p class="connect-form__note">Stop is a simulator command, not a physical emergency stop.</p></details>` : ""}
             ${disabledText}
             <p class="connect-form__note">Commands use coordinator ExecuteAsync only. No optimistic plant-state mutation is applied in the browser.</p>
