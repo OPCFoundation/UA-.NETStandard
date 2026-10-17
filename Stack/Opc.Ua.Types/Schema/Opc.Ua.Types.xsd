@@ -1,31 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
+SPDX-FileCopyrightText: Copyright (c) 2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
 -->
 
 <xs:schema
@@ -37,7 +13,7 @@
 >
   <xs:annotation>
     <xs:appinfo>
-      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.07" PublicationDate="2026-05-01T00:00:00Z" />
+      <ua:Model ModelUri="http://opcfoundation.org/UA/" Version="1.05.08" PublicationDate="2026-10-15T00:00:00Z" />
     </xs:appinfo>
   </xs:annotation>
   
@@ -892,13 +868,89 @@
   </xs:complexType>
   <xs:element name="ListOfAnnotationDataType" type="tns:ListOfAnnotationDataType" nillable="true"></xs:element>
 
-  <xs:complexType name="LinearConversionDataType">
+  <xs:complexType name="ScalingConversionBaseDataType">
     <xs:sequence>
-      <xs:element name="InitialAddend" type="xs:float" minOccurs="0" />
-      <xs:element name="Multiplicand" type="xs:float" minOccurs="0" />
-      <xs:element name="Divisor" type="xs:float" minOccurs="0" />
-      <xs:element name="FinalAddend" type="xs:float" minOccurs="0" />
     </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ScalingConversionBaseDataType" type="tns:ScalingConversionBaseDataType" />
+
+  <xs:complexType name="ListOfScalingConversionBaseDataType">
+    <xs:sequence>
+      <xs:element name="ScalingConversionBaseDataType" type="tns:ScalingConversionBaseDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfScalingConversionBaseDataType" type="tns:ListOfScalingConversionBaseDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="LinearConversionBaseDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ScalingConversionBaseDataType">
+        <xs:sequence>
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="LinearConversionBaseDataType" type="tns:LinearConversionBaseDataType" />
+
+  <xs:complexType name="ListOfLinearConversionBaseDataType">
+    <xs:sequence>
+      <xs:element name="LinearConversionBaseDataType" type="tns:LinearConversionBaseDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLinearConversionBaseDataType" type="tns:ListOfLinearConversionBaseDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="LinearConversionInt32DataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:LinearConversionBaseDataType">
+        <xs:sequence>
+          <xs:element name="InitialAddend" type="xs:int" minOccurs="0" />
+          <xs:element name="Multiplicand" type="xs:int" minOccurs="0" />
+          <xs:element name="Divisor" type="xs:int" minOccurs="0" />
+          <xs:element name="FinalAddend" type="xs:int" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="LinearConversionInt32DataType" type="tns:LinearConversionInt32DataType" />
+
+  <xs:complexType name="ListOfLinearConversionInt32DataType">
+    <xs:sequence>
+      <xs:element name="LinearConversionInt32DataType" type="tns:LinearConversionInt32DataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLinearConversionInt32DataType" type="tns:ListOfLinearConversionInt32DataType" nillable="true"></xs:element>
+
+  <xs:complexType name="LinearConversionInt64DataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:LinearConversionBaseDataType">
+        <xs:sequence>
+          <xs:element name="InitialAddend" type="xs:long" minOccurs="0" />
+          <xs:element name="Multiplicand" type="xs:long" minOccurs="0" />
+          <xs:element name="Divisor" type="xs:long" minOccurs="0" />
+          <xs:element name="FinalAddend" type="xs:long" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="LinearConversionInt64DataType" type="tns:LinearConversionInt64DataType" />
+
+  <xs:complexType name="ListOfLinearConversionInt64DataType">
+    <xs:sequence>
+      <xs:element name="LinearConversionInt64DataType" type="tns:LinearConversionInt64DataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfLinearConversionInt64DataType" type="tns:ListOfLinearConversionInt64DataType" nillable="true"></xs:element>
+
+  <xs:complexType name="LinearConversionDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:LinearConversionBaseDataType">
+        <xs:sequence>
+          <xs:element name="InitialAddend" type="xs:float" minOccurs="0" />
+          <xs:element name="Multiplicand" type="xs:float" minOccurs="0" />
+          <xs:element name="Divisor" type="xs:float" minOccurs="0" />
+          <xs:element name="FinalAddend" type="xs:float" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
   </xs:complexType>
   <xs:element name="LinearConversionDataType" type="tns:LinearConversionDataType" />
 
@@ -2448,6 +2500,81 @@
   </xs:complexType>
   <xs:element name="ListOfTransmitQosPriorityDataType" type="tns:ListOfTransmitQosPriorityDataType" nillable="true"></xs:element>
 
+  <xs:complexType name="TransmitQosBandwidthDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TransmitQosDataType">
+        <xs:sequence>
+          <xs:element name="MaxUadpPayloadSize" type="xs:unsignedInt" minOccurs="0" />
+          <xs:element name="MaxNetworkMessagesPerPublishingInterval" type="xs:unsignedShort" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosBandwidthDataType" type="tns:TransmitQosBandwidthDataType" />
+
+  <xs:complexType name="ListOfTransmitQosBandwidthDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosBandwidthDataType" type="tns:TransmitQosBandwidthDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosBandwidthDataType" type="tns:ListOfTransmitQosBandwidthDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TransmitQosLatencyDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TransmitQosDataType">
+        <xs:sequence>
+          <xs:element name="MaxSamplingToPublishingDelay" type="xs:double" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosLatencyDataType" type="tns:TransmitQosLatencyDataType" />
+
+  <xs:complexType name="ListOfTransmitQosLatencyDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosLatencyDataType" type="tns:TransmitQosLatencyDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosLatencyDataType" type="tns:ListOfTransmitQosLatencyDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TransmitQosDeadlineDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TransmitQosDataType">
+        <xs:sequence>
+          <xs:element name="MaxSamplingJitter" type="xs:double" minOccurs="0" />
+          <xs:element name="MaxPublishingJitter" type="xs:double" minOccurs="0" />
+          <xs:element name="MaxSamplingToPublishingDelay" type="xs:double" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosDeadlineDataType" type="tns:TransmitQosDeadlineDataType" />
+
+  <xs:complexType name="ListOfTransmitQosDeadlineDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosDeadlineDataType" type="tns:TransmitQosDeadlineDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosDeadlineDataType" type="tns:ListOfTransmitQosDeadlineDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="TransmitQosClockDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:TransmitQosDataType">
+        <xs:sequence>
+          <xs:element name="ClockObject" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="TransmitQosClockDataType" type="tns:TransmitQosClockDataType" />
+
+  <xs:complexType name="ListOfTransmitQosClockDataType">
+    <xs:sequence>
+      <xs:element name="TransmitQosClockDataType" type="tns:TransmitQosClockDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfTransmitQosClockDataType" type="tns:ListOfTransmitQosClockDataType" nillable="true"></xs:element>
+
   <xs:complexType name="ReceiveQosDataType">
     <xs:complexContent mixed="false">
       <xs:extension base="tns:QosDataType">
@@ -2482,6 +2609,62 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfReceiveQosPriorityDataType" type="tns:ListOfReceiveQosPriorityDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ReceiveQosLatencyDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ReceiveQosDataType">
+        <xs:sequence>
+          <xs:element name="MaxProcessingJitter" type="xs:double" minOccurs="0" />
+          <xs:element name="MaxReceiveToProcessingDelay" type="xs:double" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReceiveQosLatencyDataType" type="tns:ReceiveQosLatencyDataType" />
+
+  <xs:complexType name="ListOfReceiveQosLatencyDataType">
+    <xs:sequence>
+      <xs:element name="ReceiveQosLatencyDataType" type="tns:ReceiveQosLatencyDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfReceiveQosLatencyDataType" type="tns:ListOfReceiveQosLatencyDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ReceiveQosDeadlineDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ReceiveQosDataType">
+        <xs:sequence>
+          <xs:element name="MaxProcessingJitter" type="xs:double" minOccurs="0" />
+          <xs:element name="MaxReceiveToProcessingDelay" type="xs:double" minOccurs="0" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReceiveQosDeadlineDataType" type="tns:ReceiveQosDeadlineDataType" />
+
+  <xs:complexType name="ListOfReceiveQosDeadlineDataType">
+    <xs:sequence>
+      <xs:element name="ReceiveQosDeadlineDataType" type="tns:ReceiveQosDeadlineDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfReceiveQosDeadlineDataType" type="tns:ListOfReceiveQosDeadlineDataType" nillable="true"></xs:element>
+
+  <xs:complexType name="ReceiveQosClockDataType">
+    <xs:complexContent mixed="false">
+      <xs:extension base="tns:ReceiveQosDataType">
+        <xs:sequence>
+          <xs:element name="ClockObject" type="xs:string" minOccurs="0" nillable="true" />
+        </xs:sequence>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="ReceiveQosClockDataType" type="tns:ReceiveQosClockDataType" />
+
+  <xs:complexType name="ListOfReceiveQosClockDataType">
+    <xs:sequence>
+      <xs:element name="ReceiveQosClockDataType" type="tns:ReceiveQosClockDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfReceiveQosClockDataType" type="tns:ListOfReceiveQosClockDataType" nillable="true"></xs:element>
 
   <xs:complexType name="DatagramConnectionTransportDataType">
     <xs:complexContent mixed="false">
@@ -3058,6 +3241,26 @@
 
   <xs:element name="EncodedTicket" type="xs:string" />
 
+  <xs:element name="ArbTime" type="xs:unsignedLong" />
+
+  <xs:simpleType  name="IpAddressOrigin">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="Other_0" />
+      <xs:enumeration value="Static_1" />
+      <xs:enumeration value="DHCP_2" />
+      <xs:enumeration value="LinkLayer_3" />
+      <xs:enumeration value="Random_4" />
+    </xs:restriction>
+  </xs:simpleType>
+  <xs:element name="IpAddressOrigin" type="tns:IpAddressOrigin" />
+
+  <xs:complexType name="ListOfIpAddressOrigin">
+    <xs:sequence>
+      <xs:element name="IpAddressOrigin" type="tns:IpAddressOrigin" minOccurs="0" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfIpAddressOrigin" type="tns:ListOfIpAddressOrigin" nillable="true"></xs:element>
+
   <xs:simpleType  name="Duplex">
     <xs:restriction base="xs:string">
       <xs:enumeration value="Full_0" />
@@ -3343,6 +3546,69 @@
   </xs:complexType>
   <xs:element name="ListOfLldpTlvType" type="tns:ListOfLldpTlvType" nillable="true"></xs:element>
 
+  <xs:complexType name="Ipv4AddressType">
+    <xs:sequence>
+      <xs:element name="Ip" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="PrefixLength" type="xs:unsignedByte" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Ipv4AddressType" type="tns:Ipv4AddressType" />
+
+  <xs:complexType name="ListOfIpv4AddressType">
+    <xs:sequence>
+      <xs:element name="Ipv4AddressType" type="tns:Ipv4AddressType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfIpv4AddressType" type="tns:ListOfIpv4AddressType" nillable="true"></xs:element>
+
+  <xs:complexType name="Ipv6AddressType">
+    <xs:sequence>
+      <xs:element name="Ip" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="PrefixLength" type="xs:unsignedByte" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Ipv6AddressType" type="tns:Ipv6AddressType" />
+
+  <xs:complexType name="ListOfIpv6AddressType">
+    <xs:sequence>
+      <xs:element name="Ipv6AddressType" type="tns:Ipv6AddressType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfIpv6AddressType" type="tns:ListOfIpv6AddressType" nillable="true"></xs:element>
+
+  <xs:complexType name="DnsServerType">
+    <xs:sequence>
+      <xs:element name="Name" type="xs:string" minOccurs="0" nillable="true" />
+      <xs:element name="Address" type="xs:base64Binary" minOccurs="0" nillable="true" />
+      <xs:element name="Port" type="xs:unsignedShort" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="DnsServerType" type="tns:DnsServerType" />
+
+  <xs:complexType name="ListOfDnsServerType">
+    <xs:sequence>
+      <xs:element name="DnsServerType" type="tns:DnsServerType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDnsServerType" type="tns:ListOfDnsServerType" nillable="true"></xs:element>
+
+  <xs:complexType name="DnsResolverType">
+    <xs:sequence>
+      <xs:element name="Search" type="ua:ListOfString" minOccurs="0" nillable="true" />
+      <xs:element name="Server" type="tns:ListOfDnsServerType" minOccurs="0" nillable="true" />
+      <xs:element name="Timeout" type="xs:unsignedByte" minOccurs="0" />
+      <xs:element name="Attempts" type="xs:unsignedByte" minOccurs="0" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="DnsResolverType" type="tns:DnsResolverType" />
+
+  <xs:complexType name="ListOfDnsResolverType">
+    <xs:sequence>
+      <xs:element name="DnsResolverType" type="tns:DnsResolverType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfDnsResolverType" type="tns:ListOfDnsResolverType" nillable="true"></xs:element>
+
   <xs:simpleType  name="LldpSystemCapabilitiesMap">
     <xs:restriction base="xs:unsignedInt">
     </xs:restriction>
@@ -3485,6 +3751,21 @@
     </xs:sequence>
   </xs:complexType>
   <xs:element name="ListOfLogRecordMask" type="tns:ListOfLogRecordMask" nillable="true"></xs:element>
+
+  <xs:complexType name="ActiveLockHoldersDataType">
+    <xs:sequence>
+      <xs:element name="LockUser" type="ua:NodeId" minOccurs="0" nillable="true" />
+      <xs:element name="LockHolderDescription" type="xs:string" minOccurs="0" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ActiveLockHoldersDataType" type="tns:ActiveLockHoldersDataType" />
+
+  <xs:complexType name="ListOfActiveLockHoldersDataType">
+    <xs:sequence>
+      <xs:element name="ActiveLockHoldersDataType" type="tns:ActiveLockHoldersDataType" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ListOfActiveLockHoldersDataType" type="tns:ListOfActiveLockHoldersDataType" nillable="true"></xs:element>
 
   <xs:simpleType  name="IdType">
     <xs:restriction base="xs:string">
