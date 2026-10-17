@@ -236,6 +236,29 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public async Task ACancellationTheProviderRaisesOnItsOwnIsNotMistakenForShutdownAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            provider.OnScan = (settings, ct) => throw new OperationCanceledException("the antenna gave up");
+            provider.OnRead = ct => throw new OperationCanceledException("the antenna gave up");
+
+            OperationCanceledException scan = Assert.CatchAsync<OperationCanceledException>(
+                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false))!;
+            OperationCanceledException read = Assert.CatchAsync<OperationCanceledException>(
+                async () => await device.ReadTag!.OnCallAsync!(
+                    m_fixture!.Context, device.ReadTag, device.NodeId,
+                    AutoIdTestData.Epc(AutoIdTestData.Bytes(1, 2)), "EPC", 1, 0, 4, default, CancellationToken.None)
+                    .ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(scan.Message, Is.EqualTo("the antenna gave up"));
+                Assert.That(read.Message, Is.EqualTo("the antenna gave up"));
+                Assert.That(device.DeviceStatus!.Value, Is.EqualTo(DeviceStatusEnumeration.Idle));
+            });
+        }
+
+        [Test]
         public async Task AProviderResultOfTheWrongTypeFailsTheScanAsync()
         {
             (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);

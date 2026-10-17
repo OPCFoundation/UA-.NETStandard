@@ -159,7 +159,8 @@ namespace Opc.Ua.AutoID.Server
             {
                 return await provider.ScanAsync(settings, linked.Token).ConfigureAwait(false);
             }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested &&
+                linked.IsCancellationRequested)
             {
                 throw ServiceResultException.Create(
                     m_stopping.IsCancellationRequested ? StatusCodes.BadServerHalted : StatusCodes.BadTimeout,
