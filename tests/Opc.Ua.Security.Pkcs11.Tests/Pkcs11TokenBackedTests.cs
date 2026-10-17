@@ -458,6 +458,97 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task CertificateWithoutIdIsNotPairedWithAnUnrelatedKeyAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate peer = CreatePeerCertificate("CN=PeerWithoutId");
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null, "the token's keys belong to other certificates");
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheKeyOfItsPublicKeyAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate identity = Certificate.FromRawData(module.RsaCertificate);
+            module.SetCertificateId(module.RsaCertificate, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheKeyTheObjectLabelSelectsAsync()
+        {
+            using var module = new FakePkcs11Module();
+            module.SetIdsOfLabel("ecc", []);
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "ecc";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using Certificate identity = Certificate.FromRawData(module.EccCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsNotPairedWithoutAnObjectFilterWhenNoKeyHasItsPublicKeyAsync()
+        {
+            using var module = new FakePkcs11Module();
+            module.SetIdsOfLabel("ecc", []);
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate identity = Certificate.FromRawData(module.EccCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null, "no key on the token is linked to the certificate");
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsNotPairedWithAKeyThatOnlySharesItsLabelAsync()
+        {
+            using var module = new FakePkcs11Module();
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "rsa";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using Certificate unrelated = CreatePeerCertificate("CN=SharesTheLabel");
+            await store.AddAsync(unrelated).ConfigureAwait(false);
+            module.SetCertificateId(unrelated.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(unrelated.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null, "the key with the label does not sign for the certificate");
+        }
+
+        [Test]
         public async Task CertificateWhoseIdCannotBeReadIsNotPairedWithAnUnrelatedKeyAsync()
         {
             using var module = new FakePkcs11Module();

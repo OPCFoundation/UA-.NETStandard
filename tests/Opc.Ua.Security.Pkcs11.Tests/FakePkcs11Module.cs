@@ -650,6 +650,35 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         /// <summary>
+        /// Replaces the CKA_ID of the certificate object holding the given encoding.
+        /// </summary>
+        /// <param name="encoded">The DER encoded certificate.</param>
+        /// <param name="id">The new CKA_ID.</param>
+        public void SetCertificateId(byte[] encoded, byte[] id)
+        {
+            int index = m_objects.FindIndex(o =>
+                o.ObjectClass == (ulong)CKO.CKO_CERTIFICATE &&
+                o.Value.SequenceEqual(encoded));
+            m_objects[index] = m_objects[index] with { Id = id };
+        }
+
+        /// <summary>
+        /// Replaces the CKA_ID of every object with the given label.
+        /// </summary>
+        /// <param name="label">The CKA_LABEL of the objects.</param>
+        /// <param name="id">The new CKA_ID.</param>
+        public void SetIdsOfLabel(string label, byte[] id)
+        {
+            for (int ii = 0; ii < m_objects.Count; ii++)
+            {
+                if (m_objects[ii].Label == label)
+                {
+                    m_objects[ii] = m_objects[ii] with { Id = id };
+                }
+            }
+        }
+
+        /// <summary>
         /// The value of an attribute of the certificate object holding the given encoding.
         /// </summary>
         /// <param name="encoded">The DER encoded certificate.</param>
