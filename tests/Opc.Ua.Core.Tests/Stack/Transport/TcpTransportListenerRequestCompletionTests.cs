@@ -145,6 +145,84 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Data-channel response notifications belong to one request even when channel evidence is cached.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(30000)]
+        public async Task DataChannelResponseCallbacksRemainRequestScopedAsync(bool completeLater)
+        {
+            var contexts = new ConcurrentQueue<SecureChannelContext>();
+            var notified = new ConcurrentQueue<uint>();
+            var pending = new ConcurrentDictionary<uint, TaskCompletionSource<IServiceResponse>>();
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(),
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((SecureChannelContext context, IServiceRequest request, CancellationToken _) =>
+                {
+                    if (request is not OpenDataChannelRequest)
+                    {
+                        return new ValueTask<IServiceResponse>(Respond(request));
+                    }
+
+                    uint handle = request.RequestHeader.RequestHandle;
+                    contexts.Enqueue(context);
+                    context.ResponseDispatched += () => notified.Enqueue(handle);
+                    IServiceResponse response = new OpenDataChannelResponse
+                    {
+                        ResponseHeader = new ResponseHeader { RequestHandle = handle }
+                    };
+                    if (!completeLater)
+                    {
+                        return new ValueTask<IServiceResponse>(response);
+                    }
+
+                    var completion = new TaskCompletionSource<IServiceResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    pending[handle] = completion;
+                    return new ValueTask<IServiceResponse>(completion.Task);
+                });
+
+            await using Loopback loopback = await Loopback.StartAsync(callback.Object).ConfigureAwait(false);
+            using UaSCUaBinaryTransportChannel client = await loopback.ConnectAsync().ConfigureAwait(false);
+            var first = new OpenDataChannelRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 1, TimeoutHint = 10000 }
+            };
+            var second = new OpenDataChannelRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 2, TimeoutHint = 10000 }
+            };
+            Task<IServiceResponse> responseA = client.SendRequestAsync(first, CancellationToken.None).AsTask();
+            Task<IServiceResponse> responseB = client.SendRequestAsync(second, CancellationToken.None).AsTask();
+            if (completeLater)
+            {
+                Assert.That(await WaitForAsync(() => pending.Count == 2).ConfigureAwait(false), Is.True);
+                pending[2].SetResult(new OpenDataChannelResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = 2 }
+                });
+                await responseB.ConfigureAwait(false);
+                Assert.That(await WaitForAsync(() => notified.Count == 1).ConfigureAwait(false), Is.True);
+                Assert.That(notified, Is.EqualTo(new uint[] { 2 }));
+                pending[1].SetResult(new OpenDataChannelResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = 1 }
+                });
+            }
+
+            await Task.WhenAll(responseA, responseB).ConfigureAwait(false);
+            await client.SendRequestAsync(CreateReadRequest(3), CancellationToken.None).ConfigureAwait(false);
+            Assert.That(await WaitForAsync(() => notified.Count == 2).ConfigureAwait(false), Is.True);
+            Assert.That(contexts, Has.Count.EqualTo(2));
+            Assert.That(contexts.First(), Is.Not.SameAs(contexts.Last()));
+            Assert.That(notified, Is.EquivalentTo(new uint[] { 1, 2 }));
+            Assert.That(loopback.Logs.Where(log => log.Level >= LogLevel.Error), Is.Empty);
+        }
+
+        /// <summary>
         /// A request whose processing fails, synchronously, through a faulted task or later
         /// through a value task source, is logged as an error and answered with a service fault,
         /// and the listener keeps serving the channel.
@@ -407,7 +485,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ITelemetryContext Telemetry { get; }
 
-            public IReadOnlyCollection<LogEntry> Logs => m_logs.Entries.ToArray();
+            public IReadOnlyCollection<LogEntry> Logs => [.. m_logs.Entries];
 
             public static async Task<Loopback> StartAsync(ITransportListenerCallback callback)
             {

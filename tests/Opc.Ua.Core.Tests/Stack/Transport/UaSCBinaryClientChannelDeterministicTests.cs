@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             byte[] header = BuildAsymmetricHeader(
                 SecurityPolicies.Basic256Sha256,
                 sender.RawData,
-                Array.Empty<byte>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.CallReadAsymmetricMessageHeader(
@@ -762,7 +762,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 nameof(ClosedTransportWriteCompletesWithoutGateReentryAsync));
             var buffers = new BufferCollection { new ArraySegment<byte>(buffer, 0, 16) };
 
-            Task beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
+            var beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
 
             Assert.That(
                 await CompletesWithinAsync(beginWrite, 30).ConfigureAwait(false),
@@ -813,6 +813,87 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             Assert.That(pool.OutstandingCount, Is.Zero);
             Assert.That(pool.DuplicateReturns, Is.Zero);
+        }
+
+        /// <summary>
+        /// Producer-numbered client requests cannot be overtaken by frames numbered by the shared writer.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ConcurrentClientRequestsAndStreamFramesReachWireInSequenceOrderAsync()
+        {
+            const int kMessagesPerKind = 2000;
+            var transport = new RecordingByteTransport();
+            using var channel = new TestClientChannel(
+                m_buffers, new RecordingByteTransportFactory(transport), m_quotas, null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None), m_telemetry, new FakeTimeProvider());
+            channel.OpenForAbortTest(transport, chunkLimit: true);
+            channel.EnableDataChannels(isServer: false, m_telemetry);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var pending = new List<Task<IServiceResponse>>();
+
+            var requests = Task.Run(async () =>
+            {
+                for (int ii = 0; ii < kMessagesPerKind; ii++)
+                {
+                    pending.Add(channel.SendRequestAsync(
+                        new ReadRequest(), 30000, cancellation.Token).AsTask());
+                    await Task.Yield();
+                }
+            });
+            var frames = Task.Run(async () =>
+            {
+                var queued = new List<Task>();
+                for (uint ii = 1; ii <= kMessagesPerKind; ii++)
+                {
+                    queued.Add(channel.SendDataChannelFrameAsync(
+                        DataChannelFrame.Data(1, ii, DataChannelFrameFlags.MessageStart, new byte[] { 1 }),
+                        cancellation.Token).AsTask());
+                    await Task.Yield();
+                }
+                await Task.WhenAll(queued).ConfigureAwait(false);
+            });
+            try
+            {
+                await Task.WhenAll(requests, frames).WaitAsync(cancellation.Token).ConfigureAwait(false);
+                while (transport.SentCount < 2 * kMessagesPerKind)
+                {
+                    await Task.Delay(1, cancellation.Token).ConfigureAwait(false);
+                }
+
+                Assert.That(transport.GetSequenceNumbers().ToArray(),
+                    Is.EqualTo(Enumerable.Range(1, 2 * kMessagesPerKind).Select(value => (uint)value)),
+                    "Client requests and stream frames must use one consecutive wire sequence.");
+            }
+            finally
+            {
+                cancellation.Cancel();
+                await requests.ConfigureAwait(false);
+                foreach (Task<IServiceResponse> request in pending)
+                {
+                    try
+                    {
+                        await request.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                    {
+                        // Requests parked before queue admission observe cancellation directly.
+                    }
+                    catch (ServiceResultException error) when (
+                        cancellation.IsCancellationRequested && error.StatusCode == StatusCodes.BadRequestInterrupted)
+                    {
+                        // Admitted requests translate cancellation into the service result.
+                    }
+                }
+                try
+                {
+                    await frames.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                    // The test cancels its producers before disposing the channel.
+                }
+            }
         }
 
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
@@ -1075,7 +1156,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     timeProvider)
             {
                 SenderCertificateChainParsedForTest =
-                    chain => ParsedSenderChain = new List<Certificate>(chain);
+                    chain => ParsedSenderChain = [.. chain];
             }
 
             /// <summary>
@@ -1330,6 +1411,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public bool IsClosed => m_closed.Task.IsCompleted;
 
+            /// <summary>
+            /// Number of writes observed by the transport.
+            /// </summary>
+            public int SentCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sent.Count;
+                    }
+                }
+            }
+
             public byte[] LastSent
             {
                 get
@@ -1395,6 +1490,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void Close()
             {
                 m_closed.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Captures the symmetric sequence numbers in wire order.
+            /// </summary>
+            public ArrayOf<uint> GetSequenceNumbers()
+            {
+                lock (m_lock)
+                {
+                    return [.. m_sent.Select(bytes => BitConverter.ToUInt32(bytes, 16))];
+                }
             }
 
             private void Record(byte[] bytes)

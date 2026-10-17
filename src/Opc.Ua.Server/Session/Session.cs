@@ -2095,7 +2095,7 @@ namespace Opc.Ua.Server
         /// requests are a subset of the errors, so the error threshold also bounds them.
         /// </summary>
         private readonly long[] m_pendingRequestCounts = new long[kRequestTypeCount];
-        private const int kRequestTypeCount = (int)RequestType.UnregisterNodes + 1;
+        private const int kRequestTypeCount = (int)RequestType.CloseDataChannel + 1;
         private const int kErrorShift = 32;
         private const int kUnauthorizedShift = 48;
         private const ulong kTotalMask = 0xFFFF_FFFF;

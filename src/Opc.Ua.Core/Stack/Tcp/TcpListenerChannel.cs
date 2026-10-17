@@ -159,6 +159,7 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_peerCertificateChain, null);
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
             }
+            UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
             base.Dispose(disposing);
         }
 
@@ -312,8 +313,17 @@ namespace Opc.Ua.Bindings
             ChannelId = channelId;
             State = TcpChannelState.Connecting;
             Transport = transport;
+
+            if (transport is IUaSCSecureChannelBoundTransport boundTransport)
+            {
+                boundTransport.OnSecureChannelAttached(GlobalChannelId);
+            }
+
+            UaSCSecureChannelRegistry.Bind(GlobalChannelId, this);
+
             if (Volatile.Read(ref m_disposed) != 0)
             {
+                UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
                 DetachTransportForHandoff()?.Close();
                 throw new ObjectDisposedException(nameof(TcpListenerChannel));
             }
@@ -372,7 +382,9 @@ namespace Opc.Ua.Bindings
         /// compared by reference on each call: a renewed token (a new thumbprint, a rotated
         /// certificate) or a transport that reconnected to the channel gets a new context.
         /// </remarks>
-        internal SecureChannelContext GetRequestContext()
+        /// <param name="cache">Whether the request can share immutable channel evidence.
+        /// Requests that register response callbacks need their own context.</param>
+        internal SecureChannelContext GetRequestContext(bool cache = true)
         {
             string channelId = GlobalChannelId;
             EndpointDescription? endpoint = EndpointDescription;
@@ -382,7 +394,7 @@ namespace Opc.Ua.Bindings
             IUaSCByteTransport? transport = Transport;
 
             RequestContext? cached = Volatile.Read(ref m_requestContext);
-            if (cached != null &&
+            if (cache && cached != null &&
                 ReferenceEquals(cached.ChannelId, channelId) &&
                 ReferenceEquals(cached.Endpoint, endpoint) &&
                 ReferenceEquals(cached.ClientCertificate, clientCertificate) &&
@@ -401,8 +413,11 @@ namespace Opc.Ua.Bindings
                 serverCertificate,
                 thumbprint,
                 (transport?.RemoteEndpoint as IPEndPoint)?.Address);
-            Volatile.Write(ref m_requestContext, new RequestContext(
-                context, channelId, endpoint, clientCertificate, serverCertificate, thumbprint, transport));
+            if (cache)
+            {
+                Volatile.Write(ref m_requestContext, new RequestContext(
+                    context, channelId, endpoint, clientCertificate, serverCertificate, thumbprint, transport));
+            }
             return context;
         }
 

@@ -269,3 +269,17 @@ Good_CascadeNotSelected,1028
 Good_FaultStateActive,1031
 Good_InitiateFaultState,1032
 Good_Cascade,1033
+Bad_DataChannelIdInvalid,1100
+Bad_DataChannelClosed,1101
+Bad_DataChannelNotSupported,1102
+Bad_DataChannelTransportUnsupported,1103
+Bad_DataChannelDirectionUnsupported,1104
+Bad_DeliveryModeUnsupported,1105
+Bad_ContentTypeUnsupported,1106
+Bad_TooManyDataChannels,1107
+Bad_DataChannelLimitsExceeded,1108
+Bad_DataChannelCreditExceeded,1109
+Bad_DataChannelOfferInvalid,1110
+Bad_DataChannelFrameTypeUnsupported,1111
+Bad_DataChannelFrameInvalid,1112
+Uncertain_DataDiscarded,1113

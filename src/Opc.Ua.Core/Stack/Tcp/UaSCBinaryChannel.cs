@@ -321,6 +321,8 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
+                NotifyChannelClosed();
+
                 IUaSCByteTransport? transport = DetachTransport();
                 transport?.Close();
                 DiscardTokens();
@@ -444,6 +446,17 @@ namespace Opc.Ua.Bindings
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
+            // Every symmetric chunk - MSG, OPN, CLO and STR alike - draws from
+            // this one sequence space, and reusing a number under one TokenId
+            // reuses the AEAD nonce derived from it. Service traffic is
+            // accounted for by observing this counter rather than by calling
+            // into the budget on each send, but observation alone is passive:
+            // a channel carrying only Service traffic would never learn that
+            // it is close to exhaustion until a data channel asked. This hook
+            // pushes the transition so the client can renew ahead of the
+            // lifetime timer.
+            OnSequenceNumberIssued();
+
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
             if (isLegacy)
@@ -475,6 +488,15 @@ namespace Opc.Ua.Bindings
         /// LastSequenceNumber input of the AEAD nonce (OPC 10000-6 6.8.1).
         /// </summary>
         internal uint LastSentSequenceNumber => (uint)(Interlocked.Read(ref m_localSequenceNumber) - 1);
+
+        /// <summary>
+        /// Called for every symmetric SequenceNumber issued on this channel.
+        /// Overridden where the channel can act on the budget by renewing the
+        /// SecurityToken early.
+        /// </summary>
+        protected virtual void OnSequenceNumberIssued()
+        {
+        }
 
         /// <summary>
         /// Resets the sequence number after a connect.
@@ -571,7 +593,7 @@ namespace Opc.Ua.Bindings
         private bool IsLaterSequenceNumber(uint sequenceNumber)
         {
             uint distance = unchecked(sequenceNumber - m_remoteSequenceNumber);
-            return distance != 0 && distance < 0x80000000u;
+            return distance is not 0 and < 0x80000000u;
         }
 
         /// <summary>
@@ -613,12 +635,12 @@ namespace Opc.Ua.Bindings
             bool budgetExceeded = false;
             bool hasSession = true;
             IServerResourceIsolationProvider? isolation = isServerContext ? Quotas.ResourceIsolationProvider : null;
-            ResourceIsolationOwner? owner = null;
             IDisposable? incomingLease = null;
             List<IDisposable>? releasedLeases = null;
             bool chunkOwned = true;
             try
             {
+                ResourceIsolationOwner? owner;
                 lock (m_partialMessageLock)
                 {
                     if (m_partialMessageClosed)
@@ -1563,7 +1585,7 @@ namespace Opc.Ua.Bindings
 
                     // Writes numbered by their producers go out without the send
                     // order lock: each was queued under it, after the writes numbered
-                    // before it. A client channel only queues such writes.
+                    // before it. Client Service requests also use this queue.
                     numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
                 }
 
@@ -1735,6 +1757,19 @@ namespace Opc.Ua.Bindings
                             ServiceResult.Create(
                                 StatusCodes.BadSecureChannelClosed,
                                 "The channel was closed before the message was sent."));
+                        continue;
+                    }
+
+                    if (message.MessageType == TcpMessageType.Stream && !SequenceBudget.TryConsume())
+                    {
+                        message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                        ReportWriteComplete(
+                            null,
+                            write.State,
+                            0,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecureChannelTokenUnknown,
+                                "The SequenceNumber space under the current SecurityToken is exhausted."));
                         continue;
                     }
 
@@ -2253,7 +2288,13 @@ namespace Opc.Ua.Bindings
 
             buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
+
             SignalWriteCapacity();
+
+            if (state is DataChannelWriteOperation operation)
+            {
+                operation.Complete(result);
+            }
         }
 
         /// <summary>
@@ -2460,10 +2501,10 @@ namespace Opc.Ua.Bindings
         /// (<see cref="BeginWriteSymmetricMessage"/>) while it holds the lock,
         /// in queue order, after taking them from the queue under it.</item>
         /// <item>A producer that numbers its own message (asymmetric messages,
-        /// <see cref="WriteSymmetricMessage"/>) holds the lock from taking the
-        /// numbers until the message is in the queue of sealed writes, unless its
-        /// channel queues no unsealed messages and orders those producers itself
-        /// (the client, under its gate).</item>
+        /// <see cref="SealSymmetricMessage"/>) holds the lock from taking the
+        /// numbers until the message is in the queue of sealed writes. A channel
+        /// that queues no unsealed messages may instead order its numbered
+        /// producers separately.</item>
         /// </list>
         /// The writer sends every sealed write ahead of the unsealed ones it takes
         /// with them, so a write numbered by a producer — necessarily before the

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <opc:ModelDesign
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
@@ -414,6 +414,10 @@
       <opc:Property SymbolicName="MaxMonitoredItemsQueueSize" DataType="ua:UInt32" ModellingRule="Optional" />
 
       <opc:Property SymbolicName="ConformanceUnits" DataType="ua:QualifiedName" ValueRank="Array" ModellingRule="Optional" />
+
+      <opc:Object SymbolicName="DataChannelCapabilities" TypeDefinition="DataChannelCapabilitiesType" ModellingRule="Optional">
+        <opc:Description>Server wide data channel capabilities. Its absence states that the server does not support data channels.</opc:Description>
+      </opc:Object>
 
     </opc:Children>
   </opc:ObjectType>
@@ -1379,12 +1383,7 @@
 
   <opc:DataType SymbolicName="SemanticVersionString" BaseType="String" PartNo="5"></opc:DataType>
 
-  <opc:DataType SymbolicName="KeyValuePair" BaseType="Structure" PartNo="5">
-    <opc:Fields>
-      <opc:Field Name="Key" DataType="ua:QualifiedName" />
-      <opc:Field Name="Value" DataType="ua:BaseDataType" />
-    </opc:Fields>
-  </opc:DataType>
+  <!-- KeyValuePair UA Core Services.xml -->
 
   <opc:DataType SymbolicName="AdditionalParametersType" BaseType="Structure" NoArraysAllowed="true" PartNo="5">
     <opc:Fields>
@@ -9675,5 +9674,135 @@
       </opc:Reference>
     </opc:References>
   </opc:Object>
+
+  <!-- Data Channels. Experimental; identifiers are provisional. -->
+
+  <opc:ReferenceType SymbolicName="HasDataChannel" BaseType="ua:NonHierarchicalReferences" PartNo="3">
+    <opc:Description>Links a functional Object or Variable to the data channel source through which its content can be streamed.</opc:Description>
+    <opc:InverseName>DataChannelOf</opc:InverseName>
+  </opc:ReferenceType>
+
+  <opc:ObjectType SymbolicName="IDataChannelSourceType" BaseType="ua:BaseInterfaceType" IsAbstract="true" PartNo="3">
+    <opc:Description>Interface implemented by any Object or Variable that can act as one end of a data channel.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="Direction" DataType="DataChannelDirection" ModellingRule="Mandatory">
+        <opc:Description>The directions in which this endpoint can carry data.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="SupportedDeliveryModes" DataType="DataChannelDeliveryMode" ValueRank="Array" ModellingRule="Mandatory">
+        <opc:Description>The delivery modes this endpoint accepts in OpenDataChannel.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ContentType" DataType="ua:String" ModellingRule="Mandatory">
+        <opc:Description>The IANA media type of the byte stream this endpoint produces or consumes.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ContentParameters" DataType="KeyValuePair" ValueRank="Array" ModellingRule="Optional">
+        <opc:Description>Content specific parameters that qualify ContentType.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxFrameSize" DataType="ua:UInt32" ModellingRule="Optional">
+        <opc:Description>The largest data channel frame payload, in bytes, this endpoint will emit or accept.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxBitrate" DataType="ua:UInt32" ModellingRule="Optional">
+        <opc:Description>The peak rate, in bits per second, this endpoint may produce.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Priority" DataType="ua:Byte" ModellingRule="Optional">
+        <opc:Description>The default scheduling priority applied when the client requests priority 255.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxChannels" DataType="ua:UInt16" ModellingRule="Optional">
+        <opc:Description>The maximum number of data channels that may be open on this endpoint at the same time.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ActiveChannelCount" DataType="ua:UInt16" ModellingRule="Optional">
+        <opc:Description>The number of data channels currently open on this endpoint.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="DataChannelSourceType" BaseType="ua:BaseObjectType" PartNo="3">
+    <opc:Description>The plain, concrete realization of IDataChannelSourceType.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="Channels" DataType="DataChannelStatusDataType" ValueRank="Array" ModellingRule="Optional">
+        <opc:Description>The data channels currently open on this endpoint.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Diagnostics" DataType="DataChannelDiagnosticsDataType" ValueRank="Array" ModellingRule="Optional">
+        <opc:Description>Per channel counters for the channels currently open on this endpoint.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="false">
+        <opc:ReferenceType>ua:HasInterface</opc:ReferenceType>
+        <opc:TargetId>ua:IDataChannelSourceType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="DataChannelCapabilitiesType" BaseType="ua:BaseObjectType" PartNo="3">
+    <opc:Description>Server wide data channel limits and capabilities.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="MaxDataChannels" DataType="ua:UInt16" ModellingRule="Mandatory">
+        <opc:Description>The maximum number of data channels the server will keep open on one secure channel.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxFrameSize" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>The largest data channel frame payload, in bytes, the server will emit or accept.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="SupportedDeliveryModes" DataType="DataChannelDeliveryMode" ValueRank="Array" ModellingRule="Mandatory">
+        <opc:Description>The delivery modes the server implements.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="SupportedTransportProfileUris" DataType="ua:String" ValueRank="Array" ModellingRule="Mandatory">
+        <opc:Description>The transport profile uris over which this server carries data channels.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxCreditPerChannel" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>The largest flow control credit window, in bytes, the server will grant to one channel.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="MaxTotalBitrate" DataType="ua:UInt32" ModellingRule="Optional">
+        <opc:Description>The aggregate rate, in bits per second, the server will emit across all data channels of one secure channel.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="SupportsUnreliableDatagrams" DataType="ua:Boolean" ModellingRule="Optional">
+        <opc:Description>True when the server can carry unreliable channels over a genuinely lossy path.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="AllowInsecureDataChannels" DataType="ua:Boolean" ModellingRule="Optional">
+        <opc:Description>True only where the server permits a data channel on a secure channel whose security mode is None. Absence shall be read as False.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ActiveChannelCount" DataType="ua:UInt16" ModellingRule="Optional">
+        <opc:Description>The number of data channels currently open across the whole server.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="DataChannelOfferedEventType" BaseType="ua:BaseEventType" IsAbstract="true" PartNo="3">
+    <opc:Description>Raised when the server wants to open a data channel towards a client.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="Offer" DataType="DataChannelOfferDataType" ModellingRule="Mandatory">
+        <opc:Description>The offered channel.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="DataChannelStateChangeEventType" BaseType="ua:BaseEventType" IsAbstract="true" PartNo="3">
+    <opc:Description>Raised whenever a data channel changes state.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ChannelId" DataType="ua:UInt32" ModellingRule="Mandatory">
+        <opc:Description>The data channel whose state changed.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="State" DataType="DataChannelState" ModellingRule="Mandatory">
+        <opc:Description>The state entered.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Status" DataType="ua:StatusCode" ModellingRule="Optional">
+        <opc:Description>The status code that caused the transition.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="AuditOpenDataChannelEventType" BaseType="AuditSessionEventType" IsAbstract="true" PartNo="3">
+    <opc:Description>Audit event for a successful or rejected OpenDataChannel.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="DataChannelSourceNodeId" DataType="ua:NodeId" ModellingRule="Mandatory">
+        <opc:Description>The endpoint the channel was requested on.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="Parameters" DataType="DataChannelParametersDataType" ModellingRule="Mandatory">
+        <opc:Description>The parameters as revised by the server, or as requested when the request was rejected.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ChannelId" DataType="ua:UInt32" ModellingRule="Optional">
+        <opc:Description>The assigned channel id. Omitted when the request was rejected.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+  </opc:ObjectType>
 
 </opc:ModelDesign>

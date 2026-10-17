@@ -294,7 +294,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(39));
+            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(42));
         }
 
         [Test]
@@ -302,8 +302,19 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(ServiceCategory.Session), Has.Length.EqualTo(4));
-            Assert.That(validator.GetListOfServices(ServiceCategory.None), Is.Empty);
+            Service[] session = validator.GetListOfServices(ServiceCategory.Session);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(session, Has.Length.EqualTo(7));
+
+                // Named rather than counted alone, so a change to this figure
+                // has to say which Service moved in or out of the category.
+                Assert.That(
+                    session.Select(service => service.Name),
+                    Is.SupersetOf(s_dataChannelServices));
+                Assert.That(validator.GetListOfServices(ServiceCategory.None), Is.Empty);
+            });
         }
 
         [TestCase(SpecificationVersion.V103)]
@@ -642,6 +653,9 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         private static readonly int[] s_hugeSetBits = [0, 95, 96, 130, 131];
+
+        private static readonly string[] s_dataChannelServices =
+            ["OpenDataChannel", "ModifyDataChannel", "CloseDataChannel"];
 
         /// <summary>
         /// D4: an OptionSet field names one bit (OPC 10000-3 8.40, 8.52); a

@@ -2045,4 +2045,172 @@
     <opc:Value Name="Unknown" Value="4" />
   </opc:EnumeratedType>
 
+  <!-- Data Channels. Experimental; identifiers are provisional. -->
+
+  <opc:ComplexType Name="KeyValuePair" AllowArrays="true" PartNo="5">
+    <opc:Field Name="Key" DataType="s0:QualifiedName" />
+    <opc:Field Name="Value" DataType="s0:Variant" />
+  </opc:ComplexType>
+
+  <opc:EnumeratedType Name="DataChannelDirection" PartNo="3">
+    <opc:Value Name="SourceToSink" Value="0">
+      <opc:Documentation>The source sends and the sink receives, for example a camera feed.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="SinkToSource" Value="1">
+      <opc:Documentation>The sink sends and the source receives, for example a firmware push.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Bidirectional" Value="2">
+      <opc:Documentation>Both ends send over the one ChannelId, for example a two-way audio call.</opc:Documentation>
+    </opc:Value>
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="DataChannelDeliveryMode" PartNo="3">
+    <opc:Value Name="ReliableOrdered" Value="0">
+      <opc:Documentation>Every frame is delivered, in order.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="ReliableUnordered" Value="1">
+      <opc:Documentation>Every frame is delivered, but the receiver may hand frames to the application as they arrive.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="PartiallyReliable" Value="2">
+      <opc:Documentation>A frame is retried until its deadline passes or MaxRetransmits is reached, then abandoned.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Unreliable" Value="3">
+      <opc:Documentation>A frame is sent once and never retried.</opc:Documentation>
+    </opc:Value>
+  </opc:EnumeratedType>
+
+  <opc:EnumeratedType Name="DataChannelState" PartNo="3">
+    <opc:Value Name="Opening" Value="0">
+      <opc:Documentation>OpenDataChannel has been accepted and the endpoint is being prepared.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Open" Value="1">
+      <opc:Documentation>Payload may flow in the negotiated directions.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Paused" Value="2">
+      <opc:Documentation>The peer's flow control credit is exhausted in this direction, so no payload may be sent.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Closing" Value="3">
+      <opc:Documentation>This peer has decided to close a direction and is draining it.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Closed" Value="4">
+      <opc:Documentation>The channel is closed, either by END in every direction it carries or by a RESET carrying Good.</opc:Documentation>
+    </opc:Value>
+    <opc:Value Name="Faulted" Value="5">
+      <opc:Documentation>The channel was aborted by a RESET carrying a Bad StatusCode, by a timeout, or by loss of the SecureChannel or Session.</opc:Documentation>
+    </opc:Value>
+  </opc:EnumeratedType>
+
+  <opc:ComplexType Name="DataChannelParametersDataType" AllowArrays="true" PartNo="3">
+    <opc:Field Name="Direction" DataType="DataChannelDirection" />
+    <opc:Field Name="DeliveryMode" DataType="DataChannelDeliveryMode" />
+    <opc:Field Name="ContentType" DataType="s0:String" />
+    <opc:Field Name="ContentParameters" DataType="KeyValuePair" ValueRank="0" />
+    <opc:Field Name="MaxFrameSize" DataType="s0:UInt32" />
+    <opc:Field Name="InitialCredit" DataType="s0:UInt32" />
+    <opc:Field Name="Priority" DataType="s0:Byte" />
+    <opc:Field Name="MaxRetransmits" DataType="s0:UInt16" />
+    <opc:Field Name="FrameDeadline" DataType="Duration" />
+    <opc:Field Name="MaxBitrate" DataType="s0:UInt32" />
+  </opc:ComplexType>
+
+  <opc:ComplexType Name="DataChannelStatusDataType" AllowArrays="true" PartNo="3">
+    <opc:Field Name="ChannelId" DataType="s0:UInt32" />
+    <opc:Field Name="SourceNodeId" DataType="s0:NodeId" />
+    <opc:Field Name="State" DataType="DataChannelState" />
+    <opc:Field Name="Parameters" DataType="DataChannelParametersDataType" />
+    <opc:Field Name="TransportChannelId" DataType="s0:UInt64" />
+    <opc:Field Name="StartTime" DataType="UtcTime" />
+  </opc:ComplexType>
+
+  <opc:ComplexType Name="DataChannelOfferDataType" AllowArrays="true" PartNo="3">
+    <opc:Field Name="OfferId" DataType="s0:UInt32" />
+    <opc:Field Name="SourceNodeId" DataType="s0:NodeId" />
+    <opc:Field Name="Parameters" DataType="DataChannelParametersDataType" />
+    <opc:Field Name="ExpirationTime" DataType="UtcTime" />
+  </opc:ComplexType>
+
+  <opc:ComplexType Name="DataChannelDiagnosticsDataType" AllowArrays="true" PartNo="3">
+    <opc:Field Name="ChannelId" DataType="s0:UInt32" />
+    <opc:Field Name="FramesSent" DataType="s0:UInt64" />
+    <opc:Field Name="FramesReceived" DataType="s0:UInt64" />
+    <opc:Field Name="BytesSent" DataType="s0:UInt64" />
+    <opc:Field Name="BytesReceived" DataType="s0:UInt64" />
+    <opc:Field Name="FramesDiscarded" DataType="s0:UInt64" />
+    <opc:Field Name="CreditStalls" DataType="s0:UInt32" />
+    <opc:Field Name="RoundTripTime" DataType="Duration" />
+    <opc:Field Name="LastGapSequenceNumber" DataType="s0:UInt32" />
+  </opc:ComplexType>
+
+  <opc:ServiceType Name="OpenDataChannel">
+    <opc:Request>
+      <opc:Parameter Name="RequestHeader" DataType="RequestHeader" />
+      <opc:Parameter Name="SourceNodeId" DataType="s0:NodeId">
+        <opc:Documentation>The data channel source to open the channel on.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="OfferId" DataType="s0:UInt32">
+        <opc:Documentation>Zero for a client initiated open, otherwise the OfferId being accepted.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="TransportChannelId" DataType="s0:UInt64">
+        <opc:Documentation>The transport stream identifier for a client initiated direction, zero otherwise.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="RequestedParameters" DataType="DataChannelParametersDataType">
+        <opc:Documentation>The parameters the client asks for.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Request>
+    <opc:Response>
+      <opc:Parameter Name="ResponseHeader" DataType="ResponseHeader">
+        <opc:Documentation>A standard header included in all responses returned by servers.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="ChannelId" DataType="s0:UInt32">
+        <opc:Documentation>The identifier of the new channel within the owning secure channel.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="RevisedParameters" DataType="DataChannelParametersDataType">
+        <opc:Documentation>The parameters actually in force.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="RevisedTransportChannelId" DataType="s0:UInt64">
+        <opc:Documentation>The underlying transport identifier in force. Echoes the requested value for a client initiated direction.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Response>
+  </opc:ServiceType>
+
+  <opc:ServiceType Name="ModifyDataChannel">
+    <opc:Request>
+      <opc:Parameter Name="RequestHeader" DataType="RequestHeader" />
+      <opc:Parameter Name="ChannelId" DataType="s0:UInt32">
+        <opc:Documentation>The channel to modify.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="RequestedParameters" DataType="DataChannelParametersDataType">
+        <opc:Documentation>The new parameters.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Request>
+    <opc:Response>
+      <opc:Parameter Name="ResponseHeader" DataType="ResponseHeader">
+        <opc:Documentation>A standard header included in all responses returned by servers.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="RevisedParameters" DataType="DataChannelParametersDataType">
+        <opc:Documentation>The parameters now in force.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Response>
+  </opc:ServiceType>
+
+  <opc:ServiceType Name="CloseDataChannel">
+    <opc:Request>
+      <opc:Parameter Name="RequestHeader" DataType="RequestHeader" />
+      <opc:Parameter Name="ChannelId" DataType="s0:UInt32">
+        <opc:Documentation>The channel to close.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="Reason" DataType="s0:StatusCode">
+        <opc:Documentation>Good for a normal close, any other value is recorded in the audit trail.</opc:Documentation>
+      </opc:Parameter>
+      <opc:Parameter Name="DeleteQueued" DataType="s0:Boolean">
+        <opc:Documentation>True discards frames still queued in either direction and closes immediately.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Request>
+    <opc:Response>
+      <opc:Parameter Name="ResponseHeader" DataType="ResponseHeader">
+        <opc:Documentation>A standard header included in all responses returned by servers.</opc:Documentation>
+      </opc:Parameter>
+    </opc:Response>
+  </opc:ServiceType>
+
 </opc:TypeDictionary>

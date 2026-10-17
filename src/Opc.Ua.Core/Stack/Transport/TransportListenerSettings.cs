@@ -139,7 +139,7 @@ namespace Opc.Ua
         /// own, sized by <see cref="ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/>
         /// from the maximum message size of its endpoint configuration. Honored
         /// by the listeners that carry UA Secure Conversation: <c>opc.tcp</c> and
-        /// <c>opc.wss</c>.
+        /// <c>opc.wss</c>, and the control stream of <c>opc.quic</c>.
         /// </remarks>
         public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
 

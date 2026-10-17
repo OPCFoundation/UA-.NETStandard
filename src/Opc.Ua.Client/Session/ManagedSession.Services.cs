@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Bindings;
 
 namespace Opc.Ua.Client
 {
@@ -628,6 +630,57 @@ namespace Opc.Ua.Client
             {
                 return await call(InnerSession, args, ct).ConfigureAwait(false);
             }
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public ValueTask<OpenDataChannelResponse> OpenDataChannelAsync(
+            RequestHeader? requestHeader,
+            NodeId sourceNodeId,
+            uint offerId,
+            ulong transportChannelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct)
+        {
+            return CallServiceAsync(
+                (requestHeader, sourceNodeId, offerId, transportChannelId, requestedParameters),
+                static (session, a, ct) => session.OpenDataChannelAsync(
+                    a.requestHeader, a.sourceNodeId, a.offerId, a.transportChannelId, a.requestedParameters, ct),
+                ct);
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public ValueTask<ModifyDataChannelResponse> ModifyDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            DataChannelParametersDataType? requestedParameters,
+            CancellationToken ct)
+        {
+            return CallServiceAsync(
+                (requestHeader, channelId, requestedParameters),
+                static (session, a, ct) => session.ModifyDataChannelAsync(
+                    a.requestHeader, a.channelId, a.requestedParameters, ct),
+                ct);
+        }
+
+        /// <inheritdoc/>
+        [Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+        public ValueTask<CloseDataChannelResponse> CloseDataChannelAsync(
+            RequestHeader? requestHeader,
+            uint channelId,
+            StatusCode reason,
+            bool deleteQueued,
+            CancellationToken ct)
+        {
+            return CallServiceAsync(
+                (requestHeader, channelId, reason, deleteQueued),
+                static (session, a, ct) => session.CloseDataChannelAsync(
+                    a.requestHeader, a.channelId, a.reason, a.deleteQueued, ct),
+                ct);
         }
 
         /// <summary>

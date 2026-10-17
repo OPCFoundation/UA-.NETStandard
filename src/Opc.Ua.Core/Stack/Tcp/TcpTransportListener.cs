@@ -517,7 +517,7 @@ namespace Opc.Ua.Bindings
             // negotiated maximum message size alive by never sending a final
             // chunk, and enough connections exhaust the memory of the process.
             m_quotas.ChunkReassemblyBudget = settings.ChunkReassemblyBudget ??
-                global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(configuration);
+                ChunkReassemblyBudget.CreateDefault(configuration);
 
             // save the server certificate.
             m_serverCertificates = settings.ServerCertificates!;
@@ -1610,7 +1610,7 @@ namespace Opc.Ua.Bindings
                 {
                     return false;
                 }
-                candidates = channels.Values.ToArray();
+                candidates = [.. channels.Values];
             }
             foreach (TcpListenerChannel candidate in candidates.OrderByDescending(
                 channel => channel.ElapsedSinceLastActiveTime))
@@ -1727,9 +1727,11 @@ namespace Opc.Ua.Bindings
             }
 
             ValueTask<IServiceResponse> processing;
+            SecureChannelContext? context = null;
             try
             {
-                processing = callback.ProcessRequestAsync(channel.GetRequestContext(), request);
+                context = channel.GetRequestContext(cache: request is not OpenDataChannelRequest);
+                processing = callback.ProcessRequestAsync(context, request);
             }
             catch (Exception e)
             {
@@ -1751,14 +1753,14 @@ namespace Opc.Ua.Bindings
             }
             if (completed)
             {
-                OnRequestProcessed(channel, requestId, request, usage, processing);
+                OnRequestProcessed(channel, requestId, request, usage, processing, context);
                 return;
             }
             if (!s_pendingRequests.Get().TryAwait(
-                    this, channel, requestId, request, usage, processing, out Exception? error) &&
+                    this, channel, requestId, request, usage, processing, context, out Exception? error) &&
                 error != null)
             {
-                CompleteRequestAsync(channel, requestId, request, usage, Faulted(error), null, default, false);
+                CompleteRequestAsync(channel, requestId, request, usage, Faulted(error), null, default, false, context);
             }
         }
 
@@ -1771,7 +1773,8 @@ namespace Opc.Ua.Bindings
             uint requestId,
             IServiceRequest request,
             TcpListenerChannel.PendingRequestScope usage,
-            ValueTask<IServiceResponse> processing)
+            ValueTask<IServiceResponse> processing,
+            SecureChannelContext? context)
         {
             IServiceResponse? response = null;
             bool succeeded = false;
@@ -1793,7 +1796,7 @@ namespace Opc.Ua.Bindings
             {
                 CompleteRequestAsync(
                     channel, requestId, request, usage,
-                    readError == null ? processing : Faulted(readError), null, default, false);
+                    readError == null ? processing : Faulted(readError), null, default, false, context);
                 return;
             }
 
@@ -1809,13 +1812,14 @@ namespace Opc.Ua.Bindings
 
             if (!sending.IsCompletedSuccessfully)
             {
-                CompleteRequestAsync(channel, requestId, request, usage, default, response, sending, true);
+                CompleteRequestAsync(channel, requestId, request, usage, default, response, sending, true, context);
                 return;
             }
 
             // Return decoded request and response to their activator pools for reuse,
             // as CompleteRequestAsync does.
             bool responseRetained = sending.Result;
+            NotifyResponseDispatched(context);
             (request as IPooledEncodeable)?.Reuse();
             if (!responseRetained)
             {
@@ -1838,6 +1842,7 @@ namespace Opc.Ua.Bindings
         /// <param name="response">The response whose send is <paramref name="sending"/>.</param>
         /// <param name="sending">The send of <paramref name="response"/>.</param>
         /// <param name="sendStarted">Whether the processing was read and its send started.</param>
+        /// <param name="context">The request's channel evidence and response callback.</param>
         private async void CompleteRequestAsync(
             TcpListenerChannel channel,
             uint requestId,
@@ -1846,7 +1851,8 @@ namespace Opc.Ua.Bindings
             ValueTask<IServiceResponse> processing,
             IServiceResponse? response,
             ValueTask<bool> sending,
-            bool sendStarted)
+            bool sendStarted,
+            SecureChannelContext? context)
         {
             using TcpListenerChannel.PendingRequestScope scope = usage;
             bool responseRetained = false;
@@ -1879,12 +1885,15 @@ namespace Opc.Ua.Bindings
                         {
                             responseRetained = await serverChannel
                                 .SendResponseAsync(requestId, response!).ConfigureAwait(false);
+                            NotifyResponseDispatched(context);
                             return;
                         }
                     }
                     // if we could not find a new channel, just log the error
                     throw;
                 }
+
+                NotifyResponseDispatched(context);
             }
             catch (Exception e)
             {
@@ -1941,6 +1950,20 @@ namespace Opc.Ua.Bindings
             }
         }
 
+        private void NotifyResponseDispatched(SecureChannelContext? context)
+        {
+            try
+            {
+                context?.ResponseDispatched?.Invoke();
+            }
+            catch (Exception e)
+            {
+                // A callback that throws must not fault the request loop; the
+                // response itself has already been handed to the transport.
+                m_logger.TcpTransportResponseDispatchedCallbackFailed(e);
+            }
+        }
+
         /// <summary>
         /// A failed processing, for a request whose processing could not be started or read.
         /// </summary>
@@ -1973,6 +1996,7 @@ namespace Opc.Ua.Bindings
                 IServiceRequest request,
                 TcpListenerChannel.PendingRequestScope usage,
                 ValueTask<IServiceResponse> processing,
+                SecureChannelContext? context,
                 out Exception? error)
             {
                 m_channel = channel;
@@ -1980,6 +2004,7 @@ namespace Opc.Ua.Bindings
                 m_request = request;
                 m_usage = usage;
                 m_processing = processing;
+                m_context = context;
                 // published last: the continuation claims the request by taking it
                 Volatile.Write(ref m_listener, listener);
                 try
@@ -2001,6 +2026,7 @@ namespace Opc.Ua.Bindings
                     m_request = null;
                     m_usage = default;
                     m_processing = default;
+                    m_context = null;
                     error = e;
                     return false;
                 }
@@ -2019,12 +2045,14 @@ namespace Opc.Ua.Bindings
                 IServiceRequest request = m_request!;
                 TcpListenerChannel.PendingRequestScope usage = m_usage;
                 ValueTask<IServiceResponse> processing = m_processing;
+                SecureChannelContext? context = m_context;
                 m_channel = null;
                 m_request = null;
                 m_usage = default;
                 m_processing = default;
+                m_context = null;
                 s_pendingRequests.Return(this);
-                listener.OnRequestProcessed(channel, requestId, request, usage, processing);
+                listener.OnRequestProcessed(channel, requestId, request, usage, processing, context);
             }
 
             private readonly Action m_onProcessed;
@@ -2034,6 +2062,11 @@ namespace Opc.Ua.Bindings
             private IServiceRequest? m_request;
             private TcpListenerChannel.PendingRequestScope m_usage;
             private ValueTask<IServiceResponse> m_processing;
+
+            /// <summary>
+            /// Request-local response notification, never taken from another request's cached context.
+            /// </summary>
+            private SecureChannelContext? m_context;
         }
 
         /// <summary>
@@ -2411,5 +2444,15 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 34, Level = LogLevel.Debug,
             Message = "Refused TCP connection closed before Bad_TcpNotEnoughResources could be sent.")]
         public static partial void TcpResourceRejectionFailed(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports a callback failure after a response has been handed to the transport.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 35, Level = LogLevel.Error,
+            Message = "TCPLISTENER - A response-dispatched callback threw. " +
+                "The response itself has already been written.")]
+        public static partial void TcpTransportResponseDispatchedCallbackFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 }

@@ -649,36 +649,39 @@ namespace Opc.Ua.Bindings
 
             m_oscRequestSignature = null;
 
-            // write the asymmetric message.
-            AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
-                TcpMessageType.Open,
-                m_handshakeOperation.RequestId,
-                ClientCertificate,
-                ClientCertificateChain,
-                ServerCertificate,
-                new ArraySegment<byte>(buffer, 0, buffer.Length),
-                m_oscRequestSignature,
-                ct).ConfigureAwait(false);
-
-            BufferCollection? chunksToSend = written.Chunks;
-
-            // don't keep signature if secure channel enhancements are not used.
-            m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
-                ? written.Signature
-                : null;
-
-            // save token.
-            m_requestedToken = token;
-
-            // write the message to the server.
-            try
+            // Keep numbering and admission together so the writer cannot send an unsealed STR frame between them.
+            using (await SendOrder.EnterAsync(ct).ConfigureAwait(false))
             {
-                BeginWriteMessage(chunksToSend, m_handshakeOperation);
-                chunksToSend = null;
-            }
-            finally
-            {
-                chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
+                AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
+                    TcpMessageType.Open,
+                    m_handshakeOperation.RequestId,
+                    ClientCertificate,
+                    ClientCertificateChain,
+                    ServerCertificate,
+                    new ArraySegment<byte>(buffer, 0, buffer.Length),
+                    m_oscRequestSignature,
+                    ct).ConfigureAwait(false);
+
+                BufferCollection? chunksToSend = written.Chunks;
+
+                // don't keep signature if secure channel enhancements are not used.
+                m_oscRequestSignature = SecurityPolicy!.SecureChannelEnhancements
+                    ? written.Signature
+                    : null;
+
+                // save token.
+                m_requestedToken = token;
+
+                // write the message to the server.
+                try
+                {
+                    BeginWriteMessage(chunksToSend, m_handshakeOperation);
+                    chunksToSend = null;
+                }
+                finally
+                {
+                    chunksToSend?.Release(BufferManager, "SendOpenSecureChannelRequest");
+                }
             }
         }
 
@@ -1004,6 +1007,11 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.UaSCClientLog11(ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
+            }
+
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
+            {
+                return ProcessDataChannelMessage(messageType, messageChunk, false);
             }
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
@@ -1375,16 +1383,19 @@ namespace Opc.Ua.Bindings
 
                 // must return an error to the client if limits are exceeded.
 
-                buffers = WriteSymmetricMessage(
+                EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
                     TcpMessageType.Message,
                     operation.RequestId,
-                    token,
                     request,
                     true,
                     out bool limitsExceeded);
 
-                BeginWriteMessage(buffers, operation);
-                buffers = null;
+                using (SendOrder.Enter())
+                {
+                    buffers = SealSymmetricMessage(encoded, token);
+                    BeginWriteMessage(buffers, operation);
+                    buffers = null;
+                }
                 success = true;
 
                 if (limitsExceeded)
@@ -1620,10 +1631,70 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Brings the scheduled token renewal forward when the SequenceNumber
+        /// space under the current token is close to exhaustion.
+        /// </summary>
+        /// <remarks>
+        /// Renewal is otherwise driven purely by the token lifetime, which
+        /// assumes chunks are emitted at Service call rate. Data channels
+        /// break that assumption by orders of magnitude, so a channel can
+        /// exhaust the 32 bit space well inside one lifetime. Reaching zero
+        /// is not merely inefficient: the sender stalls its data channels
+        /// rather than reuse a SequenceNumber under one TokenId, because the
+        /// AEAD nonce is derived from it. Renewal is initiated once, on the
+        /// transition, and the normal lifetime schedule is left to resume
+        /// afterwards.
+        /// </remarks>
+        protected override void OnSequenceNumberIssued()
+        {
+            if (Volatile.Read(ref m_sequenceRenewalRequestedFlag) != 0 ||
+                State != TcpChannelState.Open)
+            {
+                return;
+            }
+
+            if (!IsSequenceRenewalDue)
+            {
+                return;
+            }
+
+            if (Interlocked.Exchange(ref m_sequenceRenewalRequestedFlag, 1) != 0)
+            {
+                return;
+            }
+
+            if (m_logger.IsEnabled(LogLevel.Information))
+            {
+                SequenceNumberBudget budget = SequenceBudget;
+
+                m_logger.UaSCClientLog37(
+                    ChannelId,
+                    budget.Remaining,
+                    budget.Capacity,
+                    budget.ChunksPerSecond);
+            }
+
+            // Renewal runs the full handshake, which cannot be done on the
+            // thread that is part way through securing a chunk. Hand it to
+            // the same timer the lifetime schedule uses so it is serialized
+            // against an in flight renewal rather than racing one.
+            m_handshakeTimer?.Dispose();
+            m_handshakeTimer = TimeProvider.CreateTimer(
+                m_startHandshake,
+                CurrentToken,
+                TimeSpan.Zero,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
         /// Schedules the renewal of a token.
         /// </summary>
         private void ScheduleTokenRenewal(ChannelToken token)
         {
+            // The new token brings a fresh SequenceNumber space, so budget
+            // driven renewal arms again for the next one.
+            Interlocked.Exchange(ref m_sequenceRenewalRequestedFlag, 0);
+
             // can't renew if not connected.
             if (State != TcpChannelState.Open)
             {
@@ -1857,23 +1928,25 @@ namespace Opc.Ua.Bindings
             // limits should never be exceeded sending a close message.
 
             // construct the message.
-            BufferCollection? buffers = WriteSymmetricMessage(
+            EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
                 TcpMessageType.Close,
                 operation.RequestId,
-                currentToken,
                 request,
                 true,
                 out _);
 
-            // send the message.
-            try
+            using (SendOrder.Enter())
             {
-                BeginWriteMessage(buffers, operation);
-                buffers = null;
-            }
-            finally
-            {
-                buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
+                BufferCollection? buffers = SealSymmetricMessage(encoded, currentToken);
+                try
+                {
+                    BeginWriteMessage(buffers, operation);
+                    buffers = null;
+                }
+                finally
+                {
+                    buffers?.Release(BufferManager, "SendCloseSecureChannelRequest");
+                }
             }
         }
 
@@ -2006,6 +2079,7 @@ namespace Opc.Ua.Bindings
         private int m_transportReceiveBufferSize;
         private readonly string m_implementationString;
         private readonly TimerCallback m_startHandshake;
+        private int m_sequenceRenewalRequestedFlag;
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
@@ -2247,6 +2321,17 @@ namespace Opc.Ua.Bindings
         public static partial void UaSCClientLog36(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = CoreEventIds.UaSCBinaryClientChannel + 38, Level = LogLevel.Information,
+            Message = "ChannelId {ChannelId}: The SequenceNumber space is nearly exhausted under the " +
+                "current token ({Remaining} of {Capacity} remaining at {Rate:F0} chunks/s); renewing " +
+                "ahead of the lifetime schedule.")]
+        public static partial void UaSCClientLog37(
+            this ILogger logger,
+            uint channelId,
+            long remaining,
+            uint capacity,
+            double rate);
 
         /// <summary>
         /// Reports a response sequence number rejected by the secure-channel sequence checks.

@@ -437,6 +437,12 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             using PendingRequestScope usage = TrackPendingRequest();
+
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
+            {
+                return ProcessDataChannelMessage(messageType, messageChunk, true);
+            }
+
             PendingRequestDispatch? pending = null;
             bool ownsBuffer;
 

@@ -219,6 +219,7 @@ namespace Opc.Ua.Bindings
                 CurrentToken = token;
                 RenewedToken = null;
                 previousToken = PreviousToken;
+                NotifySecurityTokenActivated();
             }
 
             TokenActivatedCallback?.Invoke(token, previousToken);
@@ -568,7 +569,9 @@ namespace Opc.Ua.Bindings
         /// <see cref="SendOrder"/>, but the caller queues the chunks after it is
         /// released, so this is only correct on a channel that queues no unsealed
         /// messages (<see cref="BeginWriteSymmetricMessage"/>) and serialises its
-        /// numbered writes otherwise, as the client channel does under its gate.
+        /// numbered writes otherwise. Callers that also queue unsealed frames must
+        /// hold <see cref="SendOrder"/> across <see cref="SealSymmetricMessage"/>
+        /// and queue admission instead.
         /// </remarks>
         protected BufferCollection WriteSymmetricMessage(
             uint messageType,
