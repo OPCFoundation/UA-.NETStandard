@@ -601,7 +601,7 @@ namespace Opc.Ua.Server
         {
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             DateTime abandoned = now - RequestDrainTimeout;
-            var longest = TimeSpan.Zero;
+            TimeSpan longest = TimeSpan.Zero;
             List<OperationContext> requests = m_requests.GetEntries();
             var awaited = new List<uint>(requests.Count);
 
@@ -790,7 +790,8 @@ namespace Opc.Ua.Server
 
                 foreach (OperationContext request in m_requests.GetEntries())
                 {
-                    if (request.SessionId == sessionId &&
+                    if (!request.IsOwnedInvocation &&
+                        request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
                         matchingRequests.Add(request);
@@ -834,6 +835,7 @@ namespace Opc.Ua.Server
             // a timestamp a later request reusing the handle (e.g. a client that always sends
             // 0) cannot be told apart.
             if (context == null ||
+                context.IsOwnedInvocation ||
                 context.RequestType == RequestType.Cancel ||
                 context.SessionId.IsNull ||
                 context.ClientTimestamp == DateTime.MinValue)
@@ -1246,7 +1248,7 @@ namespace Opc.Ua.Server
         private sealed class RequestValidationScope : IDisposable, IRequestTableEntry
         {
             /// <inheritdoc/>
-            uint IRequestTableEntry.TableKey => unchecked((uint)m_validationId);
+            uint IRequestTableEntry.TableKey => unchecked((uint)ValidationId);
 
             /// <inheritdoc/>
             ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
@@ -1263,10 +1265,10 @@ namespace Opc.Ua.Server
                 long validationId)
             {
                 m_requestManager = requestManager;
-                m_validationId = validationId;
+                ValidationId = validationId;
             }
 
-            public long ValidationId => m_validationId;
+            public long ValidationId { get; }
 
             /// <summary>
             /// Releases the drain that waits for this scope.
@@ -1289,7 +1291,7 @@ namespace Opc.Ua.Server
                             ii--)
                         {
                             if (m_requestManager.m_requestDrains[ii]
-                                .CompleteValidation(m_validationId))
+                                .CompleteValidation(ValidationId))
                             {
                                 m_requestManager.m_requestDrains.RemoveAt(ii);
                             }
@@ -1300,7 +1302,6 @@ namespace Opc.Ua.Server
             }
 
             private readonly RequestManager m_requestManager;
-            private readonly long m_validationId;
             private bool m_disposed;
         }
     }

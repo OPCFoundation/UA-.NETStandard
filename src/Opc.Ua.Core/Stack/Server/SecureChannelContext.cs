@@ -88,6 +88,26 @@ namespace Opc.Ua
         public RequestEncoding MessageEncoding { get; }
 
         /// <summary>
+        /// Gets whether the transport established both integrity and encryption independently of UA message security.
+        /// Only a trusted transport may set this evidence; profiles, URLs and request headers are not evidence.
+        /// It neither authenticates a user nor changes the negotiated UA policy or MessageSecurityMode.
+        /// </summary>
+        public bool HasTransportSecurity { get; init; }
+
+        /// <summary>
+        /// Gets whether this actual channel provides encryption, without inferring protection from a profile URI.
+        /// </summary>
+        public bool ProvidesEncryption =>
+            HasTransportSecurity || EndpointDescription?.SecurityMode == MessageSecurityMode.SignAndEncrypt;
+
+        /// <summary>
+        /// Gets whether this actual channel provides authenticated integrity protection.
+        /// User and application authorization remain independent checks.
+        /// </summary>
+        public bool ProvidesIntegrity => HasTransportSecurity ||
+            EndpointDescription?.SecurityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+
+        /// <summary>
         /// The unique hash for the secure channel calculated during channel creation.
         /// </summary>
         /// <remarks>

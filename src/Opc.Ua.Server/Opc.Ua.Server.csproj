@@ -46,5 +46,7 @@
   <Target Name="GetPackagingOutputs" />
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <EmbeddedResource Include="AsyncServices\Opc.Ua.AsyncServices.NodeSet2.xml"
+                      LogicalName="Opc.Ua.Server.AsyncServices.NodeSet2.xml" />
   </ItemGroup>
 </Project>

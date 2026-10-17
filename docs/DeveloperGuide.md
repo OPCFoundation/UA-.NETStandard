@@ -194,6 +194,17 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
+The default-off [recoverable Service prototype](AsyncServices.md) separates
+codec, scripted-lifecycle, in-process endpoint and native transport evidence.
+Its native Server selection is `FullyQualifiedName~AsyncServices` in
+`tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj`; run with
+`-f net10.0 -p:CustomTestTarget=net10.0`. The certificate-cycle filter is
+`FullyQualifiedName~CertificateCycleAcrossRecoverableGateway`.
+`AsyncServicesAotTests` must additionally be published and executed as a
+native binary; running its managed assembly alone is not NativeAOT evidence.
+When formatting a single test target, set the `CustomTestTarget` environment
+variable too, so the formatter does not analyze an unrestored first TFM.
+
 ## Coding standards (dos and don'ts)
 
 All rules apply to new code and to existing code you touch. The `.editorconfig` is authoritative and enforced at build time; the highlights below are the ones most often missed.
@@ -323,6 +334,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
+- **Experimental Async Services definitions** — synchronize the reviewed contract with the authoritative stack inputs using [the contract tooling](../tools/AsyncServices/README.md). New proposal Services are TAP-only; their optional model is not installed by the default address-space initializer.
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).

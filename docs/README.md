@@ -300,6 +300,8 @@ The subscription guides assume the client path; the sizing guides assume
   queued notifications while clients are disconnected.
 - [Generation-bound session clients](SessionBindings.md) — capture dispatch,
   session identity and mapping snapshots without reconnecting to a replacement peer.
+- [Recoverable Service execution](AsyncServices.md) — default-off experimental
+  Submit/Get/Control Services, typed acceptance and a two-hop certificate demonstration.
 - [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 

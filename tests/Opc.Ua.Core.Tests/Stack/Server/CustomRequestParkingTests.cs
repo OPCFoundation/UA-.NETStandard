@@ -43,6 +43,42 @@ namespace Opc.Ua.Core.Tests.Stack.Server
     [Parallelizable(ParallelScope.All)]
     public sealed class CustomRequestParkingTests
     {
+        /// <summary>
+        /// A retained response keeps the existing request-cost reservation until the transport finishes with it.
+        /// </summary>
+        [Test]
+        public async Task ResponseRetainsRequestCostUntilTransportReleaseAsync()
+        {
+            var provider = new TrackingProvider(costCapacity: 10);
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await using var server = new QueueServer(provider);
+            var retained = new RetainedReadResponse();
+            var peer = new Handler { Response = retained };
+            peer.Release();
+            var endpoint = new TestEndpoint(server, new Handler(), peer);
+            IServiceResponse response = await endpoint.SendAsync(new ReadRequest(), "peer")
+                .WaitAsync(deadline.Token).ConfigureAwait(false);
+            try
+            {
+                await provider.WaitForReleaseAsync(ResourceIsolationStage.RequestExecution, 1, deadline.Token)
+                    .ConfigureAwait(false);
+                Assert.That(response, Is.SameAs(retained));
+                Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.Zero);
+                Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+                Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(10));
+                IServiceResponse refused = await endpoint.SendAsync(new ReadRequest(), "peer")
+                    .WaitAsync(deadline.Token).ConfigureAwait(false);
+                Assert.That(refused.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            }
+            finally
+            {
+                retained.Reuse();
+                retained.Reuse();
+            }
+            await server.StopAsync(deadline.Token).ConfigureAwait(false);
+            provider.AssertAllReleasedOnce();
+        }
+
         [Test]
         public async Task CustomHandlerReleasesOnlyExecutionAndLetsPeerUseTheSingleWorkerAsync()
         {
@@ -375,7 +411,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             IRequestParkingPolicy policy = (installPolicy
                 ? new DelegateRequestParkingPolicy(_ => !decouple)
                 : null)!;
-            await using var server = new QueueServer(provider, decouple, policy!);
+            await using var server = new QueueServer(provider, decouple, policy);
             var held = new Handler();
             var peer = new Handler();
             var endpoint = new TestEndpoint(server, held, peer);
@@ -414,7 +450,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             IRequestParkingPolicy policy = (installPolicy
                 ? new DelegateRequestParkingPolicy(static _ => throw new InvalidOperationException("Not for Publish."))
                 : null)!;
-            await using var server = new QueueServer(provider, policy: policy!);
+            await using var server = new QueueServer(provider, policy: policy);
             var held = new Handler();
             var endpoint = new TestEndpoint(server, held, new Handler());
             Task<IServiceResponse> response = endpoint.SendAsync(new PublishRequest());
@@ -470,7 +506,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var server = new Mock<IServerBase>();
             server.SetupGet(value => value.MessageContext).Returns(
                 ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
-            var policy = CustomPolicy();
+            DelegateRequestParkingPolicy policy = CustomPolicy();
             if (supplyPolicy)
             {
                 server.As<IRequestParkingPolicySource>().SetupGet(value => value.RequestParkingPolicy).Returns(policy);
@@ -631,6 +667,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             public bool ThrowOnCompletion { get; init; }
 
+            /// <summary>
+            /// Gets an optional response whose transport-owned resources are exercised by the caller.
+            /// </summary>
+            public IServiceResponse? Response { get; init; }
+
             public TaskCompletionSource<IRequestParkSink> Started { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -652,7 +693,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 {
                     throw new InvalidOperationException("Handler failure.");
                 }
-                return request switch
+                return Response ?? request switch
                 {
                     CallRequest => new CallResponse(),
                     PublishRequest => new PublishResponse(),
@@ -667,6 +708,26 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// Models an outgoing response whose decoded storage remains charged until wire serialization finishes.
+        /// </summary>
+        private sealed class RetainedReadResponse : ReadResponse, IResponseResourceRetention
+        {
+            /// <inheritdoc/>
+            public void AttachRequestResources(IDisposable resources)
+            {
+                m_resources = resources;
+            }
+
+            /// <inheritdoc/>
+            protected override void ReuseCore()
+            {
+                Interlocked.Exchange(ref m_resources, null)?.Dispose();
+            }
+
+            private IDisposable? m_resources;
         }
 
         private sealed class QueueServer : ServerBase, IServerBase, IAsyncDisposable
@@ -751,6 +812,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             private readonly TaskCompletionSource<bool> m_release =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             private int m_completionCount;
         }
 
@@ -758,7 +820,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         {
             public TrackingProvider(long parkedCapacity = 1, long costCapacity = 100)
             {
-                int stages = (int)ResourceIsolationStage.ParkedRequest + 1;
+                const int stages = (int)ResourceIsolationStage.ParkedRequest + 1;
                 m_capacity = new long[stages];
                 m_used = new long[stages];
                 m_grants = new int[stages];

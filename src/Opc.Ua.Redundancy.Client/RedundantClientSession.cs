@@ -889,6 +889,53 @@ namespace Opc.Ua.Redundancy.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>Recoverable operations require an explicitly selected, non-retargeting ManagedSession.</remarks>
+        /// <exception cref="ServiceResultException">
+        /// This facade cannot preserve the original operation Session.
+        /// </exception>
+        public ValueTask<SubmitServiceResponse> SubmitServiceAsync(
+            RequestHeader? requestHeader,
+            Uuid clientOperationId,
+            ExtensionObject request,
+            double executionAllowance,
+            double resultRetentionTime,
+            double waitTime,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            throw new ServiceResultException(StatusCodes.BadNotSupported,
+                "Recoverable Services require an explicitly selected ManagedSession, not a retargeting facade.");
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>A current leader is not necessarily the Session that owns a retained operation.</remarks>
+        /// <exception cref="ServiceResultException">
+        /// This facade cannot preserve the original operation Session.
+        /// </exception>
+        public ValueTask<GetServiceResultResponse> GetServiceResultAsync(
+            RequestHeader? requestHeader, Uuid clientOperationId, ByteString serverToken,
+            double waitTime, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            throw new ServiceResultException(StatusCodes.BadNotSupported,
+                "Recoverable Services require an explicitly selected ManagedSession, not a retargeting facade.");
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>A control must not follow a facade to a replacement Session.</remarks>
+        /// <exception cref="ServiceResultException">
+        /// This facade cannot preserve the original operation Session.
+        /// </exception>
+        public ValueTask<ControlServiceExecutionResponse> ControlServiceExecutionAsync(
+            RequestHeader? requestHeader, ByteString serverToken,
+            ServiceOperationControlAction action, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            throw new ServiceResultException(StatusCodes.BadNotSupported,
+                "Recoverable Services require an explicitly selected ManagedSession, not a retargeting facade.");
+        }
+
+        /// <inheritdoc/>
         public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             RequestHeader? requestHeader,
             uint subscriptionId,

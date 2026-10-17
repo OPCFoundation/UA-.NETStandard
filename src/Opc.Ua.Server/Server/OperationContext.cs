@@ -84,6 +84,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Owns a separate invocation context while preserving the identity validated at recoverable admission.
+        /// </summary>
+        internal OperationContext(
+            OperationContext admitted,
+            RequestHeader requestHeader,
+            RequestType requestType,
+            RequestLifetime requestLifetime)
+            : this(requestHeader, admitted.ChannelContext!, requestType, requestLifetime, admitted.Session)
+        {
+            UserIdentity = admitted.UserIdentity;
+            PreferredLocales = admitted.PreferredLocales;
+            IsOwnedInvocation = true;
+        }
+
+        /// <summary>
         /// Initializes the context with a session.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -224,6 +239,11 @@ namespace Opc.Ua.Server
         public RequestType RequestType { get; }
 
         /// <summary>
+        /// Gets whether cancellation is controlled by an operation token rather than an exchange requestHandle.
+        /// </summary>
+        internal bool IsOwnedInvocation { get; }
+
+        /// <summary>
         /// A unique identifier assigned to the request by the server.
         /// </summary>
         /// <value>The request id.</value>
@@ -347,7 +367,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the token that will be cancelled when the request is aborted.
         /// </summary>
-        public System.Threading.CancellationToken CancellationToken => RequestLifetime?.CancellationToken ?? System.Threading.CancellationToken.None;
+        public CancellationToken CancellationToken => RequestLifetime?.CancellationToken ?? CancellationToken.None;
 
         /// <summary>
         /// The current status of the request (used to check for timeouts/client cancel requests).
@@ -382,13 +402,12 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    System.Threading.Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
-                    System.Threading.Interlocked.Exchange(ref m_requestCompletion, null)?
-                        .CompleteAttachedRequest(this);
+                    Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                    Interlocked.Exchange(ref m_requestCompletion, null)?.CompleteAttachedRequest(this);
                 }
                 finally
                 {
-                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
                 }
             }
         }
@@ -454,7 +473,7 @@ namespace Opc.Ua.Server
                 firstCopy.CopiedFrom = template;
 
                 // a concurrent caller may have published a copy for another template.
-                first = System.Threading.Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
+                first = Interlocked.CompareExchange(ref m_firstSystemContext, firstCopy, null);
                 if (first == null || ReferenceEquals(first.CopiedFrom, template))
                 {
                     return first ?? firstCopy;

@@ -44,6 +44,11 @@ namespace Opc.Ua.Client
         internal event Action? RequestContextChanged;
 
         /// <summary>
+        /// Signals an explicit identity change before an activation can change the retained operation's creator.
+        /// </summary>
+        internal event Action? RequestContextIdentityChanging;
+
+        /// <summary>
         /// Identifies the non-owning local session returned by a request context.
         /// </summary>
         internal bool IsGenerationBound => this is RequestContextSession;
@@ -51,13 +56,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Captures one identity consistently, including when recovery recreates this object in place.
         /// </summary>
-        internal SessionRequestContext CreateRequestContext(ManagedSession owner)
+        internal SessionRequestContext CreateRequestContext(ManagedSession owner, bool allowSameSessionRecovery)
         {
             lock (m_requestContextIdentity)
             {
-                return new SessionRequestContext(owner, this, m_requestContextGeneration);
+                return new SessionRequestContext(owner, this, m_requestContextGeneration, allowSameSessionRecovery);
             }
         }
+
+        /// <summary>
+        /// Gets the activation attempt that a recoverable context must verify before following a transport.
+        /// </summary>
+        internal long RequestContextActivationGeneration => Interlocked.Read(ref m_requestContextActivationGeneration);
 
         /// <summary>
         /// Begins dispatch before another session identity can replace the captured one.
@@ -78,6 +88,89 @@ namespace Opc.Ua.Client
         {
             return new RequestContextSession(channel, this, configuration);
         }
+
+        /// <summary>
+        /// Checks evidence recorded only after the same Session's ActivateSession response was validated.
+        /// </summary>
+        internal bool HasVerifiedRequestContextReactivation(
+            ITransportChannel channel, ChannelEntry? entry, long channelGeneration, ITransportChannel transport)
+        {
+            RequestContextReactivation? verified = m_requestContextReactivation;
+            return verified != null &&
+                verified.SessionGeneration == m_requestContextGeneration &&
+                verified.ActivationGeneration == m_requestContextActivationGeneration &&
+                ReferenceEquals(verified.Channel, channel) &&
+                ReferenceEquals(verified.Entry, entry) &&
+                verified.ChannelGeneration == channelGeneration &&
+                ReferenceEquals(verified.Transport, transport);
+        }
+
+        /// <summary>
+        /// Captures the transport being activated, not whichever transport is selected after an awaited response.
+        /// </summary>
+        private RequestContextReactivation CaptureRequestContextReactivation()
+        {
+            lock (m_requestContextIdentity)
+            {
+                ITransportChannel channel = TransportChannel;
+                ChannelEntry? entry = (channel as ManagedTransportChannelLease)?.Entry;
+                var activation = new RequestContextReactivation(
+                    m_requestContextGeneration,
+                    ++m_requestContextActivationGeneration,
+                    channel,
+                    entry,
+                    entry?.ReconnectGeneration ?? 0,
+                    entry?.Underlying ?? channel);
+                m_requestContextReactivation = null;
+                return activation;
+            }
+        }
+
+        /// <summary>
+        /// Publishes successful activation evidence without changing the Session incarnation.
+        /// </summary>
+        private void ConfirmRequestContextReactivation(RequestContextReactivation activation)
+        {
+            lock (m_requestContextIdentity)
+            {
+                if (activation.SessionGeneration == m_requestContextGeneration &&
+                    activation.ActivationGeneration == m_requestContextActivationGeneration)
+                {
+                    if (activation.Transport.MessageContext is ServiceMessageContext messageContext)
+                    {
+                        // A replacement native transport initializes an empty ServerUris table.
+                        // The verified reactivated Session still owns its established URI mapping.
+                        messageContext.ServerUris = ServerUris;
+                    }
+                    m_requestContextReactivation = activation;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Invalidates recoverable contexts even when an identity-changing activation loses its response.
+        /// </summary>
+        private void NotifyRequestContextIdentityChanging(IUserIdentity identity)
+        {
+            if (!m_identity.TokenHandler.Equals(identity.TokenHandler))
+            {
+                lock (m_requestContextIdentity)
+                {
+                    RequestContextIdentityChanging?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Associates validated activation with one Session incarnation and one physical transport attempt.
+        /// </summary>
+        private sealed record RequestContextReactivation(
+            long SessionGeneration,
+            long ActivationGeneration,
+            ITransportChannel Channel,
+            ChannelEntry? Entry,
+            long ChannelGeneration,
+            ITransportChannel Transport);
 
         /// <summary>
         /// A local Session implementation whose channel is a generation-checked, non-owning adapter.
@@ -164,5 +257,11 @@ namespace Opc.Ua.Client
 
         /// <summary>Changes even when a server reuses a public identifier during recreation.</summary>
         private long m_requestContextGeneration;
+
+        /// <summary>Counts activation attempts independently of Session incarnation changes.</summary>
+        private long m_requestContextActivationGeneration;
+
+        /// <summary>The last successfully validated activation, never a readiness-only observation.</summary>
+        private RequestContextReactivation? m_requestContextReactivation;
     }
 }

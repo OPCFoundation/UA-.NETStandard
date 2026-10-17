@@ -1983,7 +1983,12 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Test
         /// </summary>
-        Test
+        Test,
+
+        /// <summary>
+        /// Experimental Asynchronous Service Set (SubmitService, GetServiceResult, ControlServiceExecution).
+        /// </summary>
+        Asynchronous
     }
 
     /// <summary>

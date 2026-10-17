@@ -104,14 +104,9 @@ namespace Opc.Ua
         /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
         /// mode, or one shared FIFO regardless of owner in global FIFO mode.
         /// </summary>
-        internal int OwnerCount
-        {
-            get
-            {
-                // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
-                return m_owners.Count;
-            }
-        }
+        internal int OwnerCount =>
+            // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
+            m_owners.Count;
 
         /// <summary>
         /// Gets the number of turn tokens in the ready queue, including stale tokens of retired
@@ -129,6 +124,7 @@ namespace Opc.Ua
         /// encoded-message footprint, retained through execution/parking until completion.
         /// This is a conservative admission cost, not an estimate of managed heap bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         public bool TryEnqueue(
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken,
@@ -355,6 +351,7 @@ namespace Opc.Ua
         /// A worker that finds the queue empty suspends here once per request it takes, so the
         /// state machine is pooled; the worker loop awaits each call exactly once.
         /// </remarks>
+        /// <exception cref="OperationCanceledException"></exception>
 #if NET6_0_OR_GREATER
         [System.Runtime.CompilerServices.AsyncMethodBuilder(
             typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
@@ -488,7 +485,8 @@ namespace Opc.Ua
         /// </summary>
         private static bool IsControlRequest(IServiceRequest request)
         {
-            return request is CancelRequest or CloseSessionRequest;
+            return request is CancelRequest or CloseSessionRequest or
+                GetServiceResultRequest or ControlServiceExecutionRequest;
         }
 
         /// <summary>
@@ -923,7 +921,8 @@ namespace Opc.Ua
         /// </remarks>
         private void Pulse()
         {
-            if (Volatile.Read(ref m_count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
+            if (Volatile.Read(ref m_count) > 0 &&
+                Volatile.Read(ref m_stopped) == 0 &&
                 Volatile.Read(ref m_signalPending) == 0 &&
                 Interlocked.Exchange(ref m_signalPending, 1) == 0 &&
                 m_signals.Writer.TryWrite(true))
@@ -1034,6 +1033,14 @@ namespace Opc.Ua
             public void ReleaseExecution()
             {
                 Interlocked.Exchange(ref m_executionLease, null)?.Dispose();
+            }
+
+            /// <summary>
+            /// Moves the existing retained-cost lease to a response that outlives handler dispatch.
+            /// </summary>
+            internal IDisposable? TransferResponseCost()
+            {
+                return Interlocked.Exchange(ref m_costLease, null);
             }
 
             /// <summary>

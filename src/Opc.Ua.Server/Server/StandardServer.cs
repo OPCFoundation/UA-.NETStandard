@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
+    public partial class StandardServer :
+        SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -924,7 +925,7 @@ namespace Opc.Ua.Server
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session!,
+                    session,
                     context.ChannelContext.SecureChannelId,
                     clientCertificate,
                     clientCertificateThumbprint,
@@ -1229,6 +1230,7 @@ namespace Opc.Ua.Server
         /// Looks up a session whose activation committed; a session that was removed
         /// or started closing since then fails with Bad_SessionClosed.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ISession GetActivatedSessionOrThrowClosed(NodeId authenticationToken)
         {
             ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
@@ -2164,6 +2166,20 @@ namespace Opc.Ua.Server
                 RequestType.Read,
                 requestLifetime).ConfigureAwait(false);
 
+            return await ReadServiceAsync(context, requestHeader, maxAge, timestampsToReturn, nodesToRead)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Read handler with either an exchange-owned or independently owned validated context.
+        /// </summary>
+        private async ValueTask<ReadResponse> ReadServiceAsync(
+            OperationContext context,
+            RequestHeader? requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead)
+        {
             try
             {
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
@@ -2174,7 +2190,7 @@ namespace Opc.Ua.Server
                         maxAge,
                         timestampsToReturn,
                         nodesToRead,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 var response = new ReadResponse
                 {
@@ -2290,13 +2306,22 @@ namespace Opc.Ua.Server
                 RequestType.Write,
                 requestLifetime).ConfigureAwait(false);
 
+            return await WriteServiceAsync(context, requestHeader, nodesToWrite).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Write handler without changing its per-item validation or mutation semantics.
+        /// </summary>
+        private async ValueTask<WriteResponse> WriteServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<WriteValue> nodesToWrite)
+        {
             try
             {
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager
-                        .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
+                        .WriteAsync(context, nodesToWrite, context.CancellationToken)
                         .ConfigureAwait(false);
 
                 var response = new WriteResponse
@@ -3083,12 +3108,21 @@ namespace Opc.Ua.Server
                 RequestType.Call,
                 requestLifetime).ConfigureAwait(false);
 
+            return await CallServiceAsync(context, requestHeader, methodsToCall).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Call handler, preserving method authorization, results and application timeouts.
+        /// </summary>
+        private async ValueTask<CallResponse> CallServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<CallMethodRequest> methodsToCall)
+        {
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
+                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, context.CancellationToken)
                         .ConfigureAwait(false);
 
                 var response = new CallResponse
@@ -3666,7 +3700,8 @@ namespace Opc.Ua.Server
             if (requestType == RequestType.ActivateSession && context.Session == null)
             {
                 context.ActivationTargetSessionId = serverInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken)?.Id ?? default;
+                    .GetSession(requestHeader.AuthenticationToken)?.Id ??
+                    default;
             }
 
             // Hand the validated request over to its execution scope. The context owns the scope
@@ -4059,7 +4094,7 @@ namespace Opc.Ua.Server
             bool ownsBudget = ChunkReassemblyBudget == null ||
                 ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget);
             ChunkReassemblyBudget budget = ownsBudget
-                ? global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
+                ? ChunkReassemblyBudget.CreateDefault(
                     EndpointConfiguration.Create(configuration))
                 : ChunkReassemblyBudget!;
             ServerResourceIsolationPlan plan = ResourceIsolationOptions.CreateRuntimePlan(
@@ -4159,18 +4194,20 @@ namespace Opc.Ua.Server
             try
             {
                 IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
-                if (isolation != null && !isolation.TryAcquire(
-                    ResourceIsolationStage.SessionEstablishment,
-                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
-                    1,
-                    out isolationLease,
-                    out ResourceIsolationFailure failure))
+                if (isolation != null &&
+                    !isolation.TryAcquire(
+                        ResourceIsolationStage.SessionEstablishment,
+                        isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                        1,
+                        out isolationLease,
+                        out ResourceIsolationFailure failure))
                 {
                     throw CreateServerTooBusyException(failure.RetryAfter);
                 }
                 IServerRateLimiterProvider? provider = m_rateLimiterProvider;
-                if (provider != null && !provider.TryAcquireSessionEstablishment(
-                    out rateLimitLease, out TimeSpan? retryAfter))
+                if (provider != null &&
+                    !provider.TryAcquireSessionEstablishment(
+                        out rateLimitLease, out TimeSpan? retryAfter))
                 {
                     throw CreateServerTooBusyException(retryAfter);
                 }
@@ -4248,12 +4285,13 @@ namespace Opc.Ua.Server
             {
                 IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
 #pragma warning disable CA2000 // disposed in the catch below or owned by the returned lease
-                if (isolation != null && !isolation.TryAcquire(
-                    ResourceIsolationStage.SessionEstablishment,
-                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
-                    1,
-                    out isolationLease,
-                    out ResourceIsolationFailure failure))
+                if (isolation != null &&
+                    !isolation.TryAcquire(
+                        ResourceIsolationStage.SessionEstablishment,
+                        isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                        1,
+                        out isolationLease,
+                        out ResourceIsolationFailure failure))
 #pragma warning restore CA2000
                 {
                     throw CreateServerTooBusyException(failure.RetryAfter);
@@ -4888,6 +4926,7 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
             }
+            await StartAsyncServicesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -4961,6 +5000,7 @@ namespace Opc.Ua.Server
 
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
+            await StopAsyncServicesAsync().ConfigureAwait(false);
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
             // Sessions still open are terminated by the server; SessionManager.ShutdownAsync

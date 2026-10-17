@@ -1793,6 +1793,7 @@ namespace Opc.Ua.SourceGeneration
             if (node.Design.IsMethodTypeDesign() ||
                 node.InstanceOf != null ||
                 !IsInAddressSpace(node) ||
+                node.Design!.Category?.Split(',').Contains("RuntimeOptional", StringComparer.Ordinal) == true ||
                 node.Design!.Purpose == DataTypePurpose.Testing)
             {
                 return null;
@@ -2447,7 +2448,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 output.WriteLine(
                     "state.CreateOrReplace{0}(context, Create{1}(context, state, " +
-                        "forInstance: {2}), assignInstanceNodeIds: false);",
+                    "forInstance: {2}), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     instance.SymbolicId.Name,
                     forInstanceVariableValue);
@@ -2475,7 +2476,7 @@ namespace Opc.Ua.SourceGeneration
                 output.WriteLine("    {");
                 output.WriteLine(
                     "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
-                        "forInstance: true), assignInstanceNodeIds: false);",
+                    "forInstance: true), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     singletonChildSymbolicId);
                 output.WriteLine("    }");
@@ -2484,7 +2485,7 @@ namespace Opc.Ua.SourceGeneration
             output.WriteLine("    {");
             output.WriteLine(
                 "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
-                    "forInstance: true), assignInstanceNodeIds: false);",
+                "forInstance: true), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name);
             output.WriteLine("    }");
@@ -2493,7 +2494,7 @@ namespace Opc.Ua.SourceGeneration
             output.WriteLine("{");
             output.WriteLine(
                 "    state.CreateOrReplace{0}(context, Create{1}(context, state, " +
-                    "forInstance: {2}), assignInstanceNodeIds: false);",
+                "forInstance: {2}), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);
@@ -4508,7 +4509,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool IsGeneratesEventReference(XmlQualifiedName? referenceTypeId)
         {
-            var generatesEvent = new XmlQualifiedName("GeneratesEvent", Ua.Types.Namespaces.OpcUa);
+            var generatesEvent = new XmlQualifiedName("GeneratesEvent", Namespaces.OpcUa);
             if (referenceTypeId == generatesEvent)
             {
                 return true;
@@ -5083,8 +5084,11 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static HashSet<string> GetInheritedMemberNames(Type type)
         {
-            const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
-                BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
+            const BindingFlags kFlags = BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.Instance |
+                BindingFlags.Static |
+                BindingFlags.DeclaredOnly;
             var names = new HashSet<string>(StringComparer.Ordinal);
             for (Type? current = type; current != null; current = current.BaseType)
             {
@@ -5100,7 +5104,8 @@ namespace Opc.Ua.SourceGeneration
                         EventInfo @event => IsVisibleToDerived(@event.GetAddMethod(true)),
                         FieldInfo field => !field.IsSpecialName &&
                             (field.IsPublic || field.IsFamily || field.IsFamilyOrAssembly),
-                        Type nested => nested.IsNestedPublic || nested.IsNestedFamily ||
+                        Type nested => nested.IsNestedPublic ||
+                            nested.IsNestedFamily ||
                             nested.IsNestedFamORAssem,
                         _ => false
                     };

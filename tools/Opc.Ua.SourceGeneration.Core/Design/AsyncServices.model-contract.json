@@ -1,0 +1,317 @@
+{
+  "schemaVersion": 1,
+  "revision": "0.2.0",
+  "status": "Experimental proposal; identifiers are provisional",
+  "namespaceUri": "http://opcfoundation.org/UA/",
+  "namespaceIndex": 0,
+  "modelVersion": "1.05.07-ase-draft.0.2.0",
+  "publicationDate": "2026-10-16T00:00:00Z",
+  "retiredAllocationRanges": [[70000, 70199], [70900, 71999]],
+  "conformanceUnits": ["ASE-Execution", "ASE-Model", "ASE-Diagnostics", "ASE-Auditing"],
+  "builtins": {
+    "Boolean": "i=1",
+    "UInt32": "i=7",
+    "UInt64": "i=9",
+    "String": "i=12",
+    "Guid": "i=14",
+    "ByteString": "i=15",
+    "NodeId": "i=17",
+    "StatusCode": "i=19",
+    "LocalizedText": "i=21",
+    "Structure": "i=22",
+    "Enumeration": "i=29",
+    "Duration": "i=290",
+    "RequestHeader": "i=389",
+    "ResponseHeader": "i=392"
+  },
+  "enums": [
+    {
+      "name": "ServiceOperationState",
+      "id": 1200000,
+      "enumStringsId": 1205000,
+      "description": "The state reported for a recoverable Service operation. Unknown is a lookup result, not a stored execution outcome.",
+      "units": ["ASE-Execution", "ASE-Model"],
+      "values": [
+        {"name": "Unknown", "value": 0, "description": "No record is disclosed for this lookup. This does not establish whether work ran or may still be admitted."},
+        {"name": "Pending", "value": 1, "description": "The operation is admitted and has no committed final outcome."},
+        {"name": "OutcomeAvailable", "value": 2, "description": "An immutable original response or terminal protocol outcome is available."},
+        {"name": "Acknowledged", "value": 3, "description": "The Client acknowledged the available outcome and its payload was released."},
+        {"name": "Abandoned", "value": 4, "description": "The Client waived result recovery. This state does not establish that work stopped."},
+        {"name": "Expired", "value": 5, "description": "The result-retention interval elapsed and its payload was released."}
+      ]
+    },
+    {
+      "name": "ServiceOperationOutcome",
+      "id": 1200001,
+      "enumStringsId": 1205001,
+      "description": "The kind of committed outcome. A protocol outcome does not fabricate an original Service response.",
+      "units": ["ASE-Execution"],
+      "values": [
+        {"name": "None", "value": 0, "description": "No final outcome is reported."},
+        {"name": "ServiceResponse", "value": 1, "description": "The original Service produced a complete response or ServiceFault."},
+        {"name": "ExecutionDeadlineExceeded", "value": 2, "description": "The execution allowance ended before an outcome was committed. Effects may remain unknown."},
+        {"name": "ResultUnavailable", "value": 3, "description": "The original response could not be retained within the accepted encoding or message limits."}
+      ]
+    },
+    {
+      "name": "ServiceOperationControlAction",
+      "id": 1200002,
+      "enumStringsId": 1205002,
+      "description": "An explicit control action for one Server token.",
+      "units": ["ASE-Execution"],
+      "values": [
+        {"name": "Unspecified", "value": 0, "description": "Invalid in a request."},
+        {"name": "Cancel", "value": 1, "description": "Request cancellation of owned work without abandoning its outcome or implying rollback."},
+        {"name": "Acknowledge", "value": 2, "description": "Confirm Client acceptance of an available outcome and release its payload."},
+        {"name": "Abandon", "value": 3, "description": "Waive result recovery without requesting cancellation of work."}
+      ]
+    },
+    {
+      "name": "ServiceOperationControlResult",
+      "id": 1200003,
+      "enumStringsId": 1205003,
+      "description": "The disposition of a well-formed, authorized control request.",
+      "units": ["ASE-Execution"],
+      "values": [
+        {"name": "Unspecified", "value": 0, "description": "Invalid in a response."},
+        {"name": "Applied", "value": 1, "description": "The requested state change or cancellation signal was applied."},
+        {"name": "AlreadyApplied", "value": 2, "description": "The same action was applied previously; no new change was made."},
+        {"name": "NotApplicable", "value": 3, "description": "The action cannot be applied to the reported state; no new change was made."},
+        {"name": "UnknownOperation", "value": 4, "description": "No record is disclosed for the token; this is not proof of earlier acknowledgement or non-execution."}
+      ]
+    },
+    {
+      "name": "ServiceOperationAuditAction",
+      "id": 1200004,
+      "enumStringsId": 1205004,
+      "description": "An action recorded by the privileged operation audit.",
+      "units": ["ASE-Auditing"],
+      "values": [
+        {"name": "Admitted", "value": 0, "description": "Identity and resources were committed before dispatch."},
+        {"name": "OutcomeCommitted", "value": 1, "description": "An immutable outcome became available."},
+        {"name": "CancellationRequested", "value": 2, "description": "A cancellation signal was recorded; stopping is not asserted."},
+        {"name": "Acknowledged", "value": 3, "description": "The available outcome was acknowledged."},
+        {"name": "Abandoned", "value": 4, "description": "The result was abandoned."},
+        {"name": "Expired", "value": 5, "description": "The result-retention interval ended."},
+        {"name": "Rejected", "value": 6, "description": "Submission was rejected without a new dispatch."},
+        {"name": "Denied", "value": 7, "description": "A request was denied by authorization or Session checks."},
+        {"name": "Collected", "value": 8, "description": "An available outcome was selected for delivery."},
+        {"name": "SessionClosed", "value": 9, "description": "The issuing Session ended and its recoverable state was discarded."},
+        {"name": "HistoryForgotten", "value": 10, "description": "The bounded terminal record was removed."},
+        {"name": "InvocationEnded", "value": 11, "description": "Owned invocation resources were released after the invocation actually ended, possibly after a protocol deadline."}
+      ]
+    }
+  ],
+  "structures": [
+    {
+      "name": "ServiceOperationInfoDataType",
+      "id": 1200010,
+      "encodings": {"DefaultBinary": 1202010, "DefaultXml": 1203010, "DefaultJson": 1204010},
+      "description": "Operation identity, state and remaining intervals. It contains no original response payload.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "ClientOperationId", "type": "Guid", "description": "The accepted Client ID. An unknown Client-ID lookup echoes the requested ID; an unknown token lookup reports a null Guid."},
+        {"name": "ServerToken", "type": "ByteString", "description": "The opaque token, between 1 and 64 bytes for a known record; null for an unknown lookup."},
+        {"name": "ServiceId", "type": "NodeId", "description": "The DataType NodeId of the original request, or a null NodeId for an unknown lookup."},
+        {"name": "State", "type": "ServiceOperationState", "description": "The disclosed operation state or Unknown lookup result."},
+        {"name": "OutcomeKind", "type": "ServiceOperationOutcome", "description": "The committed outcome kind; None while pending or unknown."},
+        {"name": "OutcomeStatus", "type": "StatusCode", "description": "The original serviceResult for ServiceResponse, or the terminal protocol error. Good with OutcomeKind None carries no business-success claim."},
+        {"name": "ExecutionAllowance", "type": "Duration", "description": "The accepted execution allowance in milliseconds; zero for an unknown lookup."},
+        {"name": "ResultRetentionTime", "type": "Duration", "description": "The accepted result and subsequent history interval in milliseconds; zero for an unknown lookup."},
+        {"name": "ExecutionRemaining", "type": "Duration", "description": "Nonnegative remaining execution allowance while Pending; otherwise zero."},
+        {"name": "ResultRemaining", "type": "Duration", "description": "Nonnegative remaining result retention while OutcomeAvailable; otherwise zero."},
+        {"name": "HistoryRemaining", "type": "Duration", "description": "Nonnegative remaining terminal-history retention after release; otherwise zero."},
+        {"name": "CancellationRequested", "type": "Boolean", "description": "A cancellation signal has been requested. This is not confirmation that work stopped."},
+        {"name": "RetryAfter", "type": "Duration", "description": "Nonnegative advisory delay while Pending, no greater than ExecutionRemaining and strictly less than ResultRetentionTime when positive; zero for every other state."}
+      ]
+    },
+    {
+      "name": "SubmitServiceRequest",
+      "id": 1200020,
+      "encodings": {"DefaultBinary": 1202020, "DefaultXml": 1203020, "DefaultJson": 1204020},
+      "description": "Submit one eligible original Service request under the recoverable contract.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "RequestHeader", "type": "RequestHeader", "description": "Standard parameters for this submission exchange."},
+        {"name": "ClientOperationId", "type": "Guid", "description": "A fresh nonzero random Client operation ID."},
+        {"name": "Request", "type": "Structure", "description": "An ExtensionObject containing exactly one eligible original Service request."},
+        {"name": "ExecutionAllowance", "type": "Duration", "description": "Exact positive finite milliseconds from admission to outcome commitment."},
+        {"name": "ResultRetentionTime", "type": "Duration", "description": "Exact positive finite milliseconds of result retention, then the same interval for terminal history."},
+        {"name": "WaitTime", "type": "Duration", "description": "Nonnegative finite maximum wait for this exchange; zero requests current state without parking a waiter."}
+      ]
+    },
+    {
+      "name": "SubmitServiceResponse",
+      "id": 1200021,
+      "encodings": {"DefaultBinary": 1202021, "DefaultXml": 1203021, "DefaultJson": 1204021},
+      "description": "The admitted operation state and any available original response.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "ResponseHeader", "type": "ResponseHeader", "description": "Standard response parameters for this exchange, independent of the original Service outcome."},
+        {"name": "Operation", "type": "ServiceOperationInfoDataType", "description": "The admitted identity, exact lifetime values and state."},
+        {"name": "Result", "type": "Structure", "description": "The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject."}
+      ]
+    },
+    {
+      "name": "GetServiceResultRequest",
+      "id": 1200022,
+      "encodings": {"DefaultBinary": 1202022, "DefaultXml": 1203022, "DefaultJson": 1204022},
+      "description": "Recover or collect an operation using exactly one identifier.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "RequestHeader", "type": "RequestHeader", "description": "Standard parameters for this collection exchange."},
+        {"name": "ClientOperationId", "type": "Guid", "description": "A nonzero Client ID for recovery, or a null Guid when ServerToken is used."},
+        {"name": "ServerToken", "type": "ByteString", "description": "A nonempty token of at most 64 bytes, or null when ClientOperationId is used. Supplying both or neither is invalid."},
+        {"name": "WaitTime", "type": "Duration", "description": "Nonnegative finite maximum wait for this exchange; zero means polling."}
+      ]
+    },
+    {
+      "name": "GetServiceResultResponse",
+      "id": 1200023,
+      "encodings": {"DefaultBinary": 1202023, "DefaultXml": 1203023, "DefaultJson": 1204023},
+      "description": "A declared collection response containing state and an optional original response.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "ResponseHeader", "type": "ResponseHeader", "description": "A fresh header for this collection exchange."},
+        {"name": "Operation", "type": "ServiceOperationInfoDataType", "description": "The operation snapshot or Unknown lookup result."},
+        {"name": "Result", "type": "Structure", "description": "The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject."}
+      ]
+    },
+    {
+      "name": "ControlServiceExecutionRequest",
+      "id": 1200024,
+      "encodings": {"DefaultBinary": 1202024, "DefaultXml": 1203024, "DefaultJson": 1204024},
+      "description": "Control one known operation using its Server-issued token.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "RequestHeader", "type": "RequestHeader", "description": "Standard parameters for this control exchange."},
+        {"name": "ServerToken", "type": "ByteString", "description": "A nonempty Server token of at most 64 bytes; Client ID lookup is not a control action."},
+        {"name": "Action", "type": "ServiceOperationControlAction", "description": "Cancel, Acknowledge or Abandon; Unspecified and unrecognized values are invalid."}
+      ]
+    },
+    {
+      "name": "ControlServiceExecutionResponse",
+      "id": 1200025,
+      "encodings": {"DefaultBinary": 1202025, "DefaultXml": 1203025, "DefaultJson": 1204025},
+      "description": "The disposition of a control action and the resulting operation metadata.",
+      "units": ["ASE-Execution"],
+      "fields": [
+        {"name": "ResponseHeader", "type": "ResponseHeader", "description": "A fresh header for this control exchange."},
+        {"name": "Result", "type": "ServiceOperationControlResult", "description": "Whether the action was applied, already applied, not applicable or unknown."},
+        {"name": "Operation", "type": "ServiceOperationInfoDataType", "description": "The current disclosed metadata. This response never carries an original response payload."}
+      ]
+    }
+  ],
+  "objectTypes": [
+    {
+      "name": "AsyncServiceCapabilitiesType",
+      "id": 1200040,
+      "baseType": "i=58",
+      "description": "Supported recoverable Service requests and exact lifetime ranges/defaults. Existing message and operation limits remain applicable.",
+      "units": ["ASE-Model"],
+      "members": [
+        {"id": 1210000, "name": "ContractVersion", "type": "String", "reference": "HasProperty", "description": "Experimental contract revision; 0.2.0 for this model."},
+        {"id": 1210001, "name": "SupportedServices", "type": "NodeId", "valueRank": 1, "reference": "HasProperty", "description": "The request DataType NodeIds that this Server explicitly supports for recoverable submission."},
+        {"id": 1210002, "name": "MinExecutionAllowance", "type": "Duration", "reference": "HasProperty", "description": "The minimum positive execution allowance accepted by this Server."},
+        {"id": 1210003, "name": "MaxExecutionAllowance", "type": "Duration", "reference": "HasProperty", "description": "The maximum finite execution allowance accepted by this Server."},
+        {"id": 1210004, "name": "DefaultExecutionAllowance", "type": "Duration", "reference": "HasProperty", "description": "An execution allowance a Client may explicitly select within the advertised range."},
+        {"id": 1210005, "name": "MinResultRetentionTime", "type": "Duration", "reference": "HasProperty", "description": "The minimum positive result/history interval accepted by this Server."},
+        {"id": 1210006, "name": "MaxResultRetentionTime", "type": "Duration", "reference": "HasProperty", "description": "The maximum finite result/history interval accepted by this Server."},
+        {"id": 1210007, "name": "DefaultResultRetentionTime", "type": "Duration", "reference": "HasProperty", "description": "A result/history interval a Client may explicitly select within the advertised range."}
+      ]
+    },
+    {
+      "name": "AsyncServiceDiagnosticsType",
+      "id": 1200041,
+      "baseType": "i=58",
+      "description": "Privileged aggregate diagnostics. There is no caller-visible operation list.",
+      "units": ["ASE-Diagnostics"],
+      "members": [
+        {"id": 1210100, "name": "ActiveOperationCount", "type": "UInt32", "reference": "HasComponent", "description": "Owned invocations that have not actually ended, including those past their protocol deadline."},
+        {"id": 1210101, "name": "RetainedOutcomeCount", "type": "UInt32", "reference": "HasComponent", "description": "Outcomes still available for collection."},
+        {"id": 1210102, "name": "RetainedOutcomeBytes", "type": "UInt64", "reference": "HasComponent", "description": "Charged retained-outcome storage, including storage still leased to in-flight senders."},
+        {"id": 1210103, "name": "TerminalRecordCount", "type": "UInt32", "reference": "HasComponent", "description": "Retained metadata records after payload release, including required still-running-work identities."},
+        {"id": 1210104, "name": "AdmittedCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative admitted operations."},
+        {"id": 1210105, "name": "RejectedCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative submissions rejected without a new dispatch."},
+        {"id": 1210106, "name": "AcknowledgedCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative first acknowledgements; retries do not increase this count."},
+        {"id": 1210107, "name": "AbandonedCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative first abandonments; retries do not increase this count."},
+        {"id": 1210108, "name": "ExpiredCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative result-retention expirations."},
+        {"id": 1210109, "name": "ExecutionDeadlineCount", "type": "UInt64", "reference": "HasComponent", "description": "Cumulative committed execution-deadline outcomes."}
+      ]
+    },
+    {
+      "name": "AuditServiceOperationEventType",
+      "id": 1200042,
+      "baseType": "i=2069",
+      "description": "Privileged audit metadata for recoverable operation actions. Tokens, credentials and copied request/result payloads are not fields of this event.",
+      "units": ["ASE-Auditing"],
+      "event": true,
+      "members": [
+        {"id": 1210200, "name": "ClientOperationId", "type": "Guid", "reference": "HasProperty", "description": "The Client correlation ID, or a null Guid when no operation was identified."},
+        {"id": 1210201, "name": "ServiceId", "type": "NodeId", "reference": "HasProperty", "description": "The original request DataType NodeId, when known."},
+        {"id": 1210202, "name": "Action", "type": "ServiceOperationAuditAction", "reference": "HasProperty", "description": "The action recorded by this event."},
+        {"id": 1210203, "name": "OperationState", "type": "ServiceOperationState", "reference": "HasProperty", "description": "The reported operation state or Unknown when no record is disclosed."},
+        {"id": 1210204, "name": "OutcomeKind", "type": "ServiceOperationOutcome", "reference": "HasProperty", "description": "The recorded outcome kind, without the original response payload."},
+        {"id": 1210205, "name": "OutcomeStatus", "type": "StatusCode", "reference": "HasProperty", "description": "The original serviceResult or terminal protocol error when known; the inherited audit Status reports success of the audited action separately."}
+      ]
+    }
+  ],
+  "instances": [
+    {"id": 1200100, "name": "AsyncServiceCapabilities", "type": "AsyncServiceCapabilitiesType", "parent": "i=2268", "units": ["ASE-Model"], "description": "Recoverable execution capabilities under ServerCapabilities; absent when the feature is disabled."},
+    {"id": 1200101, "name": "AsyncServiceDiagnostics", "type": "AsyncServiceDiagnosticsType", "parent": "i=2274", "units": ["ASE-Diagnostics"], "description": "Privileged aggregate diagnostics under ServerDiagnostics."}
+  ],
+  "methodHint": {
+    "browseName": "SupportsRecoverableExecution",
+    "namespaceUri": "http://opcfoundation.org/UA/",
+    "dataType": "Boolean",
+    "typeDefinition": "i=68",
+    "referenceType": "i=46",
+    "optional": true,
+    "description": "A read-only Property on a Method. Absence is undeclared, not false. True does not promise admission for every input or current resource/authorization state. Instance NodeIds are assigned by the Server."
+  },
+  "services": [
+    {"name": "SubmitService", "request": "SubmitServiceRequest", "response": "SubmitServiceResponse"},
+    {"name": "GetServiceResult", "request": "GetServiceResultRequest", "response": "GetServiceResultResponse"},
+    {"name": "ControlServiceExecution", "request": "ControlServiceExecutionRequest", "response": "ControlServiceExecutionResponse"}
+  ],
+  "statusRules": {
+    "invalidIdentifierSelectorTokenOrNonfiniteDuration": "BadInvalidArgument",
+    "unsupportedPositiveLifetime": "BadOutOfRange",
+    "rememberedDuplicateClientId": "BadInvalidState",
+    "unsupportedOrExcludedService": "BadServiceUnsupported",
+    "admissionReservationFailure": "BadResourceUnavailable",
+    "unauthorizedKnownOwnerOrAction": "BadUserAccessDenied",
+    "ineligibleSecurityMode": "BadSecurityModeRejected",
+    "executionDeadlineOutcome": "BadTimeout",
+    "oversizedOutcome": "BadResponseTooLarge",
+    "otherUnencodableOutcome": "BadEncodingError",
+    "unknownAuthorizedLookup": "Good with State Unknown and no payload",
+    "unavailableOnCurrentTransport": "BadResponseTooLarge without changing the retained outcome"
+  },
+  "invariants": [
+    "Field order is wire order. No request or response changes the fixed standard header layouts.",
+    "Fixed root-instance IDs do not allocate their runtime children. Servers instantiate mandatory children with Server-assigned NodeIds and the declared namespace-zero BrowseNames; type member declaration IDs are not instance IDs.",
+    "All requests require an activated Session. IDs alone confer no access.",
+    "Admission checks and reservations precede the single original-Service dispatch.",
+    "Client ID is nonzero; Server token is 1..64 bytes for a known operation.",
+    "GetServiceResult supplies exactly one ID. ControlServiceExecution requires a Server token.",
+    "ExecutionAllowance and ResultRetentionTime are positive finite exact values; WaitTime is finite and nonnegative.",
+    "Original RequestHeader.timeoutHint does not impose a second framework deadline. Existing business timeouts and diagnostics/options retain their meanings.",
+    "Unknown metadata has OutcomeKind None, OutcomeStatus Good, zero lifetime fields, CancellationRequested false, RetryAfter zero and no Result.",
+    "Only OutcomeAvailable plus ServiceResponse carries Result. Protocol outcomes and released records carry a null Result.",
+    "OutcomeStatus for ServiceResponse is the original ResponseHeader.ServiceResult, not an assertion that every item succeeded.",
+    "A positive Pending RetryAfter is less than ResultRetentionTime as well as no greater than ExecutionRemaining, since an outcome could become ready immediately after the reply. Use zero when no positive safe advice is available.",
+    "Response headers belong to the current exchange; the original embedded response header and payload remain immutable.",
+    "DeadlineExceeded uses BadTimeout and never later changes to a late ServiceResponse.",
+    "Known released records preserve outcome metadata where it existed, not the original payload.",
+    "ACK of OutcomeAvailable applies; repeated ACK of Acknowledged is AlreadyApplied; ACK of Pending, Abandoned or Expired is NotApplicable.",
+    "Abandon applies to Pending or OutcomeAvailable; repeated Abandon of Abandoned is AlreadyApplied; other released states are NotApplicable.",
+    "Cancel applies when owned invocation work remains active and no cancellation signal was recorded; duplicate signals are AlreadyApplied. Stopped work is NotApplicable.",
+    "Every control for an undisclosed token returns UnknownOperation and Unknown metadata. Unspecified actions/results are invalid.",
+    "Terminal history lasts ResultRetentionTime from release; polling never renews it. Minimal active-work identity may remain longer until owned invocation work ends.",
+    "Authorization is checked before lookup disclosure, before control effects and again before delayed result delivery.",
+    "A denied or too-small delivery does not mutate the retained original outcome or dispatch it again.",
+    "Cumulative diagnostic counters saturate at UInt64 maximum rather than wrapping.",
+    "No new status-code allocations, result-size controls, policy selector, completion/progress event or per-owner operation enumeration are introduced."
+  ]
+}

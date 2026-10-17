@@ -6912,6 +6912,9 @@ namespace Opc.Ua.Schema.Model
                 "QueryFirst" or "QueryNext"
                     => ServiceCategory.Query,
 
+                "SubmitService" or "GetServiceResult" or "ControlServiceExecution"
+                    => ServiceCategory.Asynchronous,
+
                 // Session lifecycle: CreateSession, ActivateSession, CloseSession, Cancel
                 _ => ServiceCategory.Session
             };

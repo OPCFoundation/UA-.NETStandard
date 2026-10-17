@@ -268,12 +268,31 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             return default;
         }
 
+        /// <summary>
+        /// Adopts the supplied factory like a native transport, while preserving scripted table and limit observations.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private void OpenWithSettings(TransportChannelSettings settings)
         {
             m_description = settings.Description
                 ?? throw new InvalidOperationException("Transport settings do not include an endpoint.");
             m_endpointConfiguration = settings.Configuration
                 ?? throw new InvalidOperationException("Transport settings do not include endpoint configuration.");
+            IServiceMessageContext previous = Channel.MessageContext;
+            var context = new ServiceMessageContext(
+                previous.Telemetry,
+                settings.Factory ?? throw new InvalidOperationException("Transport settings do not include a factory."))
+            {
+                NamespaceUris = previous.NamespaceUris,
+                ServerUris = previous.ServerUris,
+                MaxMessageSize = previous.MaxMessageSize,
+                MaxStringLength = previous.MaxStringLength,
+                MaxByteStringLength = previous.MaxByteStringLength,
+                MaxArrayLength = previous.MaxArrayLength,
+                MaxEncodingNestingLevels = previous.MaxEncodingNestingLevels,
+                MaxDecoderRecoveries = previous.MaxDecoderRecoveries
+            };
+            Mock.Setup(channel => channel.MessageContext).Returns(context);
             OpenedEndpointUrl = m_description.EndpointUrl;
         }
 
@@ -334,8 +353,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             CancellationToken CancellationToken);
 
         private readonly TimeProvider m_timeProvider;
+
         private readonly Channel<RequestOperation> m_operations = System.Threading.Channels.Channel
             .CreateUnbounded<RequestOperation>();
+
         private EndpointDescription m_description = new();
         private EndpointConfiguration m_endpointConfiguration = new();
         private int m_operationTimeout;

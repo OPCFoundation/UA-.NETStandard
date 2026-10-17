@@ -912,31 +912,25 @@ namespace Opc.Ua.Server
         /// <see cref="StatusCodes.BadUserAccessDenied"/> when the caller does
         /// not hold the SecurityAdmin Role.
         /// </exception>
-        private void HasApplicationSecureAdminAccess(
+        private static void HasApplicationSecureAdminAccess(
             ISystemContext context,
             bool requireEncryptedChannel)
         {
             if (context is SessionSystemContext { OperationContext: OperationContext operationContext })
             {
-                MessageSecurityMode securityMode = operationContext
-                    .ChannelContext?
-                    .EndpointDescription?
-                    .SecurityMode
-                    ?? MessageSecurityMode.Invalid;
+                SecureChannelContext? channel = operationContext.ChannelContext;
 
                 bool channelSecure = requireEncryptedChannel
-                    ? securityMode == MessageSecurityMode.SignAndEncrypt
-                    : securityMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+                    ? channel?.ProvidesEncryption == true
+                    : channel?.ProvidesIntegrity == true;
 
                 if (!channelSecure)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityModeInsufficient,
                         requireEncryptedChannel
-                            ? "This Method must be called from an encrypted SecureChannel " +
-                                "(MessageSecurityMode SignAndEncrypt)."
-                            : "This Method must be called from an authenticated SecureChannel " +
-                                "(MessageSecurityMode Sign or SignAndEncrypt).");
+                            ? "This Method requires an encrypted SecureChannel or verified protected transport."
+                            : "This Method requires authenticated channel integrity or verified protected transport.");
                 }
 
                 IUserIdentity identity = operationContext.UserIdentity;
@@ -1115,6 +1109,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Opens a group store through the application's scoped resolver when available.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ICertificateStore OpenGroupStore(CertificateStoreIdentifier identifier)
         {
             return (m_configuration.CertificateManager is ICertificateStoreResolver resolver

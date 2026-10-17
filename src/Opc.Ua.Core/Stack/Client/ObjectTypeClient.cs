@@ -171,6 +171,7 @@ namespace Opc.Ua
             // Bad_MethodInvalid. Resolve the instance MethodId via
             // HasComponent, cache it, and retry once.
             if (usedTypeMethodId &&
+                Session is not IMethodCallRetryPolicy { AllowMethodIdFallback: false } &&
                 response.Results[0].StatusCode == StatusCodes.BadMethodInvalid)
             {
                 NodeId instanceMethodId = await ResolveChildNodeIdAsync(
@@ -204,6 +205,7 @@ namespace Opc.Ua
         /// <param name="browseName">The unqualified child browse
         /// name.</param>
         /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException"></exception>
         protected async ValueTask<NodeId> ResolveChildNodeIdAsync(
             string namespaceUri,
             string browseName,
@@ -274,6 +276,7 @@ namespace Opc.Ua
         /// <param name="methodId">The NodeId of the method to invoke.</param>
         /// <param name="ct">Cancellation token for the request.</param>
         /// <param name="args">The boxed input arguments.</param>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<CallResponse> CallOnceAsync(
             NodeId methodId,
             CancellationToken ct,

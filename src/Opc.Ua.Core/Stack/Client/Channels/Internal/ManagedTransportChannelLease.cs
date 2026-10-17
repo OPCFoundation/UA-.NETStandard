@@ -405,7 +405,7 @@ namespace Opc.Ua
                 or FindServersOnNetworkRequest;
         }
 
-        private static bool IsTransientChannelError(StatusCode statusCode)
+        internal static bool IsTransientChannelError(StatusCode statusCode)
         {
             uint code = statusCode.CodeBits;
             return code == StatusCodes.BadConnectionClosed ||

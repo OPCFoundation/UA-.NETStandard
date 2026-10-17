@@ -60,6 +60,7 @@ namespace Opc.Ua.SourceGeneration
             new ServiceSet("SubscriptionServiceSet", [], EmitClass: false, ServiceCategory.Subscription),
             new ServiceSet("NodeManagementServiceSet", [], EmitClass: false, ServiceCategory.NodeManagement),
             new ServiceSet("QueryServiceSet", [], EmitClass: false, ServiceCategory.Query),
+            new ServiceSet("AsynchronousServiceSet", [], EmitClass: false, ServiceCategory.Asynchronous),
             new ServiceSet("Session",
             [
                 "IAttributeServiceSetClientMethods",
@@ -68,7 +69,8 @@ namespace Opc.Ua.SourceGeneration
                 "IMonitoredItemServiceSetClientMethods",
                 "ISubscriptionServiceSetClientMethods",
                 "INodeManagementServiceSetClientMethods",
-                "IQueryServiceSetClientMethods"
+                "IQueryServiceSetClientMethods",
+                "IAsynchronousServiceSetClientMethods"
             ],
             [ServiceCategory.Session, ServiceCategory.Test],
             [
@@ -80,6 +82,7 @@ namespace Opc.Ua.SourceGeneration
                 ServiceCategory.Subscription,
                 ServiceCategory.NodeManagement,
                 ServiceCategory.Query,
+                ServiceCategory.Asynchronous,
                 ServiceCategory.Test
             ]),
             new ServiceSet("Discovery", [], ServiceCategory.Discovery),
@@ -193,6 +196,15 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.Name, serviceType.Name);
             context.Template.AddReplacement(Tokens.Namespace, Constants.CoreNamespace);
+            context.Template.AddReplacement(Tokens.ClientRequestVariable, GetMessageVariable(serviceType, true));
+            context.Template.AddReplacement(Tokens.ClientResponseVariable, GetMessageVariable(serviceType, false));
+            context.Template.AddReplacement(
+                Tokens.LegacyClientMethods,
+                ClientApiTemplates.LegacyMethods,
+                [serviceType],
+                onLoad: nested => serviceType.Request?.Category?.Split(',')
+                    .Contains("AsyncOnly", StringComparer.Ordinal) == true ? null : nested.TemplateString,
+                onWrite: nested => WriteTemplate_ClientApiMethod(nested, isInterface: false));
 
             context.Template.AddReplacement(
                 Tokens.ClientMethodSync,
@@ -233,6 +245,20 @@ namespace Opc.Ua.SourceGeneration
                 LoadTemplate_ResponseParameters);
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Keeps local message variables distinct from declared request and response field parameters.
+        /// </summary>
+        private static string GetMessageVariable(Service service, bool request)
+        {
+            string name = request ? "request" : "response";
+            Parameter[] fields = [.. service.Request?.Fields ?? [], .. service.Response?.Fields ?? []];
+            while (fields.Any(field => string.Equals(field.Name.ToLowerCamelCase(), name, StringComparison.Ordinal)))
+            {
+                name += "Message";
+            }
+            return name;
         }
 
         /// <summary>
@@ -406,7 +432,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 foreach (Parameter field in serviceType.Request.Fields)
                 {
-                    context.Out.Write("request.");
+                    context.Out.Write(GetMessageVariable(serviceType, true));
+                    context.Out.Write(".");
                     context.Out.Write(field.Name);
                     context.Out.Write(" = ");
                     context.Out.Write(field.Name.ToLowerCamelCase());
@@ -439,7 +466,9 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
                     context.Out.Write(field.Name.ToLowerCamelCase());
-                    context.Out.Write(" = response.");
+                    context.Out.Write(" = ");
+                    context.Out.Write(GetMessageVariable(serviceType, false));
+                    context.Out.Write(".");
                     context.Out.Write(field.Name);
                     context.Out.WriteLine(";");
                 }

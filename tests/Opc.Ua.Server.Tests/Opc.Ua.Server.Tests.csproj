@@ -50,6 +50,12 @@
   <!-- Source-generation pipeline for the kitchen-sink coverage NodeSet (issue #4251).
        The same XML is embedded above for the runtime import pipeline. -->
   <ItemGroup>
+    <AdditionalFiles Include="AsyncServices\Model\AsyncExecution.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:async-services</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>AsyncExecution</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.TestModels.AsyncExecution</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="AsyncServices\Model\AsyncExecution.csv" />
     <AdditionalFiles Include="Programs\Assets\DomainDownloadModel.xml">
       <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:programs</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>DomainDownloadModel</ModelSourceGeneratorName>

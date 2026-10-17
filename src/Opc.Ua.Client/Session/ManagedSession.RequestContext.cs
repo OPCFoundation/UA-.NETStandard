@@ -40,12 +40,14 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Captures the real session only after entering the same gate as ordinary service requests.
         /// </summary>
-        internal ValueTask<SessionRequestContext> CaptureRequestContextAsync(CancellationToken ct)
+        internal ValueTask<SessionRequestContext> CaptureRequestContextAsync(
+            CancellationToken ct, bool allowSameSessionRecovery = false)
         {
             ct.ThrowIfCancellationRequested();
             return CallServiceAsync(
-                this,
-                static (session, owner, _) => new ValueTask<SessionRequestContext>(session.CreateRequestContext(owner)),
+                (owner: this, allowSameSessionRecovery),
+                static (session, args, _) => new ValueTask<SessionRequestContext>(
+                    session.CreateRequestContext(args.owner, args.allowSameSessionRecovery)),
                 ct);
         }
 
@@ -55,10 +57,30 @@ namespace Opc.Ua.Client
         internal ValueTask<IServiceResponse> SendRequestContextAsync(
             SessionRequestContext context, IServiceRequest request, CancellationToken ct)
         {
+            if (context.AllowsSameSessionRecovery)
+            {
+                return SendRecoverableRequestContextAsync(context, request, ct);
+            }
             return CallServiceAsync(
                 (context, request),
                 static (session, args, token) => session.SendRequestContextAsync(args.context, args.request, token),
                 ct);
+        }
+
+        /// <summary>
+        /// Waits outside the service gate so channel recovery can acquire its writer before one guarded send.
+        /// </summary>
+        private async ValueTask<IServiceResponse> SendRecoverableRequestContextAsync(
+            SessionRequestContext context, IServiceRequest request, CancellationToken ct)
+        {
+            if (m_session?.ManagedChannel is ManagedTransportChannelLease lease)
+            {
+                await lease.Entry.WaitForReadyAsync(ct).ConfigureAwait(false);
+            }
+            return await CallServiceAsync(
+                (context, request),
+                static (session, args, token) => session.SendRequestContextAsync(args.context, args.request, token),
+                ct).ConfigureAwait(false);
         }
     }
 }

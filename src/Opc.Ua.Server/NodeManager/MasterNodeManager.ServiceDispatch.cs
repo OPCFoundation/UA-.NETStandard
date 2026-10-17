@@ -966,24 +966,16 @@ namespace Opc.Ua.Server
                             or RequestType.BrowseNext
                             or RequestType.TranslateBrowsePathsToNodeIds;
 
-                // Access restriction validation runs while a request is being processed,
-                // which always carries a channel context with an endpoint description.
-                EndpointDescription endpointDescription =
-                    context.ChannelContext!.EndpointDescription!;
+                SecureChannelContext channelContext = context.ChannelContext!;
 
                 if ((
                         encryptionRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        !channelContext.ProvidesEncryption &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.Sign &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        !channelContext.ProvidesIntegrity &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (sessionRequired && context.Session == null))
