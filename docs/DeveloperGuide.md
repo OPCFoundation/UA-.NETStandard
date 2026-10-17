@@ -262,7 +262,7 @@ The [desktop count gate](../tools/Opc.Ua.Lens/DesktopTesting.md) also selects
 24 named regressions and rejects missing, skipped, duplicate or failed results.
 It includes pending-write shutdown, dialog cancellation, keyboard navigation,
 inspector publication and minimum-size checks. Native publishing and managed-tool
-installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md).
+installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md#publish-and-package).
 Managed packaging produces one selector and three RID-specific payloads;
 the artifact workflow installs the same package set on Windows, Linux and macOS.
 The signing workflow builds those managed RID outputs before signing so the

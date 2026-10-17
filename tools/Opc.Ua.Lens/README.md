@@ -1,75 +1,17 @@
 # UaLens
 
-An engineering-first OPC UA desktop workspace built with Avalonia and the
-OPC Foundation .NET stack.
-
-Use the persistent connection bar to select a server, security policy and identity.
-Explore the address space, monitor values and events, read history, or open an
-administration or diagnostic tool from the searchable catalog. Document actions
-and document or connection settings let you perform advanced operations and
-control their configuration.
-
-UaLens supports the OPC UA OpenAPI service mapping over HTTPS and WebSockets.
-Enter the server's `https://`, `opc.https://`, `ws://`, `wss://`, or
-`opc.wss://` discovery URL and select the advertised **HTTPS OpenAPI** or
-**WSS OpenAPI** endpoint. Plain `ws://` is intended for trusted local networks.
-The same browser, attribute inspector, subscriptions, event view, history,
-method calls, and write workflows operate through the selected transport
-profile. TLS trust remains fail-closed; OPC UA user identity selection is
-separate from optional HTTP or WebSocket transport authentication.
-
-**File > Open NodeSet2 files...** opens one or more information models in the
-same explorer without a server. Lens includes the OPC UA core model, resolves
-local dependencies, and offers approved downloads from OPCFoundation/UA-Nodeset
-or a file picker for missing models. See the
-[offline NodeSet2 guide](../../docs/UaLens.md#opening-nodeset2-files).
-
-The explorer's **Namespace** dropdown lists the active server or NodeSet
-namespaces. Select one to highlight its nodes without filtering the tree;
-choose **None (no highlighting)** to clear the highlight.
+This document covers contributor setup, packaging and artifact qualification.
+Use the [user guide](../../docs/UaLens.md) for application workflows, connection
+settings and capability limits, or the [package README](NugetREADME.md) for
+installing the managed tool.
 
 ## Run from source
 
-From the repository root:
+Follow [Getting started](../../docs/UaLens.md#getting-started) to launch the
+application from a checkout. Repository prerequisites and the standard test
+commands are in the [Developer Guide](../../docs/DeveloperGuide.md#testing-ualens).
 
-```powershell
-$env:CustomTestTarget = 'net10.0'
-dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0
-```
-
-The project targets .NET 8, .NET 9 and .NET 10. Its source is in `tools\Opc.Ua.Lens`.
-The assembly is `UaLens`, the package is `OPCFoundation.NetStandard.Opc.Ua.Lens`,
-and the tool command is `ualens`.
-
-On Linux hosts intentionally using Mesa llvmpipe, `ualens --allow-software-gl`
-permits that software OpenGL driver instead of Avalonia's default blacklist.
-This opt-in does not enable other blacklisted drivers, change normal startup
-defaults, or promise hardware acceleration. Native Vulkan composition still
-requires compatible external-image and semaphore support; an unavailable
-compositor is not treated as a rendered viewport.
-`ualens --x11-vulkan` instead explicitly selects Avalonia's Vulkan compositor
-on X11, avoiding a Vulkan-to-OpenGL image import. This selection has no fallback
-to a different compositor; both Vulkan rendering and external-resource support
-must be available on the selected device.
-
-### Automatic connection
-
-Set `UALENS_ENDPOINT_URL` to connect when the desktop opens. The remaining
-variables pin the discovered server and prevent fallback to another security or
-identity profile:
-
-| Variable | Meaning | Default |
-| --- | --- | --- |
-| `UALENS_ENDPOINT_URL` | OPC UA discovery/endpoint URL; enables automatic connection | none |
-| `UALENS_APPLICATION_URI` | Expected server ApplicationUri | any |
-| `UALENS_SECURITY_MODE` | `None`, `Sign`, or `SignAndEncrypt` | `None` |
-| `UALENS_SECURITY_POLICY` | SHA-2-or-higher policy name such as `Basic256Sha256`, `None`, or its full URI | `None` |
-| `UALENS_USERNAME` | Username identity; omit for Anonymous | none |
-| `UALENS_PASSWORD` | Password required when a username is supplied | none |
-
-Secure endpoints remain fail-closed. Their server certificate must already be
-trusted or accepted through the existing trust dialog; environment startup does
-not add a blanket certificate-trust bypass.
+### Aspire AppHost
 
 To start the pump Device Integration sample and UaLens together, with Lens
 automatically connected over the local `None/None` development endpoint:
@@ -79,65 +21,17 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj
 ```
 
-The AppHost targets .NET 10 and selects the same framework for its project
-resources without overriding their global build properties. This lets solution
-and AppHost builds share one dependency graph instead of compiling shared
-libraries concurrently into the same output files.
+The AppHost is included in `UA.slnx`, but is not packaged or included in the
+installed `ualens` tool. It targets .NET 10 and selects the same framework for its
+project resources without overriding their global build properties. This lets
+solution and AppHost builds share one dependency graph instead of compiling
+shared libraries concurrently into the same output files.
 
 Override AppHost settings with standard configuration environment variables,
 for example `UaLens__SecurityMode`, `UaLens__SecurityPolicy`,
 `UaLens__Username`, and `UaLens__Password`. Do not put passwords in
-`appsettings.json`.
-
-## Tools
-
-Monitor values, quality and timestamps with optional trends and timing charts.
-Other documents provide events, history, file operations, local certificate stores,
-GDS discovery/management/push, users/roles, write/call performance workloads, and
-the live-scaling Subscription Bench.
-
-Alarms, Models, Continuity Lab, PubSub and Companion Tasks provide typed stack
-workflows through the tool catalog. Capability checks distinguish
-unavailable, unsupported and unauthorized operations. X.509, issued-token and
-hardware-backed identities use explicitly configured providers; reverse connect
-keeps listener, peer, security and identity requirements visible.
-
-Models and the Write/Call dialogs share named-bit OptionSet and dimension-aware
-array/matrix editors. Performance compares a chosen baseline with real retained
-latency distributions and configuration evidence. Companion Tasks use an explicit,
-single-use **Prepare / Review / Run** flow; preparations and confirmation are never
-part of saved workspaces. Array/custom task inputs use the same structured editor,
-with isolated values and metadata revalidation. ISA-95 and AI workflows keep
-authorization, service acceptance and observed completion separate. Non-rendering
-OpenUSD tasks provide bounded live/history capture and explicitly configured
-peer telemetry export; they do not fetch remote assets or render a stage.
-WoT/xRegistry tasks distinguish logical Resource metadata from individual
-Versions, require nonzero scope epochs and explicit deployment policy, and offer
-bounded single-Version materialization rather than a blanket refresh command.
-Vision tasks add reviewed simulated media, inference and feedback, with exact
-result correlation and fresh-budget cleanup of returned leases and acknowledged
-continuous runs. Managed SVG exports contain pixel-space boxes and labels, not
-downloaded images or GPU-rendered scenes. Physical/hybrid sensors and implicit
-external execution are rejected.
-
-PubSub commissioning includes registered offline presets, ordered scalar fields,
-identity/content-mask editing and atomic configuration import/export. Transport
-setup presents forward/reverse readiness and preserves pinned security intent.
-Both workflows require explicit Start/Connect; saved configuration is not consent.
-
-One primary connection is shared by documents; GDS tools can retain independent
-secondary connections. Local certificate management and discovery are available
-offline. Workspaces preserve safe configuration, not credentials or running jobs.
-
-See the [UaLens guide](../../docs/UaLens.md) for navigation, settings, trust,
-workspace behavior, guided workflows, external prerequisites and intentional limits.
-
-Identity setup remains provider-driven. Named token providers can expose explicit
-authorization interaction; configured user-certificate adapters offer separate
-CSR preparation, enrollment and adoption. The GDS adapter requires a matching
-registered ApplicationUri and certificate group, strict Users trust validation,
-and a private-key-capable destination. It neither provisions an authority nor
-replaces application-instance or hardware key management.
+`appsettings.json`. For direct application startup without Aspire, see
+[Automatic connection](../../docs/UaLens.md#automatic-connection).
 
 ## Publish and package
 

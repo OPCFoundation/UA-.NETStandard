@@ -950,7 +950,7 @@ where the platform behavior they omit is immaterial.
 [project](../tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj#L18-L41) declares AOT
 compatibility, enables NativeAOT publishing on net10.0, and also defines a
 managed `ualens` tool package. The
-[README](../tools/Opc.Ua.Lens/README.md#L45-L61) correctly describes separate
+[README](../tools/Opc.Ua.Lens/README.md#why-the-package-and-native-artifact-paths-differ) correctly describes separate
 native-publish and managed-pack workflows. The inspected
 [GitHub AOT job](../.github/workflows/buildandtest.yml#L607-L648) names the
 stack, historian, and MCP test applications, while the

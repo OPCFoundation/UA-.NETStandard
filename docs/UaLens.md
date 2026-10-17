@@ -10,6 +10,7 @@ separate connections.
 - [Getting started](#getting-started)
 - [Workspace](#workspace)
 - [Connection and trust](#connection-and-trust)
+  - [Automatic connection](#automatic-connection)
   - [User identities](#user-identities)
   - [Configured token authorization](#configured-token-authorization)
   - [User-certificate enrollment](#user-certificate-enrollment)
@@ -55,12 +56,11 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0
 ```
 
-The application supports .NET 8, .NET 9 and .NET 10. The managed tool package is
-`OPCFoundation.NetStandard.Opc.Ua.Lens`, with the command `ualens`.
-Tool installation uses the .NET 10 SDK and selects a `win-x64`, `linux-x64`
-or `osx-arm64` payload from the root package; there is no RID-agnostic tool
-fallback for other platforms.
-See the [tool README](../tools/Opc.Ua.Lens/README.md) for installation.
+The application supports .NET 8, .NET 9 and .NET 10. For managed tool installation
+and supported package platforms, see the
+[package README](../tools/Opc.Ua.Lens/NugetREADME.md#install).
+Contributor setup, the optional Aspire AppHost, packaging and artifact
+qualification are covered in the [development README](../tools/Opc.Ua.Lens/README.md).
 
 Enter a server address in the connection bar, select **Connect**, and choose an
 advertised endpoint and identity. Review the security policy and certificate
@@ -116,7 +116,12 @@ Shutdown progress and cleanup errors appear in the status and log.
 
 The endpoint picker shows advertised security modes, policies and user identities.
 UA-TCP, HTTPS and OpenAPI WebSocket endpoints use the same browsing and tool
-workflows. WebSocket bearer authentication requires `wss://`.
+workflows. For the OpenAPI service mapping, enter an `https://`, `opc.https://`,
+`ws://`, `wss://`, or `opc.wss://` discovery URL and select the advertised
+**HTTPS OpenAPI** or **WSS OpenAPI** endpoint. Plain `ws://` is intended for trusted
+local networks; WebSocket bearer authentication requires `wss://`.
+TLS trust remains fail-closed. OPC UA user identity selection is separate from
+optional HTTP or WebSocket transport authentication.
 
 ![Endpoint picker with security modes, policies and identity choices](Images/UaLens/connection-policies.png)
 
@@ -125,6 +130,25 @@ Permanently**. Accept Once applies only to the selected endpoint and certificate
 disconnecting or changing the target clears it. Permanent trust is written to
 the certificate store. Invalid or revoked certificates cannot be accepted through
 the untrusted-certificate prompt.
+
+### Automatic connection
+
+Set `UALENS_ENDPOINT_URL` to connect when the desktop opens. The remaining
+variables pin the discovered server and prevent fallback to another security or
+identity profile:
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `UALENS_ENDPOINT_URL` | OPC UA discovery/endpoint URL; enables automatic connection | none |
+| `UALENS_APPLICATION_URI` | Expected server ApplicationUri | any |
+| `UALENS_SECURITY_MODE` | `None`, `Sign`, or `SignAndEncrypt` | `None` |
+| `UALENS_SECURITY_POLICY` | SHA-2-or-higher policy name such as `Basic256Sha256`, `None`, or its full URI | `None` |
+| `UALENS_USERNAME` | Username identity; omit for Anonymous | none |
+| `UALENS_PASSWORD` | Password required when a username is supplied | none |
+
+Secure endpoints remain fail-closed. Their server certificate must already be
+trusted or accepted through the existing trust dialog; environment startup does
+not add a blanket certificate-trust bypass.
 
 ### User identities
 
@@ -153,6 +177,10 @@ Review the result and separately confirm **Add reviewed certificate**.
 Closing cancels pending local work. It does not undo a request already submitted
 or a certificate already added. The existing certificate stays in the store.
 The available enrollment source determines certificate and authority requirements.
+The GDS adapter requires a matching registered ApplicationUri and certificate
+group, strict Users trust validation, and a private-key-capable destination. It
+neither provisions an authority nor replaces application-instance or hardware
+key management.
 
 ### Hardware-backed keys
 
@@ -889,6 +917,17 @@ the source; an inspection-only override is not bypassed by a default provider.
 D3D12, Vulkan and Metal use typed native composition APIs. Windows runtime and
 NativeAOT evidence do not qualify Linux/macOS graphics, physical displays or
 accessibility. These remain separate release gates.
+
+On Linux hosts intentionally using Mesa llvmpipe, `ualens --allow-software-gl`
+permits that software OpenGL driver instead of Avalonia's default blacklist.
+This opt-in does not enable other blacklisted drivers, change normal startup
+defaults, or promise hardware acceleration. Native Vulkan composition still
+requires compatible external-image and semaphore support; an unavailable
+compositor is not treated as a rendered viewport.
+`ualens --x11-vulkan` instead explicitly selects Avalonia's Vulkan compositor
+on X11, avoiding a Vulkan-to-OpenGL image import. This selection has no fallback
+to a different compositor; both Vulkan rendering and external-resource support
+must be available on the selected device.
 
 Matching servers are listed in [Sample Applications](samples.md).
 
