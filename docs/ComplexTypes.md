@@ -315,8 +315,8 @@ public class UDT_SemVer : IEncodeable
 
 > **Important**: `BinaryEncodingId` must match the **Binary Encoding** NodeId
 > returned by the server (visible in the OPC UA address space as the
-> `DataTypeEncodingType` child node named `"Default Binary"`). This is what the
-> decoder uses to look up the registered type.
+> `DataTypeEncodingType` child node named `"Default Binary"`). The
+> decoder uses this NodeId to look up the registered type.
 
 #### Step 2 – Register the Type Before Reading
 

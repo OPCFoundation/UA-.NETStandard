@@ -1,10 +1,12 @@
 # Server Runtime Seam Analysis
 
-> **Status: design analysis / proposal — not shipped API.**
+> **Status: historical design analysis with follow-up decisions.**
 > This document records an evidence-based assessment of the server *runtime* cluster in
 > `Opc.Ua.Server`: `StandardServer`, `ServerInternalData`, `Session`, `SessionManager`,
 > `Subscription`, `SubscriptionManager`, `ApplicationInstance`, and related machinery.
-> Nothing here has been implemented. For shipped documentation see
+> The findings describe commit `e73e71184`; subsequent implementation and rejected
+> recommendations are recorded under [Open questions](#open-questions).
+> This document is not a current API inventory. For shipped documentation see
 > [Sessions.md](../docs/Sessions.md) and [Subscriptions.md](../docs/Subscriptions.md).
 
 Analysis performed against commit `e73e71184` on `master`.
@@ -49,7 +51,7 @@ machinery a plugin author never implements but every request flows through — a
 remaining place where the seams can still be re-cut without breaking consumers.
 
 This document quantifies where that cluster's interfaces are mis-shaped, and separates
-the parts that are genuinely well-designed from the parts that are not. Two of the seven
+the parts that are well-designed from the parts that are not. Two of the seven
 findings recommend *no change*; that is deliberate.
 
 ## Vocabulary
@@ -234,12 +236,17 @@ lock members exposed as public or protected properties finds **ten across three 
 same defect class as `Subscription.DiagnosticsLock => Diagnostics`: the published sync root
 is the guarded object, so a caller can contend without ever naming the lock member.
 
-The compliant pattern is also already present —
+The historical example below uses the required `System.Threading.Lock` type,
+but still exposes its synchronization object. It satisfies the lock-type rule,
+not the rule against exposing locks:
+
 `Opc.Ua.Redundancy.Server/Subscriptions/SharedKeyValueSubscriptionStore.cs:1467`:
 
 ```csharp
 public Lock Lock { get; } = new();
 ```
+
+The owner-side operation pattern described above avoids both violations.
 
 There is a **third** lock leak beyond these ten, documented separately because it is a
 published *contract* rather than a member: `NodeState.ReadAttributeAsync` and
@@ -382,7 +389,7 @@ public ValueTask<ModifyMonitoredItemsResponse> ModifyMonitoredItemsAsync(
 ```
 
 Applying the deletion test to these ten members: deleting them moves an
-id-to-subscription resolution into the caller. That resolution is genuinely needed —
+id-to-subscription resolution into the caller. That resolution is needed —
 it is where `BadSubscriptionIdInvalid` is produced — so the members are not pure waste, but
 they are a thin routing layer that doubles the surface a reader must learn. A single
 `TryGetSubscription`-plus-operate shape (which `ISubscriptionManager.TryGetSubscription`
@@ -394,7 +401,7 @@ already provides) would collapse ten members into one.
 diagnostics (2), lifecycle (5), request validation (3), plus certificates, nonces, locales,
 and endpoint description.
 
-Two specific problems:
+Specific problems:
 
 - **Two more `object` leaks.** `RestoreHistoryContinuationPoint(ByteString) : object?` and
   `SaveHistoryContinuationPoint(Guid, object)` put untyped state in a public interface,
@@ -403,7 +410,6 @@ Two specific problems:
   and `Session/Persistence/IContinuationPointStore.cs` exist. The four continuation-point
   members on `ISession` are a pass-through to a seam that is already in place, so they can
   be routed rather than reimplemented.
-
 - **Paired sync and async variants with divergent signatures.**
   `ValidateBeforeActivateAsync` returns
   `ValueTask<(IUserIdentityTokenHandler, UserTokenPolicy?)>` while the synchronous

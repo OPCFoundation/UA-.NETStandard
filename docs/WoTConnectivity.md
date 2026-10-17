@@ -83,9 +83,10 @@ The factory advertises two namespaces:
   Override with `WotConnectivityServerOptions.AssetNamespaceUri`.
 
 `WoTAssetConnectionManagement` is automatically organized below
-`Objects`. On first call to `LoadPredefinedNodes`, the server wires the
-spec's six methods (CreateAsset, DeleteAsset, optionally DiscoverAssets,
-CreateAssetForEndpoint, ConnectionTest, plus the configuration object).
+`Objects`. During startup, the server wires the management Methods
+`CreateAsset`, `DeleteAsset`, `DiscoverAssets`, `CreateAssetForEndpoint`,
+and `ConnectionTest`. The configuration Object is separate and is created
+when configuration entries or license information are supplied.
 Any persisted TDs in the storage folder are re-materialised on startup.
 
 ### Lifecycle
@@ -204,13 +205,13 @@ public ValueTask SubscribeEventAsync(
 ```
 
 `message` and `severity` are optional: a null `message` publishes the
-event name and a null or out-of-range `severity` uses the server's medium
-fallback. Severity is occurrence data supplied by the provider; the Thing
+event name and a null `severity`, or one outside 1–1000, uses the server's
+medium fallback. Severity is occurrence data supplied by the provider; the Thing
 Description carries no default-severity metadata.
 
-Skipping is not the same as succeeding. Whenever an affordance is skipped — for
-an out-of-range severity, an invalid child name, or a duplicate name — applying
-the Thing Description returns `GoodResultsMayBeIncomplete` rather than `Good`,
+Separately, when an affordance is skipped while applying the Thing Description —
+for example, because of an invalid child name or a duplicate name — the result
+is `GoodResultsMayBeIncomplete` rather than `Good`,
 with the number of skipped affordances and one log entry per skip explaining
 why. The code stays in the Good class, so a caller testing `ServiceResult.IsGood`
 is unaffected and the asset remains usable; but a caller that inspects the code
@@ -325,15 +326,16 @@ A few non-conformant servers only bind the method handler on the instance and re
 
 The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
 the configured `ThingDescriptionStorageFolder` and re-materialises every
-`*.jsonld` file at startup. The following options bound the work and
-the per-file resources so a corrupted or adversarial persistence
-directory cannot wedge startup through CPU/memory/stack exhaustion:
+`*.jsonld` file at startup. The following options constrain the number
+of files, per-file size and JSON nesting depth accepted by the loader.
+They limit processing of corrupted or adversarial input without
+guaranteeing total startup time or resource usage:
 
 | Option | Default | Effect |
 |---|---|---|
 | `MaxThingDescriptionSize` | `1 MiB` | Per-file size cap. Files larger than this are skipped at load time with a warning that names the file and reports the size. Also enforced on the write path via the OPC UA file primitives. |
 | `MaxPersistedThingDescriptionFiles` | `10 000` | Hard cap on the number of `*.jsonld` files processed per startup. When reached, the loader emits a single warning and stops; the server still comes up with the assets that *were* loaded. Set to `0` (or negative) to disable persistence loading entirely without removing the directory. |
-| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth honoured by the `JsonSerializer.MaxDepth` bound. Comfortably accommodates standard W3C Thing Descriptions while staying well below the default .NET recursion budget. Files that exceed the depth are skipped with a warning (the loader does **not** throw). |
+| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth enforced through `JsonSerializerOptions.MaxDepth`. Files exceeding the configured depth are skipped with a warning. This bounds accepted JSON nesting; it is not a guarantee about total memory use or available thread-stack space. |
 
 Bumping the defaults is appropriate for controlled environments that
 have audited the source of the persisted files; for example:
@@ -591,7 +593,7 @@ The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
   materialized as a browseable `ThingDescriptionGroupType` /
   `ThingModelGroupType` and `ThingDescriptionFileType` /
   `ThingModelFileType` node beneath `WoTRegistry`, kept in sync with the
-  registry snapshot (see §11.7). It never re-creates itself.
+  registry snapshot (see §11.7).
 * Registry documents are projected into the AddressSpace as **separate
   runtime NodeManagers** through the public `INodeManagerLifecycle`
   (`AddRuntimeNodeSetAsync` for first activation,
@@ -647,12 +649,19 @@ Two persistence back-ends are provided:
 
 #### Keeping the document bytes in a shared store
 
-`WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage) — which is what lets a registry run in a high-availability or distributed deployment, because the documents then live somewhere every node can reach rather than in one server's registry folder. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
+`WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage). A shared resource store makes document bytes accessible to multiple nodes; it is one prerequisite for a distributed registry, not a complete high-availability configuration. The deployment must also maintain consistent registry manifests, coordinate mutations and refresh each node's registry and materialized state. `ResourceStore` alone does not provide those mechanisms. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
 
 ```csharp
 options.StorageFolder = "/var/lib/myapp/wot-registry";   // manifest
 options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
 ```
+
+This example shares document bytes only; it does not configure manifest replication
+or high availability. `FileWotRegistryStore` serializes loads and commits across
+processes sharing the same storage root and rejects stale generations. Those
+protections require filesystem semantics that support its locking, atomic
+replacement and durability operations; sharing only the document store does not
+extend them to independent manifest roots.
 
 `WotBlobResourceStore` is the default WoT implementation. It keeps one file per document named after the document's SHA-256 digest — deliberately the `{root}/{digest}.bin` layout `FileWotRegistryStore` has always written, so adopting the interface needs **no on-disk migration** and existing registry folders keep working. It is validated against the shared `XRegistryResourceStoreContractTests`, so any other implementation (an object store, a database) can be substituted.
 
@@ -672,9 +681,9 @@ So writes land in `staging/` and the commit **promotes** the entries its snapsho
 
 Reads prefer `blobs/` and fall back to `staging/`, so content written but not yet committed is still readable by the transaction that wrote it. A staged entry that never gets promoted is inert and safe to delete: nothing can reference a document until a manifest names it, and only promoted entries are ever named. A commit that is refused therefore leaves a staged orphan and changes nothing else.
 
-Promotion also restores the integrity check that content addressing is worth having. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory — which is the point of keeping bytes out of the snapshot. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
+Promotion also checks content integrity. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
 
-The practical win is that a commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
+A commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
 
 A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceStoreProvider`. A decorator that drops it leaves the registry service writing bytes into a private in-memory store while the wrapped store validates against its own, and every commit then reports the documents missing.
 
@@ -920,11 +929,11 @@ not by copying the source document. The readable surface tracks the current
   [WoT / NodeSet conversion](WoTNodeSetConversion.md); the relation and
   type-binding resolution rules are stated once in
   [WoT protocol bindings](WotBindings.md#resolving-a-type-binding-the-local-context).
-  Converted NodeSets are also alias-complete, which is what makes the
+  Converted NodeSets are also alias-complete, which makes the
   materialization path in §11.3 loadable rather than merely convertible.
 
 * **Conformance strictness is opt-in.** `WotNodeSetConverterOptions.ConformanceMode`
-  defaults to `Permissive`, which is what Sections 4.1, 6.6, 9.4 and 10.2
+  defaults to `Permissive`, as Sections 4.1, 6.6, 9.4 and 10.2
   require of a consumer: an unknown `uav:` term is preserved as residue
   rather than reported. Registry materialization keeps that default, so a
   document authored against a later revision still loads. `Strict` is for
@@ -976,8 +985,7 @@ late cancellation.
 ## 12. Conformance to WoT Connectivity 1.1
 
 This clause describes what the model requires and what this implementation
-provides. It is a statement of the current state, not a history of how either
-got here.
+provides.
 
 ### 12.1 Model identity
 
@@ -1086,8 +1094,8 @@ within one source, every enumerated selection before every bulk one; within each
 group, by affordance kind in the fixed order `properties`, `actions`, `events`;
 within one kind, by ascending Unicode code point of the name the selection takes
 **in the view**; and, where two selections still compare equal, by ascending
-Unicode code point of the affordance's name **in the source**. The last key is
-what makes the order total: `uav:namePrefix` upper-cases the first character of
+Unicode code point of the affordance's name **in the source**. The last key
+makes the order total: `uav:namePrefix` upper-cases the first character of
 the source name, so `serialNumber` and `SerialNumber` in one source both become
 `deviceSerialNumber` in the view and nothing before it separates them. The order
 is stated over names rather than over document order because `properties`,
@@ -1124,12 +1132,12 @@ is the one implementation of that order, shared by this computation, the
 projection selection order of §12.4 and the endpoint tie-break of §5.7.1, so a
 second one cannot drift from the first.
 
-The length prefix is what makes the encoding injective. A NodeId string identifier may
+The length prefix makes the encoding injective. A NodeId string identifier may
 itself contain U+000A, so joining on the separator alone would let a single member that
 embeds a newline serialize byte-for-byte as the two members it imitates — a structural
 collision an author can construct deliberately, distinct from the statistical one below.
 
-Naming the function is what makes the property testable: two servers that resolved the
+Specifying the function makes the property testable: two servers that resolved the
 same membership compute the same value, which a per-server counter could not promise
 across a redundant pair. It needs no persisted state, so it survives a restart or a
 rebuild from the registry, and it records *what* a View contains rather than how it is
@@ -1169,7 +1177,7 @@ owns is dropped and reported instead of organized. Organizing it would leave the
 View advertising a membership no client can browse — a `Browse` drops a reference
 whose target does not resolve, so the View would report a count it does not have.
 
-Authoring `uav:id` on an affordance is what makes the first mechanism exact. A
+Authoring `uav:id` on an affordance makes the first mechanism exact. A
 document that materializes its Nodes from a `uav:nodes` native projection should
 carry `uav:id` per affordance, because the deterministic scheme describes the
 shape *synthesis* produces and does not hold for restored Nodes.

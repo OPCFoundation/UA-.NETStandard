@@ -131,8 +131,8 @@ Rated speed follows from the pole count and output frequency:
 ## 8 Characteristic curves
 
 Load fraction `x` — electrical output as a fraction of prime power — is the
-**only independent variable**. Everything else follows from these curves, which
-is what keeps the published values mutually consistent at every tick.
+**only independent variable**. Everything else follows from these curves, so
+the published values remain mutually consistent at every tick.
 
 ### 8.1 Fuel consumption
 

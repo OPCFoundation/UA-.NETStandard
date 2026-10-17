@@ -24,21 +24,19 @@ For client-side JSON Web Token (JWT) use during `ActivateSession`, see
 
 ## Architecture
 
-```text
-┌─────────────────┐  GetServiceDescription   ┌──────────────────────────┐
-│  OPC UA Client  │ ───────────────────────► │  ApplicationsNodeManager │
-│                 │  RequestAccessToken      │  (GDS Server)            │
-│                 │  (legacy, [Obsolete])    │                          │
-│                 │ ───────────────────────► │  ┌────────────────────┐  │
-│                 │  StartRequestToken       │  │ IAccessTokenProvider│  │
-│                 │  FinishRequestToken      │  └──────────┬─────────┘  │
-│                 │ ───────────────────────► │             │            │
-│                 │ ◄──── access token ───── │      ┌──────▼──────┐     │
-│                 │                          │      │ ITokenIssuer │     │
-└─────────────────┘                          │      │ JWT / HSM /  │     │
-                                             │      │ cloud signer │     │
-                                             │      └─────────────┘     │
-                                             └──────────────────────────┘
+```mermaid
+flowchart LR
+    client["OPC UA Client"]
+    subgraph gds["GDS Server"]
+        manager["ApplicationsNodeManager"]
+        provider["IAccessTokenProvider"]
+        issuer["ITokenIssuer<br/>JWT / HSM / cloud signer"]
+        manager --> provider --> issuer
+    end
+    client -->|GetServiceDescription| manager
+    client -->|"RequestAccessToken (legacy, Obsolete)"| manager
+    client -->|StartRequestToken / FinishRequestToken| manager
+    manager -->|access token| client
 ```
 
 `Opc.Ua.Gds.Server.IAccessTokenProvider` routes requests for the

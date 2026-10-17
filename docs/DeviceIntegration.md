@@ -17,13 +17,50 @@ plugs it together.
 
 - [Library layout](#library-layout)
 - [Quick start](#quick-start)
+  - [Plain Device Integration (DI) server](#plain-device-integration-di-server)
+  - [Companion-spec server (Pumps + Device Integration)](#companion-spec-server-pumps--device-integration)
+  - [Client](#client)
 - [Device builder](#device-builder)
+  - [Entry points](#entry-points)
+  - [Fluent surface](#fluent-surface)
+  - [Subclass support](#subclass-support)
 - [Device sub-type extensions](#device-sub-type-extensions)
+  - [Software / Block / ConfigurableObject (§5.4 advanced sub-types)](#software--block--configurableobject-54-advanced-sub-types)
+  - [Lifetime indication (§10.6)](#lifetime-indication-106)
+  - [Support info (§5.15)](#support-info-515)
 - [Hosting integration](#hosting-integration)
+  - [Server-side surface](#server-side-surface)
+  - [Context surface](#context-surface)
+  - [Architecture](#architecture)
+  - [Runtime conformance advertisement](#runtime-conformance-advertisement)
+  - [Client-side surface](#client-side-surface)
 - [Lock service](#lock-service)
+  - [Components](#components)
+  - [Status codes](#status-codes)
+  - [Default lock service](#default-lock-service)
+  - [Binding to a `LockingServicesState`](#binding-to-a-lockingservicesstate)
+  - [End-to-end flow](#end-to-end-flow)
+  - [Hosting](#hosting)
 - [Software update](#software-update)
+  - [Server-side: package store](#server-side-package-store)
+  - [Hosting](#hosting-1)
+  - [Client-side software update](#client-side-software-update)
 - [Client helpers](#client-helpers)
+  - [DiLockClient](#dilockclient)
+  - [DiTopologyClient](#ditopologyclient)
+  - [Hosting registration](#hosting-registration)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
+  - [Foundation — nameplates and topology elements](#foundation--nameplates-and-topology-elements)
+  - [Device tree](#device-tree)
+  - [Topology references](#topology-references-1)
+  - [Topology containers](#topology-containers)
+  - [Functional groups (§5.7)](#functional-groups-57)
+  - [Lock service (§10.5)](#lock-service-105)
+  - [Software update (§10.3)](#software-update-103)
+  - [Support info & lifetime indication](#support-info--lifetime-indication)
+  - [NAMUR alarms (§10.2)](#namur-alarms-102)
+  - [DataTypes & VariableTypes](#datatypes--variabletypes)
+  - [Not yet implemented](#not-yet-implemented)
 - [See also](#see-also)
 
 ## Library layout
@@ -497,15 +534,15 @@ on its second invocation to surface the misuse early.
 #### `ConfigureDevicesFor<TNodeManager>(action)`
 
 Registers a post-setup configurator targeted at a specific manager
-type. The runner invokes each matching delegate **after**:
+type. The runner invokes each matching delegate after:
 
-- the manager's `LoadPredefinedNodesAsync` has populated
-  `PredefinedNodes`;
-- the manager's `CreateAddressSpaceAsync` base has wired up the type
-  tree and root notifiers;
-- (for `FluentNodeManagerBase` subclasses) the user's
-  `ConfigureAsync(builder, ct)` / `Configure(builder)` wiring and the
-  subsequent `await builder.SealAsync(ct)` are complete.
+- predefined-node loading through `LoadPredefinedNodesAsync`;
+- the manager's `ConfigureAsync(builder, ct)` wiring;
+- authored-node registration through `RegisterAuthoredNodesAsync`;
+- `CompleteConfigureAsync`.
+
+The configurators run **before** `SealConfigurationAsync`. The base class
+then seals the builder and starts the manager's registries.
 
 Configurator-type matching follows `Type.IsAssignableFrom`. A
 delegate targeting `DiNodeManager` runs against every Device Integration-derived
@@ -573,8 +610,8 @@ The runner is injected into the manager via the factory. The base
   hook to materialise instances and drive the fluent
   `INodeManagerBuilder`. Because the hook is awaited, asynchronous
   setup and synchronous wiring live in one method; the base class owns
-  node registration and sealing. The runner fires automatically once
-  the builder is sealed — subclasses do not need to call
+  node registration and sealing. The runner fires automatically before
+  `SealConfigurationAsync` — subclasses do not need to call
   `PostSetupRunner.RunAsync` themselves.
 
 ```mermaid
@@ -659,7 +696,7 @@ adds a single extension method on `IOpcUaClientBuilder`:
 IOpcUaClientBuilder AddOpcUaDi();
 ```
 
-This registers four .NET-DI-friendly services that wrap the lazy
+This registers the following services and client factories over the lazy
 `ManagedSession` accessor produced by `AddClient(...)`:
 
 - `IDiDiscoveryService` — recursive device discovery from the
@@ -675,6 +712,8 @@ This registers four .NET-DI-friendly services that wrap the lazy
   topology browser for the Device Integration well-known folders.
 - `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` —
   software-version reader for a SoftwareUpdate instance.
+- `Func<NodeId, CancellationToken, ValueTask<DiTransferClient>>` —
+  client wrapper for `TransferServicesType`.
 
 Requires `AddClient(...)` to be called first — the extension throws
 `InvalidOperationException` if the managed-session accessor is

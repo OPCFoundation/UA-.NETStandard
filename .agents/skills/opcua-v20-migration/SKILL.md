@@ -61,7 +61,7 @@ Guide.
 | When the user hits… | Load only |
 | --- | --- |
 | `CS0029` / `CS1503` / `CS0266` on `NodeId`, `Variant`, `DataValue`, `ExtensionObject`, `QualifiedName`, `LocalizedText`, `ArrayOf<T>` / `MatrixOf<T>`, `ByteString`, `StatusCode`, `XmlElement`, `EnumValue`, or `[Obsolete]` on built-in type APIs (analyzers `UA0002`–`UA0008`, `UA0014`, `UA0019`) | [`types.md`](references/stack-migration/types.md) |
-| `Utils.LogX`, `Utils.Trace`, static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel` removed), `ITelemetryContext` constructor parameter shape per type, OLD-vs-NEW logger snippets, fluent `AddOpcUa().AddLogging().AddMetrics()` registration, breaking-changes inventory across Core / Configuration / Client / Server / PubSub / Certificate / Transport, migration utilities (`DefaultTelemetry`, `Telemetry.NullLogger`, `Utils.Fallback.Logger`) | [`telemetry.md`](references/stack-migration/telemetry.md) |
+| `Utils.LogX`, `Utils.Trace`, static logger helpers (`Utils.SetLogger` / `Utils.SetLogLevel` removed), `ITelemetryContext` constructor parameter shape per type, OLD-vs-NEW logger snippets, fluent `AddOpcUa().AddLogging().AddMetrics()` registration, per-area migration links, migration utilities (`DefaultTelemetry`, `Telemetry.NullLogger`, `Utils.Fallback.Logger`) | [`telemetry.md`](references/stack-migration/telemetry.md) |
 | Package upgrades, TFM changes, `Newtonsoft.Json` removal from `Opc.Ua.Core`, new published packages | [`packages.md`](references/stack-migration/packages.md) |
 | Source-generated `*Collection` shims, NodeManager generator, default of `bool` properties, project structure | [`source-generation.md`](references/stack-migration/source-generation.md) |
 | `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`encoders.md`](references/stack-migration/encoders.md) |
@@ -78,7 +78,7 @@ Guide.
 If the user's symptom does not obviously map to one row, read
 [`references/stack-migration/README.md`](references/stack-migration/README.md) (small —
 the same table plus a short intro) and pick from there. Avoid loading
-multiple sub-docs unless the symptom genuinely spans two areas (for
+multiple sub-docs unless the symptom spans two areas (for
 example, `node-states.md` *and* `types.md` when a NodeManager runs into
 both `INodeManager3` adoption and `Variant`-for-`object` API changes).
 
@@ -166,9 +166,11 @@ dotnet format analyzers <YourSolution>.sln \
   legacy public signatures compiling during migration, but disappear when the
   analyzer package is removed. Migrate every public signature and call site to
   `List<T>` / `ArrayOf<T>` before removing the package.
-- **Legacy `.NET Framework` `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"`
-  projects ignore `Directory.Build.targets` `<PackageReference>` injection.** Add
-  the migration package directly into the legacy csproj's existing `<ItemGroup>`.
+- **Legacy `.NET Framework` desktop projects need `PackageReference` support.**
+  For projects using `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"`,
+  migrate `packages.config` references if present, then add the migration package
+  directly to the csproj's existing `<ItemGroup>`. Verify restore and analyzer
+  loading; see [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
 - **`TreatWarningsAsErrors=true` blocks the warning-driven workflow.** Use the
   `NoWarn` recipe in `assets/Directory.Build.targets.example.xml` for the
   migration window, then peel each entry back as you fix the rule.
@@ -274,7 +276,7 @@ compile. Coverage and the sync-over-async caveat are documented in
 
 ### Manual residuals — priority order
 
-For the 11 rules without auto-fixes and the patterns the analyzer doesn't catch
+For rules without auto-fixes and patterns the analyzer doesn't catch
 at all (e.g. `Variant.Value` setter type changes, `BaseVariableState.Value`
 becoming `Variant`, `INodeManager` covariant return changes), apply fixes in
 this order to minimize cascading errors:
@@ -288,7 +290,7 @@ this order to minimize cascading errors:
 7. **NodeState** generic `PropertyState<T>` → builder pattern
 8. **Server-side NodeManager** migration to `AsyncCustomNodeManager`
 9. **Client-side `Session` / `Subscription`** changes
-10. **User identity token handler** pattern (`AsTokenHandler()` + disposable handlers)
+10. **User identity token handler** pattern (`AsTokenHandler()` + non-disposable handlers)
 
 Full categorical playbook for each layer is in
 [`references/migration-patterns.md`](references/migration-patterns.md).
@@ -313,9 +315,12 @@ MigrationAnalyzer package is removed.
 ### Known compatibility gaps
 
 - Legacy `.NET Framework` WinForms projects in pre-SDK MSBuild XML format
-  (`xmlns="…/2003"`) — `<PackageReference>` injection via
-  `Directory.Build.targets` is silently ignored; the migration package must be
-  added inline to each csproj.
+  (`xmlns="…/2003"`) can use `PackageReference` without SDK-style conversion.
+  The legacy sample projects did not resolve the reference injected through
+  `Directory.Build.targets`; follow
+  [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml)
+  to migrate package management if needed, add the package directly and verify
+  analyzer loading.
 - Public APIs can continue returning a generated `<Type>Collection` while the
   package is installed, but those temporary types disappear with the package.
   Migrate the public surface to `List<T>` / `ArrayOf<T>` before removal.

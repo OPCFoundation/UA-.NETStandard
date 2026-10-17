@@ -11,6 +11,15 @@ states and client proxies, [node management](NodeManagement.md), and
 required: shared contracts/model are in Core, execution/hosting in Server, and
 discovery/observation in Client.
 
+## Contents
+
+- [Programs (OPC UA Part 10)](#programs-opc-ua-part-10)
+  - [Register a Program](#register-a-program)
+  - [Execution and lifetime](#execution-and-lifetime)
+  - [Typed client use](#typed-client-use)
+  - [Results, diagnostics and security](#results-diagnostics-and-security)
+  - [Specification compatibility](#specification-compatibility)
+
 ## Register a Program
 
 Select the lifetime policy and supported controls explicitly:

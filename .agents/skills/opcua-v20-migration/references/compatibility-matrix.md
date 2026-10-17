@@ -11,7 +11,13 @@ correctly.
 | .NET SDK | 9.0.300 | latest 10.x | 9.0.300 ships Roslyn 4.14, which is the package's oldest analyzer band. SDK 9.0.100 ships Roslyn 4.12 and cannot load that payload |
 | `dotnet format` | bundled with SDK 10.0.300+ | latest 10.x | The `analyzers` subcommand applies the 14 auto-fixable UA rules. Diagnostics need SDK 9.0.300+; the documented auto-fix pass needs 10.0.300+ |
 | C# language version | 8.0 | 14 (default in SDK 10) | The generator emits nullable-reference syntax. The runtime shim's C# 14 extension blocks are precompiled, so consumers do not need C# 14 merely to reference them |
-| Consumer project SDK | `Microsoft.NET.Sdk` (SDK-style) | same | Pre-SDK MSBuild XML projects (`xmlns="…/2003"`) cannot install the analyzer — see [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml) |
+| Consumer project format | C# project with `PackageReference` support | `Microsoft.NET.Sdk` (SDK-style) | Legacy `.NET Framework` desktop projects are also supported; see [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml) for package-management prerequisites and installation checks |
+
+Legacy .NET Framework desktop projects can use `PackageReference` without
+converting to SDK style. If a project uses `packages.config`, migrate its package
+references first; then add the migration package directly to the project file
+and verify restore and analyzer loading. See NuGet's
+[project-type support](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#project-type-support).
 
 ## Supported consumer target frameworks
 
@@ -25,10 +31,12 @@ ships in 4 TFMs:
 | `net9.0` | ✅ | ✅ (STS) |
 | `net10.0` | ✅ | ✅ (LTS, current) |
 
-Consumers on other TFMs (`net6.0`, `net7.0`) can still install the package; the
-analyzer + source generator still run, but the runtime shim DLL won't be
-applied at compile-time — they fall back to migrating any shim-shaped patterns
-manually. To upgrade the consumer's TFM as part of the migration, use the .NET
+`net6.0` and `net7.0` are not supported targets for the bundled migration
+package. Retarget the project to a supported framework before using it.
+Installing a newer SDK alone does not make the runtime shim and OPC UA
+dependencies compatible with an older target framework.
+
+To upgrade the consumer's TFM as part of the migration, use the .NET
 [**modernize**](https://marketplace.visualstudio.com/items?itemName=ms-dotnettools.modernize)
 skill / agent from the dotnet tooling marketplace, which automates TFM bumps
 and SDK-style csproj rewrites.

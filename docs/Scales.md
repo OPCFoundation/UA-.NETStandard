@@ -21,11 +21,33 @@ Integration and OPC 30050 PackML.
 - [Quick start — server](#quick-start--server)
 - [Quick start — client](#quick-start--client)
 - [Server hosting](#server-hosting)
+  - [`AddScales` and `ConfigureScales`](#addscales-and-configurescales)
+  - [Composing with Machinery and other companions](#composing-with-machinery-and-other-companions)
+  - [Direct composition and lifetime](#direct-composition-and-lifetime)
+  - [Options](#options)
+  - [Creating scales](#creating-scales)
 - [Builder reference](#builder-reference)
+  - [`IScaleBuilder`](#iscalebuilder)
+  - [`IProductionPresetBuilder`](#iproductionpresetbuilder)
+  - [`IScaleSystemBuilder` and `IScaleModuleBuilder`](#iscalesystembuilder-and-iscalemodulebuilder)
 - [Runtime reference](#runtime-reference)
+  - [`ScaleHandle`](#scalehandle)
+  - [`ScaleNotifications`](#scalenotifications)
+  - [`ScaleProductionPreset`](#scaleproductionpreset)
+  - [`ScaleStatistics`](#scalestatistics)
+  - [Type controllers](#type-controllers)
+  - [Recipes](#recipes)
+  - [PackML](#packml)
 - [Client reference](#client-reference)
+  - [Creating the client](#creating-the-client)
+  - [Discovery](#discovery)
+  - [Weighing](#weighing)
+  - [Products, PackML, type methods and recipes](#products-packml-type-methods-and-recipes)
+  - [Notifications and snapshots](#notifications-and-snapshots)
 - [Contracts reference](#contracts-reference)
 - [Conformance matrix](#conformance-matrix)
+  - [Facets](#facets)
+  - [Cross-cutting conformance units and behaviour](#cross-cutting-conformance-units-and-behaviour)
 - [Samples](#samples)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -114,15 +136,23 @@ do not include it and stay advertised.
 Everything below a top-level node follows the DI modular-device pattern
 (§6.3):
 
-```text
-DeviceSet
-├── PackingLine1              ScaleSystemType      (notifier)
-│   └── SubDevices
-│       └── Checkweigher1     CheckweigherType     (notifier, HasNotifier from PackingLine1)
-│           └── SubDevices
-│               ├── Infeed    FeederModuleType     (notifier, HasNotifier from Checkweigher1)
-│               └── Labeler   PrinterModuleType    (notifier, HasNotifier from Checkweigher1)
-└── AnalyticalBalance         LaboratoryScaleType  (notifier)
+```mermaid
+flowchart TD
+    devices["DeviceSet"]
+    line["PackingLine1<br/>ScaleSystemType (notifier)"]
+    sub1["SubDevices"]
+    check["Checkweigher1<br/>CheckweigherType (notifier)"]
+    sub2["SubDevices"]
+    infeed["Infeed<br/>FeederModuleType (notifier)"]
+    labeler["Labeler<br/>PrinterModuleType (notifier)"]
+    balance["AnalyticalBalance<br/>LaboratoryScaleType (notifier)"]
+    devices --> line --> sub1 --> check --> sub2
+    sub2 --> infeed
+    sub2 --> labeler
+    devices --> balance
+    line -.->|HasNotifier| check
+    check -.->|HasNotifier| infeed
+    check -.->|HasNotifier| labeler
 ```
 
 - **SupportedTypes.** The NodeSet's `SupportedTypes` folders carry no
@@ -438,7 +468,7 @@ and synchronous: no I/O, no waiting and no calls into other locks.
   `CompleteCalibration`, `PublishFeeder`, …) take the lock but skip the
   interceptor: the equipment reports what happened, it does not ask.
 - **Node writes** need no node-manager lock. A `NodeState` guards its own
-  attributes, and the scale's lock is what keeps related values consistent.
+  attributes, and the scale's lock keeps related values consistent.
 
 **Weighing arithmetic (§9.3):**
 

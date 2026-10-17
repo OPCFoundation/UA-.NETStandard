@@ -1,22 +1,18 @@
-# OPC UA .NET Standard — Types (standard NodeSet proxies)
+# OPC UA .NET Standard — Types
 
-`OPCFoundation.NetStandard.Opc.Ua.Types` is the generated type
-assembly for the standard OPC UA NodeSet (OPC 10000-5 / Part 5). It
-contains the strongly-typed proxies for the standard
-`ObjectType` / `VariableType` / `ReferenceType` definitions
-(`BaseObjectState`, `BaseVariableState`, `MethodState`, all standard
-NodeIds, browse names, status codes, error codes, …) plus the
-companion data type classes (`Argument`, `Range`, `EUInformation`,
-`HistoryUpdateResult`, …).
+`OPCFoundation.NetStandard.Opc.Ua.Types` provides foundational OPC UA
+values such as `NodeId`, `Variant`, `DataValue`, `ByteString` and `ArrayOf<T>`,
+encoding and message-context infrastructure, and node-state base classes
+such as `BaseObjectState`, `BaseVariableState` and `MethodState`.
+Generated standard NodeSet model and state types are supplied by the
+dependent `OPCFoundation.NetStandard.Opc.Ua.Core.Types` package.
 
 ## Overview
 
-Reference this package when you write a server-side
-`NodeManager`, register a custom information model, or consume the
-standard address-space proxies on the client side.
-
-The classes in this package are emitted from the standard XML NodeSet
-by the OPC UA source generators (`Opc.Ua.SourceGeneration.Stack`).
+Reference this package for built-in values, encoding/context infrastructure
+or the dependency-light WoT conversion surface below. Use `Opc.Ua.Core.Types`
+when you also need the generated standard model types. Server and client
+libraries bring their required layers through package dependencies.
 
 ## Captured metadata
 
@@ -64,6 +60,5 @@ semantics without replacing ExpandedNodeIds for instance identity.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [Source-Generated Data Types guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/SourceGeneratedDataTypes.md)
-for the model-driven extension story (how to add companion specs and
-plug new generated NodeSets into the stack).
+and the [Types migration guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/migrate/2.0.x/types.md)
+for built-in value representation and migration guidance.

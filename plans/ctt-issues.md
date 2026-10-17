@@ -119,17 +119,24 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 ## Not filed
 
-- **C28. GDS Application Directory `029.js`, `038.js`, `039.js`** expect `BadInvalidArgument` for a null or unknown
-  ApplicationId; the server returns `BadNotFound`, the only code OPC 10000-12 §6.5.7/§6.5.9 define for an unknown
-  ApplicationId. Held back: the GDS server behavior is to be reviewed first.
-- **C32. Monitor Basic `038.js`** warns when a requested SamplingInterval of 0 is revised to 0, unless the project
-  setting *Fastest Sampling Interval Supported* is 0. The nodes declare MinimumSamplingInterval 0 and
-  `MinSupportedSampleRate` is 0, so 0 is correct (Part 4 §7.21). The setting cannot be lowered because
-  `monitoredItem.js` uses it as the default sampling interval of every MonitoredItem. Held back: relevance unclear.
-- **C43. A & C Enable `Err_004.js`** calls Disable, Disable and Enable for every event of a condition without
-  per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 Enable runs the CTT alarm
-  thread then returned no events for the rest of the CU, although the server sent and the CTT acknowledged them,
-  and the remaining test cases ran to 3 × Alarm Cycle Time. Held back: needs more investigation.
+- **C28. GDS Application Directory `029.js`, `038.js`, `039.js`:** the recorded run expected
+  `BadInvalidArgument` for null or unknown ApplicationIds and observed `BadNotFound`.
+  Review null and unknown inputs separately against the applicable Method requirements in
+  OPC 10000-12 §6.5.7/§6.5.9 and the server implementation before classifying or filing this
+  as a CTT defect.
+- **C32. Monitor Basic `038.js`:** in the recorded configuration, the test warned when a requested
+  SamplingInterval of 0 was revised to 0 unless *Fastest Sampling Interval Supported* was also 0.
+  The nodes declared MinimumSamplingInterval 0 and `MinSupportedSampleRate` was 0. The note also
+  records that `monitoredItem.js` uses the project setting as a default for other MonitoredItems.
+  Review the warning against Part 4 §7.21 and check the effect of changing that shared setting
+  before deciding whether this is a CTT defect or a project-configuration issue.
+- **C43. A & C Enable `Err_004.js`:** the recorded test called Disable, Disable and Enable for each
+  condition event without per-condition state, with bursts of up to about 850 events in 15 s.
+  In 8 of 28 Enable runs, the CTT alarm thread subsequently returned no events for the rest of the
+  CU, although the recorded trace showed server sends and CTT acknowledgements. Remaining cases
+  ran to 3 × Alarm Cycle Time. These observations do not establish why delivery to the alarm
+  thread stopped. Investigate callback re-entry, event processing and the trace before assigning
+  a cause or filing a defect.
 - **C60. A & C Exclusive/Non-Exclusive Limit/Level `Test_003.js`–`Test_006.js`** (and any A&C CU that shares
   the alarm thread) fail with "Filtered Event counts are not equal" when the CTT's native session publish thread
   stops sending Publish requests. A traced server answered every Publish of the session (413 requests, 413
@@ -249,6 +256,9 @@ used to determine whether Uncertain values are Bad or non-Bad"*; the answer is r
   against the server before the fix.
 
 ### U5. TreatUncertainAsBad = false: are Uncertain values Good for the value and for the status?
+
+> **Open specification interpretation:** Retain the observed server/CTT differences
+> until the clarification cited under U4 resolves value inclusion and result status separately.
 
 §4.2.1.2 makes an Uncertain value equivalent to Good when TreatUncertainAsBad is false *"unless the Aggregate
 definition says otherwise"*, and adds that the value *"is still treated as Uncertain when the StatusCode for

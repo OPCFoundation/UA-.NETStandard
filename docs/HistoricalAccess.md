@@ -3,12 +3,51 @@
 ## Contents
 
 - [Overview](#overview)
-- **[Architecture](#architecture)** and **[Scope](#scope)** — what's implemented and how it fits together.
-- **[Server developer guide](#server-developer-guide)** — quick start, fluent builder, the registry, per-NodeManager wiring, annotations, configuration node.
-- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for a custom historian, including resume tokens, pagination, status codes, error semantics, and thread safety.
-- **[Client developer guide](#client-developer-guide)** — `HistoryClient` usage patterns.
+- [Architecture](#architecture)
+- [Scope](#scope)
+- [Server developer guide](#server-developer-guide)
+  - [Quick start: in-memory provider](#quick-start-in-memory-provider)
+  - [Fluent builder (`server.UseHistorian()…`)](#fluent-builder-serverusehistorian)
+  - [Fluent server API integration (`builder.Variable<T>(...).Historize()`)](#fluent-server-api-integration-buildervariablethistorize)
+  - [Per-NodeManager `GetHistorianProvider` override](#per-nodemanager-gethistorianprovider-override)
+  - [Server-wide registry (`IHistorianRegistryProvider`)](#server-wide-registry-ihistorianregistryprovider)
+  - [Provider resolution order](#provider-resolution-order)
+  - [Startup advertisement reconciliation](#startup-advertisement-reconciliation)
+  - [Annotations](#annotations)
+  - [`HistoricalDataConfigurationType` companion object](#historicaldataconfigurationtype-companion-object)
+  - [Aggregate-filtered monitored items](#aggregate-filtered-monitored-items)
+  - [`ServerSystemContext.Server`](#serversystemcontextserver)
+- [Provider author guide](#provider-author-guide)
+  - [Recommended base class](#recommended-base-class)
+  - [Capability interfaces](#capability-interfaces)
+  - [`HistorianOperationContext`](#historianoperationcontext)
+  - [Read pagination — `HistorianResumeToken` and `HistorianPage<T>`](#read-pagination--historianresumetoken-and-historianpaget)
+  - [Update semantics and status codes](#update-semantics-and-status-codes)
+  - [Atomic batch updates (`IHistorianTransactionalProvider`)](#atomic-batch-updates-ihistoriantransactionalprovider)
+  - [Modified history](#modified-history)
+  - [Processed (aggregate) reads](#processed-aggregate-reads)
+  - [At-time reads](#at-time-reads)
+  - [Annotations](#annotations-1)
+  - [Structured history data](#structured-history-data)
+  - [Event history](#event-history)
+  - [Per-node capabilities](#per-node-capabilities)
+  - [Thread safety](#thread-safety)
+  - [Cancellation](#cancellation)
+  - [Example: minimal `IHistorianDataProvider` skeleton](#example-minimal-ihistoriandataprovider-skeleton)
+- [Client developer guide](#client-developer-guide)
+  - [Constructing a `HistoryClient`](#constructing-a-historyclient)
+  - [Bounded pages and session lifetime](#bounded-pages-and-session-lifetime)
+  - [Reads — `IAsyncEnumerable<T>` with automatic continuation handling](#reads--iasyncenumerablet-with-automatic-continuation-handling)
+  - [Writes](#writes)
+  - [Discovery — capabilities and configuration](#discovery--capabilities-and-configuration)
 - [Automatic value capture](#automatic-value-capture)
-- **[Capability discovery](#capability-discovery)** and **[Auditing](#auditing)**.
+  - [Pipeline](#pipeline)
+  - [What triggers a capture](#what-triggers-a-capture)
+  - [Opting out](#opting-out)
+  - [Tuning](#tuning)
+  - [Implementing `IHistorianBulkInsertProvider`](#implementing-ihistorianbulkinsertprovider)
+- [Capability discovery](#capability-discovery)
+- [Auditing](#auditing)
 - [Part 11 profile conformance catalog](#part-11-profile-conformance-catalog)
 - [Limitations and roadmap](#limitations-and-roadmap)
 
@@ -21,46 +60,20 @@ time-series storage engine. `Opc.Ua.Server` also includes an
 
 ## Architecture
 
-```
-┌───────────────────────────────────────────────────────────────┐
-│                      OPC UA Client                            │
-│                                                               │
-│  Opc.Ua.Client.Historian.HistoryClient                        │
-│    ├ ReadRawAsync / ReadModifiedAsync     (IAsyncEnumerable)  │
-│    ├ ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)  │
-│    ├ ReadAnnotationsAsync / ReadEventsAsync                   │
-│    ├ InsertAsync / ReplaceAsync / UpdateAsync                 │
-│    ├ InsertEventsAsync / ReplaceEventsAsync                   │
-│    ├ UpdateEventsAsync / DeleteEventsAsync                    │
-│    ├ DeleteRawAsync / DeleteAtTimeAsync                       │
-│    ├ UpdateStructureDataAsync / WriteAnnotationsAsync         │
-│    ├ GetServerCapabilitiesAsync / GetConfigurationAsync       │
-│    └ session.Historian() extension                            │
-└──────────┬────────────────────────────────────────────────────┘
-           │  HistoryRead / HistoryUpdate (binary or HTTPS)
-           ▼
-┌───────────────────────────────────────────────────────────────┐
-│                      OPC UA Server                            │
-│                                                               │
-│  Opc.Ua.Server.AsyncCustomNodeManager / CustomNodeManager2    │
-│    HistoryReadAsync / HistoryUpdateAsync                      │
-│      ↓ validates + dispatches by detail type                  │
-│  Opc.Ua.Server.Historian.HistorianDispatcher                  │
-│    ├ resolves provider per node                               │
-│    │   (per-NM override → registry → fallback)                │
-│    └ reports audit events on update                           │
-│  Opc.Ua.Server.Historian.IHistorianProvider                   │
-│    ├ IHistorianDataProvider          (raw + Insert/Replace…)  │
-│    ├ IHistorianModifiedProvider                               │
-│    ├ IHistorianAtTimeProvider             (optional)          │
-│    ├ IHistorianProcessedProvider          (optional)          │
-│    ├ IHistorianAnnotationProvider                             │
-│    ├ IHistorianEventProvider                                  │
-│    └ IHistorianTransactionalProvider      (optional, atomic)  │
-│      │                                                        │
-│      ↓ provider implementations:                              │
-│   InMemoryHistorianProvider, your tsdb adapter, …             │
-└───────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph client["OPC UA Client"]
+        history["Opc.Ua.Client.Historian.HistoryClient<br/>ReadRawAsync / ReadModifiedAsync (IAsyncEnumerable)<br/>ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)<br/>ReadAnnotationsAsync / ReadEventsAsync<br/>InsertAsync / ReplaceAsync / UpdateAsync<br/>InsertEventsAsync / ReplaceEventsAsync<br/>UpdateEventsAsync / DeleteEventsAsync<br/>DeleteRawAsync / DeleteAtTimeAsync<br/>UpdateStructureDataAsync / WriteAnnotationsAsync<br/>GetServerCapabilitiesAsync / GetConfigurationAsync<br/>session.Historian() extension"]
+    end
+    subgraph server["OPC UA Server"]
+        managers["AsyncCustomNodeManager / CustomNodeManager2<br/>HistoryReadAsync / HistoryUpdateAsync"]
+        dispatch["Opc.Ua.Server.Historian.HistorianDispatcher<br/>Resolve provider per node:<br/>per-NM override, then registry, then fallback<br/>Report audit events on update"]
+        providers["Opc.Ua.Server.Historian.IHistorianProvider<br/>IHistorianDataProvider (raw + Insert/Replace...)<br/>IHistorianModifiedProvider<br/>IHistorianAtTimeProvider (optional)<br/>IHistorianProcessedProvider (optional)<br/>IHistorianAnnotationProvider<br/>IHistorianEventProvider<br/>IHistorianTransactionalProvider (optional, atomic)"]
+        implementations["InMemoryHistorianProvider<br/>Your TSDB adapter, ..."]
+        managers -->|validate and dispatch by detail type| dispatch
+        dispatch --> providers --> implementations
+    end
+    history -->|HistoryRead / HistoryUpdate: binary or HTTPS| managers
 ```
 
 ## Scope
@@ -510,7 +523,7 @@ The historian dispatcher relies on `systemContext.Server` for:
 
 ## Provider author guide
 
-A provider is a class that implements `IHistorianProvider` (the umbrella) plus any subset of the seven narrow capability interfaces. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
+A provider implements `IHistorianProvider` plus the capability interfaces for the operations its backend supports; see the [capability table](#capability-interfaces) below. The dispatcher type-tests the concrete provider at runtime and routes calls accordingly — there is no central registration of capabilities, no virtual base class with thirty `NotImplementedException`s, and no factory.
 
 ### Recommended base class
 
@@ -1208,26 +1221,21 @@ if (cfg.HasConfiguration)
 
 ### Pipeline
 
-```
-  variable.Value = sample;
-  variable.Timestamp = now;
-  variable.ClearChangeMasks(systemContext, false);   ← fires StateChanged(Value)
-                            │
-                            ▼
-   StateChanged handler  (O(1), lock-free)
-                            │
-                            ▼
-   bounded Channel<CaptureEvent>   ← MaxQueuedSamples (default 4096)
-                            │
-                            ▼
-   HistorianCaptureSink consumer task
-       • drain up to BatchTarget samples (default 64)
-       • or wait BatchWindow (default 25 ms) for more
-       • group by NodeId
-       • flush:
-            provider is IHistorianBulkInsertProvider  → InsertBatchAsync
-            else                                      → per-node InsertAsync
-       • provider exceptions count lost samples and leave the consumer running
+```mermaid
+flowchart TD
+    update["variable.Value = sample;<br/>variable.Timestamp = now;<br/>variable.ClearChangeMasks(systemContext, false);"]
+    handler["StateChanged handler<br/>O(1), lock-free"]
+    channel["Bounded Channel&lt;CaptureEvent&gt;<br/>MaxQueuedSamples: default 4096"]
+    consumer["HistorianCaptureSink consumer task<br/>Drain up to BatchTarget samples (default 64)<br/>or wait BatchWindow (default 25 ms)<br/>Group by NodeId"]
+    bulk{"Provider is<br/>IHistorianBulkInsertProvider?"}
+    batch["InsertBatchAsync"]
+    single["Per-node InsertAsync"]
+    failure["Provider exceptions count lost samples<br/>and leave the consumer running"]
+    update -->|StateChanged: Value| handler --> channel --> consumer --> bulk
+    bulk -->|Yes| batch
+    bulk -->|No| single
+    batch -.->|Exception| failure
+    single -.->|Exception| failure
 ```
 
 The capture path is **best-effort under overload**. When the queue is full,

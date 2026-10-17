@@ -66,9 +66,11 @@ the actual assets. The implementation is divided into:
 
 ### Material, time and faults
 
-```text
-collection → sorting → shredding → washing → density separation
-           → drying → extrusion → melt filtration → pelletizing → bagging
+```mermaid
+flowchart LR
+    collection["collection"] --> sorting["sorting"] --> shredding["shredding"] --> washing["washing"]
+    washing --> density["density separation"] --> drying["drying"] --> extrusion["extrusion"]
+    extrusion --> filtration["melt filtration"] --> pelletizing["pelletizing"] --> bagging["bagging"]
 ```
 
 These ten selections contain **21 separately queued substeps**. For example, washing contains

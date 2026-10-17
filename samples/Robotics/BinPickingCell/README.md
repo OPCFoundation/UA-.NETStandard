@@ -15,9 +15,11 @@ Vision companion with an eye-in-hand camera parented to the flange, an
 in-address-space OpenUSD scene, and the frame tree the Robotics-Vision
 Addendum's example uses:
 
-```text
-world → robot_base → flange → gripper_tcp
-                          ↳ camera_eih
+```mermaid
+flowchart LR
+    world["world"] --> base["robot_base"] --> flange["flange"]
+    flange --> tcp["gripper_tcp"]
+    flange --> camera["camera_eih"]
 ```
 
 ```mermaid
@@ -67,7 +69,7 @@ the cell always tells the truth about which path is in force.
 - `--inferenceLocation OnServer` (default) — the deterministic
   `BinPickingGroundTruthInferenceProvider` computes `DetectionResultType`
   results locally. The pipeline advertises `VIS-Inference-OnServer`,
-  needs no GPU, no model and no network, and is what CI runs.
+  needs no GPU, no model and no network. CI runs this path.
 - `--inferenceLocation EdgeOffServer` — the pipeline exposes a
   `VisionFeedbackType` bound to `BinPickingAgentInferenceProvider`; an
   agent connected over MCP looks at the frame and calls
@@ -143,15 +145,13 @@ to the flange so the view moves with the arm.
 
 ### Scene lighting is load-bearing
 
-The stage is lit by a single `DomeLight` at intensity 1000.
-**Do not reintroduce a `DistantLight`** — at any intensity that shows
-geometry, a `DistantLight` blows every surface to pure white regardless
-of material, and the point of this cell is that a vision-language model
-can pick "the red cube" by looking at the frame. Under a `DomeLight`
-the five parts measure `red (220, 37, 37)`, `green (37, 208, 49)`,
-`blue (37, 73, 233)` — distinct enough for an LLM to reason about.
-The `Cell.usda` header records this contract explicitly so a future
-scene-authoring change does not silently break the perception path.
+The sample stage uses a single `DomeLight` at intensity 1000. Preserve
+distinguishable part colors when changing lighting, exposure, materials or
+renderer settings, because color-based selection depends on the captured image.
+Check captured colors after a change. The recorded RGB examples are
+`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`; they
+are historical examples, not a complete five-part measurement or a guarantee
+across rendering configurations. The `Cell.usda` header records this requirement.
 
 ### Frame tree contract
 
@@ -223,8 +223,7 @@ base64-encoded into the MCP `ImageContentBlock`. The
 `opcua-inline://…` **reference** and the frame's dimensions — it does not
 carry the image, which would ship the payload twice.
 
-612 × 512 is what the sensor declares, what the clip endpoint declares,
-what the intrinsics describe and what the renderer produces. The
+The sensor, clip endpoint, intrinsics and renderer all use 612 × 512. The
 simulated device is a 2448 × 2048 area-scan camera operated with 4 × 4
 binning, so the calibrated intrinsics are divided by four and the
 Brown-Conrady coefficients — expressed in normalised image coordinates —
@@ -276,9 +275,8 @@ PNG bytes through the inline `LatestClip` or the by-reference
   camera through the authored `HandEye` transform and intrinsics, and
   publishes a `DetectionResultType` with the corresponding class label,
   bounding box and pose. Because this reads real geometry, the poses
-  it publishes are the ones a correct agent would submit — which is
-  what makes the ground-truth path useful as a check on an agent's
-  answer.
+  it publishes are the ones a correct agent would submit and can be
+  used to check an agent's answer.
 - **Agent path** (`--inferenceLocation EdgeOffServer`):
   `BinPickingAgentInferenceProvider` is the sample's off-Server
   feedback sink. `SubmitDetections`, `SubmitCorrection` and
@@ -312,9 +310,8 @@ gripper around the current pose of the part named by the intent's
 retracts. The part's world position follows the tool until `Place`
 opens the gripper, settles it on the highest support, and retracts. The
 ground-truth detector projects from those same positions, so it stops
-reporting a part that has been moved out of the bin — which is what
-makes the paired client's `--demo` verification real rather than a
-formality.
+reporting a part that has been moved out of the bin. The paired client's
+`--demo` uses this change to verify the pick.
 
 ## Feedback validation
 
@@ -346,8 +343,7 @@ with `Bad_InvalidArgument` and a message the agent can act on:
 
 An **empty** detection set is refused too. §9.5 lists "`Detections`
 empty" as `Bad_InvalidArgument`, and requires `SubmitCorrection` to
-carry *exactly one* non-empty corrected array. The cell conforms, which
-has a consequence worth knowing: an agent that has emptied the bin
+carry *exactly one* non-empty corrected array. The cell conforms: an agent that has emptied the bin
 cannot report "I looked and there is nothing there", and a false
 positive cannot be retracted by correcting a result down to nothing.
 Both are raised against the draft rather than worked around here — see

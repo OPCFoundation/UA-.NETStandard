@@ -4,6 +4,7 @@
 
 - [Attribute shape](#attribute-shape)
 - [Payload wire format (`ModelDependencyV1`)](#payload-wire-format-modeldependencyv1)
+  - [Nested instance declarations](#nested-instance-declarations)
 - [Diagnostics](#diagnostics)
 - [Implementation](#implementation)
 

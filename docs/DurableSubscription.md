@@ -9,10 +9,11 @@ TransferSubscriptions service to retrieve missed notifications.
 
 ## Contents
 
-- [Overview](#overview)
-- [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
-- [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
-- [Known limitations and issues](#known-limitations-and-issues)
+- [Durable Subscription](#durable-subscription)
+  - [Overview](#overview)
+  - [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
+  - [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
+  - [Known limitations and issues](#known-limitations-and-issues)
 
 ## Fix an existing server with minimal changes
 

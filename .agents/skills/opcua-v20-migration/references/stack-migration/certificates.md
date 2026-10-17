@@ -14,7 +14,7 @@
   - [CertificateIdentifier is metadata-only](#certificateidentifier-is-metadata-only)
   - [CertificateStoreIdentifier is a store description — `OpenStore` returns a caller-owned store](#certificatestoreidentifier-is-a-store-description--openstore-returns-a-caller-owned-store)
   - [PushManagement transactions: TrustList/Certificate updates now require `ApplyChanges`](#pushmanagement-transactions-trustlistcertificate-updates-now-require-applychanges)
-  - [Optional ServerConfiguration surface now available (additive, opt-in)](#optional-serverconfiguration-surface-now-available-additive-opt-in)
+  - [ServerConfiguration identity properties and opt-in members](#serverconfiguration-identity-properties-and-opt-in-members)
   - [`MaxTrustListSize` is advertised honestly and bounded by a safety ceiling](#maxtrustlistsize-is-advertised-honestly-and-bounded-by-a-safety-ceiling)
   - [Obsoleted certificate APIs](#obsoleted-certificate-apis)
 
@@ -249,11 +249,13 @@ DI replacement points.
 
 For the **final, per-requirement Part 12 support status** — every ServerConfiguration/PushManagement, TrustList, certificate-alarm, KeyCredentialService and AuthorizationService requirement linked to its source *and* its automated tests, plus the applicable OPC UA profiles/conformance units and an explicit list of remaining optional/unsupported items — see the [GDS Conformance Matrix](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/GDS.md#conformance-matrix). Two behaviours that were **partial** in earlier 2.0 previews are now **complete**: the `TransactionDiagnostics` §7.10.17 DataValue-status semantics, and the certificate-expiration / TrustList-staleness alarms (`CertificateExpirationAlarmType` / `TrustListOutOfDateAlarmType`), which now perform real active/inactive transitions and emit events rather than only populating property values at startup.
 
-### Optional ServerConfiguration surface now available (additive, opt-in)
+### ServerConfiguration identity properties and opt-in members
 
 `ConfigurationNodeManager` now also exposes the Optional OPC UA Part 12
-§7.10.3 `ServerConfigurationType` members. **No migration action is
-required** — the change is additive and every member is opt-in:
+§7.10.3 `ServerConfigurationType` members. The identity properties are exposed
+automatically from `ApplicationConfiguration`. The remaining members listed
+below are exposed only when their corresponding values or providers are
+configured. Existing applications do not need to enable those opt-in features.
 
 | Member | Change |
 |---|---|

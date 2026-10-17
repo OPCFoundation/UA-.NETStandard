@@ -15,6 +15,8 @@ The server-side counterpart lives in `Opc.Ua.Server.Alarms`.
 `CreateNode` and `DeleteNode`. Set a flag to opt out when you need manual
 control.
 
+## Contents
+
 - [Quick reference](#quick-reference)
 - [Server side: emitting model changes](#server-side-emitting-model-changes)
   - [Auto-emit from `CreateNode` and `DeleteNode`](#auto-emit-from-createnode-and-deletenode)
@@ -27,7 +29,12 @@ control.
   - [Namespace table refresh](#namespace-table-refresh)
   - [Per-node `NodeCache` invalidation](#per-node-nodecache-invalidation)
 - [NodeVersion correlation](#nodeversion-correlation)
+  - [Marking a node as trackable](#marking-a-node-as-trackable)
+  - [Opting out (legacy compatibility)](#opting-out-legacy-compatibility)
 - [Security considerations](#security-considerations)
+  - [Per-event `ReceiveEvents` is enforced](#per-event-receiveevents-is-enforced)
+  - [The `Affected` array is NOT filtered](#the-affected-array-is-not-filtered)
+  - [The initial address-space build does not emit](#the-initial-address-space-build-does-not-emit)
 - [Reference](#reference)
 
 ## Quick reference

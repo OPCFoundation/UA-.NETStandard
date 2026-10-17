@@ -7,7 +7,7 @@ independent OPC UA source servers.
 
 The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotCon/AggregationClient/Documents`](AggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
 
-The documents ship with the client because the client is what uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
+The documents ship with the client because it uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
 
 ## Topology
 

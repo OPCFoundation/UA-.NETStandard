@@ -16,6 +16,8 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 - [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier mappings, and normative repairs](#model-sources-identifier-mappings-and-normative-repairs)
+  - [Provenance](#provenance)
+  - [Normative Common Model repairs](#normative-common-model-repairs)
 
 ## Library layout
 

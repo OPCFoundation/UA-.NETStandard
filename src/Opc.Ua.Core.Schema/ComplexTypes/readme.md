@@ -1,304 +1,118 @@
-# OPC UA Structure Encoding Decision Tree
+# OPC UA Structure Encoding Reference
 
-A reference guide for encoding and decoding structure fields in OPC UA binary encoding, based on the `StructureDefinition` and `StructureField` metadata.
+Use `StructureDefinition.StructureType` together with each `StructureField`
+to determine field presence and permitted subtypes. Then apply the OPC UA
+Binary encoding rules for the field's DataType and ValueRank.
 
-## Class Diagram
+This reference follows the linked OPC UA specifications. It does not infer
+historical version support from a DataType's abstractness.
 
-```mermaid
-classDiagram
-    direction TB
+## Structure metadata
 
-    class DataTypeDefinition {
-        <<abstract>>
-    }
+[Part 3, 8.48](https://reference.opcfoundation.org/specs/OPC-10000-3/8.48)
+defines `StructureDefinition`:
 
-    class StructureDefinition {
-        NodeId defaultEncodingId
-        NodeId baseDataType
-        StructureType structureType
-        StructureField[] fields
-    }
+| Member | Purpose |
+| --- | --- |
+| `DefaultEncodingId` | Default DataTypeEncoding NodeId. It is null for abstract types and may be null for types used only inside nested structures rather than directly in ExtensionObjects. Otherwise it identifies the Default Binary encoding. |
+| `BaseDataType` | Direct supertype's NodeId. |
+| `StructureType` | Selects the structure or union kind below. |
+| `Fields` | Ordered field definitions, beginning with inherited fields for a derived structure. |
 
-    class StructureField {
-        String name
-        LocalizedText description
-        NodeId dataType
-        Int32 valueRank
-        UInt32[] arrayDimensions
-        UInt32 maxStringLength
-        Boolean isOptional
-    }
+[Part 3, 8.51](https://reference.opcfoundation.org/specs/OPC-10000-3/8.51)
+defines `StructureField` members: `Name`, `Description`, `DataType`,
+`ValueRank`, `ArrayDimensions`, `MaxStringLength` and `IsOptional`.
 
-    class StructureType {
-        <<enumeration>>
-        Structure = 0
-        StructureWithOptionalFields = 1
-        Union = 2
-        StructureWithSubtypedValues = 3
-    }
+`ValueRank` is scalar (-1) or a fixed array rank (at least 1).
+`ArrayDimensions` describes maximum dimension lengths, with 0 for an unknown
+maximum; it is not necessarily the size of each encoded value.
 
-    DataTypeDefinition <|-- StructureDefinition
-    StructureDefinition --> "1" StructureType : structureType
-    StructureDefinition --> "0..*" StructureField : fields
-    StructureField ..> StructureField : allowSubTypes¹
+## StructureType and IsOptional
 
-    note for StructureDefinition "Part 3, §8.48\nhttps://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/"
-    note for StructureField "Part 3, §8.51\nhttps://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/"
-    note for StructureType "Part 3, §8.50\nhttps://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/"
-    note for DataTypeDefinition "Part 3, §8.47\nhttps://reference.opcfoundation.org/v105/Core/docs/Part3/8.47/"
-```
+The enumeration is defined in
+[Part 3, 8.49](https://reference.opcfoundation.org/specs/OPC-10000-3/8.49).
 
-> ¹ The `AllowSubTypes` flag was added in OPC UA 1.05.02 as part of the `StructureWithSubtypedValues` feature. It is encoded as a flag on the `StructureField` in the `DataTypeDefinition` attribute. See [Part 3, §5.8.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/).
+| Value | StructureType | Meaning of StructureField.IsOptional |
+| --- | --- | --- |
+| 0 | `Structure` | Must be false; ignored. All fields are mandatory and none permits subtyping. |
+| 1 | `StructureWithOptionalFields` | True means the field may be absent. Fields do not permit subtyping. |
+| 2 | `Union` | Must be false; ignored. The union switch selects the field. |
+| 3 | `StructureWithSubtypedValues` | True permits subtypes of the field's declared DataType. It does not make the field optional. |
+| 4 | `UnionWithSubtypedValues` | True permits subtypes of the field's declared DataType. The union switch still selects the field. |
 
-### StructureDefinition Members
+`AllowSubTypes` is not a separate `StructureField` member. Abstractness alone
+does not select subtyped-value encoding. In structure kinds 3 and 4,
+`IsOptional` is the per-field subtyping indicator.
 
-| Member | Type | Description | Spec Reference |
-|--------|------|-------------|----------------|
-| `defaultEncodingId` | `NodeId` | NodeId of the default DataTypeEncoding node for this structure | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| `baseDataType` | `NodeId` | NodeId of the direct supertype DataType | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| `structureType` | `StructureType` | Enum controlling the overall encoding strategy (see below) | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| `fields` | `StructureField[]` | Ordered list of fields including inherited fields from supertypes | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
+For kinds 0, 1 and 2, Part 3 restricts the field DataType to a concrete type,
+`BaseDataType`, or `Structure`. Do not treat an arbitrary abstract DataType
+as an implicit legacy ExtensionObject rule.
 
-### StructureField Members
+## Decide field presence before encoding its value
 
-| Member | Type | Description | Spec Reference |
-|--------|------|-------------|----------------|
-| `name` | `String` | Field name, unique within the structure | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `description` | `LocalizedText` | Human-readable field description | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `dataType` | `NodeId` | The DataType of the field value | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `valueRank` | `Int32` | Scalar (−1), OneDimension (1), or n-dimensional (>1) | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `arrayDimensions` | `UInt32[]` | Fixed dimensions for array fields (empty if not fixed) | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `maxStringLength` | `UInt32` | Maximum length for String/ByteString fields (0 = unlimited) | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `isOptional` | `Boolean` | Whether this field may be absent (only valid when `structureType = StructureWithOptionalFields`) | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
+| StructureType | Binary prefix | Fields encoded |
+| --- | --- | --- |
+| `Structure` | None | Every field, in definition order. |
+| `StructureWithOptionalFields` | UInt32 encoding mask | Every mandatory field and optional fields whose bits are set. |
+| `Union` | UInt32 switch | The selected field, or none for switch 0. |
+| `StructureWithSubtypedValues` | None | Every field, in definition order. |
+| `UnionWithSubtypedValues` | UInt32 switch | The selected field, or none for switch 0. |
 
-> **Note:** The `AllowSubTypes` flag is not a separate member of `StructureField`. It is inferred from the `structureType` being `StructureWithSubtypedValues` (3) combined with the field's `dataType` pointing to an abstract DataType. Pre-1.05.02, such fields were declared with `dataType = Structure`; post-1.05.02, the actual abstract base type is used. See [OPC Foundation Forum discussion](https://reference.opcfoundation.org/opcfoundation_org/forum/opc-ua-standard/encoding-of-data-type-fields-which-use-abstract-data-types/index.html).
+For optional-field structures, assign bits only to optional fields in their
+definition order. At most 32 optional fields are supported by the mask;
+unassigned bits must be zero. Inherited optional fields retain their mask
+positions. See
+[Part 6, 5.2.7](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.7).
 
-### StructureType Enum
+For unions, the switch is the selected field's one-based index. Zero represents
+a null union; a value greater than the number of defined fields is an encoding
+or decoding error. See
+[Part 6, 5.2.8](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.8).
 
-| Value | Name | Description | Spec Reference |
-|-------|------|-------------|----------------|
-| 0 | `Structure` | All fields are mandatory, encoded sequentially | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
-| 1 | `StructureWithOptionalFields` | Some fields may be absent; a bitmask prefix indicates presence | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
-| 2 | `Union` | Only one field is active; a switch field indicates which | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
-| 3 | `StructureWithSubtypedValues` | Fields may contain subtypes of their declared DataType, encoded as ExtensionObjects | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
+Do not use a kind-3 or kind-4 field's `IsOptional` value to assign a presence-mask
+bit or omit that field.
 
----
+## Encode the present field
 
-## Encoding Decision Tree
+Resolve the field's DataType and apply its specified encoding, including
+subtype support where the metadata permits it. A concrete nested structure
+without subtype support is encoded inline; an ExtensionObject carries the
+concrete encoding identifier when that representation is required.
+Not every abstract value is an ExtensionObject: `Number`, `Integer` and
+`UInteger` fields use Variant encoding
+([Part 6, 5.1.6](https://reference.opcfoundation.org/specs/OPC-10000-6/5.1.6)).
 
-### Step 1 — Structure-Level Prefix
+Use the type-specific rules rather than a decision based solely on
+`IsAbstract`:
 
-Before encoding any fields, determine the prefix based on `StructureType`:
+- [Built-in types](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.2)
+- [Enumerations](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.4)
+- [Structures](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.6)
+- [Variant](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.2.16)
 
-```
-StructureType = ?
-│
-├─ 0: Structure
-│   PREFIX: (none)
-│   All fields encoded sequentially in definition order.
-│   [Part 6, §5.2.7]
-│
-├─ 1: StructureWithOptionalFields
-│   PREFIX: UInt32 EncodingMask
-│   One bit per optional field (bit 0 = first optional field).
-│   Mandatory fields always encoded; optional fields only if their bit = 1.
-│   [Part 6, §5.2.7]
-│
-├─ 2: Union
-│   PREFIX: UInt32 SwitchField
-│   Value 0 = null (no field encoded).
-│   Value N = the Nth field (1-based) is the active field.
-│   Only the active field is encoded after the switch.
-│   [Part 6, §5.2.7]
-│
-└─ 3: StructureWithSubtypedValues
-    PREFIX: (none)
-    All fields encoded sequentially.
-    Fields whose DataType is abstract are wrapped in ExtensionObject.
-    [Part 6, §5.2.7]
-```
+### Arrays and matrices
 
-> **Spec Reference:** The structure-level encoding rules for all four `StructureType` values are defined in [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/). See also [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.2/) for ExtensionObject binary encoding.
+A one-dimensional array is an Int32 element count followed by its elements;
+-1 represents a null array.
 
-### Step 2 — Per-Field Presence
+A multidimensional array in a structure field uses the inline matrix
+representation: the dimensions, encoded as an Int32 array, precede the values.
+The number of values is the product of the dimensions; if any dimension is
+non-positive, no values are encoded. This differs from a multidimensional
+Variant, whose dimensions follow the encoded values. See
+[Part 6, 5.2.5](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.5).
 
-For each `StructureField`, determine whether it is encoded in this instance:
+### ExtensionObject envelope
 
-```
-For StructureField F:
-│
-├─ Is StructureType = Union?
-│  ├─ F is the active field (matches SwitchField) → ENCODE
-│  └─ F is not active → SKIP entirely
-│
-├─ Is F.isOptional = true?  (StructureType must be 1)
-│  ├─ EncodingMask bit is SET → ENCODE
-│  └─ EncodingMask bit is CLEAR → SKIP entirely (no placeholder bytes)
-│
-└─ Otherwise (mandatory) → ENCODE (always present)
-```
+[Part 6, 5.2.2.15](https://reference.opcfoundation.org/specs/OPC-10000-6/5.2.2.15)
+defines the binary envelope:
 
-> **Spec Reference:** Optional field handling via encoding mask is defined in [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/). The `isOptional` field property is defined in [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/).
+| Field | Encoding |
+| --- | --- |
+| `TypeId` | NodeId of the DataTypeEncoding, not merely the DataType NodeId. |
+| `Encoding` | Byte: 0 means no body, 1 means a binary ByteString body, 2 means an XML body. |
+| `Length` | Int32 body length, present when a body is encoded. |
+| `Body` | Bytes in the selected encoding. |
 
-### Step 3 — Field Value Encoding
-
-When a field IS present, determine the wire format based on its DataType:
-
-```
-How to encode the VALUE of field F with DataType D:
-│
-├─ Is StructureType = StructureWithSubtypedValues (3)
-│  AND is D an abstract DataType (IsAbstract = true on the DataType node)?
-│  │
-│  └─ YES → Encode as ExtensionObject
-│           Wire format: [NodeId TypeId] [Byte Encoding] [Int32 Length] [Bytes Body]
-│           TypeId = the DataTypeEncoding NodeId of the concrete instance.
-│           This allows the decoder to identify and decode the actual subtype.
-│           [Part 6, §5.2.2.15] [Part 3, §5.8.3]
-│
-├─ Is D a built-in type?
-│  │  (Boolean, SByte, Byte, Int16, UInt16, Int32, UInt32, Int64, UInt64,
-│  │   Float, Double, String, DateTime, Guid, ByteString, NodeId,
-│  │   ExpandedNodeId, StatusCode, QualifiedName, LocalizedText,
-│  │   DiagnosticInfo, XmlElement)
-│  │
-│  └─ YES → Encode INLINE per built-in type rules
-│           Integers: little-endian byte order
-│           Floats/Doubles: IEEE 754 binary representation
-│           Strings: [Int32 byteLength] [UTF-8 bytes] (−1 = null)
-│           ByteStrings: [Int32 length] [bytes] (−1 = null)
-│           [Part 6, §5.2.2]
-│
-├─ Is D an Enumeration DataType?
-│  │
-│  └─ YES → Encode as Int32 (the enumeration's integer value)
-│           [Part 6, §5.2.4]
-│
-├─ Is D a concrete Structure or Union subtype (IsAbstract = false)?
-│  │
-│  └─ YES → Encode INLINE (recursively apply this entire decision tree)
-│           The nested structure follows its own StructureType rules.
-│           No ExtensionObject wrapper — the decoder knows the exact type
-│           from F.dataType in the StructureDefinition.
-│           [Part 6, §5.2.7]
-│
-└─ Is D abstract but StructureType ≠ 3?
-   │  (Legacy scenario, pre-1.05.02)
-   │
-   └─ The field DataType was declared as "Structure" (i=22) or another
-      abstract type. Encode as ExtensionObject — the TypeId in the
-      ExtensionObject header identifies the concrete type.
-      [Part 6, §5.2.2.15]
-```
-
-> **Spec Reference:** Built-in type encoding: [Part 6, §5.2.2](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/). Enumeration encoding: [Part 6, §5.2.4](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.4/). Structure/Union encoding: [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/). ExtensionObject encoding: [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/). `IsAbstract` attribute: [Part 3, §5.8.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/).
-
-### Step 4 — Array Handling
-
-If `F.valueRank ≠ −1` (i.e., the field is an array), the value encoding from Step 3 is wrapped:
-
-```
-F.valueRank = ?
-│
-├─ −1 (Scalar)
-│   Encode single value per Step 3.
-│   [Part 6, §5.2.5]
-│
-├─ 1 (OneDimension)
-│   [Int32 ArrayLength] [Element₀] [Element₁] ... [ElementN₋₁]
-│   ArrayLength = −1 for null arrays, 0 for empty arrays.
-│   Each element encoded per Step 3.
-│   [Part 6, §5.2.5]
-│
-└─ >1 (MultiDimension)
-    [Int32 TotalElements] [Element₀] ... [ElementN₋₁]
-    [Int32 NumDimensions] [Int32 Dim₀] [Int32 Dim₁] ...
-    Elements serialized in row-major order.
-    [Part 6, §5.2.5]
-```
-
-> **Spec Reference:** Array encoding rules are defined in [Part 6, §5.2.5](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.5/).
-
----
-
-## Summary Tables
-
-### Structure-Level Encoding
-
-| StructureType | Value | Prefix | Field Presence | Spec |
-|---|---|---|---|---|
-| `Structure` | 0 | None | All mandatory, sequential | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| `StructureWithOptionalFields` | 1 | `UInt32` bitmask | Mandatory always; optional if bit set | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| `Union` | 2 | `UInt32` switch (1-based) | Only the active field | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| `StructureWithSubtypedValues` | 3 | None | All mandatory, sequential | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-
-### Per-Field Value Encoding
-
-| Condition | Encoding | Spec |
-|---|---|---|
-| Built-in type (Int32, String, etc.) | Inline per type rules | [Part 6, §5.2.2](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| Enumeration | `Int32` | [Part 6, §5.2.4](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.4/) |
-| Concrete Structure/Union | Inline, recursive | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| Abstract DataType + `StructureWithSubtypedValues` | `ExtensionObject` wrapper | [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| Abstract DataType (legacy pre-1.05.02) | `ExtensionObject` wrapper | [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| `isOptional = true`, bit clear | Not encoded (skipped) | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| Array (`valueRank ≥ 1`) | `[Int32 length] [elements...]` | [Part 6, §5.2.5](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.5/) |
-
-### Constraints
-
-| Rule | Spec |
-|---|---|
-| `isOptional` and `AllowSubTypes` are mutually exclusive on a field | [Part 3, §5.8.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/), [Forum](https://reference.opcfoundation.org/opcfoundation_org/forum/opc-ua-standard/structure-with-subtyping-and-optional-fields/) |
-| `isOptional = true` only valid when `structureType = StructureWithOptionalFields` | [Part 3, §8.51](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| `AllowSubTypes` only valid when `structureType = StructureWithSubtypedValues` | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
-| `fields` array includes inherited fields from the supertype chain | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| `DataTypeDefinition` is mandatory for DataTypes derived from Structure or Union | [Part 3, §5.8.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/) |
-
----
-
-## ExtensionObject Wire Format
-
-When a field is encoded as an `ExtensionObject` ([Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/)):
-
-```
-┌──────────────┬───────────────┬──────────────┬──────────────────────┐
-│ NodeId TypeId│ Byte Encoding │ Int32 Length  │ Byte[] Body          │
-│ (variable    │ 0x00 = none   │ (present if  │ (encoded per the     │
-│  length)     │ 0x01 = binary │  body exists)│  concrete type's     │
-│              │ 0x02 = xml    │              │  StructureDefinition)│
-└──────────────┴───────────────┴──────────────┴──────────────────────┘
-```
-
-| Field | Description | Spec |
-|-------|-------------|------|
-| **TypeId** | `NodeId` of the concrete type's DataTypeEncoding node (the "Default Binary" encoding node reachable via `HasEncoding` from the DataType node) | [Part 3, §5.8.3](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/) |
-| **Encoding** | `0x01` for OPC UA Binary, `0x02` for XML | [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| **Length** | Total byte length of Body; omitted if Encoding = `0x00` | [Part 6, §5.2.2.15](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| **Body** | The structure's fields encoded per its own `StructureDefinition` | [Part 6, §5.2.7](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-
----
-
-## Version History
-
-| OPC UA Version | Change | Spec Reference |
-|----------------|--------|----------------|
-| 1.04 | `DataTypeDefinition` attribute introduced; `StructureWithOptionalFields` and `Union` added | [Part 3, §8.48](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| 1.05.02 | `StructureWithSubtypedValues` (value 3) added; `AllowSubTypes` flag formalized; replaces the pre-1.04 pattern of declaring abstract fields as `Structure` | [Part 3, §8.50](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/), [Forum](https://reference.opcfoundation.org/opcfoundation_org/forum/opc-ua-standard/ua-1-05-02-change-in-handling-of-structure-types/) |
-
----
-
-## Full Specification References
-
-| Document | Section | Topic | URL |
-|----------|---------|-------|-----|
-| OPC 10000-3 | §5.8.3 | DataType NodeClass, IsAbstract, DataTypeDefinition | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/5.8.3/) |
-| OPC 10000-3 | §8.47 | DataTypeDefinition (abstract base) | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.47/) |
-| OPC 10000-3 | §8.48 | StructureDefinition | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.48/) |
-| OPC 10000-3 | §8.49 | EnumDefinition | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.49/) |
-| OPC 10000-3 | §8.50 | StructureType enumeration | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.50/) |
-| OPC 10000-3 | §8.51 | StructureField | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part3/8.51/) |
-| OPC 10000-6 | §5.2.2 | Built-in Types Binary Encoding | [Link](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
-| OPC 10000-6 | §5.2.4 | Enumeration Encoding | [Link](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.4/) |
-| OPC 10000-6 | §5.2.5 | Array Encoding | [Link](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.5/) |
-| OPC 10000-6 | §5.2.7 | Structure, Union, and Optional Field Encoding | [Link](https://reference.opcfoundation.org/v105/Core/docs/Part6/5.2.7/) |
-| OPC 10000-6 | §5.2.2.15 | ExtensionObject Binary Encoding | [Link](https://reference.opcfoundation.org/v104/Core/docs/Part6/5.2.2/) |
+The envelope is separate from the contained structure's optional-field mask
+or union switch. A null ExtensionObject uses TypeId `i=0` and Encoding 0.

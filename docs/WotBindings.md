@@ -386,7 +386,7 @@ What the runtime does with it:
 * Two clauses **shall not** materialize the same `data` member, even where they reference
   different EventTypes and even where their normalized browse paths differ: the
   **materialized member path** — the sequence of `data` member names the clause fills —
-  is what decides the output, so two clauses that reach it would compete for it and
+  determines the output, so two clauses that reach it would compete for it and
   nothing in the document would say which of them filled it. Normalization resolves each
   element's prefix to the NamespaceUri the document binds it to, so two prefixes for one
   namespace name one path; but the member name drops the qualification altogether and a
@@ -659,7 +659,7 @@ var endpointPolicy = new WotEndpointPolicy();
 endpointPolicy.AllowedSchemes.Add("mem");
 ```
 
-Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment genuinely requires them relaxed — those blocks are what stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
+Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment requires them relaxed — those blocks stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
 
 #### Internationalized hosts
 
@@ -669,7 +669,7 @@ A `href` may name an internationalized host (`http://ü.example/x`). Percent-enc
 
 ### Registration
 
-The direct-construction path is useful in focused tests. Note the policy passed alongside the binder and executor, which is what lets the sample's `mem://` endpoints resolve:
+The direct-construction path is useful in focused tests. The policy passed alongside the binder and executor lets the sample's `mem://` endpoints resolve:
 
 ```csharp
 var store = new MemoryWotStore();
@@ -1193,7 +1193,7 @@ Node (example 26, Sections 5.2 and 6.11).
 runs every one of the twenty-six through the whole reading pipeline — parse,
 **strict** conformance validation, conversion, then serialize, re-read and
 `Import`. A document that claims a profile covering `WoT-Modeller` has to
-convert: the claim is what makes the conversion mandatory rather than optional.
+convert: the claim makes conversion mandatory rather than optional.
 
 #### Keeping the vendored examples honest
 
@@ -1235,8 +1235,8 @@ loading an unrelated companion model can never change what an existing document
 projects to.
 
 `IWotNodeResolver` (in `Opc.Ua.Types`) is one part of that context.
-`WotCompositeNodeResolver` composes parts in the specified order and is what a
-converter is handed. A compact model name is a hint and may match none, one or
+`WotCompositeNodeResolver` composes parts in the specified order and is passed to the
+converter. A compact model name is a hint and may match none, one or
 several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 
 | Implementation | Part of the context | Assembly |
@@ -1246,7 +1246,7 @@ several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 | `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
 
 Both halves are composed with `WotCompositeNodeResolver` in the specified
-order. The AddressSpace half is what lets a document bind to a type a companion
+order. The AddressSpace half lets a document bind to a type a companion
 model defines — the primary use of §5.2.1 — and it is wired in by
 `WotRegistryNodeManager` as soon as an `IServerInternal` exists. Without it a
 document could only bind to a type a sibling projects, and because §5.2.1
@@ -1256,7 +1256,7 @@ the projection instead of resolving.
 `SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
 Thing Models are indexed, and the decision uses the *registry's* `Kind` rather
 than the document's own content: a Thing Model projects its root as a
-`UAObjectType` and so is what a type binding can name, whereas a Thing
+`UAObjectType` and can therefore be named by a type binding, whereas a Thing
 Description projects an instance and is never a type-binding target. Trusting
 the registry Kind means a party who can only submit Thing Descriptions cannot
 plant a type for another document to bind to. The identity it indexes by is
@@ -1408,7 +1408,7 @@ it:
 | `uav:actsOn` | action affordance | The event affordance, in the same document, whose Condition the action acts on |
 
 A projected Condition event derives from the ConditionType it names rather than
-from `BaseEventType`. That is the whole point of the mapping: a Client browsing
+from `BaseEventType`. A Client browsing
 a type that fell back to `BaseEventType` would see none of the Condition state
 and could not tell an alarm from an ordinary event.
 
@@ -1477,7 +1477,7 @@ carrying `uav:conditionAction` materializes with that declaration as its
 `MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment`
 `i=9029`, `Enable` `i=9027`, `Disable` `i=9028`), takes the base-namespace
 BrowseName the declaration has, and becomes a **component of the EventType**
-the pairing names. That is what records the pairing structurally, so the
+the pairing names. This records the pairing structurally, so the
 forward direction reads `uav:conditionAction` and `uav:actsOn` back from the
 model rather than guessing at them. A pairing OPC 10000-9 does not admit — an
 `Acknowledge` acting on a plain `ua:ConditionType`, which declares no such
@@ -1504,8 +1504,8 @@ resolves.
 notification but can never identify the occurrence to acknowledge, confirm or
 comment on. It is the **one** hard requirement of Section 13.3: an affordance
 carrying `uav:conditionType` shall declare `EventId` in its `data` object and,
-where it states a selection, shall select it — the resolved selection is what a
-MonitoredItem is created with, so one that omits the field
+where it states a selection, shall select it — a
+MonitoredItem uses the resolved selection, so one that omits the field
 describes a notification that never carries it. Every other Condition field is
 present in `data` *where the affordance selects it* and is not otherwise
 required; both are `ConditionEventIdMissing`. `Enable` and `Disable` act on the
@@ -1518,11 +1518,12 @@ mapping, as Section 13.1 scopes it.
 For the converter-default compatibility note, see
 [Condition events derive from their ConditionType](WoTNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
 
-Current sample limitation: the upstream cavitation signal is proven to raise the
-upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, and acknowledgement does not round-trip
-because the projected pump actions are Start, Stop and Reset rather than
-Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
+The [two-pump aggregation sample](../samples/WotCon/README.md) includes supervision
+EventTypes and Condition-action Methods. With `--exerciseControls true`, its client
+acknowledges and confirms occurrences through the aggregate and checks the upstream
+Condition state. These controls are opt-in because they modify the source servers.
+Shelving, suppression, dialog and cross-WoT ConditionRefresh mappings are outside
+this demonstration.
 
 ### Compatibility switch for non-portable identifiers
 

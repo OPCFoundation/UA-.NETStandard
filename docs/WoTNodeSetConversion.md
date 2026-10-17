@@ -21,7 +21,7 @@ set-local precedence. It performs no transport I/O itself.
   - [Verified linked document sets](#verified-linked-document-sets)
   - [Generated document-set limits](#generated-document-set-limits)
   - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
-  - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
+  - [Preservation digests, equality and size](#preservation-digests-equality-and-size)
   - [Unmapped reference vocabulary is residue](#unmapped-reference-vocabulary-is-residue)
   - [Condition events derive from their ConditionType](#condition-events-derive-from-their-conditiontype)
   - [Event fields come from the type, not only from the document](#event-fields-come-from-the-type-not-only-from-the-document)
@@ -288,7 +288,7 @@ back as `nsu=U;s=P`.
 `WotPortableIdentity.GenerateNodeId` / `GenerateBrowsePath` is the single
 implementation, so a conversion and a published Annex G.1 vector measure the
 same function. The same class answers `IsPortableNodeId`,
-`IsPortableQualifiedName` and `IsResolvableBrowsePath`, which is what the
+`IsPortableQualifiedName` and `IsResolvableBrowsePath`, which the
 conversion's Section 5.1.1 and 5.1.4 validation calls.
 
 The leading separator, per-element namespace qualification and escaping make
@@ -298,10 +298,10 @@ identifier from a member named `B` of `Root/A`, and a base-namespace
 name. A document-authored `uav:id` always wins over generation; author one when
 the identity must be fixed independently of its browse path.
 
-### Preservation digests and the two things that can be measured
+### Preservation digests, equality and size
 
-Annex G distinguishes three measurements over a JSON value, and this
-implementation keeps them apart. Two of them are digests; the third is a size.
+Annex G distinguishes retained-byte digests, JSON-value equality and
+compact-received-form size. This implementation keeps those operations separate.
 
 * **A digest over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is
   the SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
@@ -333,10 +333,10 @@ implementation keeps them apart. Two of them are digests; the third is a size.
   they were written in, and strings keep the escapes they were written with.
   Deliberately *not* a canonical re-serialization: measuring one would oblige a
   consumer to produce exactly the reordered, renumbered value the preservation
-  rule forbids, and an "almost-JCS" measurement — compact separators but a
-  language's own `double` formatting — is what two implementations disagree
-  about in practice. Whitespace removal outside string literals is decidable by
-  a scanner with one bit of state, so two implementations that received the same
+  rule forbids. For example, re-serializing `1.0` as `1` changes its UTF-8 length
+  from three bytes to one, even though the numeric value is unchanged. Measuring
+  the received representation avoids that change. Whitespace removal outside
+  string literals is decidable by a scanner with one bit of state, so two implementations that received the same
   bytes measure the same number. The depth and key-count bounds are measured
   over the parsed value, where formatting cannot matter.
 
@@ -548,7 +548,7 @@ not reject it is otherwise obliged to carry an unbounded, unattributable
 value (Section 6.6): every top-level key is an absolute IRI or a compact
 IRI whose prefix the document's `@context` binds, and the object stays
 within 65 536 octets in the **compact received form** of Annex G.4 (see
-[Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)),
+[Preservation digests, equality and size](#preservation-digests-equality-and-size)),
 32 levels of nesting and 256 top-level keys. Revision 1.0 stated no key
 rule, so a document whose keys are not namespaced is **preserved** and
 reported as deprecated rather than rejected; strict conformance (below)
@@ -556,9 +556,9 @@ turns the same finding into an error.
 
 ## Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)
 
-Four document-level terms describe the document rather than the
-AddressSpace, so none of them becomes a Node and all of them survive a
-round trip verbatim through the residue mechanism:
+The following terms carry document-level metadata or annotate event
+affordances and security schemes. They do not become Nodes themselves and
+survive a round trip verbatim through the residue mechanism:
 
 | Term | Where | What is checked |
 |---|---|---|
@@ -584,8 +584,8 @@ A consumer that rejected a document for naming a revision or a unit it
 does not know would be refusing to read a document that is syntactically
 valid, whose known terms it understands, and whose unknown terms it is
 already required to carry — which is the failure that makes a vocabulary
-unextendable. A malformed claim stays an error in every mode: the
-syntactic rule is what a consumer enforces, and it enforces it always.
+unextendable. A consumer enforces the syntactic rule in every mode, so a
+malformed claim remains an error.
 
 Both published revisions are read here. `WotBindingConformance.SupportedRevisions`
 names `1.0` and `1.1`, and the two places revision 1.0 differs — unnamespaced
@@ -702,8 +702,8 @@ the three OPC 10000-8 Properties:
   affordance carries `type: "string"` — what a client reads there at run time —
   the definitive `uav:mapToType` `i=887`, and `uav:engineeringUnits` with the
   `EUInformation`'s `namespaceUri`, integer `unitId`, `displayName` and
-  `description`. The authority and its machine-readable code are what a display
-  string alone cannot recover.
+  `description`. A display string alone cannot recover the authority or its
+  machine-readable code.
 - The annotated Variable's affordance states `unit` (the `EUInformation`
   `DisplayName`, never a quantity kind) and `uav:unitProperty`, a canonical
   `/properties/<name>` pointer at that sibling affordance.
@@ -850,7 +850,7 @@ ReferenceType, `ua:HasInterface`, `ua:Organizes` — is written as a typed link:
 the ReferenceType's compact model name in `rel`, its portable
 `ExpandedNodeId` in `uav:refId`, and the target's own BrowseName in
 `uav:refName` where the NodeSet holds the target. A reference that runs inverse
-is written under the ReferenceType's **InverseName**, which is what states the
+is written under the ReferenceType's **InverseName**, which states the
 direction. The compact name comes from the NodeSet itself, in order of
 specificity: its own `UAReferenceType` declarations (the only place an
 InverseName and the Symmetric flag are stated), its `<Aliases>` table, then the

@@ -1,7 +1,7 @@
 # FileSystemClient — a `System.IO`-style async client for OPC UA file systems
 
 `FileSystemClient` (in `src/Opc.Ua.Client/FileSystem/`, namespace
-`Opc.Ua.Client.FileSystem`) is an ergonomic, async-only wrapper around the
+`Opc.Ua.Client.FileSystem`) provides asynchronous operations over the
 OPC UA file-system primitives defined in **Part 5 §C** and **Part 20 §4** —
 the `FileType`, `FileDirectoryType`, and `TemporaryFileTransferType`
 ObjectTypes. It is layered on top of the source-generated proxies emitted
@@ -9,6 +9,9 @@ into `Opc.Ua.Core` (`FileTypeClient`, `FileDirectoryTypeClient`,
 `TemporaryFileTransferTypeClient`) and exposes a surface that closely
 mirrors `System.IO.{File, Directory, FileInfo, DirectoryInfo, FileStream}`
 to make remote file-system navigation feel like working with a local disk.
+
+`UaFileStream` also provides synchronous `Stream` compatibility members;
+prefer its asynchronous methods to avoid blocking. See [Streams](#streams).
 
 ## Quick reference
 
@@ -37,12 +40,12 @@ to make remote file-system navigation feel like working with a local disk.
   - [Use a file known by its NodeId](#use-a-file-known-by-its-nodeid)
 - [Path syntax](#path-syntax)
 - [Path resolution and caching](#path-resolution-and-caching)
-- [Type classification](#type-classification-filetype-vs-filedirectorytype)
+- [Type classification (FileType vs FileDirectoryType)](#type-classification-filetype-vs-filedirectorytype)
 - [File metadata](#file-metadata)
 - [Streams](#streams)
 - [Error mapping](#error-mapping)
 - [Move, copy, and delete semantics](#move-copy-and-delete-semantics)
-- [Temporary file transfer](#temporary-file-transfer-part-5-c5)
+- [Temporary file transfer (Part 5 §C.5)](#temporary-file-transfer-part-5-c5)
 - [Generation-bound transfers](#generation-bound-transfers)
 - [What lives where](#what-lives-where)
 - [Server-side file bindings](#server-side-file-bindings)

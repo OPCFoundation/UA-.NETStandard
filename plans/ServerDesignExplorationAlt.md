@@ -88,6 +88,12 @@ All four worked read-only; no repository files were modified. Each produced five
 interface, usage example, what the implementation hides, dependency strategy and adapters,
 and trade-offs. Their designs are reproduced below **verbatim and in full**.
 
+> **Editorial note:** The reproduced submissions include unverified population
+> estimates, including "95% of authors," "the 99% case" and "the 90% used only".
+> No sampling method is supplied for those figures; treat them as the designers'
+> assumptions, not measured usage statistics. Repository inventory counts are
+> separate evidence.
+
 ## The problem space as briefed
 
 ### Measured surface
@@ -1880,9 +1886,9 @@ The client (`ManagedSession` with `WithServerRedundancy()`) sees a transparent r
 
 ### Convergence — what all four agreed on
 
-Four designers working independently, none seeing another's output, arrived at the same
-five moves. When independent designs converge like this, the moves are not design opinions —
-they are the shape of the problem, and they are the most actionable output of the exercise.
+The four proposals share the five recommendations below. That agreement makes them
+candidates for further evaluation, but does not establish that they are necessary or
+sufficient. Their trade-offs still require implementation and workload validation.
 
 | Convergent move | minimal | flexible | commoncase | ports |
 |---|---|---|---|---|
@@ -1966,7 +1972,7 @@ re-implement continuation handling.
 
 ### Seam placement
 
-This separated them most sharply, because it is where a designer can quietly cheat.
+The designs differed most in whether each proposed seam had a second adapter.
 
 `ports` was the only one to **refuse seams it was invited to sell**:
 
@@ -1988,7 +1994,7 @@ double, which is the thinnest of the four justifications.
 ### Four answers to one defect
 
 The clearest evidence the exercise did its job. One defect — `object? GetManagerHandle(NodeId)` —
-produced four genuinely different resolutions:
+produced four different resolutions:
 
 | Design | Resolution | Trade-off |
 |---|---|---|
@@ -2036,13 +2042,11 @@ through a rung-1/2 source, which is precisely the failure mode the current
 And keeping rung 4 un-obsoleted respects what this API actually is: plugin surface with 33
 subclasses and unknown external consumers.
 
-**Why it must absorb ports.** `commoncase` does not address high availability at all — the
-project's stated *first* architectural goal. The data/behaviour split is the one change that
-makes replication correct by construction: delegates are code, cannot be serialised, and
-therefore must not live in the replicated graph. A replica can then never fail over into a
-half-reconstructed address space. `ports` also notes the split is already latent in the
-existing AOT-safe `NodeStateSerializer`, so this is formalising something the codebase has
-half-built rather than inventing.
+**Why combine it with ports.** `commoncase` addresses HA-backed providers and reuses
+`ILocalAddressSpace`. `ports` adds an explicit classification of transferable state and
+a data/behaviour split. Keeping delegates out of replicated data clarifies what each
+replica must reconstruct, but does not by itself establish correct replication or failover.
+The combined design still needs validation of state capture, restoration and behavior binding.
 
 **Why the interceptor chain.** Audit, rate limiting and Part 18 role permissions are all
 per-request and all already present in the repository. They are the cases inheritance serves
@@ -2050,10 +2054,11 @@ worst and composition serves best.
 
 ### What to reject and why
 
-- **`minimal`'s per-node `ReadAsync`.** An `await` per node at thousands of monitored items is
-  a regression this codebase cannot absorb — a single node already tops out near 2,000
-  sessions. The rest of the design is elegant, and its `IAsyncEnumerable<NodeReference>` browse
-  is arguably the cleanest of the four, but the read path is central rather than peripheral.
+- **`minimal`'s per-node `ReadAsync` needs a performance gate.** Compare it with batched
+  and synchronous-completion paths under representative monitored-item and Read workloads.
+  Measure allocation, throughput and latency before rejecting it: a session-count limit
+  does not establish the cost of a per-node await. Its `IAsyncEnumerable<NodeReference>`
+  browse remains a separate design choice.
 - **Any fifth KV-layered "store" port.** `ports` argued this pre-emptively and correctly:
   a store that just forwards to `ISharedKeyValueStore` is indirection, not a seam.
 - **Obsoleting the full node-manager surface now.** `minimal` and `flexible` both propose it.
@@ -2092,12 +2097,11 @@ Steps 1 and 2 are worth doing regardless of whether the rest is ever taken.
 
 ## Appendix — verified facts each designer independently confirmed
 
-Facts the designers checked against the tree during their investigation, useful because several
-are load-bearing for the recommendation and were verified more than once independently:
+The designers independently verified the following facts against the tree:
 
 - `BaseVariableState` carries **both** `OnReadValue` (sync, line 559) and `OnReadValueAsync`
   (async, line 578); the async family runs **without** `lock(this)`. Confirmed by `commoncase`
-  and `ports` separately. This is what makes a genuine sync read path possible.
+  and `ports` separately. This permits a genuine sync read path.
 - Today's fluent `Variable<T>(...)` overloads **only resolve** an existing node and throw
   `ServiceResultException` if absent — they cannot mint a node. Confirmed by `commoncase` from
   the interface doc comments.

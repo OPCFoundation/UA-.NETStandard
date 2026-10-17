@@ -8,11 +8,12 @@ instructions. If you are new to the SDK, start with the
 
 ## Contents
 
-- [Minimal samples](#minimal-samples)
-- [Reference applications](#reference-applications)
-- [PubSub samples](#pubsub-samples)
-- [Companion-model samples](#companion-model-samples)
-- [OpenUSD site composition](#openusd-site-composition)
+- [Sample applications](#sample-applications)
+  - [Minimal samples](#minimal-samples)
+  - [Reference applications](#reference-applications)
+  - [PubSub samples](#pubsub-samples)
+  - [Companion-model samples](#companion-model-samples)
+  - [OpenUSD site composition](#openusd-site-composition)
 
 ## Minimal samples
 

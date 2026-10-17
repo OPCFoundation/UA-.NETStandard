@@ -21,7 +21,7 @@ For distributed PubSub active/standby publishers and subscribers, see the PubSub
 - [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
 - [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
   - [Server.ServerRedundancy model](#serverserverredundancy-model)
-  - [Add* and Use* API convention](#add-and-use-api-convention)
+  - [Add\* and Use\* API convention](#add-and-use-api-convention)
 - [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
 - [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
 - [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
@@ -332,7 +332,25 @@ You enable mirroring by registering the seams below on the server builder; each 
 - Replicas of a non-transparent (HotAndMirrored) set have their own ApplicationUri and certificate. The record carries the certificate of the server that created the session, and a restored session accepts a client signature over either that certificate or the restoring replica's own one (the stack's client signs the failover server's certificate). Encrypted user tokens must still be decryptable by the restoring replica: with RSA user token policies the client encrypts for the certificate it signs, and a session whose user token is encrypted with an ECC or RSA-DH `EphemeralKey` is not restored at all, because the private part of that key never leaves the replica that issued it — the reconnect is rejected before anything is consumed and the client re-creates the session.
 - A periodic sweep (`SweepInterval`, default five minutes) removes the records of sessions that can no longer be restored — for example those of a replica that crashed or shut down, which nobody closes — and the consumed-nonce markers that no live record references and that are older than `NonceMarkerRetention` (default one hour). A restore that finds an expired record deletes it as well.
 - `SharedKeyValueSessionStore` and `DistributedSessionManagerFactory` refuse an external (non in-memory) store without an `IRecordProtector`, like the dependency injection registration; pass `NullRecordProtector.Instance` explicitly to knowingly store session secrets unprotected.
-- Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. Version 4 also mirrors whether the client application certificate passed validation when the Session was created; a Session whose certificate error an `OnApplicationCertificateError` override accepted is restored without the `TrustedApplication` role or application-based role mappings, like the original. A version 3 record is still restored, with its certificate treated as not validated. Version 5 adds the liveness heartbeat, the owning replica, the original server certificate and whether the user token needs an `EphemeralKey`; version 3 and 4 records are still restored, without an owner. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
+- Mirrored session records carry a `SecurityStateVersion`. The current
+  implementation restores eligible records with versions **3 through 5**,
+  subject to the other security checks. Records outside that supported range
+  fail closed and require the client to recreate the Session.
+
+  | Version | State available during restoration |
+  |---|---|
+  | 3 | Identity continuity state; the client certificate is treated as not validated, and no owner is recorded. |
+  | 4 | Also records whether the client application certificate passed validation when the Session was created; no owner is recorded. |
+  | 5 | Also records the liveness heartbeat, owning replica, original server certificate and whether the user token requires an `EphemeralKey`. |
+
+  A Session whose certificate error an `OnApplicationCertificateError` override
+  accepted is restored without the `TrustedApplication` role or
+  application-based role mappings, like the original. The stored user identity
+  is an encoded continuity key (token type plus a delimited issuer and subject),
+  not the human-readable `ClientUserIdOfSession` diagnostic value. Activation
+  records are stamped with a per-Session activation sequence so that when two
+  activations overlap the mirror keeps the newest `serverNonce` instead of
+  whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore` as `ISubscriptionStore`. It mirrors subscription definitions and monitored-item definitions: publishing interval, lifetime, keepalive, priority, node id, attribute id, monitoring mode, sampling interval, queue size, filters, discard policy, and related metadata. It also installs `SharedKeyValueMonitoredItemQueueFactory` as the `IMonitoredItemQueueFactory`, which continuously mirrors each monitored item's data/event queue contents to the shared store through a non-blocking, coalesced background drain (protected at rest by the configured `IRecordProtector`); on promotion the store's asynchronous restore members re-hydrate those queues so queued-but-unpublished notifications survive a failover.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
 - `IContinuationPointStore` mirrors the generic Browse continuation envelope.
@@ -530,7 +548,7 @@ services.AddOpcUa()
     .UseReplicatedSessions();
 ```
 
-Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
+Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values may contain confidential process or business information. Apply the deployment's confidentiality requirements as well as integrity and authenticity protection: a forged high-clock update can win LWW convergence.
 
 > For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
@@ -600,7 +618,9 @@ On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedK
 - `RestoreSnapshotAsync` replaces the state before the store applies the log; it shares the startup gate, so a store that is starting or has started rejects it with `InvalidOperationException`. Pass `RaftSnapshotLogReplay.AfterSnapshot` when the consensus delivers only the commands after the snapshot (its log was compacted up to the snapshot, or it starts empty), or `RaftSnapshotLogReplay.FromFirstCommand` when it replays its persisted log from the beginning; the store then skips the commands the snapshot already holds, so no command — in particular no compare-and-swap — is applied twice.
 - A corrupt snapshot is rejected with `FormatException`: the decoder accepts only what the encoder produces (strict UTF-8 keys, canonical value markers, no payload for a null value, no duplicate key).
 
-The replay mode must match the log the consensus actually delivers after the restore, and recovery decides it from what was persisted, never from what the application intended to do. `FromFirstCommand` skips the first `LastIncludedCommand` delivered commands, so it is valid only while the log is complete (starts at the first command); on a log compacted up to the snapshot it would silently skip committed updates made after the snapshot. `AfterSnapshot` applies every delivered command, so it is valid only when the log starts exactly after `LastIncludedCommand`. The example therefore names each snapshot by its position and relies on the log persisting its own compaction boundary (in command positions, updated atomically with the removal of the prefix); `ICompactedLog` stands for that application-owned adapter over the consensus engine's log.
+The replay mode must match the log the consensus delivers after the restore. Choose it from the persisted state, not the intended compaction. `FromFirstCommand` skips the first `LastIncludedCommand` delivered commands, so it is valid only while the log is complete (starts at the first command); on a log compacted up to the snapshot it would silently skip committed updates made after the snapshot. `AfterSnapshot` applies every delivered command, so it is valid only when the log starts exactly after `LastIncludedCommand`.
+
+The example names each snapshot by its position and relies on the log persisting its own compaction boundary (in command positions, updated atomically with the removal of the prefix). `ICompactedLog` stands for that application-owned adapter over the consensus engine's log.
 
 ```csharp
 // Application-owned adapter over the consensus engine's persisted log, in committed-command positions.
@@ -732,7 +752,7 @@ The crash windows resolve from the persisted state alone:
 
 - Stopped before the rename: only a `*.tmp` file is new; the log and the published snapshots are unchanged.
 - Stopped after the rename, before compaction: `CompactedThrough` is still the previous boundary. With a complete log (`0`) the newest snapshot is restored with `FromFirstCommand`; with a log compacted up to an earlier snapshot, that earlier snapshot, still present because older snapshots are deleted only after compaction, is restored with `AfterSnapshot`. Using the new snapshot here with either mode would apply commands twice or skip them.
-- Stopped after compaction, before the deletion: `CompactedThrough` names the new snapshot; the older files are merely left over.
+- Stopped after compaction, before the deletion: `CompactedThrough` names the new snapshot; the older files remain.
 
 Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the snapshot that matches the log's compaction boundary until the log is compacted up to a newer, durably published one:
 
@@ -870,7 +890,7 @@ Security. The store is treated as an untrusted conduit: every direction and endp
 
 ### Client-side high availability (replica sets)
 
-OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Client.Redundancy`.
+OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client`.
 
 ```mermaid
 flowchart LR
@@ -903,7 +923,7 @@ ISession session = provider.GetRequiredService<ISession>();
 BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks until this replica leads
 ```
 
-Under the hood it reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
+It reuses the server's interfaces, shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
 
 - **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
 - **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.

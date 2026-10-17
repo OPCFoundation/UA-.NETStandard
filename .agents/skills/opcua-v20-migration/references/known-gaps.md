@@ -15,15 +15,20 @@ format:
          xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 ```
 
-`Directory.Build.targets` `<PackageReference>` injection is **silently
-ignored** by this format. The migration NuGet never resolves into the
-compile.
+In these sample projects, injecting `<PackageReference>` through
+`Directory.Build.targets` did not resolve the migration package into the
+compilation.
 
-**Cause:** the pre-SDK format predates `PackageReference` and only honours
-the `packages.config` / `<Reference>` model.
+**Scope:** pre-SDK format alone does not prevent using `PackageReference`.
+Legacy .NET Framework desktop projects support it but default to
+`packages.config`; see NuGet's
+[project-type support](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#project-type-support).
+The reported injection failure is specific to the sample project setup.
 
-**Mitigation:** add the `<PackageReference>` inline to each legacy csproj's
-existing `<ItemGroup>`:
+**Mitigation:** if the project uses `packages.config`, first
+[migrate its package references](https://learn.microsoft.com/en-us/nuget/consume-packages/migrate-packages-config-to-package-reference).
+Then add the migration package directly to each legacy csproj's existing
+`<ItemGroup>`:
 
 ```xml
 <ItemGroup>
@@ -31,6 +36,10 @@ existing `<ItemGroup>`:
   <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer" Version="2.0.0-preview.*" PrivateAssets="all" />
 </ItemGroup>
 ```
+
+Verify that restore resolves the package and that the compiler loads the
+analyzer and generator; see
+[`compatibility-matrix.md`](compatibility-matrix.md#verifying-analyzer--generator-loaded-under-cscexe).
 
 Long-term, migrate the project to the SDK-style format. The repo's reference
 samples should not regress to the legacy format. The .NET
@@ -153,9 +162,9 @@ report. See [`compatibility-matrix.md`](compatibility-matrix.md).
 **Symptom:** `CS0104: 'XmlElement' is an ambiguous reference between
 'Opc.Ua.XmlElement' and 'System.Xml.XmlElement'`.
 
-**Mitigation:** remove `using System.Xml;` from the file. The OPC UA
-`XmlElement` is what the consumer wants in 99% of OPC UA call sites; for the
-rare case the user needs the BCL type, use:
+**Mitigation:** resolve the ambiguity by qualifying the intended type. Use
+`Opc.Ua.XmlElement` for OPC UA values and `System.Xml.XmlElement` for APIs that
+require the BCL type. Convert an OPC UA value to the BCL type as follows:
 
 ```csharp
 System.Xml.XmlElement sysXml = opcUaXmlElement.ToXmlElement();
@@ -188,15 +197,18 @@ version. See
 packages (e.g. `OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug`,
 `OPCFoundation.NetStandard.Opc.Ua.Server.Debug`).
 
-**Status:** the 2.0 previews continue to publish the `.Debug` package IDs.
-The stack projects append `.Debug` to `PackageId` for Debug builds, so
-`OPCFoundation.NetStandard.Opc.Ua.Configuration.Debug` and
-`OPCFoundation.NetStandard.Opc.Ua.Server.Debug` are valid 2.0 preview packages.
+**Status:** from `2.0.0-preview.6` onward, `.Debug` packages are published only
+to GitHub Packages. Earlier `.Debug` previews through `2.0.0-preview.5` remain
+on nuget.org.
 
-**Mitigation:** retain the `.Debug` suffix and upgrade that package to the same
-2.0 preview version as the corresponding release package. Do not silently
-replace it with the non-`.Debug` package unless changing the consumer's package
-selection is intentional.
+**Mitigation:** to retain a `.Debug` dependency, configure the authenticated
+GitHub Packages feed and pin an exact published version matching the intended
+release. The feed also contains development builds, so a floating version can
+select a different build than intended. Do not silently replace the dependency
+with the non-`.Debug` package unless changing the consumer's package selection
+is intentional. See the bundled
+[package migration guide](stack-migration/packages.md#debug-packages-are-no-longer-published-to-nugetorg)
+for feed authentication and pinning instructions.
 
 ## G13 — Sample csprojs without `<Nullable>enable</Nullable>` see cascade of `CS8600`
 

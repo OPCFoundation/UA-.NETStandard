@@ -17,6 +17,7 @@ production equipment adds depending on its use case.
 - [Quick start — client](#quick-start--client)
 - [Server hosting model](#server-hosting-model)
 - [Coexisting with a server that already owns DI or ISA-95](#coexisting-with-a-server-that-already-owns-di-or-isa-95)
+  - [Bindings on an externally registered root](#bindings-on-an-externally-registered-root)
 - [Builder reference](#builder-reference)
   - [OPC 40001-1 building blocks](#opc-40001-1-building-blocks)
   - [OPC 40001-2 process values](#opc-40001-2-process-values)
@@ -27,9 +28,20 @@ production equipment adds depending on its use case.
 - [State machines are server-driven](#state-machines-are-server-driven)
 - [Client](#client)
   - [Bounded, evidenced inspection](#bounded-evidenced-inspection)
+  - [Job endpoints and streamed results](#job-endpoints-and-streamed-results)
 - [Conformance matrix](#conformance-matrix)
+  - [OPC 40001-1 building blocks](#opc-40001-1-building-blocks-1)
+  - [OPC 40001-2 process values](#opc-40001-2-process-values-1)
+  - [OPC 40001-3 job management](#opc-40001-3-job-management-1)
+  - [OPC 40001-4 energy](#opc-40001-4-energy-1)
+  - [OPC 40001-101 results](#opc-40001-101-results-1)
+  - [Client and hosting](#client-and-hosting)
+  - [Where the facet URIs come from](#where-the-facet-uris-come-from)
 - [Model sources and identifier tables](#model-sources-and-identifier-tables)
+  - [What the identifier table is and is not](#what-the-identifier-table-is-and-is-not)
+  - [Why the published tables need deriving](#why-the-published-tables-need-deriving)
 - [Cross-assembly generator behavior](#cross-assembly-generator-behavior)
+- [See also](#see-also)
 
 ## Library layout
 
@@ -89,14 +101,16 @@ The Machinery models compose types from these companion specifications:
 
 The model reference graph:
 
-```
-Opc.Ua.Core
- └── Opc.Ua.Di ──┬── Opc.Ua.IA ──┬── Opc.Ua.Robotics
-                 │               ├── Opc.Ua.ECM ─── Opc.Ua.Machinery.Energy
-                 │               └── Opc.Ua.Machinery
-                 └── Opc.Ua.PADIM (+ IRDI) ─── Opc.Ua.Machinery.ProcessValues
-Opc.Ua.Core ─── Opc.Ua.Machinery.Result
-Opc.Ua.ISA95 ─── Opc.Ua.Machinery.Jobs
+```mermaid
+flowchart LR
+    core["Opc.Ua.Core"] --> di["Opc.Ua.Di"]
+    di --> ia["Opc.Ua.IA"]
+    ia --> robotics["Opc.Ua.Robotics"]
+    ia --> ecm["Opc.Ua.ECM"] --> energy["Opc.Ua.Machinery.Energy"]
+    ia --> machinery["Opc.Ua.Machinery"]
+    di --> padim["Opc.Ua.PADIM (+ IRDI)"] --> values["Opc.Ua.Machinery.ProcessValues"]
+    core --> result["Opc.Ua.Machinery.Result"]
+    isa["Opc.Ua.ISA95"] --> jobs["Opc.Ua.Machinery.Jobs"]
 ```
 
 ## Quick start — server
@@ -309,8 +323,8 @@ actual asynchronous node-removal hook, not a value change-mask callback.
 
 ### OPC 40001-1 building blocks
 
-Every block is attached to its machinery item with `HasAddIn`, which is what
-OPC 40001-1 uses — not `HasComponent`.
+Every block is attached to its machinery item with `HasAddIn`, as specified by
+OPC 40001-1 — not `HasComponent`.
 
 For a companion-created or vendor-derived Components AddIn,
 `machine.WithComponents(existingComponents, configure)` reuses the existing
@@ -418,7 +432,7 @@ limits from `WithLimits`, deviations from `WithDeviationLimits` — points the
 condition at the signal as its `InputNode`, gives it the source, name and
 enable state OPC 10000-9 needs, registers it as a root notifier, and
 re-evaluates it on every `SetValueAsync`. An alarm that is only created never
-activates and never reports, which is what the objects alone amount to.
+activates and never reports.
 
 `WithZeroPointAdjustment` binds the optional OPC 30081 method and reports a
 `ZeroPointAdjustmentEventType` event on **every** call — the part's conformance
@@ -514,12 +528,12 @@ reports a response while the order keeps running — progress such as
 OPC 40001-4 is an extension of the OPC 40001-1 `Monitoring` building block
 rather than a block of its own (§6.1), and its structure is three levels deep:
 
-```
-Monitoring
-  Consumption                    ← OPC 40001-1 MonitoringType
-    CompressedAir                ← well-known FolderType browse name, §9.1
-      Main                       ← well-known EnergyMeasurementType name, §9.2
-      ClampingCylinders          ← further metering points
+```mermaid
+flowchart TD
+    monitoring["Monitoring"] --> consumption["Consumption<br/>OPC 40001-1 MonitoringType"]
+    consumption --> air["CompressedAir<br/>Well-known FolderType browse name, section 9.1"]
+    air --> main["Main<br/>Well-known EnergyMeasurementType name, section 9.2"]
+    air --> cylinders["ClampingCylinders<br/>Further metering points"]
 ```
 
 A *metering point* is an OPC 34100 `EnergyMeasurementType` object that
@@ -629,8 +643,8 @@ sees the result, whichever kind of store it is.
 
 #### Filtering and ordering the result list
 
-`GetResultIdListFiltered` evaluates both arguments OPC 40001-101 §7.1.3
-defines:
+The arguments to `GetResultIdListFiltered` control filtering, ordering and the
+maximum number of returned results, as defined by OPC 40001-101 §7.1.3:
 
 - **`filter`** is a `ContentFilter` whose BrowsePaths "can be built from the
   fields of the `ResultReadyEventType`, the `ResultType` VariableType or the
@@ -694,14 +708,14 @@ OPC 10000-20 names a code for: `GenerateFileForWrite` returns
 which stays open and is closed with the file's own `Close`.
 
 `WithResultsFolder` publishes the most recent results as `ResultType` variables
-as well, which is what the `Machinery-Result ResultVariables` unit asks for —
+as well, as required by the `Machinery-Result ResultVariables` unit —
 an empty folder satisfies nothing. The variables are a fixed ring created with
 the machine: the newest result lands in the first slot and the others shift
 down, so a client can subscribe to a slot once and keep receiving results, and
 the server never adds or deletes nodes while it runs.
 
 Before a slot receives its first result, its value and structured parts are
-genuinely null. Model-default XML is not a published result and is not exposed
+null. Model-default XML is not a published result and is not exposed
 as one. A present Good-null slot has no ResultId to inspect or download; clients
 can keep monitoring the same slot until the publisher fills it.
 
@@ -1158,8 +1172,8 @@ NodeSet2 input the NodeIds come from the XML
 `NodeSetToModelDesign.Import`; only ModelDesign inputs use the CSV fallback).
 It is a **drift guard**: the generator validates every row against the imported
 symbols and fails the build with `MODELGEN022`…`MODELGEN029` when the vendored
-model and the pinned mapping disagree. That is how a silently dropped type gets
-caught instead of quietly disappearing from the generated API.
+model and the pinned mapping disagree. This catches types dropped from the
+generated API.
 
 `Model/*.Upstream.NodeIds.csv` is the OPC Foundation's publication unmodified
 and is deliberately kept out of `<AdditionalFiles>`, so the two can be diffed to
@@ -1188,7 +1202,9 @@ than symbolic names. **IRDI** has no published table at all and therefore
 carries no drift guard.
 
 The numeric ids and node classes agree with the NodeSets in all nine models.
-The vendored NodeSets therefore require no normative corrections.
+This establishes consistency for those two properties, not complete conformance
+to the companion specifications. Requirements for references, data types,
+modelling rules and behavior need separate validation.
 
 <a id="generator-gaps-found-while-adding-these-models"></a>
 

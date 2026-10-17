@@ -20,10 +20,10 @@ Transport (MQTT) brokers and REST APIs.
 
 - [Architecture](#architecture)
 - [Client API](#client-api)
-  - [`KeyCredentialServiceClient`](#keycredentialserviceclient)
+  - [KeyCredentialServiceClient](#keycredentialserviceclient)
   - [Discovering the Service NodeId](#discovering-the-service-nodeid)
 - [Server-Side: Implementing a Provider](#server-side-implementing-a-provider)
-  - [`IKeyCredentialRequestStore`](#ikeycredentialrequeststore)
+  - [IKeyCredentialRequestStore](#ikeycredentialrequeststore)
   - [Built-in Implementation](#built-in-implementation)
   - [Writing a Custom Implementation](#writing-a-custom-implementation)
   - [Wiring into the GDS Server](#wiring-into-the-gds-server)
@@ -36,20 +36,19 @@ Transport (MQTT) brokers and REST APIs.
 
 ## Architecture
 
-```
-┌─────────────────┐     StartRequest      ┌────────────────────────┐
-│  OPC UA Client   │ ──────────────────► │  ApplicationsNodeManager │
-│  (or application)│ ◄────────────────── │  (GDS Server)            │
-│                  │     FinishRequest    │                          │
-│                  │ ──────────────────► │  ┌──────────────────────┐ │
-│                  │     Revoke          │  │ IKeyCredentialRequest │ │
-└─────────────────┘                      │  │       Store          │ │
-                                         │  └──────────┬───────────┘ │
-                                         │             │             │
-                                         │  ┌──────────▼───────────┐ │
-                                         │  │     ISecretStore     │ │
-                                         │  └──────────────────────┘ │
-                                         └────────────────────────────┘
+```mermaid
+flowchart LR
+    client["OPC UA Client<br/>(or application)"]
+    subgraph gds["GDS Server"]
+        manager["ApplicationsNodeManager"]
+        requests["IKeyCredentialRequestStore"]
+        secrets["ISecretStore"]
+        manager --> requests --> secrets
+    end
+    client -->|StartRequest| manager
+    manager -->|response| client
+    client -->|FinishRequest| manager
+    client -->|Revoke| manager
 ```
 
 ## Client API

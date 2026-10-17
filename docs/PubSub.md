@@ -18,18 +18,69 @@
 - [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
 - [Architecture](#architecture)
 - [Core abstractions](#core-abstractions)
+  - [`IPubSubApplication`](#ipubsubapplication)
+  - [`PubSubConnection` / `WriterGroup` / `ReaderGroup`](#pubsubconnection--writergroup--readergroup)
+  - [`DataSetWriter` / `DataSetReader`](#datasetwriter--datasetreader)
+  - [`IDataSetMetaDataRegistry`](#idatasetmetadataregistry)
+  - [`IPubSubSecurityPolicy` / `IPubSubSecurityKeyProvider`](#ipubsubsecuritypolicy--ipubsubsecuritykeyprovider)
+  - [`IPubSubKeyServiceServer`](#ipubsubkeyserviceserver)
 - [Fluent builder walkthrough](#fluent-builder-walkthrough)
+  - [Publisher — UDP / UADP](#publisher--udp--uadp)
+  - [Subscriber — MQTT / JSON](#subscriber--mqtt--json)
+  - [XML configuration mode](#xml-configuration-mode)
+  - [Inline `PubSubConfigurationDataType`](#inline-pubsubconfigurationdatatype)
 - [Dependency injection / hosting](#dependency-injection--hosting)
 - [Transports](#transports)
+  - [UDP / UADP](#udp--uadp)
+  - [Ethernet / UADP (`opc.eth://`)](#ethernet--uadp-opceth)
+  - [DTLS / UADP (`opc.dtls://`)](#dtls--uadp-opcdtls)
+  - [MQTT (3.1.1 / 5.0)](#mqtt-311--50)
+  - [DTLS transport status](#dtls-transport-status)
+  - [Apache Kafka](#apache-kafka)
 - [Encodings](#encodings)
+  - [UADP — `Opc.Ua.PubSub.Encoding.Uadp`](#uadp--opcuapubsubencodinguadp)
+  - [JSON — `Opc.Ua.PubSub.Encoding.Json`](#json--opcuapubsubencodingjson)
 - [Transcoding](#transcoding)
+  - [Architecture](#architecture-1)
+  - [Configuration model](#configuration-model)
+  - [Transform pipeline](#transform-pipeline)
+  - [Cross-encoding and field encoding](#cross-encoding-and-field-encoding)
+  - [Identifier, field, value, and metadata rewrites](#identifier-field-value-and-metadata-rewrites)
+  - [Security](#security)
+  - [In-process bridge, receive hook, and egress](#in-process-bridge-receive-hook-and-egress)
+  - [Fluent `AddTranscodingBridge` walkthrough](#fluent-addtranscodingbridge-walkthrough)
+  - [Reloadable configuration](#reloadable-configuration)
+  - [Promoting fields to broker headers](#promoting-fields-to-broker-headers)
+  - [Standalone primitives](#standalone-primitives)
+  - [Transcoding limitations](#transcoding-limitations)
 - [Discovery](#discovery)
 - [Security](#security-1)
+  - [`UadpSecurityWrapper`](#uadpsecuritywrapper)
+  - [Cipher policies](#cipher-policies)
+  - [Key ring](#key-ring)
 - [Security Key Service (SKS)](#security-key-service-sks)
+  - [Pull (client)](#pull-client)
+  - [Push targets and in-memory server](#push-targets-and-in-memory-server)
 - [Actions (request/response)](#actions-requestresponse)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
+  - [Package and namespaces](#package-and-namespaces)
+  - [Architecture](#architecture-2)
+  - [Connection options](#connection-options)
+  - [Configuration and hot reload](#configuration-and-hot-reload)
+  - [Publisher adapter](#publisher-adapter)
+  - [Subscriber adapter](#subscriber-adapter)
+  - [Action responder adapter](#action-responder-adapter)
+  - [Metadata behavior](#metadata-behavior)
+  - [Browse-path node mapping](#browse-path-node-mapping)
+  - [Lifecycle and resilience](#lifecycle-and-resilience)
+  - [Observability](#observability)
+  - [Security notes](#security-notes)
+  - [Sample](#sample)
+  - [See also](#see-also)
 - [High availability and redundancy](#high-availability-and-redundancy)
+  - [State providers](#state-providers)
+  - [Active/standby activation](#activestandby-activation)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
@@ -39,11 +90,15 @@
 
 - Targets **OPC UA Part 14 v1.05.06** conformance for the implemented UDP,
   MQTT, Kafka, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
-- Six library packages
+- Runtime and integration assemblies
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
-  `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
-  `Opc.Ua.PubSub.Kafka`,
-  `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
+  `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Eth`,
+  `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Kafka`,
+  `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`. Their NuGet package
+  IDs use the `OPCFoundation.NetStandard.` prefix. Additional packages
+  provide diagnostics (`Opc.Ua.PubSub.Diagnostics`), JSON Schema generation
+  (`Opc.Ua.PubSub.Schema`), and redundancy integration
+  (`Opc.Ua.Redundancy.PubSub`).
 - Multi-TFM: `net48`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
@@ -63,7 +118,7 @@
   group, writer, reader.
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
-- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
+- Transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
 
 ## Run a first publisher and subscriber
 
@@ -127,49 +182,44 @@ reports the `MessageReceiveTimeout` fault.
 
 ## Architecture
 
-The library is laid out as five sibling assemblies — the abstractions
+The library separates the runtime, transports, and integration adapters
+into assemblies — the abstractions
 and runtime live in `Opc.Ua.PubSub`, the transports plug in via
 `IPubSubTransportFactory`, `Opc.Ua.PubSub.Server` optionally exposes the
 runtime through an in-process standard OPC UA address space, and
 `Opc.Ua.PubSub.Adapter` optionally bridges configured DataSets and
 Actions to an external OPC UA server over a managed client session.
 
-```text
-┌──────────────────────────────────┐      ┌──────────────────────────────────┐      ┌──────────────────────┐
-│ Optional in-process server       │      │ Optional external-server adapter │      │ External OPC UA      │
-│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀───▶│ server endpoint      │
-│ PublishSubscribe Object ·        │      │ Sources · sinks · Action handler │      │ Read / Write / Call  │
-│ methods · diagnostics binding    │      │ over ManagedSession              │      └──────────────────────┘
-└──────────────────────────────────┘      └──────────────────────────────────┘
-                 │ IPubSubApplication                     │ Sources / sinks / Action handler
-                 ▼                                         ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                            Opc.Ua.PubSub                           │
-│                                                                    │
-│  Application/  PubSubApplication · PubSubApplicationBuilder        │
-│                IPubSubApplication · MetaDataPublisher              │
-│  Configuration/ PubSubConfigurationSnapshot · validator · XML      │
-│  Connections/  IPubSubConnection · UaPubSubConnection              │
-│  Groups/       WriterGroup · ReaderGroup                           │
-│  DataSets/     Published / Subscribed / Source / Sink              │
-│  Encoding/     UADP, JSON encoders/decoders, Discovery, Action     │
-│  MetaData/     IDataSetMetaDataRegistry                            │
-│  Scheduling/   IPubSubScheduler · PubSubSchedule                   │
-│  Security/     UadpSecurityWrapper · KeyRing · NonceLayout · KAT   │
-│  Security/Sks/ ISecurityKeyService · OpcUaSecurityKeyServiceClient │
-│                InMemoryPubSubKeyServiceServer · PullSecurityKey    │
-│  StateMachine/ PubSubStateMachine                                  │
-│  Transports/   IPubSubTransportFactory · IPubSubTransport          │
-│  DependencyInjection/ AddPubSub · AddPubSubSecurityKeyService*     │
-└────────────────────────────────────────────────────────────────────┘
-        ▲                                ▲                       ▲
-        │ IPubSubTransportFactory        │                       │
-        │                                │                       │
-┌─────────────────┐  ┌──────────────────────┐  ┌────────────────────┐
-│ Opc.Ua.PubSub.  │  │ Opc.Ua.PubSub.Mqtt   │  │ Opc.Ua.PubSub.Kafka│
-│      Udp        │  │ MQTTnet 4 / 5        │  │ Dekaf / Confluent  │
-└─────────────────┘  └──────────────────────┘  └────────────────────┘
+```mermaid
+flowchart LR
+    server["Optional in-process server<br/>Opc.Ua.PubSub.Server<br/>PublishSubscribe Object, methods and diagnostics binding"]
+    adapter["Optional external-server adapter<br/>Opc.Ua.PubSub.Adapter<br/>Sources, sinks and Action handler over ManagedSession"]
+    endpoint["External OPC UA server endpoint<br/>Read / Write / Call"]
+    runtime["Opc.Ua.PubSub<br/>Application and runtime services"]
+    transports["Transport assemblies<br/>Opc.Ua.PubSub.Udp: UDP<br/>Opc.Ua.PubSub.Eth: Ethernet (Layer 2 UADP)<br/>Opc.Ua.PubSub.Mqtt: MQTTnet 4 / 5<br/>Opc.Ua.PubSub.Kafka: Dekaf / Confluent"]
+    server -->|IPubSubApplication| runtime
+    adapter -->|Sources / sinks / Action handler| runtime
+    endpoint <--> adapter
+    transports -->|IPubSubTransportFactory| runtime
 ```
+
+The runtime assembly contains these areas:
+
+| Area | Types and services |
+| --- | --- |
+| Application | `PubSubApplication`, `PubSubApplicationBuilder`, `IPubSubApplication`, `MetaDataPublisher` |
+| Configuration | `PubSubConfigurationSnapshot`, validator, XML |
+| Connections | `PubSubConnection`, `UaPubSubConnection` |
+| Groups | `WriterGroup`, `ReaderGroup` |
+| DataSets | Published, Subscribed, Source, Sink |
+| Encoding | UADP and JSON encoders/decoders, Discovery, Action |
+| MetaData | `IDataSetMetaDataRegistry` |
+| Scheduling | `IPubSubScheduler`, `PubSubSchedule` |
+| Security | `UadpSecurityWrapper`, `KeyRing`, `NonceLayout`, KAT |
+| Security/Sks | `ISecurityKeyService`, `OpcUaSecurityKeyServiceClient`, `InMemoryPubSubKeyServiceServer`, `PullSecurityKey` |
+| StateMachine | `PubSubStateMachine` |
+| Transports | `IPubSubTransportFactory`, `IPubSubTransport` |
+| DependencyInjection | `AddPubSub`, `AddPubSubSecurityKeyService*` |
 
 The **state machine** (`PubSubStateMachine`,
 [Part 14 §6.2.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.1))
@@ -813,7 +863,10 @@ Highlights:
   ([§7.2.5.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.3)).
 - TLS, Anonymous, Username/Password, X.509-cert authentication.
 - Reconnect with exponential back-off honoured at the connection
-  state-machine level (no message loss on a re-subscribe at QoS ≥ 1).
+  state-machine level. Delivery across disconnects depends on session
+  persistence, broker queue limits and message expiry; QoS ≥ 1 alone
+  does not guarantee lossless reconnection.
+  `MqttConnectionOptions.CleanSession` defaults to `true`.
 
 ```csharp
 writer.WithTransportSettings(
@@ -952,8 +1005,8 @@ in full:
 ### JSON — `Opc.Ua.PubSub.Encoding.Json`
 
 Implements [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5)
-on top of `System.Text.Json`. The encoder is allocation-friendly
-(no Newtonsoft.Json dependency) and supports the v1.05.06 modes:
+on top of `System.Text.Json`. The encoder uses `Utf8JsonWriter`, has no
+Newtonsoft.Json dependency, and supports the v1.05.06 modes:
 
 | Mode      | Spec                                                  | Wire shape                    |
 | --------- | ----------------------------------------------------- | ----------------------------- |
@@ -978,7 +1031,7 @@ Additional v1.05.06 flavours:
 
 ## Transcoding
 
-High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
+PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
 
 Use transcoders when a deployment needs an in-process PubSub gateway: for example, a UADP UDP subscriber feeding an MQTT JSON publisher, a JSON cloud topic being normalized before it is re-published as UADP, or a relay that preserves UADP frames on an identity route but rewrites selected fields on another route. The implementation is aligned with OPC UA Part 14 NetworkMessage mappings for [UADP §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4), [JSON §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5), PubSub connection filtering in [§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7), and Security Key Service (SKS) key distribution in [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
 
@@ -986,28 +1039,20 @@ Use transcoders when a deployment needs an in-process PubSub gateway: for exampl
 
 The transcoding pipeline has four stages:
 
-```text
-received frame + decoded message
-        │
-        ▼
-TranscodeInput(Message, SourceFrame, SourceFrameSecured)
-        │
-        ├─ raw-frame fast path for identity same-encoding routes
-        │
-        ▼
-decoded PubSubNetworkMessage intermediate representation
-        │
-        ▼
-ordered IPubSubMessageTransform pipeline
-        │
-        ▼
-INetworkMessageProfileProjector (UADP ↔ JSON concrete record projection)
-        │
-        ▼
-encoder + TranscodeSecurity (target re-securing where applicable)
-        │
-        ▼
-TranscodeResult(Frames, Messages, FastPath)
+```mermaid
+flowchart TD
+    frame["Received frame + decoded message"]
+    input["TranscodeInput<br/>(Message, SourceFrame, SourceFrameSecured)"]
+    fast["Raw-frame fast path<br/>Identity same-encoding routes"]
+    intermediate["Decoded PubSubNetworkMessage<br/>intermediate representation"]
+    transforms["Ordered IPubSubMessageTransform pipeline"]
+    projector["INetworkMessageProfileProjector<br/>UADP / JSON concrete record projection"]
+    encoder["Encoder + TranscodeSecurity<br/>Target re-securing where applicable"]
+    result["TranscodeResult<br/>(Frames, Messages, FastPath)"]
+    frame --> input
+    input --> fast
+    input --> intermediate --> transforms --> projector --> encoder --> result
+    fast --> result
 ```
 
 `PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP or JSON record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
@@ -1594,7 +1639,7 @@ The coordinator diffs the previous binding state against the new `PubSubConfigur
 
 Use `AddServerAsPublisher(string name, IConfiguration configuration)`, `AddServerAsSubscriber(string name, IConfiguration configuration)`, or `AddServerAsActionResponder(string name, IConfiguration configuration)` when adapter options should be bound from reloadable configuration. The existing `Action<TOptions>` overloads still work for code-set options. Object-typed members are intentionally code-set, not `IConfiguration`-bound: `ServerConnectionOptions.ApplicationConfiguration`, `ServerConnectionOptions.UserIdentity`, `ServerActionResponderOptions.MethodMap`, and `ServerActionResponderOptions.Targets`.
 
-The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Adding, removing, and re-mapping action targets are all applied live: on each reload the coordinator rebuilds the action-handler set through `IPubSubApplication.ClearActionHandlers` and re-registers only the currently configured targets, so a removed target stops being served without a host restart.
+Adding, removing, and re-mapping action targets are all applied live: on each reload the coordinator rebuilds the action-handler set through `IPubSubApplication.ClearActionHandlers` and re-registers only the currently configured targets, so a removed target stops being served without a host restart.
 
 #### Pluggable configuration sources (change feed)
 
@@ -1887,7 +1932,7 @@ See `samples\PubSub\ConsoleReferencePubSubClient` (the `external` mode) for a co
 
 ## High availability and redundancy
 
-Part 14 §9.1.6 HA deployments run several publisher / subscriber instances over a shared configuration and elect a single active owner per component. PubSub splits this into two injectable concerns — externalized **state providers** and **active/standby activation** — each with a zero-overhead in-memory default so single-instance deployments are unaffected. These abstractions align with the server-side OPC 10000-4 §6.6 redundancy model documented in [High availability](HighAvailability.md).
+Part 14 §9.1.6 HA deployments run several publisher / subscriber instances over a shared configuration and elect a single active owner per component. PubSub splits this into two injectable concerns — externalized **state providers** and **active/standby activation** — with process-local defaults for single-instance deployments. These abstractions align with the server-side OPC 10000-4 §6.6 redundancy model documented in [High availability](HighAvailability.md).
 
 ### State providers
 
@@ -1927,7 +1972,7 @@ Redundant sets elect one active owner per component so exactly one instance driv
 - `IPubSubActivationCoordinator` answers, per component, whether this instance is `PubSubComponentRole.Active` (drive the transport) or `PubSubComponentRole.Standby` (wait to take over), and raises `RoleChanged` so the runtime pauses or resumes the component. Components are addressed by a deterministic id — for example `pubsub:writergroup:<connection>:<group>` — so every replica agrees on the key.
 - `IPubSubLeaseStore` is the shared coordination primitive: `TryAcquireAsync` / `TryRenewAsync` / `ReleaseAsync` grant a single owner per lease key and stamp a monotonic **fencing token** on each ownership change so a paused owner cannot resume after its lease expired (renewal of an expired lease is rejected and forces reacquisition, which advances the token).
 
-The default coordinator is `AlwaysActiveCoordinator`, which reports every component active — non-redundant deployments incur no overhead. Redundant deployments register `LeaseActivationCoordinator` (a background acquire/renew loop over an `IPubSubLeaseStore`); the built-in `InMemoryPubSubLeaseStore` is single-process, and a distributed store backs true cross-instance failover:
+The default coordinator is `AlwaysActiveCoordinator`, which reports every component active without running a background lease-acquisition or renewal loop. Redundant deployments register `LeaseActivationCoordinator` (a background acquire/renew loop over an `IPubSubLeaseStore`); the built-in `InMemoryPubSubLeaseStore` is single-process, and a distributed store backs true cross-instance failover:
 
 ```csharp
 services.AddOpcUa()
@@ -1959,9 +2004,9 @@ Providers can be registered by type — `WithActivationCoordinator<TCoordinator>
 / `WithLeaseStore<TStore>()` — or by instance via the
 `WithActivationCoordinator(...)` / `WithLeaseStore(...)` builder methods.
 
-`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally tracks live sequence / keep-alive state so take-over introduces no gap.
+`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally restores writer sequence checkpoints on promotion. Hot mode does not guarantee gap-free delivery; see [sequence-number continuity](PubSubHighAvailability.md#sequence-number-continuity-hot-standby) for checkpoint freshness and wrap limitations.
 
-**Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. Once the core abstractions ship, the PubSub lease store is intended to converge onto `ISharedKeyValueStore.CompareAndSwapAsync` so a single shared store and leader-election stack serves both the server address space and PubSub components.
+**Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. `SharedStorePubSubLeaseStore` in `Opc.Ua.Redundancy.PubSub` implements `IPubSubLeaseStore` over `ISharedKeyValueStore.CompareAndSwapAsync`. This lets server redundancy and PubSub coordination use the same shared-store backend. See [PubSub high availability](PubSubHighAvailability.md) for registration and consistency requirements.
 
 ## Diagnostics
 

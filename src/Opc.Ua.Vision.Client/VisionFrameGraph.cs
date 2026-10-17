@@ -159,7 +159,7 @@ namespace Opc.Ua.Vision.Client
         /// </exception>
         /// <exception cref="ServiceResultException">
         /// The frame chain cannot be resolved, is longer than <c>32</c>, contains a
-        /// cycle, or carries a non-unit quaternion within tolerance <c>1e-6</c>.
+        /// cycle, or carries a quaternion whose norm differs from 1 by more than <c>1e-6</c>.
         /// </exception>
         /// <exception cref="ArgumentException"></exception>
         public async Task<VisionPose3DDataType> ComposeAsync(

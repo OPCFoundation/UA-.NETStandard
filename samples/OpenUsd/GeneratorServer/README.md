@@ -1,7 +1,7 @@
 # GeneratorServer
 
-A self-contained OPC UA server implementing the **Generators companion
-specification** (`http://opcfoundation.org/UA/Generators/`) end to end: N
+A self-contained OPC UA server demonstrating the **sample-local draft Generators
+model** (`http://opcfoundation.org/UA/Generators/`): N
 simulated generating sets, a datasheet-driven simulation, DI and Machinery
 integration, and a per-set OpenUSD twin.
 
@@ -28,6 +28,9 @@ A fictitious **SimGen Systems GenX-500** — 400 kW prime / 440 kW standby, 400/
 trip points are in [`DATASHEET.md`](DATASHEET.md), and every one of them is a
 constant in [`GeneratorDatasheet.cs`](GeneratorDatasheet.cs), so the document, the
 address space and the simulation cannot drift apart.
+
+The OpenUSD asset uses a V16 layout for visualization and is not a dimensionally
+or mechanically faithful model of the inline-six specified by the simulation datasheet.
 
 ## The model
 
@@ -96,11 +99,14 @@ running while the simulation says it is stopped, and nothing at run time notices
 `GeneratorStateMachineType` is mandatory on the type, so it already exists; the
 sample attaches behaviour to it in lifecycle mode rather than defining states:
 
-```
-Off ──▶ Ready ──▶ Starting ──▶ Warmup ──▶ Running ──┬──▶ Loaded ──▶ Cooldown ──▶ Stopping ──▶ Off
-                     │                              └──▶ Synchronizing ──▶ Paralleled ──▶ Loaded
-                     ▼
-                   Fault ──▶ Off                 any running state ──▶ Fault / EmergencyStopped ──▶ Off
+```mermaid
+flowchart LR
+    off["Off"] --> ready["Ready"] --> starting["Starting"] --> warmup["Warmup"] --> running["Running"]
+    running --> loaded["Loaded"] --> cooldown["Cooldown"] --> stopping["Stopping"] --> off
+    running --> syncing["Synchronizing"] --> paralleled["Paralleled"] --> loaded
+    starting --> fault["Fault"] --> off
+    any["Any running state"] --> fault
+    any --> emergency["EmergencyStopped"] --> off
 ```
 
 Twelve states, twenty-two declared transitions. The first set energises a dead bus
@@ -138,14 +144,14 @@ pointing at the variable it actually supervises — otherwise a client can see t
 something tripped but not what was being watched.
 
 **A healthy set cannot trip.** The datasheet curves are bounded well inside every
-trip point — that is what a datasheet means — so a plant running to spec would
+trip point, so a plant running to spec would
 leave all four alarms, the shutdown class, `ResetFaults` and the whole `Fault`
 branch of the state machine as code that never runs. The first set therefore
 develops a fault on a slow rotation (`CoolingFailure` → `OilPressureLoss` →
-`Overload` → `GovernorFailure`), trips, annunciates, shuts down and recovers. It
-is the first set rather than the last because that is the machine nearest the
-hero camera in the 3D twin — an alarm nobody can see demonstrates nothing. A
-fault deviates the *measurement* from the curve, which is what a real fault does,
+`Overload` → `GovernorFailure`), trips, annunciates, shuts down and recovers. The
+first set is nearest the
+hero camera in the 3D twin, where its alarms are visible. A
+fault deviates the *measurement* from the curve,
 so the datasheet identities keep holding for every healthy set. Pass
 `--faults false` for a purely healthy plant.
 
@@ -167,7 +173,7 @@ annunciate only whichever came first in the table — exactly the case that
 one-alarm-per-function exists to show.
 
 **A shutdown-class alarm latches; a warning-class one follows its condition.** The
-trip is what removes the condition — oil pressure and coolant temperature are only
+trip removes the condition — oil pressure and coolant temperature are only
 supervised while the engine turns — so an alarm that simply tracked its input would
 go active for a single tick and clear, leaving an operator with a stopped machine
 and no indication of why. It stays annunciated until the set leaves the shutdown
@@ -255,14 +261,15 @@ neighbouring machines from any operator-height camera, so it is now a beacon rin
 > bindings — run lamp, alarm beacon, fault halos — remain useful for binary
 > state that must be unmistakable at a glance.
 
-The operating-state readout is what makes an idle machine legible: without it the
+The operating-state readout explains why a machine is idle: without it the
 3D view shows *that* a set is not turning but not *why* — `Cooldown` and
 `EmergencyStopped` look identical from the outside.
 
 ### The machine you see
 
-The geometry is an open-frame ~400 kW V16 genset, modelled to be recognisable
-rather than schematic:
+The illustrative geometry is an open-frame ~400 kW V16 genset. Its engine layout
+differs from the inline-six simulation datasheet; it is not a dimensionally or
+mechanically faithful model of that machine:
 
 - **Skid** — channel-section side rails (web plus top and bottom flanges), five
   cross members and lifting lugs, carrying the base fuel tank
@@ -303,7 +310,7 @@ The geometry is generated — edit
 [`Assets/generate_generator_assets.py`](Assets/generate_generator_assets.py) and
 re-run it; never hand-edit `generator.usda` or `Powerhouse.usda`.
 
-Prim names in that script are load-bearing. `OpenUsdBindings.cs` drives
+Prim names in that script must remain stable. `OpenUsdBindings.cs` drives
 `Radiator/Fan`, `Radiator/Core`, `Exhaust/Stack`, the two gauge needles,
 `ControlPanel/RunLamp`, `FuelTank/Surface`, `AlarmRing` and the two engine halos
 **by path**, so renaming any of them silently unbinds it —

@@ -22,15 +22,15 @@ Native AOT.
   - [Why TUnit Instead of NUnit?](#why-tunit-instead-of-nunit)
   - [Test Fixture Pattern](#test-fixture-pattern)
 - [How to Build and Run](#how-to-build-and-run)
-  - [Publish the Native AOT Binary](#1-publish-the-native-aot-binary)
-  - [Run the Tests](#2-run-the-tests)
+  - [1. Publish the Native AOT Binary](#1-publish-the-native-aot-binary)
+  - [2. Run the Tests](#2-run-the-tests)
   - [Build + Run in a Single Step (Development)](#build--run-in-a-single-step-development)
 - [CI Integration](#ci-integration)
 - [Writing New AOT Tests](#writing-new-aot-tests)
-  - [Choose or Create a Test Class](#1-choose-or-create-a-test-class)
-  - [Use TUnit Attributes and Assertions](#2-use-tunit-attributes-and-assertions)
-  - [Keep Code AOT-Compatible](#3-keep-code-aot-compatible)
-  - [Handle Trimming Warnings](#4-handle-trimming-warnings)
+  - [1. Choose or Create a Test Class](#1-choose-or-create-a-test-class)
+  - [2. Use TUnit Attributes and Assertions](#2-use-tunit-attributes-and-assertions)
+  - [3. Keep Code AOT-Compatible](#3-keep-code-aot-compatible)
+  - [4. Handle Trimming Warnings](#4-handle-trimming-warnings)
 - [Troubleshooting](#troubleshooting)
   - [`'vswhere.exe' is not recognized` on Windows](#vswhereexe-is-not-recognized-on-windows)
   - [Publish Fails with Linker Errors](#publish-fails-with-linker-errors)
@@ -177,10 +177,10 @@ tests/Opc.Ua.Aot.Tests/
 ### Why TUnit Instead of NUnit?
 
 The project uses the [TUnit](https://tunit.dev/) test framework instead of
-NUnit. TUnit relies on **source generation** rather than runtime reflection for
-test discovery, which makes it fully compatible with Native AOT and the IL
-trimmer. NUnit (and most traditional .NET test frameworks) depend heavily on
-reflection, which is not supported in trimmed / AOT-published applications.
+NUnit. TUnit generates test-discovery code at compile time, avoiding
+unrestricted runtime discovery. Native AOT and trimming can support reflection
+when the required types and members are preserved; test code and dependencies
+must still be validated under Native AOT.
 
 ### Test Fixture Pattern
 
@@ -305,9 +305,10 @@ public class MyFeatureAotTests(AotTestFixture fixture)
   supported.
 - **Prefer concrete generic instantiations.** The trimmer must see every generic
   type combination at compile time.
-- **Annotate when necessary.** Use `[DynamicallyAccessedMembers]` or
-  `[RequiresUnreferencedCode]` attributes to preserve metadata the trimmer would
-  otherwise remove.
+- **Annotate when necessary.** Use `[DynamicallyAccessedMembers]` to declare
+  reflection requirements or `[DynamicDependency]` to preserve specific
+  dependencies. `[RequiresUnreferencedCode]` declares trimming incompatibility
+  and warns callers; it does not preserve metadata or make code trim-safe.
 
 ### 4. Handle Trimming Warnings
 
