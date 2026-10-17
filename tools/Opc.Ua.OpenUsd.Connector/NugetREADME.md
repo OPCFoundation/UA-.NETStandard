@@ -13,17 +13,17 @@ unchanged against the `MinimalRobotServer` sample or any other conforming server
 
 ## What it does
 
-```
-PumpDeviceIntegrationServer            (OPC UA server: PumpType + OpenUSD bindings)
-        │  Server/OpenUSD/Representations  (discovery)
-        ▼
-Opc.Ua.OpenUsd.Connector  ──►  UsdFileSink ──►  live.usda   (runtime override layer)
-                                          │  subLayers
-                                          ▼
-                                       stage.usda  =  live.usda  +  Plant.usda
-                                          │
-                                          ▼
-                                 usdview / NVIDIA Omniverse   (the rendered live pump)
+```mermaid
+flowchart TD
+    server["PumpDeviceIntegrationServer<br/>OPC UA server: PumpType + OpenUSD bindings"]
+    connector["Opc.Ua.OpenUsd.Connector"]
+    sink["UsdFileSink"]
+    live["live.usda<br/>Runtime override layer"]
+    stage["stage.usda = live.usda + Plant.usda"]
+    viewer["usdview / NVIDIA Omniverse<br/>Rendered live pump"]
+    server -->|Server/OpenUSD/Representations discovery| connector
+    connector --> sink --> live
+    live -->|subLayers| stage --> viewer
 ```
 
 The bridge starts at the well-known `Server/OpenUSD/Representations` registry (Part 1

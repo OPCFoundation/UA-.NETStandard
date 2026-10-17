@@ -136,15 +136,23 @@ do not include it and stay advertised.
 Everything below a top-level node follows the DI modular-device pattern
 (§6.3):
 
-```text
-DeviceSet
-├── PackingLine1              ScaleSystemType      (notifier)
-│   └── SubDevices
-│       └── Checkweigher1     CheckweigherType     (notifier, HasNotifier from PackingLine1)
-│           └── SubDevices
-│               ├── Infeed    FeederModuleType     (notifier, HasNotifier from Checkweigher1)
-│               └── Labeler   PrinterModuleType    (notifier, HasNotifier from Checkweigher1)
-└── AnalyticalBalance         LaboratoryScaleType  (notifier)
+```mermaid
+flowchart TD
+    devices["DeviceSet"]
+    line["PackingLine1<br/>ScaleSystemType (notifier)"]
+    sub1["SubDevices"]
+    check["Checkweigher1<br/>CheckweigherType (notifier)"]
+    sub2["SubDevices"]
+    infeed["Infeed<br/>FeederModuleType (notifier)"]
+    labeler["Labeler<br/>PrinterModuleType (notifier)"]
+    balance["AnalyticalBalance<br/>LaboratoryScaleType (notifier)"]
+    devices --> line --> sub1 --> check --> sub2
+    sub2 --> infeed
+    sub2 --> labeler
+    devices --> balance
+    line -.->|HasNotifier| check
+    check -.->|HasNotifier| infeed
+    check -.->|HasNotifier| labeler
 ```
 
 - **SupportedTypes.** The NodeSet's `SupportedTypes` folders carry no

@@ -15,9 +15,11 @@ Vision companion with an eye-in-hand camera parented to the flange, an
 in-address-space OpenUSD scene, and the frame tree the Robotics-Vision
 Addendum's example uses:
 
-```text
-world → robot_base → flange → gripper_tcp
-                          ↳ camera_eih
+```mermaid
+flowchart LR
+    world["world"] --> base["robot_base"] --> flange["flange"]
+    flange --> tcp["gripper_tcp"]
+    flange --> camera["camera_eih"]
 ```
 
 ```mermaid

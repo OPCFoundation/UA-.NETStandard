@@ -36,20 +36,19 @@ Transport (MQTT) brokers and REST APIs.
 
 ## Architecture
 
-```
-┌─────────────────┐     StartRequest      ┌────────────────────────┐
-│  OPC UA Client   │ ──────────────────► │  ApplicationsNodeManager │
-│  (or application)│ ◄────────────────── │  (GDS Server)            │
-│                  │     FinishRequest    │                          │
-│                  │ ──────────────────► │  ┌──────────────────────┐ │
-│                  │     Revoke          │  │ IKeyCredentialRequest │ │
-└─────────────────┘                      │  │       Store          │ │
-                                         │  └──────────┬───────────┘ │
-                                         │             │             │
-                                         │  ┌──────────▼───────────┐ │
-                                         │  │     ISecretStore     │ │
-                                         │  └──────────────────────┘ │
-                                         └────────────────────────────┘
+```mermaid
+flowchart LR
+    client["OPC UA Client<br/>(or application)"]
+    subgraph gds["GDS Server"]
+        manager["ApplicationsNodeManager"]
+        requests["IKeyCredentialRequestStore"]
+        secrets["ISecretStore"]
+        manager --> requests --> secrets
+    end
+    client -->|StartRequest| manager
+    manager -->|response| client
+    client -->|FinishRequest| manager
+    client -->|Revoke| manager
 ```
 
 ## Client API

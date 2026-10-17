@@ -1635,25 +1635,31 @@ requirement.
 
 Intents are a **DataType hierarchy**, not one Method per verb.
 
-```
-IntentDataType (abstract)
-├── MotionIntentDataType (abstract)
-│   ├── JointMoveIntentDataType        movej / MoveJ / PTP / J / MOVJ
-│   ├── LinearMoveIntentDataType       movel / MoveL / LIN / L / MOVL
-│   ├── CircularMoveIntentDataType     movec / MoveC / CIRC / C / MOVC
-│   ├── TrajectoryIntentDataType       a time-parameterised path, handed over whole
-│   ├── CartesianPathIntentDataType    a taught path with per-waypoint blending
-│   ├── ForceIntentDataType            move until contact
-│   └── ProcessIntentDataType (abstract)
-│       ├── ArcWeldIntentDataType          SpotWeldIntentDataType
-│       ├── DispenseIntentDataType         FastenIntentDataType
-│       └── PalletiseIntentDataType        SurfaceFinishIntentDataType
-├── GraspIntentDataType / ReleaseIntentDataType
-├── PickIntentDataType / PlaceIntentDataType
-├── ToolChangeIntentDataType
-├── SetOutputIntentDataType
-├── CallProgramIntentDataType
-└── WaitIntentDataType
+```mermaid
+flowchart LR
+    intent["IntentDataType (abstract)"]
+    motion["MotionIntentDataType (abstract)"]
+    process["ProcessIntentDataType (abstract)"]
+    intent --> motion
+    motion --> joint["JointMoveIntentDataType<br/>movej / MoveJ / PTP / J / MOVJ"]
+    motion --> linear["LinearMoveIntentDataType<br/>movel / MoveL / LIN / L / MOVL"]
+    motion --> circular["CircularMoveIntentDataType<br/>movec / MoveC / CIRC / C / MOVC"]
+    motion --> trajectory["TrajectoryIntentDataType<br/>Time-parameterised path, handed over whole"]
+    motion --> cartesian["CartesianPathIntentDataType<br/>Taught path with per-waypoint blending"]
+    motion --> force["ForceIntentDataType<br/>Move until contact"]
+    motion --> process
+    process --> arc["ArcWeldIntentDataType"]
+    process --> spot["SpotWeldIntentDataType"]
+    process --> dispense["DispenseIntentDataType"]
+    process --> fasten["FastenIntentDataType"]
+    process --> palletise["PalletiseIntentDataType"]
+    process --> finish["SurfaceFinishIntentDataType"]
+    intent --> grasp["GraspIntentDataType / ReleaseIntentDataType"]
+    intent --> pick["PickIntentDataType / PlaceIntentDataType"]
+    intent --> tool["ToolChangeIntentDataType"]
+    intent --> output["SetOutputIntentDataType"]
+    intent --> program["CallProgramIntentDataType"]
+    intent --> wait["WaitIntentDataType"]
 ```
 
 Three consequences follow, and each is why the shape was chosen:
@@ -1801,10 +1807,15 @@ work in advance and still change what has not yet been committed.
 Every step carries `Released`. The released steps form a prefix called the **base**; the rest form the
 **horizon**.
 
-```
-Step 0        Step 1        Step 2   │   Step 3        Step 4
-released      released      released │   horizon       horizon
-└────────── base: committed ─────────┘   └── revisable ──┘
+```mermaid
+flowchart LR
+    subgraph base["Base: committed"]
+        step0["Step 0<br/>released"] --> step1["Step 1<br/>released"] --> step2["Step 2<br/>released"]
+    end
+    subgraph horizon["Horizon: revisable"]
+        step3["Step 3<br/>horizon"] --> step4["Step 4<br/>horizon"]
+    end
+    step2 --> step3
 ```
 
 The base is committed and immutable: the server assumes every released step is executing or already

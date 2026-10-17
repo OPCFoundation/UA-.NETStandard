@@ -413,8 +413,9 @@ A partial anchor is never published: a wrong position is worse than no position.
 `UsdaReader` and `UsdaWriter` convert between `.usda` and the scene document model, and
 `UsdSceneExporter` reads a materialized address space back out, so the full round trip is
 
-```text
-.usda → UsdStage → address space → UsdStage → .usda
+```mermaid
+flowchart LR
+    source[".usda"] --> first["UsdStage"] --> address["Address space"] --> second["UsdStage"] --> output[".usda"]
 ```
 
 The contract (§7.4) is **composed-scene lossless**: the exported stage is prim-for-prim,

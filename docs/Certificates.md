@@ -204,93 +204,38 @@ The chain building process constructs a complete certificate chain from a leaf c
 
 #### Chain Building Algorithm Diagram
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Start Chain Building                        │
-│                   Input: Certificate Chain                      │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-                ┌────────────────────────────┐
-                │  Current = certificates[0] │
-                │  (Leaf Certificate)        │
-                └────────────┬───────────────┘
-                             │
-                             ▼
-                ┌────────────────────────────┐
-                │  Create untrusted list     │
-                │  from certificates[1..n]   │
-                └────────────┬───────────────┘
-                             │
-                ┌────────────▼───────────────┐
-                │ Loop: Find Issuer Chain    │
-                └────────────┬───────────────┘
-                             │
-                ┌────────────▼───────────────────────────┐
-                │ Is Current certificate self-signed?    │
-                └─┬─────────────────────────────────┬────┘
-                  │ YES                             │ NO
-                  │                                 │
-                  ▼                                 ▼
-         ┌────────────────┐          ┌─────────────────────────────┐
-         │ Chain Complete │          │ Search for Issuer (Step 1)  │
-         │ Return Result  │          │ Location: Trusted Store     │
-         └────────────────┘          └──────────┬──────────────────┘
-                                                 │
-                                     ┌───────────▼──────────────┐
-                                     │ Issuer Found in Trusted? │
-                                     └─┬─────────────────────┬──┘
-                                       │ YES                 │ NO
-                                       │                     │
-                                       ▼                     ▼
-                          ┌────────────────────┐  ┌──────────────────────────┐
-                          │ Mark as Trusted    │  │ Search for Issuer (Step 2)│
-                          │ Check Revocation   │  │ Location: Issuer Store    │
-                          └──────┬─────────────┘  └────────┬─────────────────┘
-                                 │                         │
-                                 │             ┌───────────▼──────────────┐
-                                 │             │ Issuer Found in Issuer?  │
-                                 │             └─┬─────────────────────┬──┘
-                                 │               │ YES                 │ NO
-                                 │               │                     │
-                                 │               ▼                     ▼
-                                 │    ┌──────────────────┐  ┌──────────────────────────┐
-                                 │    │ Check Revocation │  │ Search for Issuer (Step 3)│
-                                 │    └────────┬─────────┘  │ Location: Untrusted Certs │
-                                 │             │            └────────┬─────────────────┘
-                                 │             │                     │
-                                 │             │         ┌───────────▼──────────────┐
-                                 │             │         │ Issuer Found in Chain?   │
-                                 │             │         └─┬─────────────────────┬──┘
-                                 │             │           │ YES                 │ NO
-                                 │             │           │                     │
-                                 │             │           ▼                     ▼
-                                 │             │  ┌──────────────────┐  ┌──────────────┐
-                                 │             │  │ Check Revocation │  │ Chain Broken │
-                                 │             │  └────────┬─────────┘  │ Return Result│
-                                 │             │           │            └──────────────┘
-                                 │             │           │
-                                 └─────────────┴───────────┘
-                                               │
-                                 ┌─────────────▼──────────────┐
-                                 │ Check for Circular Chain   │
-                                 │ (Duplicate Thumbprint)     │
-                                 └─┬────────────────────────┬─┘
-                                   │ DUPLICATE              │ UNIQUE
-                                   │                        │
-                                   ▼                        ▼
-                          ┌────────────────┐    ┌──────────────────────┐
-                          │ Chain Complete │    │ Add Issuer to List   │
-                          │ Return Result  │    │ Current = Issuer Cert│
-                          └────────────────┘    └──────────┬───────────┘
-                                                            │
-                                                            │
-                                        ┌───────────────────┘
-                                        │ Loop Back to Top
-                                        └──────────────────────┐
-                                                               │
-                                                               ▼
-                                                    (Continue Building Chain)
+```mermaid
+flowchart TD
+    start["Start chain building<br/>Input: certificate chain"]
+    leaf["Current = certificates[0]<br/>(leaf certificate)"]
+    untrusted["Create untrusted list<br/>from certificates[1..n]"]
+    loop["Find issuer chain"]
+    selfSigned{"Is Current self-signed?"}
+    complete["Chain complete<br/>Return result"]
+    trustedSearch["Search for issuer: step 1<br/>Trusted store"]
+    trustedFound{"Issuer found in trusted store?"}
+    trustedCheck["Mark as trusted<br/>Check revocation"]
+    issuerSearch["Search for issuer: step 2<br/>Issuer store"]
+    issuerFound{"Issuer found in issuer store?"}
+    issuerCheck["Check revocation"]
+    chainSearch["Search for issuer: step 3<br/>Untrusted certificates"]
+    chainFound{"Issuer found in chain?"}
+    chainCheck["Check revocation"]
+    broken["Chain broken<br/>Return result"]
+    circular{"Circular chain?<br/>Duplicate thumbprint"}
+    add["Add issuer to list<br/>Current = issuer certificate"]
+    start --> leaf --> untrusted --> loop --> selfSigned
+    selfSigned -->|Yes| complete
+    selfSigned -->|No| trustedSearch --> trustedFound
+    trustedFound -->|Yes| trustedCheck --> circular
+    trustedFound -->|No| issuerSearch --> issuerFound
+    issuerFound -->|Yes| issuerCheck --> circular
+    issuerFound -->|No| chainSearch --> chainFound
+    chainFound -->|Yes| chainCheck --> circular
+    chainFound -->|No| broken
+    circular -->|Duplicate| complete
+    circular -->|Unique| add
+    add -->|Continue building chain| loop
 ```
 
 #### Detailed Algorithm Steps

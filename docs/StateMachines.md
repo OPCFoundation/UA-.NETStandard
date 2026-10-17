@@ -322,20 +322,26 @@ when the guard starts allowing the transition.
 
 For every transition the dispatcher fires handlers in this order:
 
-```
-DispatchBefore:
-  builder guards (in registration order)
-   ↓ veto on any failure
-  [original OnBeforeTransition, if any]
-   ↓ framework state update (LastState ← CurrentState, CurrentState ← newState)
-DispatchAfter:
-  [original OnAfterTransition, if any]
-   ↓
-  OnExitState(from)   (each registered handler, in order)
-   ↓
-  OnTransition(from, to)   (each observer, in order)
-   ↓
-  OnEnterState(to)   (each registered handler, in order)
+```mermaid
+flowchart TD
+    subgraph before["DispatchBefore"]
+        guards["Builder guards<br/>In registration order"]
+        success{"All guards succeed?"}
+        veto["Veto on any failure"]
+        originalBefore["Original OnBeforeTransition, if any"]
+        guards --> success
+        success -->|No| veto
+        success -->|Yes| originalBefore
+    end
+    update["Framework state update<br/>LastState = CurrentState<br/>CurrentState = newState"]
+    subgraph after["DispatchAfter"]
+        originalAfter["Original OnAfterTransition, if any"]
+        exit["OnExitState(from)<br/>Each registered handler, in order"]
+        transition["OnTransition(from, to)<br/>Each observer, in order"]
+        enter["OnEnterState(to)<br/>Each registered handler, in order"]
+        originalAfter --> exit --> transition --> enter
+    end
+    originalBefore --> update --> originalAfter
 ```
 
 Builder guards run **before** any pre-existing
@@ -492,10 +498,11 @@ diagnostics.
 The resulting address space follows Part 16 §4.4.16 and the standard
 NodeSets:
 
-```
-LimitAlarm            --HasComponent-->       Active   (StateType)
-Active                --HasSubStateMachine--> LimitState
-LimitAlarm            --HasComponent-->       LimitState
+```mermaid
+flowchart LR
+    alarm["LimitAlarm"] -->|HasComponent| active["Active (StateType)"]
+    active -->|HasSubStateMachine| limit["LimitState"]
+    alarm -->|HasComponent| limit
 ```
 
 `HasSubStateMachine` is a **non-hierarchical** reference, so it

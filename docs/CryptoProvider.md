@@ -136,8 +136,9 @@ Exporting such a certificate as PKCS#12 throws rather than silently producing a 
 Real deployments mix sources. Selection is therefore a resolution over three discriminators — purpose,
 security policy and certificate type — with the most specific registration winning:
 
-```
-(purpose, policy) → purpose → registered default → platform
+```mermaid
+flowchart LR
+    exact["(purpose, policy)"] --> purpose["purpose"] --> registered["registered default"] --> platform["platform"]
 ```
 
 ```csharp

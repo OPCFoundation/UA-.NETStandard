@@ -190,45 +190,36 @@ runtime through an in-process standard OPC UA address space, and
 `Opc.Ua.PubSub.Adapter` optionally bridges configured DataSets and
 Actions to an external OPC UA server over a managed client session.
 
-```text
-┌──────────────────────────────────┐      ┌──────────────────────────────────┐      ┌──────────────────────┐
-│ Optional in-process server       │      │ Optional external-server adapter │      │ External OPC UA      │
-│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀───▶│ server endpoint      │
-│ PublishSubscribe Object ·        │      │ Sources · sinks · Action handler │      │ Read / Write / Call  │
-│ methods · diagnostics binding    │      │ over ManagedSession              │      └──────────────────────┘
-└──────────────────────────────────┘      └──────────────────────────────────┘
-                 │ IPubSubApplication                     │ Sources / sinks / Action handler
-                 ▼                                         ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                            Opc.Ua.PubSub                           │
-│                                                                    │
-│  Application/  PubSubApplication · PubSubApplicationBuilder        │
-│                IPubSubApplication · MetaDataPublisher              │
-│  Configuration/ PubSubConfigurationSnapshot · validator · XML      │
-│  Connections/  IPubSubConnection · UaPubSubConnection              │
-│  Groups/       WriterGroup · ReaderGroup                           │
-│  DataSets/     Published / Subscribed / Source / Sink              │
-│  Encoding/     UADP, JSON encoders/decoders, Discovery, Action     │
-│  MetaData/     IDataSetMetaDataRegistry                            │
-│  Scheduling/   IPubSubScheduler · PubSubSchedule                   │
-│  Security/     UadpSecurityWrapper · KeyRing · NonceLayout · KAT   │
-│  Security/Sks/ ISecurityKeyService · OpcUaSecurityKeyServiceClient │
-│                InMemoryPubSubKeyServiceServer · PullSecurityKey    │
-│  StateMachine/ PubSubStateMachine                                  │
-│  Transports/   IPubSubTransportFactory · IPubSubTransport          │
-│  DependencyInjection/ AddPubSub · AddPubSubSecurityKeyService*     │
-└────────────────────────────────────────────────────────────────────┘
-                              ▲
-                              │ IPubSubTransportFactory
-                              │
-┌────────────────────────────────────────────────────────────────────┐
-│ Transport assemblies                                               │
-│ Opc.Ua.PubSub.Udp     UDP                                          │
-│ Opc.Ua.PubSub.Eth     Ethernet (Layer 2 UADP)                      │
-│ Opc.Ua.PubSub.Mqtt    MQTTnet 4 / 5                                │
-│ Opc.Ua.PubSub.Kafka   Dekaf / Confluent                            │
-└────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    server["Optional in-process server<br/>Opc.Ua.PubSub.Server<br/>PublishSubscribe Object, methods and diagnostics binding"]
+    adapter["Optional external-server adapter<br/>Opc.Ua.PubSub.Adapter<br/>Sources, sinks and Action handler over ManagedSession"]
+    endpoint["External OPC UA server endpoint<br/>Read / Write / Call"]
+    runtime["Opc.Ua.PubSub<br/>Application and runtime services"]
+    transports["Transport assemblies<br/>Opc.Ua.PubSub.Udp: UDP<br/>Opc.Ua.PubSub.Eth: Ethernet (Layer 2 UADP)<br/>Opc.Ua.PubSub.Mqtt: MQTTnet 4 / 5<br/>Opc.Ua.PubSub.Kafka: Dekaf / Confluent"]
+    server -->|IPubSubApplication| runtime
+    adapter -->|Sources / sinks / Action handler| runtime
+    endpoint <--> adapter
+    transports -->|IPubSubTransportFactory| runtime
 ```
+
+The runtime assembly contains these areas:
+
+| Area | Types and services |
+| --- | --- |
+| Application | `PubSubApplication`, `PubSubApplicationBuilder`, `IPubSubApplication`, `MetaDataPublisher` |
+| Configuration | `PubSubConfigurationSnapshot`, validator, XML |
+| Connections | `PubSubConnection`, `UaPubSubConnection` |
+| Groups | `WriterGroup`, `ReaderGroup` |
+| DataSets | Published, Subscribed, Source, Sink |
+| Encoding | UADP and JSON encoders/decoders, Discovery, Action |
+| MetaData | `IDataSetMetaDataRegistry` |
+| Scheduling | `IPubSubScheduler`, `PubSubSchedule` |
+| Security | `UadpSecurityWrapper`, `KeyRing`, `NonceLayout`, KAT |
+| Security/Sks | `ISecurityKeyService`, `OpcUaSecurityKeyServiceClient`, `InMemoryPubSubKeyServiceServer`, `PullSecurityKey` |
+| StateMachine | `PubSubStateMachine` |
+| Transports | `IPubSubTransportFactory`, `IPubSubTransport` |
+| DependencyInjection | `AddPubSub`, `AddPubSubSecurityKeyService*` |
 
 The **state machine** (`PubSubStateMachine`,
 [Part 14 §6.2.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.1))
@@ -1048,28 +1039,20 @@ Use transcoders when a deployment needs an in-process PubSub gateway: for exampl
 
 The transcoding pipeline has four stages:
 
-```text
-received frame + decoded message
-        │
-        ▼
-TranscodeInput(Message, SourceFrame, SourceFrameSecured)
-        │
-        ├─ raw-frame fast path for identity same-encoding routes
-        │
-        ▼
-decoded PubSubNetworkMessage intermediate representation
-        │
-        ▼
-ordered IPubSubMessageTransform pipeline
-        │
-        ▼
-INetworkMessageProfileProjector (UADP ↔ JSON concrete record projection)
-        │
-        ▼
-encoder + TranscodeSecurity (target re-securing where applicable)
-        │
-        ▼
-TranscodeResult(Frames, Messages, FastPath)
+```mermaid
+flowchart TD
+    frame["Received frame + decoded message"]
+    input["TranscodeInput<br/>(Message, SourceFrame, SourceFrameSecured)"]
+    fast["Raw-frame fast path<br/>Identity same-encoding routes"]
+    intermediate["Decoded PubSubNetworkMessage<br/>intermediate representation"]
+    transforms["Ordered IPubSubMessageTransform pipeline"]
+    projector["INetworkMessageProfileProjector<br/>UADP / JSON concrete record projection"]
+    encoder["Encoder + TranscodeSecurity<br/>Target re-securing where applicable"]
+    result["TranscodeResult<br/>(Frames, Messages, FastPath)"]
+    frame --> input
+    input --> fast
+    input --> intermediate --> transforms --> projector --> encoder --> result
+    fast --> result
 ```
 
 `PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP or JSON record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.

@@ -1205,9 +1205,13 @@ the `OnNodeAdded` handler of its own node.
 
 ### Opting in
 
-Add the generator analyzer to your project through
-`OPCFoundation.Opc.Ua.SourceGeneration.props` and choose **one**
-of the two opt-in modes:
+Reference the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` NuGet package.
+NuGet imports the package's build props automatically; no explicit import is needed.
+Only the in-repository `ProjectReference` setup requires an explicit import of
+`OPCFoundation.Opc.Ua.SourceGeneration.props`; see
+[Project Reference (internal development)](SourceGeneratedDataTypes.md#project-reference-internal-development).
+
+Then choose **one** of the two opt-in modes:
 
 #### Per-class opt-in via `[NodeManager]` (recommended)
 
@@ -2392,8 +2396,7 @@ automatically when `Configure` completes; see
 `INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
 new `BaseObjectState` child under the current node and returns a typed
 builder for the new object. NodeIds follow the
-owning NodeManager's assignment policy; do not assume a fixed parent-and-child
-string format. See [NodeId assignment](NodeIdAssignment.md) for the available
+owning NodeManager's assignment policy. See [NodeId assignment](NodeIdAssignment.md) for the available
 modes and custom-factory behavior. The helper registers the created node with the owning
 `AsyncCustomNodeManager`, so the object is immediately browseable and
 addressable by NodeId.

@@ -22,30 +22,23 @@ the names the consumer actually uses.
 
 ## Pipeline
 
-```
-┌─────────────────────────────┐
-│ Consumer source has         │       ┌────────────────────┐
-│   new Int32Collection {}    │ ─────▶│ Syntactic filter   │  match: ends in "Collection"
-│   DataValueCollection x;    │       │ (cheap, every kb)  │  in type position
-│   WaterPumpCollection wps;  │       └────────┬───────────┘
-│   NeverSeenCollection nss;  │                │
-└─────────────────────────────┘                ▼
-                                  ┌──────────────────────────┐
-                                  │ Semantic transform       │
-                                  │                          │
-                                  │ if symbol binds → skip   │
-                                  │ else:                    │
-                                  │   1. catalog override?   │  (rename cases only)
-                                  │   2. semantic lookup?    │  (Compilation.GetSymbolsWithName)
-                                  │   3. else MIG01          │
-                                  └────────┬─────────────────┘
-                                           │
-                                           ▼
-                                  ┌──────────────────────────┐
-                                  │ Dedup + emit             │
-                                  │ <Name>Collection.g.cs    │
-                                  │ per unique entry         │
-                                  └──────────────────────────┘
+```mermaid
+flowchart TD
+    source["Consumer source<br/>new Int32Collection {}<br/>DataValueCollection x;<br/>WaterPumpCollection wps;<br/>NeverSeenCollection nss;"]
+    filter["Syntactic filter<br/>(cheap, every kb)<br/>Match: ends in Collection in type position"]
+    binds{"Does the symbol bind?"}
+    skip["Skip"]
+    catalog{"Catalog override?<br/>(rename cases only)"}
+    lookup{"Semantic lookup?<br/>Compilation.GetSymbolsWithName"}
+    error["MIG01"]
+    emit["Deduplicate and emit<br/>&lt;Name&gt;Collection.g.cs<br/>per unique entry"]
+    source --> filter --> binds
+    binds -->|Yes| skip
+    binds -->|No| catalog
+    catalog -->|Yes| emit
+    catalog -->|No| lookup
+    lookup -->|Yes| emit
+    lookup -->|No| error
 ```
 
 ### 1. Catalog override (rename cases only)

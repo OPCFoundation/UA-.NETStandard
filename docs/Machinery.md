@@ -101,14 +101,16 @@ The Machinery models compose types from these companion specifications:
 
 The model reference graph:
 
-```
-Opc.Ua.Core
- └── Opc.Ua.Di ──┬── Opc.Ua.IA ──┬── Opc.Ua.Robotics
-                 │               ├── Opc.Ua.ECM ─── Opc.Ua.Machinery.Energy
-                 │               └── Opc.Ua.Machinery
-                 └── Opc.Ua.PADIM (+ IRDI) ─── Opc.Ua.Machinery.ProcessValues
-Opc.Ua.Core ─── Opc.Ua.Machinery.Result
-Opc.Ua.ISA95 ─── Opc.Ua.Machinery.Jobs
+```mermaid
+flowchart LR
+    core["Opc.Ua.Core"] --> di["Opc.Ua.Di"]
+    di --> ia["Opc.Ua.IA"]
+    ia --> robotics["Opc.Ua.Robotics"]
+    ia --> ecm["Opc.Ua.ECM"] --> energy["Opc.Ua.Machinery.Energy"]
+    ia --> machinery["Opc.Ua.Machinery"]
+    di --> padim["Opc.Ua.PADIM (+ IRDI)"] --> values["Opc.Ua.Machinery.ProcessValues"]
+    core --> result["Opc.Ua.Machinery.Result"]
+    isa["Opc.Ua.ISA95"] --> jobs["Opc.Ua.Machinery.Jobs"]
 ```
 
 ## Quick start — server
@@ -526,12 +528,12 @@ reports a response while the order keeps running — progress such as
 OPC 40001-4 is an extension of the OPC 40001-1 `Monitoring` building block
 rather than a block of its own (§6.1), and its structure is three levels deep:
 
-```
-Monitoring
-  Consumption                    ← OPC 40001-1 MonitoringType
-    CompressedAir                ← well-known FolderType browse name, §9.1
-      Main                       ← well-known EnergyMeasurementType name, §9.2
-      ClampingCylinders          ← further metering points
+```mermaid
+flowchart TD
+    monitoring["Monitoring"] --> consumption["Consumption<br/>OPC 40001-1 MonitoringType"]
+    consumption --> air["CompressedAir<br/>Well-known FolderType browse name, section 9.1"]
+    air --> main["Main<br/>Well-known EnergyMeasurementType name, section 9.2"]
+    air --> cylinders["ClampingCylinders<br/>Further metering points"]
 ```
 
 A *metering point* is an OPC 34100 `EnergyMeasurementType` object that

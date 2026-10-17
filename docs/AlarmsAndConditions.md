@@ -481,20 +481,24 @@ parent record and exposes one init-only property for each declared field.
 The standard NodeSet produces the following hierarchy, abridged to show
 the most commonly observed types:
 
-```
-EventRecord                              (anchor; hand-written)
-└── BaseEventTypeRecord                  (i=2041)
-    └── ConditionTypeRecord              (i=2782)
-        ├── DialogConditionTypeRecord    (i=2830)
-        └── AcknowledgeableConditionTypeRecord
-            └── AlarmConditionTypeRecord
-                ├── LimitAlarmTypeRecord
-                │   ├── ExclusiveLimitAlarmTypeRecord
-                │   └── NonExclusiveLimitAlarmTypeRecord
-                ├── DiscreteAlarmTypeRecord
-                │   └── OffNormalAlarmTypeRecord
-                │       └── CertificateExpirationAlarmTypeRecord
-                └── DiscrepancyAlarmTypeRecord
+```mermaid
+classDiagram
+    EventRecord <|-- BaseEventTypeRecord
+    BaseEventTypeRecord <|-- ConditionTypeRecord
+    ConditionTypeRecord <|-- DialogConditionTypeRecord
+    ConditionTypeRecord <|-- AcknowledgeableConditionTypeRecord
+    AcknowledgeableConditionTypeRecord <|-- AlarmConditionTypeRecord
+    AlarmConditionTypeRecord <|-- LimitAlarmTypeRecord
+    LimitAlarmTypeRecord <|-- ExclusiveLimitAlarmTypeRecord
+    LimitAlarmTypeRecord <|-- NonExclusiveLimitAlarmTypeRecord
+    AlarmConditionTypeRecord <|-- DiscreteAlarmTypeRecord
+    DiscreteAlarmTypeRecord <|-- OffNormalAlarmTypeRecord
+    OffNormalAlarmTypeRecord <|-- CertificateExpirationAlarmTypeRecord
+    AlarmConditionTypeRecord <|-- DiscrepancyAlarmTypeRecord
+    note for EventRecord "Hand-written anchor"
+    note for BaseEventTypeRecord "i=2041"
+    note for ConditionTypeRecord "i=2782"
+    note for DialogConditionTypeRecord "i=2830"
 ```
 
 Vendor models that derive from these types automatically get their own

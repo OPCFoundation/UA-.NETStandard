@@ -681,11 +681,15 @@ service calls. `XRegistryClient` is an **abstract** base carrying the xRegistry-
 `GenericXRegistryClient` is the sealed implementation for callers that only need the base model,
 and a domain registry client derives from the same base:
 
-```text
-abstract XRegistryClient
-   ├── sealed GenericXRegistryClient   // any registry namespace
-   ├── SchemaRegistryClient  (domain)
-   └── WotRegistryClient     (domain)
+```mermaid
+classDiagram
+    XRegistryClient <|-- GenericXRegistryClient
+    XRegistryClient <|-- SchemaRegistryClient
+    XRegistryClient <|-- WotRegistryClient
+    note for XRegistryClient "Abstract"
+    note for GenericXRegistryClient "Sealed; any registry namespace"
+    note for SchemaRegistryClient "Domain registry"
+    note for WotRegistryClient "Domain registry"
 ```
 
 Resolving a resource from an id received on the wire is one client API call, which may

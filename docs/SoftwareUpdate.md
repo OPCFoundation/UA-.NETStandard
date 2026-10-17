@@ -31,25 +31,30 @@ address-space surface it creates, and how clients drive it.
 `WithSoftwareUpdate(...)` materialises one
 `SoftwareUpdateType` instance per device with the following children:
 
-```
-{device}                              (ComponentState / DeviceState)
-└─ SoftwareUpdate                     SoftwareUpdateType    (OPC-DI i=1)
-   ├─ Loading                         {Package|Direct|Cached}LoadingType
-   │                                   (default: PackageLoadingType i=137)
-   ├─ PrepareForUpdate                PrepareForUpdateStateMachineType (i=213)
-   │   ├─ CurrentState
-   │   ├─ Prepare                     (Method)
-   │   ├─ Abort                       (Method)
-   │   └─ Resume                      (Method)
-   ├─ Installation                    InstallationStateMachineType (i=249)
-   │   ├─ CurrentState
-   │   ├─ InstallSoftwarePackage      (InstallSoftwarePackageMethodType i=389)
-   │   ├─ InstallFiles                (InstallFilesMethodType)
-   │   ├─ Uninstall                   (Method)
-   │   └─ Resume                      (Method)
-   ├─ PowerCycle                      PowerCycleStateMachineType (i=285)
-   └─ Confirmation                    ConfirmationStateMachineType (i=307)
-       └─ Confirm                     (Method)
+```mermaid
+flowchart LR
+    device["Device<br/>ComponentState / DeviceState"]
+    update["SoftwareUpdate<br/>SoftwareUpdateType (OPC-DI i=1)"]
+    loading["Loading<br/>Package / Direct / Cached LoadingType<br/>Default: PackageLoadingType i=137"]
+    prepare["PrepareForUpdate<br/>PrepareForUpdateStateMachineType (i=213)"]
+    install["Installation<br/>InstallationStateMachineType (i=249)"]
+    cycle["PowerCycle<br/>PowerCycleStateMachineType (i=285)"]
+    confirmation["Confirmation<br/>ConfirmationStateMachineType (i=307)"]
+    device --> update
+    update --> loading
+    update --> prepare
+    prepare --> ps["CurrentState"]
+    prepare --> pm["Prepare (Method)"]
+    prepare --> pa["Abort (Method)"]
+    prepare --> pr["Resume (Method)"]
+    update --> install
+    install --> is["CurrentState"]
+    install --> package["InstallSoftwarePackage<br/>(InstallSoftwarePackageMethodType i=389)"]
+    install --> files["InstallFiles<br/>(InstallFilesMethodType)"]
+    install --> uninstall["Uninstall (Method)"]
+    install --> resume["Resume (Method)"]
+    update --> cycle
+    update --> confirmation --> confirm["Confirm (Method)"]
 ```
 
 Choose the loading subtype with one of these methods:

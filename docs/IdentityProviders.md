@@ -8,23 +8,17 @@ and the identity-provider handshakes in
 
 The design is intentionally **symmetric**:
 
-```
-                 ┌──────────────────────────────────────────────┐
-                 │            Opc.Ua.Core / Opc.Ua.Identity     │
-                 │  (shared interfaces, no behaviour change)    │
-                 └──────────────────────────────────────────────┘
-                              ▲                       ▲
-              ┌───────────────┘                       └───────────────┐
-              │                                                       │
-   IClientIdentityProvider                                IUserTokenAuthenticator
-   IAccessTokenProvider                                   IServerIdentityRegistry
-   AuthorizationServerMetadata                            ITokenIssuer
-              │                                                       │
-   Used by:                                              Used by:
-     ManagedSession,                                       SessionManager
-     ConsoleReferenceClient                                ReferenceServer
-     custom Entra/OIDC providers                           JwtAuthenticator, X509Authenticator
-     custom Windows/AspNetCore providers                   AuthorizationServiceType
+```mermaid
+flowchart TB
+    shared["Opc.Ua.Core / Opc.Ua.Identity<br/>Shared interfaces, no behaviour change"]
+    client["IClientIdentityProvider<br/>IAccessTokenProvider<br/>AuthorizationServerMetadata"]
+    server["IUserTokenAuthenticator<br/>IServerIdentityRegistry<br/>ITokenIssuer"]
+    clientUsers["ManagedSession<br/>ConsoleReferenceClient<br/>Custom Entra/OIDC providers<br/>Custom Windows/AspNetCore providers"]
+    serverUsers["SessionManager<br/>ReferenceServer<br/>JwtAuthenticator, X509Authenticator<br/>AuthorizationServiceType"]
+    client --> shared
+    server --> shared
+    clientUsers -->|uses| client
+    serverUsers -->|uses| server
 ```
 
 The model **does not replace** the existing

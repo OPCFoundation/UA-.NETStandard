@@ -46,17 +46,23 @@ store concepts, this guide for current APIs, and the
 
 The `CertificateManager` is composed of focused interfaces. Consumers depend only on the slice they need:
 
-```
-ICertificateManager (composite)
-├── ICertificateRegistry         — "What certificates do I have?"
-├── ICertificateTrustListManager — "Which stores exist?"
-├── ICertificateValidatorEx      — "Is this certificate trusted?"
-├── ICertificateLifecycle        — "What changed?"
-└── ITrustListFileAccess         — "Read/write trust-list blobs"
-
-Standalone (no CertificateManager dependency):
-├── ICertificateFactory          — "Create from raw material"
-└── ICertificateIssuer           — "Sign as a CA"
+```mermaid
+flowchart TB
+    manager["ICertificateManager (composite)"]
+    registry["ICertificateRegistry<br/>What certificates do I have?"]
+    trust["ICertificateTrustListManager<br/>Which stores exist?"]
+    validator["ICertificateValidatorEx<br/>Is this certificate trusted?"]
+    lifecycle["ICertificateLifecycle<br/>What changed?"]
+    files["ITrustListFileAccess<br/>Read/write trust-list blobs"]
+    manager --> registry
+    manager --> trust
+    manager --> validator
+    manager --> lifecycle
+    manager --> files
+    subgraph standalone["Standalone (no CertificateManager dependency)"]
+        factory["ICertificateFactory<br/>Create from raw material"]
+        issuer["ICertificateIssuer<br/>Sign as a CA"]
+    end
 ```
 
 ## Quick Start

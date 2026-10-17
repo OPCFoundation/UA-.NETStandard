@@ -99,11 +99,14 @@ running while the simulation says it is stopped, and nothing at run time notices
 `GeneratorStateMachineType` is mandatory on the type, so it already exists; the
 sample attaches behaviour to it in lifecycle mode rather than defining states:
 
-```
-Off ──▶ Ready ──▶ Starting ──▶ Warmup ──▶ Running ──┬──▶ Loaded ──▶ Cooldown ──▶ Stopping ──▶ Off
-                     │                              └──▶ Synchronizing ──▶ Paralleled ──▶ Loaded
-                     ▼
-                   Fault ──▶ Off                 any running state ──▶ Fault / EmergencyStopped ──▶ Off
+```mermaid
+flowchart LR
+    off["Off"] --> ready["Ready"] --> starting["Starting"] --> warmup["Warmup"] --> running["Running"]
+    running --> loaded["Loaded"] --> cooldown["Cooldown"] --> stopping["Stopping"] --> off
+    running --> syncing["Synchronizing"] --> paralleled["Paralleled"] --> loaded
+    starting --> fault["Fault"] --> off
+    any["Any running state"] --> fault
+    any --> emergency["EmergencyStopped"] --> off
 ```
 
 Twelve states, twenty-two declared transitions. The first set energises a dead bus
