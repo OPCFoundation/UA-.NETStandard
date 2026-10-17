@@ -28,9 +28,13 @@
  * ======================================================================*/
 
 #if NET10_0
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Server;
 using NUnit.Framework;
+using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Tools.Tests.Mcp
@@ -41,6 +45,79 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private const string kConnectSessionName = "connection-tools-connect";
         private const string kDisconnectSessionName = "connection-tools-disconnect";
         private const string kUnknownSessionName = "connection-tools-unknown";
+
+        /// <summary>
+        /// Connection schemas stay bounded without removing the established anonymous and username arguments.
+        /// </summary>
+        [Test]
+        public void ConnectionCataloguePreservesLegacyArgumentsWithinTheGradingLimit()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUaMcpCore();
+            services.AddMcpServer().WithOpcUaConnectionTools();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            McpServerTool[] tools = provider.GetServices<McpServerTool>().ToArray();
+
+            Assert.That(tools.Select(tool => tool.ProtocolTool.Name), Is.Unique);
+            foreach (McpServerTool tool in tools)
+            {
+                JsonElement properties = tool.ProtocolTool.InputSchema.GetProperty("properties");
+                Assert.That(properties.EnumerateObject().ToArray(), Has.Length.LessThanOrEqualTo(8),
+                    tool.ProtocolTool.Name);
+            }
+            JsonElement connect = tools.Single(tool => tool.ProtocolTool.Name == "Connect").ProtocolTool.InputSchema;
+            string[] legacyArguments =
+                ["endpointUrl", "securityMode", "securityPolicy", "authType", "username", "password",
+                    "autoAcceptCerts", "name"];
+            string[] required = ["endpointUrl"];
+            Assert.That(connect.GetProperty("properties").EnumerateObject().Select(property => property.Name),
+                Is.EquivalentTo(legacyArguments));
+            Assert.That(connect.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EquivalentTo(required));
+        }
+
+        /// <summary>
+        /// Certificate login advertises only an approved identity reference and keeps trust bypass out of its schema.
+        /// </summary>
+        [Test]
+        public void CertificateConnectionCatalogueUsesARequiredHostIdentity()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUaMcpCore();
+            services.AddMcpServer().WithOpcUaConnectionTools();
+            using ServiceProvider provider = services.BuildServiceProvider();
+            JsonElement schema = provider.GetServices<McpServerTool>()
+                .Single(tool => tool.ProtocolTool.Name == "ConnectCertificate").ProtocolTool.InputSchema;
+            string[] arguments = ["endpointUrl", "certificateIdentity", "securityMode", "securityPolicy", "name"];
+            string[] required = ["endpointUrl", "certificateIdentity"];
+
+            Assert.That(schema.GetProperty("properties").EnumerateObject().Select(property => property.Name),
+                Is.EquivalentTo(arguments));
+            Assert.That(schema.GetProperty("required").EnumerateArray().Select(value => value.GetString()),
+                Is.EquivalentTo(required));
+        }
+
+        /// <summary>
+        /// The certificate tool resolves only configured identities and never falls back to anonymous access.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("not-configured")]
+        public async Task CertificateConnectionRejectsUnconfiguredIdentityAsync(string identity)
+        {
+            const string sessionName = "connection-tools-certificate";
+            string json = await ConnectionTools.ConnectCertificateAsync(
+                McpTestEnvironment.SessionManager,
+                McpTestEnvironment.ServerUrl,
+                identity,
+                name: sessionName).ConfigureAwait(false);
+
+            using JsonDocument document = JsonDocument.Parse(json);
+            Assert.That(document.RootElement.GetProperty("error").GetBoolean(), Is.True);
+            Assert.That(document.RootElement.GetProperty("statusCode").GetString(),
+                Is.EqualTo("BadIdentityTokenRejected"));
+            Assert.That(ConnectionTools.GetConnectionStatus(McpTestEnvironment.SessionManager, sessionName),
+                Is.EqualTo($"Session '{sessionName}' not found."));
+        }
 
         [Test]
         public async Task GetEndpointsAsyncWithValidServerUrlReturnsEndpointsJsonAsync()

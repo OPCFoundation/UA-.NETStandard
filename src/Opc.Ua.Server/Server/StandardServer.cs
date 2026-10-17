@@ -1525,10 +1525,9 @@ namespace Opc.Ua.Server
                     m_logger,
                     "Session/CloseSession");
 
-                return new CloseSessionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context)
-                };
+                var response = new CloseSessionResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1570,9 +1569,9 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     CancelCount = cancelCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -1623,12 +1622,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseResponse
+                var response = new BrowseResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1676,12 +1676,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseNextResponse
+                var response = new BrowseNextResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1734,12 +1735,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddNodesResponse
+                var response = new AddNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1798,12 +1800,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteNodesResponse
+                var response = new DeleteNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1862,12 +1865,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddReferencesResponse
+                var response = new AddReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1926,12 +1930,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteReferencesResponse
+                var response = new DeleteReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2019,9 +2024,9 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     RegisteredNodeIds = registeredNodeIds
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2066,10 +2071,8 @@ namespace Opc.Ua.Server
 
                 ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                response = new UnregisterNodesResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context)
-                };
+                response = new UnregisterNodesResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2120,12 +2123,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new TranslateBrowsePathsToNodeIdsResponse
+                var response = new TranslateBrowsePathsToNodeIdsResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2188,12 +2192,13 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         context.CancellationToken).ConfigureAwait(false);
 
-                return new ReadResponse
+                var response = new ReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2258,12 +2263,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new HistoryReadResponse
+                var response = new HistoryReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2318,12 +2324,13 @@ namespace Opc.Ua.Server
                         .WriteAsync(context, nodesToWrite, context.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new WriteResponse
+                var response = new WriteResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2369,12 +2376,13 @@ namespace Opc.Ua.Server
                         historyUpdateDetails,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new HistoryUpdateResponse
+                var response = new HistoryUpdateResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2663,9 +2671,9 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     NotificationMessage = notificationMessage
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2725,9 +2733,9 @@ namespace Opc.Ua.Server
                 {
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2779,9 +2787,9 @@ namespace Opc.Ua.Server
                 response = new SetPublishingModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2850,9 +2858,9 @@ namespace Opc.Ua.Server
                     AddResults = addResults,
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
-                    RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    RemoveDiagnosticInfos = removeDiagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -3059,12 +3067,13 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new SetMonitoringModeResponse
+                var response = new SetMonitoringModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -3116,12 +3125,13 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, context.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new CallResponse
+                var response = new CallResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -3451,18 +3461,25 @@ namespace Opc.Ua.Server
         /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
         /// strings to it, or throws, keeps it, and a response created during the call
         /// (re-entrantly) gets a table of its own.
+        /// A service that just constructed its response passes the response's default
+        /// header as <paramref name="responseHeaderToFill"/>; the base implementation fills
+        /// it instead of allocating another header (see
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable, ResponseHeader)"/>).
         /// </remarks>
-        internal ResponseHeader CreateResponse(RequestHeader? requestHeader, OperationContext context)
+        internal ResponseHeader CreateResponse(
+            RequestHeader? requestHeader,
+            OperationContext context,
+            ResponseHeader? responseHeaderToFill = null)
         {
             StringTable? strings = context.CreatedStringTable;
             if (strings != null)
             {
-                return CreateResponse(requestHeader!, strings);
+                return CreateResponse(requestHeader!, strings, responseHeaderToFill);
             }
 
             strings = t_noStrings ?? new StringTable();
             t_noStrings = null;
-            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings);
+            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings, responseHeaderToFill);
             if (strings.Count == 0)
             {
                 t_noStrings = strings;
@@ -3689,7 +3706,7 @@ namespace Opc.Ua.Server
 
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
-            context.AttachRequestScope(requestManager.EnterRequestScope(context));
+            requestManager.AttachRequestScope(context);
 
             // A close that started after the Session admitted this request, but before the
             // request was registered, did not see it when it aborted the Session's outstanding

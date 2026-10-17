@@ -361,6 +361,47 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Enters the request scope of <paramref name="context"/> like
+        /// <see cref="EnterRequestScope"/> and attaches it to the context, so that disposing the
+        /// context completes the request.
+        /// </summary>
+        /// <remarks>
+        /// A request inside its service dispatch scope, which is every request the server
+        /// dispatches, has no ambient id to restore: the context then completes the request
+        /// itself and no scope object is allocated for it.
+        /// </remarks>
+        /// <param name="context">The context of the request being executed.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
+        internal void AttachRequestScope(OperationContext context)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            RequestReceived(context);
+
+            if (m_currentServiceDispatchScope.Value?.RequestId == context.RequestId)
+            {
+                context.AttachRequestCompletion(this);
+                return;
+            }
+            uint? previousRequestId = m_currentRequestId.Value;
+            m_currentRequestId.Value = context.RequestId;
+            context.AttachRequestScope(
+                new RequestExecutionScope(this, context, previousRequestId, restoreRequestId: true));
+        }
+
+        /// <summary>
+        /// Completes the request of a context that <see cref="AttachRequestScope(OperationContext)"/>
+        /// attached without a scope object; called once, when the context is disposed.
+        /// </summary>
+        internal void CompleteAttachedRequest(OperationContext context)
+        {
+            CompleteRequest(context);
+        }
+
+        /// <summary>
         /// Enters a service dispatch scope for the current request-processing flow. The scope is
         /// opened at the top of request dispatch, before validation assigns a request id, and
         /// carries that id forward once <see cref="RequestReceived"/> registers the request. A

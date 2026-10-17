@@ -23,4 +23,8 @@
     <!-- Native executable smoke remains a net10.0 profile; managed protocol tests run on all three targets. -->
     <Compile Remove="NativeRecyclingSmokeTests.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\samples\Recycling\RecyclingServer\scenarios\*.json"
+             Link="Scenarios\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

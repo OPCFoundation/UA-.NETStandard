@@ -29,6 +29,7 @@
 
 using System;
 using Opc.Ua.Client;
+using Opc.Ua.ECM;
 using Opc.Ua.Machinery.Jobs;
 using Opc.Ua.Machinery.Result;
 
@@ -77,6 +78,13 @@ namespace Opc.Ua.Machinery.Client
             {
                 builder = Opc.Ua.ISA95.JobControl.V2.OpcUaISA95JobControlV2Extensions
                     .AddOpcUaISA95JobControlV2(builder);
+                commit = true;
+            }
+
+            if (!factory.ContainsEncodeableType(Opc.Ua.ECM.DataTypeIds.AcPeDataType) ||
+                !factory.ContainsEncodeableType(Opc.Ua.ECM.DataTypeIds.AcPpDataType))
+            {
+                builder = builder.AddOpcUaECM();
                 commit = true;
             }
 

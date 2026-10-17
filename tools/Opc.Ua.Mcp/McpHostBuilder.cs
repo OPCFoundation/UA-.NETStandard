@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -110,6 +111,16 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
+            options.CertificateIdentities = configuration.GetSection("McpServer:CertificateIdentities")
+                .GetChildren()
+                .Select(identity => new McpCertificateIdentity(identity.Key, new Opc.Ua.Client.X509ClientIdentityOptions
+                {
+                    StoreType = identity["StoreType"] ?? string.Empty,
+                    StorePath = identity["StorePath"] ?? string.Empty,
+                    SubjectName = identity["SubjectName"],
+                    Thumbprint = identity["Thumbprint"]
+                }))
+                .ToArrayOf();
             options.Execution = McpExecutionConfiguration.Read(configuration);
             options.TransferRoot = configuration["McpServer:TransferRoot"] ?? options.TransferRoot;
             string? configuredLimit = configuration["McpServer:MaxTransferBytes"];

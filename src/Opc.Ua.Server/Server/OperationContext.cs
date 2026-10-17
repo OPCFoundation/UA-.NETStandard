@@ -403,6 +403,7 @@ namespace Opc.Ua.Server
                 try
                 {
                     Interlocked.Exchange(ref m_requestScope, null)?.Dispose();
+                    Interlocked.Exchange(ref m_requestCompletion, null)?.CompleteAttachedRequest(this);
                 }
                 finally
                 {
@@ -419,6 +420,18 @@ namespace Opc.Ua.Server
         internal void AttachRequestScope(IDisposable requestScope)
         {
             m_requestScope = requestScope;
+        }
+
+        /// <summary>
+        /// Attaches the request manager that tracks this request while it executes, for a
+        /// request that needs no scope object (see
+        /// <see cref="RequestManager.AttachRequestScope(OperationContext)"/>), so that disposing
+        /// the context completes the request exactly once.
+        /// </summary>
+        /// <param name="requestManager">The request manager the request was registered with.</param>
+        internal void AttachRequestCompletion(RequestManager requestManager)
+        {
+            m_requestCompletion = requestManager;
         }
 
         /// <summary>
@@ -591,6 +604,7 @@ namespace Opc.Ua.Server
 
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
+        private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;

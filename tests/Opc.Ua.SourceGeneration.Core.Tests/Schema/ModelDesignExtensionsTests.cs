@@ -12157,6 +12157,74 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
+        /// GetNamespaceUriAsCode returns the namespace constant when the model
+        /// declares the namespace.
+        /// </summary>
+        [Test]
+        public void GetNamespaceUriAsCodeDeclaredNamespaceReturnsConstant()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "TestName", Prefix = "TestPrefix", Value = "http://opcfoundation.org/Test" }
+            ];
+
+            string result = namespaces.GetNamespaceUriAsCode("http://opcfoundation.org/Test");
+
+            Assert.That(result, Is.EqualTo("global::TestPrefix.Namespaces.TestName"));
+        }
+
+        /// <summary>
+        /// GetNamespaceUriAsCode returns the URI as an escaped string literal
+        /// when the model does not declare the namespace.
+        /// </summary>
+        [Test]
+        public void GetNamespaceUriAsCodeUndeclaredNamespaceReturnsEscapedLiteral()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "TestName", Prefix = "TestPrefix", Value = "http://opcfoundation.org/Test" }
+            ];
+
+            string result = namespaces.GetNamespaceUriAsCode("http://test.org/\"Quoted\"\\Path/");
+
+            Assert.That(result, Is.EqualTo("\"http://test.org/\\\"Quoted\\\"\\\\Path/\""));
+        }
+
+        /// <summary>
+        /// The NodeId and ExpandedNodeId of a node in a namespace the model does
+        /// not declare - the stand-in for a reference target of a namespace
+        /// listed only in the NodeSet's NamespaceUris - use the escaped URI
+        /// literal instead of an empty namespace argument.
+        /// </summary>
+        [Test]
+        public void GetNodeIdAsCodeUndeclaredNamespaceUsesEscapedUriLiteral()
+        {
+            Namespace[] namespaces =
+            [
+                new Namespace { Name = "OpcUa", Prefix = "Opc.Ua", Value = "http://opcfoundation.org/UA/" }
+            ];
+            var node = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName("ExternalNode_5001", "http://test.org/\"Quoted\"\\Path/"),
+                NumericId = 5001,
+                NumericIdSpecified = true
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    node.GetNodeIdAsCode(namespaces, "context.NamespaceUris"),
+                    Is.EqualTo(
+                        "global::Opc.Ua.NodeId.Create(5001u, \"http://test.org/\\\"Quoted\\\"\\\\Path/\", " +
+                        "context.NamespaceUris)"));
+                Assert.That(
+                    node.GetExpandedNodeIdAsCode(namespaces),
+                    Is.EqualTo(
+                        "new global::Opc.Ua.ExpandedNodeId(5001u, \"http://test.org/\\\"Quoted\\\"\\\\Path/\")"));
+            });
+        }
+
+        /// <summary>
         /// Tests that GetEventNotifierString returns the correct string when SupportsEvents is true.
         /// Input: ObjectTypeDesign with SupportsEvents set to true.
         /// Expected: Returns "global::Opc.Ua.EventNotifiers.SubscribeToEvents".

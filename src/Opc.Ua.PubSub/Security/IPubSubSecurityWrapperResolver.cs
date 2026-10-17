@@ -30,6 +30,19 @@
 namespace Opc.Ua.PubSub.Security
 {
     /// <summary>
+    /// Optional, non-secret registration evidence for out-of-band security keys.
+    /// Membership does not replace key validity checks or wrapper resolution.
+    /// </summary>
+    public interface IPubSubSecurityKeyProviderCatalog
+    {
+        /// <summary>
+        /// Security groups with explicitly registered key providers. These groups
+        /// need not advertise an SKS endpoint in their portable configuration.
+        /// </summary>
+        ArrayOf<string> SecurityGroupIds { get; }
+    }
+
+    /// <summary>
     /// Strategy used by <c>PubSubApplication</c> to materialise a
     /// <see cref="UadpSecurityWrapper"/> for a configured
     /// PubSubConnection. Implementations either return

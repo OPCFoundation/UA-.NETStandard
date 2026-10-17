@@ -682,7 +682,8 @@ namespace Opc.Ua.Bindings
                         {
                             if (m_partialMessageChunks == null)
                             {
-                                m_partialMessageChunks = [];
+                                // most messages are a single, final chunk
+                                m_partialMessageChunks = isFinal ? new BufferCollection(1) : [];
                                 m_partialMessageStartedAt = TimeProvider.GetTimestamp();
                                 m_partialMessageOwner = owner;
                             }
