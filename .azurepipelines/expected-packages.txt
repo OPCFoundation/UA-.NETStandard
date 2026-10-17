@@ -21,6 +21,7 @@ OPCFoundation.NetStandard.Opc.Ua.AI.Server
 OPCFoundation.NetStandard.Opc.Ua.AMB
 OPCFoundation.NetStandard.Opc.Ua.AMB.Client
 OPCFoundation.NetStandard.Opc.Ua.AMB.Server
+OPCFoundation.NetStandard.Opc.Ua.AutoID
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes

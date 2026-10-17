@@ -145,6 +145,7 @@ domain-specific companions and draft extensions.
 | Geometric measurement systems, qualification and results | OPC 40210 (GMS); the undefined upstream production-statistics CU prevents claiming the complete Production facet | [GMS](GMS.md) |
 | Crane systems, loads, protection observations and limit requests | OPC 40020-1 (Cranes and Hoists); preview packages, with equipment behavior supplied by providers | [Cranes and Hoists](CranesHoists.md) |
 | Pumps, compressors and vacuum pumps | OPC 40223 (Pumps and Vacuum Pumps) | [Pumps](Pumps.md) |
+| RFID, OCR, optical and RTLS readers, scan results and events | OPC 30010 (AutoID Devices); model package | [AutoID Devices](AutoID.md) |
 | Scales and scale systems | OPC 40200 (Weighing Technology), with OPC 30050 (PackML) | [Scales](Scales.md) |
 | Motion-device systems and controllers | OPC 40010-1 (Robotics), over OPC 10000-200 (Industrial Automation, its own `Opc.Ua.IA` package) | [Robotics](Robotics.md) |
 | Task-level robot commands | Robot Intent (draft) | [Robot Intent](Robotics.md#robot-intent) |
