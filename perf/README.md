@@ -32,7 +32,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `sub` (data-change subscriptions plus a writer), `counters`, or `native-read`/`native-counters` (see below). |
+| `--scenario` | `read` | `read`, `write`, `browse` (Server object), `sub` (data-change subscriptions plus writers), `events` (event subscriptions on the Server object, events reported by the server), `counters`, or `native-read`/`native-counters` (see below). |
 | `--sessions` | 20 | Concurrent sessions. |
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
@@ -41,6 +41,13 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--callback` | `fast` | Classic data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
 | `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). |
 | `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
+| `--writers` | 0 | Dedicated writer sessions in addition to `--sessions` (`sub`). 0: the first subscriber session writes. |
+| `--write-interval 0` | | Writers write in a closed loop instead of on a timer (`sub`). |
+| `--write-batch` | all | Values per Write request; writers rotate through the written nodes in slices (`sub`). |
+| `--node-type` | `int` | `int`: Int32 mass nodes. `all`: the Int16…UInt64 mass node set of the Sessions `LoadTest` (up to 600 nodes) (`sub`). |
+| `--queue-size` | 1 (`sub`), 10000 (`events`) | Monitored item queue size. |
+| `--publish-requests` | engine default | Minimum outstanding Publish requests per classic session. |
+| `--event-rate` | 0 | Events per second the server reports (`events`); 0 reports as fast as one thread can. |
 | `--duration`, `--warmup` | 20, 10 | Measurement window and warm-up in seconds. |
 | `--diag`, `--audit` | 0 | Server diagnostics and auditing. |
 | `--threads`, `--queue` | 200, 2000 | `MaxRequestThreadCount` and `MaxQueuedRequestCount` of the server; `MinRequestThreadCount` is the smaller of 50 and `--threads`. |
@@ -156,10 +163,12 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll contention trace
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll gc trace.nettrace
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll samples trace.nettrace 30
 dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll suspend trace.nettrace 5
+dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.nettrace 10
 ```
 
 `cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
-above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`. `gc` reads a
+above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, and the frame's
+direct callees. `gc` reads a
 trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
 reason and splits each pause into the time needed to suspend the threads and the whole pause;
 a long suspension means a thread ran for a while without reaching a safe point. `samples`
@@ -173,6 +182,14 @@ still running managed code, the one that had not reached a safe point. It also c
 events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, from
 `GlobalHeapHistory`) and `HANDLEKIND <kind>` (GC handle churn by kind), and ends with
 `SetGCHandle=<count> trace ms=<duration>`.
+
+`threads` lists the busy share of each thread (its on-CPU samples over all of its samples) with
+its main roles; one thread near 100 % while the process has idle cores is a serialized stage.
+
+The `sub` and `events` scenarios add a `per-op2` line with the server cost per written value or
+per generated event. Async methods with loops run on-stack-replaced code that the trace rundown
+does not name (samples show as `!?`); set `SERVER_DOTNET_TC_QuickJitForLoops=0` and
+`SERVER_DOTNET_TC_OnStackReplacement=0` when recording to attribute them.
 
 The sampler suspends running threads at their next GC poll, so many on-CPU samples have
 `Thread.PollGCWorker` as their leaf; `cpu` attributes those to the calling frame instead of
