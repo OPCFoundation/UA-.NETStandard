@@ -2214,7 +2214,7 @@
         <opc:Documentation>An ExtensionObject containing exactly one eligible original Service request.</opc:Documentation>
       </opc:Parameter>
       <opc:Parameter Name="ExecutionAllowance" DataType="Duration">
-        <opc:Documentation>Exact positive finite milliseconds from admission to outcome commitment.</opc:Documentation>
+        <opc:Documentation>Requested positive finite execution budget in milliseconds, starting at admission.</opc:Documentation>
       </opc:Parameter>
       <opc:Parameter Name="ResultRetentionTime" DataType="Duration">
         <opc:Documentation>Exact positive finite milliseconds of result retention, then the same interval for terminal history.</opc:Documentation>

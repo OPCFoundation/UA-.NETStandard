@@ -74,9 +74,10 @@ samples in this repository, follow **[Getting started](docs/GettingStarted.md)**
 The **[documentation index](docs/README.md)** then leads from the core concepts
 to advanced and experimental features.
 
-The default-off [recoverable Service execution prototype](docs/AsyncServices.md)
-adds experimental Submit/Get/Control exchanges and a two-hop certificate
-demonstration. Its provisional contract is not an adopted OPC UA standard.
+The default-off [Recoverable Service Execution (RSE) prototype](docs/AsyncServices.md)
+implements the OPC 10000-27 draft with experimental Submit/Get/Control exchanges
+and a two-hop certificate demonstration. Async Service API names are unchanged;
+the provisional contract is not an adopted OPC UA standard.
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:

@@ -135,7 +135,7 @@
         {"name": "RequestHeader", "type": "RequestHeader", "description": "Standard parameters for this submission exchange."},
         {"name": "ClientOperationId", "type": "Guid", "description": "A fresh nonzero random Client operation ID."},
         {"name": "Request", "type": "Structure", "description": "An ExtensionObject containing exactly one eligible original Service request."},
-        {"name": "ExecutionAllowance", "type": "Duration", "description": "Exact positive finite milliseconds from admission to outcome commitment."},
+        {"name": "ExecutionAllowance", "type": "Duration", "description": "Requested positive finite execution budget in milliseconds, starting at admission."},
         {"name": "ResultRetentionTime", "type": "Duration", "description": "Exact positive finite milliseconds of result retention, then the same interval for terminal history."},
         {"name": "WaitTime", "type": "Duration", "description": "Nonnegative finite maximum wait for this exchange; zero requests current state without parking a waiter."}
       ]

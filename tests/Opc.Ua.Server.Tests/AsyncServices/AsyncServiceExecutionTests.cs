@@ -576,6 +576,47 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         }
 
         /// <summary>
+        /// The installed overlay exposes the current admission-budget description through DataTypeDefinition.
+        /// </summary>
+        [Test]
+        public async Task RuntimeSubmissionDefinitionIncludesAdmissionBudgetDescription()
+        {
+            await using ExecutionTestContext test =
+                await ExecutionTestContext.CreateAsync(delayRead: false).ConfigureAwait(false);
+            ReadResponse read = await test.SendAsync<ReadResponse>(new ReadRequest
+            {
+                RequestHeader = test.NewHeader(),
+                NodesToRead =
+                [
+                    new ReadValueId
+                    {
+                        NodeId = DataTypeIds.SubmitServiceRequest,
+                        AttributeId = Attributes.DataTypeDefinition
+                    }
+                ]
+            }).ConfigureAwait(false);
+            try
+            {
+                Assert.That(read.Results.Count, Is.EqualTo(1));
+                Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(read.Results[0].WrappedValue.TryGetValue(out ExtensionObject body), Is.True);
+                Assert.That(body.TryGetValue(out StructureDefinition? definition), Is.True);
+                Assert.That(definition!.Fields.Count, Is.EqualTo(6));
+                StructureField allowance = definition.Fields[3];
+                Assert.That(allowance.Name, Is.EqualTo(nameof(SubmitServiceRequest.ExecutionAllowance)));
+                Assert.That(allowance.DataType, Is.EqualTo(DataTypeIds.Duration));
+                Assert.That(allowance.ValueRank, Is.EqualTo(ValueRanks.Scalar));
+                Assert.That(allowance.IsOptional, Is.False);
+                Assert.That(allowance.Description.Text,
+                    Is.EqualTo("Requested positive finite execution budget in milliseconds, starting at admission."));
+            }
+            finally
+            {
+                read.Reuse();
+            }
+        }
+
+        /// <summary>
         /// Unknown lookup metadata never claims non-execution or fabricates a Server token.
         /// </summary>
         [Test]

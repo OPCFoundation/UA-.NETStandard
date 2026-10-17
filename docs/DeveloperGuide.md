@@ -334,7 +334,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
-- **Experimental Async Services definitions** — synchronize the reviewed contract with the authoritative stack inputs using [the contract tooling](../tools/AsyncServices/README.md). New proposal Services are TAP-only; their optional model is not installed by the default address-space initializer.
+- **Experimental RSE (Async Services) definitions** — synchronize the reviewed contract with the authoritative stack inputs using [the contract tooling](../tools/AsyncServices/README.md). OPC 10000-27 is the publication name; the Async Service APIs and provisional IDs are unchanged. New proposal Services are TAP-only; their optional model is not installed by the default address-space initializer.
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).

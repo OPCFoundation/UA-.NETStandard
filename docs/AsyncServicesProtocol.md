@@ -1,7 +1,11 @@
-# Experimental recoverable Service execution: protocol reference
+# Recoverable Service Execution (RSE): experimental protocol reference
 
-This reference describes the proposed **0.2.0** contract. The initial public
-discussion is [#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813),
+This reference describes **OPC 10000-27: Recoverable Service Execution (RSE)**,
+draft **0.2.0**, dated **2026-10-16**, at Core commit
+`8710615ed5765ff780fd54b7f58a6db884d315c8`. RSE is the publication name; the Async
+Service API names, ASE capability/conformance identifiers, namespaces and
+provisional IDs are unchanged. The initial public discussion is
+[#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813),
 which is closed. Neither that issue nor this implementation establishes
 maintainer approval, certification, or adoption into the OPC UA standard.
 See [the implementation guide](AsyncServices.md) for setup, typed APIs and
@@ -27,10 +31,37 @@ The original request is sent once. A failed submission exchange is followed by
 lookup using the Client operation ID, not transparent replay of that request.
 A Server that cannot provide the requested recovery contract rejects admission
 rather than executing through a non-recoverable fallback.
+An SDK retry using a different MethodId is another original request, not
+collection of the admitted operation. The typed Client disables that fallback
+for captured Methods.
 
 Ordinary Service APIs retain their existing behaviour. Support must be
 explicitly enabled; language-level asynchronous execution alone does not
 provide this protocol.
+
+### Interface choice and alternatives
+
+The prototype implements the selected three-Service interface, not an
+alternative manager Object. A generic manager could expose submission,
+collection and control as Methods over Call and reuse more existing dispatch
+and generator code. It would still need send-once recovery, owned execution,
+typed acceptance, authorization, retained results and bounded accounting.
+It would also need rules for the outer Call status, manager Method status and
+multiple manager invocations in one Call. No equivalent manager prototype or
+total integration-cost comparison has been produced.
+
+For a certificate-only application that can change its Method interface,
+ticket-based Methods may be a simpler choice. Part 12's pull
+StartSigningRequest/FinishRequest workflow is not a drop-in replacement for push
+CreateSigningRequest. A push ticket API would still have to define recovery
+and receipt rules while preserving the device's pending-key and transaction
+ownership. UpdateCertificate and ApplyChanges remain separate installation and
+application steps; ApplyChanges is not result collection.
+
+Subscriptions and Events address notification delivery, while Programs expose
+an application's execution lifecycle. Neither automatically retains an
+unchanged original Service response. These alternatives are design rationale,
+not additional conformance modes of this prototype.
 
 ## Namespace and provisional identities
 
@@ -117,6 +148,20 @@ Recovery follows existing activation and trust rules. It does not authorize
 weaker security settings or a new identity. The opt-in shared Client binding
 is distinct from the strict request-context API.
 
+Replacement-channel activation preserves the Client certificate, creator,
+SecurityPolicy and MessageSecurityMode required by Part 4; it does not apply a
+"same or stronger" substitution. The continuity check does not pin the old
+Server certificate. An authorized renewal can be accepted only after validating
+the new certificate against the intended Server identity and the mapping's
+trust requirements, followed by reactivation of the original Session.
+
+Protection is evaluated from the established transport. TLS can provide HTTPS
+integrity and confidentiality without changing UA MessageSecurityMode or policy.
+A claimed profile URI, URL scheme or request header is not proof of TLS.
+Transport protection does not grant application or user permissions.
+HTTPS transport certificates and OPC UA ApplicationCertificates keep their
+separate mapping-defined roles.
+
 ## Reading a response
 
 The outer ResponseHeader describes the current Submit/Get exchange. The
@@ -146,9 +191,11 @@ finite and positive; WaitTime must be finite and nonnegative. Zero wait is a
 poll. The Server accepts requested lifetimes unchanged or rejects them before
 dispatch.
 
-ExecutionAllowance, E, starts at admission. ResultRetentionTime, R, starts when
-the final outcome is available. A fast result in SubmitService still has the
-same retention and acknowledgement requirements as a later result.
+ExecutionAllowance, E, is the requested execution budget starting at admission;
+admission accepts that exact positive finite budget or rejects it.
+ResultRetentionTime, R, starts when the final outcome is available. A fast result
+in SubmitService still has the same retention and acknowledgement requirements
+as a later result.
 
 When E expires first, the operation records an execution-deadline outcome and
 requests cancellation where possible. A late original response cannot replace
@@ -172,8 +219,11 @@ a small ResultUnavailable outcome. This never authorizes repeating work.
 
 A smaller delivery limit after recovery can prevent an exchange from carrying
 an existing result. That failure does not rewrite or acknowledge the saved
-outcome. Storage still used by an in-flight sender stays accounted for after
-logical release.
+outcome or, by itself, invalidate the operation identity. Collection can resume
+after permitted capacity is restored within the original R. It cannot renew R,
+replay submission, raise an applicable captured safety ceiling or bypass
+security, namespace/type validation or other decoder limits. Storage still used
+by an in-flight sender stays accounted for after logical release.
 
 ## Controls and acceptance
 
@@ -193,6 +243,9 @@ Acceptance policy is Client-local. Default SDK ACK follows decoding,
 validation **and acceptance into the caller completion context**; decoding an
 internal object is insufficient. Selected application/storage acceptance must
 also succeed before ACK. The same wire action is used for every local policy.
+For a typed Method API, this includes decoding and validating its output
+arguments through the generated proxy. Decoding a CallResponse alone is not
+acceptance of its typed Method result.
 
 Ordinary Cancel by requestHandle ends the wrapper wait after admission, not the
 owned invocation. Cancellation observed before admission can prevent dispatch.
@@ -251,7 +304,10 @@ read-only Boolean Property on a Method instance. Absence is undeclared; True
 is not an admission guarantee; False reports ineligibility under current
 Server policy. Admission evaluates current policy, not cached Client discovery.
 A provider must not publish current False yet ignore it because Call is in
-its supported-Service list.
+its supported-Service list. A current False on an otherwise callable Method
+rejects the whole recoverable Call submission with BadServiceUnsupported before
+any item executes. Ordinary per-item validation and permission failures remain
+per-item results, not an all-items-authorized transaction.
 
 Diagnostics are privileged aggregate measurements, not an operation browser.
 ActiveOperationCount follows invocation lifetime; RetainedOutcomeBytes includes
@@ -273,3 +329,6 @@ effects, batch rollback, scheduling priority, progress or completion estimates.
 Codec and in-process endpoint tests are not evidence of native reply loss or
 certificate rotation; those require the integration tests described in the
 [implementation guide](AsyncServices.md).
+Evidence for a mapping must observe the Server's actual encoding and established
+protection; configuring an endpoint or silently falling back to another mapping
+does not demonstrate it.

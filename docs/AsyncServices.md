@@ -1,8 +1,11 @@
-# Experimental recoverable Service execution
+# Recoverable Service Execution (RSE) prototype
 
-**Status: default-off prototype, contract 0.2.0, provisional namespace-zero
-identifiers.** This is not an adopted OPC UA standard, a production durability
-guarantee or an independent-SDK interoperability claim.
+**Status: default-off prototype of OPC 10000-27, draft 0.2.0, dated 2026-10-16,
+with provisional namespace-zero identifiers.** The source revision is Core
+`8710615ed5765ff780fd54b7f58a6db884d315c8`. RSE is the publication name;
+Async Service APIs, ASE capability/conformance identifiers and source paths
+remain unchanged. This is not an adopted OPC UA standard, a production
+durability guarantee or an independent-SDK interoperability claim.
 
 The prototype separates one original Read, Write or Call from the exchanges
 that collect and acknowledge its outcome. A lost response must not cause a
@@ -256,9 +259,11 @@ and Push Management; SecurityAdmin/application authorization remains separate.
 
 The replacement-channel same-certificate guard pins the **Client** certificate.
 A rotated peer **Server** certificate can be accepted through normal
-CertificateManager trust/identity validation plus successful ActivateSession of
-the original Session. In the known ApplyChanges workflow the demonstration
-refreshes endpoint discovery before reconnecting:
+CertificateManager trust validation against the intended Server identity plus
+successful ActivateSession of the original Session. HTTPS transport-certificate
+validation and OPC UA application authentication remain separate mapping
+requirements. In the known ApplyChanges workflow the demonstration refreshes
+endpoint discovery before reconnecting:
 
 ```csharp
 await managedSession.ConfiguredEndpoint.UpdateFromServerAsync(
@@ -310,6 +315,14 @@ isolated stores, listeners and Sessions are cleaned up.
 effects in the fixture. It does not invoke ApplyChanges again or substitute
 ApplyChanges for GetServiceResult.
 
+This demonstration uses a device Server that preserves its Sessions while
+affected channels renegotiate after the ApplyChanges response. Part 12 also
+permits a Server to shut down when applying changes, and a trust change may
+prevent reconnection. Neither case extends this prototype's same-Session
+guarantee: report lost recovery rather than recreating the operation. The
+device's CSR, pending key and transaction do not become the gateway's own
+application-certificate transaction.
+
 ## Evidence boundaries
 
 | Selection | What it exercises |
@@ -336,13 +349,27 @@ The canonical generator inputs and synchronization command are documented in
 contract belong there, not in generated C#. The model and protocol reference
 must remain reconciled with the frozen proposal before publication.
 
+### Evidence provenance
+
+The original acceptance, NativeAOT and focused coverage records describe
+prototype commit `66c3b8415d7d05291d7937a6d704e561ba80fab9` against Core
+`70bf3762a8223a7382dc97a38358a6d053cabd8e`. The subsequent merge checks describe
+`ecb1efe7ec5f20465fd0feebde420cda4560c7c4`. Adopting Core `8710615` does not
+relabel those runs or establish new full-solution, NativeAOT or coverage results.
+Its description and model-title updates change full JSON content and raw
+NodeSet bytes, while leaving the schema/model semantics and NodeIds unchanged.
+See the [source revision and fingerprints](../tools/AsyncServices/README.md#source-revision)
+for the current snapshot.
+
 ## Scenario-to-test mapping
 
-These are the public-safe ASE2 scenario identifiers for proposal baseline
-`70bf3762a8223a7382dc97a38358a6d053cabd8e`. This table identifies executable
-checks, not a certification or a promise that every platform's full solution
-suite is green. Record the exact command, TFM and outcome when reporting a run;
-do not sum overlapping selections.
+The ASE2 identifiers from the original acceptance baseline remain unchanged.
+The mapping also covers the more explicit Method-eligibility, actual-mapping,
+typed-acceptance, capacity-recovery and certificate-renewal stimuli in Core
+`8710615`. It identifies executable checks, not new test-run results,
+certification or a promise that every platform's full solution suite is green.
+Record the exact command, TFM, source commit and outcome when reporting a run;
+do not sum overlapping selections or replace the provenance above.
 
 Class prefixes below are `E` = `AsyncServiceExecutionTests` (in-process
 endpoint), `N` = `AsyncServiceTransportTests` (native transport), `C` =
@@ -354,7 +381,7 @@ endpoint), `N` = `AsyncServiceTransportTests` (native transport), `C` =
 | --- | --- | --- |
 | ASE2-001 | Default-off behaviour | E.`DisabledFeatureDoesNotAdvertiseOrExecute`; X.`StandardAddressSpaceExcludesExperimentalDefinitions` |
 | ASE2-002 | Activated Session required | E.`WrapperWithoutSessionCannotExecuteOrDisclose` |
-| ASE2-003 | Whole-request eligibility | E.`ExcludedOriginalServiceRejectsBeforeDispatch`; N.`CurrentMethodEligibilityIsCheckedBeforeAnyBatchEffect`; N.`MethodEligibilityDoesNotReplaceOrdinaryPerItemPermissionFailures` |
+| ASE2-003 | Whole-request eligibility, including current False and absent/True Method hints | E.`ExcludedOriginalServiceRejectsBeforeDispatch`; N.`CurrentMethodEligibilityIsCheckedBeforeAnyBatchEffect`; N.`MethodEligibilityDoesNotReplaceOrdinaryPerItemPermissionFailures` |
 | ASE2-004 | Exact supported E/R | E.`UnsupportedPositiveDurationRejectsBeforeDispatch` |
 | ASE2-005 | Invalid durations | E.`InvalidDurationsRejectBeforeDispatch`; E.`InvalidAdmissionEnvelopeRejectsBeforeDispatch` |
 | ASE2-006 | Exchange handle is not operation identity | E.`ReusedExchangeHandleDoesNotAliasRetainedOperations`; E.`ExchangeCancellationDoesNotCancelAdmittedWork` |
@@ -363,10 +390,10 @@ endpoint), `N` = `AsyncServiceTransportTests` (native transport), `C` =
 | ASE2-009 | Lookup overtakes admission | E.`LookupCanOvertakeAdmissionWithoutDecidingExecution` |
 | ASE2-010 | Fast retained result | E.`FastReadRetainsOriginalOutcomeUntilAcknowledged` |
 | ASE2-011 | Bounded and zero waiting | N.`BoundedWaitsDoNotCancelOrRestartOwnedWork`; E.`CurrentCollectionAuthorizationIsRecheckedAfterWait` |
-| ASE2-012 | Read/Write/Call response typing | N.`ReadWriteAndDelayedCallRoundTripOverNativeTransport` |
+| ASE2-012 | Read/Write/Call typing with observed Server encoding/protection | N.`ReadWriteAndDelayedCallRoundTripOverNativeTransport` |
 | ASE2-013 | Original failure and diagnostics | E.`OriginalServiceFaultRetainsItsHeaderAndDiagnostics`; C.`OriginalServiceFaultOrDeadlineIsAcceptedAndAcknowledged`; X.`CollectionPreservesCompleteOriginalServiceFault` |
 | ASE2-014 | Immutable result, fresh outer header | N.`LostReplyRecoversWithoutRepeatingTheMethod` (`result`); E.`InFlightCollectorsSurviveLogicalRelease` |
-| ASE2-015 | Client rejects incompatible payload | C.`MalformedEnvelopeIsNotAcknowledged`; C.`GeneratedProxyValidatesTypedOutputBeforeAcknowledgement` |
+| ASE2-015 | Reject malformed envelope or typed Method output; no hidden original retry | C.`MalformedEnvelopeIsNotAcknowledged`; C.`GeneratedProxyValidatesTypedOutputBeforeAcknowledgement`; C.`GeneratedProxyDoesNotRetryAnOriginalMethodId` |
 | ASE2-016 | Complete batch, not a transaction | N.`MixedCallBatchRetainsAllOriginalItemResults`; N.`MethodEligibilityDoesNotReplaceOrdinaryPerItemPermissionFailures` |
 | ASE2-017 | Deadline wins over late completion | E.`LateCompletionCannotReplaceAvailableDeadlineOutcome` |
 | ASE2-018 | Active identity/charges beyond public history | E.`DeadlineAndHistoryDoNotReleaseStillRunningWork` |
@@ -388,10 +415,10 @@ endpoint), `N` = `AsyncServiceTransportTests` (native transport), `C` =
 | ASE2-034 | Anonymous + Sign rejected | E.`AnonymousSignAdmissionIsRejectedBeforeDispatch` |
 | ASE2-035 | Admission pressure and cleanup | E.`FullOperationQuotaStillPermitsRecoveryAndCleanup`; E.`ProviderShutdownWaitsForOwnedInvocationCleanup` |
 | ASE2-036 | Real encoded size boundaries | E.`EncodedEnvelopeBoundaryIncludesWrapperOverhead`; N.`OversizedNativeReadRetainsFailureWithoutExecutingAgain` |
-| ASE2-037 | Reduced/restored delivery capacity | N.`NativeDeliveryCapacityCanShrinkAndRecoverWithinTheOriginalSession`; E.`SmallerDeliveryLimitDoesNotRewriteRetainedOutcome` |
+| ASE2-037 | Native capacity reduction/restoration with the same handle, Session and original R | N.`NativeDeliveryCapacityCanShrinkAndRecoverWithinTheOriginalSession`; E.`SmallerDeliveryLimitDoesNotRewriteRetainedOutcome` |
 | ASE2-038 | Elapsed lifetimes and safe advice | E.`WallClockChangesDoNotRenewOrExpireElapsedLifetimes`; C.`MalformedEnvelopeIsNotAcknowledged` (`retry-after-retention`) |
 | ASE2-039 | Privileged metadata diagnostics/audit | E.`OperationAuditingUsesExistingGateAndMetadataOnly`; E.`EnabledModelUsesApplicationIdsAndPrivilegedDiagnostics` |
-| ASE2-040 | Two-hop certificate cycle | N.`CertificateCycleAcrossRecoverableGateway` (all four mapping combinations) |
+| ASE2-040 | Two-hop certificate cycle, validated renewal and pre-rotation operation recovery | N.`CertificateCycleAcrossRecoverableGateway` (all four mapping combinations) |
 
 Run the Server mapping, Client mapping and independent codec checks separately:
 

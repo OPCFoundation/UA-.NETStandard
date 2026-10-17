@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- OPC UA Asynchronous Service Execution - an experimental overlay on the base OPC UA
+<!-- OPC UA Recoverable Service Execution - an experimental overlay on the base OPC UA
      namespace (http://opcfoundation.org/UA/). Every node below is a proposed ADDITION
      to the base namespace, so it carries an unqualified BrowseName and an i=<n> NodeId
      and the NodeSet declares no additional NamespaceUri. Merge this overlay into the
@@ -174,7 +174,7 @@
       <Reference ReferenceType="HasEncoding">i=1203020</Reference>
       <Reference ReferenceType="HasEncoding">i=1204020</Reference>
     </References>
-    <Definition Name="SubmitServiceRequest"><Field Name="RequestHeader" DataType="i=389"><Description>Standard parameters for this submission exchange.</Description></Field><Field Name="ClientOperationId" DataType="i=14"><Description>A fresh nonzero random Client operation ID.</Description></Field><Field Name="Request" DataType="i=22"><Description>An ExtensionObject containing exactly one eligible original Service request.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>Exact positive finite milliseconds from admission to outcome commitment.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>Exact positive finite milliseconds of result retention, then the same interval for terminal history.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum wait for this exchange; zero requests current state without parking a waiter.</Description></Field></Definition>
+    <Definition Name="SubmitServiceRequest"><Field Name="RequestHeader" DataType="i=389"><Description>Standard parameters for this submission exchange.</Description></Field><Field Name="ClientOperationId" DataType="i=14"><Description>A fresh nonzero random Client operation ID.</Description></Field><Field Name="Request" DataType="i=22"><Description>An ExtensionObject containing exactly one eligible original Service request.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>Requested positive finite execution budget in milliseconds, starting at admission.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>Exact positive finite milliseconds of result retention, then the same interval for terminal history.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum wait for this exchange; zero requests current state without parking a waiter.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="i=1202020" BrowseName="Default Binary" ParentNodeId="i=1200020">
     <DisplayName>Default Binary</DisplayName>
