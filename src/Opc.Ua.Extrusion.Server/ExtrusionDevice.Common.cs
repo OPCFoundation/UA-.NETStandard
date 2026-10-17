@@ -104,12 +104,26 @@ namespace Opc.Ua.Extrusion.Server
                                 ?? throw MissingProvider(nameof(m_common.MachineConfiguration)),
                             RequireAccessPolicy()));
                         break;
-                    case MaterialListState materials when m_common.Materials != null ||
-                        materials.AddMaterial != null || materials.RemoveMaterialById != null:
-                        m_commonBindings.Add(new MaterialListBinding(
-                            m_runtime.Manager, materials,
-                            m_common.Materials ?? throw MissingProvider(nameof(m_common.Materials)),
-                            RequireAccessPolicy()));
+                    case MaterialListState materials:
+                        if (materials.DensityUnit != null && m_common.MaterialDensityUnit != null)
+                        {
+                            materials.DensityUnit.Value = (EUInformation)m_common.MaterialDensityUnit.Clone();
+                        }
+                        if (m_common.Materials != null ||
+                            materials.AddMaterial != null || materials.RemoveMaterialById != null)
+                        {
+                            IMaterialListProvider materialProvider =
+                                m_common.Materials ?? throw MissingProvider(nameof(m_common.Materials));
+                            if (materials.DensityUnit?.Value == null)
+                            {
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadConfigurationError,
+                                    "The selected material catalogue needs an explicit '{0}'.",
+                                    nameof(m_common.MaterialDensityUnit));
+                            }
+                            m_commonBindings.Add(new MaterialListBinding(
+                                m_runtime.Manager, materials, materialProvider, RequireAccessPolicy()));
+                        }
                         break;
                     case ProductionDatasetManagementState datasets:
                         ProductionDatasetBinding datasetBinding = await ProductionDatasetBinding.CreateAsync(

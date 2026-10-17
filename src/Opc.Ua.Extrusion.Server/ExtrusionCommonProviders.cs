@@ -79,6 +79,13 @@ namespace Opc.Ua.Extrusion.Server
         public IMaterialListProvider? Materials { get; set; }
 
         /// <summary>
+        /// Gets or sets the engineering unit the MaterialList publishes as its DensityUnit and in which
+        /// every material density is given. OPC 40083 declares DensityUnit without a value, so a list
+        /// bound to <see cref="Materials"/> or with selected mutation methods requires this unit.
+        /// </summary>
+        public EUInformation? MaterialDensityUnit { get; set; }
+
+        /// <summary>
         /// Gets or sets the instance-specific production-dataset persistence/activation authority.
         /// </summary>
         public IProductionDatasetProvider? ProductionDatasets { get; set; }

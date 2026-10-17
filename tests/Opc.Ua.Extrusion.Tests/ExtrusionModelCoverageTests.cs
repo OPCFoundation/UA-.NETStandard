@@ -203,6 +203,52 @@ namespace Opc.Ua.Extrusion.Tests
         }
 
         /// <summary>
+        /// OPC 40083 declares the MaterialList DensityUnit without a value: an unbound list keeps a null
+        /// unit, and a bound catalogue publishes the configured unit its densities are given in.
+        /// </summary>
+        [Test]
+        public async Task MaterialListPublishesOnlyTheConfiguredDensityUnitAsync()
+        {
+            ExtrusionDeviceState unbound = await ExtrusionFixture.CreateAsync(
+                m_fixture.Runtime, 2, ExtrusionFixture.Options("density-unit-unbound")).ConfigureAwait(false);
+            var unboundLine = (Line.ExtrusionLine_InterfaceState)unbound;
+
+            ExtrusionDeviceOptions options = ExtrusionFixture.Options("density-unit-bound", all: true);
+            ExtrusionDeviceState bound = await ExtrusionFixture.CreateAsync(m_fixture.Runtime, 2, options)
+                .ConfigureAwait(false);
+            var boundLine = (Line.ExtrusionLine_InterfaceState)bound;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(unboundLine.MaterialList!.DensityUnit!.Value, Is.Null);
+                Assert.That(boundLine.MaterialList!.DensityUnit!.Value, Is.Not.Null);
+                Assert.That(boundLine.MaterialList.DensityUnit.Value.UnitId,
+                    Is.EqualTo(ExtrusionFixture.KilogramPerCubicMetre.UnitId));
+                Assert.That(boundLine.MaterialList.DensityUnit.Value,
+                    Is.Not.SameAs(options.Common.MaterialDensityUnit));
+            });
+        }
+
+        /// <summary>
+        /// A bound material catalogue without a configured DensityUnit is rejected during creation.
+        /// </summary>
+        [Test]
+        public void BoundMaterialListWithoutDensityUnitIsRejected()
+        {
+            ExtrusionDeviceOptions options = ExtrusionFixture.Options("density-unit-missing", all: true);
+            options.Common.MaterialDensityUnit = null;
+
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ExtrusionFixture.CreateAsync(m_fixture.Runtime, 2, options).ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failure.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Assert.That(failure.Message, Does.Contain(nameof(ExtrusionCommonProviders.MaterialDensityUnit)));
+            });
+        }
+
+        /// <summary>
         /// Serializes concurrent creation across the duplicate check and registration.
         /// </summary>
         [Test]
