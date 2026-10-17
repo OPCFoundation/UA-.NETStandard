@@ -205,10 +205,53 @@ jobs:
               throw '${{ matrix.configuration }} build failed.'
           }
 
+      - name: Build managed UaLens tool payloads before signing
+        shell: pwsh
+        run: |
+          # Keep the tool's package graph net10-only without narrowing the
+          # multi-target restore assets of libraries packaged by the solution.
+          dotnet restore tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj `
+            --no-dependencies `
+            -p:Configuration=${{ matrix.configuration }} `
+            -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false -p:PackAsTool=true
+          if ($LASTEXITCODE -ne 0) {
+              throw 'UaLens managed tool restore failed.'
+          }
+          foreach ($rid in @('win-x64', 'linux-x64', 'osx-arm64')) {
+              dotnet build tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj `
+                --no-restore `
+                --configuration '${{ matrix.configuration }}' `
+                --framework net10.0 --runtime $rid `
+                -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false `
+                -p:PublishAot=false -p:PublishTrimmed=false `
+                "/p:Version=$env:NBGV_NuGetPackageVersion" `
+                "/p:AssemblyVersion=$env:NBGV_SimpleVersion" `
+                "/p:FileVersion=$env:NBGV_AssemblyFileVersion" `
+                "/p:AssemblyOriginatorKeyFile=$env:SNK_PATH" `
+                /p:SignAssembly=true
+              if ($LASTEXITCODE -ne 0) {
+                  throw "UaLens managed payload build failed for $rid."
+              }
+          }
+
       - name: Authenticode-sign assemblies
         shell: pwsh
         run: |
           $signList = '.azurepipelines/signlist${{ matrix.configuration }}.txt'
+          # Pack --no-build must consume these signed RID outputs, not rebuild
+          # them after signing or publish only the selector package.
+          $payloadAssemblies = @(foreach ($rid in @('win-x64', 'linux-x64', 'osx-arm64')) {
+              $directory = "tools/Opc.Ua.Lens/bin/${{ matrix.configuration }}/net10.0/$rid"
+              if (-not (Test-Path (Join-Path $directory 'UaLens.dll'))) {
+                  throw "Missing UaLens managed payload: $rid."
+              }
+              Get-ChildItem $directory -File | Where-Object {
+                  $_.Name -eq 'UaLens.dll' -or $_.Name -eq 'UaLens.exe' -or
+                  ($_.Name.StartsWith('Opc.Ua.') -and $_.Extension -eq '.dll')
+              } | ForEach-Object FullName
+          })
+          $assemblies = @((Get-Content -LiteralPath $signList -ErrorAction Stop)) + $payloadAssemblies
+          $assemblies | Sort-Object -Unique | Set-Content -LiteralPath $signList -Encoding utf8NoBOM
           & "$env:TOOLS_DIR/AzureSignTool" sign `
             -du "$env:SIGNING_URL" `
             -kvu "$env:SIGNING_VAULT_URL" `
@@ -234,6 +277,16 @@ jobs:
             --output "$env:ARTIFACTS_DIR"
           if ($LASTEXITCODE -ne 0) {
               throw '${{ matrix.configuration }} package creation failed.'
+          }
+          # UaLens is packable only in its net10 inner build, not the
+          # solution's framework-agnostic outer evaluation.
+          dotnet pack tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj `
+            --no-build --no-restore `
+            --configuration '${{ matrix.configuration }}' `
+            -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 `
+            --output "$env:ARTIFACTS_DIR"
+          if ($LASTEXITCODE -ne 0) {
+              throw '${{ matrix.configuration }} UaLens package creation failed.'
           }
 
       - name: Read package version
@@ -282,7 +335,8 @@ jobs:
 
       - name: Require every Debug package ID to be distinct
         # The Debug leg exists purely to produce the "<id>.Debug" half of the
-        # package set. A project that packs here under its ordinary Release ID
+        # package set, including "<id>.Debug.<rid>" tool payloads.
+        # A project that packs here under its ordinary Release ID
         # would collide byte-for-byte with the Release leg in the aggregation
         # step below, so it must either rename itself (the per-project
         # "<PackageId>$(PackageId).Debug</PackageId>" override) or opt out
@@ -293,6 +347,7 @@ jobs:
         if: matrix.configuration == 'Debug'
         shell: pwsh
         run: |
+          . ./.azurepipelines/package-version-policy.ps1
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $packages = @(Get-ChildItem "$env:ARTIFACTS_DIR" -Filter '*.nupkg' -File)
           $unsuffixed = @()
@@ -318,7 +373,7 @@ jobs:
                   $archive.Dispose()
               }
 
-              if (-not $id.EndsWith('.Debug', [StringComparison]::OrdinalIgnoreCase)) {
+              if (-not (Test-DebugPackageId -PackageId $id)) {
                   $unsuffixed += $id
               }
           }
@@ -334,7 +389,7 @@ jobs:
           }
 
           if ($packages.Count -eq 0) {
-              throw 'The Debug build produced no package IDs ending in .Debug.'
+              throw 'The Debug build produced no Debug package IDs.'
           }
           Write-Host "Verified $($packages.Count) distinct Debug package(s)."
 

@@ -1,0 +1,302 @@
+name: UaLens desktop and distributed artifacts
+
+on:
+  pull_request:
+    paths:
+    - 'tools/Opc.Ua.Lens/**'
+    - 'tools/Opc.Ua.OpenUsd.Connector.Viewer/**'
+    - 'tests/Opc.Ua.Lens.Tests/**'
+    - 'tests/Opc.Ua.Lens.Workflow.Tests/**'
+    - 'tests/Opc.Ua.Lens.Desktop.Tests/**'
+    - 'tests/Opc.Ua.Lens.Artifacts.Tests/**'
+    - 'src/**'
+    - '*.props'
+    - 'Directory.Build.targets'
+    - 'NuGet.config'
+    - 'global.json'
+    - 'version.json'
+    - '.github/workflows/ualens-artifacts.yml'
+  push:
+    branches: [master, main, develop/*]
+    paths:
+    - 'tools/Opc.Ua.Lens/**'
+    - 'tools/Opc.Ua.OpenUsd.Connector.Viewer/**'
+    - 'tests/Opc.Ua.Lens.Tests/**'
+    - 'tests/Opc.Ua.Lens.Workflow.Tests/**'
+    - 'tests/Opc.Ua.Lens.Desktop.Tests/**'
+    - 'tests/Opc.Ua.Lens.Artifacts.Tests/**'
+    - 'src/**'
+    - '*.props'
+    - 'Directory.Build.targets'
+    - 'NuGet.config'
+    - 'global.json'
+    - 'version.json'
+    - '.github/workflows/ualens-artifacts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ualens-artifacts-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  PROJECT: tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj
+  ARTIFACT_TEST_PROJECT: tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj
+
+jobs:
+  desktop-targets:
+    name: Desktop diagnostics (${{ matrix.tfm }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        tfm: [net8.0, net9.0, net10.0]
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Run artifact validation unit tests with NUnit
+      if: matrix.tfm == 'net10.0'
+      shell: pwsh
+      run: |
+        dotnet test $env:ARTIFACT_TEST_PROJECT -c Release -f net10.0 -p:CustomTestTarget=net10.0 --logger 'trx;LogFileName=guards.trx' --results-directory artifacts/lens/logs/guards -- RunConfiguration.TreatNoTestsAsError=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Build with normal analyzer and obsolete guards
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        dotnet build $env:PROJECT -c Release -f ${{ matrix.tfm }} -p:CustomTestTarget=${{ matrix.tfm }} -m:2 --nologo -v:minimal -bl:artifacts/lens/logs/build.binlog '-flp:logfile=artifacts/lens/logs/build.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-diagnostics-${{ matrix.tfm }}
+        path: artifacts/lens/logs
+        if-no-files-found: error
+
+  desktop-regressions:
+    name: Windows desktop regressions
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Build the desktop regression harness
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/desktop-logs | Out-Null
+        dotnet build tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 -m:2 --nologo -v:minimal -bl:artifacts/lens/desktop-logs/build.binlog '-flp:logfile=artifacts/lens/desktop-logs/build.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Run the complete desktop test assembly with NUnit
+      timeout-minutes: 5
+      shell: pwsh
+      run: |
+        dotnet test tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --blame-hang --blame-hang-timeout 3min --logger 'trx;LogFileName=desktop.trx' --results-directory TestResults/lens-desktop -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Execute connected desktop workflows in a separate process
+      timeout-minutes: 25
+      shell: pwsh
+      run: |
+        dotnet test tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0 -p:CustomTestTarget=net10.0 --blame-hang --blame-hang-timeout 3min --logger 'trx;LogFileName=workflow.trx' --results-directory TestResults/lens-desktop-workflow -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-windows-desktop-regressions
+        path: |
+          TestResults/lens-desktop
+          TestResults/lens-desktop-workflow
+          artifacts/lens/desktop-logs
+        if-no-files-found: error
+
+  native-desktop:
+    name: Native desktop (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: windows-2022
+          rid: win-x64
+          executable: UaLens.exe
+        - os: ubuntu-24.04
+          rid: linux-x64
+          executable: UaLens
+        - os: macos-15
+          rid: osx-arm64
+          executable: UaLens
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Linux native compiler and desktop prerequisites
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang zlib1g-dev libopengl0 libvulkan1 mesa-vulkan-drivers libice6 libsm6 libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
+    - name: Publish native desktop (keep detailed trim and AOT diagnostics)
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        # Keep PublishAot project-local; a global value also targets netstandard source generators.
+        dotnet publish $env:PROJECT -c Release -f net10.0 -p:CustomTestTarget=net10.0 -r ${{ matrix.rid }} --self-contained true -p:PackAsTool=false -p:PublishAotEnabled=true -p:SuppressTrimAnalysisWarnings=false -p:TrimmerSingleWarn=false -m:2 -o artifacts/lens/native -bl:artifacts/lens/logs/native.binlog '-flp:logfile=artifacts/lens/logs/native.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        # Preserve Unix executable permissions through artifact upload/download.
+        tar -czf artifacts/lens/ualens-${{ matrix.rid }}.tar.gz -C artifacts/lens/native .
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Validate native startup and rendering with NUnit
+      timeout-minutes: 5
+      shell: pwsh
+      run: |
+        $env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path 'artifacts/lens/native/${{ matrix.executable }}').Path
+        $env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path $env:GITHUB_WORKSPACE 'artifacts/lens/logs'
+        $env:UALENS_ARTIFACT_X11_VULKAN = $IsLinux.ToString()
+        $arguments = @('test', $env:ARTIFACT_TEST_PROJECT, '-c', 'Release', '-f', 'net10.0', '-p:CustomTestTarget=net10.0', '--filter', 'FullyQualifiedName~PublishedArtifactTests', '--logger', 'trx;LogFileName=artifact.trx', '--results-directory', 'artifacts/lens/logs/nunit', '--', 'NUnit.NumberOfTestWorkers=0', 'RunConfiguration.TreatNoTestsAsError=true')
+        if ($IsLinux) {
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' dotnet @arguments
+        } else {
+          dotnet @arguments
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-native-${{ matrix.rid }}
+        path: artifacts/lens
+        if-no-files-found: error
+
+  managed-package:
+    name: Pack managed desktop for all RIDs
+    runs-on: windows-2022
+    timeout-minutes: 40
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - name: Restore and pack managed tool (never reuse native output)
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force artifacts/lens/logs | Out-Null
+        dotnet restore $env:PROJECT -p:Configuration=Release -p:CustomTestTarget=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        dotnet pack $env:PROJECT -c Release --no-restore -p:CustomTestTarget=net10.0 -p:TargetFramework=net10.0 -p:PublishAotEnabled=false -p:PublishAot=false -p:PublishTrimmed=false -p:PackAsTool=true -m:2 -o artifacts/lens/packages -bl:artifacts/lens/logs/managed.binlog '-flp:logfile=artifacts/lens/logs/managed.log;verbosity=normal'
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-managed-packages
+        path: artifacts/lens
+        if-no-files-found: error
+        compression-level: 0
+
+  managed-tool:
+    name: Installed managed desktop (${{ matrix.rid }})
+    needs: managed-package
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: windows-2022
+          rid: win-x64
+          command: ualens.exe
+        - os: ubuntu-24.04
+          rid: linux-x64
+          command: ualens
+        - os: macos-15
+          rid: osx-arm64
+          command: ualens
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-dotnet@v6
+      with:
+        global-json-file: global.json
+    - uses: actions/download-artifact@v8
+      with:
+        name: ualens-managed-packages
+        path: artifacts/lens
+    - name: Linux desktop prerequisites
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libopengl0 libvulkan1 mesa-vulkan-drivers libice6 libsm6 libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
+    - name: Install only the freshly packed local artifact into an isolated directory
+      shell: pwsh
+      run: |
+        $root = Join-Path $env:RUNNER_TEMP 'ualens-installed'
+        New-Item -ItemType Directory $root | Out-Null
+        $source = [System.Security.SecurityElement]::Escape((Resolve-Path artifacts/lens/packages).Path)
+        $config = Join-Path $root 'NuGet.config'
+        [System.IO.File]::WriteAllText($config, "<configuration><packageSources><clear/><add key=`"artifact`" value=`"$source`"/></packageSources></configuration>")
+        $env:NUGET_PACKAGES = Join-Path $root 'cache'
+        $env:DOTNET_CLI_HOME = Join-Path $root 'cli'
+        $packages = @(Get-ChildItem artifacts/lens/packages -Filter '*.nupkg' -File)
+        if ($packages.Count -ne 4) { throw 'Expected one selector and three RID-specific tool packages.' }
+        $identities = @(foreach ($package in $packages) {
+          $archive = [IO.Compression.ZipFile]::OpenRead($package.FullName)
+          try {
+            $entries = @($archive.Entries | Where-Object {
+              $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+            })
+            if ($entries.Count -ne 1) { throw "Invalid package manifest: $($package.Name)" }
+            $reader = [IO.StreamReader]::new($entries[0].Open())
+            try { [xml] $manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            [pscustomobject]@{
+              Id = [string]$manifest.package.metadata.id
+              Version = [string]$manifest.package.metadata.version
+            }
+          } finally { $archive.Dispose() }
+        })
+        $id = 'OPCFoundation.NetStandard.Opc.Ua.Lens'
+        $primary = @($identities | Where-Object Id -CEQ $id)
+        if ($primary.Count -ne 1) { throw 'Expected exactly one root tool selector.' }
+        $version = $primary[0].Version
+        $expectedIds = @($id, "$id.win-x64", "$id.linux-x64", "$id.osx-arm64")
+        if (@(Compare-Object $expectedIds $identities.Id -CaseSensitive).Count -ne 0 -or
+            [string]::IsNullOrWhiteSpace($version) -or
+            @($identities | Where-Object Version -CNE $version).Count -ne 0) {
+          throw 'The tool packages must have the expected identities and exactly the same version.'
+        }
+        dotnet tool install OPCFoundation.NetStandard.Opc.Ua.Lens --version $version --tool-path (Join-Path $root 'tool') --configfile $config --no-cache
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Validate installed startup and rendering with NUnit
+      timeout-minutes: 5
+      shell: pwsh
+      run: |
+        $env:UALENS_ARTIFACT_EXECUTABLE = Join-Path $env:RUNNER_TEMP 'ualens-installed/tool/${{ matrix.command }}'
+        $env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path $env:GITHUB_WORKSPACE 'artifacts/lens/logs'
+        $env:UALENS_ARTIFACT_X11_VULKAN = $IsLinux.ToString()
+        $arguments = @('test', $env:ARTIFACT_TEST_PROJECT, '-c', 'Release', '-f', 'net10.0', '-p:CustomTestTarget=net10.0', '--filter', 'FullyQualifiedName~PublishedArtifactTests', '--logger', 'trx;LogFileName=artifact.trx', '--results-directory', 'artifacts/lens/logs/nunit', '--', 'NUnit.NumberOfTestWorkers=0', 'RunConfiguration.TreatNoTestsAsError=true')
+        if ($IsLinux) {
+          xvfb-run --auto-servernum '--server-args=-screen 0 1600x1000x24 -dpi 96' dotnet @arguments
+        } else {
+          dotnet @arguments
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: ualens-managed-${{ matrix.rid }}
+        path: artifacts/lens
+        if-no-files-found: error

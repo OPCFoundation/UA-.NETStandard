@@ -351,6 +351,9 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Recycling.Samples.Tests/Opc.Ua.Recycling.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Recycling.Operator.Tests/Opc.Ua.Recycling.Operator.Tests.csproj" />
@@ -388,6 +391,7 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Machinery.Tests/Opc.Ua.Machinery.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
@@ -433,6 +437,8 @@
     <Project Path="tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj" />
+    <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />

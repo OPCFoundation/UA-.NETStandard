@@ -130,6 +130,29 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// The managed desktop tool ships its selector and every supported runtime payload.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryIncludesTheCompleteLensToolAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            const string prefix = "OPCFoundation.NetStandard.Opc.Ua.Lens";
+            string[] actual = [.. lines.Select(line => line.Trim())
+                .Where(id => id == prefix || id.StartsWith(prefix + ".", StringComparison.Ordinal))];
+            string[] expected = [prefix, prefix + ".win-x64", prefix + ".linux-x64", prefix + ".osx-arm64"];
+
+            Assert.That(actual, Is.EquivalentTo(expected));
+            XDocument project = XDocument.Load(
+                Path.Combine(FindRepositoryRoot(), "tools", "Opc.Ua.Lens", "Opc.Ua.Lens.csproj"));
+            string[] runtimeIdentifiers = project.Descendants("ToolPackageRuntimeIdentifiers").Single().Value
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+            Assert.That(project.Descendants("RuntimeIdentifiers").Single().Value,
+                Is.EqualTo("$(ToolPackageRuntimeIdentifiers)"));
+            Assert.That(expected.Skip(1), Is.EquivalentTo(runtimeIdentifiers.Select(rid => prefix + "." + rid)));
+        }
+
+        /// <summary>
         /// Each plastics/rubber family ships exactly its model, client and server packages.
         /// </summary>
         [TestCase("Extrusion")]

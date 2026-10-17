@@ -1,0 +1,167 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.Companions.Machinery"
+             xmlns:common="using:UaLens.Plugins.Companions"
+             x:Class="UaLens.Plugins.Companions.Machinery.MachineryView"
+             x:DataType="vm:MachineryPlugin"
+             Background="{DynamicResource SurfaceBg}"
+             Foreground="{DynamicResource TextPrimary}">
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="12">
+    <StackPanel Grid.Row="0" Spacing="4">
+      <TextBlock Text="Machine" />
+      <TextBox Text="{CompiledBinding SearchText, Mode=TwoWay}" MaxLength="256"
+               PlaceholderText="Filter machines..." AutomationProperties.Name="Machine search" />
+      <ComboBox ItemsSource="{CompiledBinding Machines}"
+                SelectedItem="{CompiledBinding SelectedMachine, Mode=TwoWay}"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="Machine">
+        <ComboBox.ItemTemplate>
+          <DataTemplate DataType="vm:MachineryMachine">
+            <TextBlock Text="{CompiledBinding Name}" TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+    </StackPanel>
+    <WrapPanel Grid.Row="1">
+      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,0,12,4">
+        <TextBlock Text="Section" VerticalAlignment="Center" />
+        <ComboBox ItemsSource="{CompiledBinding Sections}"
+                  SelectedItem="{CompiledBinding SelectedSection, Mode=TwoWay}"
+                  MinWidth="145" AutomationProperties.Name="Machinery section">
+          <ComboBox.ItemTemplate>
+            <DataTemplate DataType="vm:MachinerySectionChoice">
+              <TextBlock Text="{CompiledBinding Label}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </StackPanel>
+      <Button Content="Discover" Command="{CompiledBinding DiscoverCommand}" Margin="0,0,8,4" />
+      <Button Content="Refresh section" Command="{CompiledBinding RefreshCommand}" Margin="0,0,8,4" />
+      <Button Content="Inspect selected" Command="{CompiledBinding InspectSelectionCommand}"
+              IsVisible="{CompiledBinding !IsShowingDetails}" Margin="0,0,8,4" />
+      <Button Content="Back to list" Command="{CompiledBinding BackToListCommand}"
+              IsVisible="{CompiledBinding IsShowingDetails}" Margin="0,0,8,4" />
+      <Button Content="Stop" Command="{CompiledBinding StopCommand}" Margin="0,0,0,4" />
+    </WrapPanel>
+    <Grid Grid.Row="2">
+      <ScrollViewer IsVisible="{CompiledBinding ShowOverview}">
+        <ItemsControl ItemsSource="{CompiledBinding Overview}" AutomationProperties.Name="Machine overview">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="common:CompanionValue">
+              <StackPanel Margin="0,4" Spacing="2">
+                <TextBlock Text="{CompiledBinding Name}" Foreground="{DynamicResource TextSecondary}" />
+                <TextBlock Text="{CompiledBinding Text}" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
+      <ListBox IsVisible="{CompiledBinding IsShowingDetails}" ItemsSource="{CompiledBinding Overview}"
+               SelectedItem="{CompiledBinding SelectedValue, Mode=TwoWay}"
+               AutomationProperties.Name="Selected Machinery item details">
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem Header="Monitor selected field" Command="{CompiledBinding OpenMonitorCommand}" />
+            <MenuItem Header="History for selected field..." Command="{CompiledBinding OpenHistoryCommand}" />
+          </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="common:CompanionValue">
+            <StackPanel Margin="4" Spacing="4">
+              <TextBlock Text="{CompiledBinding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{CompiledBinding Text}" TextWrapping="Wrap" />
+              <TextBlock Text="{CompiledBinding Evidence}" Foreground="{DynamicResource TextSecondary}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <ListBox IsVisible="{CompiledBinding !IsOverview}" ItemsSource="{CompiledBinding Items}"
+               SelectedItem="{CompiledBinding SelectedItem, Mode=TwoWay}"
+               AutomationProperties.Name="Machinery section items">
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:MachineryItem">
+            <StackPanel Margin="4" Spacing="4">
+              <TextBlock Text="{CompiledBinding Name}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{CompiledBinding Summary}" TextWrapping="Wrap" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+      <ProgressBar IsIndeterminate="True" IsVisible="{CompiledBinding IsLoading}"
+                   VerticalAlignment="Top" Height="2" />
+    </Grid>
+    <StackPanel Grid.Row="3" Spacing="8">
+      <Button x:Name="SelectedActionsButton" Content="Selected item actions..."
+              IsVisible="{CompiledBinding IsShowingDetails}" HorizontalAlignment="Left"
+              AutomationProperties.Name="Selected Machinery actions">
+        <Button.Flyout>
+          <Flyout Placement="Top">
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled" MaxHeight="320" Width="310">
+              <StackPanel Spacing="8" Margin="0,8">
+                <Button Content="Monitor selected field" Command="{CompiledBinding OpenMonitorCommand}"
+                        HorizontalAlignment="Left" />
+                <Button Content="History for selected field..." Command="{CompiledBinding OpenHistoryCommand}"
+                        HorizontalAlignment="Left" />
+                <TextBlock Text="Export to a new local file (no overwrite)" TextWrapping="Wrap" />
+                <TextBox Text="{CompiledBinding ActionDestination, Mode=TwoWay}" MaxLength="240"
+                         PlaceholderText="Enter an absolute local destination..."
+                         AutomationProperties.Name="Machinery export destination" />
+                <Button Content="Export displayed snapshot (.json)" Command="{CompiledBinding ExportSnapshotCommand}"
+                        HorizontalAlignment="Left" />
+                <Button Content="Download exact result (at most 1 MiB)"
+                        Command="{CompiledBinding DownloadResultCommand}"
+                        IsVisible="{CompiledBinding ShowResultAction}" HorizontalAlignment="Left" />
+                <Button Content="Review available process task..." Command="{CompiledBinding OpenProcessTaskCommand}"
+                        IsVisible="{CompiledBinding ShowProcessTask}" HorizontalAlignment="Left" />
+                <Button Content="Open ISA-95 job tasks..." Command="{CompiledBinding OpenJobTaskCommand}"
+                        IsVisible="{CompiledBinding ShowJobTask}" HorizontalAlignment="Left" />
+                <TextBlock Text="Tasks open separately for explicit preparation and one-use confirmation."
+                           TextWrapping="Wrap" Foreground="{DynamicResource TextSecondary}" />
+              </StackPanel>
+            </ScrollViewer>
+          </Flyout>
+        </Button.Flyout>
+      </Button>
+      <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{CompiledBinding !IsOverview}">
+        <Button Content="Previous" Command="{CompiledBinding PreviousPageCommand}" />
+        <TextBlock Text="{CompiledBinding PageLabel}" VerticalAlignment="Center" />
+        <Button Content="Next" Command="{CompiledBinding NextPageCommand}" />
+      </StackPanel>
+      <Expander Header="Technical details" IsExpanded="False" MaxHeight="140">
+        <ScrollViewer>
+          <TextBlock Text="{CompiledBinding TechnicalDetails}" TextWrapping="Wrap" />
+        </ScrollViewer>
+      </Expander>
+    </StackPanel>
+    <TextBlock Grid.Row="4" Text="{CompiledBinding Status}" TextWrapping="Wrap"
+               AutomationProperties.Name="Machinery status" MaxHeight="70" />
+  </Grid>
+</UserControl>

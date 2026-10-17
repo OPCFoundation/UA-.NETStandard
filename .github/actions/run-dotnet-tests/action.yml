@@ -59,7 +59,9 @@ runs:
   - name: Setup Linux desktop and native rendering dependencies
     if: >-
       ${{ runner.os == 'Linux' &&
-          contains(inputs.projects, 'Opc.Ua.Vision.Tests') }}
+          (contains(inputs.projects, 'Opc.Ua.Lens.Workflow.Tests') ||
+           contains(inputs.projects, 'Opc.Ua.Lens.Desktop.Tests') ||
+           contains(inputs.projects, 'Opc.Ua.Vision.Tests')) }}
     shell: bash
     run: |
       sudo apt-get update
