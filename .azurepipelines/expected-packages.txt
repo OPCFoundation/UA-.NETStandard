@@ -22,6 +22,8 @@ OPCFoundation.NetStandard.Opc.Ua.AMB
 OPCFoundation.NetStandard.Opc.Ua.AMB.Client
 OPCFoundation.NetStandard.Opc.Ua.AMB.Server
 OPCFoundation.NetStandard.Opc.Ua.AutoID
+OPCFoundation.NetStandard.Opc.Ua.AutoID.Client
+OPCFoundation.NetStandard.Opc.Ua.AutoID.Server
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
@@ -66,6 +68,7 @@ OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client
 OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server
 OPCFoundation.NetStandard.Opc.Ua.Mcp
 OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB
+OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Core
 OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists
 OPCFoundation.NetStandard.Opc.Ua.Mcp.Di
