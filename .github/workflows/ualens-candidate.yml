@@ -8,6 +8,7 @@ on:
     - '.github/scripts/test_ualens_candidate.py'
     - '.github/workflows/ualens-candidate.yml'
     - '.github/workflows/ualens-artifacts.yml'
+    - 'global.json'
   workflow_dispatch:
 
 permissions:

@@ -157,8 +157,9 @@ Other RIDs, Linux distributions, macOS Intel, signing/notarization, and installe
 integration are not covered by this matrix. The managed package requires a
 .NET 10 runtime; the native artifact does not.
 
-All jobs need .NET SDK 10, package-feed access during restore, and Python 3
-for the bounded process runner. The workflow uses Python's standard library
+All jobs install the exact .NET SDK pinned in [`global.json`](../../global.json)
+and need package-feed access during restore and Python 3 for the bounded process
+runner. The workflow uses Python's standard library
 and adds no NuGet dependencies. Linux prerequisites are installed explicitly
 in the workflow. The Windows and macOS jobs use their hosted runner's compiler
 and desktop; do not substitute a service-only runner or a headless Avalonia backend.
@@ -183,6 +184,9 @@ Its explicit net10 pack invocation selects the tool's packable inner build;
 the multi-target outer build is not packable. Removing either step without
 replacing that build/sign/pack ordering can omit RID packages or rebuild
 assemblies after they were signed.
+The selector and all three RID package IDs are listed in the shared
+[package inventory](../../.azurepipelines/expected-packages.txt), so the publishing
+gate requires the complete tool alongside the library packages.
 
 The dedicated artifact workflow verifies deployment behavior that ordinary
 solution builds and unit tests do not: installation through the tool selector,

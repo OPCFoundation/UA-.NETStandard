@@ -43,6 +43,39 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed class TestMatrixScriptTests
     {
+        /// <summary>
+        /// Artifact qualification installs the exact repository SDK instead of a floating patch.
+        /// </summary>
+        [Test]
+        public async Task ArtifactJobsInstallTheRepositorySdkAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".github", "workflows", "ualens-artifacts.yml");
+            string source = await File.ReadAllTextAsync(path).ConfigureAwait(false);
+            string[] steps = [.. source.ReplaceLineEndings("\n")
+                .Split("\n    - ", StringSplitOptions.None)
+                .Where(step => step.StartsWith("uses: actions/setup-dotnet@", StringComparison.Ordinal))];
+
+            Assert.That(steps, Is.Not.Empty);
+            foreach (string step in steps)
+            {
+                Assert.That(step.Split('\n'), Does.Contain("        global-json-file: global.json"));
+                Assert.That(step, Does.Not.Contain("dotnet-version:"));
+            }
+        }
+
+        /// <summary>
+        /// SDK changes requalify both production and candidate artifacts.
+        /// </summary>
+        [TestCase("ualens-artifacts.yml", 2)]
+        [TestCase("ualens-candidate.yml", 1)]
+        public async Task ArtifactTriggersIncludeTheRepositorySdkAsync(string workflow, int expectedTriggers)
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".github", "workflows", workflow);
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+
+            Assert.That(lines.Count(line => line == "    - 'global.json'"), Is.EqualTo(expectedTriggers));
+        }
+
         [TestCase(true, "test", LensProjectFile, true)]
         [TestCase(true, "test", "tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj", true)]
         [TestCase(true, "test", "tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj", false)]
