@@ -364,6 +364,63 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// The secure channel context of a request received on the channel.
+        /// </summary>
+        /// <remarks>
+        /// The context holds only values of the channel that stay the same for the life of a
+        /// security token, so the requests of a token share one context. Every input is
+        /// compared by reference on each call: a renewed token (a new thumbprint, a rotated
+        /// certificate) or a transport that reconnected to the channel gets a new context.
+        /// </remarks>
+        internal SecureChannelContext GetRequestContext()
+        {
+            string channelId = GlobalChannelId;
+            EndpointDescription? endpoint = EndpointDescription;
+            byte[]? clientCertificate = ClientCertificateRawData;
+            byte[]? serverCertificate = ServerCertificateRawData;
+            byte[]? thumbprint = ChannelThumbprint;
+            IUaSCByteTransport? transport = Transport;
+
+            RequestContext? cached = Volatile.Read(ref m_requestContext);
+            if (cached != null &&
+                ReferenceEquals(cached.ChannelId, channelId) &&
+                ReferenceEquals(cached.Endpoint, endpoint) &&
+                ReferenceEquals(cached.ClientCertificate, clientCertificate) &&
+                ReferenceEquals(cached.ServerCertificate, serverCertificate) &&
+                ReferenceEquals(cached.Thumbprint, thumbprint) &&
+                ReferenceEquals(cached.Transport, transport))
+            {
+                return cached.Context;
+            }
+
+            var context = new SecureChannelContext(
+                channelId,
+                endpoint,
+                RequestEncoding.Binary,
+                clientCertificate,
+                serverCertificate,
+                thumbprint,
+                (transport?.RemoteEndpoint as IPEndPoint)?.Address);
+            Volatile.Write(ref m_requestContext, new RequestContext(
+                context, channelId, endpoint, clientCertificate, serverCertificate, thumbprint, transport));
+            return context;
+        }
+
+        /// <summary>
+        /// A secure channel context with the channel values it was created from.
+        /// </summary>
+        private sealed record RequestContext(
+            SecureChannelContext Context,
+            string ChannelId,
+            EndpointDescription? Endpoint,
+            byte[]? ClientCertificate,
+            byte[]? ServerCertificate,
+            byte[]? Thumbprint,
+            IUaSCByteTransport? Transport);
+
+        private RequestContext? m_requestContext;
+
+        /// <summary>
         /// Clean up an Opening or Open channel that has been idle for too long.
         /// </summary>
         public void IdleCleanup()

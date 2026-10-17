@@ -4525,26 +4525,42 @@ namespace Opc.Ua.Server
             // This is the list of attributes to be populated by GetNodeMetadata from CustomNodeManagers.
             // The are originating from services in the context of AccessRestrictions and RolePermission validation.
             // For such calls the other attributes are ignored since reading them might trigger unnecessary callbacks
+            uint[] attributeIds = RentValidationAttributeIds();
             target.ReadAttributes(
                 systemContext,
                 ref values,
-                CreateValidationAttributeIds());
+                attributeIds);
+            t_validationAttributeIds = attributeIds;
         }
 
         /// <summary>
         /// Returns the attributes read by <see cref="ReadValidationAttributes"/>. The array is
         /// passed to the virtual <see cref="NodeState.ReadAttributes(ISystemContext, ref Variant[], uint[])"/>,
-        /// so every call gets its own; filling it element by element avoids the
+        /// which could change it, so it is filled again for every call; one array per thread is
+        /// taken for the call and given back afterwards, so a read that validates permissions
+        /// again (re-entrantly) gets its own. Filling it element by element avoids the
         /// <c>RuntimeHelpers.InitializeArray</c> call of an array initializer.
         /// </summary>
-        private static uint[] CreateValidationAttributeIds()
+        private static uint[] RentValidationAttributeIds()
         {
-            uint[] attributeIds = new uint[3];
+            uint[] attributeIds = t_validationAttributeIds ?? new uint[3];
+            t_validationAttributeIds = null;
             attributeIds[0] = Attributes.AccessRestrictions;
             attributeIds[1] = Attributes.RolePermissions;
             attributeIds[2] = Attributes.UserRolePermissions;
             return attributeIds;
         }
+
+        [ThreadStatic]
+        private static uint[]? t_validationAttributeIds;
+
+        /// <summary>
+        /// The values array of a permission check that keeps no attribute cache: taken by
+        /// <see cref="TryValidatePermissionsAsync"/> for the synchronous read of the attributes
+        /// and given back cleared, before the check awaits anything.
+        /// </summary>
+        [ThreadStatic]
+        private static Variant[]? t_validationValues;
 
         /// <summary>
         /// Browses the references from a node managed by the node manager.
@@ -4979,7 +4995,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
-            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
+
+            // The cache shares the nodes resolved for one operation with the others of the
+            // request, so a request with one node only needs it for a node to validate.
+            IDictionary<NodeId, NodeState>? operationCache =
+                nodesToRead.Count > 1 ? new Dictionary<NodeId, NodeState>() : null;
             List<NodeHandle>? nodesToValidate = null;
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -4992,12 +5012,14 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for valid handle.
-                NodeHandle handle = await GetManagerHandleAsync(
-                    systemContext,
-                    nodeToRead.NodeId,
-                    operationCache,
-                    cancellationToken).ConfigureAwait(false);
+                // check for valid handle: the handle of an in-memory node this node manager
+                // already returned while the request was validated, or a new one.
+                NodeHandle handle = GetRoutedHandle(nodeToRead.Handle, nodeToRead.NodeId) ??
+                    await GetManagerHandleAsync(
+                        systemContext,
+                        nodeToRead.NodeId,
+                        operationCache!,
+                        cancellationToken).ConfigureAwait(false);
 
                 if (handle == null)
                 {
@@ -5078,7 +5100,37 @@ namespace Opc.Ua.Server
             }
 
             // validates the nodes (reads values from the underlying data source if required).
-            await ReadAsync(systemContext, nodesToRead, values, errors, nodesToValidate, operationCache, cancellationToken).ConfigureAwait(false);
+            await ReadAsync(
+                systemContext,
+                nodesToRead,
+                values,
+                errors,
+                nodesToValidate,
+                operationCache ?? new Dictionary<NodeId, NodeState>(),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Returns the handle of an in-memory node of this node manager that the request
+        /// validation already resolved for <paramref name="nodeId"/>, or <c>null</c>.
+        /// </summary>
+        /// <remarks>
+        /// The Read service validates the permissions of every node through
+        /// <see cref="GetManagerHandleAsync(NodeId, CancellationToken)"/>, whose handle "does not
+        /// require the NodeId to be validated again"; it routes the handle of a node that was
+        /// already resolved and validated at that point (see
+        /// <see cref="NodeManagerServiceDispatcher"/>), so the read does not look the node up
+        /// and allocate a second handle.
+        /// </remarks>
+        internal NodeHandle? GetRoutedHandle(object? routed, NodeId nodeId)
+        {
+            return routed is NodeHandle handle &&
+                ReferenceEquals(handle.RoutedBy, this) &&
+                handle.Validated &&
+                handle.Node != null &&
+                handle.NodeId == nodeId
+                ? handle
+                : null;
         }
 
         /// <summary>
@@ -10529,9 +10581,13 @@ namespace Opc.Ua.Server
                         ref values);
                 }
             }
-            else if (permissionsOnly)
+            Variant[]? scratch = null;
+            if (uniqueNodesServiceAttributesCache == null && permissionsOnly)
             {
-                values = new Variant[3];
+                // nothing keeps the values beyond this method: read them into the array of
+                // the thread.
+                values = scratch = t_validationValues ?? new Variant[3];
+                t_validationValues = null;
                 ReadValidationAttributes(systemContext, target, ref values);
             }
 
@@ -10554,6 +10610,12 @@ namespace Opc.Ua.Server
                 {
                     userRolePermissions = userRoles;
                 }
+            }
+
+            if (scratch != null)
+            {
+                Array.Clear(scratch, 0, scratch.Length);
+                t_validationValues = scratch;
             }
 
             (AccessRestrictionType defaultAccessRestrictions,

@@ -50,6 +50,7 @@ namespace Opc.Ua.Vision.OpenUsd
             Name = "None",
             IsAvailable = false,
             IsSoftware = false,
+            IsSoftwareKnown = false,
             UnavailableReason = "No graphics backend has been probed yet."
         };
 
@@ -81,6 +82,12 @@ namespace Opc.Ua.Vision.OpenUsd
         /// this is <c>true</c>.
         /// </summary>
         public bool IsSoftware { get; init; }
+
+        /// <summary>
+        /// Gets whether the owning renderer exposes a reliable software/hardware classification.
+        /// When false, <see cref="IsSoftware"/> must not be interpreted as a hardware guarantee.
+        /// </summary>
+        public bool IsSoftwareKnown { get; init; } = true;
 
         /// <summary>
         /// <c>true</c> when the provider will attempt capture; <c>false</c>

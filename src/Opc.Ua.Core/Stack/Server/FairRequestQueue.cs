@@ -166,6 +166,7 @@ namespace Opc.Ua
 
             IDisposable? costLease = null;
             IDisposable? parkedLease = null;
+            Entry? pending = null;
             try
             {
                 if (!m_provider.TryAcquire(
@@ -183,12 +184,15 @@ namespace Opc.Ua
                     return false;
                 }
 
-                using var admission = new PendingAdmission(
+                // The admission owns the entry until it is published: a rejected or interrupted
+                // admission disposes it in the finally block, a published one leaves it to the
+                // queue.
+                var entry = new Entry(
                     this, request, owner, queueLease, costLease!, parkedLease, cancellationToken);
+                pending = entry;
                 queueLease = null;
                 costLease = null;
                 parkedLease = null;
-                Entry entry = admission.Entry;
                 entry.AdmissionEvidence = evidence;
                 entry.RegisterCancellation();
 
@@ -226,7 +230,7 @@ namespace Opc.Ua
                         return false;
                     }
                 }
-                admission.TransferToQueue();
+                pending = null;
                 Changed();
                 Pulse();
                 error = StatusCodes.Good;
@@ -234,6 +238,7 @@ namespace Opc.Ua
             }
             finally
             {
+                pending?.Dispose();
                 parkedLease?.Dispose();
                 costLease?.Dispose();
                 queueLease?.Dispose();
@@ -346,6 +351,14 @@ namespace Opc.Ua
         /// <summary>
         /// Waits for a request, waking at most one blocked reader per coalesced signal.
         /// </summary>
+        /// <remarks>
+        /// A worker that finds the queue empty suspends here once per request it takes, so the
+        /// state machine is pooled; the worker loop awaits each call exactly once.
+        /// </remarks>
+#if NET6_0_OR_GREATER
+        [System.Runtime.CompilerServices.AsyncMethodBuilder(
+            typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
         public async ValueTask<Entry> DequeueAsync(CancellationToken cancellationToken)
         {
             while (true)
@@ -1065,7 +1078,14 @@ namespace Opc.Ua
             /// </summary>
             internal void RegisterCancellation()
             {
-                CancellationTokenRegistration registration = CancellationToken.Register(() => m_queue.Cancel(this));
+                // a static callback with the entry as state: no delegate per request.
+                CancellationTokenRegistration registration = CancellationToken.Register(
+                    static state =>
+                    {
+                        var entry = (Entry)state!;
+                        entry.m_queue.Cancel(entry);
+                    },
+                    this);
                 m_registration = registration;
 
                 // published unless the entry was disposed meanwhile, possibly by the
@@ -1347,57 +1367,6 @@ namespace Opc.Ua
             private QueueNode m_tail;
             private List<Entry>? m_returned;
             private int m_returnedCount;
-        }
-
-        /// <summary>
-        /// Owns an entry until it is published. A rejected or interrupted admission
-        /// disposes its entry; after publication the queue owns the same entry.
-        /// </summary>
-        private sealed class PendingAdmission : IDisposable
-        {
-            /// <summary>
-            /// Creates the entry that this admission owns until publication.
-            /// </summary>
-            public PendingAdmission(
-                FairRequestQueue queue,
-                IEndpointIncomingRequest request,
-                ResourceIsolationOwner owner,
-                IDisposable queueLease,
-                IDisposable costLease,
-                IDisposable? parkedLease,
-                CancellationToken cancellationToken)
-            {
-                m_entry = new Entry(
-                    queue, request, owner, queueLease, costLease, parkedLease, cancellationToken);
-            }
-
-            /// <summary>
-            /// Gets the entry before ownership transfers to the queue.
-            /// </summary>
-            public Entry Entry => m_entry ??
-                throw new InvalidOperationException("Admission ownership has already transferred.");
-
-            /// <summary>
-            /// Relinquishes entry ownership after publication under the queue gate.
-            /// </summary>
-            public void TransferToQueue()
-            {
-                m_entry = null;
-            }
-
-            /// <summary>
-            /// Returns leases if publication failed or was interrupted.
-            /// </summary>
-            public void Dispose()
-            {
-                m_entry?.Dispose();
-                m_entry = null;
-            }
-
-            /// <summary>
-            /// Entry owned by this unpublished admission.
-            /// </summary>
-            private Entry? m_entry;
         }
 
         /// <summary>

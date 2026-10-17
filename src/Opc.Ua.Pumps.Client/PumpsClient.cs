@@ -75,6 +75,25 @@ namespace Opc.Ua.Pumps.Client
         }
 
         /// <summary>
+        /// Creates a client with bounded browsing and strict response validation.
+        /// </summary>
+        /// <param name="session">The connected session, borrowed by the client.</param>
+        /// <param name="telemetry">The telemetry context.</param>
+        /// <param name="maximumBrowseReferences">
+        /// Maximum references in one browse and values in one value-set read, including nested groups.
+        /// Must be between one and 65536. Exceeding the limit fails rather than returning truncated data.
+        /// </param>
+        public PumpsClient(ISession session, ITelemetryContext telemetry, int maximumBrowseReferences)
+            : this(session, telemetry)
+        {
+            if (maximumBrowseReferences is < 1 or > 65536)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumBrowseReferences));
+            }
+            m_maximumBrowseReferences = maximumBrowseReferences;
+        }
+
+        /// <summary>
         /// Gets the connected session.
         /// </summary>
         public ISession Session { get; }
@@ -140,8 +159,8 @@ namespace Opc.Ua.Pumps.Client
                     continue;
                 }
                 await foreach (PumpEntry entry in EnumeratePumpsUnderAsync(
-                        root,
-                        cancellationToken).ConfigureAwait(false))
+                    root,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     if (seen.Add(entry.NodeId))
                     {
@@ -176,9 +195,9 @@ namespace Opc.Ua.Pumps.Client
             }
 
             await foreach (ReferenceDescription reference in BrowseChildrenAsync(
-                    root,
-                    NodeClass.Object,
-                    cancellationToken).ConfigureAwait(false))
+                root,
+                NodeClass.Object,
+                cancellationToken).ConfigureAwait(false))
             {
                 var nodeId = ExpandedNodeId.ToNodeId(reference.NodeId, Session.NamespaceUris);
                 var typeDefinition = ExpandedNodeId.ToNodeId(
@@ -243,6 +262,10 @@ namespace Opc.Ua.Pumps.Client
             if (typeDefinition.IsNull || pumpType.IsNull)
             {
                 return false;
+            }
+            if (typeDefinition == pumpType)
+            {
+                return true;
             }
             return await Session.NodeCache
                 .IsTypeOfAsync(typeDefinition, pumpType, cancellationToken)
@@ -394,8 +417,14 @@ namespace Opc.Ua.Pumps.Client
                 .TranslateBrowsePathsToNodeIdsAsync(null, paths.ToArrayOf(), cancellationToken)
                 .ConfigureAwait(false);
 
+            ValidateBoundedResponse(response.ResponseHeader, response.Results.Count, paths.Length);
             for (int ii = 0; ii < response.Results.Count && ii < results.Length; ii++)
             {
+                if (m_maximumBrowseReferences != 0)
+                {
+                    results[ii] = TargetAt(response, ii);
+                    continue;
+                }
                 BrowsePathResult result = response.Results[ii];
                 if (StatusCode.IsGood(result.StatusCode) && result.Targets.Count > 0)
                 {
@@ -430,14 +459,30 @@ namespace Opc.Ua.Pumps.Client
                 yield break;
             }
 
-            var browser = new Browser(Session, new BrowserOptions
+            if (m_maximumBrowseReferences != 0)
             {
-                BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
-                IncludeSubtypes = true,
-                NodeClassMask = (int)nodeClassMask,
-                ResultMask = (uint)BrowseResultMask.All
-            });
+                ArrayOf<ReferenceDescription> boundedReferences = await BrowseBoundedAsync(
+                    parent,
+                    nodeClassMask,
+                    cancellationToken).ConfigureAwait(false);
+                for (int index = 0; index < boundedReferences.Count; index++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    yield return boundedReferences[index];
+                }
+                yield break;
+            }
+
+            var browser = new Browser(
+                Session,
+                new BrowserOptions
+                {
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences,
+                    IncludeSubtypes = true,
+                    NodeClassMask = (int)nodeClassMask,
+                    ResultMask = (uint)BrowseResultMask.All
+                });
 
             // The managed overload reports a bad status for the node in
             // Errors and throws only when the service call itself fails.
@@ -461,5 +506,7 @@ namespace Opc.Ua.Pumps.Client
         {
             return browseName.Name ?? string.Empty;
         }
+
+        private readonly int m_maximumBrowseReferences;
     }
 }

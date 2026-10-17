@@ -229,6 +229,21 @@ namespace Opc.Ua.Mcp.Tools
                 {
                     DisableDataTypeDictionary = true
                 };
+                ArrayOf<UaTypeDescription> dependencies = snapshot.Types;
+                for (int index = 0; index < dependencies.Count; index++)
+                {
+                    UaTypeDescription dependency = dependencies[index];
+                    if (dependency.Definition is EnumDefinition && !dependency.IsStructureOptionSet)
+                    {
+                        IType? enumeration = await loader.LoadTypeAsync(
+                            dependency.TypeId, subTypes: false, throwOnError: true, token).ConfigureAwait(false);
+                        if (enumeration == null)
+                        {
+                            throw SchemaDefinitionSnapshot.Unsupported(
+                                "An enumeration in the selected type closure could not be registered.");
+                        }
+                    }
+                }
                 var results = new JsonArray();
                 bool error = false;
                 for (int index = 0; index < roots.Count; index++)

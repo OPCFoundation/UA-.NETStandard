@@ -812,6 +812,9 @@ namespace Opc.Ua.Sessions.Tests
             session.Dispose();
         }
 
+        /// <summary>
+        /// Transfers an issued-token subscription by authenticated subject without starting a publish pipeline.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         [Order(240)]
@@ -830,7 +833,6 @@ namespace Opc.Ua.Sessions.Tests
                     "target-issued-token"u8));
             ISession? sourceSession = null;
             ISession? targetSession = null;
-            Subscription? subscription = null;
 
             try
             {
@@ -842,15 +844,19 @@ namespace Opc.Ua.Sessions.Tests
                         Endpoints,
                         sourceIdentity)
                     .ConfigureAwait(false);
-                subscription = new Subscription(sourceSession.DefaultSubscription)
-                {
-                    PublishingInterval = 1_000,
-                    LifetimeCount = 30,
-                    KeepAliveCount = 5,
-                    PublishingEnabled = true
-                };
-                Assert.That(sourceSession.AddSubscription(subscription), Is.True);
-                await subscription.CreateAsync().ConfigureAwait(false);
+                CreateSubscriptionResponse created = await sourceSession.CreateSubscriptionAsync(
+                    null,
+                    1_000,
+                    30,
+                    5,
+                    0,
+                    true,
+                    0,
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(created.ResponseHeader.ServiceResult), Is.True);
+                Assert.That(created.SubscriptionId, Is.Not.Zero);
+                Assert.That(sourceSession.Subscriptions, Is.Empty);
+                Assert.That(sourceSession.GoodPublishRequestCount, Is.Zero);
 
                 sourceSession.DeleteSubscriptionsOnClose = false;
                 StatusCode closeStatus = await sourceSession.CloseAsync().ConfigureAwait(false);
@@ -868,7 +874,7 @@ namespace Opc.Ua.Sessions.Tests
                 TransferSubscriptionsResponse response =
                     await targetSession.TransferSubscriptionsAsync(
                         null,
-                        [subscription.Id],
+                        [created.SubscriptionId],
                         false,
                         default).ConfigureAwait(false);
 
@@ -889,7 +895,6 @@ namespace Opc.Ua.Sessions.Tests
                     targetSession.Dispose();
                 }
                 sourceSession?.Dispose();
-                subscription?.Dispose();
             }
         }
 

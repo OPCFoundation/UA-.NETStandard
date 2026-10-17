@@ -63,7 +63,8 @@ namespace Opc.Ua.PubSub.Security
     /// clear.
     /// </para>
     /// </remarks>
-    public sealed class PubSubSecurityWrapperResolver : IPubSubSecurityWrapperResolver
+    public sealed class PubSubSecurityWrapperResolver :
+        IPubSubSecurityWrapperResolver, IPubSubSecurityKeyProviderCatalog
     {
         private readonly Dictionary<string, IPubSubSecurityKeyProvider> m_keyProviders;
         private readonly ITelemetryContext m_telemetry;
@@ -156,6 +157,9 @@ namespace Opc.Ua.PubSub.Security
             m_replayWindowSize = replayWindowSize;
         }
 
+        /// <inheritdoc/>
+        public ArrayOf<string> SecurityGroupIds => [.. m_keyProviders.Keys];
+
         private static IPubSubSecurityPolicy? SelectByUri(
             IEnumerable<IPubSubSecurityPolicy>? policies,
             string policyUri)
@@ -226,14 +230,15 @@ namespace Opc.Ua.PubSub.Security
                 ?? new RandomNonceProvider(publisherId, m_timeProvider);
 #pragma warning restore CA2000
             var window = new SecurityTokenWindow(m_replayWindowSize, m_timeProvider);
-            PrimeReplayWindow(keyProvider, window);
 
             var wrapper = new UadpSecurityWrapper(
                 policy,
                 keyProvider,
                 nonceProvider,
                 window,
-                m_telemetry);
+                m_telemetry,
+                securityEventSink: null,
+                registerAuthenticatedToken: window.RegisterToken);
 
             UadpSecurityWrapOptions options = mode == MessageSecurityMode.SignAndEncrypt
                 ? UadpSecurityWrapOptions.SignAndEncrypt
@@ -279,16 +284,24 @@ namespace Opc.Ua.PubSub.Security
             {
                 foreach (WriterGroupDataType group in connection.WriterGroups)
                 {
-                    Consider(group.SecurityMode, group.SecurityGroupId,
-                        ref mode, ref securityGroupId, ref bestRank);
+                    Consider(
+                        group.SecurityMode,
+                        group.SecurityGroupId,
+                        ref mode,
+                        ref securityGroupId,
+                        ref bestRank);
                 }
             }
             if (!connection.ReaderGroups.IsNull)
             {
                 foreach (ReaderGroupDataType group in connection.ReaderGroups)
                 {
-                    Consider(group.SecurityMode, group.SecurityGroupId,
-                        ref mode, ref securityGroupId, ref bestRank);
+                    Consider(
+                        group.SecurityMode,
+                        group.SecurityGroupId,
+                        ref mode,
+                        ref securityGroupId,
+                        ref bestRank);
                 }
             }
 
@@ -321,32 +334,6 @@ namespace Opc.Ua.PubSub.Security
                 _ => 0
             };
         }
-
-        private void PrimeReplayWindow(
-            IPubSubSecurityKeyProvider keyProvider,
-            SecurityTokenWindow window)
-        {
-            // Register the currently active token so the receive side
-            // accepts the first secured frame; subsequent tokens are
-            // registered as the provider rotates.
-            try
-            {
-                System.Threading.Tasks.ValueTask<PubSubSecurityKey> currentTask =
-                    keyProvider.GetCurrentKeyAsync();
-                if (currentTask.IsCompletedSuccessfully)
-                {
-                    // Reading the result of an already-completed ValueTask
-                    // is not a blocking sync-over-async wait.
-                    window.RegisterToken(currentTask.Result.TokenId);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // No current token yet; it will be registered on the
-                // first KeyRotated notification.
-            }
-            keyProvider.KeyRotated += (_, e) => window.RegisterToken(e.NewTokenId);
-        }
     }
 
     /// <summary>
@@ -354,7 +341,9 @@ namespace Opc.Ua.PubSub.Security
     /// </summary>
     internal static partial class PubSubSecurityWrapperResolverLog
     {
-        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 0, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 0,
+            Level = LogLevel.Warning,
             Message = "No key provider registered for SecurityGroupId '{SecurityGroupId}' " +
                 "required by secured connection '{Connection}'.")]
         public static partial void NoKeyProviderRegistered(
@@ -362,7 +351,9 @@ namespace Opc.Ua.PubSub.Security
             string securityGroupId,
             string? connection);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubSecurityWrapperResolver + 1,
+            Level = LogLevel.Warning,
             Message = "No usable security policy for SecurityGroupId '{SecurityGroupId}' " +
                 "required by secured connection '{Connection}'.")]
         public static partial void NoUsableSecurityPolicy(
@@ -370,5 +361,4 @@ namespace Opc.Ua.PubSub.Security
             string securityGroupId,
             string? connection);
     }
-
 }

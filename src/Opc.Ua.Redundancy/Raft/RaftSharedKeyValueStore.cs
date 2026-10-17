@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -64,6 +65,7 @@ namespace Opc.Ua.Redundancy
     public sealed class RaftSharedKeyValueStore :
         ISharedKeyValueStore,
         ISharedKeyValueStoreConsistency,
+        IRaftSnapshotManager,
         IAsyncDisposable
     {
         /// <inheritdoc/>
@@ -153,6 +155,168 @@ namespace Opc.Ua.Redundancy
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// The barrier is proposed like any other command; the applier captures the state while it applies that
+        /// barrier, under the same lock that orders every command, so no command committed after the barrier is in
+        /// the snapshot.
+        /// </remarks>
+        public async ValueTask<RaftKeyValueSnapshot> CreateSnapshotAsync(CancellationToken ct = default)
+        {
+            var capture = new TaskCompletionSource<RaftKeyValueSnapshot>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            _ = await ProposeAsync(OpBarrier, string.Empty, default, default, capture, ct).ConfigureAwait(false);
+            return await capture.Task.ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// The restore takes the same gate as the startup of the store, and the startup marks the store as started
+        /// before it releases the gate, so a restore can never interleave with a startup that already lets the
+        /// consensus apply commands.
+        /// </remarks>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="replay"/> is not a defined value.</exception>
+        public async ValueTask RestoreSnapshotAsync(
+            ByteString snapshot,
+            RaftSnapshotLogReplay replay = RaftSnapshotLogReplay.AfterSnapshot,
+            CancellationToken ct = default)
+        {
+            if (replay is not (RaftSnapshotLogReplay.AfterSnapshot or RaftSnapshotLogReplay.FromFirstCommand))
+            {
+                throw new ArgumentOutOfRangeException(nameof(replay));
+            }
+
+            (Dictionary<string, ByteString> state, long lastIncludedCommand) = DecodeSnapshot(snapshot.Span);
+
+            CancellationToken disposeToken;
+            lock (m_proposalLock)
+            {
+                ThrowIfDisposed();
+                disposeToken = m_cts.Token;
+            }
+
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, disposeToken);
+            await m_startGate.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            try
+            {
+                ThrowIfDisposed();
+                if (Volatile.Read(ref m_started) != 0)
+                {
+                    throw new InvalidOperationException(
+                        "A snapshot can only be restored before the store applies the log.");
+                }
+                lock (m_lock)
+                {
+                    m_state.Clear();
+                    foreach (KeyValuePair<string, ByteString> entry in state)
+                    {
+                        m_state[entry.Key] = entry.Value;
+                    }
+                    m_appliedCommands = replay == RaftSnapshotLogReplay.AfterSnapshot ? lastIncludedCommand : 0;
+                    m_skipThroughCommand = replay == RaftSnapshotLogReplay.FromFirstCommand ? lastIncludedCommand : 0;
+                }
+            }
+            finally
+            {
+                m_startGate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Encodes the state and the position of the command being applied. The caller holds <c>m_lock</c>.
+        /// </summary>
+        private byte[] EncodeSnapshotLocked(long lastIncludedCommand)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new BinaryWriter(stream, s_strictUtf8, leaveOpen: true))
+            {
+                writer.Write(s_snapshotEncodingVersion);
+                writer.Write(lastIncludedCommand);
+                writer.Write(m_state.Count);
+                foreach (KeyValuePair<string, ByteString> entry in m_state)
+                {
+                    byte[] key = s_strictUtf8.GetBytes(entry.Key);
+                    writer.Write(key.Length);
+                    writer.Write(key);
+                    byte[] value = entry.Value.IsNull ? [] : entry.Value.ToArray() ?? [];
+                    writer.Write(entry.Value.IsNull ? kSnapshotNullValue : kSnapshotValue);
+                    writer.Write(value.Length);
+                    writer.Write(value);
+                }
+            }
+            return stream.ToArray();
+        }
+
+        /// <summary>
+        /// Decodes a snapshot strictly: only what <see cref="EncodeSnapshotLocked"/> can produce is accepted.
+        /// </summary>
+        /// <exception cref="FormatException">The data is not a valid snapshot.</exception>
+        private static (Dictionary<string, ByteString> State, long LastIncludedCommand) DecodeSnapshot(
+            ReadOnlySpan<byte> snapshot)
+        {
+            var state = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            long lastIncludedCommand;
+            try
+            {
+                using var reader = new BinaryReader(new MemoryStream(snapshot.ToArray()), s_strictUtf8);
+                if (reader.ReadByte() != s_snapshotEncodingVersion)
+                {
+                    throw new FormatException("The snapshot has an unknown encoding version.");
+                }
+                lastIncludedCommand = reader.ReadInt64();
+                if (lastIncludedCommand < 1)
+                {
+                    throw new FormatException("The snapshot holds an invalid log position.");
+                }
+                int count = reader.ReadInt32();
+                if (count < 0)
+                {
+                    throw new FormatException("The snapshot holds a negative entry count.");
+                }
+                for (int ii = 0; ii < count; ii++)
+                {
+                    string key = s_strictUtf8.GetString(ReadBlock(reader));
+                    byte kind = reader.ReadByte();
+                    if (kind is not (kSnapshotNullValue or kSnapshotValue))
+                    {
+                        throw new FormatException("The snapshot holds an invalid value marker.");
+                    }
+                    byte[] value = ReadBlock(reader);
+                    if (kind == kSnapshotNullValue && value.Length != 0)
+                    {
+                        throw new FormatException("The snapshot holds a payload for a null value.");
+                    }
+                    if (state.ContainsKey(key))
+                    {
+                        throw new FormatException("The snapshot holds a key twice.");
+                    }
+                    state.Add(key, kind == kSnapshotNullValue ? default : ByteString.From(value));
+                }
+                if (reader.BaseStream.Position != reader.BaseStream.Length)
+                {
+                    throw new FormatException("The snapshot has trailing data.");
+                }
+            }
+            catch (EndOfStreamException e)
+            {
+                throw new FormatException("The snapshot is truncated.", e);
+            }
+            catch (DecoderFallbackException e)
+            {
+                throw new FormatException("The snapshot holds a key that is not valid UTF-8.", e);
+            }
+            return (state, lastIncludedCommand);
+        }
+
+        private static byte[] ReadBlock(BinaryReader reader)
+        {
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new FormatException("The snapshot holds an invalid length.");
+            }
+            return reader.ReadBytes(length);
+        }
+        /// <inheritdoc/>
         public async IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
             string keyPrefix,
             [EnumeratorCancellation] CancellationToken ct = default)
@@ -237,6 +401,12 @@ namespace Opc.Ua.Redundancy
                     pending.Value.TrySetCanceled(m_cts.Token);
                 }
                 m_pending.Clear();
+                foreach (KeyValuePair<long, TaskCompletionSource<RaftKeyValueSnapshot>> capture
+                    in m_snapshotCaptures)
+                {
+                    capture.Value.TrySetCanceled(m_cts.Token);
+                }
+                m_snapshotCaptures.Clear();
             }
 
             await m_startGate.WaitAsync().ConfigureAwait(false);
@@ -271,11 +441,22 @@ namespace Opc.Ua.Redundancy
             m_startGate.Dispose();
         }
 
+        private ValueTask<bool> ProposeAsync(
+            byte op,
+            string key,
+            ByteString expected,
+            ByteString value,
+            CancellationToken ct)
+        {
+            return ProposeAsync(op, key, expected, value, null, ct);
+        }
+
         private async ValueTask<bool> ProposeAsync(
             byte op,
             string key,
             ByteString expected,
             ByteString value,
+            TaskCompletionSource<RaftKeyValueSnapshot>? snapshotCapture,
             CancellationToken ct)
         {
             if (key == null)
@@ -294,6 +475,10 @@ namespace Opc.Ua.Redundancy
                 tcs = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
                 m_pending[requestId] = tcs;
+                if (snapshotCapture != null)
+                {
+                    m_snapshotCaptures[requestId] = snapshotCapture;
+                }
                 disposeToken = m_cts.Token;
             }
 
@@ -306,10 +491,15 @@ namespace Opc.Ua.Redundancy
             {
                 commitCts.CancelAfter(m_commitTimeout);
             }
+            // A snapshot capture is only discarded together with the proposal
+            // it belongs to: whoever claims the pending proposal (the applier,
+            // this callback, or a failed propose) also settles the capture, so
+            // a proposal that succeeds always finds its capture completed.
             using CancellationTokenRegistration reg = commitCts.Token.Register(() =>
             {
                 if (m_pending.TryRemove(requestId, out TaskCompletionSource<bool>? pending))
                 {
+                    m_snapshotCaptures.TryRemove(requestId, out _);
                     if (ct.IsCancellationRequested)
                     {
                         pending.TrySetCanceled(ct);
@@ -338,12 +528,18 @@ namespace Opc.Ua.Redundancy
                     !disposeToken.IsCancellationRequested &&
                     commitCts.IsCancellationRequested)
             {
-                m_pending.TryRemove(requestId, out _);
+                if (m_pending.TryRemove(requestId, out _))
+                {
+                    m_snapshotCaptures.TryRemove(requestId, out _);
+                }
                 throw CreateCommitTimeoutException();
             }
             catch
             {
-                m_pending.TryRemove(requestId, out _);
+                if (m_pending.TryRemove(requestId, out _))
+                {
+                    m_snapshotCaptures.TryRemove(requestId, out _);
+                }
                 throw;
             }
 
@@ -409,9 +605,22 @@ namespace Opc.Ua.Redundancy
                     .ReadAllAsync(ct)
                     .ConfigureAwait(false))
                 {
+                    // Every delivered command takes a position, including one
+                    // that is skipped or malformed, so the positions are the
+                    // same on every replica.
+                    long position;
+                    lock (m_lock)
+                    {
+                        position = ++m_appliedCommands;
+                        if (position <= m_skipThroughCommand)
+                        {
+                            // Already held by the restored snapshot.
+                            continue;
+                        }
+                    }
                     try
                     {
-                        Apply(command.Span);
+                        Apply(command.Span, position);
                     }
                     catch (Exception ex)
                     {
@@ -441,9 +650,14 @@ namespace Opc.Ua.Redundancy
                 pending.Value.TrySetException(error);
             }
             m_pending.Clear();
+            foreach (KeyValuePair<long, TaskCompletionSource<RaftKeyValueSnapshot>> capture in m_snapshotCaptures)
+            {
+                capture.Value.TrySetException(error);
+            }
+            m_snapshotCaptures.Clear();
         }
 
-        private void Apply(ReadOnlySpan<byte> command)
+        private void Apply(ReadOnlySpan<byte> command, long position)
         {
             if (command.Length < s_minCommandLength)
             {
@@ -481,6 +695,9 @@ namespace Opc.Ua.Redundancy
 
             bool result = false;
             KeyValueChange? change = null;
+            TaskCompletionSource<RaftKeyValueSnapshot>? snapshotCapture = null;
+            RaftKeyValueSnapshot? snapshot = null;
+            EncoderFallbackException? snapshotError = null;
             lock (m_lock)
             {
                 switch (op)
@@ -529,6 +746,20 @@ namespace Opc.Ua.Redundancy
                         break;
                     case OpBarrier:
                         result = true;
+                        if (originator == m_originator &&
+                            m_snapshotCaptures.TryRemove(requestId, out snapshotCapture))
+                        {
+                            try
+                            {
+                                snapshot = new RaftKeyValueSnapshot(
+                                    position,
+                                    ByteString.From(EncodeSnapshotLocked(position)));
+                            }
+                            catch (EncoderFallbackException ex)
+                            {
+                                snapshotError = ex;
+                            }
+                        }
                         break;
                     default:
                         throw new InvalidOperationException($"Unsupported Raft key/value operation '{op}'.");
@@ -540,6 +771,14 @@ namespace Opc.Ua.Redundancy
                 }
             }
 
+            if (snapshotError != null)
+            {
+                snapshotCapture?.TrySetException(snapshotError);
+            }
+            else if (snapshot != null)
+            {
+                snapshotCapture?.TrySetResult(snapshot);
+            }
             if (originator == m_originator && m_pending.TryRemove(requestId, out TaskCompletionSource<bool>? tcs))
             {
                 tcs.TrySetResult(result);
@@ -667,6 +906,12 @@ namespace Opc.Ua.Redundancy
         private const byte OpCas = 2;
         private const byte OpBarrier = 3;
         private const byte s_commandEncodingVersion = 1;
+        private const byte s_snapshotEncodingVersion = 1;
+        private const byte kSnapshotNullValue = 0;
+        private const byte kSnapshotValue = 1;
+        private static readonly UTF8Encoding s_strictUtf8 = new(
+            encoderShouldEmitUTF8Identifier: false,
+            throwOnInvalidBytes: true);
         private const int s_minCommandLength = 30;
 
         private readonly IRaftConsensus m_consensus;
@@ -677,6 +922,8 @@ namespace Opc.Ua.Redundancy
         private readonly Dictionary<string, ByteString> m_state = new(StringComparer.Ordinal);
         private readonly List<Watcher> m_watchers = [];
         private readonly ConcurrentDictionary<long, TaskCompletionSource<bool>> m_pending = new();
+        private readonly ConcurrentDictionary<long, TaskCompletionSource<RaftKeyValueSnapshot>> m_snapshotCaptures =
+            new();
         private readonly Lock m_lock = new();
         private readonly Lock m_proposalLock = new();
         private readonly SemaphoreSlim m_startGate = new(1, 1);
@@ -685,5 +932,7 @@ namespace Opc.Ua.Redundancy
         private long m_requestId;
         private int m_started;
         private int m_disposed;
+        private long m_appliedCommands;
+        private long m_skipThroughCommand;
     }
 }

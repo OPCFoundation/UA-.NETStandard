@@ -1406,6 +1406,135 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A request attached inside its service dispatch scope is tracked until its context is
+        /// disposed, completes exactly once however often the context is disposed, and its id
+        /// reaches the lifecycle extension through the dispatch scope.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task AttachedRequestCompletesOnceWhenItsContextIsDisposedAsync()
+        {
+            using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
+            using var lifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(90, lifetime, 60000);
+
+            m_requestManager.AttachRequestScope(context);
+
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            context.Dispose();
+            context.Dispose();
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+            Assert.That(lifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+
+            // a later request with the same handle is not completed by the earlier context.
+            using var nextLifetime = new RequestLifetime();
+            OperationContext next = CreateOperationContext(90, nextLifetime, 60000);
+            m_requestManager.AttachRequestScope(next);
+            context.Dispose();
+            Assert.That(m_requestManager.IsExecutingRequest(next), Is.True);
+            next.Dispose();
+            Assert.That(m_requestManager.IsExecutingRequest(next), Is.False);
+        }
+
+        /// <summary>
+        /// Attaching a request scope requires a context.
+        /// </summary>
+        [Test]
+        public void AttachRequestScopeRejectsANullContext()
+        {
+            Assert.That(() => m_requestManager.AttachRequestScope(null!), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// A request attached outside a service dispatch scope sets the ambient request id for
+        /// its execution and restores the previous one when its context is disposed.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void AttachedRequestOutsideADispatchScopeRestoresTheAmbientRequestId()
+        {
+            uint? before = m_requestManager.GetCurrentRequestIdForLifecycleExtension();
+            using var lifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(91, lifetime, 60000);
+
+            m_requestManager.AttachRequestScope(context);
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+
+            context.Dispose();
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(before));
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+        }
+
+        /// <summary>
+        /// Requests attached without a scope object and completed by disposing their contexts,
+        /// concurrently from two threads and racing cancellation and drains, each complete
+        /// exactly once and leave nothing tracked.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task AttachedRequestsRacingDisposeCancelAndDrainsLeaveNothingTrackedAsync()
+        {
+            using var stop = new CancellationTokenSource();
+            int completed = 0;
+            var churn = new Task[4];
+            for (int worker = 0; worker < churn.Length; worker++)
+            {
+                uint firstHandle = (uint)(worker * 1_000_000);
+                churn[worker] = Task.Run(async () =>
+                {
+                    uint handle = firstHandle;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
+                        IDisposable validation = m_requestManager.EnterValidationScope();
+                        using var lifetime = new RequestLifetime();
+                        OperationContext context = CreateOperationContext(++handle, lifetime, 60000);
+                        m_requestManager.AttachRequestScope(context);
+                        validation.Dispose();
+                        if ((handle & 3) == 0)
+                        {
+                            m_requestManager.CancelRequests(context.SessionId, handle, out _);
+                        }
+                        Task other = Task.Run(context.Dispose);
+                        context.Dispose();
+                        await other.ConfigureAwait(false);
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+                        Interlocked.Increment(ref completed);
+                    }
+                });
+            }
+
+            try
+            {
+                using var started = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                while (Volatile.Read(ref completed) < 1000)
+                {
+                    await Task.Delay(1, started.Token).ConfigureAwait(false);
+                }
+                for (int ii = 0; ii < 100; ii++)
+                {
+                    await m_requestManager.WaitForCurrentRequestsAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+                await Task.WhenAll(churn).ConfigureAwait(false);
+            }
+
+            Assert.That(completed, Is.GreaterThan(0));
+            await AssertCompletesWithinTimeoutAsync(m_requestManager.WaitForCurrentRequestsAsync().AsTask())
+                .ConfigureAwait(false);
+        }
+
         private static OperationContext CreateOperationContext(
             uint requestHandle,
             RequestLifetime requestLifetime)

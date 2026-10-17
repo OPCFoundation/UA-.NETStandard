@@ -30,6 +30,10 @@ For current client APIs:
 - Use [subscription persistence and transfer](Subscriptions.md#persistence-save--load)
   to save client state and restore it after restart. A transfer attempts to
   recover an existing server subscription; recreating one starts new queues.
+- Classic relative-path items retain their originally resolved targets in new
+  snapshots. Adoption uses saved handles, not a fresh browse-path translation.
+  Older snapshots with unknown target metadata still support transfer and
+  subsequent maintenance; callers do not need to inject resolution results.
 - If subscriptions must survive a deliberate session close, configure
   `DeleteSubscriptionsOnClose = false` before closing it. They remain subject to
   their server-side lifetime; this does not make them durable across server restart.
