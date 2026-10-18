@@ -445,6 +445,47 @@ namespace Opc.Ua.MachineTool.Tests
         }
 
         /// <summary>
+        /// A caller arriving during a freshness tick waits for it instead of seeing BadServerTooBusy.
+        /// </summary>
+        [Test]
+        public async Task CallerArrivingDuringFreshnessTickWaitsInsteadOfBusyAsync()
+        {
+            var equipment = new WmtpTestEquipment();
+            equipment.Samples["Temperature"] = equipment.Sample(Variant.From(17d));
+            WmtpPeripheral peripheral = await equipment.Builder(m_fixture.Context)
+                .AddMeasurement(WmtpTestEquipment.Definition() with { StaleAfter = TimeSpan.FromSeconds(1) })
+                .BuildAsync().ConfigureAwait(false);
+            await using (peripheral.ConfigureAwait(false))
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                peripheral.Measurements[0].State.AnalogSignal!.StateChangedAsync += async (_, _, _, _) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                };
+                equipment.Clock.Advance(TimeSpan.FromSeconds(2));
+                // A synchronous state-changed raise blocks the pulsing thread until release.
+                Task tick = Task.Run(equipment.Clock.Pulse);
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Task configure = peripheral.Measurements[0].SetDeltaAsync(
+                        Variant.From(2d), new WmtpRequest { SessionId = new NodeId("caller", 1) }).AsTask();
+                    Assert.That(configure.IsCompleted, Is.False, configure.Exception?.ToString());
+                    release.TrySetResult(true);
+                    await configure.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await tick.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                Assert.That(peripheral.Measurements[0].State.DeltaCondition!.Value, Is.EqualTo(2d));
+            }
+        }
+
+        /// <summary>
         /// Refusal and cancellation before provider acceptance cannot commit either proposed trigger setting.
         /// </summary>
         [TestCase(false, false)]

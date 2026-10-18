@@ -104,7 +104,8 @@ namespace Opc.Ua.MachineTool.Server
         public WmtpRecords? ServiceRecords { get; private set; }
 
         /// <summary>
-        /// Gets the last age-refresh status. Busy calls are retried by the next tick without aborting them.
+        /// Gets the last age-refresh status. A tick that meets an active operation is retried by the next tick
+        /// without aborting it; operations that arrive during a tick wait for it instead of being refused.
         /// </summary>
         public StatusCode QualityRefreshStatus { get; private set; } = StatusCodes.Good;
 
@@ -161,7 +162,7 @@ namespace Opc.Ua.MachineTool.Server
                 }
                 await State.ClearChangeMasksAsync(Context, true, CancellationToken.None).ConfigureAwait(false);
                 return true;
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken, maintenance: true).ConfigureAwait(false);
         }
 
         /// <summary>

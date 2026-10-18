@@ -57,24 +57,45 @@ namespace Opc.Ua.MachineTool.Server
         /// Executes a provider operation. A null request denotes an explicitly trusted application refresh.
         /// </summary>
         /// <typeparam name="T">The operation result type.</typeparam>
+        /// <param name="request">The caller, or null for a trusted application refresh.</param>
+        /// <param name="operation">The operation to authorize.</param>
+        /// <param name="execute">The provider or state work.</param>
+        /// <param name="cancellationToken">Cancels admission and the work.</param>
+        /// <param name="maintenance">
+        /// Marks short internal freshness work without equipment calls. Maintenance is refused while any
+        /// operation is active, and other operations wait for running maintenance instead of being refused,
+        /// so the background age timer never surfaces to a caller as BadServerTooBusy.
+        /// </param>
         internal async ValueTask<T> RunAsync<T>(
             WmtpRequest? request,
             WmtpOperation operation,
             Func<CancellationToken, ValueTask<T>> execute,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool maintenance = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ActiveOperation active;
-            lock (m_gate)
+            while (true)
             {
-                EnsureActive();
-                if (m_active != null)
+                Task running;
+                lock (m_gate)
                 {
-                    throw new ServiceResultException(StatusCodes.BadServerTooBusy,
-                        "This peripheral already has an active operation.");
+                    EnsureActive();
+                    if (m_active == null)
+                    {
+                        active = new ActiveOperation(
+                            request?.SessionId ?? NodeId.Null, maintenance, cancellationToken);
+                        m_active = active;
+                        break;
+                    }
+                    if (maintenance || !m_active.Maintenance || IsInCallback)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadServerTooBusy,
+                            "This peripheral already has an active operation.");
+                    }
+                    running = m_active.Completion.Task;
                 }
-                active = new ActiveOperation(request?.SessionId ?? NodeId.Null, cancellationToken);
-                m_active = active;
+                await running.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
             WmtpOperationCoordinator? previous = s_executing.Value;
             s_executing.Value = this;
@@ -253,11 +274,17 @@ namespace Opc.Ua.MachineTool.Server
             /// <summary>
             /// Creates an operation with caller-local cancellation.
             /// </summary>
-            internal ActiveOperation(NodeId sessionId, CancellationToken cancellationToken)
+            internal ActiveOperation(NodeId sessionId, bool maintenance, CancellationToken cancellationToken)
             {
                 SessionId = sessionId;
+                Maintenance = maintenance;
                 Cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
+
+            /// <summary>
+            /// Gets whether this is short internal freshness work that other operations wait for.
+            /// </summary>
+            internal bool Maintenance { get; }
 
             /// <summary>
             /// Gets the actual calling session, not an invented protocol identifier.
