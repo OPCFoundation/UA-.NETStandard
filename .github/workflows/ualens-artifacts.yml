@@ -175,6 +175,21 @@ jobs:
           dotnet @arguments
         }
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    - name: Capture the one approved macOS native diagnostic
+      if: >-
+        ${{ failure() && runner.os == 'macOS' && github.event_name == 'pull_request' &&
+            github.event.action == 'synchronize' && github.event.pull_request.number == 4822 &&
+            github.run_attempt == 1 }}
+      timeout-minutes: 5
+      env:
+        CI4822_DIAGNOSTIC: mac-native-once-20261018
+        CI4822_DIAGNOSTIC_HEAD: ${{ github.event.pull_request.head.sha }}
+      shell: pwsh
+      run: |
+        $env:UALENS_ARTIFACT_EXECUTABLE = (Resolve-Path 'artifacts/lens/native/${{ matrix.executable }}').Path
+        $env:UALENS_ARTIFACT_LOG_DIRECTORY = Join-Path $env:GITHUB_WORKSPACE 'artifacts/lens/logs'
+        dotnet test $env:ARTIFACT_TEST_PROJECT -c Release -f net10.0 -p:CustomTestTarget=net10.0 --filter FullyQualifiedName~MacNativeDiagnosticTests --logger 'trx;LogFileName=mac-diagnostic.trx' --results-directory artifacts/lens/logs/mac-native-diagnostic -- NUnit.NumberOfTestWorkers=0 RunConfiguration.TreatNoTestsAsError=true
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     - uses: actions/upload-artifact@v7
       if: always()
       with:
