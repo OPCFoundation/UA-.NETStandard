@@ -64,6 +64,26 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Every artifact job that builds a project has the history needed by Git versioning.
+        /// </summary>
+        [Test]
+        public async Task ArtifactJobsFetchVersionHistoryAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".github", "workflows", "ualens-artifacts.yml");
+            string source = await File.ReadAllTextAsync(path).ConfigureAwait(false);
+            string[] steps = [.. source.ReplaceLineEndings("\n")
+                .Split("\n    - ", StringSplitOptions.None)
+                .Where(step => step.StartsWith("uses: actions/checkout@", StringComparison.Ordinal))];
+
+            Assert.That(steps, Has.Length.EqualTo(5));
+            foreach (string step in steps)
+            {
+                Assert.That(step.Split('\n'), Does.Contain("        fetch-depth: 0"),
+                    "The installed-tool job also compiles the NUnit artifact project.");
+            }
+        }
+
+        /// <summary>
         /// SDK changes requalify the published-package artifact workflow.
         /// </summary>
         [TestCase("ualens-artifacts.yml", 2)]
@@ -193,6 +213,50 @@ namespace Opc.Ua.Tools.Tests
             string[] expectedArguments = ["-a", "dotnet", "test", LensProjectFile];
             Assert.That(document.RootElement.GetProperty("arguments").EnumerateArray()
                 .Select(static argument => argument.GetString()), Is.EqualTo(expectedArguments));
+        }
+
+        /// <summary>
+        /// Native dependencies use each Linux test project's own output directory, without changing the parent.
+        /// </summary>
+        [TestCase(true, "test", null)]
+        [TestCase(true, "test", "/inherited native")]
+        [TestCase(false, "test", "/inherited native")]
+        [TestCase(true, "build", "/inherited native")]
+        public async Task GitHubBatchScopesNativePathsToTheLinuxTestProcessAsync(
+            bool linux, string verb, string? inherited)
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "native output with spaces");
+            string environment = inherited is null ? "$null" : QuotePowerShell(inherited);
+            string setup = $$"""
+                $env:LD_LIBRARY_PATH = {{environment}}
+                function Get-Command { [pscustomobject]@{ Source = 'fixture-xvfb-run' } }
+                """;
+            string invocation = $$"""
+                $startInfo = New-DotnetStartInfo `
+                    -arguments @({{QuotePowerShell(verb)}}, {{QuotePowerShell(LensProjectFile)}}) `
+                    -linux ${{linux.ToString().ToLowerInvariant()}} `
+                    -nativeLibraryDirectory {{QuotePowerShell(directory)}}
+                @{
+                    child = $startInfo.Environment['LD_LIBRARY_PATH']
+                    parent = $env:LD_LIBRARY_PATH
+                } | ConvertTo-Json -Compress
+                """;
+
+            ScriptResult result = await RunGitHubFunctionAsync(setup, invocation).ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            string? expected = inherited;
+            if (linux && verb == "test")
+            {
+                expected = directory + ":" + Path.Combine(directory, "runtimes", "linux-x64", "native");
+                if (inherited is not null)
+                {
+                    expected += ":" + inherited;
+                }
+            }
+            Assert.That(document.RootElement.GetProperty("child").GetString(), Is.EqualTo(expected));
+            Assert.That(document.RootElement.GetProperty("parent").GetString(), Is.EqualTo(inherited));
         }
 
         private static Task<ScriptResult> RunGitHubFunctionAsync(

@@ -59,6 +59,20 @@ Linux prerequisites are installed explicitly
 in the workflow. The Windows and macOS jobs use their hosted runner's compiler
 and desktop; do not substitute a service-only runner or a headless Avalonia backend.
 
+The public OpenUSD Linux packages require their native-library directories on
+`LD_LIBRARY_PATH` before process startup. The NUnit artifact launcher supplies
+the publish directories or the installed tool's `.store` payload directory.
+Direct launches need the same configuration; for a native publish, run from the
+repository root:
+
+```bash
+export LD_LIBRARY_PATH="$PWD/artifacts/lens/native:$PWD/artifacts/lens/native/runtimes/linux-x64/native${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+For an installed tool, use the directory containing `libopenusd_dotnet.so` and
+its dependencies under that installation's `.store`. .NET's managed assembly
+probing does not supply these transitive ELF search paths.
+
 ### Why the package and native artifact paths differ
 
 The NuGet tool is a managed .NET 10 selector with three RID-specific payloads;

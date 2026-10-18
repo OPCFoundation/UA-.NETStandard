@@ -33,6 +33,8 @@
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+    <!-- Aspire/StreamJsonRpc otherwise restore vulnerable MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h). -->
+    <PackageVersion Include="MessagePack" Version="2.5.307" />
     <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Hosting" Version="2.3.13" />
     <PackageVersion Include="Microsoft.AspNetCore.Http" Version="2.3.13" />

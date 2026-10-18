@@ -229,6 +229,8 @@ jobs:
           command: ualens
     steps:
     - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
         global-json-file: global.json

@@ -172,6 +172,54 @@ namespace Opc.Ua.Lens.Artifacts.Tests
         }
 
         /// <summary>
+        /// Linux child processes can resolve packaged transitive ELF dependencies in both distribution layouts.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        public async Task NativeLibraryDirectoriesAreScopedToTheArtifactAsync(bool linux, bool installedTool)
+        {
+            string directory = Path.Combine(m_directory, "artifact with spaces");
+            Directory.CreateDirectory(directory);
+            string native = installedTool
+                ? Path.Combine(directory, ".store", "tool", "1.0.0", "runtimes", "linux-x64", "native")
+                : directory;
+            Directory.CreateDirectory(native);
+            await File.WriteAllTextAsync(Path.Combine(native, "libopenusd_dotnet.so"), "Not loaded.")
+                .ConfigureAwait(false);
+            string? inherited = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH");
+            string? display = Environment.GetEnvironmentVariable("DISPLAY");
+            try
+            {
+                Environment.SetEnvironmentVariable("LD_LIBRARY_PATH", "/inherited native");
+                Environment.SetEnvironmentVariable("DISPLAY", ":fixture");
+                ProcessStartInfo startInfo = ArtifactProbe.CreateStartInfo(
+                    Path.Combine(directory, "ualens"), m_directory, m_directory,
+                    true, false, false, linux);
+                var expected = new List<string>();
+                if (linux)
+                {
+                    expected.Add(directory);
+                    expected.Add(Path.Combine(directory, "runtimes", "linux-x64", "native"));
+                    if (installedTool)
+                    {
+                        expected.Add(native);
+                    }
+                }
+                expected.Add("/inherited native");
+
+                Assert.That(startInfo.Environment["LD_LIBRARY_PATH"], Is.EqualTo(string.Join(':', expected)));
+                Assert.That(Environment.GetEnvironmentVariable("LD_LIBRARY_PATH"), Is.EqualTo("/inherited native"),
+                    "A child search path must not leak into other tests.");
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable("LD_LIBRARY_PATH", inherited);
+                Environment.SetEnvironmentVariable("DISPLAY", display);
+            }
+        }
+
+        /// <summary>
         /// Successful offline startup retains its actual output and removes isolated user state.
         /// </summary>
         [Test]

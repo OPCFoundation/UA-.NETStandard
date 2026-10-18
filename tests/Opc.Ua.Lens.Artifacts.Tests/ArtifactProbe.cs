@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -133,6 +134,10 @@ namespace Opc.Ua.Lens.Artifacts.Tests
             {
                 throw new IOException("A real X11 display is required; use xvfb-run for CI.");
             }
+            if (linux)
+            {
+                SetNativeLibraryPath(startInfo, executable);
+            }
             if (!startInfo.Environment.ContainsKey("XAUTHORITY"))
             {
                 string authority = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
@@ -234,6 +239,39 @@ namespace Opc.Ua.Lens.Artifacts.Tests
             string output = await stdout.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
             string errors = await stderr.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken).ConfigureAwait(false);
             return new ArtifactProcessResult(timedOut ? null : process.ExitCode, timedOut, output, errors, process.Id);
+        }
+
+        private static void SetNativeLibraryPath(ProcessStartInfo startInfo, string executable)
+        {
+            string directory = Path.GetDirectoryName(Path.GetFullPath(executable)) ??
+                throw new InvalidDataException("The artifact has no application directory.");
+            var paths = new List<string>
+            {
+                directory,
+                Path.Combine(directory, "runtimes", "linux-x64", "native")
+            };
+            string store = Path.Combine(directory, ".store");
+            if (Directory.Exists(store))
+            {
+                var options = new EnumerationOptions
+                {
+                    RecurseSubdirectories = true,
+                    AttributesToSkip = FileAttributes.ReparsePoint,
+                    IgnoreInaccessible = false
+                };
+                foreach (string library in Directory.EnumerateFiles(store, "libopenusd_dotnet.so", options)
+                    .Order(StringComparer.Ordinal))
+                {
+                    paths.Add(Path.GetDirectoryName(library)!);
+                }
+            }
+            string nativePath = string.Join(':', paths.Distinct(StringComparer.Ordinal));
+            if (startInfo.Environment.TryGetValue("LD_LIBRARY_PATH", out string? inherited) &&
+                !string.IsNullOrEmpty(inherited))
+            {
+                nativePath += ":" + inherited;
+            }
+            startInfo.Environment["LD_LIBRARY_PATH"] = nativePath;
         }
 
         /// <summary>The artifact's startup, rendering and shutdown deadline.</summary>

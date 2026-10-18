@@ -567,6 +567,10 @@ Linux UaLens tests require the agent's installed `xvfb-run` and run under a virt
 GitHub batch executor retains the normal test selection, coverage, diagnostics,
 and result gates, and fails explicitly if Xvfb is unavailable. The GitHub executor includes the virtual display
 in the existing per-project timeout and process-tree cleanup.
+Each Linux test process also receives its MSBuild `TargetDir` and packaged
+`runtimes/linux-x64/native` directory on `LD_LIBRARY_PATH`, ahead of inherited
+entries. This lets the system loader resolve transitive ELF dependencies without
+changing the parent process's environment.
 
 The tiers those filters leave out run elsewhere:
 
