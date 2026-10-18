@@ -2894,6 +2894,8 @@ namespace Opc.Ua.Server
         /// period, so the time a pass takes does not push the following passes back. A pass
         /// that overruns the period is followed by the next pass at once, and the cadence
         /// restarts from that pass; the missed periods are not caught up with extra passes.
+        /// A wait that ends a full period or more after its deadline (a GC pause, a starved
+        /// thread pool) restarts the cadence from the late pass in the same way.
         /// </remarks>
         internal static async ValueTask RunAtFixedPeriodAsync(
             TimeProvider timeProvider,
@@ -2904,8 +2906,19 @@ namespace Opc.Ua.Server
             long period = Math.Max(1, periodMs);
             long nextPass = timeProvider.GetTimestampMilliseconds();
 
-            while (pass())
+            while (true)
             {
+                long start = timeProvider.GetTimestampMilliseconds();
+                if (start - nextPass >= period)
+                {
+                    nextPass = start;
+                }
+
+                if (!pass())
+                {
+                    return;
+                }
+
                 nextPass += period;
                 long now = timeProvider.GetTimestampMilliseconds();
                 if (nextPass > now)

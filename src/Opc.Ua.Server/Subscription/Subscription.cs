@@ -768,8 +768,9 @@ namespace Opc.Ua.Server
 
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
-                // check if publish interval has elapsed.
-                if (m_publishTimerExpiry >= currentTime)
+                // check if publish interval has elapsed; a sweep that runs exactly at the
+                // deadline counts as elapsed.
+                if (m_publishTimerExpiry > currentTime)
                 {
                     // check if waiting for publish.
                     if (m_waitingForPublish)
@@ -780,8 +781,8 @@ namespace Opc.Ua.Server
                     return PublishingState.Idle;
                 }
 
-                // set next expiry time.
-                while (m_publishTimerExpiry < currentTime)
+                // set next expiry time, strictly after the current time.
+                while (m_publishTimerExpiry <= currentTime)
                 {
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }

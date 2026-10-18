@@ -75,6 +75,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task LateWakeRestartsTheCadenceWithoutCatchUpPassAsync()
+        {
+            var clock = new DelayRecordingTimeProvider();
+
+            // the first wait ends 250 ms after its deadline (a GC pause or a starved pool).
+            List<long> starts = await RunPassesAsync(clock, [10, 10, 10, 10], lateWakes: [250]).ConfigureAwait(false);
+
+            // the late pass at 350 restarts the cadence; no extra pass follows it at once.
+            Assert.That(starts, Is.EqualTo(new long[] { 0, 350, 450, 550 }));
+            Assert.That(clock.Delays, Is.EqualTo(new long[] { 90, 90, 90 }));
+        }
+
+        [Test]
+        public async Task SmallWakeJitterKeepsTheCadenceAsync()
+        {
+            var clock = new DelayRecordingTimeProvider();
+
+            // a wait that ends 15 ms late does not move the following deadlines.
+            List<long> starts = await RunPassesAsync(clock, [10, 10, 10], lateWakes: [15]).ConfigureAwait(false);
+
+            Assert.That(starts, Is.EqualTo(new long[] { 0, 115, 200 }));
+            Assert.That(clock.Delays, Is.EqualTo(new long[] { 90, 75 }));
+        }
+
+        [Test]
         public async Task CancellationStopsTheLoopWhileWaitingAsync()
         {
             var clock = new DelayRecordingTimeProvider();
@@ -163,11 +188,13 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Runs one pass per entry, each advancing the fake clock by its duration, and
-        /// returns the clock reading at the start of every pass.
+        /// returns the clock reading at the start of every pass. Entry n of
+        /// <paramref name="lateWakes"/> delays the end of the n-th wait beyond its deadline.
         /// </summary>
         private static async Task<List<long>> RunPassesAsync(
             DelayRecordingTimeProvider clock,
-            long[] durations)
+            long[] durations,
+            long[]? lateWakes = null)
         {
             var starts = new List<long>();
             long origin = clock.GetTimestampMilliseconds();
@@ -193,7 +220,9 @@ namespace Opc.Ua.Server.Tests
                     break;
                 }
                 Assert.That(await timer.ConfigureAwait(false), Is.True, "the loop did not wait");
-                clock.Fake.Advance(TimeSpan.FromMilliseconds(clock.Delays[clock.Delays.Count - 1]));
+                int wait = clock.Delays.Count - 1;
+                long late = lateWakes != null && wait < lateWakes.Length ? lateWakes[wait] : 0;
+                clock.Fake.Advance(TimeSpan.FromMilliseconds(clock.Delays[wait] + late));
             }
 
             await loop.ConfigureAwait(false);
