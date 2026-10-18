@@ -82,8 +82,9 @@ namespace Opc.Ua.MachineTool.Server
         /// <param name="cancellationToken">Cancels admission and the work.</param>
         /// <param name="maintenance">
         /// Marks short internal freshness work without equipment calls. Maintenance is refused while any
-        /// operation is active, and other operations wait for running maintenance instead of being refused,
-        /// so the background age timer never surfaces to a caller as BadServerTooBusy.
+        /// operation is active. Other operations wait up to one second for running maintenance instead of
+        /// being refused, so a regular age tick never surfaces to a caller as BadServerTooBusy, while a
+        /// stalled one still does rather than holding the caller until its own timeout.
         /// </param>
         internal async ValueTask<T> RunAsync<T>(
             WmtpRequest? request,
@@ -94,27 +95,48 @@ namespace Opc.Ua.MachineTool.Server
         {
             cancellationToken.ThrowIfCancellationRequested();
             ActiveOperation active;
-            while (true)
+            CancellationTokenSource? waitLimit = null;
+            try
             {
-                Task running;
-                lock (m_gate)
+                while (true)
                 {
-                    EnsureActive();
-                    if (m_active == null)
+                    Task running;
+                    lock (m_gate)
                     {
-                        active = new ActiveOperation(
-                            request?.SessionId ?? NodeId.Null, maintenance, cancellationToken);
-                        m_active = active;
-                        break;
+                        EnsureActive();
+                        if (m_active == null)
+                        {
+                            active = new ActiveOperation(
+                                request?.SessionId ?? NodeId.Null, maintenance, cancellationToken);
+                            m_active = active;
+                            break;
+                        }
+                        if (maintenance || !m_active.Maintenance || IsCallbackAncestor)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadServerTooBusy,
+                                "This peripheral already has an active operation.");
+                        }
+                        running = m_active.Completion.Task;
                     }
-                    if (maintenance || !m_active.Maintenance || IsCallbackAncestor)
+                    if (waitLimit == null)
+                    {
+                        waitLimit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        waitLimit.CancelAfter(kMaintenanceWaitMilliseconds);
+                    }
+                    try
+                    {
+                        await running.WaitAsync(waitLimit.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                     {
                         throw new ServiceResultException(StatusCodes.BadServerTooBusy,
-                            "This peripheral already has an active operation.");
+                            "This peripheral's maintenance did not complete in time.");
                     }
-                    running = m_active.Completion.Task;
                 }
-                await running.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                waitLimit?.Dispose();
             }
             CallbackFrame? previous = s_executing.Value;
             s_executing.Value = new CallbackFrame(this, previous);
@@ -349,6 +371,9 @@ namespace Opc.Ua.MachineTool.Server
             /// <summary>Whether an authorized explicit AbortOperation canceled this call.</summary>
             internal int Aborted;
         }
+
+        /// <summary>The longest time an operation waits for running maintenance before it is refused.</summary>
+        private const int kMaintenanceWaitMilliseconds = 1000;
 
         /// <summary>The application policy.</summary>
         private readonly IWmtpAuthorization? m_authorization;

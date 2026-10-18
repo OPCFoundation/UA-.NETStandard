@@ -105,7 +105,8 @@ namespace Opc.Ua.MachineTool.Server
 
         /// <summary>
         /// Gets the last age-refresh status. A tick that meets an active operation is retried by the next tick
-        /// without aborting it; operations that arrive during a tick wait for it instead of being refused.
+        /// without aborting it; operations that arrive during a tick wait up to one second for it instead of
+        /// being refused.
         /// </summary>
         public StatusCode QualityRefreshStatus { get; private set; } = StatusCodes.Good;
 
