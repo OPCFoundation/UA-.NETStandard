@@ -51,7 +51,26 @@ namespace Opc.Ua.MachineTool.Server
         /// <summary>
         /// Gets whether the caller is executing this peripheral's provider or authorization callback.
         /// </summary>
-        internal bool IsInCallback => ReferenceEquals(s_executing.Value, this);
+        internal bool IsInCallback => ReferenceEquals(s_executing.Value?.Owner, this);
+
+        /// <summary>
+        /// Gets whether this peripheral's operation encloses the caller, directly or through callbacks
+        /// of other peripherals. Waiting for its completion would wait for the caller itself.
+        /// </summary>
+        private bool IsCallbackAncestor
+        {
+            get
+            {
+                for (CallbackFrame? frame = s_executing.Value; frame != null; frame = frame.Parent)
+                {
+                    if (ReferenceEquals(frame.Owner, this))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
 
         /// <summary>
         /// Executes a provider operation. A null request denotes an explicitly trusted application refresh.
@@ -88,7 +107,7 @@ namespace Opc.Ua.MachineTool.Server
                         m_active = active;
                         break;
                     }
-                    if (maintenance || !m_active.Maintenance || IsInCallback)
+                    if (maintenance || !m_active.Maintenance || IsCallbackAncestor)
                     {
                         throw new ServiceResultException(StatusCodes.BadServerTooBusy,
                             "This peripheral already has an active operation.");
@@ -97,8 +116,8 @@ namespace Opc.Ua.MachineTool.Server
                 }
                 await running.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
-            WmtpOperationCoordinator? previous = s_executing.Value;
-            s_executing.Value = this;
+            CallbackFrame? previous = s_executing.Value;
+            s_executing.Value = new CallbackFrame(this, previous);
             try
             {
                 if (request != null)
@@ -141,8 +160,8 @@ namespace Opc.Ua.MachineTool.Server
                         new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
-            WmtpOperationCoordinator? previous = s_executing.Value;
-            s_executing.Value = this;
+            CallbackFrame? previous = s_executing.Value;
+            s_executing.Value = new CallbackFrame(this, previous);
             using CancellationTokenSource abort = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_shutdown.Token);
             try
@@ -180,7 +199,7 @@ namespace Opc.Ua.MachineTool.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (ReferenceEquals(s_executing.Value, this))
+            if (IsInCallback)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState,
                     "A provider callback cannot await disposal of its own peripheral.");
@@ -267,6 +286,31 @@ namespace Opc.Ua.MachineTool.Server
         }
 
         /// <summary>
+        /// One immutable link of the flowing callback chain; nested peripherals extend it.
+        /// </summary>
+        private sealed class CallbackFrame
+        {
+            /// <summary>
+            /// Creates a link for an operation executing inside its parent's callbacks, if any.
+            /// </summary>
+            internal CallbackFrame(WmtpOperationCoordinator owner, CallbackFrame? parent)
+            {
+                Owner = owner;
+                Parent = parent;
+            }
+
+            /// <summary>
+            /// Gets the executing peripheral's coordinator.
+            /// </summary>
+            internal WmtpOperationCoordinator Owner { get; }
+
+            /// <summary>
+            /// Gets the enclosing callback link.
+            /// </summary>
+            internal CallbackFrame? Parent { get; }
+        }
+
+        /// <summary>
         /// Owns cancellation and asynchronous drainage for a single accepted call.
         /// </summary>
         private sealed class ActiveOperation
@@ -315,8 +359,8 @@ namespace Opc.Ua.MachineTool.Server
         /// <summary>Cancels authorization callbacks that are not the primary active operation.</summary>
         private readonly CancellationTokenSource m_shutdown = new();
 
-        /// <summary>The provider callback reentrancy marker.</summary>
-        private static readonly AsyncLocal<WmtpOperationCoordinator?> s_executing = new();
+        /// <summary>The provider callback reentrancy chain, innermost peripheral first.</summary>
+        private static readonly AsyncLocal<CallbackFrame?> s_executing = new();
 
         /// <summary>The currently admitted operation, if any.</summary>
         private ActiveOperation? m_active;

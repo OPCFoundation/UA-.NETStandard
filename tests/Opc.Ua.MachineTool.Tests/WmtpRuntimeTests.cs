@@ -486,6 +486,66 @@ namespace Opc.Ua.MachineTool.Tests
         }
 
         /// <summary>
+        /// A call that re-enters a ticking peripheral through another peripheral's callback is refused
+        /// instead of waiting for the tick that encloses it (A tick, then B authorization, then A).
+        /// </summary>
+        [Test]
+        public async Task IndirectReentryIntoTickingPeripheralIsRefusedInsteadOfDeadlockingAsync()
+        {
+            var first = new WmtpTestEquipment();
+            first.Samples["Temperature"] = first.Sample(Variant.From(17d));
+            var second = new WmtpTestEquipment();
+            second.Samples["Temperature"] = second.Sample(Variant.From(18d));
+            WmtpPeripheral a = await first.Builder(m_fixture.Context, "ReentryA")
+                .AddMeasurement(WmtpTestEquipment.Definition() with { StaleAfter = TimeSpan.FromSeconds(1) })
+                .BuildAsync().ConfigureAwait(false);
+            await using (a.ConfigureAwait(false))
+            {
+                WmtpPeripheral b = await second.Builder(m_fixture.Context, "ReentryB")
+                    .AddMeasurement(WmtpTestEquipment.Definition()).BuildAsync().ConfigureAwait(false);
+                await using (b.ConfigureAwait(false))
+                {
+                    var nested = new TaskCompletionSource<Exception?>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    second.Authorization.Setup(provider => provider.AuthorizeAsync(
+                            It.IsAny<WmtpRequest>(), It.IsAny<WmtpOperation>(), It.IsAny<CancellationToken>()))
+                        .Returns(async (WmtpRequest _, WmtpOperation _, CancellationToken _) =>
+                        {
+                            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                            try
+                            {
+                                await a.Measurements[0].SetDeltaAsync(Variant.From(3d),
+                                    new WmtpRequest { SessionId = new NodeId("nested", 1) }, timeout.Token)
+                                    .ConfigureAwait(false);
+                                nested.TrySetResult(null);
+                            }
+                            catch (Exception error)
+                            {
+                                nested.TrySetResult(error);
+                            }
+                            return StatusCodes.Good;
+                        });
+                    int calls = 0;
+                    a.Measurements[0].State.AnalogSignal!.StateChangedAsync += async (_, _, _, token) =>
+                    {
+                        if (Interlocked.Exchange(ref calls, 1) == 0)
+                        {
+                            await b.Measurements[0].SetDeltaAsync(Variant.From(2d),
+                                new WmtpRequest { SessionId = new NodeId("outer", 1) }, token).ConfigureAwait(false);
+                        }
+                    };
+                    first.Clock.Advance(TimeSpan.FromSeconds(2));
+                    await Task.Run(first.Clock.Pulse).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Exception? error = await nested.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(error, Is.TypeOf<ServiceResultException>(), error?.ToString());
+                    Assert.That(((ServiceResultException)error!).StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
+                    Assert.That(b.Measurements[0].State.DeltaCondition!.Value, Is.EqualTo(2d));
+                    Assert.That(a.Measurements[0].State.DeltaCondition!.Value, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
         /// Refusal and cancellation before provider acceptance cannot commit either proposed trigger setting.
         /// </summary>
         [TestCase(false, false)]
