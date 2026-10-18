@@ -20,7 +20,22 @@ services.AddOpcUa()
 ```
 
 `AddAutoId` owns the Device Integration namespace and cannot be combined with
-`AddOpcUaDi` or `AddMachinery`.
+`AddOpcUaDi`, `AddMachinery` or another DI owner. To host readers next to
+machines and other Machinery-based companions, compose AutoID into the
+Machinery node manager instead; the readers then share its `DeviceSet`:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => { /* application name, endpoints, PKI */ })
+    .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+    .AddAutoIdToMachinery()
+    .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        await context.Runtime
+            .Reader(new QualifiedName("DockDoor1", context.Runtime.InstanceNamespaceIndex), hardware)
+            .BuildAsync(ct);
+    });
+```
 
 ## Providers
 

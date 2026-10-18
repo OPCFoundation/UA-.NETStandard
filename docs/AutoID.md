@@ -118,10 +118,17 @@ The NodeSet defines binary and XML encodings; JSON uses the DataType NodeIds.
 
 ## Hosting readers
 
-`Opc.Ua.AutoID.Server` registers a Device Integration node manager that loads
-the DI and AutoID models and creates one device per reader below `DeviceSet`.
-It owns the Device Integration namespace, so it cannot be combined with another
-DI-owning registration such as `AddOpcUaDi` or `AddMachinery`.
+A server has one Device Integration `DeviceSet`, and exactly one node manager
+owns the DI namespace. Readers are therefore hosted in one of two ways:
+
+- `AddAutoId` registers a node manager of its own that loads the DI and AutoID
+  models and creates one device per reader below `DeviceSet`. Use it when AutoID
+  is the only DI-based companion of the server.
+- `AddAutoIdToMachinery` loads the AutoID model into the Machinery node manager
+  of `AddMachinery`, which then owns DI for every companion of the server; the
+  readers are created in that manager, below the same `DeviceSet` as the
+  machines, pumps or scales. See
+  [Coexisting with a server that already owns DI](#coexisting-with-a-server-that-already-owns-di).
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -165,6 +172,102 @@ The readers keep their scan state (`Idle_0`, `Scanning_2`, `Busy_3`, `Error_1`)
 in `DeviceStatus`. `AutoIdReader.SetFaultedAsync(true)` reports `Error_1`: new
 scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
 `SetDeviceLocation` moves the `DeviceLocation` of a mobile reader.
+
+### Coexisting with a server that already owns DI
+
+`AddAutoId` claims the Device Integration address space like `AddOpcUaDi`,
+`AddMachinery`, `AddPumps` or `AddScales`, so registering it together with
+another DI owner, in either order, throws `InvalidOperationException` while the
+services are registered; the message names the current owner and the
+composition API. The check is what keeps the address space consistent: two DI
+owners would each load their own copy of `DeviceSet`, the server would route
+`DeviceSet` to the first one, and readers created in the second one would not
+be browsable.
+
+To host readers next to machines, call `AddAutoIdToMachinery` after
+`AddMachinery` and create the readers with `ConfigureAutoIdFor<TNodeManager>`.
+Other Machinery-based companions compose into the same owner:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.AutoID.Server;
+using Opc.Ua.Machinery.Server;
+
+services.AddOpcUa()
+    .AddServer(options => { /* application name, endpoints, PKI */ })
+    .AddMachinery(options =>
+    {
+        options.Parts = MachineryParts.BuildingBlocks;
+        options.InstanceNamespaceUri = "urn:acme:plant:instances";
+    })
+    .AddPumpsToMachinery()                       // optional, any *ToMachinery companion
+    .AddAutoIdToMachinery(options => options.MaximumScanDuration = TimeSpan.FromSeconds(10))
+    .ConfigureMachinery(async (machinery, ct) =>
+    {
+        await machinery.AddMachine(new QualifiedName("Press1", machinery.InstanceNamespaceIndex))
+            .WithIdentification(id =>
+            {
+                id.Manufacturer = new LocalizedText("Acme");
+                id.SerialNumber = "PR-1";
+                id.ProductInstanceUri = "urn:acme:press:1";
+            })
+            .BuildAsync(ct);
+    })
+    .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        AutoIdReader reader = await context.Runtime
+            .Reader(new QualifiedName("PressInfeed", context.Runtime.InstanceNamespaceIndex), hardware)
+            .WithDeviceInfo("Infeed portal of Press1")
+            .BuildAsync(ct);
+    });
+```
+
+| Item | In the composed server |
+| --- | --- |
+| Node managers | The `MachineryNodeManager` alone; no `AutoIdNodeManager` is created |
+| Device Integration model, `DeviceSet` | Loaded once by the Machinery owner's core model provider |
+| AutoID model | Added to the owner by `AutoIdMachineryModelProvider`, with `AdditionalNamespaceUris` |
+| Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` places a reader below another node of the owner instead, for example a component of a machine |
+| `Machines` folder | Readers are devices, not machines, and are not added to it |
+| Methods, events, providers | As in the stand-alone server; the readers are event notifiers of the owner |
+| Conformance | The runtime contributes the AutoID units and facets to the owner, which publishes them with the DI and Machinery ones |
+| Lifetime | The owner disposes the runtime on shutdown: scans stop, providers detach, owned providers are disposed |
+
+Successive `ConfigureAutoIdFor<MachineryNodeManager>` delegates run in
+registration order in the Machinery configuration pipeline, before its builder
+is sealed, and share one `AutoIdRuntime`; `context.Manager` is the Machinery
+owner. `ConfigureAutoIdFor<AutoIdNodeManager>` works with `AddAutoId` and
+receives the stand-alone runtime, so configuration code can be shared by both
+hosting paths. `Opc.Ua.AutoID.Server` references `Opc.Ua.Machinery.Server` for
+this; a stand-alone server still loads only the DI and AutoID models.
+
+### Direct composition and lifetime
+
+Without dependency injection, pass `new AutoIdMachineryModelProvider()` together
+with `new MachineryModelProvider(MachineryParts.BuildingBlocks)` to the
+`MachineryNodeManager` constructor; providers are dependency-ordered even if
+supplied in another order. Once the address space is created:
+
+```csharp
+AutoIdRuntime autoId = owner.CreateAutoIdRuntime();
+AutoIdReader reader = await autoId.CreateReaderAsync(
+    new QualifiedName("PressInfeed", autoId.InstanceNamespaceIndex), hardware, ct);
+```
+
+The first `CreateAutoIdRuntime(options)` call selects the options; later calls
+return the same runtime, and on an `AutoIdNodeManager` it returns its `Runtime`.
+The stand-alone `AutoIdNodeManager` is built from the same pieces: a Device
+Integration owner that loads DI and then `AutoIdMachineryModelProvider`.
+Any other Device Integration owner composes AutoID the same way, as with
+Pumps or Scales: an application-owned `DiNodeManager` subclass loads the model in
+its `LoadPredefinedNodesAsync` with `nodes.AddAutoIdTypeSystem(context)`, which
+keeps DI nodes that are already present, calls `CreateAutoIdRuntime()` (or is
+configured through `ConfigureAutoIdFor<TOwner>`), and disposes the runtime
+through `DisposeMachineryResourcesAsync()` from its asynchronous disposal.
+`AddAutoIdToMachinery` is the registration shortcut for the stock owner's
+model-provider pipeline; the plain `AddOpcUaDi` owner loads only DI and has no
+such pipeline, so a server built on it uses the subclass route.
 
 ## Providers
 
@@ -362,3 +465,10 @@ The [AutoID tests](../tests/Opc.Ua.AutoID.Tests/) pin the file hashes, compare
 the generated identifiers with the NodeSet and the identifier table, load the
 model with DI, and round-trip the DataTypes through the binary, JSON and XML
 encodings.
+
+| Fixture | Covers |
+| --- | --- |
+| `AutoIdHostingTests` | `AddAutoId` registration, DI ownership, options, node manager and client factories |
+| `AutoIdCompositionTests` | Stock Machinery owner, ordered providers, DI loaded once, instance ownership, rollback, cancellation, runtime disposal, a second DI owner rejected |
+| `AutoIdMachineryCompositionEndToEndTests` | Machinery, Pumps and AutoID in one hosted server, read back by the AutoID, Machinery and Pumps clients over a real session, with the published profiles and conformance units |
+| `AutoIdReaderEndToEndTests` | The stand-alone server driven by `AutoIdClient` over a real session |
