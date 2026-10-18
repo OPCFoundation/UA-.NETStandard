@@ -56,12 +56,16 @@ namespace Opc.Ua.AutoID.Server
         /// <param name="supportedLocationTypes">
         /// The location types the system supports; the first is the default. Defaults to WGS84 and local.
         /// </param>
-        /// <param name="cycleInterval">The duration of one scan cycle; defaults to 20 milliseconds.</param>
+        /// <param name="cycleInterval">
+        /// The duration of one scan cycle, which paces <c>Scan</c> and the scan events of
+        /// <c>ScanStart</c>; defaults to one second.
+        /// </param>
         /// <param name="locationConverter">
         /// Translates a stored location into another location type, or returns <see langword="null"/>
         /// when it cannot. <c>GetLocation</c> calls it when the stored location is not of the
         /// requested type. Optional.
         /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">The cycle interval is not positive.</exception>
         public InMemoryRtlsProvider(
             ArrayOf<LocationTypeEnumeration> supportedLocationTypes = default,
             TimeSpan? cycleInterval = null,
@@ -71,11 +75,16 @@ namespace Opc.Ua.AutoID.Server
                 ? new[] { LocationTypeEnumeration.WGS84, LocationTypeEnumeration.LOCAL }.ToArrayOf()
                 : supportedLocationTypes;
             m_locationConverter = locationConverter;
-            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval ?? TimeSpan.FromMilliseconds(20));
+            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval);
         }
 
         /// <inheritdoc/>
         public AutoIdReaderKind Kind => AutoIdReaderKind.Rtls;
+
+        /// <summary>
+        /// Gets the duration of one scan cycle.
+        /// </summary>
+        public TimeSpan CycleInterval => m_engine.CycleInterval;
 
         /// <inheritdoc/>
         public ArrayOf<LocationTypeEnumeration> SupportedLocationTypes { get; }

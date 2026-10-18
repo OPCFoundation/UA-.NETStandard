@@ -190,7 +190,10 @@ and the sink throws `ObjectDisposedException` after the reader was disposed.
 Four simulated providers ship in the package and back the tests and the sample:
 `InMemoryRfidReaderProvider` (an EPC Gen2 reader with memory banks, passwords,
 locks and kill), `InMemoryScanReaderProvider` (OCR and optical),
-`InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`. `InMemoryRtlsProvider` stores each object's location in the type it
+`InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`. Their scan cycle
+defaults to one second (`CycleInterval`), so an unbounded `ScanStart` raises at
+most one scan event per second; pass a `cycleInterval` to the constructor for
+another pace. `InMemoryRtlsProvider` stores each object's location in the type it
 was registered with. A `locationConverter` translates it into the other supported
 types, for example from the local coordinate system the system was configured
 with (OPC 30010 9.3.4) into WGS84:

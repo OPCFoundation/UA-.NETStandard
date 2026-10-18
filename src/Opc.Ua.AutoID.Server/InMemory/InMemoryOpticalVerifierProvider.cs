@@ -47,14 +47,23 @@ namespace Opc.Ua.AutoID.Server
         /// <summary>
         /// Creates a verifier.
         /// </summary>
-        /// <param name="cycleInterval">The duration of one scan cycle; defaults to 20 milliseconds.</param>
+        /// <param name="cycleInterval">
+        /// The duration of one scan cycle, which paces <c>Scan</c> and the scan events of
+        /// <c>ScanStart</c>; defaults to one second.
+        /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">The cycle interval is not positive.</exception>
         public InMemoryOpticalVerifierProvider(TimeSpan? cycleInterval = null)
         {
-            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval ?? TimeSpan.FromMilliseconds(20));
+            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval);
         }
 
         /// <inheritdoc/>
         public AutoIdReaderKind Kind => AutoIdReaderKind.OpticalVerifier;
+
+        /// <summary>
+        /// Gets the duration of one scan cycle.
+        /// </summary>
+        public TimeSpan CycleInterval => m_engine.CycleInterval;
 
         /// <summary>
         /// Puts a verified code into the range of the verifier.

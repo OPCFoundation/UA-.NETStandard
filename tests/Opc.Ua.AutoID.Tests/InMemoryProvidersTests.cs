@@ -248,6 +248,48 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public void TheSimulatedReadersScanOncePerSecondByDefault()
+        {
+            using var rfid = new InMemoryRfidReaderProvider();
+            using var ocr = new InMemoryScanReaderProvider(AutoIdReaderKind.Ocr);
+            using var verifier = new InMemoryOpticalVerifierProvider();
+            using var rtls = new InMemoryRtlsProvider();
+            using var fast = new InMemoryRtlsProvider(cycleInterval: TimeSpan.FromMilliseconds(5));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rfid.CycleInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(ocr.CycleInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(verifier.CycleInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(rtls.CycleInterval, Is.EqualTo(TimeSpan.FromSeconds(1)));
+                Assert.That(fast.CycleInterval, Is.EqualTo(TimeSpan.FromMilliseconds(5)));
+                Assert.Throws<ArgumentOutOfRangeException>(() => new InMemoryRfidReaderProvider(TimeSpan.Zero));
+                Assert.Throws<ArgumentOutOfRangeException>(
+                    () => new InMemoryScanReaderProvider(AutoIdReaderKind.Optical, TimeSpan.FromMilliseconds(-1)));
+                Assert.Throws<ArgumentOutOfRangeException>(() => new InMemoryOpticalVerifierProvider(TimeSpan.Zero));
+                Assert.Throws<ArgumentOutOfRangeException>(
+                    () => new InMemoryRtlsProvider(cycleInterval: TimeSpan.Zero));
+            });
+        }
+
+        [Test]
+        public async Task AnUnboundedScanStartWithTheDefaultCycleReportsAtMostOncePerSecondAsync()
+        {
+            using var reader = new InMemoryScanReaderProvider(AutoIdReaderKind.Ocr);
+            reader.Present(new OcrScanResult { CodeType = "RAW:STRING" });
+            var sink = new RecordingSink();
+            await reader.AttachAsync(sink).ConfigureAwait(false);
+
+            await reader.StartScanAsync(AutoIdTestData.Settings()).ConfigureAwait(false);
+            await sink.WaitForScansAsync(1).ConfigureAwait(false);
+            await Task.Delay(400).ConfigureAwait(false);
+            await reader.StopScanAsync().ConfigureAwait(false);
+            await reader.DetachAsync().ConfigureAwait(false);
+
+            Assert.That(sink.Scans, Has.Count.LessThanOrEqualTo(2));
+        }
+
+        [Test]
         public async Task TheLocatingSystemReportsAndStopsAsynchronouslyAsync()
         {
             using var rtls = new InMemoryRtlsProvider(

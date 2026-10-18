@@ -39,11 +39,38 @@ namespace Opc.Ua.AutoID.Server
     /// </summary>
     internal sealed class InMemoryScanEngine : IDisposable
     {
-        public InMemoryScanEngine(Func<ArrayOf<ScanResult>> snapshot, TimeSpan cycleInterval)
+        /// <summary>
+        /// Creates the loop.
+        /// </summary>
+        /// <param name="snapshot">Returns what one scan cycle sees.</param>
+        /// <param name="cycleInterval">
+        /// The duration of one scan cycle; <see langword="null"/> selects <see cref="DefaultCycleInterval"/>.
+        /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">The interval is not positive.</exception>
+        public InMemoryScanEngine(Func<ArrayOf<ScanResult>> snapshot, TimeSpan? cycleInterval)
         {
+            TimeSpan interval = cycleInterval ?? DefaultCycleInterval;
+            if (interval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(cycleInterval),
+                    interval,
+                    "The scan cycle interval must be positive.");
+            }
             m_snapshot = snapshot;
-            m_cycleInterval = cycleInterval;
+            CycleInterval = interval;
         }
+
+        /// <summary>
+        /// The scan cycle of a simulated reader that was not given one: one cycle per second, so an
+        /// unbounded <c>ScanStart</c> raises at most one scan event per second.
+        /// </summary>
+        public static TimeSpan DefaultCycleInterval { get; } = TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// Gets the duration of one scan cycle.
+        /// </summary>
+        public TimeSpan CycleInterval { get; }
 
         public IAutoIdReaderSink? Sink
         {
@@ -263,18 +290,17 @@ namespace Opc.Ua.AutoID.Server
         {
             if (deadline == DateTime.MaxValue)
             {
-                return m_cycleInterval;
+                return CycleInterval;
             }
             TimeSpan remaining = deadline - DateTime.UtcNow;
             if (remaining <= TimeSpan.Zero)
             {
                 return TimeSpan.Zero;
             }
-            return remaining < m_cycleInterval ? remaining : m_cycleInterval;
+            return remaining < CycleInterval ? remaining : CycleInterval;
         }
 
         private readonly Func<ArrayOf<ScanResult>> m_snapshot;
-        private readonly TimeSpan m_cycleInterval;
         private readonly Lock m_lock = new();
         private IAutoIdReaderSink? m_sink;
         private Task? m_loop;

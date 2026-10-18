@@ -48,8 +48,13 @@ namespace Opc.Ua.AutoID.Server
         /// Creates a reader.
         /// </summary>
         /// <param name="kind"><see cref="AutoIdReaderKind.Ocr"/> or <see cref="AutoIdReaderKind.Optical"/>.</param>
-        /// <param name="cycleInterval">The duration of one scan cycle; defaults to 20 milliseconds.</param>
-        /// <exception cref="ArgumentOutOfRangeException">The kind is not OCR or optical.</exception>
+        /// <param name="cycleInterval">
+        /// The duration of one scan cycle, which paces <c>Scan</c> and the scan events of
+        /// <c>ScanStart</c>; defaults to one second.
+        /// </param>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The kind is not OCR or optical, or the cycle interval is not positive.
+        /// </exception>
         public InMemoryScanReaderProvider(AutoIdReaderKind kind, TimeSpan? cycleInterval = null)
         {
             if (kind is not (AutoIdReaderKind.Ocr or AutoIdReaderKind.Optical))
@@ -60,11 +65,16 @@ namespace Opc.Ua.AutoID.Server
                     "Use Ocr or Optical; the other reader kinds have their own simulated providers.");
             }
             Kind = kind;
-            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval ?? TimeSpan.FromMilliseconds(20));
+            m_engine = new InMemoryScanEngine(Snapshot, cycleInterval);
         }
 
         /// <inheritdoc/>
         public AutoIdReaderKind Kind { get; }
+
+        /// <summary>
+        /// Gets the duration of one scan cycle.
+        /// </summary>
+        public TimeSpan CycleInterval => m_engine.CycleInterval;
 
         /// <summary>
         /// Puts a code into the range of the reader.
