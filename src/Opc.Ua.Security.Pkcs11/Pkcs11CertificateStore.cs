@@ -556,33 +556,16 @@ namespace Opc.Ua.Security.Pkcs11
                 try
                 {
                     // A certificate whose CKA_ID cannot be read cannot be linked
-                    // to its key. A certificate without a CKA_ID is linked to the
-                    // key whose public key it carries. When no key carries it, the
-                    // key that the configured object label or id selects is used
-                    // only if it proves to be the certificate's key by signing a
-                    // challenge the certificate verifies: a shared label or id
-                    // does not establish the pairing. Without such a filter no
-                    // key is attached.
+                    // to its key.
                     if (entry.Value == null ||
                         !Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
                     {
                         continue;
                     }
 
-                    byte[]? keyId = entry.Value.Length > 0 ? entry.Value : FindKeyId(token, candidate);
-                    bool provePossession = keyId == null;
-
-                    if (keyId == null)
-                    {
-                        if (!HasObjectFilter(token.Options))
-                        {
-                            continue;
-                        }
-
-                        keyId = [];
-                    }
-
-                    Certificate? withKey = AttachKey(token, candidate, keyId, provePossession);
+                    Certificate? withKey = entry.Value.Length > 0
+                        ? AttachKey(token, candidate, entry.Value, provePossession: false)
+                        : AttachKeyWithoutId(token, candidate);
 
                     if (withKey != null)
                     {
@@ -687,6 +670,30 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <summary>
+        /// Attaches a key to a copy of a certificate without a CKA_ID. Only a key
+        /// that signs a challenge the certificate's public key verifies is
+        /// attached: neither the CKA_ID of the key object that carries the
+        /// certificate's public key nor the configured object label or id
+        /// establishes the pairing alone, because several keys may share them.
+        /// The candidates are the keys with that CKA_ID, then the keys the
+        /// configured object filters select; without a filter, only the former.
+        /// </summary>
+        private static Certificate? AttachKeyWithoutId(Pkcs11Token token, Certificate certificate)
+        {
+            byte[]? keyId = FindKeyId(token, certificate);
+            Certificate? withKey = keyId == null
+                ? null
+                : AttachKey(token, certificate, keyId, provePossession: true);
+
+            if (withKey == null && HasObjectFilter(token.Options))
+            {
+                withKey = AttachKey(token, certificate, [], provePossession: true);
+            }
+
+            return withKey;
+        }
+
+        /// <summary>
         /// Attaches the private key with the CKA_ID to a copy of the certificate.
         /// </summary>
         /// <param name="token">The token holding the key.</param>
@@ -697,6 +704,8 @@ namespace Opc.Ua.Security.Pkcs11
         /// <param name="provePossession">
         /// Whether the key must sign a challenge that the public key of the
         /// certificate verifies, because nothing else links it to the certificate.
+        /// Every key the CKA_ID or the filters select is tried; otherwise the
+        /// first one is attached.
         /// </param>
         /// <returns>The certificate with its key, or <c>null</c> when there is none.</returns>
         private static Certificate? AttachKey(
@@ -714,22 +723,21 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 if (publicRsa != null)
                 {
-                    IObjectHandle? handle = token.FindPrivateKey(CKK.CKK_RSA, ckaId);
+                    RSAParameters parameters = publicRsa.ExportParameters(false);
 
-                    if (handle == null)
+                    foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_RSA, ckaId, provePossession))
                     {
-                        return null;
-                    }
+                        var rsa = new Pkcs11Rsa(token, handle, parameters);
 
-                    var rsa = new Pkcs11Rsa(token, handle, publicRsa.ExportParameters(false));
+                        if (!provePossession || SignsFor(rsa))
+                        {
+                            return certificate.CopyWithDetachedPrivateKey(rsa);
+                        }
 
-                    if (provePossession && !SignsFor(rsa, publicRsa))
-                    {
                         rsa.Dispose();
-                        return null;
                     }
 
-                    return certificate.CopyWithDetachedPrivateKey(rsa);
+                    return null;
                 }
             }
 
@@ -737,22 +745,19 @@ namespace Opc.Ua.Security.Pkcs11
 
             if (publicEcdsa != null)
             {
-                IObjectHandle? handle = token.FindPrivateKey(CKK.CKK_EC, ckaId);
+                ECParameters parameters = publicEcdsa.ExportParameters(false);
 
-                if (handle == null)
+                foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_EC, ckaId, provePossession))
                 {
-                    return null;
-                }
+                    var ecdsa = new Pkcs11ECDsa(token, handle, parameters);
 
-                var ecdsa = new Pkcs11ECDsa(token, handle, publicEcdsa.ExportParameters(false));
+                    if (!provePossession || SignsFor(ecdsa))
+                    {
+                        return certificate.CopyWithDetachedPrivateKey(ecdsa);
+                    }
 
-                if (provePossession && !SignsFor(ecdsa, publicEcdsa))
-                {
                     ecdsa.Dispose();
-                    return null;
                 }
-
-                return certificate.CopyWithDetachedPrivateKey(ecdsa);
             }
 #pragma warning restore CA2000
 
@@ -760,42 +765,81 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <summary>
-        /// Whether the RSA key on the token signs a random challenge that the
-        /// public key verifies. A key the token refuses to sign with does not.
+        /// The keys to try: every key the CKA_ID or the filters select when
+        /// possession is proven, else the first one.
         /// </summary>
-        private static bool SignsFor(Pkcs11Rsa key, RSA publicKey)
+        private static List<IObjectHandle> CandidateKeys(
+            Pkcs11Token token,
+            CKK keyType,
+            byte[] ckaId,
+            bool provePossession)
+        {
+            if (provePossession)
+            {
+                return token.FindPrivateKeys(keyType, ckaId);
+            }
+
+            IObjectHandle? first = token.FindPrivateKey(keyType, ckaId);
+            return first == null ? [] : [first];
+        }
+
+        /// <summary>
+        /// Whether the RSA key on the token signs a random challenge that the
+        /// certificate's public key verifies, with PKCS#1 v1.5 or, for a key the
+        /// token permits only for PSS, with PSS. A key the token refuses to sign
+        /// with does not.
+        /// </summary>
+        private static bool SignsFor(Pkcs11Rsa key)
         {
             byte[] challenge = CreateChallenge();
 
-            try
+            foreach (RSASignaturePadding padding in s_challengePaddings)
             {
-                byte[] signature = key.SignHash(challenge, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                return publicKey.VerifyHash(challenge, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                try
+                {
+                    byte[] signature = key.SignHash(challenge, HashAlgorithmName.SHA256, padding);
+
+                    // Pkcs11Rsa verifies with the public key it was created from,
+                    // which is the certificate's.
+                    return key.VerifyHash(challenge, signature, HashAlgorithmName.SHA256, padding);
+                }
+                catch (Pkcs11Exception)
+                {
+                    // The token refused the mechanism for this key; it may permit the next one.
+                }
             }
-            catch (Pkcs11Exception)
-            {
-                return false;
-            }
+
+            return false;
         }
 
         /// <summary>
         /// Whether the EC key on the token signs a random challenge that the
-        /// public key verifies. A key the token refuses to sign with does not.
+        /// certificate's public key verifies. A key the token refuses to sign
+        /// with does not.
         /// </summary>
-        private static bool SignsFor(Pkcs11ECDsa key, ECDsa publicKey)
+        private static bool SignsFor(Pkcs11ECDsa key)
         {
             byte[] challenge = CreateChallenge();
 
             try
             {
                 byte[] signature = key.SignHash(challenge);
-                return publicKey.VerifyHash(challenge, signature);
+
+                // Pkcs11ECDsa verifies with the public key it was created from,
+                // which is the certificate's.
+                return key.VerifyHash(challenge, signature);
             }
             catch (Pkcs11Exception)
             {
                 return false;
             }
         }
+
+        private static readonly RSASignaturePadding[] s_challengePaddings =
+        [
+            RSASignaturePadding.Pkcs1,
+            RSASignaturePadding.Pss
+        ];
 
         /// <summary>
         /// A random value with the length of a SHA-256 hash.

@@ -400,6 +400,11 @@ namespace Opc.Ua.Security.Pkcs11.Tests
 
             if (mechanism.Type == (ulong)CKM.CKM_RSA_PKCS)
             {
+                if (RefuseRsaPkcs1Signatures)
+                {
+                    throw new Pkcs11Exception("Sign", CKR.CKR_KEY_FUNCTION_NOT_PERMITTED);
+                }
+
                 // CKM_RSA_PKCS signs whatever it is handed, so the caller must
                 // have wrapped the hash in a DigestInfo. Unwrapping it here is
                 // what makes a wrong prefix visible.
@@ -667,16 +672,42 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         /// </summary>
         /// <param name="label">The CKA_LABEL of the objects.</param>
         /// <param name="id">The new CKA_ID.</param>
-        public void SetIdsOfLabel(string label, byte[] id)
+        /// <param name="objectClass">Only the objects of this class, or every object when <c>null</c>.</param>
+        public void SetIdsOfLabel(string label, byte[] id, CKO? objectClass = null)
         {
             for (int ii = 0; ii < m_objects.Count; ii++)
             {
-                if (m_objects[ii].Label == label)
+                if (m_objects[ii].Label == label &&
+                    (objectClass == null || m_objects[ii].ObjectClass == (ulong)objectClass.Value))
                 {
                     m_objects[ii] = m_objects[ii] with { Id = id };
                 }
             }
         }
+
+        /// <summary>
+        /// Adds an RSA private key object after the existing objects. It signs
+        /// with the token's RSA key, like every key of this module, whatever
+        /// public key it states.
+        /// </summary>
+        /// <param name="id">The CKA_ID of the object.</param>
+        /// <param name="label">The CKA_LABEL of the object.</param>
+        /// <param name="publicKey">The modulus and public exponent the object states.</param>
+        public void AddRsaPrivateKey(byte[] id, string label, RSAParameters publicKey)
+        {
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, id, label, [])
+            {
+                Modulus = publicKey.Modulus,
+                PublicExponent = publicKey.Exponent
+            });
+        }
+
+        /// <summary>
+        /// Set to make the token refuse CKM_RSA_PKCS signatures, as for a key
+        /// that permits only PSS.
+        /// </summary>
+        public bool RefuseRsaPkcs1Signatures { get; set; }
 
         /// <summary>
         /// The value of an attribute of the certificate object holding the given encoding.

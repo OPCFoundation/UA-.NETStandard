@@ -549,6 +549,75 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task CertificateWithoutIdIsNotPairedWithAnotherKeyOfTheInferredIdAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate peer = CreatePeerCertificate("CN=SharesTheKeyId");
+            using (RSA peerKey = peer.GetRSAPublicKey()!)
+            {
+                // A second key object with the token key's CKA_ID states the peer's public key.
+                module.AddRsaPrivateKey(module.RsaId, "rsa", peerKey.ExportParameters(false));
+            }
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null, "no key with the inferred CKA_ID signs for the certificate");
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedByTheObjectLabelWhenItsInferredIdSelectsNoPrivateKeyAsync()
+        {
+            using var module = new FakePkcs11Module();
+            // Only the public key object keeps its CKA_ID.
+            module.SetIdsOfLabel("ecc", [], CKO.CKO_CERTIFICATE);
+            module.SetIdsOfLabel("ecc", [], CKO.CKO_PRIVATE_KEY);
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "ecc";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using Certificate identity = Certificate.FromRawData(module.EccCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithAnRsaKeyThatSignsOnlyWithPssAsync()
+        {
+            using var module = new FakePkcs11Module();
+            // Only the object label links the certificate to its key, so the key must prove possession.
+            module.SetIdsOfLabel("rsa", []);
+            module.RefuseRsaPkcs1Signatures = true;
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "rsa";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using Certificate identity = Certificate.FromRawData(module.RsaCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
         public async Task CertificateWhoseIdCannotBeReadIsNotPairedWithAnUnrelatedKeyAsync()
         {
             using var module = new FakePkcs11Module();

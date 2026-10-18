@@ -188,6 +188,22 @@ namespace Opc.Ua.Security.Pkcs11
         /// <returns>The key handle, or <c>null</c> when there is no match.</returns>
         public IObjectHandle? FindPrivateKey(CKK keyType, byte[]? ckaId)
         {
+            List<IObjectHandle> handles = FindPrivateKeys(keyType, ckaId);
+
+            return handles.Count > 0 ? handles[0] : null;
+        }
+
+        /// <summary>
+        /// Finds every private key whose CKA_ID matches: several keys of a token
+        /// may share a CKA_ID.
+        /// </summary>
+        /// <param name="keyType">The key type to look for.</param>
+        /// <param name="ckaId">
+        /// The CKA_ID to match, or an empty value to fall back to the options.
+        /// </param>
+        /// <returns>The key handles in the order the token returns them.</returns>
+        public List<IObjectHandle> FindPrivateKeys(CKK keyType, byte[]? ckaId)
+        {
             lock (m_lock)
             {
                 ThrowIfDisposed();
@@ -207,9 +223,7 @@ namespace Opc.Ua.Security.Pkcs11
                     AddObjectFilters(search);
                 }
 
-                List<IObjectHandle> handles = m_session.FindAllObjects(search);
-
-                return handles.Count > 0 ? handles[0] : null;
+                return m_session.FindAllObjects(search);
             }
         }
 
