@@ -1,30 +1,6 @@
 /* ========================================================================
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
+ * SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+ * SPDX-License-Identifier: MIT
  * ======================================================================*/
 
 using System;
@@ -173,6 +149,14 @@ namespace Opc.Ua
         public const uint NumberRange = 23903;
 
         public const uint AnnotationDataType = 32434;
+
+        public const uint ScalingConversionBaseDataType = 24764;
+
+        public const uint LinearConversionBaseDataType = 24797;
+
+        public const uint LinearConversionInt32DataType = 24807;
+
+        public const uint LinearConversionInt64DataType = 24808;
 
         public const uint LinearConversionDataType = 32435;
 
@@ -354,9 +338,23 @@ namespace Opc.Ua
 
         public const uint TransmitQosPriorityDataType = 23605;
 
+        public const uint TransmitQosBandwidthDataType = 26128;
+
+        public const uint TransmitQosLatencyDataType = 26129;
+
+        public const uint TransmitQosDeadlineDataType = 26130;
+
+        public const uint TransmitQosClockDataType = 26131;
+
         public const uint ReceiveQosDataType = 23608;
 
         public const uint ReceiveQosPriorityDataType = 23609;
+
+        public const uint ReceiveQosLatencyDataType = 26168;
+
+        public const uint ReceiveQosDeadlineDataType = 26169;
+
+        public const uint ReceiveQosClockDataType = 26170;
 
         public const uint DatagramConnectionTransportDataType = 17467;
 
@@ -430,6 +428,10 @@ namespace Opc.Ua
 
         public const uint EncodedTicket = 25726;
 
+        public const uint ArbTime = 24861;
+
+        public const uint IpAddressOrigin = 25960;
+
         public const uint Duplex = 24210;
 
         public const uint InterfaceAdminStatus = 24212;
@@ -460,6 +462,14 @@ namespace Opc.Ua
 
         public const uint LldpTlvType = 18955;
 
+        public const uint Ipv4AddressType = 25962;
+
+        public const uint Ipv6AddressType = 25963;
+
+        public const uint DnsServerType = 25964;
+
+        public const uint DnsResolverType = 25965;
+
         public const uint LldpSystemCapabilitiesMap = 18956;
 
         public const uint ReferenceDescriptionDataType = 32659;
@@ -477,6 +487,8 @@ namespace Opc.Ua
         public const uint NameValuePair = 19748;
 
         public const uint LogRecordMask = 19749;
+
+        public const uint ActiveLockHoldersDataType = 26118;
 
         public const uint IdType = 256;
 
@@ -1351,14 +1363,6 @@ namespace Opc.Ua
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Enable = 16440;
 
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment = 16441;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge = 16461;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve = 16517;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve = 16515;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve = 16516;
 
         public const uint AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable = 20034;
 
@@ -2628,9 +2632,31 @@ namespace Opc.Ua
 
         public const uint ProvisionableDevice_RequestTickets = 29880;
 
+        public const uint ServerClocksFolderType_SetClockReference = 24866;
+
+        public const uint ServerClocks_SetClockReference = 26066;
+
+        public const uint GptpClockType_SetGptpConfig = 24913;
+
+        public const uint NtpClockType_SetNtpConfig = 24877;
+
         public const uint PriorityMappingTableType_AddPriorityMappingEntry = 25229;
 
         public const uint PriorityMappingTableType_DeletePriorityMappingEntry = 25231;
+
+        public const uint IetfNetworkInterfaceType_CreateVlanInterface = 25980;
+
+        public const uint IetfNetworkInterfaceType_SetIpv4Addresses = 25983;
+
+        public const uint IetfNetworkInterfaceType_SetIpv6Addresses = 25985;
+
+        public const uint IetfNetworkInterfaceType_ResetConfiguration = 25987;
+
+        public const uint IetfVlanNetworkInterfaceType_DeleteVlanInterface = 26002;
+
+        public const uint SystemType_SetHostName = 26021;
+
+        public const uint SystemType_SetDnsResolver = 26023;
 
         public const uint SerializationEntityType_ConfigureSerialization = 19839;
 
@@ -2639,6 +2665,22 @@ namespace Opc.Ua
         public const uint LogObjectType_ReleaseContinuationPoint = 24372;
 
         public const uint ServerLog_GetRecords = 19373;
+
+        public const uint InternalLockObjectType_AddNodesToLock = 26084;
+
+        public const uint InternalLockObjectType_RecursiveAddNodesToLock = 26087;
+
+        public const uint InternalLockObjectType_RemoveNodesFromLock = 26089;
+
+        public const uint InternalLockObjectType_ForceUnlock = 26092;
+
+        public const uint LockObjectType_Lock = 26109;
+
+        public const uint LockObjectType_Unlock = 26110;
+
+        public const uint LockObjectType_RenewLock = 26111;
+
+        public const uint LockObjectType_TransferLock = 26112;
     }
     #endregion
 
@@ -3324,9 +3366,49 @@ namespace Opc.Ua
 
         public const uint ProvisionableDevice = 29878;
 
+        public const uint ServerClocksFolderType_ClockName_Placeholder = 24868;
+
+        public const uint ServerClocks = 26065;
+
+        public const uint GptpClockType_Port00 = 24941;
+
+        public const uint GptpClockType_Port01 = 24972;
+
+        public const uint GptpClockType_Port02 = 25162;
+
+        public const uint GptpClockType_Port03 = 25318;
+
+        public const uint GptpClockType_Port04 = 25392;
+
+        public const uint GptpClockType_Port05 = 25503;
+
+        public const uint GptpClockType_Port06 = 25690;
+
+        public const uint GptpClockType_Port07 = 25737;
+
+        public const uint PtpDefaultClockType_Port00 = 25807;
+
+        public const uint PtpDefaultClockType_Port01 = 25824;
+
+        public const uint PtpDefaultClockType_Port02 = 25841;
+
+        public const uint PtpDefaultClockType_Port03 = 25858;
+
+        public const uint PtpDefaultClockType_Port04 = 25875;
+
+        public const uint PtpDefaultClockType_Port05 = 25892;
+
+        public const uint PtpDefaultClockType_Port06 = 25909;
+
+        public const uint PtpDefaultClockType_Port07 = 25926;
+
         public const uint Resources = 24226;
 
         public const uint Communication = 24227;
+
+        public const uint Routing = 26068;
+
+        public const uint System = 26071;
 
         public const uint MappingTables = 24228;
 
@@ -3357,6 +3439,12 @@ namespace Opc.Ua
         public const uint LldpPortInformationType_RemoteSystemsData = 19016;
 
         public const uint LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = 19017;
+
+        public const uint IetfNetworkInterfaceType_Ipv4 = 25967;
+
+        public const uint IetfNetworkInterfaceType_Ipv6 = 25973;
+
+        public const uint IetfVlanNetworkInterfaceType_Vlan = 25999;
 
         public const uint ServerLog = 19372;
 
@@ -3399,6 +3487,14 @@ namespace Opc.Ua
         public const uint NumberRange_Encoding_DefaultBinary = 24250;
 
         public const uint AnnotationDataType_Encoding_DefaultBinary = 32560;
+
+        public const uint ScalingConversionBaseDataType_Encoding_DefaultBinary = 24788;
+
+        public const uint LinearConversionBaseDataType_Encoding_DefaultBinary = 24798;
+
+        public const uint LinearConversionInt32DataType_Encoding_DefaultBinary = 24809;
+
+        public const uint LinearConversionInt64DataType_Encoding_DefaultBinary = 24810;
 
         public const uint LinearConversionDataType_Encoding_DefaultBinary = 32561;
 
@@ -3550,9 +3646,23 @@ namespace Opc.Ua
 
         public const uint TransmitQosPriorityDataType_Encoding_DefaultBinary = 23857;
 
+        public const uint TransmitQosBandwidthDataType_Encoding_DefaultBinary = 26132;
+
+        public const uint TransmitQosLatencyDataType_Encoding_DefaultBinary = 26133;
+
+        public const uint TransmitQosDeadlineDataType_Encoding_DefaultBinary = 26134;
+
+        public const uint TransmitQosClockDataType_Encoding_DefaultBinary = 26135;
+
         public const uint ReceiveQosDataType_Encoding_DefaultBinary = 23860;
 
         public const uint ReceiveQosPriorityDataType_Encoding_DefaultBinary = 23861;
+
+        public const uint ReceiveQosLatencyDataType_Encoding_DefaultBinary = 26171;
+
+        public const uint ReceiveQosDeadlineDataType_Encoding_DefaultBinary = 26172;
+
+        public const uint ReceiveQosClockDataType_Encoding_DefaultBinary = 26173;
 
         public const uint DatagramConnectionTransportDataType_Encoding_DefaultBinary = 17468;
 
@@ -3596,6 +3706,14 @@ namespace Opc.Ua
 
         public const uint LldpTlvType_Encoding_DefaultBinary = 19081;
 
+        public const uint Ipv4AddressType_Encoding_DefaultBinary = 26029;
+
+        public const uint Ipv6AddressType_Encoding_DefaultBinary = 26030;
+
+        public const uint DnsServerType_Encoding_DefaultBinary = 26031;
+
+        public const uint DnsResolverType_Encoding_DefaultBinary = 26032;
+
         public const uint ReferenceDescriptionDataType_Encoding_DefaultBinary = 32661;
 
         public const uint ReferenceListEntryDataType_Encoding_DefaultBinary = 32662;
@@ -3609,6 +3727,8 @@ namespace Opc.Ua
         public const uint TraceContextDataType_Encoding_DefaultBinary = 19755;
 
         public const uint NameValuePair_Encoding_DefaultBinary = 19756;
+
+        public const uint ActiveLockHoldersDataType_Encoding_DefaultBinary = 26119;
 
         public const uint RolePermissionType_Encoding_DefaultBinary = 128;
 
@@ -4116,6 +4236,14 @@ namespace Opc.Ua
 
         public const uint AnnotationDataType_Encoding_DefaultXml = 32572;
 
+        public const uint ScalingConversionBaseDataType_Encoding_DefaultXml = 24792;
+
+        public const uint LinearConversionBaseDataType_Encoding_DefaultXml = 24802;
+
+        public const uint LinearConversionInt32DataType_Encoding_DefaultXml = 24817;
+
+        public const uint LinearConversionInt64DataType_Encoding_DefaultXml = 24818;
+
         public const uint LinearConversionDataType_Encoding_DefaultXml = 32573;
 
         public const uint QuantityDimension_Encoding_DefaultXml = 32574;
@@ -4266,9 +4394,23 @@ namespace Opc.Ua
 
         public const uint TransmitQosPriorityDataType_Encoding_DefaultXml = 23925;
 
+        public const uint TransmitQosBandwidthDataType_Encoding_DefaultXml = 26148;
+
+        public const uint TransmitQosLatencyDataType_Encoding_DefaultXml = 26149;
+
+        public const uint TransmitQosDeadlineDataType_Encoding_DefaultXml = 26150;
+
+        public const uint TransmitQosClockDataType_Encoding_DefaultXml = 26151;
+
         public const uint ReceiveQosDataType_Encoding_DefaultXml = 23928;
 
         public const uint ReceiveQosPriorityDataType_Encoding_DefaultXml = 23929;
+
+        public const uint ReceiveQosLatencyDataType_Encoding_DefaultXml = 26183;
+
+        public const uint ReceiveQosDeadlineDataType_Encoding_DefaultXml = 26184;
+
+        public const uint ReceiveQosClockDataType_Encoding_DefaultXml = 26185;
 
         public const uint DatagramConnectionTransportDataType_Encoding_DefaultXml = 17472;
 
@@ -4312,6 +4454,14 @@ namespace Opc.Ua
 
         public const uint LldpTlvType_Encoding_DefaultXml = 19102;
 
+        public const uint Ipv4AddressType_Encoding_DefaultXml = 26045;
+
+        public const uint Ipv6AddressType_Encoding_DefaultXml = 26046;
+
+        public const uint DnsServerType_Encoding_DefaultXml = 26047;
+
+        public const uint DnsResolverType_Encoding_DefaultXml = 26048;
+
         public const uint ReferenceDescriptionDataType_Encoding_DefaultXml = 32669;
 
         public const uint ReferenceListEntryDataType_Encoding_DefaultXml = 32670;
@@ -4325,6 +4475,8 @@ namespace Opc.Ua
         public const uint TraceContextDataType_Encoding_DefaultXml = 19775;
 
         public const uint NameValuePair_Encoding_DefaultXml = 19776;
+
+        public const uint ActiveLockHoldersDataType_Encoding_DefaultXml = 26123;
 
         public const uint RolePermissionType_Encoding_DefaultXml = 16126;
 
@@ -4832,6 +4984,14 @@ namespace Opc.Ua
 
         public const uint AnnotationDataType_Encoding_DefaultJson = 32584;
 
+        public const uint ScalingConversionBaseDataType_Encoding_DefaultJson = 24796;
+
+        public const uint LinearConversionBaseDataType_Encoding_DefaultJson = 24806;
+
+        public const uint LinearConversionInt32DataType_Encoding_DefaultJson = 24825;
+
+        public const uint LinearConversionInt64DataType_Encoding_DefaultJson = 24826;
+
         public const uint LinearConversionDataType_Encoding_DefaultJson = 32585;
 
         public const uint QuantityDimension_Encoding_DefaultJson = 32586;
@@ -4982,9 +5142,23 @@ namespace Opc.Ua
 
         public const uint TransmitQosPriorityDataType_Encoding_DefaultJson = 23993;
 
+        public const uint TransmitQosBandwidthDataType_Encoding_DefaultJson = 26164;
+
+        public const uint TransmitQosLatencyDataType_Encoding_DefaultJson = 26165;
+
+        public const uint TransmitQosDeadlineDataType_Encoding_DefaultJson = 26166;
+
+        public const uint TransmitQosClockDataType_Encoding_DefaultJson = 26167;
+
         public const uint ReceiveQosDataType_Encoding_DefaultJson = 23996;
 
         public const uint ReceiveQosPriorityDataType_Encoding_DefaultJson = 23997;
+
+        public const uint ReceiveQosLatencyDataType_Encoding_DefaultJson = 26195;
+
+        public const uint ReceiveQosDeadlineDataType_Encoding_DefaultJson = 26196;
+
+        public const uint ReceiveQosClockDataType_Encoding_DefaultJson = 26197;
 
         public const uint DatagramConnectionTransportDataType_Encoding_DefaultJson = 17476;
 
@@ -5028,6 +5202,14 @@ namespace Opc.Ua
 
         public const uint LldpTlvType_Encoding_DefaultJson = 19301;
 
+        public const uint Ipv4AddressType_Encoding_DefaultJson = 26061;
+
+        public const uint Ipv6AddressType_Encoding_DefaultJson = 26062;
+
+        public const uint DnsServerType_Encoding_DefaultJson = 26063;
+
+        public const uint DnsResolverType_Encoding_DefaultJson = 26064;
+
         public const uint ReferenceDescriptionDataType_Encoding_DefaultJson = 32677;
 
         public const uint ReferenceListEntryDataType_Encoding_DefaultJson = 32678;
@@ -5041,6 +5223,8 @@ namespace Opc.Ua
         public const uint TraceContextDataType_Encoding_DefaultJson = 19805;
 
         public const uint NameValuePair_Encoding_DefaultJson = 19806;
+
+        public const uint ActiveLockHoldersDataType_Encoding_DefaultJson = 26127;
 
         public const uint RolePermissionType_Encoding_DefaultJson = 15062;
 
@@ -6026,6 +6210,22 @@ namespace Opc.Ua
 
         public const uint ProvisionableDeviceType = 26871;
 
+        public const uint RoutingInformationType = 24862;
+
+        public const uint ServerClocksFolderType = 24865;
+
+        public const uint BaseServerClockType = 24873;
+
+        public const uint GptpClockType = 24912;
+
+        public const uint PtpDefaultClockType = 25771;
+
+        public const uint NtpClockType = 24876;
+
+        public const uint GptpClockPortType = 16364;
+
+        public const uint PtpDefaultClockPortType = 25943;
+
         public const uint IIetfBaseNetworkInterfaceType = 24148;
 
         public const uint IIeeeBaseEthernetPortType = 24158;
@@ -6070,6 +6270,18 @@ namespace Opc.Ua
 
         public const uint LldpRemoteSystemType = 19033;
 
+        public const uint IetfNetworkInterfaceType = 25966;
+
+        public const uint IetfVlanNetworkInterfaceType = 25998;
+
+        public const uint IetfVlanType = 26003;
+
+        public const uint IetfIpv4Type = 26006;
+
+        public const uint IetfIpv6Type = 26012;
+
+        public const uint SystemType = 26018;
+
         public const uint SerializationEntityType = 19824;
 
         public const uint LogObjectType = 19352;
@@ -6079,6 +6291,10 @@ namespace Opc.Ua
         public const uint LogOverflowEventType = 19369;
 
         public const uint LogEntryConditionClassType = 19370;
+
+        public const uint InternalLockObjectType = 26078;
+
+        public const uint LockObjectType = 26104;
     }
     #endregion
 
@@ -6214,6 +6430,8 @@ namespace Opc.Ua
 
         public const uint AliasFor = 23469;
 
+        public const uint UsesClock = 16363;
+
         public const uint UsesPriorityMappingTable = 25237;
 
         public const uint HasLowerLayerInterface = 25238;
@@ -6247,6 +6465,8 @@ namespace Opc.Ua
         public const uint HasReferenceDescription = 32679;
 
         public const uint HasSerializationEntity = 19845;
+
+        public const uint HasLockElement = 26117;
     }
     #endregion
 
@@ -6972,6 +7192,8 @@ namespace Opc.Ua
 
         public const uint AuditEventType_ClientApplicationUri = 19811;
 
+        public const uint AuditEventType_SessionId = 24827;
+
         public const uint AuditSecurityEventType_StatusCodeId = 17615;
 
         public const uint AuditChannelEventType_SecureChannelId = 2745;
@@ -6991,6 +7213,8 @@ namespace Opc.Ua
         public const uint AuditOpenSecureChannelEventType_CertificateErrorEventId = 24135;
 
         public const uint AuditSessionEventType_SessionId = 2070;
+
+        public const uint AuditSessionEventType_SubscriptionIds = 24828;
 
         public const uint AuditCreateSessionEventType_SecureChannelId = 2072;
 
@@ -8256,6 +8480,22 @@ namespace Opc.Ua
 
         public const uint DataItemType_ValuePrecision = 2367;
 
+        public const uint DataItemType_ActualValue = 24503;
+
+        public const uint DataItemType_SimulationValue = 24504;
+
+        public const uint DataItemType_SimulationState = 24505;
+
+        public const uint DataItemType_ForceValue = 24506;
+
+        public const uint DataItemType_ForceState = 24507;
+
+        public const uint BaseAnalogType_ActualValue = 24508;
+
+        public const uint BaseAnalogType_SimulationValue = 24509;
+
+        public const uint BaseAnalogType_ForceValue = 24510;
+
         public const uint BaseAnalogType_InstrumentRange = 17567;
 
         public const uint BaseAnalogType_InstrumentNumberRange = 23904;
@@ -8276,11 +8516,29 @@ namespace Opc.Ua
 
         public const uint AnalogNumberUnitRangeType_EUNumberRange = 23927;
 
+        public const uint TwoStateDiscreteType_ActualValue = 24511;
+
+        public const uint TwoStateDiscreteType_SimulationValue = 24512;
+
+        public const uint TwoStateDiscreteType_ForceValue = 24513;
+
         public const uint TwoStateDiscreteType_FalseState = 2374;
 
         public const uint TwoStateDiscreteType_TrueState = 2375;
 
+        public const uint MultiStateDiscreteType_ActualValue = 24514;
+
+        public const uint MultiStateDiscreteType_SimulationValue = 24515;
+
+        public const uint MultiStateDiscreteType_ForceValue = 24516;
+
         public const uint MultiStateDiscreteType_EnumStrings = 2377;
+
+        public const uint MultiStateValueDiscreteType_ActualValue = 24517;
+
+        public const uint MultiStateValueDiscreteType_SimulationValue = 24745;
+
+        public const uint MultiStateValueDiscreteType_ForceValue = 24747;
 
         public const uint MultiStateValueDiscreteType_EnumValues = 11241;
 
@@ -8297,6 +8555,12 @@ namespace Opc.Ua
         public const uint ArrayItemType_AxisScaleType = 12028;
 
         public const uint YArrayItemType_XAxisDefinition = 12037;
+
+        public const uint XYArrayItemType_ActualValue = 24755;
+
+        public const uint XYArrayItemType_SimulationValue = 24762;
+
+        public const uint XYArrayItemType_ForceValue = 24763;
 
         public const uint XYArrayItemType_XAxisDefinition = 12046;
 
@@ -8371,10 +8635,6 @@ namespace Opc.Ua
         public const uint ConditionType_ConditionClassId = 11112;
 
         public const uint ConditionType_ConditionClassName = 11113;
-
-        public const uint ConditionType_ConditionSubClassId = 16363;
-
-        public const uint ConditionType_ConditionSubClassName = 16364;
 
         public const uint ConditionType_ConditionName = 9009;
 
@@ -8631,60 +8891,6 @@ namespace Opc.Ua
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ClientUserId = 16438;
 
         public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment_InputArguments = 16442;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState = 16443;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState_Id = 16444;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ConfirmedState_Id = 16453;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge_InputArguments = 16462;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Confirm_InputArguments = 16464;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState = 16465;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState_Id = 16466;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_InputNode = 16474;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedState_Id = 16476;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_OutOfServiceState_Id = 16485;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState = 16503;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState_Id = 16504;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_LastTransition_Id = 16509;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_UnshelveTime = 16514;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve_InputArguments = 16518;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve2_InputArguments = 24749;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve2_InputArguments = 24751;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve2_InputArguments = 24753;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedOrShelved = 16519;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_SilenceState_Id = 16494;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_LatchedState_Id = 18204;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Suppress2_InputArguments = 24329;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Unsuppress2_InputArguments = 24331;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_RemoveFromService2_InputArguments = 24333;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_PlaceInService2_InputArguments = 24335;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_Reset2_InputArguments = 24337;
-
-        public const uint AlarmGroupType_AlarmConditionInstance_Placeholder_GetGroupMemberships_OutputArguments = 25156;
 
         public const uint AlarmSuppressionGroupType_DigitalVariable_Placeholder = 32226;
 
@@ -12505,6 +12711,8 @@ namespace Opc.Ua
         public const uint ServerConfiguration_MulticastDnsEnabled = 12641;
 
         public const uint ServerConfiguration_HasSecureElement = 23597;
+
+        public const uint ServerConfiguration_InApplicationSetup = 19309;
 
         public const uint ServerConfiguration_UpdateCertificate_InputArguments = 13738;
 
@@ -17018,6 +17226,286 @@ namespace Opc.Ua
 
         public const uint ProvisionableDevice_SetRegistrarEndpoints_InputArguments = 29883;
 
+        public const uint RoutingInformationType_Ipv4DefaultGateway = 24863;
+
+        public const uint RoutingInformationType_Ipv6DefaultGateway = 24864;
+
+        public const uint ServerClocksFolderType_SetClockReference_InputArguments = 24867;
+
+        public const uint ServerClocksFolderType_ClockName_Placeholder_Label = 24869;
+
+        public const uint ServerClocksFolderType_ClockName_Placeholder_CurrentTime = 24870;
+
+        public const uint ServerClocks_SetClockReference_InputArguments = 26067;
+
+        public const uint BaseServerClockType_Label = 24874;
+
+        public const uint BaseServerClockType_CurrentTime = 24875;
+
+        public const uint GptpClockType_SetGptpConfig_InputArguments = 24914;
+
+        public const uint GptpClockType_DomainNumber = 24915;
+
+        public const uint GptpClockType_ClockIdentity = 24916;
+
+        public const uint GptpClockType_NumberPorts = 24917;
+
+        public const uint GptpClockType_Priority1 = 24918;
+
+        public const uint GptpClockType_Priority2 = 24919;
+
+        public const uint GptpClockType_SdoId = 24920;
+
+        public const uint GptpClockType_InstanceEnable = 24921;
+
+        public const uint GptpClockType_CurrentUtcOffsetValid = 24922;
+
+        public const uint GptpClockType_CurrentUtcOffset = 24923;
+
+        public const uint GptpClockType_TimeTraceable = 24924;
+
+        public const uint GptpClockType_FrequencyTraceable = 24925;
+
+        public const uint GptpClockType_PtpTimescale = 24926;
+
+        public const uint GptpClockType_TimeSource = 24927;
+
+        public const uint GptpClockType_TimeSource_EnumValues = 24935;
+
+        public const uint GptpClockType_TimeSource_ValueAsText = 24936;
+
+        public const uint GptpClockType_OffsetFromTimeTransmitter = 24937;
+
+        public const uint GptpClockType_GrandmasterIdentity = 24938;
+
+        public const uint GptpClockType_ClockClass = 24939;
+
+        public const uint GptpClockType_ClockAccuracy = 24940;
+
+        public const uint GptpClockType_OffsetScaledLogVariance = 25770;
+
+        public const uint GptpClockType_Port00_PortNumber = 24942;
+
+        public const uint GptpClockType_Port00_PortState_EnumValues = 24951;
+
+        public const uint GptpClockType_Port00_PortState_ValueAsText = 24952;
+
+        public const uint GptpClockType_Port01_PortNumber = 24973;
+
+        public const uint GptpClockType_Port01_PortState_EnumValues = 25017;
+
+        public const uint GptpClockType_Port01_PortState_ValueAsText = 25025;
+
+        public const uint GptpClockType_Port02_PortNumber = 25163;
+
+        public const uint GptpClockType_Port02_PortState_EnumValues = 25172;
+
+        public const uint GptpClockType_Port02_PortState_ValueAsText = 25173;
+
+        public const uint GptpClockType_Port03_PortNumber = 25319;
+
+        public const uint GptpClockType_Port03_PortState_EnumValues = 25328;
+
+        public const uint GptpClockType_Port03_PortState_ValueAsText = 25329;
+
+        public const uint GptpClockType_Port04_PortNumber = 25393;
+
+        public const uint GptpClockType_Port04_PortState_EnumValues = 25402;
+
+        public const uint GptpClockType_Port04_PortState_ValueAsText = 25483;
+
+        public const uint GptpClockType_Port05_PortNumber = 25504;
+
+        public const uint GptpClockType_Port05_PortState_EnumValues = 25668;
+
+        public const uint GptpClockType_Port05_PortState_ValueAsText = 25669;
+
+        public const uint GptpClockType_Port06_PortNumber = 25691;
+
+        public const uint GptpClockType_Port06_PortState_EnumValues = 25704;
+
+        public const uint GptpClockType_Port06_PortState_ValueAsText = 25705;
+
+        public const uint GptpClockType_Port07_PortNumber = 25738;
+
+        public const uint GptpClockType_Port07_PortState_EnumValues = 25747;
+
+        public const uint GptpClockType_Port07_PortState_ValueAsText = 25748;
+
+        public const uint PtpDefaultClockType_DomainNumber = 25772;
+
+        public const uint PtpDefaultClockType_InstanceEnable = 25773;
+
+        public const uint PtpDefaultClockType_ClockIdentity = 25774;
+
+        public const uint PtpDefaultClockType_Priority1 = 25775;
+
+        public const uint PtpDefaultClockType_Priority2 = 25776;
+
+        public const uint PtpDefaultClockType_ClockClass = 25777;
+
+        public const uint PtpDefaultClockType_ClockAccuracy = 25778;
+
+        public const uint PtpDefaultClockType_ClockAccuracy_EnumValues = 25786;
+
+        public const uint PtpDefaultClockType_ClockAccuracy_ValueAsText = 25787;
+
+        public const uint PtpDefaultClockType_StepsRemoved = 25788;
+
+        public const uint PtpDefaultClockType_OffsetFromMaster = 25789;
+
+        public const uint PtpDefaultClockType_MeanDelay = 25790;
+
+        public const uint PtpDefaultClockType_ParentPortIdentity = 25791;
+
+        public const uint PtpDefaultClockType_GrandmasterIdentity = 25792;
+
+        public const uint PtpDefaultClockType_CurrentUtcOffset = 25793;
+
+        public const uint PtpDefaultClockType_CurrentUtcOffsetValid = 25794;
+
+        public const uint PtpDefaultClockType_TimeTraceable = 25795;
+
+        public const uint PtpDefaultClockType_FrequencyTraceable = 25796;
+
+        public const uint PtpDefaultClockType_TimeSource = 25797;
+
+        public const uint PtpDefaultClockType_TimeSource_EnumValues = 25805;
+
+        public const uint PtpDefaultClockType_TimeSource_ValueAsText = 25806;
+
+        public const uint PtpDefaultClockType_Port00_PortState_EnumValues = 25817;
+
+        public const uint PtpDefaultClockType_Port00_PortState_ValueAsText = 25818;
+
+        public const uint PtpDefaultClockType_Port01_PortState_EnumValues = 25834;
+
+        public const uint PtpDefaultClockType_Port01_PortState_ValueAsText = 25835;
+
+        public const uint PtpDefaultClockType_Port02_PortState_EnumValues = 25851;
+
+        public const uint PtpDefaultClockType_Port02_PortState_ValueAsText = 25852;
+
+        public const uint PtpDefaultClockType_Port03_PortState_EnumValues = 25868;
+
+        public const uint PtpDefaultClockType_Port03_PortState_ValueAsText = 25869;
+
+        public const uint PtpDefaultClockType_Port04_PortState_EnumValues = 25885;
+
+        public const uint PtpDefaultClockType_Port04_PortState_ValueAsText = 25886;
+
+        public const uint PtpDefaultClockType_Port05_PortState_EnumValues = 25902;
+
+        public const uint PtpDefaultClockType_Port05_PortState_ValueAsText = 25903;
+
+        public const uint PtpDefaultClockType_Port06_PortState_EnumValues = 25919;
+
+        public const uint PtpDefaultClockType_Port06_PortState_ValueAsText = 25920;
+
+        public const uint PtpDefaultClockType_Port07_PortState_EnumValues = 25936;
+
+        public const uint PtpDefaultClockType_Port07_PortState_ValueAsText = 25937;
+
+        public const uint NtpClockType_SetNtpConfig_InputArguments = 24878;
+
+        public const uint NtpClockType_Port = 24879;
+
+        public const uint NtpClockType_ClockState = 24880;
+
+        public const uint NtpClockType_ClockState_EnumValues = 24888;
+
+        public const uint NtpClockType_ClockState_ValueAsText = 24889;
+
+        public const uint NtpClockType_ClockStratum = 24890;
+
+        public const uint NtpClockType_ClockRefid = 24891;
+
+        public const uint NtpClockType_NominalFreq = 24892;
+
+        public const uint NtpClockType_AcutalFreq = 24893;
+
+        public const uint NtpClockType_ClockPrecision = 24894;
+
+        public const uint NtpClockType_ClockOffset = 24895;
+
+        public const uint NtpClockType_RootDelay = 24896;
+
+        public const uint NtpClockType_SyncState = 24897;
+
+        public const uint NtpClockType_SyncState_EnumValues = 24905;
+
+        public const uint NtpClockType_SyncState_ValueAsText = 24906;
+
+        public const uint NtpClockType_PacketSent = 24907;
+
+        public const uint NtpClockType_PacketReceived = 24908;
+
+        public const uint NtpClockType_PacketDropped = 24909;
+
+        public const uint GptpClockPortType_PortNumber = 24831;
+
+        public const uint GptpClockPortType_PortState = 24832;
+
+        public const uint GptpClockPortType_PortState_EnumValues = 24840;
+
+        public const uint GptpClockPortType_PortState_ValueAsText = 24841;
+
+        public const uint GptpClockPortType_PortEnable = 24842;
+
+        public const uint GptpClockPortType_VersionNumber = 24843;
+
+        public const uint GptpClockPortType_DelayAssymetry = 24844;
+
+        public const uint GptpClockPortType_SyncLocked = 24845;
+
+        public const uint GptpClockPortType_IsMeasuringDelay = 24846;
+
+        public const uint GptpClockPortType_AsCapable = 24847;
+
+        public const uint GptpClockPortType_MeanLinkDelayThresh = 24848;
+
+        public const uint GptpClockPortType_OneStepReceive = 24849;
+
+        public const uint GptpClockPortType_OneStepTransmit = 24850;
+
+        public const uint GptpClockPortType_RxSyncCount = 24851;
+
+        public const uint GptpClockPortType_TxSyncCount = 24852;
+
+        public const uint GptpClockPortType_RxFollowUpCount = 24853;
+
+        public const uint GptpClockPortType_TxFollowUpCount = 24854;
+
+        public const uint GptpClockPortType_RxPdelayReqCount = 24855;
+
+        public const uint GptpClockPortType_TxPdelayRespCount = 24856;
+
+        public const uint GptpClockPortType_RxPdelayRespFollowUpCount = 24857;
+
+        public const uint GptpClockPortType_TxPdelayRespFollowUpCount = 24858;
+
+        public const uint GptpClockPortType_RxAnnounceCount = 24859;
+
+        public const uint GptpClockPortType_TxAnnounceCount = 24860;
+
+        public const uint PtpDefaultClockPortType_PortNumber = 25944;
+
+        public const uint PtpDefaultClockPortType_PortState = 25945;
+
+        public const uint PtpDefaultClockPortType_PortState_EnumValues = 25953;
+
+        public const uint PtpDefaultClockPortType_PortState_ValueAsText = 25954;
+
+        public const uint PtpDefaultClockPortType_PortEnable = 25955;
+
+        public const uint PtpDefaultClockPortType_PortIdentity = 25956;
+
+        public const uint PtpDefaultClockPortType_AnnounceReceiptTimeout = 25957;
+
+        public const uint PtpDefaultClockPortType_LogAnnounceInterval = 25958;
+
+        public const uint PtpDefaultClockPortType_LogSyncInterval = 25959;
+
         public const uint IIetfBaseNetworkInterfaceType_AdminStatus = 24149;
 
         public const uint IIetfBaseNetworkInterfaceType_OperStatus = 24150;
@@ -17088,6 +17576,8 @@ namespace Opc.Ua
 
         public const uint IIeeeTsnVlanTagType_PriorityCodePoint = 24204;
 
+        public const uint IpAddressOrigin_EnumValues = 25961;
+
         public const uint IPriorityMappingEntryType_MappingUri = 24206;
 
         public const uint IPriorityMappingEntryType_PriorityLabel = 24207;
@@ -17119,6 +17609,18 @@ namespace Opc.Ua
         public const uint ManAddrIfSubtype_EnumValues = 18952;
 
         public const uint LldpSystemCapabilitiesMap_OptionSetValues = 18957;
+
+        public const uint Routing_Ipv4DefaultGateway = 26069;
+
+        public const uint Routing_Ipv6DefaultGateway = 26070;
+
+        public const uint System_HostName = 26072;
+
+        public const uint System_DnsResolver = 26073;
+
+        public const uint System_SetHostName_InputArguments = 26075;
+
+        public const uint System_SetDnsResolver_InputArguments = 26077;
 
         public const uint LLDP_RemoteStatistics_LastChangeTime = 18960;
 
@@ -17256,6 +17758,72 @@ namespace Opc.Ua
 
         public const uint LldpRemoteSystemType_RemoteUnknownTlv = 19078;
 
+        public const uint IetfNetworkInterfaceType_Ipv4_Enabled = 25968;
+
+        public const uint IetfNetworkInterfaceType_Ipv4_Forwarding = 25969;
+
+        public const uint IetfNetworkInterfaceType_Ipv4_Mtu = 25970;
+
+        public const uint IetfNetworkInterfaceType_Ipv4_Addresses = 25971;
+
+        public const uint IetfNetworkInterfaceType_Ipv4_Origin = 25972;
+
+        public const uint IetfNetworkInterfaceType_Ipv6_Enabled = 25974;
+
+        public const uint IetfNetworkInterfaceType_Ipv6_Forwarding = 25975;
+
+        public const uint IetfNetworkInterfaceType_Ipv6_Mtu = 25976;
+
+        public const uint IetfNetworkInterfaceType_Ipv6_Addresses = 25977;
+
+        public const uint IetfNetworkInterfaceType_Ipv6_Origin = 25978;
+
+        public const uint IetfNetworkInterfaceType_PersistedConfigChanged = 25979;
+
+        public const uint IetfNetworkInterfaceType_CreateVlanInterface_InputArguments = 25981;
+
+        public const uint IetfNetworkInterfaceType_CreateVlanInterface_OutputArguments = 25982;
+
+        public const uint IetfNetworkInterfaceType_SetIpv4Addresses_InputArguments = 25984;
+
+        public const uint IetfNetworkInterfaceType_SetIpv6Addresses_InputArguments = 25986;
+
+        public const uint IetfNetworkInterfaceType_ResetConfiguration_InputArguments = 25988;
+
+        public const uint IetfVlanNetworkInterfaceType_Vlan_VlanId = 26001;
+
+        public const uint IetfVlanType_Pcp = 26004;
+
+        public const uint IetfVlanType_VlanId = 26005;
+
+        public const uint IetfIpv4Type_Enabled = 26007;
+
+        public const uint IetfIpv4Type_Forwarding = 26008;
+
+        public const uint IetfIpv4Type_Mtu = 26009;
+
+        public const uint IetfIpv4Type_Addresses = 26010;
+
+        public const uint IetfIpv4Type_Origin = 26011;
+
+        public const uint IetfIpv6Type_Enabled = 26013;
+
+        public const uint IetfIpv6Type_Forwarding = 26014;
+
+        public const uint IetfIpv6Type_Mtu = 26015;
+
+        public const uint IetfIpv6Type_Addresses = 26016;
+
+        public const uint IetfIpv6Type_Origin = 26017;
+
+        public const uint SystemType_HostName = 26019;
+
+        public const uint SystemType_DnsResolver = 26020;
+
+        public const uint SystemType_SetHostName_InputArguments = 26022;
+
+        public const uint SystemType_SetDnsResolver_InputArguments = 26024;
+
         public const uint ReferenceDescriptionVariableType_ReferenceRefinement = 32658;
 
         public const uint SerializationEntityType_SerializedData = 19825;
@@ -17317,6 +17885,34 @@ namespace Opc.Ua
         public const uint ServerLog_MinimumSeverity = 19751;
 
         public const uint ServerLog_ReleaseContinuationPoint_InputArguments = 24378;
+
+        public const uint InternalLockObjectType_Locked = 26079;
+
+        public const uint InternalLockObjectType_ActiveLockHolders = 26080;
+
+        public const uint InternalLockObjectType_LockMax = 26081;
+
+        public const uint InternalLockObjectType_LockUserPermissions = 26082;
+
+        public const uint InternalLockObjectType_OtherUserDenyMask = 26083;
+
+        public const uint InternalLockObjectType_AddNodesToLock_InputArguments = 26085;
+
+        public const uint InternalLockObjectType_AddNodesToLock_OutputArguments = 26086;
+
+        public const uint InternalLockObjectType_RecursiveAddNodesToLock_InputArguments = 26088;
+
+        public const uint InternalLockObjectType_RemoveNodesFromLock_InputArguments = 26090;
+
+        public const uint InternalLockObjectType_RemoveNodesFromLock_OutputArguments = 26091;
+
+        public const uint InternalLockObjectType_ForceUnlock_InputArguments = 26093;
+
+        public const uint LockObjectType_LockTime = 26108;
+
+        public const uint LockObjectType_TransferLock_InputArguments = 26113;
+
+        public const uint DefaultInactiveLockTime = 26116;
 
         public const uint IdType_EnumStrings = 7591;
 
@@ -17419,6 +18015,14 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_NumberRange = 24340;
 
         public const uint OpcUa_BinarySchema_AnnotationDataType = 32563;
+
+        public const uint OpcUa_BinarySchema_ScalingConversionBaseDataType = 24789;
+
+        public const uint OpcUa_BinarySchema_LinearConversionBaseDataType = 24799;
+
+        public const uint OpcUa_BinarySchema_LinearConversionInt32DataType = 24811;
+
+        public const uint OpcUa_BinarySchema_LinearConversionInt64DataType = 24814;
 
         public const uint OpcUa_BinarySchema_LinearConversionDataType = 32566;
 
@@ -17568,9 +18172,23 @@ namespace Opc.Ua
 
         public const uint OpcUa_BinarySchema_TransmitQosPriorityDataType = 23888;
 
+        public const uint OpcUa_BinarySchema_TransmitQosBandwidthDataType = 26136;
+
+        public const uint OpcUa_BinarySchema_TransmitQosLatencyDataType = 26139;
+
+        public const uint OpcUa_BinarySchema_TransmitQosDeadlineDataType = 26142;
+
+        public const uint OpcUa_BinarySchema_TransmitQosClockDataType = 26145;
+
         public const uint OpcUa_BinarySchema_ReceiveQosDataType = 23897;
 
         public const uint OpcUa_BinarySchema_ReceiveQosPriorityDataType = 23900;
+
+        public const uint OpcUa_BinarySchema_ReceiveQosLatencyDataType = 26174;
+
+        public const uint OpcUa_BinarySchema_ReceiveQosDeadlineDataType = 26177;
+
+        public const uint OpcUa_BinarySchema_ReceiveQosClockDataType = 26180;
 
         public const uint OpcUa_BinarySchema_DatagramConnectionTransportDataType = 17469;
 
@@ -17614,6 +18232,14 @@ namespace Opc.Ua
 
         public const uint OpcUa_BinarySchema_LldpTlvType = 19097;
 
+        public const uint OpcUa_BinarySchema_Ipv4AddressType = 26033;
+
+        public const uint OpcUa_BinarySchema_Ipv6AddressType = 26036;
+
+        public const uint OpcUa_BinarySchema_DnsServerType = 26039;
+
+        public const uint OpcUa_BinarySchema_DnsResolverType = 26042;
+
         public const uint OpcUa_BinarySchema_ReferenceDescriptionDataType = 32663;
 
         public const uint OpcUa_BinarySchema_ReferenceListEntryDataType = 32666;
@@ -17627,6 +18253,8 @@ namespace Opc.Ua
         public const uint OpcUa_BinarySchema_TraceContextDataType = 19766;
 
         public const uint OpcUa_BinarySchema_NameValuePair = 19769;
+
+        public const uint OpcUa_BinarySchema_ActiveLockHoldersDataType = 26120;
 
         public const uint OpcUa_BinarySchema_RolePermissionType = 16131;
 
@@ -17808,6 +18436,14 @@ namespace Opc.Ua
 
         public const uint OpcUa_XmlSchema_AnnotationDataType = 32575;
 
+        public const uint OpcUa_XmlSchema_ScalingConversionBaseDataType = 24793;
+
+        public const uint OpcUa_XmlSchema_LinearConversionBaseDataType = 24803;
+
+        public const uint OpcUa_XmlSchema_LinearConversionInt32DataType = 24819;
+
+        public const uint OpcUa_XmlSchema_LinearConversionInt64DataType = 24822;
+
         public const uint OpcUa_XmlSchema_LinearConversionDataType = 32578;
 
         public const uint OpcUa_XmlSchema_QuantityDimension = 32581;
@@ -17956,9 +18592,23 @@ namespace Opc.Ua
 
         public const uint OpcUa_XmlSchema_TransmitQosPriorityDataType = 23956;
 
+        public const uint OpcUa_XmlSchema_TransmitQosBandwidthDataType = 26152;
+
+        public const uint OpcUa_XmlSchema_TransmitQosLatencyDataType = 26155;
+
+        public const uint OpcUa_XmlSchema_TransmitQosDeadlineDataType = 26158;
+
+        public const uint OpcUa_XmlSchema_TransmitQosClockDataType = 26161;
+
         public const uint OpcUa_XmlSchema_ReceiveQosDataType = 23965;
 
         public const uint OpcUa_XmlSchema_ReceiveQosPriorityDataType = 23968;
+
+        public const uint OpcUa_XmlSchema_ReceiveQosLatencyDataType = 26186;
+
+        public const uint OpcUa_XmlSchema_ReceiveQosDeadlineDataType = 26189;
+
+        public const uint OpcUa_XmlSchema_ReceiveQosClockDataType = 26192;
 
         public const uint OpcUa_XmlSchema_DatagramConnectionTransportDataType = 17473;
 
@@ -18002,6 +18652,14 @@ namespace Opc.Ua
 
         public const uint OpcUa_XmlSchema_LldpTlvType = 19291;
 
+        public const uint OpcUa_XmlSchema_Ipv4AddressType = 26049;
+
+        public const uint OpcUa_XmlSchema_Ipv6AddressType = 26052;
+
+        public const uint OpcUa_XmlSchema_DnsServerType = 26055;
+
+        public const uint OpcUa_XmlSchema_DnsResolverType = 26058;
+
         public const uint OpcUa_XmlSchema_ReferenceDescriptionDataType = 32671;
 
         public const uint OpcUa_XmlSchema_ReferenceListEntryDataType = 32674;
@@ -18015,6 +18673,8 @@ namespace Opc.Ua
         public const uint OpcUa_XmlSchema_TraceContextDataType = 19796;
 
         public const uint OpcUa_XmlSchema_NameValuePair = 19799;
+
+        public const uint OpcUa_XmlSchema_ActiveLockHoldersDataType = 26124;
 
         public const uint OpcUa_XmlSchema_RolePermissionType = 16127;
 
@@ -18234,6 +18894,10 @@ namespace Opc.Ua
 
         public const uint BitFieldType = 32431;
 
+        public const uint StaticBitFieldType = 24829;
+
+        public const uint DynamicBitFieldType = 24830;
+
         public const uint DataItemType = 2365;
 
         public const uint BaseAnalogType = 15318;
@@ -18424,6 +19088,14 @@ namespace Opc.Ua
 
         public static readonly NodeId AnnotationDataType = new NodeId(Opc.Ua.DataTypes.AnnotationDataType);
 
+        public static readonly NodeId ScalingConversionBaseDataType = new NodeId(Opc.Ua.DataTypes.ScalingConversionBaseDataType);
+
+        public static readonly NodeId LinearConversionBaseDataType = new NodeId(Opc.Ua.DataTypes.LinearConversionBaseDataType);
+
+        public static readonly NodeId LinearConversionInt32DataType = new NodeId(Opc.Ua.DataTypes.LinearConversionInt32DataType);
+
+        public static readonly NodeId LinearConversionInt64DataType = new NodeId(Opc.Ua.DataTypes.LinearConversionInt64DataType);
+
         public static readonly NodeId LinearConversionDataType = new NodeId(Opc.Ua.DataTypes.LinearConversionDataType);
 
         public static readonly NodeId ConversionLimitEnum = new NodeId(Opc.Ua.DataTypes.ConversionLimitEnum);
@@ -18604,9 +19276,23 @@ namespace Opc.Ua
 
         public static readonly NodeId TransmitQosPriorityDataType = new NodeId(Opc.Ua.DataTypes.TransmitQosPriorityDataType);
 
+        public static readonly NodeId TransmitQosBandwidthDataType = new NodeId(Opc.Ua.DataTypes.TransmitQosBandwidthDataType);
+
+        public static readonly NodeId TransmitQosLatencyDataType = new NodeId(Opc.Ua.DataTypes.TransmitQosLatencyDataType);
+
+        public static readonly NodeId TransmitQosDeadlineDataType = new NodeId(Opc.Ua.DataTypes.TransmitQosDeadlineDataType);
+
+        public static readonly NodeId TransmitQosClockDataType = new NodeId(Opc.Ua.DataTypes.TransmitQosClockDataType);
+
         public static readonly NodeId ReceiveQosDataType = new NodeId(Opc.Ua.DataTypes.ReceiveQosDataType);
 
         public static readonly NodeId ReceiveQosPriorityDataType = new NodeId(Opc.Ua.DataTypes.ReceiveQosPriorityDataType);
+
+        public static readonly NodeId ReceiveQosLatencyDataType = new NodeId(Opc.Ua.DataTypes.ReceiveQosLatencyDataType);
+
+        public static readonly NodeId ReceiveQosDeadlineDataType = new NodeId(Opc.Ua.DataTypes.ReceiveQosDeadlineDataType);
+
+        public static readonly NodeId ReceiveQosClockDataType = new NodeId(Opc.Ua.DataTypes.ReceiveQosClockDataType);
 
         public static readonly NodeId DatagramConnectionTransportDataType = new NodeId(Opc.Ua.DataTypes.DatagramConnectionTransportDataType);
 
@@ -18680,6 +19366,10 @@ namespace Opc.Ua
 
         public static readonly NodeId EncodedTicket = new NodeId(Opc.Ua.DataTypes.EncodedTicket);
 
+        public static readonly NodeId ArbTime = new NodeId(Opc.Ua.DataTypes.ArbTime);
+
+        public static readonly NodeId IpAddressOrigin = new NodeId(Opc.Ua.DataTypes.IpAddressOrigin);
+
         public static readonly NodeId Duplex = new NodeId(Opc.Ua.DataTypes.Duplex);
 
         public static readonly NodeId InterfaceAdminStatus = new NodeId(Opc.Ua.DataTypes.InterfaceAdminStatus);
@@ -18710,6 +19400,14 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpTlvType = new NodeId(Opc.Ua.DataTypes.LldpTlvType);
 
+        public static readonly NodeId Ipv4AddressType = new NodeId(Opc.Ua.DataTypes.Ipv4AddressType);
+
+        public static readonly NodeId Ipv6AddressType = new NodeId(Opc.Ua.DataTypes.Ipv6AddressType);
+
+        public static readonly NodeId DnsServerType = new NodeId(Opc.Ua.DataTypes.DnsServerType);
+
+        public static readonly NodeId DnsResolverType = new NodeId(Opc.Ua.DataTypes.DnsResolverType);
+
         public static readonly NodeId LldpSystemCapabilitiesMap = new NodeId(Opc.Ua.DataTypes.LldpSystemCapabilitiesMap);
 
         public static readonly NodeId ReferenceDescriptionDataType = new NodeId(Opc.Ua.DataTypes.ReferenceDescriptionDataType);
@@ -18727,6 +19425,8 @@ namespace Opc.Ua
         public static readonly NodeId NameValuePair = new NodeId(Opc.Ua.DataTypes.NameValuePair);
 
         public static readonly NodeId LogRecordMask = new NodeId(Opc.Ua.DataTypes.LogRecordMask);
+
+        public static readonly NodeId ActiveLockHoldersDataType = new NodeId(Opc.Ua.DataTypes.ActiveLockHoldersDataType);
 
         public static readonly NodeId IdType = new NodeId(Opc.Ua.DataTypes.IdType);
 
@@ -19601,14 +20301,6 @@ namespace Opc.Ua
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Enable = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_Enable);
 
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve = new NodeId(Opc.Ua.Methods.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve);
 
         public static readonly NodeId AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable = new NodeId(Opc.Ua.Methods.AlarmSuppressionGroupType_AlarmCondition_Placeholder_Disable);
 
@@ -20878,9 +21570,31 @@ namespace Opc.Ua
 
         public static readonly NodeId ProvisionableDevice_RequestTickets = new NodeId(Opc.Ua.Methods.ProvisionableDevice_RequestTickets);
 
+        public static readonly NodeId ServerClocksFolderType_SetClockReference = new NodeId(Opc.Ua.Methods.ServerClocksFolderType_SetClockReference);
+
+        public static readonly NodeId ServerClocks_SetClockReference = new NodeId(Opc.Ua.Methods.ServerClocks_SetClockReference);
+
+        public static readonly NodeId GptpClockType_SetGptpConfig = new NodeId(Opc.Ua.Methods.GptpClockType_SetGptpConfig);
+
+        public static readonly NodeId NtpClockType_SetNtpConfig = new NodeId(Opc.Ua.Methods.NtpClockType_SetNtpConfig);
+
         public static readonly NodeId PriorityMappingTableType_AddPriorityMappingEntry = new NodeId(Opc.Ua.Methods.PriorityMappingTableType_AddPriorityMappingEntry);
 
         public static readonly NodeId PriorityMappingTableType_DeletePriorityMappingEntry = new NodeId(Opc.Ua.Methods.PriorityMappingTableType_DeletePriorityMappingEntry);
+
+        public static readonly NodeId IetfNetworkInterfaceType_CreateVlanInterface = new NodeId(Opc.Ua.Methods.IetfNetworkInterfaceType_CreateVlanInterface);
+
+        public static readonly NodeId IetfNetworkInterfaceType_SetIpv4Addresses = new NodeId(Opc.Ua.Methods.IetfNetworkInterfaceType_SetIpv4Addresses);
+
+        public static readonly NodeId IetfNetworkInterfaceType_SetIpv6Addresses = new NodeId(Opc.Ua.Methods.IetfNetworkInterfaceType_SetIpv6Addresses);
+
+        public static readonly NodeId IetfNetworkInterfaceType_ResetConfiguration = new NodeId(Opc.Ua.Methods.IetfNetworkInterfaceType_ResetConfiguration);
+
+        public static readonly NodeId IetfVlanNetworkInterfaceType_DeleteVlanInterface = new NodeId(Opc.Ua.Methods.IetfVlanNetworkInterfaceType_DeleteVlanInterface);
+
+        public static readonly NodeId SystemType_SetHostName = new NodeId(Opc.Ua.Methods.SystemType_SetHostName);
+
+        public static readonly NodeId SystemType_SetDnsResolver = new NodeId(Opc.Ua.Methods.SystemType_SetDnsResolver);
 
         public static readonly NodeId SerializationEntityType_ConfigureSerialization = new NodeId(Opc.Ua.Methods.SerializationEntityType_ConfigureSerialization);
 
@@ -20889,6 +21603,22 @@ namespace Opc.Ua
         public static readonly NodeId LogObjectType_ReleaseContinuationPoint = new NodeId(Opc.Ua.Methods.LogObjectType_ReleaseContinuationPoint);
 
         public static readonly NodeId ServerLog_GetRecords = new NodeId(Opc.Ua.Methods.ServerLog_GetRecords);
+
+        public static readonly NodeId InternalLockObjectType_AddNodesToLock = new NodeId(Opc.Ua.Methods.InternalLockObjectType_AddNodesToLock);
+
+        public static readonly NodeId InternalLockObjectType_RecursiveAddNodesToLock = new NodeId(Opc.Ua.Methods.InternalLockObjectType_RecursiveAddNodesToLock);
+
+        public static readonly NodeId InternalLockObjectType_RemoveNodesFromLock = new NodeId(Opc.Ua.Methods.InternalLockObjectType_RemoveNodesFromLock);
+
+        public static readonly NodeId InternalLockObjectType_ForceUnlock = new NodeId(Opc.Ua.Methods.InternalLockObjectType_ForceUnlock);
+
+        public static readonly NodeId LockObjectType_Lock = new NodeId(Opc.Ua.Methods.LockObjectType_Lock);
+
+        public static readonly NodeId LockObjectType_Unlock = new NodeId(Opc.Ua.Methods.LockObjectType_Unlock);
+
+        public static readonly NodeId LockObjectType_RenewLock = new NodeId(Opc.Ua.Methods.LockObjectType_RenewLock);
+
+        public static readonly NodeId LockObjectType_TransferLock = new NodeId(Opc.Ua.Methods.LockObjectType_TransferLock);
     }
     #endregion
 
@@ -21574,9 +22304,49 @@ namespace Opc.Ua
 
         public static readonly NodeId ProvisionableDevice = new NodeId(Opc.Ua.Objects.ProvisionableDevice);
 
+        public static readonly NodeId ServerClocksFolderType_ClockName_Placeholder = new NodeId(Opc.Ua.Objects.ServerClocksFolderType_ClockName_Placeholder);
+
+        public static readonly NodeId ServerClocks = new NodeId(Opc.Ua.Objects.ServerClocks);
+
+        public static readonly NodeId GptpClockType_Port00 = new NodeId(Opc.Ua.Objects.GptpClockType_Port00);
+
+        public static readonly NodeId GptpClockType_Port01 = new NodeId(Opc.Ua.Objects.GptpClockType_Port01);
+
+        public static readonly NodeId GptpClockType_Port02 = new NodeId(Opc.Ua.Objects.GptpClockType_Port02);
+
+        public static readonly NodeId GptpClockType_Port03 = new NodeId(Opc.Ua.Objects.GptpClockType_Port03);
+
+        public static readonly NodeId GptpClockType_Port04 = new NodeId(Opc.Ua.Objects.GptpClockType_Port04);
+
+        public static readonly NodeId GptpClockType_Port05 = new NodeId(Opc.Ua.Objects.GptpClockType_Port05);
+
+        public static readonly NodeId GptpClockType_Port06 = new NodeId(Opc.Ua.Objects.GptpClockType_Port06);
+
+        public static readonly NodeId GptpClockType_Port07 = new NodeId(Opc.Ua.Objects.GptpClockType_Port07);
+
+        public static readonly NodeId PtpDefaultClockType_Port00 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port00);
+
+        public static readonly NodeId PtpDefaultClockType_Port01 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port01);
+
+        public static readonly NodeId PtpDefaultClockType_Port02 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port02);
+
+        public static readonly NodeId PtpDefaultClockType_Port03 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port03);
+
+        public static readonly NodeId PtpDefaultClockType_Port04 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port04);
+
+        public static readonly NodeId PtpDefaultClockType_Port05 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port05);
+
+        public static readonly NodeId PtpDefaultClockType_Port06 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port06);
+
+        public static readonly NodeId PtpDefaultClockType_Port07 = new NodeId(Opc.Ua.Objects.PtpDefaultClockType_Port07);
+
         public static readonly NodeId Resources = new NodeId(Opc.Ua.Objects.Resources);
 
         public static readonly NodeId Communication = new NodeId(Opc.Ua.Objects.Communication);
+
+        public static readonly NodeId Routing = new NodeId(Opc.Ua.Objects.Routing);
+
+        public static readonly NodeId System = new NodeId(Opc.Ua.Objects.System);
 
         public static readonly NodeId MappingTables = new NodeId(Opc.Ua.Objects.MappingTables);
 
@@ -21607,6 +22377,12 @@ namespace Opc.Ua
         public static readonly NodeId LldpPortInformationType_RemoteSystemsData = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData);
 
         public static readonly NodeId LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder = new NodeId(Opc.Ua.Objects.LldpPortInformationType_RemoteSystemsData_LldpRemoteSystem_Placeholder);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4 = new NodeId(Opc.Ua.Objects.IetfNetworkInterfaceType_Ipv4);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6 = new NodeId(Opc.Ua.Objects.IetfNetworkInterfaceType_Ipv6);
+
+        public static readonly NodeId IetfVlanNetworkInterfaceType_Vlan = new NodeId(Opc.Ua.Objects.IetfVlanNetworkInterfaceType_Vlan);
 
         public static readonly NodeId ServerLog = new NodeId(Opc.Ua.Objects.ServerLog);
 
@@ -21649,6 +22425,14 @@ namespace Opc.Ua
         public static readonly NodeId NumberRange_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.NumberRange_Encoding_DefaultBinary);
 
         public static readonly NodeId AnnotationDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId ScalingConversionBaseDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ScalingConversionBaseDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId LinearConversionBaseDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionBaseDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId LinearConversionInt32DataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionInt32DataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId LinearConversionInt64DataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionInt64DataType_Encoding_DefaultBinary);
 
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultBinary);
 
@@ -21800,9 +22584,23 @@ namespace Opc.Ua
 
         public static readonly NodeId TransmitQosPriorityDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransmitQosPriorityDataType_Encoding_DefaultBinary);
 
+        public static readonly NodeId TransmitQosBandwidthDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransmitQosBandwidthDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId TransmitQosLatencyDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransmitQosLatencyDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId TransmitQosDeadlineDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransmitQosDeadlineDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId TransmitQosClockDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TransmitQosClockDataType_Encoding_DefaultBinary);
+
         public static readonly NodeId ReceiveQosDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReceiveQosDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId ReceiveQosPriorityDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReceiveQosPriorityDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId ReceiveQosLatencyDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReceiveQosLatencyDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId ReceiveQosDeadlineDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReceiveQosDeadlineDataType_Encoding_DefaultBinary);
+
+        public static readonly NodeId ReceiveQosClockDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReceiveQosClockDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId DatagramConnectionTransportDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DatagramConnectionTransportDataType_Encoding_DefaultBinary);
 
@@ -21846,6 +22644,14 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpTlvType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultBinary);
 
+        public static readonly NodeId Ipv4AddressType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Ipv4AddressType_Encoding_DefaultBinary);
+
+        public static readonly NodeId Ipv6AddressType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.Ipv6AddressType_Encoding_DefaultBinary);
+
+        public static readonly NodeId DnsServerType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DnsServerType_Encoding_DefaultBinary);
+
+        public static readonly NodeId DnsResolverType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.DnsResolverType_Encoding_DefaultBinary);
+
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultBinary);
@@ -21859,6 +22665,8 @@ namespace Opc.Ua
         public static readonly NodeId TraceContextDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId NameValuePair_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultBinary);
+
+        public static readonly NodeId ActiveLockHoldersDataType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.ActiveLockHoldersDataType_Encoding_DefaultBinary);
 
         public static readonly NodeId RolePermissionType_Encoding_DefaultBinary = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultBinary);
 
@@ -22366,6 +23174,14 @@ namespace Opc.Ua
 
         public static readonly NodeId AnnotationDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultXml);
 
+        public static readonly NodeId ScalingConversionBaseDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ScalingConversionBaseDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId LinearConversionBaseDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionBaseDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId LinearConversionInt32DataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionInt32DataType_Encoding_DefaultXml);
+
+        public static readonly NodeId LinearConversionInt64DataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionInt64DataType_Encoding_DefaultXml);
+
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultXml);
 
         public static readonly NodeId QuantityDimension_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.QuantityDimension_Encoding_DefaultXml);
@@ -22516,9 +23332,23 @@ namespace Opc.Ua
 
         public static readonly NodeId TransmitQosPriorityDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransmitQosPriorityDataType_Encoding_DefaultXml);
 
+        public static readonly NodeId TransmitQosBandwidthDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransmitQosBandwidthDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId TransmitQosLatencyDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransmitQosLatencyDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId TransmitQosDeadlineDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransmitQosDeadlineDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId TransmitQosClockDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TransmitQosClockDataType_Encoding_DefaultXml);
+
         public static readonly NodeId ReceiveQosDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReceiveQosDataType_Encoding_DefaultXml);
 
         public static readonly NodeId ReceiveQosPriorityDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReceiveQosPriorityDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId ReceiveQosLatencyDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReceiveQosLatencyDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId ReceiveQosDeadlineDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReceiveQosDeadlineDataType_Encoding_DefaultXml);
+
+        public static readonly NodeId ReceiveQosClockDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReceiveQosClockDataType_Encoding_DefaultXml);
 
         public static readonly NodeId DatagramConnectionTransportDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DatagramConnectionTransportDataType_Encoding_DefaultXml);
 
@@ -22562,6 +23392,14 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpTlvType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultXml);
 
+        public static readonly NodeId Ipv4AddressType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Ipv4AddressType_Encoding_DefaultXml);
+
+        public static readonly NodeId Ipv6AddressType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.Ipv6AddressType_Encoding_DefaultXml);
+
+        public static readonly NodeId DnsServerType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DnsServerType_Encoding_DefaultXml);
+
+        public static readonly NodeId DnsResolverType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.DnsResolverType_Encoding_DefaultXml);
+
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultXml);
 
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultXml);
@@ -22575,6 +23413,8 @@ namespace Opc.Ua
         public static readonly NodeId TraceContextDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultXml);
 
         public static readonly NodeId NameValuePair_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultXml);
+
+        public static readonly NodeId ActiveLockHoldersDataType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.ActiveLockHoldersDataType_Encoding_DefaultXml);
 
         public static readonly NodeId RolePermissionType_Encoding_DefaultXml = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultXml);
 
@@ -23082,6 +23922,14 @@ namespace Opc.Ua
 
         public static readonly NodeId AnnotationDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.AnnotationDataType_Encoding_DefaultJson);
 
+        public static readonly NodeId ScalingConversionBaseDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ScalingConversionBaseDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId LinearConversionBaseDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionBaseDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId LinearConversionInt32DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionInt32DataType_Encoding_DefaultJson);
+
+        public static readonly NodeId LinearConversionInt64DataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionInt64DataType_Encoding_DefaultJson);
+
         public static readonly NodeId LinearConversionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LinearConversionDataType_Encoding_DefaultJson);
 
         public static readonly NodeId QuantityDimension_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.QuantityDimension_Encoding_DefaultJson);
@@ -23232,9 +24080,23 @@ namespace Opc.Ua
 
         public static readonly NodeId TransmitQosPriorityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosPriorityDataType_Encoding_DefaultJson);
 
+        public static readonly NodeId TransmitQosBandwidthDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosBandwidthDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId TransmitQosLatencyDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosLatencyDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId TransmitQosDeadlineDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosDeadlineDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId TransmitQosClockDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TransmitQosClockDataType_Encoding_DefaultJson);
+
         public static readonly NodeId ReceiveQosDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosDataType_Encoding_DefaultJson);
 
         public static readonly NodeId ReceiveQosPriorityDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosPriorityDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId ReceiveQosLatencyDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosLatencyDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId ReceiveQosDeadlineDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosDeadlineDataType_Encoding_DefaultJson);
+
+        public static readonly NodeId ReceiveQosClockDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReceiveQosClockDataType_Encoding_DefaultJson);
 
         public static readonly NodeId DatagramConnectionTransportDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DatagramConnectionTransportDataType_Encoding_DefaultJson);
 
@@ -23278,6 +24140,14 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpTlvType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.LldpTlvType_Encoding_DefaultJson);
 
+        public static readonly NodeId Ipv4AddressType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Ipv4AddressType_Encoding_DefaultJson);
+
+        public static readonly NodeId Ipv6AddressType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.Ipv6AddressType_Encoding_DefaultJson);
+
+        public static readonly NodeId DnsServerType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DnsServerType_Encoding_DefaultJson);
+
+        public static readonly NodeId DnsResolverType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.DnsResolverType_Encoding_DefaultJson);
+
         public static readonly NodeId ReferenceDescriptionDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceDescriptionDataType_Encoding_DefaultJson);
 
         public static readonly NodeId ReferenceListEntryDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ReferenceListEntryDataType_Encoding_DefaultJson);
@@ -23291,6 +24161,8 @@ namespace Opc.Ua
         public static readonly NodeId TraceContextDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.TraceContextDataType_Encoding_DefaultJson);
 
         public static readonly NodeId NameValuePair_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.NameValuePair_Encoding_DefaultJson);
+
+        public static readonly NodeId ActiveLockHoldersDataType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.ActiveLockHoldersDataType_Encoding_DefaultJson);
 
         public static readonly NodeId RolePermissionType_Encoding_DefaultJson = new NodeId(Opc.Ua.Objects.RolePermissionType_Encoding_DefaultJson);
 
@@ -24276,6 +25148,22 @@ namespace Opc.Ua
 
         public static readonly NodeId ProvisionableDeviceType = new NodeId(Opc.Ua.ObjectTypes.ProvisionableDeviceType);
 
+        public static readonly NodeId RoutingInformationType = new NodeId(Opc.Ua.ObjectTypes.RoutingInformationType);
+
+        public static readonly NodeId ServerClocksFolderType = new NodeId(Opc.Ua.ObjectTypes.ServerClocksFolderType);
+
+        public static readonly NodeId BaseServerClockType = new NodeId(Opc.Ua.ObjectTypes.BaseServerClockType);
+
+        public static readonly NodeId GptpClockType = new NodeId(Opc.Ua.ObjectTypes.GptpClockType);
+
+        public static readonly NodeId PtpDefaultClockType = new NodeId(Opc.Ua.ObjectTypes.PtpDefaultClockType);
+
+        public static readonly NodeId NtpClockType = new NodeId(Opc.Ua.ObjectTypes.NtpClockType);
+
+        public static readonly NodeId GptpClockPortType = new NodeId(Opc.Ua.ObjectTypes.GptpClockPortType);
+
+        public static readonly NodeId PtpDefaultClockPortType = new NodeId(Opc.Ua.ObjectTypes.PtpDefaultClockPortType);
+
         public static readonly NodeId IIetfBaseNetworkInterfaceType = new NodeId(Opc.Ua.ObjectTypes.IIetfBaseNetworkInterfaceType);
 
         public static readonly NodeId IIeeeBaseEthernetPortType = new NodeId(Opc.Ua.ObjectTypes.IIeeeBaseEthernetPortType);
@@ -24320,6 +25208,18 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpRemoteSystemType = new NodeId(Opc.Ua.ObjectTypes.LldpRemoteSystemType);
 
+        public static readonly NodeId IetfNetworkInterfaceType = new NodeId(Opc.Ua.ObjectTypes.IetfNetworkInterfaceType);
+
+        public static readonly NodeId IetfVlanNetworkInterfaceType = new NodeId(Opc.Ua.ObjectTypes.IetfVlanNetworkInterfaceType);
+
+        public static readonly NodeId IetfVlanType = new NodeId(Opc.Ua.ObjectTypes.IetfVlanType);
+
+        public static readonly NodeId IetfIpv4Type = new NodeId(Opc.Ua.ObjectTypes.IetfIpv4Type);
+
+        public static readonly NodeId IetfIpv6Type = new NodeId(Opc.Ua.ObjectTypes.IetfIpv6Type);
+
+        public static readonly NodeId SystemType = new NodeId(Opc.Ua.ObjectTypes.SystemType);
+
         public static readonly NodeId SerializationEntityType = new NodeId(Opc.Ua.ObjectTypes.SerializationEntityType);
 
         public static readonly NodeId LogObjectType = new NodeId(Opc.Ua.ObjectTypes.LogObjectType);
@@ -24329,6 +25229,10 @@ namespace Opc.Ua
         public static readonly NodeId LogOverflowEventType = new NodeId(Opc.Ua.ObjectTypes.LogOverflowEventType);
 
         public static readonly NodeId LogEntryConditionClassType = new NodeId(Opc.Ua.ObjectTypes.LogEntryConditionClassType);
+
+        public static readonly NodeId InternalLockObjectType = new NodeId(Opc.Ua.ObjectTypes.InternalLockObjectType);
+
+        public static readonly NodeId LockObjectType = new NodeId(Opc.Ua.ObjectTypes.LockObjectType);
     }
     #endregion
 
@@ -24464,6 +25368,8 @@ namespace Opc.Ua
 
         public static readonly NodeId AliasFor = new NodeId(Opc.Ua.ReferenceTypes.AliasFor);
 
+        public static readonly NodeId UsesClock = new NodeId(Opc.Ua.ReferenceTypes.UsesClock);
+
         public static readonly NodeId UsesPriorityMappingTable = new NodeId(Opc.Ua.ReferenceTypes.UsesPriorityMappingTable);
 
         public static readonly NodeId HasLowerLayerInterface = new NodeId(Opc.Ua.ReferenceTypes.HasLowerLayerInterface);
@@ -24497,6 +25403,8 @@ namespace Opc.Ua
         public static readonly NodeId HasReferenceDescription = new NodeId(Opc.Ua.ReferenceTypes.HasReferenceDescription);
 
         public static readonly NodeId HasSerializationEntity = new NodeId(Opc.Ua.ReferenceTypes.HasSerializationEntity);
+
+        public static readonly NodeId HasLockElement = new NodeId(Opc.Ua.ReferenceTypes.HasLockElement);
     }
     #endregion
 
@@ -25222,6 +26130,8 @@ namespace Opc.Ua
 
         public static readonly NodeId AuditEventType_ClientApplicationUri = new NodeId(Opc.Ua.Variables.AuditEventType_ClientApplicationUri);
 
+        public static readonly NodeId AuditEventType_SessionId = new NodeId(Opc.Ua.Variables.AuditEventType_SessionId);
+
         public static readonly NodeId AuditSecurityEventType_StatusCodeId = new NodeId(Opc.Ua.Variables.AuditSecurityEventType_StatusCodeId);
 
         public static readonly NodeId AuditChannelEventType_SecureChannelId = new NodeId(Opc.Ua.Variables.AuditChannelEventType_SecureChannelId);
@@ -25241,6 +26151,8 @@ namespace Opc.Ua
         public static readonly NodeId AuditOpenSecureChannelEventType_CertificateErrorEventId = new NodeId(Opc.Ua.Variables.AuditOpenSecureChannelEventType_CertificateErrorEventId);
 
         public static readonly NodeId AuditSessionEventType_SessionId = new NodeId(Opc.Ua.Variables.AuditSessionEventType_SessionId);
+
+        public static readonly NodeId AuditSessionEventType_SubscriptionIds = new NodeId(Opc.Ua.Variables.AuditSessionEventType_SubscriptionIds);
 
         public static readonly NodeId AuditCreateSessionEventType_SecureChannelId = new NodeId(Opc.Ua.Variables.AuditCreateSessionEventType_SecureChannelId);
 
@@ -26506,6 +27418,22 @@ namespace Opc.Ua
 
         public static readonly NodeId DataItemType_ValuePrecision = new NodeId(Opc.Ua.Variables.DataItemType_ValuePrecision);
 
+        public static readonly NodeId DataItemType_ActualValue = new NodeId(Opc.Ua.Variables.DataItemType_ActualValue);
+
+        public static readonly NodeId DataItemType_SimulationValue = new NodeId(Opc.Ua.Variables.DataItemType_SimulationValue);
+
+        public static readonly NodeId DataItemType_SimulationState = new NodeId(Opc.Ua.Variables.DataItemType_SimulationState);
+
+        public static readonly NodeId DataItemType_ForceValue = new NodeId(Opc.Ua.Variables.DataItemType_ForceValue);
+
+        public static readonly NodeId DataItemType_ForceState = new NodeId(Opc.Ua.Variables.DataItemType_ForceState);
+
+        public static readonly NodeId BaseAnalogType_ActualValue = new NodeId(Opc.Ua.Variables.BaseAnalogType_ActualValue);
+
+        public static readonly NodeId BaseAnalogType_SimulationValue = new NodeId(Opc.Ua.Variables.BaseAnalogType_SimulationValue);
+
+        public static readonly NodeId BaseAnalogType_ForceValue = new NodeId(Opc.Ua.Variables.BaseAnalogType_ForceValue);
+
         public static readonly NodeId BaseAnalogType_InstrumentRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentRange);
 
         public static readonly NodeId BaseAnalogType_InstrumentNumberRange = new NodeId(Opc.Ua.Variables.BaseAnalogType_InstrumentNumberRange);
@@ -26526,11 +27454,29 @@ namespace Opc.Ua
 
         public static readonly NodeId AnalogNumberUnitRangeType_EUNumberRange = new NodeId(Opc.Ua.Variables.AnalogNumberUnitRangeType_EUNumberRange);
 
+        public static readonly NodeId TwoStateDiscreteType_ActualValue = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_ActualValue);
+
+        public static readonly NodeId TwoStateDiscreteType_SimulationValue = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_SimulationValue);
+
+        public static readonly NodeId TwoStateDiscreteType_ForceValue = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_ForceValue);
+
         public static readonly NodeId TwoStateDiscreteType_FalseState = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_FalseState);
 
         public static readonly NodeId TwoStateDiscreteType_TrueState = new NodeId(Opc.Ua.Variables.TwoStateDiscreteType_TrueState);
 
+        public static readonly NodeId MultiStateDiscreteType_ActualValue = new NodeId(Opc.Ua.Variables.MultiStateDiscreteType_ActualValue);
+
+        public static readonly NodeId MultiStateDiscreteType_SimulationValue = new NodeId(Opc.Ua.Variables.MultiStateDiscreteType_SimulationValue);
+
+        public static readonly NodeId MultiStateDiscreteType_ForceValue = new NodeId(Opc.Ua.Variables.MultiStateDiscreteType_ForceValue);
+
         public static readonly NodeId MultiStateDiscreteType_EnumStrings = new NodeId(Opc.Ua.Variables.MultiStateDiscreteType_EnumStrings);
+
+        public static readonly NodeId MultiStateValueDiscreteType_ActualValue = new NodeId(Opc.Ua.Variables.MultiStateValueDiscreteType_ActualValue);
+
+        public static readonly NodeId MultiStateValueDiscreteType_SimulationValue = new NodeId(Opc.Ua.Variables.MultiStateValueDiscreteType_SimulationValue);
+
+        public static readonly NodeId MultiStateValueDiscreteType_ForceValue = new NodeId(Opc.Ua.Variables.MultiStateValueDiscreteType_ForceValue);
 
         public static readonly NodeId MultiStateValueDiscreteType_EnumValues = new NodeId(Opc.Ua.Variables.MultiStateValueDiscreteType_EnumValues);
 
@@ -26547,6 +27493,12 @@ namespace Opc.Ua
         public static readonly NodeId ArrayItemType_AxisScaleType = new NodeId(Opc.Ua.Variables.ArrayItemType_AxisScaleType);
 
         public static readonly NodeId YArrayItemType_XAxisDefinition = new NodeId(Opc.Ua.Variables.YArrayItemType_XAxisDefinition);
+
+        public static readonly NodeId XYArrayItemType_ActualValue = new NodeId(Opc.Ua.Variables.XYArrayItemType_ActualValue);
+
+        public static readonly NodeId XYArrayItemType_SimulationValue = new NodeId(Opc.Ua.Variables.XYArrayItemType_SimulationValue);
+
+        public static readonly NodeId XYArrayItemType_ForceValue = new NodeId(Opc.Ua.Variables.XYArrayItemType_ForceValue);
 
         public static readonly NodeId XYArrayItemType_XAxisDefinition = new NodeId(Opc.Ua.Variables.XYArrayItemType_XAxisDefinition);
 
@@ -26621,10 +27573,6 @@ namespace Opc.Ua
         public static readonly NodeId ConditionType_ConditionClassId = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassId);
 
         public static readonly NodeId ConditionType_ConditionClassName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionClassName);
-
-        public static readonly NodeId ConditionType_ConditionSubClassId = new NodeId(Opc.Ua.Variables.ConditionType_ConditionSubClassId);
-
-        public static readonly NodeId ConditionType_ConditionSubClassName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionSubClassName);
 
         public static readonly NodeId ConditionType_ConditionName = new NodeId(Opc.Ua.Variables.ConditionType_ConditionName);
 
@@ -26881,60 +27829,6 @@ namespace Opc.Ua
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ClientUserId = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ClientUserId);
 
         public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_AddComment_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_AckedState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ConfirmedState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ConfirmedState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Acknowledge_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Confirm_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Confirm_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ActiveState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_InputNode = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_InputNode);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_OutOfServiceState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_OutOfServiceState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_CurrentState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_LastTransition_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_LastTransition_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_UnshelveTime = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_UnshelveTime);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_TimedShelve2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_Unshelve2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_ShelvingState_OneShotShelve2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedOrShelved = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_SuppressedOrShelved);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_SilenceState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_SilenceState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_LatchedState_Id = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_LatchedState_Id);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Suppress2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Suppress2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Unsuppress2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Unsuppress2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_RemoveFromService2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_RemoveFromService2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_PlaceInService2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_PlaceInService2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_Reset2_InputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_Reset2_InputArguments);
-
-        public static readonly NodeId AlarmGroupType_AlarmConditionInstance_Placeholder_GetGroupMemberships_OutputArguments = new NodeId(Opc.Ua.Variables.AlarmGroupType_AlarmConditionInstance_Placeholder_GetGroupMemberships_OutputArguments);
 
         public static readonly NodeId AlarmSuppressionGroupType_DigitalVariable_Placeholder = new NodeId(Opc.Ua.Variables.AlarmSuppressionGroupType_DigitalVariable_Placeholder);
 
@@ -30755,6 +31649,8 @@ namespace Opc.Ua
         public static readonly NodeId ServerConfiguration_MulticastDnsEnabled = new NodeId(Opc.Ua.Variables.ServerConfiguration_MulticastDnsEnabled);
 
         public static readonly NodeId ServerConfiguration_HasSecureElement = new NodeId(Opc.Ua.Variables.ServerConfiguration_HasSecureElement);
+
+        public static readonly NodeId ServerConfiguration_InApplicationSetup = new NodeId(Opc.Ua.Variables.ServerConfiguration_InApplicationSetup);
 
         public static readonly NodeId ServerConfiguration_UpdateCertificate_InputArguments = new NodeId(Opc.Ua.Variables.ServerConfiguration_UpdateCertificate_InputArguments);
 
@@ -35268,6 +36164,286 @@ namespace Opc.Ua
 
         public static readonly NodeId ProvisionableDevice_SetRegistrarEndpoints_InputArguments = new NodeId(Opc.Ua.Variables.ProvisionableDevice_SetRegistrarEndpoints_InputArguments);
 
+        public static readonly NodeId RoutingInformationType_Ipv4DefaultGateway = new NodeId(Opc.Ua.Variables.RoutingInformationType_Ipv4DefaultGateway);
+
+        public static readonly NodeId RoutingInformationType_Ipv6DefaultGateway = new NodeId(Opc.Ua.Variables.RoutingInformationType_Ipv6DefaultGateway);
+
+        public static readonly NodeId ServerClocksFolderType_SetClockReference_InputArguments = new NodeId(Opc.Ua.Variables.ServerClocksFolderType_SetClockReference_InputArguments);
+
+        public static readonly NodeId ServerClocksFolderType_ClockName_Placeholder_Label = new NodeId(Opc.Ua.Variables.ServerClocksFolderType_ClockName_Placeholder_Label);
+
+        public static readonly NodeId ServerClocksFolderType_ClockName_Placeholder_CurrentTime = new NodeId(Opc.Ua.Variables.ServerClocksFolderType_ClockName_Placeholder_CurrentTime);
+
+        public static readonly NodeId ServerClocks_SetClockReference_InputArguments = new NodeId(Opc.Ua.Variables.ServerClocks_SetClockReference_InputArguments);
+
+        public static readonly NodeId BaseServerClockType_Label = new NodeId(Opc.Ua.Variables.BaseServerClockType_Label);
+
+        public static readonly NodeId BaseServerClockType_CurrentTime = new NodeId(Opc.Ua.Variables.BaseServerClockType_CurrentTime);
+
+        public static readonly NodeId GptpClockType_SetGptpConfig_InputArguments = new NodeId(Opc.Ua.Variables.GptpClockType_SetGptpConfig_InputArguments);
+
+        public static readonly NodeId GptpClockType_DomainNumber = new NodeId(Opc.Ua.Variables.GptpClockType_DomainNumber);
+
+        public static readonly NodeId GptpClockType_ClockIdentity = new NodeId(Opc.Ua.Variables.GptpClockType_ClockIdentity);
+
+        public static readonly NodeId GptpClockType_NumberPorts = new NodeId(Opc.Ua.Variables.GptpClockType_NumberPorts);
+
+        public static readonly NodeId GptpClockType_Priority1 = new NodeId(Opc.Ua.Variables.GptpClockType_Priority1);
+
+        public static readonly NodeId GptpClockType_Priority2 = new NodeId(Opc.Ua.Variables.GptpClockType_Priority2);
+
+        public static readonly NodeId GptpClockType_SdoId = new NodeId(Opc.Ua.Variables.GptpClockType_SdoId);
+
+        public static readonly NodeId GptpClockType_InstanceEnable = new NodeId(Opc.Ua.Variables.GptpClockType_InstanceEnable);
+
+        public static readonly NodeId GptpClockType_CurrentUtcOffsetValid = new NodeId(Opc.Ua.Variables.GptpClockType_CurrentUtcOffsetValid);
+
+        public static readonly NodeId GptpClockType_CurrentUtcOffset = new NodeId(Opc.Ua.Variables.GptpClockType_CurrentUtcOffset);
+
+        public static readonly NodeId GptpClockType_TimeTraceable = new NodeId(Opc.Ua.Variables.GptpClockType_TimeTraceable);
+
+        public static readonly NodeId GptpClockType_FrequencyTraceable = new NodeId(Opc.Ua.Variables.GptpClockType_FrequencyTraceable);
+
+        public static readonly NodeId GptpClockType_PtpTimescale = new NodeId(Opc.Ua.Variables.GptpClockType_PtpTimescale);
+
+        public static readonly NodeId GptpClockType_TimeSource = new NodeId(Opc.Ua.Variables.GptpClockType_TimeSource);
+
+        public static readonly NodeId GptpClockType_TimeSource_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_TimeSource_EnumValues);
+
+        public static readonly NodeId GptpClockType_TimeSource_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_TimeSource_ValueAsText);
+
+        public static readonly NodeId GptpClockType_OffsetFromTimeTransmitter = new NodeId(Opc.Ua.Variables.GptpClockType_OffsetFromTimeTransmitter);
+
+        public static readonly NodeId GptpClockType_GrandmasterIdentity = new NodeId(Opc.Ua.Variables.GptpClockType_GrandmasterIdentity);
+
+        public static readonly NodeId GptpClockType_ClockClass = new NodeId(Opc.Ua.Variables.GptpClockType_ClockClass);
+
+        public static readonly NodeId GptpClockType_ClockAccuracy = new NodeId(Opc.Ua.Variables.GptpClockType_ClockAccuracy);
+
+        public static readonly NodeId GptpClockType_OffsetScaledLogVariance = new NodeId(Opc.Ua.Variables.GptpClockType_OffsetScaledLogVariance);
+
+        public static readonly NodeId GptpClockType_Port00_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port00_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port00_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port00_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port00_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port00_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port01_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port01_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port01_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port01_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port01_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port01_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port02_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port02_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port02_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port02_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port02_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port02_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port03_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port03_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port03_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port03_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port03_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port03_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port04_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port04_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port04_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port04_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port04_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port04_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port05_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port05_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port05_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port05_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port05_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port05_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port06_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port06_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port06_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port06_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port06_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port06_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockType_Port07_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockType_Port07_PortNumber);
+
+        public static readonly NodeId GptpClockType_Port07_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockType_Port07_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockType_Port07_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockType_Port07_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_DomainNumber = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_DomainNumber);
+
+        public static readonly NodeId PtpDefaultClockType_InstanceEnable = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_InstanceEnable);
+
+        public static readonly NodeId PtpDefaultClockType_ClockIdentity = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ClockIdentity);
+
+        public static readonly NodeId PtpDefaultClockType_Priority1 = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Priority1);
+
+        public static readonly NodeId PtpDefaultClockType_Priority2 = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Priority2);
+
+        public static readonly NodeId PtpDefaultClockType_ClockClass = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ClockClass);
+
+        public static readonly NodeId PtpDefaultClockType_ClockAccuracy = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ClockAccuracy);
+
+        public static readonly NodeId PtpDefaultClockType_ClockAccuracy_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ClockAccuracy_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_ClockAccuracy_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ClockAccuracy_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_StepsRemoved = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_StepsRemoved);
+
+        public static readonly NodeId PtpDefaultClockType_OffsetFromMaster = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_OffsetFromMaster);
+
+        public static readonly NodeId PtpDefaultClockType_MeanDelay = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_MeanDelay);
+
+        public static readonly NodeId PtpDefaultClockType_ParentPortIdentity = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_ParentPortIdentity);
+
+        public static readonly NodeId PtpDefaultClockType_GrandmasterIdentity = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_GrandmasterIdentity);
+
+        public static readonly NodeId PtpDefaultClockType_CurrentUtcOffset = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_CurrentUtcOffset);
+
+        public static readonly NodeId PtpDefaultClockType_CurrentUtcOffsetValid = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_CurrentUtcOffsetValid);
+
+        public static readonly NodeId PtpDefaultClockType_TimeTraceable = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_TimeTraceable);
+
+        public static readonly NodeId PtpDefaultClockType_FrequencyTraceable = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_FrequencyTraceable);
+
+        public static readonly NodeId PtpDefaultClockType_TimeSource = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_TimeSource);
+
+        public static readonly NodeId PtpDefaultClockType_TimeSource_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_TimeSource_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_TimeSource_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_TimeSource_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port00_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port00_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port00_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port00_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port01_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port01_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port01_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port01_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port02_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port02_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port02_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port02_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port03_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port03_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port03_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port03_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port04_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port04_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port04_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port04_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port05_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port05_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port05_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port05_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port06_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port06_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port06_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port06_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockType_Port07_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port07_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockType_Port07_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockType_Port07_PortState_ValueAsText);
+
+        public static readonly NodeId NtpClockType_SetNtpConfig_InputArguments = new NodeId(Opc.Ua.Variables.NtpClockType_SetNtpConfig_InputArguments);
+
+        public static readonly NodeId NtpClockType_Port = new NodeId(Opc.Ua.Variables.NtpClockType_Port);
+
+        public static readonly NodeId NtpClockType_ClockState = new NodeId(Opc.Ua.Variables.NtpClockType_ClockState);
+
+        public static readonly NodeId NtpClockType_ClockState_EnumValues = new NodeId(Opc.Ua.Variables.NtpClockType_ClockState_EnumValues);
+
+        public static readonly NodeId NtpClockType_ClockState_ValueAsText = new NodeId(Opc.Ua.Variables.NtpClockType_ClockState_ValueAsText);
+
+        public static readonly NodeId NtpClockType_ClockStratum = new NodeId(Opc.Ua.Variables.NtpClockType_ClockStratum);
+
+        public static readonly NodeId NtpClockType_ClockRefid = new NodeId(Opc.Ua.Variables.NtpClockType_ClockRefid);
+
+        public static readonly NodeId NtpClockType_NominalFreq = new NodeId(Opc.Ua.Variables.NtpClockType_NominalFreq);
+
+        public static readonly NodeId NtpClockType_AcutalFreq = new NodeId(Opc.Ua.Variables.NtpClockType_AcutalFreq);
+
+        public static readonly NodeId NtpClockType_ClockPrecision = new NodeId(Opc.Ua.Variables.NtpClockType_ClockPrecision);
+
+        public static readonly NodeId NtpClockType_ClockOffset = new NodeId(Opc.Ua.Variables.NtpClockType_ClockOffset);
+
+        public static readonly NodeId NtpClockType_RootDelay = new NodeId(Opc.Ua.Variables.NtpClockType_RootDelay);
+
+        public static readonly NodeId NtpClockType_SyncState = new NodeId(Opc.Ua.Variables.NtpClockType_SyncState);
+
+        public static readonly NodeId NtpClockType_SyncState_EnumValues = new NodeId(Opc.Ua.Variables.NtpClockType_SyncState_EnumValues);
+
+        public static readonly NodeId NtpClockType_SyncState_ValueAsText = new NodeId(Opc.Ua.Variables.NtpClockType_SyncState_ValueAsText);
+
+        public static readonly NodeId NtpClockType_PacketSent = new NodeId(Opc.Ua.Variables.NtpClockType_PacketSent);
+
+        public static readonly NodeId NtpClockType_PacketReceived = new NodeId(Opc.Ua.Variables.NtpClockType_PacketReceived);
+
+        public static readonly NodeId NtpClockType_PacketDropped = new NodeId(Opc.Ua.Variables.NtpClockType_PacketDropped);
+
+        public static readonly NodeId GptpClockPortType_PortNumber = new NodeId(Opc.Ua.Variables.GptpClockPortType_PortNumber);
+
+        public static readonly NodeId GptpClockPortType_PortState = new NodeId(Opc.Ua.Variables.GptpClockPortType_PortState);
+
+        public static readonly NodeId GptpClockPortType_PortState_EnumValues = new NodeId(Opc.Ua.Variables.GptpClockPortType_PortState_EnumValues);
+
+        public static readonly NodeId GptpClockPortType_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.GptpClockPortType_PortState_ValueAsText);
+
+        public static readonly NodeId GptpClockPortType_PortEnable = new NodeId(Opc.Ua.Variables.GptpClockPortType_PortEnable);
+
+        public static readonly NodeId GptpClockPortType_VersionNumber = new NodeId(Opc.Ua.Variables.GptpClockPortType_VersionNumber);
+
+        public static readonly NodeId GptpClockPortType_DelayAssymetry = new NodeId(Opc.Ua.Variables.GptpClockPortType_DelayAssymetry);
+
+        public static readonly NodeId GptpClockPortType_SyncLocked = new NodeId(Opc.Ua.Variables.GptpClockPortType_SyncLocked);
+
+        public static readonly NodeId GptpClockPortType_IsMeasuringDelay = new NodeId(Opc.Ua.Variables.GptpClockPortType_IsMeasuringDelay);
+
+        public static readonly NodeId GptpClockPortType_AsCapable = new NodeId(Opc.Ua.Variables.GptpClockPortType_AsCapable);
+
+        public static readonly NodeId GptpClockPortType_MeanLinkDelayThresh = new NodeId(Opc.Ua.Variables.GptpClockPortType_MeanLinkDelayThresh);
+
+        public static readonly NodeId GptpClockPortType_OneStepReceive = new NodeId(Opc.Ua.Variables.GptpClockPortType_OneStepReceive);
+
+        public static readonly NodeId GptpClockPortType_OneStepTransmit = new NodeId(Opc.Ua.Variables.GptpClockPortType_OneStepTransmit);
+
+        public static readonly NodeId GptpClockPortType_RxSyncCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_RxSyncCount);
+
+        public static readonly NodeId GptpClockPortType_TxSyncCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_TxSyncCount);
+
+        public static readonly NodeId GptpClockPortType_RxFollowUpCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_RxFollowUpCount);
+
+        public static readonly NodeId GptpClockPortType_TxFollowUpCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_TxFollowUpCount);
+
+        public static readonly NodeId GptpClockPortType_RxPdelayReqCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_RxPdelayReqCount);
+
+        public static readonly NodeId GptpClockPortType_TxPdelayRespCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_TxPdelayRespCount);
+
+        public static readonly NodeId GptpClockPortType_RxPdelayRespFollowUpCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_RxPdelayRespFollowUpCount);
+
+        public static readonly NodeId GptpClockPortType_TxPdelayRespFollowUpCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_TxPdelayRespFollowUpCount);
+
+        public static readonly NodeId GptpClockPortType_RxAnnounceCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_RxAnnounceCount);
+
+        public static readonly NodeId GptpClockPortType_TxAnnounceCount = new NodeId(Opc.Ua.Variables.GptpClockPortType_TxAnnounceCount);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortNumber = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortNumber);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortState = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortState);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortState_EnumValues = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortState_EnumValues);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortState_ValueAsText = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortState_ValueAsText);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortEnable = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortEnable);
+
+        public static readonly NodeId PtpDefaultClockPortType_PortIdentity = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_PortIdentity);
+
+        public static readonly NodeId PtpDefaultClockPortType_AnnounceReceiptTimeout = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_AnnounceReceiptTimeout);
+
+        public static readonly NodeId PtpDefaultClockPortType_LogAnnounceInterval = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_LogAnnounceInterval);
+
+        public static readonly NodeId PtpDefaultClockPortType_LogSyncInterval = new NodeId(Opc.Ua.Variables.PtpDefaultClockPortType_LogSyncInterval);
+
         public static readonly NodeId IIetfBaseNetworkInterfaceType_AdminStatus = new NodeId(Opc.Ua.Variables.IIetfBaseNetworkInterfaceType_AdminStatus);
 
         public static readonly NodeId IIetfBaseNetworkInterfaceType_OperStatus = new NodeId(Opc.Ua.Variables.IIetfBaseNetworkInterfaceType_OperStatus);
@@ -35338,6 +36514,8 @@ namespace Opc.Ua
 
         public static readonly NodeId IIeeeTsnVlanTagType_PriorityCodePoint = new NodeId(Opc.Ua.Variables.IIeeeTsnVlanTagType_PriorityCodePoint);
 
+        public static readonly NodeId IpAddressOrigin_EnumValues = new NodeId(Opc.Ua.Variables.IpAddressOrigin_EnumValues);
+
         public static readonly NodeId IPriorityMappingEntryType_MappingUri = new NodeId(Opc.Ua.Variables.IPriorityMappingEntryType_MappingUri);
 
         public static readonly NodeId IPriorityMappingEntryType_PriorityLabel = new NodeId(Opc.Ua.Variables.IPriorityMappingEntryType_PriorityLabel);
@@ -35369,6 +36547,18 @@ namespace Opc.Ua
         public static readonly NodeId ManAddrIfSubtype_EnumValues = new NodeId(Opc.Ua.Variables.ManAddrIfSubtype_EnumValues);
 
         public static readonly NodeId LldpSystemCapabilitiesMap_OptionSetValues = new NodeId(Opc.Ua.Variables.LldpSystemCapabilitiesMap_OptionSetValues);
+
+        public static readonly NodeId Routing_Ipv4DefaultGateway = new NodeId(Opc.Ua.Variables.Routing_Ipv4DefaultGateway);
+
+        public static readonly NodeId Routing_Ipv6DefaultGateway = new NodeId(Opc.Ua.Variables.Routing_Ipv6DefaultGateway);
+
+        public static readonly NodeId System_HostName = new NodeId(Opc.Ua.Variables.System_HostName);
+
+        public static readonly NodeId System_DnsResolver = new NodeId(Opc.Ua.Variables.System_DnsResolver);
+
+        public static readonly NodeId System_SetHostName_InputArguments = new NodeId(Opc.Ua.Variables.System_SetHostName_InputArguments);
+
+        public static readonly NodeId System_SetDnsResolver_InputArguments = new NodeId(Opc.Ua.Variables.System_SetDnsResolver_InputArguments);
 
         public static readonly NodeId LLDP_RemoteStatistics_LastChangeTime = new NodeId(Opc.Ua.Variables.LLDP_RemoteStatistics_LastChangeTime);
 
@@ -35506,6 +36696,72 @@ namespace Opc.Ua
 
         public static readonly NodeId LldpRemoteSystemType_RemoteUnknownTlv = new NodeId(Opc.Ua.Variables.LldpRemoteSystemType_RemoteUnknownTlv);
 
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4_Enabled = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv4_Enabled);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4_Forwarding = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv4_Forwarding);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4_Mtu = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv4_Mtu);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4_Addresses = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv4_Addresses);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv4_Origin = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv4_Origin);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6_Enabled = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv6_Enabled);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6_Forwarding = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv6_Forwarding);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6_Mtu = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv6_Mtu);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6_Addresses = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv6_Addresses);
+
+        public static readonly NodeId IetfNetworkInterfaceType_Ipv6_Origin = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_Ipv6_Origin);
+
+        public static readonly NodeId IetfNetworkInterfaceType_PersistedConfigChanged = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_PersistedConfigChanged);
+
+        public static readonly NodeId IetfNetworkInterfaceType_CreateVlanInterface_InputArguments = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_CreateVlanInterface_InputArguments);
+
+        public static readonly NodeId IetfNetworkInterfaceType_CreateVlanInterface_OutputArguments = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_CreateVlanInterface_OutputArguments);
+
+        public static readonly NodeId IetfNetworkInterfaceType_SetIpv4Addresses_InputArguments = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_SetIpv4Addresses_InputArguments);
+
+        public static readonly NodeId IetfNetworkInterfaceType_SetIpv6Addresses_InputArguments = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_SetIpv6Addresses_InputArguments);
+
+        public static readonly NodeId IetfNetworkInterfaceType_ResetConfiguration_InputArguments = new NodeId(Opc.Ua.Variables.IetfNetworkInterfaceType_ResetConfiguration_InputArguments);
+
+        public static readonly NodeId IetfVlanNetworkInterfaceType_Vlan_VlanId = new NodeId(Opc.Ua.Variables.IetfVlanNetworkInterfaceType_Vlan_VlanId);
+
+        public static readonly NodeId IetfVlanType_Pcp = new NodeId(Opc.Ua.Variables.IetfVlanType_Pcp);
+
+        public static readonly NodeId IetfVlanType_VlanId = new NodeId(Opc.Ua.Variables.IetfVlanType_VlanId);
+
+        public static readonly NodeId IetfIpv4Type_Enabled = new NodeId(Opc.Ua.Variables.IetfIpv4Type_Enabled);
+
+        public static readonly NodeId IetfIpv4Type_Forwarding = new NodeId(Opc.Ua.Variables.IetfIpv4Type_Forwarding);
+
+        public static readonly NodeId IetfIpv4Type_Mtu = new NodeId(Opc.Ua.Variables.IetfIpv4Type_Mtu);
+
+        public static readonly NodeId IetfIpv4Type_Addresses = new NodeId(Opc.Ua.Variables.IetfIpv4Type_Addresses);
+
+        public static readonly NodeId IetfIpv4Type_Origin = new NodeId(Opc.Ua.Variables.IetfIpv4Type_Origin);
+
+        public static readonly NodeId IetfIpv6Type_Enabled = new NodeId(Opc.Ua.Variables.IetfIpv6Type_Enabled);
+
+        public static readonly NodeId IetfIpv6Type_Forwarding = new NodeId(Opc.Ua.Variables.IetfIpv6Type_Forwarding);
+
+        public static readonly NodeId IetfIpv6Type_Mtu = new NodeId(Opc.Ua.Variables.IetfIpv6Type_Mtu);
+
+        public static readonly NodeId IetfIpv6Type_Addresses = new NodeId(Opc.Ua.Variables.IetfIpv6Type_Addresses);
+
+        public static readonly NodeId IetfIpv6Type_Origin = new NodeId(Opc.Ua.Variables.IetfIpv6Type_Origin);
+
+        public static readonly NodeId SystemType_HostName = new NodeId(Opc.Ua.Variables.SystemType_HostName);
+
+        public static readonly NodeId SystemType_DnsResolver = new NodeId(Opc.Ua.Variables.SystemType_DnsResolver);
+
+        public static readonly NodeId SystemType_SetHostName_InputArguments = new NodeId(Opc.Ua.Variables.SystemType_SetHostName_InputArguments);
+
+        public static readonly NodeId SystemType_SetDnsResolver_InputArguments = new NodeId(Opc.Ua.Variables.SystemType_SetDnsResolver_InputArguments);
+
         public static readonly NodeId ReferenceDescriptionVariableType_ReferenceRefinement = new NodeId(Opc.Ua.Variables.ReferenceDescriptionVariableType_ReferenceRefinement);
 
         public static readonly NodeId SerializationEntityType_SerializedData = new NodeId(Opc.Ua.Variables.SerializationEntityType_SerializedData);
@@ -35567,6 +36823,34 @@ namespace Opc.Ua
         public static readonly NodeId ServerLog_MinimumSeverity = new NodeId(Opc.Ua.Variables.ServerLog_MinimumSeverity);
 
         public static readonly NodeId ServerLog_ReleaseContinuationPoint_InputArguments = new NodeId(Opc.Ua.Variables.ServerLog_ReleaseContinuationPoint_InputArguments);
+
+        public static readonly NodeId InternalLockObjectType_Locked = new NodeId(Opc.Ua.Variables.InternalLockObjectType_Locked);
+
+        public static readonly NodeId InternalLockObjectType_ActiveLockHolders = new NodeId(Opc.Ua.Variables.InternalLockObjectType_ActiveLockHolders);
+
+        public static readonly NodeId InternalLockObjectType_LockMax = new NodeId(Opc.Ua.Variables.InternalLockObjectType_LockMax);
+
+        public static readonly NodeId InternalLockObjectType_LockUserPermissions = new NodeId(Opc.Ua.Variables.InternalLockObjectType_LockUserPermissions);
+
+        public static readonly NodeId InternalLockObjectType_OtherUserDenyMask = new NodeId(Opc.Ua.Variables.InternalLockObjectType_OtherUserDenyMask);
+
+        public static readonly NodeId InternalLockObjectType_AddNodesToLock_InputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_AddNodesToLock_InputArguments);
+
+        public static readonly NodeId InternalLockObjectType_AddNodesToLock_OutputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_AddNodesToLock_OutputArguments);
+
+        public static readonly NodeId InternalLockObjectType_RecursiveAddNodesToLock_InputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_RecursiveAddNodesToLock_InputArguments);
+
+        public static readonly NodeId InternalLockObjectType_RemoveNodesFromLock_InputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_RemoveNodesFromLock_InputArguments);
+
+        public static readonly NodeId InternalLockObjectType_RemoveNodesFromLock_OutputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_RemoveNodesFromLock_OutputArguments);
+
+        public static readonly NodeId InternalLockObjectType_ForceUnlock_InputArguments = new NodeId(Opc.Ua.Variables.InternalLockObjectType_ForceUnlock_InputArguments);
+
+        public static readonly NodeId LockObjectType_LockTime = new NodeId(Opc.Ua.Variables.LockObjectType_LockTime);
+
+        public static readonly NodeId LockObjectType_TransferLock_InputArguments = new NodeId(Opc.Ua.Variables.LockObjectType_TransferLock_InputArguments);
+
+        public static readonly NodeId DefaultInactiveLockTime = new NodeId(Opc.Ua.Variables.DefaultInactiveLockTime);
 
         public static readonly NodeId IdType_EnumStrings = new NodeId(Opc.Ua.Variables.IdType_EnumStrings);
 
@@ -35669,6 +36953,14 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_NumberRange = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_NumberRange);
 
         public static readonly NodeId OpcUa_BinarySchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_AnnotationDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_ScalingConversionBaseDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ScalingConversionBaseDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_LinearConversionBaseDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LinearConversionBaseDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_LinearConversionInt32DataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LinearConversionInt32DataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_LinearConversionInt64DataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LinearConversionInt64DataType);
 
         public static readonly NodeId OpcUa_BinarySchema_LinearConversionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LinearConversionDataType);
 
@@ -35818,9 +37110,23 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_BinarySchema_TransmitQosPriorityDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransmitQosPriorityDataType);
 
+        public static readonly NodeId OpcUa_BinarySchema_TransmitQosBandwidthDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransmitQosBandwidthDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_TransmitQosLatencyDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransmitQosLatencyDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_TransmitQosDeadlineDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransmitQosDeadlineDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_TransmitQosClockDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TransmitQosClockDataType);
+
         public static readonly NodeId OpcUa_BinarySchema_ReceiveQosDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReceiveQosDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_ReceiveQosPriorityDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReceiveQosPriorityDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_ReceiveQosLatencyDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReceiveQosLatencyDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_ReceiveQosDeadlineDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReceiveQosDeadlineDataType);
+
+        public static readonly NodeId OpcUa_BinarySchema_ReceiveQosClockDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReceiveQosClockDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_DatagramConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DatagramConnectionTransportDataType);
 
@@ -35864,6 +37170,14 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_BinarySchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_LldpTlvType);
 
+        public static readonly NodeId OpcUa_BinarySchema_Ipv4AddressType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_Ipv4AddressType);
+
+        public static readonly NodeId OpcUa_BinarySchema_Ipv6AddressType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_Ipv6AddressType);
+
+        public static readonly NodeId OpcUa_BinarySchema_DnsServerType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DnsServerType);
+
+        public static readonly NodeId OpcUa_BinarySchema_DnsResolverType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_DnsResolverType);
+
         public static readonly NodeId OpcUa_BinarySchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReferenceDescriptionDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_ReferenceListEntryDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ReferenceListEntryDataType);
@@ -35877,6 +37191,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_BinarySchema_TraceContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_TraceContextDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_NameValuePair = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_NameValuePair);
+
+        public static readonly NodeId OpcUa_BinarySchema_ActiveLockHoldersDataType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_ActiveLockHoldersDataType);
 
         public static readonly NodeId OpcUa_BinarySchema_RolePermissionType = new NodeId(Opc.Ua.Variables.OpcUa_BinarySchema_RolePermissionType);
 
@@ -36058,6 +37374,14 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_XmlSchema_AnnotationDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_AnnotationDataType);
 
+        public static readonly NodeId OpcUa_XmlSchema_ScalingConversionBaseDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ScalingConversionBaseDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_LinearConversionBaseDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LinearConversionBaseDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_LinearConversionInt32DataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LinearConversionInt32DataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_LinearConversionInt64DataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LinearConversionInt64DataType);
+
         public static readonly NodeId OpcUa_XmlSchema_LinearConversionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LinearConversionDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_QuantityDimension = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_QuantityDimension);
@@ -36206,9 +37530,23 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_XmlSchema_TransmitQosPriorityDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransmitQosPriorityDataType);
 
+        public static readonly NodeId OpcUa_XmlSchema_TransmitQosBandwidthDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransmitQosBandwidthDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_TransmitQosLatencyDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransmitQosLatencyDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_TransmitQosDeadlineDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransmitQosDeadlineDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_TransmitQosClockDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TransmitQosClockDataType);
+
         public static readonly NodeId OpcUa_XmlSchema_ReceiveQosDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReceiveQosDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_ReceiveQosPriorityDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReceiveQosPriorityDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_ReceiveQosLatencyDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReceiveQosLatencyDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_ReceiveQosDeadlineDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReceiveQosDeadlineDataType);
+
+        public static readonly NodeId OpcUa_XmlSchema_ReceiveQosClockDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReceiveQosClockDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_DatagramConnectionTransportDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DatagramConnectionTransportDataType);
 
@@ -36252,6 +37590,14 @@ namespace Opc.Ua
 
         public static readonly NodeId OpcUa_XmlSchema_LldpTlvType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_LldpTlvType);
 
+        public static readonly NodeId OpcUa_XmlSchema_Ipv4AddressType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_Ipv4AddressType);
+
+        public static readonly NodeId OpcUa_XmlSchema_Ipv6AddressType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_Ipv6AddressType);
+
+        public static readonly NodeId OpcUa_XmlSchema_DnsServerType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DnsServerType);
+
+        public static readonly NodeId OpcUa_XmlSchema_DnsResolverType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_DnsResolverType);
+
         public static readonly NodeId OpcUa_XmlSchema_ReferenceDescriptionDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReferenceDescriptionDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_ReferenceListEntryDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ReferenceListEntryDataType);
@@ -36265,6 +37611,8 @@ namespace Opc.Ua
         public static readonly NodeId OpcUa_XmlSchema_TraceContextDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_TraceContextDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_NameValuePair = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_NameValuePair);
+
+        public static readonly NodeId OpcUa_XmlSchema_ActiveLockHoldersDataType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_ActiveLockHoldersDataType);
 
         public static readonly NodeId OpcUa_XmlSchema_RolePermissionType = new NodeId(Opc.Ua.Variables.OpcUa_XmlSchema_RolePermissionType);
 
@@ -36484,6 +37832,10 @@ namespace Opc.Ua
 
         public static readonly NodeId BitFieldType = new NodeId(Opc.Ua.VariableTypes.BitFieldType);
 
+        public static readonly NodeId StaticBitFieldType = new NodeId(Opc.Ua.VariableTypes.StaticBitFieldType);
+
+        public static readonly NodeId DynamicBitFieldType = new NodeId(Opc.Ua.VariableTypes.DynamicBitFieldType);
+
         public static readonly NodeId DataItemType = new NodeId(Opc.Ua.VariableTypes.DataItemType);
 
         public static readonly NodeId BaseAnalogType = new NodeId(Opc.Ua.VariableTypes.BaseAnalogType);
@@ -36581,6 +37933,10 @@ namespace Opc.Ua
 
         public const string ActiveCount = "ActiveCount";
 
+        public const string ActiveLockHolders = "ActiveLockHolders";
+
+        public const string ActiveLockHoldersDataType = "ActiveLockHoldersDataType";
+
         public const string ActiveState = "ActiveState";
 
         public const string ActivityTimeout = "ActivityTimeout";
@@ -36588,6 +37944,10 @@ namespace Opc.Ua
         public const string Actual = "Actual";
 
         public const string ActualSessionTimeout = "ActualSessionTimeout";
+
+        public const string ActualValue = "ActualValue";
+
+        public const string AcutalFreq = "AcutalFreq";
 
         public const string AddAliasesToCategory = "AddAliasesToCategory";
 
@@ -36625,6 +37985,8 @@ namespace Opc.Ua
 
         public const string AddNodesResult = "AddNodesResult";
 
+        public const string AddNodesToLock = "AddNodesToLock";
+
         public const string AddPriorityMappingEntry = "AddPriorityMappingEntry";
 
         public const string AddPublishedDataItems = "AddPublishedDataItems";
@@ -36650,6 +38012,8 @@ namespace Opc.Ua
         public const string AddReferencesResponse = "AddReferencesResponse";
 
         public const string Address = "Address";
+
+        public const string Addresses = "Addresses";
 
         public const string AddressSpaceFileType = "AddressSpaceFileType";
 
@@ -36839,6 +38203,8 @@ namespace Opc.Ua
 
         public const string Annotations = "Annotations";
 
+        public const string AnnounceReceiptTimeout = "AnnounceReceiptTimeout";
+
         public const string AnonymousIdentityToken = "AnonymousIdentityToken";
 
         public const string ApplicationCertificateType = "ApplicationCertificateType";
@@ -36877,9 +38243,13 @@ namespace Opc.Ua
 
         public const string ApplyWriteToIdle = "ApplyWriteToIdle";
 
+        public const string ArbTime = "ArbTime";
+
         public const string Argument = "Argument";
 
         public const string ArrayItemType = "ArrayItemType";
+
+        public const string AsCapable = "AsCapable";
 
         public const string AssociatedWith = "AssociatedWith";
 
@@ -37063,6 +38433,8 @@ namespace Opc.Ua
 
         public const string BaseObjectType = "BaseObjectType";
 
+        public const string BaseServerClockType = "BaseServerClockType";
+
         public const string BaseSetpointNode = "BaseSetpointNode";
 
         public const string BaseVariableType = "BaseVariableType";
@@ -37227,6 +38599,24 @@ namespace Opc.Ua
 
         public const string ClientUserIdOfSession = "ClientUserIdOfSession";
 
+        public const string ClockAccuracy = "ClockAccuracy";
+
+        public const string ClockClass = "ClockClass";
+
+        public const string ClockIdentity = "ClockIdentity";
+
+        public const string ClockName_Placeholder = "<ClockName>";
+
+        public const string ClockOffset = "ClockOffset";
+
+        public const string ClockPrecision = "ClockPrecision";
+
+        public const string ClockRefid = "ClockRefid";
+
+        public const string ClockState = "ClockState";
+
+        public const string ClockStratum = "ClockStratum";
+
         public const string Close = "Close";
 
         public const string CloseAndCommit = "CloseAndCommit";
@@ -37375,6 +38765,8 @@ namespace Opc.Ua
 
         public const string CreateTargetVariables = "CreateTargetVariables";
 
+        public const string CreateVlanInterface = "CreateVlanInterface";
+
         public const string CredentialId = "CredentialId";
 
         public const string CubeItemType = "CubeItemType";
@@ -37410,6 +38802,10 @@ namespace Opc.Ua
         public const string CurrentSubscriptionsCount = "CurrentSubscriptionsCount";
 
         public const string CurrentTime = "CurrentTime";
+
+        public const string CurrentUtcOffset = "CurrentUtcOffset";
+
+        public const string CurrentUtcOffsetValid = "CurrentUtcOffsetValid";
 
         public const string CurrentVersion = "CurrentVersion";
 
@@ -37563,6 +38959,8 @@ namespace Opc.Ua
 
         public const string DefaultHttpsGroup = "DefaultHttpsGroup";
 
+        public const string DefaultInactiveLockTime = "DefaultInactiveLockTime";
+
         public const string DefaultInstanceBrowseName = "DefaultInstanceBrowseName";
 
         public const string DefaultJson = "Default JSON";
@@ -37582,6 +38980,8 @@ namespace Opc.Ua
         public const string DefaultXml = "Default XML";
 
         public const string Definition = "Definition";
+
+        public const string DelayAssymetry = "DelayAssymetry";
 
         public const string Deletable = "Deletable";
 
@@ -37634,6 +39034,8 @@ namespace Opc.Ua
         public const string DeleteSubscriptionsRequest = "DeleteSubscriptionsRequest";
 
         public const string DeleteSubscriptionsResponse = "DeleteSubscriptionsResponse";
+
+        public const string DeleteVlanInterface = "DeleteVlanInterface";
 
         public const string Denominator = "Denominator";
 
@@ -37699,6 +39101,14 @@ namespace Opc.Ua
 
         public const string DiscreteItemType = "DiscreteItemType";
 
+        public const string DnsResolver = "DnsResolver";
+
+        public const string DnsResolverType = "DnsResolverType";
+
+        public const string DnsServerType = "DnsServerType";
+
+        public const string DomainNumber = "DomainNumber";
+
         public const string Double = "Double";
 
         public const string DoubleComplexNumberType = "DoubleComplexNumberType";
@@ -37710,6 +39120,8 @@ namespace Opc.Ua
         public const string Duration = "Duration";
 
         public const string DurationString = "DurationString";
+
+        public const string DynamicBitFieldType = "DynamicBitFieldType";
 
         public const string EccApplicationCertificateType = "EccApplicationCertificateType";
 
@@ -37937,9 +39349,19 @@ namespace Opc.Ua
 
         public const string ForceKeyRotation = "ForceKeyRotation";
 
+        public const string ForceState = "ForceState";
+
+        public const string ForceUnlock = "ForceUnlock";
+
+        public const string ForceValue = "ForceValue";
+
+        public const string Forwarding = "Forwarding";
+
         public const string Frame = "Frame";
 
         public const string FrameType = "FrameType";
+
+        public const string FrequencyTraceable = "FrequencyTraceable";
 
         public const string FromState = "FromState";
 
@@ -37976,6 +39398,12 @@ namespace Opc.Ua
         public const string GetSecurityGroup = "GetSecurityGroup";
 
         public const string GetSecurityKeys = "GetSecurityKeys";
+
+        public const string GptpClockPortType = "GptpClockPortType";
+
+        public const string GptpClockType = "GptpClockType";
+
+        public const string GrandmasterIdentity = "GrandmasterIdentity";
 
         public const string GroupId = "GroupId";
 
@@ -38058,6 +39486,8 @@ namespace Opc.Ua
         public const string HasInterface = "HasInterface";
 
         public const string HasKeyValueDescription = "HasKeyValueDescription";
+
+        public const string HasLockElement = "HasLockElement";
 
         public const string HasLowerLayerInterface = "HasLowerLayerInterface";
 
@@ -38175,6 +39605,8 @@ namespace Opc.Ua
 
         public const string HistoryUpdateType = "HistoryUpdateType";
 
+        public const string HostName = "HostName";
+
         public const string HttpsCertificateType = "HttpsCertificateType";
 
         public const string IBaseEthernetCapabilitiesType = "IBaseEthernetCapabilitiesType";
@@ -38202,6 +39634,16 @@ namespace Opc.Ua
         public const string IetfBaseNetworkInterfaceName = "IetfBaseNetworkInterfaceName";
 
         public const string IetfBaseNetworkInterfaceType = "IetfBaseNetworkInterfaceType";
+
+        public const string IetfIpv4Type = "IetfIpv4Type";
+
+        public const string IetfIpv6Type = "IetfIpv6Type";
+
+        public const string IetfNetworkInterfaceType = "IetfNetworkInterfaceType";
+
+        public const string IetfVlanNetworkInterfaceType = "IetfVlanNetworkInterfaceType";
+
+        public const string IetfVlanType = "IetfVlanType";
 
         public const string IIeeeAutoNegotiationStatusType = "IIeeeAutoNegotiationStatusType";
 
@@ -38265,6 +39707,8 @@ namespace Opc.Ua
 
         public const string InstanceCount = "InstanceCount";
 
+        public const string InstanceEnable = "InstanceEnable";
+
         public const string InstanceNode = "InstanceNode";
 
         public const string InstrumentDiagnosticAlarmType = "InstrumentDiagnosticAlarmType";
@@ -38295,6 +39739,8 @@ namespace Opc.Ua
 
         public const string IntermediateResult = "IntermediateResult";
 
+        public const string InternalLockObjectType = "InternalLockObjectType";
+
         public const string Interval = "Interval";
 
         public const string InvalidateKeys = "InvalidateKeys";
@@ -38307,7 +39753,21 @@ namespace Opc.Ua
 
         public const string IOrderedObjectType = "IOrderedObjectType";
 
+        public const string IpAddressOrigin = "IpAddressOrigin";
+
         public const string IPriorityMappingEntryType = "IPriorityMappingEntryType";
+
+        public const string Ipv4 = "Ipv4";
+
+        public const string Ipv4AddressType = "Ipv4AddressType";
+
+        public const string Ipv4DefaultGateway = "Ipv4DefaultGateway";
+
+        public const string Ipv6 = "Ipv6";
+
+        public const string Ipv6AddressType = "Ipv6AddressType";
+
+        public const string Ipv6DefaultGateway = "Ipv6DefaultGateway";
 
         public const string IrdiDictionaryEntryType = "IrdiDictionaryEntryType";
 
@@ -38324,6 +39784,8 @@ namespace Opc.Ua
         public const string IsExecutingOn = "IsExecutingOn";
 
         public const string IsHostedBy = "IsHostedBy";
+
+        public const string IsMeasuringDelay = "IsMeasuringDelay";
 
         public const string IsNamespaceSubset = "IsNamespaceSubset";
 
@@ -38405,6 +39867,8 @@ namespace Opc.Ua
 
         public const string KeyValuePair = "KeyValuePair";
 
+        public const string Label = "Label";
+
         public const string LastChange = "LastChange";
 
         public const string LastChangeTime = "LastChangeTime";
@@ -38453,7 +39917,13 @@ namespace Opc.Ua
 
         public const string LinearConversion = "LinearConversion";
 
+        public const string LinearConversionBaseDataType = "LinearConversionBaseDataType";
+
         public const string LinearConversionDataType = "LinearConversionDataType";
+
+        public const string LinearConversionInt32DataType = "LinearConversionInt32DataType";
+
+        public const string LinearConversionInt64DataType = "LinearConversionInt64DataType";
 
         public const string ListenerStatus = "ListenerStatus";
 
@@ -38503,6 +39973,20 @@ namespace Opc.Ua
 
         public const string Locations = "Locations";
 
+        public const string Lock = "Lock";
+
+        public const string Locked = "Locked";
+
+        public const string LockMax = "LockMax";
+
+        public const string LockObjectType = "LockObjectType";
+
+        public const string LockTime = "LockTime";
+
+        public const string LockUserPermissions = "LockUserPermissions";
+
+        public const string LogAnnounceInterval = "LogAnnounceInterval";
+
         public const string LogEntryConditionClassType = "LogEntryConditionClassType";
 
         public const string LogObjectType = "LogObjectType";
@@ -38516,6 +40000,8 @@ namespace Opc.Ua
         public const string LogRecordsDataType = "LogRecordsDataType";
 
         public const string Logs = "Logs";
+
+        public const string LogSyncInterval = "LogSyncInterval";
 
         public const string Low = "Low";
 
@@ -38701,6 +40187,10 @@ namespace Opc.Ua
 
         public const string MdnsDiscoveryConfiguration = "MdnsDiscoveryConfiguration";
 
+        public const string MeanDelay = "MeanDelay";
+
+        public const string MeanLinkDelayThresh = "MeanLinkDelayThresh";
+
         public const string Message = "Message";
 
         public const string MessageReceiveTimeout = "MessageReceiveTimeout";
@@ -38797,6 +40287,8 @@ namespace Opc.Ua
 
         public const string MoveOrCopy = "MoveOrCopy";
 
+        public const string Mtu = "Mtu";
+
         public const string MulticastDnsEnabled = "MulticastDnsEnabled";
 
         public const string MultiStateDictionaryEntryDiscreteBaseType = "MultiStateDictionaryEntryDiscreteBaseType";
@@ -38883,6 +40375,8 @@ namespace Opc.Ua
 
         public const string NodeVersion = "NodeVersion";
 
+        public const string NominalFreq = "NominalFreq";
+
         public const string NonExclusiveDeviationAlarmType = "NonExclusiveDeviationAlarmType";
 
         public const string NonExclusiveLevelAlarmType = "NonExclusiveLevelAlarmType";
@@ -38909,9 +40403,13 @@ namespace Opc.Ua
 
         public const string NotificationsCount = "NotificationsCount";
 
+        public const string NtpClockType = "NtpClockType";
+
         public const string Number = "Number";
 
         public const string NumberInList = "NumberInList";
+
+        public const string NumberPorts = "NumberPorts";
 
         public const string NumberRange = "NumberRange";
 
@@ -38937,6 +40435,12 @@ namespace Opc.Ua
 
         public const string OffNormalAlarmType = "OffNormalAlarmType";
 
+        public const string OffsetFromMaster = "OffsetFromMaster";
+
+        public const string OffsetFromTimeTransmitter = "OffsetFromTimeTransmitter";
+
+        public const string OffsetScaledLogVariance = "OffsetScaledLogVariance";
+
         public const string OkResponse = "OkResponse";
 
         public const string OldStateId = "OldStateId";
@@ -38958,6 +40462,10 @@ namespace Opc.Ua
         public const string OneShotShelvedToTimedShelved = "OneShotShelvedToTimedShelved";
 
         public const string OneShotShelvedToUnshelved = "OneShotShelvedToUnshelved";
+
+        public const string OneStepReceive = "OneStepReceive";
+
+        public const string OneStepTransmit = "OneStepTransmit";
 
         public const string OPCBinarySchema_TypeSystem = "OPC Binary";
 
@@ -39005,13 +40513,25 @@ namespace Opc.Ua
 
         public const string OrientationType = "OrientationType";
 
+        public const string Origin = "Origin";
+
+        public const string OtherUserDenyMask = "OtherUserDenyMask";
+
         public const string OutOfServiceState = "OutOfServiceState";
 
         public const string OutputArguments = "OutputArguments";
 
         public const string OverrideValueHandling = "OverrideValueHandling";
 
+        public const string PacketDropped = "PacketDropped";
+
+        public const string PacketReceived = "PacketReceived";
+
+        public const string PacketSent = "PacketSent";
+
         public const string ParameterDataTypeId = "ParameterDataTypeId";
+
+        public const string ParentPortIdentity = "ParentPortIdentity";
 
         public const string ParsingResult = "ParsingResult";
 
@@ -39023,6 +40543,8 @@ namespace Opc.Ua
 
         public const string PasswordRestrictions = "PasswordRestrictions";
 
+        public const string Pcp = "Pcp";
+
         public const string PercentDataBad = "PercentDataBad";
 
         public const string PercentDataGood = "PercentDataGood";
@@ -39033,11 +40555,31 @@ namespace Opc.Ua
 
         public const string PermissionType = "PermissionType";
 
+        public const string PersistedConfigChanged = "PersistedConfigChanged";
+
         public const string PhysAddress = "PhysAddress";
 
         public const string PlaceInService = "PlaceInService";
 
         public const string PlaceInService2 = "PlaceInService2";
+
+        public const string Port = "Port";
+
+        public const string Port00 = "Port00";
+
+        public const string Port01 = "Port01";
+
+        public const string Port02 = "Port02";
+
+        public const string Port03 = "Port03";
+
+        public const string Port04 = "Port04";
+
+        public const string Port05 = "Port05";
+
+        public const string Port06 = "Port06";
+
+        public const string Port07 = "Port07";
 
         public const string PortableNodeId = "PortableNodeId";
 
@@ -39045,13 +40587,25 @@ namespace Opc.Ua
 
         public const string PortDescription = "PortDescription";
 
+        public const string PortEnable = "PortEnable";
+
         public const string PortId = "PortId";
+
+        public const string PortIdentity = "PortIdentity";
 
         public const string PortIdSubtype = "PortIdSubtype";
 
+        public const string PortNumber = "PortNumber";
+
         public const string Ports = "Ports";
 
+        public const string PortState = "PortState";
+
         public const string Priority = "Priority";
+
+        public const string Priority1 = "Priority1";
+
+        public const string Priority2 = "Priority2";
 
         public const string PriorityCodePoint = "PriorityCodePoint";
 
@@ -39104,6 +40658,12 @@ namespace Opc.Ua
         public const string ProvisionableDevice = "ProvisionableDevice";
 
         public const string ProvisionableDeviceType = "ProvisionableDeviceType";
+
+        public const string PtpDefaultClockPortType = "PtpDefaultClockPortType";
+
+        public const string PtpDefaultClockType = "PtpDefaultClockType";
+
+        public const string PtpTimescale = "PtpTimescale";
 
         public const string PublishCount = "PublishCount";
 
@@ -39327,11 +40887,19 @@ namespace Opc.Ua
 
         public const string ReceiveOffset = "ReceiveOffset";
 
+        public const string ReceiveQosClockDataType = "ReceiveQosClockDataType";
+
         public const string ReceiveQosDataType = "ReceiveQosDataType";
+
+        public const string ReceiveQosDeadlineDataType = "ReceiveQosDeadlineDataType";
+
+        public const string ReceiveQosLatencyDataType = "ReceiveQosLatencyDataType";
 
         public const string ReceiveQosPriorityDataType = "ReceiveQosPriorityDataType";
 
         public const string ReceiveTime = "ReceiveTime";
+
+        public const string RecursiveAddNodesToLock = "RecursiveAddNodesToLock";
 
         public const string RecycleCount = "RecycleCount";
 
@@ -39443,6 +41011,8 @@ namespace Opc.Ua
 
         public const string RemoveIdentity = "RemoveIdentity";
 
+        public const string RemoveNodesFromLock = "RemoveNodesFromLock";
+
         public const string RemovePublishedDataSet = "RemovePublishedDataSet";
 
         public const string RemovePushTarget = "RemovePushTarget";
@@ -39462,6 +41032,8 @@ namespace Opc.Ua
         public const string RemoveUser = "RemoveUser";
 
         public const string RemoveVariables = "RemoveVariables";
+
+        public const string RenewLock = "RenewLock";
 
         public const string ReplaceDataCapability = "ReplaceDataCapability";
 
@@ -39513,6 +41085,8 @@ namespace Opc.Ua
 
         public const string Reset2 = "Reset2";
 
+        public const string ResetConfiguration = "ResetConfiguration";
+
         public const string ResetToServerDefaults = "ResetToServerDefaults";
 
         public const string Resources = "Resources";
@@ -39551,7 +41125,13 @@ namespace Opc.Ua
 
         public const string RoleType = "RoleType";
 
+        public const string RootDelay = "RootDelay";
+
         public const string RootFolder = "Root";
+
+        public const string Routing = "Routing";
+
+        public const string RoutingInformationType = "RoutingInformationType";
 
         public const string RsaEncryptedSecret = "RsaEncryptedSecret";
 
@@ -39566,6 +41146,16 @@ namespace Opc.Ua
         public const string RunningToReady = "RunningToReady";
 
         public const string RunningToSuspended = "RunningToSuspended";
+
+        public const string RxAnnounceCount = "RxAnnounceCount";
+
+        public const string RxFollowUpCount = "RxFollowUpCount";
+
+        public const string RxPdelayReqCount = "RxPdelayReqCount";
+
+        public const string RxPdelayRespFollowUpCount = "RxPdelayRespFollowUpCount";
+
+        public const string RxSyncCount = "RxSyncCount";
 
         public const string SafetyConditionClassType = "SafetyConditionClassType";
 
@@ -39586,6 +41176,10 @@ namespace Opc.Ua
         public const string SamplingOffset = "SamplingOffset";
 
         public const string SByte = "SByte";
+
+        public const string ScalingConversionBaseDataType = "ScalingConversionBaseDataType";
+
+        public const string SdoId = "SdoId";
 
         public const string SecondsTillShutdown = "SecondsTillShutdown";
 
@@ -39656,6 +41250,10 @@ namespace Opc.Ua
         public const string ServerCapabilities = "ServerCapabilities";
 
         public const string ServerCapabilitiesType = "ServerCapabilitiesType";
+
+        public const string ServerClocks = "ServerClocks";
+
+        public const string ServerClocksFolderType = "ServerClocksFolderType";
 
         public const string ServerConfiguration = "ServerConfiguration";
 
@@ -39769,11 +41367,25 @@ namespace Opc.Ua
 
         public const string SessionTimeoutCount = "SessionTimeoutCount";
 
+        public const string SetClockReference = "SetClockReference";
+
+        public const string SetDnsResolver = "SetDnsResolver";
+
+        public const string SetGptpConfig = "SetGptpConfig";
+
+        public const string SetHostName = "SetHostName";
+
+        public const string SetIpv4Addresses = "SetIpv4Addresses";
+
+        public const string SetIpv6Addresses = "SetIpv6Addresses";
+
         public const string SetMonitoringModeCount = "SetMonitoringModeCount";
 
         public const string SetMonitoringModeRequest = "SetMonitoringModeRequest";
 
         public const string SetMonitoringModeResponse = "SetMonitoringModeResponse";
+
+        public const string SetNtpConfig = "SetNtpConfig";
 
         public const string SetpointNode = "SetpointNode";
 
@@ -39826,6 +41438,10 @@ namespace Opc.Ua
         public const string SimpleAttributeOperand = "SimpleAttributeOperand";
 
         public const string SimpleTypeDescription = "SimpleTypeDescription";
+
+        public const string SimulationState = "SimulationState";
+
+        public const string SimulationValue = "SimulationValue";
 
         public const string Size = "Size";
 
@@ -39891,6 +41507,8 @@ namespace Opc.Ua
 
         public const string StateVariableType = "StateVariableType";
 
+        public const string StaticBitFieldType = "StaticBitFieldType";
+
         public const string StaticNodeIdTypes = "StaticNodeIdTypes";
 
         public const string StaticNumericNodeIdRange = "StaticNumericNodeIdRange";
@@ -39910,6 +41528,8 @@ namespace Opc.Ua
         public const string StatusResult = "StatusResult";
 
         public const string Stepped = "Stepped";
+
+        public const string StepsRemoved = "StepsRemoved";
 
         public const string StreamId = "StreamId";
 
@@ -39963,6 +41583,8 @@ namespace Opc.Ua
 
         public const string SubscriptionId = "SubscriptionId";
 
+        public const string SubscriptionIds = "SubscriptionIds";
+
         public const string SubtypeRestrictionType = "SubtypeRestrictionType";
 
         public const string SupportedDataType = "SupportedDataType";
@@ -40003,7 +41625,13 @@ namespace Opc.Ua
 
         public const string Symbol = "Symbol";
 
+        public const string SyncLocked = "SyncLocked";
+
+        public const string SyncState = "SyncState";
+
         public const string SyntaxReferenceEntryType = "SyntaxReferenceEntryType";
+
+        public const string System = "System";
 
         public const string SystemCapabilitiesEnabled = "SystemCapabilitiesEnabled";
 
@@ -40024,6 +41652,8 @@ namespace Opc.Ua
         public const string SystemState = "SystemState";
 
         public const string SystemStatusChangeEventType = "SystemStatusChangeEventType";
+
+        public const string SystemType = "SystemType";
 
         public const string TagVariables = "TagVariables";
 
@@ -40077,9 +41707,13 @@ namespace Opc.Ua
 
         public const string TimeMark = "TimeMark";
 
+        public const string TimeSource = "TimeSource";
+
         public const string TimestampsToReturn = "TimestampsToReturn";
 
         public const string TimeString = "TimeString";
+
+        public const string TimeTraceable = "TimeTraceable";
 
         public const string TimeZoneDataType = "TimeZoneDataType";
 
@@ -40117,6 +41751,8 @@ namespace Opc.Ua
 
         public const string TransactionErrorType = "TransactionErrorType";
 
+        public const string TransferLock = "TransferLock";
+
         public const string TransferredToAltClientCount = "TransferredToAltClientCount";
 
         public const string TransferredToSameClientCount = "TransferredToSameClientCount";
@@ -40151,7 +41787,15 @@ namespace Opc.Ua
 
         public const string TranslateBrowsePathsToNodeIdsResponse = "TranslateBrowsePathsToNodeIdsResponse";
 
+        public const string TransmitQosBandwidthDataType = "TransmitQosBandwidthDataType";
+
+        public const string TransmitQosClockDataType = "TransmitQosClockDataType";
+
         public const string TransmitQosDataType = "TransmitQosDataType";
+
+        public const string TransmitQosDeadlineDataType = "TransmitQosDeadlineDataType";
+
+        public const string TransmitQosLatencyDataType = "TransmitQosLatencyDataType";
 
         public const string TransmitQosPriorityDataType = "TransmitQosPriorityDataType";
 
@@ -40205,6 +41849,16 @@ namespace Opc.Ua
 
         public const string TwoStateVariableType = "TwoStateVariableType";
 
+        public const string TxAnnounceCount = "TxAnnounceCount";
+
+        public const string TxFollowUpCount = "TxFollowUpCount";
+
+        public const string TxPdelayRespCount = "TxPdelayRespCount";
+
+        public const string TxPdelayRespFollowUpCount = "TxPdelayRespFollowUpCount";
+
+        public const string TxSyncCount = "TxSyncCount";
+
         public const string TypeNode = "TypeNode";
 
         public const string TypesFolder = "Types";
@@ -40248,6 +41902,8 @@ namespace Opc.Ua
         public const string UnitSystem = "UnitSystem";
 
         public const string UnitType = "UnitType";
+
+        public const string Unlock = "Unlock";
 
         public const string UnregisterNodesCount = "UnregisterNodesCount";
 
@@ -40325,6 +41981,8 @@ namespace Opc.Ua
 
         public const string UserWritable = "UserWritable";
 
+        public const string UsesClock = "UsesClock";
+
         public const string UsesDataTypeRefinement = "UsesDataTypeRefinement";
 
         public const string UseSlopedExtrapolation = "UseSlopedExtrapolation";
@@ -40367,6 +42025,8 @@ namespace Opc.Ua
 
         public const string VersionId = "VersionId";
 
+        public const string VersionNumber = "VersionNumber";
+
         public const string VersionTime = "VersionTime";
 
         public const string Vid = "Vid";
@@ -40380,6 +42040,8 @@ namespace Opc.Ua
         public const string ViewsFolder = "Views";
 
         public const string ViewVersion = "ViewVersion";
+
+        public const string Vlan = "Vlan";
 
         public const string VlanId = "VlanId";
 

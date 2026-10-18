@@ -1,40 +1,16 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <!--
- * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
- *
- * OPC Foundation MIT License 1.00
- * 
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
+SPDX-FileCopyrightText: Copyright (c) 2005-2026, OPC Federation AISBL
+SPDX-License-Identifier: MIT
 -->
 
-<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2026-05-01T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2026-10-15T00:00:00Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
   <NamespaceUris>
     <Uri>http://opcfoundation.org/UA/GDS/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.07" PublicationDate="2026-05-01T00:00:00Z" ModelVersion="1.5.7">
-      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.07" PublicationDate="2026-05-01T00:00:00Z" ModelVersion="1.5.7" />
+    <Model ModelUri="http://opcfoundation.org/UA/GDS/" XmlSchemaUri="http://opcfoundation.org/UA/GDS/Types.xsd" Version="1.05.08" PublicationDate="2026-10-15T00:00:00Z" ModelVersion="1.5.8">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" XmlSchemaUri="http://opcfoundation.org/UA/2008/02/Types.xsd" Version="1.05.08" PublicationDate="2026-10-15T00:00:00Z" ModelVersion="1.5.8" />
     </Model>
   </Models>
   <Aliases>
@@ -93,7 +69,7 @@
   </Aliases>
   <UAObject NodeId="ns=1;i=721" BrowseName="1:http://opcfoundation.org/UA/GDS/" SymbolicName="OPCUAGDSNamespaceMetadata">
     <DisplayName>http://opcfoundation.org/UA/GDS/</DisplayName>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/10.1</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/10.1</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=722</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=723</Reference>
@@ -127,7 +103,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.07</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.05.08</String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=724" BrowseName="NamespacePublicationDate" ParentNodeId="ns=1;i=721" DataType="DateTime">
@@ -137,7 +113,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-05-01T00:00:00Z</DateTime>
+      <DateTime xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2026-10-15T00:00:00Z</DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=1;i=725" BrowseName="IsNamespaceSubset" ParentNodeId="ns=1;i=721" DataType="Boolean">
@@ -212,7 +188,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=721</Reference>
     </References>
     <Value>
-      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.7</String>
+      <String xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1.5.8</String>
     </Value>
   </UAVariable>
   <UAObject NodeId="ns=1;i=1661" BrowseName="1:DiscoveryAdmin" SymbolicName="WellKnownRole_DiscoveryAdmin">
@@ -1733,7 +1709,7 @@
   <UADataType NodeId="ns=1;i=1" BrowseName="1:ApplicationRecordDataType">
     <DisplayName>ApplicationRecordDataType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.5</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/6.5.5</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
     </References>
@@ -1750,7 +1726,7 @@
   <UAObjectType NodeId="ns=1;i=13" BrowseName="1:DirectoryType">
     <DisplayName>DirectoryType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/6.5.3</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=14</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=15</Reference>
@@ -2387,7 +2363,7 @@
   <UAObjectType NodeId="ns=1;i=26" BrowseName="1:ApplicationRegistrationChangedAuditEventType" IsAbstract="true">
     <DisplayName>ApplicationRegistrationChangedAuditEventType</DisplayName>
     <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/6.5.12</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
@@ -2399,7 +2375,7 @@
   <UAObjectType NodeId="ns=1;i=63" BrowseName="1:CertificateDirectoryType">
     <DisplayName>CertificateDirectoryType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/7.9.2</Documentation>
     <References>
       <Reference ReferenceType="Organizes">ns=1;i=511</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=79</Reference>
@@ -3920,7 +3896,7 @@
   <UAObjectType NodeId="ns=1;i=91" BrowseName="1:CertificateRequestedAuditEventType" IsAbstract="true">
     <DisplayName>CertificateRequestedAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.12</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/7.9.12</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=717</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=718</Reference>
@@ -3950,7 +3926,7 @@
   <UAObjectType NodeId="ns=1;i=109" BrowseName="1:CertificateDeliveredAuditEventType" IsAbstract="true">
     <DisplayName>CertificateDeliveredAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.13</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/7.9.13</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=719</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=720</Reference>
@@ -3980,7 +3956,7 @@
   <UAObjectType NodeId="ns=1;i=27" BrowseName="1:CertificateRevokedAuditEventType" IsAbstract="true">
     <DisplayName>CertificateRevokedAuditEventType</DisplayName>
     <Category>GDS Certificate Manager Pull Model</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/7.9.14</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/7.9.14</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=2127</Reference>
     </References>
@@ -3992,7 +3968,7 @@
   <UAObjectType NodeId="ns=1;i=55" BrowseName="1:KeyCredentialManagementFolderType">
     <DisplayName>KeyCredentialManagementFolderType</DisplayName>
     <Category>Pull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=61</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
@@ -4280,7 +4256,7 @@
   <UAObject NodeId="ns=1;i=1008" BrowseName="1:KeyCredentialManagement">
     <DisplayName>KeyCredentialManagement</DisplayName>
     <Category>Pull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=55</Reference>
@@ -4289,7 +4265,7 @@
   <UAObjectType NodeId="ns=1;i=1020" BrowseName="1:KeyCredentialServiceType">
     <DisplayName>KeyCredentialServiceType</DisplayName>
     <Category>Pull Model for KeyCredential ServicePull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1021</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=1022</Reference>
@@ -4615,7 +4591,7 @@
   <UAObjectType NodeId="ns=1;i=1039" BrowseName="1:KeyCredentialRequestedAuditEventType">
     <DisplayName>KeyCredentialRequestedAuditEventType</DisplayName>
     <Category>Pull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.9</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.9</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
@@ -4627,7 +4603,7 @@
   <UAObjectType NodeId="ns=1;i=1057" BrowseName="1:KeyCredentialDeliveredAuditEventType">
     <DisplayName>KeyCredentialDeliveredAuditEventType</DisplayName>
     <Category>Pull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.10</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.10</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
@@ -4639,7 +4615,7 @@
   <UAObjectType NodeId="ns=1;i=1075" BrowseName="1:KeyCredentialRevokedAuditEventType">
     <DisplayName>KeyCredentialRevokedAuditEventType</DisplayName>
     <Category>Pull Model for KeyCredential Service</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/8.5.11</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/8.5.11</Documentation>
     <References>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=18011</Reference>
     </References>
@@ -4651,7 +4627,7 @@
   <UAObjectType NodeId="ns=1;i=233" BrowseName="1:AuthorizationServicesFolderType">
     <DisplayName>AuthorizationServicesFolderType</DisplayName>
     <Category>GDS Authorization Service Server</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/9.6.2</Documentation>
     <References>
       <Reference ReferenceType="Organizes">ns=1;i=234</Reference>
       <Reference ReferenceType="HasSubtype" IsForward="false">i=61</Reference>
@@ -4757,7 +4733,7 @@
   <UAObject NodeId="ns=1;i=959" BrowseName="1:AuthorizationServices">
     <DisplayName>AuthorizationServices</DisplayName>
     <Category>GDS Authorization Service Server</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.3</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/9.6.3</Documentation>
     <References>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasTypeDefinition">ns=1;i=233</Reference>
@@ -4766,11 +4742,12 @@
   <UAObjectType NodeId="ns=1;i=966" BrowseName="1:AuthorizationServiceType">
     <DisplayName>AuthorizationServiceType</DisplayName>
     <Category>GDS Authorization Service Server</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/9.6.4</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/9.6.4</Documentation>
     <References>
       <Reference ReferenceType="HasProperty">ns=1;i=1003</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=968</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=967</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=113</Reference>
       <Reference ReferenceType="HasProperty">ns=1;i=110</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=1004</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=969</Reference>
@@ -4800,6 +4777,14 @@
   </UAVariable>
   <UAVariable NodeId="ns=1;i=967" BrowseName="1:UserTokenPolicies" ParentNodeId="ns=1;i=966" DataType="i=304" ValueRank="1" ArrayDimensions="0">
     <DisplayName>UserTokenPolicies</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=966</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=113" BrowseName="1:IssuerEndpointUrl" ParentNodeId="ns=1;i=966" DataType="String">
+    <DisplayName>IssuerEndpointUrl</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
@@ -5376,8 +5361,7 @@
   </UAObjectType>
   <UAObject NodeId="ns=1;i=141" BrowseName="1:Directory">
     <DisplayName>Directory</DisplayName>
-    <Category>GDS Application Directory</Category>
-    <Documentation>https://reference.opcfoundation.org/GDS/docs/6.5.2</Documentation>
+    <Documentation>https://reference.opcfoundation.org/specs/OPC-10000-12/6.5.2</Documentation>
     <References>
       <Reference ReferenceType="HasComponent">ns=1;i=142</Reference>
       <Reference ReferenceType="HasComponent">ns=1;i=143</Reference>
@@ -8875,8 +8859,8 @@ c2QiDQogIHhtbG5zOnRucz0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9UeXBlcy54
 c2QiDQogIHRhcmdldE5hbWVzcGFjZT0iaHR0cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy9U
 eXBlcy54c2QiDQogIGVsZW1lbnRGb3JtRGVmYXVsdD0icXVhbGlmaWVkIg0KPg0KICA8eHM6YW5u
 b3RhdGlvbj4NCiAgICA8eHM6YXBwaW5mbz4NCiAgICAgIDx1YTpNb2RlbCBNb2RlbFVyaT0iaHR0
-cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDciIFB1YmxpY2F0
-aW9uRGF0ZT0iMjAyNi0wNS0wMVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
+cDovL29wY2ZvdW5kYXRpb24ub3JnL1VBL0dEUy8iIFZlcnNpb249IjEuMDUuMDgiIFB1YmxpY2F0
+aW9uRGF0ZT0iMjAyNi0xMC0xNVQwMDowMDowMFoiIC8+DQogICAgPC94czphcHBpbmZvPg0KICA8
 L3hzOmFubm90YXRpb24+DQogIA0KICA8eHM6aW1wb3J0IG5hbWVzcGFjZT0iaHR0cDovL29wY2Zv
 dW5kYXRpb24ub3JnL1VBLzIwMDgvMDIvVHlwZXMueHNkIiAvPg0KDQogIDx4czpjb21wbGV4VHlw
 ZSBuYW1lPSJBcHBsaWNhdGlvblJlY29yZERhdGFUeXBlIj4NCiAgICA8eHM6c2VxdWVuY2U+DQog
