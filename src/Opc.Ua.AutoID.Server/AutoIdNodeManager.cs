@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
+using Opc.Ua.Di;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
@@ -42,8 +43,11 @@ namespace Opc.Ua.AutoID.Server
     /// Device Integration owner for the OPC 30010 AutoID Devices model.
     /// </summary>
     /// <remarks>
-    /// Loads DI and AutoID, owns the <see cref="AutoIdRuntime"/> that creates the readers below the
-    /// <c>DeviceSet</c>, and disposes it on shutdown.
+    /// The owner for a server whose only Device Integration based companion is AutoID: it loads DI
+    /// and, through <see cref="AutoIdMachineryModelProvider"/>, AutoID, owns the
+    /// <see cref="AutoIdRuntime"/> that creates the readers below the <c>DeviceSet</c>, and disposes
+    /// it on shutdown. To combine AutoID with other companions, compose it into the Machinery owner
+    /// instead (<c>AddAutoIdToMachinery</c>).
     /// </remarks>
     public sealed class AutoIdNodeManager : DiNodeManager
     {
@@ -96,14 +100,11 @@ namespace Opc.Ua.AutoID.Server
             ISystemContext context,
             CancellationToken cancellationToken = default)
         {
-            // The scan settings and results travel as structures: the server has to decode and
-            // encode them for the method calls and events.
-            if (!context.EncodeableFactory.ContainsEncodeableType(DataTypeIds.ScanSettings))
-            {
-                context.EncodeableFactory.Builder.AddAutoIdTypeSystem().Commit();
-            }
+            // The stand-alone owner is a Device Integration owner that loads DI and then the same
+            // AutoID model provider a composed Machinery owner uses.
             var nodes = new NodeStateCollection();
-            nodes.AddAutoIdTypeSystem(context);
+            nodes.AddOpcUaDi(context);
+            new AutoIdMachineryModelProvider(Runtime.Options).AddPredefinedNodes(nodes, context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
 

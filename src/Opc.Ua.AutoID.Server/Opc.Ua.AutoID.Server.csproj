@@ -5,7 +5,7 @@
     <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
     <PackageId>$(PackagePrefix).Opc.Ua.AutoID.Server</PackageId>
     <RootNamespace>Opc.Ua.AutoID.Server</RootNamespace>
-    <Description>Server hosting for the source-generated OPC 30010 AutoID Devices model: a DI-based node manager that materialises RFID, OCR, optical, optical verifier and RTLS readers into the DeviceSet, a provider contract for the reader hardware, the Scan, ScanStart and ScanStop methods, the RFID tag access methods and the RTLS location methods, scan, access, presence and log entry events, simulated in-memory readers, and fluent application configuration APIs.</Description>
+    <Description>Server hosting for the source-generated OPC 30010 AutoID Devices model: a DI-based node manager that materialises RFID, OCR, optical, optical verifier and RTLS readers into the DeviceSet, a provider contract for the reader hardware, the Scan, ScanStart and ScanStop methods, the RFID tag access methods and the RTLS location methods, scan, access, presence and log entry events, simulated in-memory readers, composition into the Machinery node manager, and fluent application configuration APIs.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -22,6 +22,7 @@
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\Opc.Ua.AutoID\Opc.Ua.AutoID.csproj" />
     <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

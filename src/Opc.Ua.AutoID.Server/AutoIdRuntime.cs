@@ -34,18 +34,22 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
-    /// Creates and owns the OPC 30010 readers of one <see cref="AutoIdNodeManager"/>.
+    /// Creates and owns the OPC 30010 readers of one Device Integration node manager: the
+    /// stand-alone <see cref="AutoIdNodeManager"/>, or the owner AutoID is composed into with
+    /// <see cref="DiNodeManagerAutoIdExtensions.CreateAutoIdRuntime"/>.
     /// </summary>
     /// <remarks>
     /// <para>
     /// The runtime contributes the AutoID conformance units and server facets of the readers it
-    /// hosts (OPC 30010 10.2): a facet is advertised when a reader implements each mandatory
-    /// conformance unit of it, which depends on the capabilities of the reader's provider.
+    /// hosts (OPC 30010 10.2) to its node manager: a facet is advertised when a reader implements
+    /// each mandatory conformance unit of it, which depends on the capabilities of the reader's
+    /// provider.
     /// </para>
     /// <para>
     /// The node manager owns the runtime and disposes it on shutdown: the readers stop their
@@ -73,6 +77,15 @@ namespace Opc.Ua.AutoID.Server
         /// Gets the options the runtime was created with.
         /// </summary>
         public AutoIdServerOptions Options { get; }
+
+        /// <summary>
+        /// Gets the namespace the node manager mints instance NodeIds in, for the reader browse
+        /// names: the Machinery instance namespace on a <see cref="MachineryNodeManager"/>, else the
+        /// instance namespace of the Device Integration node manager.
+        /// </summary>
+        public ushort InstanceNamespaceIndex => Manager is MachineryNodeManager machinery
+            ? machinery.MachineryInstanceNamespaceIndex
+            : Manager.InstanceNamespaceIndex;
 
         /// <summary>
         /// Gets the system context of the node manager.
@@ -104,7 +117,7 @@ namespace Opc.Ua.AutoID.Server
         /// Starts building a reader.
         /// </summary>
         /// <param name="browseName">
-        /// The browse name of the device, in the instance namespace of the node manager. A name
+        /// The browse name of the device, usually in <see cref="InstanceNamespaceIndex"/>. A name
         /// already taken below the parent is rejected when the reader is built.
         /// </param>
         /// <param name="provider">The hardware behind the reader.</param>
@@ -244,6 +257,29 @@ namespace Opc.Ua.AutoID.Server
             m_stopping.Dispose();
         }
 
+        /// <summary>
+        /// Hands the runtime to the shared resources of a composed owner, which disposes it on
+        /// shutdown. Only the first call registers it.
+        /// </summary>
+        internal void RegisterLifetime()
+        {
+            if (Interlocked.Exchange(ref m_lifetimeRegistered, 1) != 0)
+            {
+                return;
+            }
+            try
+            {
+                Manager.RegisterMachineryResource(this);
+            }
+            catch
+            {
+                // Not registered: the next call tries again rather than leaving the readers
+                // without an owner that disposes them.
+                Volatile.Write(ref m_lifetimeRegistered, 0);
+                throw;
+            }
+        }
+
         internal async ValueTask<AutoIdReader> CreateReaderAsync(
             AutoIdReaderBuilder builder,
             CancellationToken cancellationToken)
@@ -377,7 +413,7 @@ namespace Opc.Ua.AutoID.Server
             where TDevice : AutoIdDeviceState
         {
             var typeDefinitionId = ExpandedNodeId.ToNodeId(typeId, SystemContext.NamespaceUris);
-            var deviceBuilder = await Manager.CreateDeviceAsync(
+            Di.Server.Builders.IDeviceBuilder<TDevice> deviceBuilder = await Manager.CreateDeviceAsync(
                 builder.BrowseName,
                 typeDefinitionId,
                 parent =>
@@ -577,6 +613,7 @@ namespace Opc.Ua.AutoID.Server
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private bool m_disposed;
+        private int m_lifetimeRegistered;
     }
 
     /// <summary>

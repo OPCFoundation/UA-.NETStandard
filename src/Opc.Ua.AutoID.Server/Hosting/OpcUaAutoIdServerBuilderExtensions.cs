@@ -49,7 +49,10 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <remarks>
         /// The manager owns the Device Integration namespace, so this cannot be combined with
-        /// <c>AddOpcUaDi</c> or any other DI-owning registration on the same server.
+        /// <c>AddOpcUaDi</c>, <c>AddMachinery</c> or any other DI-owning registration on the same
+        /// server. To host readers next to machines or other Machinery-based companions, call
+        /// <see cref="OpcUaAutoIdCompositionExtensions.AddAutoIdToMachinery"/> after
+        /// <c>AddMachinery</c> instead: the readers are then created in the Machinery owner.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the AutoID options.</param>
@@ -146,7 +149,11 @@ namespace Microsoft.Extensions.DependencyInjection
                         (descriptor.ImplementationInstance as DiAddressSpaceOwnership)?.OwnerName ??
                         "another DI-aware hosting registration";
                     throw new InvalidOperationException(
-                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. AddAutoId cannot register a second DI-owning manager.");
+                        $"The OPC UA DI namespace and address space are already owned by '{ownerName}'. " +
+                        "AddAutoId cannot register a second DI-owning manager. Compose the readers into the " +
+                        "Machinery owner with AddAutoIdToMachinery and ConfigureAutoIdFor<TNodeManager>(), or " +
+                        "load the AutoID model into the existing manager with nodes.AddAutoIdTypeSystem(context) " +
+                        "and create the readers with manager.CreateAutoIdRuntime().");
                 }
             }
 
