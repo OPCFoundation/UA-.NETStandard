@@ -74,6 +74,8 @@ namespace Opc.Ua.AutoID.Tests
 
         public int SynchronousConfiguratorSawReaders { get; private set; } = -1;
 
+        public bool BuildContextSawTheStandaloneRuntime { get; private set; }
+
         public AutoIdRuntime Runtime { get; private set; } = null!;
 
         public AutoIdNodeManager Manager { get; private set; } = null!;
@@ -90,7 +92,15 @@ namespace Opc.Ua.AutoID.Tests
         /// <summary>
         /// Opens a managed session to the server.
         /// </summary>
-        public async Task<ManagedSession> ConnectAsync(string name)
+        public Task<ManagedSession> ConnectAsync(string name)
+        {
+            return ConnectAsync(EndpointUrl, name);
+        }
+
+        /// <summary>
+        /// Opens a managed session to the server at <paramref name="endpointUrl"/>.
+        /// </summary>
+        public static async Task<ManagedSession> ConnectAsync(string endpointUrl, string name)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var clientFixture = new ClientFixture(telemetry);
@@ -103,7 +113,7 @@ namespace Opc.Ua.AutoID.Tests
             ApplicationConfiguration configuration = clientFixture.Config;
             EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
                 configuration,
-                EndpointUrl,
+                endpointUrl,
                 useSecurity: false,
                 discoverTimeout: 15000,
                 telemetry).ConfigureAwait(false);
@@ -167,7 +177,14 @@ namespace Opc.Ua.AutoID.Tests
                 })
                 .ConfigureAutoId(context =>
                     // The synchronous overload runs after the asynchronous one, in registration order.
-                    SynchronousConfiguratorSawReaders = context.Manager.Readers.Count);
+                    SynchronousConfiguratorSawReaders = context.Manager.Readers.Count)
+                .ConfigureAutoIdFor<AutoIdNodeManager>((context, _) =>
+                {
+                    // The composition entry point accepts the stand-alone manager and hands it its own runtime.
+                    BuildContextSawTheStandaloneRuntime =
+                        ReferenceEquals(context.Runtime, Runtime) && ReferenceEquals(context.Manager, Manager);
+                    return default;
+                });
 
             m_provider = services.BuildServiceProvider();
             m_host = m_provider.GetServices<IHostedService>().Single();
@@ -209,7 +226,10 @@ namespace Opc.Ua.AutoID.Tests
             options.EndpointUrls.Add(EndpointUrl);
         }
 
-        private static int GetAvailablePort()
+        /// <summary>
+        /// Gets a loopback port the operating system has just assigned.
+        /// </summary>
+        internal static int GetAvailablePort()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();

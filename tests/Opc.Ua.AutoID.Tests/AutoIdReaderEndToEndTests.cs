@@ -76,6 +76,12 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public void ConfigureAutoIdForTheStandaloneManagerReceivesItsRuntime()
+        {
+            Assert.That(m_host!.BuildContextSawTheStandaloneRuntime, Is.True);
+        }
+
+        [Test]
         public async Task EnumerationFindsOneReaderOfEachKindAsync()
         {
             var found = new List<AutoIdReaderEntry>();

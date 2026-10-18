@@ -31,6 +31,9 @@
     <ProjectReference Include="..\..\src\Opc.Ua.AutoID\Opc.Ua.AutoID.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Client\Opc.Ua.AutoID.Client.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Server\Opc.Ua.AutoID.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Client\Opc.Ua.Pumps.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Machinery.Client\Opc.Ua.Machinery.Client.csproj" />
     <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
