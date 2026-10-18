@@ -128,6 +128,129 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// A document whose preserved native envelope cannot be restored still reaches conversion and fails the
+        /// whole set with an error diagnostic, whether it is the root, an unreferenced sibling or alone.
+        /// </summary>
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        public async Task InvalidPreservationEnvelopeFailsTheSetWithDiagnosticsAsync(bool multiple, bool invalidRoot)
+        {
+            WotDocument invalid = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"uav:nodeSet":{}}"""));
+            ArrayOf<WotDocumentSetEntry> entries = !multiple
+                ? [new WotDocumentSetEntry("root", invalid)]
+                : invalidRoot
+                    ? [new WotDocumentSetEntry("root", invalid), new WotDocumentSetEntry("other", Document("Other"))]
+                    : [new WotDocumentSetEntry("root", Document("Root")), new WotDocumentSetEntry("other", invalid)];
+            using var set = new WotDocumentSet("root", entries);
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, NullWotResolver.Instance, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.UnsupportedContentType &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.JsonPointer == "/uav:nodeSet"), Is.True, Describe(result));
+        }
+
+        /// <summary>
+        /// An externally resolved document with an unrestorable native envelope is reported, not thrown.
+        /// </summary>
+        [Test]
+        public async Task ExternalDocumentWithInvalidPreservationEnvelopeIsReportedAsync()
+        {
+            using var set = new WotDocumentSet("root",
+                [new WotDocumentSetEntry("root", Document("Root", link: "external"))]);
+            var resolver = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            resolver.Setup(value => value.ResolveThingAsync(
+                "external", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(
+                    Encoding.UTF8.GetBytes("""{"uav:id":"nsu=urn:wot-set;s=External","uav:nodeSet":{}}""")));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, resolver.Object, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.False, Describe(result));
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Severity == WotDiagnosticSeverity.Error &&
+                diagnostic.Location?.Reference == "external"), Is.True, Describe(result));
+        }
+        /// <summary>
+        /// The resolver fallback also serves references of a multi-document set through the shared merge path.
+        /// </summary>
+        [Test]
+        public async Task ExternalResolverSuppliesMissingReferenceInMultiDocumentSetAsync()
+        {
+            using var set = new WotDocumentSet("root",
+            [
+                new WotDocumentSetEntry("root", Document("Root", link: "external")),
+                new WotDocumentSetEntry("other", Document("Other"))
+            ]);
+            var resolver = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            resolver.Setup(value => value.ResolveThingAsync(
+                "external", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(
+                    Encoding.UTF8.GetBytes("""{"uav:id":"nsu=urn:wot-set;s=External"}""")));
+
+            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, resolver.Object, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, Describe(result));
+            UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().Single(node => node.BrowseName == "1:Root");
+            Assert.That(root.References!.Any(reference =>
+                reference.IsForward && reference.Value == "ns=1;s=External"), Is.True);
+        }
+
+        /// <summary>
+        /// The resolver-free entry point and an explicitly empty resolver agree on outcome and diagnostics.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LocalOnlyAndNullResolverEntryPointsAgreeAsync(bool multiple)
+        {
+            ArrayOf<WotDocumentSetEntry> entries = multiple
+                ? [new WotDocumentSetEntry("root", Document("Root", link: "child")),
+                    new WotDocumentSetEntry("child", Document("Child"))]
+                : [new WotDocumentSetEntry("root", Document("Root"))];
+            using var set = new WotDocumentSet("root", entries);
+
+            WotConversionResult<UANodeSet> local = await WotNodeSetConverter.ToNodeSetAsync(set)
+                .ConfigureAwait(false);
+            WotConversionResult<UANodeSet> explicitNull = await WotNodeSetConverter.ToNodeSetWithResolversAsync(
+                set, NullWotResolver.Instance, new WotExternalSchemaResolver()).ConfigureAwait(false);
+
+            Assert.That(explicitNull.Success, Is.EqualTo(local.Success), Describe(explicitNull));
+            Assert.That(local.Success, Is.True, Describe(local));
+            Assert.That(
+                explicitNull.Diagnostics.Select(diagnostic => diagnostic.Code),
+                Is.EqualTo(local.Diagnostics.Select(diagnostic => diagnostic.Code)));
+            Assert.That(Summarize(explicitNull), Is.EqualTo(Summarize(local)));
+            Assert.That(Summarize(local), Is.Not.Empty);
+            if (multiple)
+            {
+                Assert.That(Summarize(local).Any(line => line.Contains("ns=1;s=Child", StringComparison.Ordinal)),
+                    Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Lists every converted node with its identity and ordered references for output equality checks.
+        /// </summary>
+        private static string[] Summarize(WotConversionResult<UANodeSet> result)
+        {
+            if (result.Value?.Items is null)
+            {
+                return [];
+            }
+            return [.. result.Value.Items.Select(node =>
+                node.NodeId + "|" + node.BrowseName + "|" + string.Join(
+                    ",", (node.References ?? []).Select(reference =>
+                        reference.ReferenceType + (reference.IsForward ? ">" : "<") + reference.Value)))];
+        }
+
+        /// <summary>
         /// Null explicit resolvers are rejected instead of silently falling back to no resolution.
         /// </summary>
         [Test]
@@ -163,9 +286,9 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 root["links"] = new JsonArray(new JsonObject
                 {
-                    ["rel"] = "ua:HasComponent",
+                    ["rel"] = "ua:Organizes",
                     ["href"] = link,
-                    ["uav:refId"] = "i=47"
+                    ["uav:refId"] = "i=35"
                 });
             }
             if (schema is not null)
