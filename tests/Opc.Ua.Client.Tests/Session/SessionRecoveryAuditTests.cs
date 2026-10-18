@@ -101,7 +101,7 @@ namespace Opc.Ua.Client.Tests
                     string _, uint _, IUserIdentity _, ArrayOf<string> _, CancellationToken _) =>
                 {
                     attempted.Add(endpoint);
-                    if (ReferenceEquals(endpoint, primary))
+                    if (endpoint.EndpointUrl == primary.EndpointUrl)
                     {
                         throw new ServiceResultException(failure);
                     }
@@ -119,13 +119,15 @@ namespace Opc.Ua.Client.Tests
             if (rotate)
             {
                 await using Client.ManagedSession session = await connecting.ConfigureAwait(false);
-                Assert.That(attempted, Is.EqualTo([primary, alternate]));
+                Assert.That(attempted.Select(endpoint => endpoint.EndpointUrl),
+                    Is.EqualTo(new[] { primary.EndpointUrl, alternate.EndpointUrl }));
                 Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             }
             else
             {
                 Assert.ThrowsAsync<ServiceResultException>(() => connecting);
-                Assert.That(attempted, Is.EqualTo([primary]));
+                Assert.That(attempted.Select(endpoint => endpoint.EndpointUrl),
+                    Is.EqualTo(new[] { primary.EndpointUrl }));
             }
         }
 
@@ -990,6 +992,88 @@ namespace Opc.Ua.Client.Tests
                 create.Release();
                 await ObserveCancelledRecoveryAsync(recreate).ConfigureAwait(false);
             }
+        }
+
+        [Test]
+        public async Task RotatingBackToASharedEndpointChecksWhatAnotherSessionPublishedAsync()
+        {
+            const byte accepted = 10;
+            const byte published = 20;
+            bool primaryDown = false;
+            bool alternateDown = false;
+            await using var harnessA = new SessionChannelHarness(configureChannel: channel =>
+            {
+                channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
+                channel.ReconnectHandler = _ =>
+                    (primaryDown && channel.OpenedEndpointUrl == "opc.tcp://primary:4840") ||
+                    (alternateDown && channel.OpenedEndpointUrl == "opc.tcp://alternate:4840")
+                        ? throw new ServiceResultException(StatusCodes.BadCommunicationError)
+                        : default(ValueTask);
+                channel.Mock.As<ISecureChannel>().Setup(value => value.OpenAsync(
+                        It.Is<Uri>(uri => (primaryDown && uri.Host == "primary") ||
+                            (alternateDown && uri.Host == "alternate")),
+                        It.IsAny<TransportChannelSettings>(), It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadCommunicationError));
+            });
+            await using var harnessB = new SessionChannelHarness();
+            ConfiguredEndpoint primary = SessionChannelHarness.CreateEndpoint("opc.tcp://primary:4840");
+            primary.Description.SecurityLevel = accepted;
+            ConfiguredEndpoint alternate = SessionChannelHarness.CreateEndpoint("opc.tcp://alternate:4840");
+            alternate.Description.Server.ApplicationUri = primary.Description.Server.ApplicationUri;
+            using var cancellation = new CancellationTokenSource(s_timeout);
+            await using Client.ManagedSession sessionA = await Client.ManagedSession.CreateAsync(
+                harnessA.Configuration, primary,
+                new ChannelManagerSessionFactory(harnessA.Manager, harnessA.Telemetry),
+                reconnectPolicy: new ReconnectPolicy { InitialDelay = TimeSpan.Zero, MaxRetries = 2 },
+                networkRedundancy: new NetworkRedundancyOptions { AlternateEndpoints = [alternate] },
+                ct: cancellation.Token).ConfigureAwait(false);
+            await using Client.ManagedSession sessionB = await Client.ManagedSession.CreateAsync(
+                harnessB.Configuration, primary,
+                new ChannelManagerSessionFactory(harnessB.Manager, harnessB.Telemetry),
+                ct: cancellation.Token).ConfigureAwait(false);
+            var checkedByA = new ConcurrentQueue<(byte Current, byte Rediscovered)>();
+            sessionA.ValidateRediscoveredEndpoint = (current, rediscovered, _) =>
+            {
+                checkedByA.Enqueue((current.SecurityLevel, rediscovered.SecurityLevel));
+                return new ValueTask<ServiceResult>(current.SecurityLevel == rediscovered.SecurityLevel
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadCertificateInvalid));
+            };
+
+            // A moves from the shared primary to the alternate.
+            primaryDown = true;
+            sessionA.StateMachine.TriggerReconnect();
+            await sessionA.StateMachine.WaitForConnectedAsync(cancellation.Token).ConfigureAwait(false);
+            Assert.That(sessionA.ConfiguredEndpoint.EndpointUrl, Is.EqualTo(alternate.EndpointUrl));
+
+            // B accepts a change that A would reject and publishes it to the shared primary.
+            await sessionB.RefreshEndpointAndRecreateAsync(
+                sessionB.InnerSession,
+                new RetryBudget(s_timeout),
+                (target, _) =>
+                {
+                    EndpointDescription description = CoreUtils.Clone(target.Description)!;
+                    description.SecurityLevel = published;
+                    target.Update(description);
+                    return Task.CompletedTask;
+                },
+                cancellation.Token).ConfigureAwait(false);
+            Assert.That(primary.Description.SecurityLevel, Is.EqualTo(published));
+
+            // A moves back to the primary: B's change is checked and, rejected, not taken over.
+            primaryDown = false;
+            alternateDown = true;
+            sessionA.StateMachine.TriggerReconnect();
+            await sessionA.StateMachine.WaitForConnectedAsync(cancellation.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(sessionA.ConfiguredEndpoint.EndpointUrl, Is.EqualTo(primary.EndpointUrl));
+                Assert.That(sessionA.ConfiguredEndpoint, Is.Not.SameAs(primary));
+                Assert.That(sessionA.ConfiguredEndpoint.Description.SecurityLevel, Is.EqualTo(accepted));
+                Assert.That(checkedByA.ToArray(), Is.EqualTo(new[] { (accepted, published) }));
+                Assert.That(primary.Description.SecurityLevel, Is.EqualTo(published));
+            });
         }
 
         private static async Task ObserveCancelledRecoveryAsync(Task task)
