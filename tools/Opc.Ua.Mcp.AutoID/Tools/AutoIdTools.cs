@@ -88,8 +88,10 @@ namespace Opc.Ua.Mcp.Tools
         /// </summary>
         [McpServerTool(Name = "autoid_read_device", ReadOnly = true, Destructive = false, Idempotent = true)]
         [Description("Reads a reader's name, DeviceStatus (Idle, Error, Scanning, Busy), model version, location, " +
-            "antenna names, last scan and nameplate in one pass. Optional properties the device does not " +
-            "publish stay null or empty.")]
+            "antenna names, last scan and nameplate in one pass. Also returns the NodeIds of DeviceStatus, " +
+            "LastScanData, LastScanTimestamp and DeviceLocation (for subscriptions) and 'methods', the browse " +
+            "names of the methods the device publishes (for example Scan, ScanStart, ReadTag, GetLocation). " +
+            "Optional properties and variables the device does not publish stay null or empty.")]
         public Task<CallToolResult> ReadDeviceAsync(
             [Description("Reader NodeId returned by autoid_list_readers.")]
             string readerNodeId,

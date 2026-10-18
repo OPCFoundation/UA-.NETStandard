@@ -63,6 +63,11 @@ namespace Opc.Ua.Mcp.Tools
             return new JsonObject
             {
                 ["nodeId"] = value.NodeId.ToString(),
+                ["deviceStatusId"] = Id(value.DeviceStatusId),
+                ["lastScanDataId"] = Id(value.LastScanDataId),
+                ["lastScanTimestampId"] = Id(value.LastScanTimestampId),
+                ["deviceLocationId"] = Id(value.DeviceLocationId),
+                ["methods"] = Methods(value.Methods),
                 ["deviceName"] = value.DeviceName,
                 ["deviceStatus"] = value.DeviceStatus.ToString(),
                 ["modelVersion"] = value.ModelVersion,
@@ -146,6 +151,21 @@ namespace Opc.Ua.Mcp.Tools
             foreach (AntennaNameIdPair pair in antennas)
             {
                 items.Add((JsonNode)new JsonObject { ["antennaId"] = pair.AntennaId, ["antennaName"] = pair.AntennaName });
+            }
+            return items;
+        }
+
+        private static string? Id(NodeId value)
+        {
+            return value.IsNull ? null : value.ToString();
+        }
+
+        private static JsonArray Methods(ArrayOf<QualifiedName> methods)
+        {
+            var items = new JsonArray();
+            foreach (QualifiedName method in methods)
+            {
+                items.Add((JsonNode?)JsonValue.Create(method.Name));
             }
             return items;
         }

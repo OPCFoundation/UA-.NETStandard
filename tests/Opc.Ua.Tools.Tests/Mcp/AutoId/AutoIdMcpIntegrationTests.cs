@@ -188,7 +188,34 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
                 Assert.That(device.GetProperty("deviceStatus").GetString(), Is.EqualTo("Idle"));
                 Assert.That(minimal.GetProperty("deviceName").GetString(), Is.EqualTo(AutoIdMcpFixture.RfidName));
                 Assert.That(minimal.GetProperty("serialNumber").GetString(), Is.Empty);
+                Assert.That(device.GetProperty("deviceStatusId").GetString(), Does.StartWith("ns="));
+                Assert.That(
+                    device.GetProperty("deviceStatusId").GetString(),
+                    Is.Not.EqualTo(device.GetProperty("nodeId").GetString()));
+                Assert.That(device.GetProperty("lastScanDataId").GetString(), Does.StartWith("ns="));
+                Assert.That(device.GetProperty("lastScanTimestampId").GetString(), Does.StartWith("ns="));
+                Assert.That(
+                    device.GetProperty("deviceLocationId").ValueKind,
+                    Is.EqualTo(JsonValueKind.Null),
+                    "the reader publishes no DeviceLocation");
+                Assert.That(
+                    Names(device.GetProperty("methods")),
+                    Does.Contain("Scan").And.Contain("ReadTag").And.Not.Contain("GetDeviceLocation"));
+                Assert.That(
+                    Names(minimal.GetProperty("methods")),
+                    Is.EqualTo(Names(device.GetProperty("methods"))),
+                    "the methods do not depend on the read options");
             });
+        }
+
+        private static List<string?> Names(JsonElement array)
+        {
+            var names = new List<string?>();
+            foreach (JsonElement item in array.EnumerateArray())
+            {
+                names.Add(item.GetString());
+            }
+            return names;
         }
 
         [Test]
