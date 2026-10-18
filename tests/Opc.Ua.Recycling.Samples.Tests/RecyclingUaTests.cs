@@ -60,6 +60,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
             RecyclingCoordinatorClient observer = await environment.ConnectAsync("observer", timeout.Token)
                 .ConfigureAwait(false);
+            Assert.That(observer.CertificateSha256,
+                Is.EqualTo(RecyclingAuthorization.CertificateHash(observer.Session.Identity)));
             Assert.That(observer.Session.ConfiguredEndpoint.Description.SecurityMode,
                 Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
             int namespaceIndex = observer.Session.NamespaceUris.GetIndex(RecyclingModelMapping.NamespaceUri);
@@ -82,6 +84,9 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 observer.WatchAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
             Assert.That(await notifications.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(notifications.Current.IsAvailable, Is.True);
+            Assert.That(notifications.Current.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(notifications.Current.SourceTimestampUtc,
+                Is.EqualTo(notifications.Current.Snapshot.SourceTimestampUtc));
             Assert.That(notifications.Current.Snapshot.Tick, Is.Zero);
             await environment.InitializeRolesAsync(timeout.Token).ConfigureAwait(false);
             await environment.Coordinator.TickAsync(timeout.Token).ConfigureAwait(false);

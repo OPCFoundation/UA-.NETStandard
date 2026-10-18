@@ -8419,7 +8419,25 @@ namespace Opc.Ua.Server
 
             if (success)
             {
-                OnMonitoredItemCreated(context, handle, restoredItem);
+                bool created = false;
+                try
+                {
+                    OnMonitoredItemCreated(context, handle, restoredItem);
+                    created = true;
+                }
+                finally
+                {
+                    if (!created)
+                    {
+                        // release the item so that a retry of the restore can recreate it.
+                        DeleteFailedMonitoredItem(
+                            context,
+                            handle,
+                            restoredItem,
+                            m_monitoredItemManager is MonitoredNodeMonitoredItemManager);
+                        monitoredItem = null;
+                    }
+                }
             }
 
             return success;

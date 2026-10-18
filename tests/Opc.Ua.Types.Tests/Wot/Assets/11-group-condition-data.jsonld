@@ -7,7 +7,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["Thing", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingDescription",
   "id": "urn:dev:opcua:asset:pump-01:condition-data",
   "title": "Condition data",
   "description": "A second data set over the same source: the condition signals of Pump 01. Two data sets over one document need no coordination, because neither of them edits it.",

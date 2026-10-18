@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -297,14 +298,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// documents from a registry snapshot, so a Thing Description synthesized by
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
-    internal sealed class SnapshotThingResolver : IWotThingResolver
+    internal sealed class SnapshotThingResolver : IWotThingResolver, IWotArchiveContextProvider
     {
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
-            IReadOnlyDictionary<string, ByteString> contents)
+            IReadOnlyDictionary<string, ByteString> contents,
+            Func<WotNodeSetConverter.ArchiveContextIndex>? archiveContexts = null)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
+            m_archiveContexts = archiveContexts;
+        }
+
+        /// <inheritdoc/>
+        public UANodeSet? GetArchiveContext(WotDocument document)
+        {
+            return m_archiveContexts?.Invoke().Find(document);
         }
 
         /// <summary>
@@ -327,5 +336,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly WotRegistrySnapshot m_snapshot;
         private readonly IReadOnlyDictionary<string, ByteString> m_contents;
+        private readonly Func<WotNodeSetConverter.ArchiveContextIndex>? m_archiveContexts;
     }
 }

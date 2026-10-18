@@ -137,6 +137,282 @@ namespace Opc.Ua.Recycling.Samples.Tests
         }
 
         /// <summary>
+        /// Independent membership metadata does not invalidate an operational precondition or rewrite its receipt.
+        /// </summary>
+        [TestCase(RecyclingCommandKind.DisableProcess, RecyclingCommandKind.Heartbeat)]
+        [TestCase(RecyclingCommandKind.Checkpoint, RecyclingCommandKind.Heartbeat)]
+        [TestCase(RecyclingCommandKind.DisableProcess, RecyclingCommandKind.Register)]
+        [TestCase(RecyclingCommandKind.Checkpoint, RecyclingCommandKind.Register)]
+        [TestCase(RecyclingCommandKind.DisableProcess, RecyclingCommandKind.Initialize)]
+        [TestCase(RecyclingCommandKind.Checkpoint, RecyclingCommandKind.Initialize)]
+        [TestCase(RecyclingCommandKind.DisableProcess, RecyclingCommandKind.Disconnect)]
+        [TestCase(RecyclingCommandKind.Checkpoint, RecyclingCommandKind.Disconnect)]
+        public async Task ControlsAcceptMembershipOnlyRevisionChangesWithoutRewritingTheEnvelope(
+            RecyclingCommandKind kind, RecyclingCommandKind membership)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            RecyclingCommand confirmed = Command(coordinator, kind);
+            long expected = confirmed.ExpectedRevision;
+            foreach (RecyclingProcess process in Enum.GetValues<RecyclingProcess>())
+            {
+                await coordinator.ExecuteAsync(ProcessPrincipal(process),
+                    Command(coordinator, membership, process)).ConfigureAwait(false);
+            }
+            Assert.That(coordinator.Current.Revision, Is.GreaterThan(expected));
+            RecyclingCommandOutcome outcome = await coordinator.ExecuteAsync(s_administrator, confirmed)
+                .ConfigureAwait(false);
+            Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good.Code));
+            Assert.That(confirmed.ExpectedRevision, Is.EqualTo(expected));
+            Assert.That(await coordinator.ExecuteAsync(s_administrator, confirmed).ConfigureAwait(false),
+                Is.EqualTo(outcome), "A deliberate retry still uses the original immutable request and receipt.");
+            if (kind == RecyclingCommandKind.DisableProcess)
+            {
+                Assert.That(coordinator.Current.Stages.Span.ToArray().Where(stage =>
+                    stage.Process == RecyclingProcess.Collection).All(static stage => !stage.Enabled), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Material ticks, operator controls, lifecycle changes and future tokens remain real revision conflicts.
+        /// </summary>
+        [TestCase("tick")]
+        [TestCase("control")]
+        [TestCase("lifecycle")]
+        [TestCase("future")]
+        public async Task ControlsRejectOperationalChangesAndFutureRevisions(string change)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            RecyclingCommand confirmed = Command(coordinator,
+                change == "tick" ? RecyclingCommandKind.Pause : RecyclingCommandKind.DisableProcess);
+            switch (change)
+            {
+                case "tick":
+                    await coordinator.TickAsync().ConfigureAwait(false);
+                    break;
+                case "control":
+                    await coordinator.ExecuteAsync(s_administrator,
+                        Command(coordinator, RecyclingCommandKind.Checkpoint)).ConfigureAwait(false);
+                    break;
+                case "lifecycle":
+                    await coordinator.ExecuteAsync(s_administrator,
+                        Command(coordinator, RecyclingCommandKind.Pause)).ConfigureAwait(false);
+                    break;
+                case "future":
+                    confirmed = confirmed with { ExpectedRevision = coordinator.Current.Revision + 1 };
+                    break;
+            }
+            CommittedSnapshot before = coordinator.Current;
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(coordinator.Current, Is.SameAs(before));
+        }
+
+        /// <summary>
+        /// Recovery cannot reuse the previous process's in-memory heartbeat compatibility window.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecoveryInvalidatesOldHeartbeatCompatibleControlRevisions(bool latestBeforeRecovery)
+        {
+            RecyclingCommand confirmed;
+            await using (RecyclingCoordinator first = await OpenAsync().ConfigureAwait(false))
+            {
+                await InitializeAllAsync(first).ConfigureAwait(false);
+                confirmed = Command(first, RecyclingCommandKind.DisableProcess);
+                await first.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection),
+                    Command(first, RecyclingCommandKind.Heartbeat)).ConfigureAwait(false);
+                if (latestBeforeRecovery)
+                {
+                    confirmed = Command(first, RecyclingCommandKind.DisableProcess);
+                }
+            }
+            await using RecyclingCoordinator recovered = await OpenAsync().ConfigureAwait(false);
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
+                recovered.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Expiring leases while paused changes availability metadata, not the confirmed equipment action.
+        /// </summary>
+        [Test]
+        public async Task ControlsRemainCurrentAcrossLeaseExpiryWithoutMaterialProgress()
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            await coordinator.ExecuteAsync(s_administrator, Command(coordinator, RecyclingCommandKind.Pause))
+                .ConfigureAwait(false);
+            RecyclingCommand confirmed = Command(coordinator, RecyclingCommandKind.DisableProcess);
+            long tick = coordinator.Current.Tick;
+            m_clock.Advance(TimeSpan.FromSeconds(31));
+            await coordinator.TickAsync().ConfigureAwait(false);
+            Assert.That(coordinator.Current.Tick, Is.EqualTo(tick));
+            Assert.That(coordinator.Current.Participants.Span.ToArray().All(static item => !item.Initialized), Is.True);
+            RecyclingCommandOutcome outcome = await coordinator.ExecuteAsync(s_administrator, confirmed)
+                .ConfigureAwait(false);
+            Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good.Code));
+        }
+
+        /// <summary>
+        /// The final initialization changes the plant lifecycle and invalidates an older control precondition.
+        /// </summary>
+        [Test]
+        public async Task InitializationBarrierInvalidatesPreStartControls()
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            foreach (RecyclingProcess process in Enum.GetValues<RecyclingProcess>())
+            {
+                await coordinator.ExecuteAsync(ProcessPrincipal(process),
+                    Command(coordinator, RecyclingCommandKind.Register, process)).ConfigureAwait(false);
+                if (process != RecyclingProcess.Bagging)
+                {
+                    await coordinator.ExecuteAsync(ProcessPrincipal(process),
+                        Command(coordinator, RecyclingCommandKind.Initialize, process)).ConfigureAwait(false);
+                }
+            }
+            RecyclingCommand confirmed = Command(coordinator, RecyclingCommandKind.DisableProcess);
+            await coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Bagging),
+                Command(coordinator, RecyclingCommandKind.Initialize, RecyclingProcess.Bagging)).ConfigureAwait(false);
+            Assert.That(coordinator.Current.Lifecycle, Is.EqualTo(RunLifecycle.Running));
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        /// <summary>
+        /// Unrelated roles can renew concurrently without invalidating another role's observed lease state.
+        /// </summary>
+        [TestCase(RecyclingCommandKind.Register)]
+        [TestCase(RecyclingCommandKind.Initialize)]
+        [TestCase(RecyclingCommandKind.Heartbeat)]
+        [TestCase(RecyclingCommandKind.Disconnect)]
+        public async Task MembershipIgnoresOnlyOtherRolesMetadata(RecyclingCommandKind kind)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            RecyclingCommand observed = Command(coordinator, kind, RecyclingProcess.Collection);
+            await coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Sorting),
+                Command(coordinator, RecyclingCommandKind.Heartbeat, RecyclingProcess.Sorting)).ConfigureAwait(false);
+            RecyclingCommandOutcome outcome = await coordinator.ExecuteAsync(
+                ProcessPrincipal(RecyclingProcess.Collection), observed).ConfigureAwait(false);
+            Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good.Code));
+            Assert.That(observed.ExpectedRevision, Is.LessThan(outcome.Revision));
+        }
+
+        /// <summary>
+        /// A material clock or unrelated control cannot indefinitely starve a role's initial acknowledgement or lease.
+        /// </summary>
+        [TestCase(RecyclingCommandKind.Initialize, false)]
+        [TestCase(RecyclingCommandKind.Initialize, true)]
+        [TestCase(RecyclingCommandKind.Heartbeat, false)]
+        [TestCase(RecyclingCommandKind.Heartbeat, true)]
+        public async Task MembershipProgressIsIndependentOfMaterialAndControlRevisions(
+            RecyclingCommandKind kind, bool control)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            if (kind == RecyclingCommandKind.Initialize)
+            {
+                await coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection),
+                    Command(coordinator, RecyclingCommandKind.Register)).ConfigureAwait(false);
+            }
+            RecyclingCommand observed = Command(coordinator, kind);
+            if (control)
+            {
+                await coordinator.ExecuteAsync(s_administrator, Command(coordinator, RecyclingCommandKind.Pause))
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                await coordinator.TickAsync().ConfigureAwait(false);
+            }
+            long tick = coordinator.Current.Tick;
+            RecyclingCommandOutcome outcome = await coordinator.ExecuteAsync(
+                ProcessPrincipal(RecyclingProcess.Collection), observed).ConfigureAwait(false);
+            Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good.Code));
+            ProcessParticipant participant = coordinator.Current.Participants.Span.ToArray()
+                .Single(static item => item.Process == RecyclingProcess.Collection);
+            Assert.That(participant.ObservedRevision, Is.EqualTo(observed.ExpectedRevision),
+                "The caller's actual observation must not be relabeled as the latest material revision.");
+            Assert.That(coordinator.Current.Tick, Is.EqualTo(tick));
+        }
+
+        /// <summary>
+        /// Setting an unchanged equipment target cannot be starved by unrelated material progress.
+        /// </summary>
+        [TestCase(RecyclingCommandKind.DisableProcess)]
+        [TestCase(RecyclingCommandKind.EnableProcess)]
+        public async Task EquipmentControlUsesUnchangedControlPreconditionAcrossMaterialTicks(
+            RecyclingCommandKind kind)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            RecyclingCommand confirmed = Command(coordinator, kind);
+            await coordinator.TickAsync().ConfigureAwait(false);
+            long tick = coordinator.Current.Tick;
+            RecyclingCommandOutcome outcome = await coordinator.ExecuteAsync(s_administrator, confirmed)
+                .ConfigureAwait(false);
+            Assert.That(outcome.Status, Is.EqualTo(StatusCodes.Good.Code));
+            Assert.That(coordinator.Current.Tick, Is.EqualTo(tick));
+            Assert.That(coordinator.Current.Stages.Span.ToArray().Where(stage =>
+                stage.Process == RecyclingProcess.Collection).All(stage =>
+                    stage.Enabled == (kind == RecyclingCommandKind.EnableProcess)), Is.True);
+            Assert.That(confirmed.ExpectedRevision, Is.LessThan(outcome.Revision));
+        }
+
+        /// <summary>
+        /// Material evolution preserves an explicit process enable/disable until the next equipment command.
+        /// </summary>
+        [Test]
+        public async Task EquipmentEnabledFlagSurvivesSubsequentMaterialTicks()
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            foreach (RecyclingCommandKind kind in new[]
+                { RecyclingCommandKind.DisableProcess, RecyclingCommandKind.EnableProcess })
+            {
+                await coordinator.ExecuteAsync(s_administrator, Command(coordinator, kind)).ConfigureAwait(false);
+                for (int index = 0; index < 5; index++)
+                {
+                    await coordinator.TickAsync().ConfigureAwait(false);
+                    Assert.That(coordinator.Current.Stages.Span.ToArray().Where(stage =>
+                        stage.Process == RecyclingProcess.Collection).All(stage =>
+                            stage.Enabled == (kind == RecyclingCommandKind.EnableProcess)), Is.True);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Membership revisions still reject changes to the same role and future tokens.
+        /// </summary>
+        [TestCase("same-role")]
+        [TestCase("future")]
+        public async Task MembershipRejectsChangedOwnRoleOrFutureRevision(string change)
+        {
+            await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
+            await InitializeAllAsync(coordinator).ConfigureAwait(false);
+            RecyclingCommand observed = Command(coordinator, RecyclingCommandKind.Heartbeat);
+            switch (change)
+            {
+                case "same-role":
+                    await coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection),
+                        Command(coordinator, RecyclingCommandKind.Heartbeat)).ConfigureAwait(false);
+                    break;
+                case "future":
+                    observed = observed with { ExpectedRevision = coordinator.Current.Revision + 1 };
+                    break;
+            }
+            CommittedSnapshot before = coordinator.Current;
+            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection), observed).AsTask())!;
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(coordinator.Current, Is.SameAs(before));
+        }
+
+        /// <summary>
         /// Routine lease renewals cannot consume the durable budget reserved for production and operator commands.
         /// </summary>
         [Test]

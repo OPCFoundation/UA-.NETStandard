@@ -32,6 +32,8 @@ using System;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
@@ -46,6 +48,65 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotDocumentKindTests
     {
+        /// <summary>
+        /// Verifies that kind is thing description for thing annotation.
+        /// </summary>
+        [TestCase("Thing")]
+        [TestCase("td:Thing")]
+        [TestCase("https://www.w3.org/2019/wot/td#Thing")]
+        public void KindIsThingDescriptionForThingAnnotation(string annotation)
+        {
+            byte[] json = Encoding.UTF8.GetBytes($$"""{"@type":"{{annotation}}","title":"T"}""");
+            using var document = WotDocument.Parse(json);
+
+            Assert.That(document.Kind, Is.EqualTo(WotDocumentKind.ThingDescription));
+        }
+
+        /// <summary>
+        /// Verifies that native mapping classification does not claim validation.
+        /// </summary>
+        [TestCase("""{"@type":"Thing"}""", false)]
+        [TestCase("""{"@type":["Thing","https://saref.etsi.org/core/TemperatureSensor"]}""", false)]
+        [TestCase("""{"@type":"uav:object"}""", true)]
+        [TestCase("""{"@type":"tm:ThingModel"}""", true)]
+        [TestCase("""{"@type":"Thing","links":[{"rel":"ua:HasTypeDefinition"}]}""", true)]
+        [TestCase(
+            """{"@type":"Thing","properties":{"p":{"links":[{"rel":"ua:HasTypeDefinition"}]}}}""", true)]
+        [TestCase("""{"@type":"Thing","properties":{"p":{"@type":"uav:variable"}}}""", true)]
+        [TestCase("""{"@type":"Thing","actions":{"a":{"@type":"uav:method"}}}""", true)]
+        [TestCase("""{"@type":"Thing","events":{"e":{"@type":"uav:eventType"}}}""", true)]
+        [TestCase("""{"@type":"Thing","properties":{"p":{"@type":"urn:test:annotation"}}}""", false)]
+        public async Task NativeMappingClassificationDoesNotClaimValidation(string json, bool expected)
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+
+            Assert.That(await WotNodeSetConverter.RequiresNativeMappingAsync(document), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Verifies that native mapping classification honors cancellation.
+        /// </summary>
+        [Test]
+        public void NativeMappingClassificationHonorsCancellation()
+        {
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"@type":"uav:object"}"""));
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await WotNodeSetConverter.RequiresNativeMappingAsync(document, cancellationToken: cancellation.Token));
+        }
+
+        /// <summary>
+        /// Verifies that native mapping classification rejects null document.
+        /// </summary>
+        [Test]
+        public void NativeMappingClassificationRejectsNullDocument()
+        {
+            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await WotNodeSetConverter.RequiresNativeMappingAsync(null!));
+        }
+
         [Test]
         public void KindIsThingDescriptionForUavObjectToken()
         {

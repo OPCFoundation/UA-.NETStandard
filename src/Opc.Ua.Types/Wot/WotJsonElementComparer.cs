@@ -1,0 +1,81 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+
+namespace Opc.Ua.Wot
+{
+    /// <summary>
+    /// Preserves element identity while hashing positions within live document buffers.
+    /// The default element hash can collide for every element of the same document.
+    /// </summary>
+    internal sealed class WotJsonElementComparer : IEqualityComparer<JsonElement>
+    {
+        /// <summary>
+        /// Initializes identity hashing over the supplied live document roots.
+        /// </summary>
+        /// <param name="roots">The roots used to initialize the instance.</param>
+        public WotJsonElementComparer(ArrayOf<JsonElement> roots)
+        {
+            m_roots = roots.ConvertAll(root => (Root: root, Hash: root.GetHashCode()));
+        }
+
+        /// <inheritdoc/>
+        /// <param name="x">The JSON element.</param>
+        /// <param name="y">The JSON element.</param>
+        public bool Equals(JsonElement x, JsonElement y)
+        {
+            return x.Equals(y);
+        }
+
+        /// <inheritdoc/>
+        /// <param name="element">The JSON element.</param>
+        public int GetHashCode(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Undefined)
+            {
+                return 0;
+            }
+            ReadOnlySpan<byte> value = JsonMarshal.GetRawUtf8Value(element);
+            foreach ((JsonElement root, int hash) in m_roots)
+            {
+                if (JsonMarshal.GetRawUtf8Value(root).Overlaps(value, out int offset))
+                {
+                    return HashCode.Combine(hash, offset);
+                }
+            }
+            return element.GetHashCode();
+        }
+
+        private readonly ArrayOf<(JsonElement Root, int Hash)> m_roots;
+    }
+}

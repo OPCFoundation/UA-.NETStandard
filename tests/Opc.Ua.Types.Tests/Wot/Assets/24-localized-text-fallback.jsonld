@@ -71,10 +71,26 @@
       "uav:unitProperty": "/properties/pumpSpeedUnit",
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.PumpSpeed",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump09.PumpSpeed",
           "contentType": "application/octet-stream",
           "op": ["readproperty", "observeproperty"]
         }
+      ]
+    },
+    "germanStatus": {
+      "@context": {
+        "@language": "de",
+        "title": { "@id": "https://www.w3.org/2019/wot/td#title", "@language": "de" }
+      },
+      "@type": "uav:variable",
+      "title": "Zustand",
+      "titles": { "de": "Zustand", "en": "Status" },
+      "uav:browseName": "pump:Status",
+      "type": "string",
+      "readOnly": true,
+      "forms": [
+        { "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump09.Status",
+          "contentType": "application/octet-stream", "op": ["readproperty"] }
       ]
     },
     "pumpSpeedUnit": {
@@ -119,7 +135,7 @@
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.PumpSpeed.EngineeringUnits",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump09.PumpSpeed.EngineeringUnits",
           "contentType": "application/octet-stream",
           "op": ["readproperty"]
         }
@@ -142,6 +158,7 @@
       },
       "uav:browseName": "pump:SetSpeed",
       "input": {
+        "uav:argumentLayout": "single",
         "@context": {
           "title": {
             "@id": "https://www.w3.org/2019/wot/td#title",
@@ -160,7 +177,8 @@
       },
       "forms": [
         {
-          "href": "/?id=nsu=http://example.com/demo/pump;s=Pump09.SetSpeed",
+          "href": "/?id=nsu%3Dhttp%3A%2F%2Fexample.com%2Fdemo%2Fpump%3Bs%3DPump09.SetSpeed",
+          "uav:callObjectId": "nsu=http://example.com/demo/pump;s=Pump09",
           "contentType": "application/octet-stream",
           "op": ["invokeaction"]
         }

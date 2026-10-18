@@ -35,6 +35,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -52,37 +53,65 @@ namespace Opc.Ua.Types.Tests.Wot
     [Parallelizable]
     public class WotProjectionResolverTests
     {
+        /// <summary>
+        /// Verifies that resolves predictive maintenance projection to expected view.
+        /// </summary>
         [Test]
         public async Task ResolvesPredictiveMaintenanceProjectionToExpectedView()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
-            Assert.That(result.Success, Is.True);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
-            AssertJsonEqual(PredictiveResolvedJson, view!.RootElement);
+            AssertResolvedExample(PredictiveResolvedJson, PreparePredictiveProjection(), view,
+                ("q:s:cHVtcA:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
+        /// <summary>
+        /// Verifies that unacquired worked example context cannot establish host annotations.
+        /// </summary>
+        [Test]
+        public async Task UnacquiredWorkedExampleContextCannotEstablishHostAnnotations()
+        {
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync(
+                declareAnnotationContext: false).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Value, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionContextConflict), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that resolves asset instance projection to expected view.
+        /// </summary>
         [Test]
         public async Task ResolvesAssetInstanceProjectionToExpectedView()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(AssetProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
-            AssertJsonEqual(AssetResolvedJson, view!.RootElement);
+            AssertResolvedExample(AssetResolvedJson, AssetProjectionJson, view,
+                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
+        /// <summary>
+        /// Verifies that selects enumerated affordance.
+        /// </summary>
         [Test]
         public async Task SelectsEnumeratedAffordance()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement speed = Property(result.Value!, "pumpSpeed");
             Assert.That(
@@ -90,15 +119,18 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("./01-opcua-td-pump.jsonld#/properties/pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that selects whole document with select all.
+        /// </summary>
         [Test]
         public async Task SelectsWholeDocumentWithSelectAll()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(AssetProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             JsonElement properties = result.Value!.RootElement.GetProperty("properties");
             Assert.That(
@@ -106,10 +138,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EquivalentTo(s_identityMembers));
         }
 
+        /// <summary>
+        /// Verifies that selects by predicate affordance kind.
+        /// </summary>
         [Test]
         public async Task SelectsByPredicateAffordanceKind()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement root = result.Value!.RootElement;
             Assert.That(root.TryGetProperty("actions", out _), Is.False);
@@ -119,14 +154,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 Contains.Item("pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that predicate requires every type token.
+        /// </summary>
         [Test]
         public async Task PredicateRequiresEveryTypeToken()
         {
-            var resolver = Resolver(("urn:sensors", TwoTypedPropertiesJson));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(("urn:sensors", TwoTypedPropertiesJson));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TypeTokenProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(
@@ -134,14 +172,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo(s_sensorMembers));
         }
 
+        /// <summary>
+        /// Verifies that enumerated selection wins over bulk and reports drop.
+        /// </summary>
         [Test]
         public async Task EnumeratedSelectionWinsOverBulkAndReportsDrop()
         {
-            var resolver = Resolver(("urn:pump", MinimalPumpJson));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(("urn:pump", MinimalPumpJson));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(FirstWinsProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             JsonElement speed = Property(result.Value!, "pumpSpeed");
@@ -155,10 +196,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that annotation overrides source members and discards tm ref.
+        /// </summary>
         [Test]
         public async Task AnnotationOverridesSourceMembersAndDiscardsTmRef()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement speed = Property(result.Value!, "pumpSpeed");
             Assert.That(
@@ -170,39 +214,48 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(speed.TryGetProperty("tm:ref", out _), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that name prefix upper cases source name.
+        /// </summary>
         [Test]
         public async Task NamePrefixUpperCasesSourceName()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             Assert.That(
                 PropertyNames(result.Value!.RootElement.GetProperty("properties")),
                 Contains.Item("deviceSerialNumber"));
         }
 
+        /// <summary>
+        /// Verifies that without name prefix names are unchanged.
+        /// </summary>
         [Test]
         public async Task WithoutNamePrefixNamesAreUnchanged()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(AssetProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(
                 PropertyNames(result.Value!.RootElement.GetProperty("properties")),
                 Contains.Item("serialNumber"));
         }
 
+        /// <summary>
+        /// Verifies that self referential projection source reports cycle.
+        /// </summary>
         [Test]
         public async Task SelfReferentialProjectionSourceReportsCycle()
         {
-            var resolver = Resolver(("urn:self", SelfProjectionJson));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(("urn:self", SelfProjectionJson));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(SelfProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Null);
             Assert.That(
@@ -221,15 +274,15 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task AGroupReachedByTwoBranchesIsNotACycleAsync()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("urn:pump", MinimalPumpJson),
                 ("urn:group-a", Group("urn:group-a", "urn:group-c")),
                 ("urn:group-b", Group("urn:group-b", "urn:group-c")),
                 ("urn:group-c", Group("urn:group-c", string.Empty)));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(DiamondProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -248,15 +301,15 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task AGroupThatOrganizesItsOwnOrganizerIsACycleAsync()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("urn:pump", MinimalPumpJson),
                 ("urn:group-a", Group("urn:group-a", "urn:group-c")),
                 ("urn:group-b", Group("urn:group-b", "urn:group-c")),
                 ("urn:group-c", Group("urn:group-c", "urn:group-a")));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(DiamondProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionCycle),
@@ -277,17 +330,22 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             string links = organizes.Length == 0
                 ? string.Empty
-                : ",\"links\":[{\"rel\":\"ua:Organizes\",\"href\":\"" + organizes +
+                : ",\"links\":[{\"rel\":\"ua:Organizes\",\"href\":\"" +
+                    organizes +
                     "\",\"type\":\"application/td+json\"}]";
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
-                "\"@type\":\"uav:object\",\"id\":\"" + id + "\",\"title\":\"Group\"," +
+                "\"@type\":\"uav:object\",\"id\":\"" +
+                id +
+                "\",\"title\":\"Group\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                "\"security\":\"nosec_sc\"" + links + "}";
+                "\"security\":\"nosec_sc\"" +
+                links +
+                "}";
         }
 
-        private const string DiamondProjectionJson = """
+        private const string DiamondProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -329,15 +387,18 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
+        /// <summary>
+        /// Verifies that digest mismatch reports error.
+        /// </summary>
         [Test]
         public async Task DigestMismatchReportsError()
         {
-            var resolver = Resolver(("urn:pump", MinimalPumpJson));
+            WotProjectionResolver resolver = Resolver(("urn:pump", MinimalPumpJson));
             string projection = DigestProjection("sha-256:" + new string('0', 64));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(projection));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Null);
             Assert.That(
@@ -346,15 +407,18 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that matching digest resolves.
+        /// </summary>
         [Test]
         public async Task MatchingDigestResolves()
         {
-            var resolver = Resolver(("urn:pump", MinimalPumpJson));
+            WotProjectionResolver resolver = Resolver(("urn:pump", MinimalPumpJson));
             string digest = "sha-256:" + Sha256Hex(MinimalPumpJson);
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(DigestProjection(digest)));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(
@@ -363,46 +427,64 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that conflicting context prefixes remain in their source scopes.
+        /// </summary>
         [Test]
-        public async Task ConflictingContextPrefixReportsError()
+        public async Task ConflictingContextPrefixesRemainInTheirSourceScopes()
         {
-            var resolver = Resolver(
-                ("urn:a", ContextSource("ex", "http://example.com/a")),
-                ("urn:b", ContextSource("ex", "http://example.com/b")));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(
+                ("urn:a", ContextSource("ex", "http://example.com/a", "first")),
+                ("urn:b", ContextSource("ex", "http://example.com/b", "second")));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TwoSourceProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
-            Assert.That(result.Value, Is.Null);
-            Assert.That(
-                result.Diagnostics.Any(d =>
-                    d.Code == WotDiagnosticCode.ProjectionContextConflict),
-                Is.True);
+            using WotDocument view = result.Value!;
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view.TryGetContextPrefix("ex", out _), Is.False);
+            Assert.That(view.TryGetContextPrefix("ex", out string first, view.Properties["first"]), Is.True);
+            Assert.That(first, Is.EqualTo("http://example.com/a"));
+            Assert.That(view.TryGetContextPrefix("ex", out string second, view.Properties["second"]), Is.True);
+            Assert.That(second, Is.EqualTo("http://example.com/b"));
         }
 
+        /// <summary>
+        /// Verifies that compatible context prefix does not leak into host scope.
+        /// </summary>
         [Test]
-        public async Task CompatibleContextPrefixMerges()
+        public async Task CompatibleContextPrefixDoesNotLeakIntoHostScope()
         {
-            var resolver = Resolver(
-                ("urn:a", ContextSource("ex", "http://example.com/shared")),
-                ("urn:b", ContextSource("ex", "http://example.com/shared")));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(
+                ("urn:a", ContextSource("ex", "http://example.com/shared", "first")),
+                ("urn:b", ContextSource("ex", "http://example.com/shared", "second")));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TwoSourceProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(
                 result.Diagnostics.Any(d =>
                     d.Code == WotDiagnosticCode.ProjectionContextConflict),
                 Is.False);
+            using WotDocument view = result.Value!;
+            Assert.That(view.TryGetContextPrefix("ex", out _), Is.False);
+            foreach (string name in new[] { "first", "second" })
+            {
+                Assert.That(view.TryGetContextPrefix("ex", out string prefix, view.Properties[name]), Is.True);
+                Assert.That(prefix, Is.EqualTo("http://example.com/shared"));
+            }
         }
 
+        /// <summary>
+        /// Verifies that source routing absolutizes form and copies security closure.
+        /// </summary>
         [Test]
         public async Task SourceRoutingAbsolutizesFormAndCopiesSecurityClosure()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement speed = Property(result.Value!, "pumpSpeed");
             JsonElement form = speed.GetProperty("forms")[0];
@@ -413,30 +495,33 @@ namespace Opc.Ua.Types.Tests.Wot
                     "http://example.com/demo/pump;s=PumpSpeed"));
             Assert.That(
                 form.GetProperty("security")[0].GetString(),
-                Is.EqualTo("pump_opcua_sc"));
+                Is.EqualTo("q:s:cHVtcA:b3BjdWFfc2M"));
 
             JsonElement definitions =
                 result.Value!.RootElement.GetProperty("securityDefinitions");
-            JsonElement combo = definitions.GetProperty("pump_opcua_sc");
+            JsonElement combo = definitions.GetProperty("q:s:cHVtcA:b3BjdWFfc2M");
             Assert.That(
                 combo.GetProperty("allOf").EnumerateArray()
                     .Select(e => e.GetString()),
                 Is.EqualTo(s_pumpComboAllOf));
             Assert.That(
-                definitions.TryGetProperty("pump_opcua_channel_sc", out _), Is.True);
+                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", out _), Is.True);
             Assert.That(
-                definitions.TryGetProperty("pump_opcua_authentication_sc", out _),
+                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M", out _),
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that projection routing keeps projection forms.
+        /// </summary>
         [Test]
         public async Task ProjectionRoutingKeepsProjectionForms()
         {
-            var resolver = Resolver(("urn:pump", MinimalPumpJson));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(("urn:pump", MinimalPumpJson));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(ProjectionRoutedJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             JsonElement speed = Property(result.Value!, "speed");
@@ -449,14 +534,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 PropertyNames(definitions), Is.EqualTo(s_nosecOnly));
         }
 
+        /// <summary>
+        /// Verifies that form without effective security declares none.
+        /// </summary>
         [Test]
         public async Task FormWithoutEffectiveSecurityDeclaresNone()
         {
-            var resolver = Resolver(("urn:pump", NoSecurityPumpJson));
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver(("urn:pump", NoSecurityPumpJson));
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(NoSecurityProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             JsonElement speed = Property(result.Value!, "pumpSpeed");
@@ -464,10 +552,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that bulk provenance is href plus pointer.
+        /// </summary>
         [Test]
         public async Task BulkProvenanceIsHrefPlusPointer()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement setpoint = Property(result.Value!, "speedSetpoint");
             Assert.That(
@@ -476,10 +567,13 @@ namespace Opc.Ua.Types.Tests.Wot
                     "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"));
         }
 
+        /// <summary>
+        /// Verifies that relative browse path inherits source anchor.
+        /// </summary>
         [Test]
         public async Task RelativeBrowsePathInheritsSourceAnchor()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement serial = Property(result.Value!, "deviceSerialNumber");
             Assert.That(
@@ -487,10 +581,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("nsu=http://example.com/demo/pump;s=Pump07"));
         }
 
+        /// <summary>
+        /// Verifies that absolute browse path does not inherit anchor.
+        /// </summary>
         [Test]
         public async Task AbsoluteBrowsePathDoesNotInheritAnchor()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             JsonElement speed = Property(result.Value!, "pumpSpeed");
             Assert.That(speed.TryGetProperty("uav:browsePathAnchor", out _), Is.False);
@@ -597,12 +694,12 @@ namespace Opc.Ua.Types.Tests.Wot
         private static async Task<JsonElement> CarryAsync(
             string rootTerms, string affordanceTerms)
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("urn:anchor-source", AnchorSourceJson(rootTerms, affordanceTerms)));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(AnchorProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(
                 result.Value,
@@ -617,18 +714,20 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"pump\":\"http://example.com/demo/pump\"}]," +
                 "\"@type\":[\"Thing\",\"uav:object\"],\"id\":\"urn:anchor-source\"," +
-                "\"title\":\"Source\"," + rootTerms +
+                "\"title\":\"Source\"," +
+                rootTerms +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"security\":\"nosec_sc\",\"base\":\"opc.tcp://opcuademo.com:4840\"," +
                 "\"properties\":{\"speed\":{\"@type\":\"uav:variable\"," +
-                "\"title\":\"Speed\",\"type\":\"number\"," + affordanceTerms +
+                "\"title\":\"Speed\",\"type\":\"number\"," +
+                affordanceTerms +
                 "\"uav:browsePath\":\"pump:Speed\"," +
                 "\"forms\":[{\"href\":\"/?id=nsu=urn:anchor;s=Speed\"," +
                 "\"contentType\":\"application/octet-stream\"," +
                 "\"op\":[\"readproperty\"]}]}}}";
         }
 
-        private const string AnchorProjectionJson = """
+        private const string AnchorProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -655,15 +754,18 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
+        /// <summary>
+        /// Verifies that source without base uses source URI as base.
+        /// </summary>
         [Test]
         public async Task SourceWithoutBaseUsesSourceUriAsBase()
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("https://things.example/pump.td.jsonld", NoBasePumpJson));
-            using WotDocument doc =
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(NoBaseProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             JsonElement speed = Property(result.Value!, "pumpSpeed");
@@ -672,10 +774,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://things.example/read/pumpSpeed"));
         }
 
+        /// <summary>
+        /// Verifies that resolved view carries no projection marker.
+        /// </summary>
         [Test]
         public async Task ResolvedViewCarriesNoProjectionMarker()
         {
-            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync();
+            WotConversionResult<WotDocument> result = await ResolvePredictiveAsync().ConfigureAwait(false);
 
             using WotDocument view = result.Value!;
             Assert.That(WotProjection.IsProjection(view!), Is.False);
@@ -684,14 +789,17 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.TypeTokens, Does.Not.Contain("uav:projection"));
         }
 
+        /// <summary>
+        /// Verifies that non projection document is rejected.
+        /// </summary>
         [Test]
         public async Task NonProjectionDocumentIsRejected()
         {
-            var resolver = Resolver();
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver();
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(MinimalPumpJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Null);
             Assert.That(
@@ -700,14 +808,17 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that unresolvable source reports error.
+        /// </summary>
         [Test]
         public async Task UnresolvableSourceReportsError()
         {
-            var resolver = Resolver();
-            using WotDocument doc =
+            WotProjectionResolver resolver = Resolver();
+            using var doc =
                 WotDocument.Parse(Encoding.UTF8.GetBytes(TwoSourceProjectionJson));
 
-            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc);
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
 
             Assert.That(result.Value, Is.Null);
             Assert.That(
@@ -716,12 +827,15 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that null document throws.
+        /// </summary>
         [Test]
         public void NullDocumentThrows()
         {
-            var resolver = Resolver();
+            WotProjectionResolver resolver = Resolver();
             Assert.That(
-                async () => await resolver.ResolveAsync(null!),
+                async () => await resolver.ResolveAsync(null!).ConfigureAwait(false),
                 Throws.ArgumentNullException);
         }
 
@@ -733,14 +847,48 @@ namespace Opc.Ua.Types.Tests.Wot
                 Throws.ArgumentNullException);
         }
 
-        private static async Task<WotConversionResult<WotDocument>> ResolvePredictiveAsync()
+        private static async Task<WotConversionResult<WotDocument>> ResolvePredictiveAsync(
+            bool declareAnnotationContext = true)
         {
-            var resolver = Resolver(
+            WotProjectionResolver resolver = Resolver(
                 ("./01-opcua-td-pump.jsonld", PumpSourceJson),
                 ("./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
-            using WotDocument doc =
-                WotDocument.Parse(Encoding.UTF8.GetBytes(PredictiveProjectionJson));
-            return await resolver.ResolveAsync(doc);
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(
+                PreparePredictiveProjection(declareAnnotationContext)));
+            return await resolver.ResolveAsync(doc).ConfigureAwait(false);
+        }
+
+        private static string PreparePredictiveProjection(bool declareAnnotationContext = true)
+        {
+            var projection = (JsonObject)JsonNode.Parse(PredictiveProjectionJson)!;
+            if (declareAnnotationContext)
+            {
+                // The in-memory fixture does not acquire the example's relative binding context.
+                projection["@context"]!.AsArray().Add(new JsonObject
+                {
+                    ["properties"] = new JsonObject
+                    {
+                        ["@id"] = "https://www.w3.org/2019/wot/td#hasPropertyAffordance",
+                        ["@type"] = "@id",
+                        ["@container"] = "@index",
+                        ["@index"] = "name",
+                        ["@context"] = new JsonObject
+                        {
+                            ["title"] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#title",
+                                ["@language"] = "en"
+                            },
+                            ["description"] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#description",
+                                ["@language"] = "en"
+                            }
+                        }
+                    }
+                });
+            }
+            return projection.ToJsonString();
         }
 
         private static WotProjectionResolver Resolver(
@@ -751,7 +899,10 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 dictionary[map[ii].Href] = map[ii].Json;
             }
-            return new WotProjectionResolver(new MapResolver(dictionary));
+            return new WotProjectionResolver(new MapResolver(dictionary), new WotNodeSetConverterOptions
+            {
+                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+            });
         }
 
         private static JsonElement Property(WotDocument view, string name)
@@ -789,7 +940,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string DigestProjection(string digest)
         {
-            return """
+            return /*lang=json,strict*/ """
             {
               "@context": [
                 "https://www.w3.org/2022/wot/td/v1.1",
@@ -814,9 +965,9 @@ namespace Opc.Ua.Types.Tests.Wot
             """.Replace("$DIGEST$", digest, StringComparison.Ordinal);
         }
 
-        private static string ContextSource(string prefix, string uri)
+        private static string ContextSource(string prefix, string uri, string name = "value")
         {
-            return """
+            return /*lang=json,strict*/ """
             {
               "@context": [
                 "https://www.w3.org/2022/wot/td/v1.1",
@@ -828,7 +979,7 @@ namespace Opc.Ua.Types.Tests.Wot
               "security": "nosec_sc",
               "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
               "properties": {
-                "value": {
+                "$NAME$": {
                   "@type": "uav:variable",
                   "title": "Value",
                   "type": "number",
@@ -838,18 +989,144 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             """
                 .Replace("$PREFIX$", prefix, StringComparison.Ordinal)
+                .Replace("$NAME$", name, StringComparison.Ordinal)
                 .Replace("$URI$", uri, StringComparison.Ordinal);
+        }
+
+        private static void AssertResolvedExample(
+            string expected, string projection, WotDocument actual,
+            params (string SecurityScope, string Href, string Json)[] sources)
+        {
+            var wanted = (JsonObject)JsonNode.Parse(expected)!;
+            var host = (JsonObject)JsonNode.Parse(projection)!;
+            wanted["@context"] = host["@context"]!.DeepClone();
+            foreach (KeyValuePair<string, JsonNode?> entry in wanted["properties"]!.AsObject())
+            {
+                JsonNode property = entry.Value!;
+                string provenance = property["uav:resolvedFrom"]!.GetValue<string>();
+                (string _, string href, string json) = sources.Single(source =>
+                    provenance.StartsWith(source.Href + "#", StringComparison.Ordinal));
+                var original = (JsonObject)JsonNode.Parse(json)!;
+                JsonArray context = ExpectedOwnerContext(original, href, schema: true);
+                var formContext = (JsonArray)context.DeepClone();
+                formContext.Add(JsonNode.Parse(
+                    """
+                    {
+                      "@vocab": "https://www.w3.org/2019/wot/hypermedia#",
+                      "td": "https://www.w3.org/2019/wot/td#",
+                      "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                      "wotsec": "https://www.w3.org/2019/wot/security#",
+                      "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                      "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                      "xsd": "http://www.w3.org/2001/XMLSchema#"
+                    }
+                    """));
+                JsonNode? annotations = host["properties"]?[entry.Key];
+                foreach (string term in new[] { "title", "description" })
+                {
+                    if (annotations?[term] is not null)
+                    {
+                        context.Add(new JsonObject
+                        {
+                            [term] = new JsonObject
+                            {
+                                ["@id"] = "https://www.w3.org/2019/wot/td#" + term,
+                                ["@language"] = "en"
+                            }
+                        });
+                    }
+                }
+                property["@context"] = context;
+                foreach (JsonNode? form in property["forms"]!.AsArray())
+                {
+                    form!["@context"] = formContext.DeepClone();
+                }
+            }
+            foreach (KeyValuePair<string, JsonNode?> entry in wanted["securityDefinitions"]!.AsObject())
+            {
+                if (entry.Key.StartsWith("q:p:", StringComparison.Ordinal))
+                {
+                    entry.Value!["@context"] = ExpectedOwnerContext(
+                        host, host["id"]!.GetValue<string>(), schema: false);
+                }
+                else
+                {
+                    (string _, string href, string json) = sources.Single(source =>
+                        entry.Key.StartsWith(source.SecurityScope, StringComparison.Ordinal));
+                    entry.Value!["@context"] = ExpectedOwnerContext(
+                        (JsonObject)JsonNode.Parse(json)!, href, schema: false);
+                }
+            }
+            AssertJsonEqual(wanted.ToJsonString(), actual.RootElement);
+
+            static JsonArray ExpectedOwnerContext(JsonObject owner, string origin, bool schema)
+            {
+                var context = new JsonArray
+                {
+                    null,
+                    new JsonObject
+                    {
+                        ["ua"] = "http://opcfoundation.org/UA/",
+                        ["uav"] = "http://opcfoundation.org/UA/WoT-Binding/",
+                        ["@base"] = origin
+                    }
+                };
+                foreach (JsonNode? entry in owner["@context"]!.AsArray())
+                {
+                    context.Add(entry?.DeepClone());
+                }
+                if (schema)
+                {
+                    context.Add(JsonNode.Parse(
+                        """
+                        {
+                          "@vocab": "https://www.w3.org/2019/wot/json-schema#",
+                          "td": "https://www.w3.org/2019/wot/td#",
+                          "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                          "wotsec": "https://www.w3.org/2019/wot/security#",
+                          "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                          "dct": "http://purl.org/dc/terms/",
+                          "schema": "http://schema.org/",
+                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                          "title": {"@id":"https://www.w3.org/2019/wot/td#title","@language":"en"},
+                          "description": {"@id":"https://www.w3.org/2019/wot/td#description","@language":"en"},
+                          "titles": {"@container":"@language"},
+                          "descriptions": {"@container":"@language"},
+                          "properties": {"@container":"@index"}
+                        }
+                        """));
+                }
+                else
+                {
+                    context.Add(JsonNode.Parse(
+                        """
+                        {
+                          "@vocab": "https://www.w3.org/2019/wot/security#",
+                          "td": "https://www.w3.org/2019/wot/td#",
+                          "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                          "wotsec": "https://www.w3.org/2019/wot/security#",
+                          "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                          "dct": "http://purl.org/dc/terms/",
+                          "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                        }
+                        """));
+                }
+                return context;
+            }
         }
 
         private static void AssertJsonEqual(string expected, JsonElement actual)
         {
-            using JsonDocument expectedDocument = JsonDocument.Parse(expected);
+            using var expectedDocument = JsonDocument.Parse(expected);
             Assert.That(
                 JsonEquals(expectedDocument.RootElement, actual),
                 Is.True,
                 () =>
-                    "Expected:\n" + Canonical(expectedDocument.RootElement) +
-                    "\n\nActual:\n" + Canonical(actual));
+                    "Expected:\n" +
+                    Canonical(expectedDocument.RootElement) +
+                    "\n\nActual:\n" +
+                    Canonical(actual));
         }
 
         private static bool JsonEquals(JsonElement expected, JsonElement actual)
@@ -932,14 +1209,17 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static readonly JsonSerializerOptions s_indented =
             new() { WriteIndented = true };
-        private static readonly string[] s_identityMembers =
-            { "serialNumber", "manufacturer", "manual" };
-        private static readonly string[] s_sensorMembers = { "sensor" };
-        private static readonly string[] s_nosecOnly = { "nosec_sc" };
-        private static readonly string[] s_pumpComboAllOf =
-            { "pump_opcua_channel_sc", "pump_opcua_authentication_sc" };
 
-        private const string PredictiveProjectionJson = """
+        private static readonly string[] s_identityMembers =
+            ["serialNumber", "manufacturer", "manual"];
+
+        private static readonly string[] s_sensorMembers = ["sensor"];
+        private static readonly string[] s_nosecOnly = ["q:p:bm9zZWNfc2M"];
+
+        private static readonly string[] s_pumpComboAllOf =
+            ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"];
+
+        private const string PredictiveProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -986,15 +1266,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string PredictiveResolvedJson = """
+        private const string PredictiveResolvedJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
             {
               "uav": "http://opcfoundation.org/UA/WoT-Binding/",
-              "tm": "https://www.w3.org/2019/wot/tm#",
-              "pump": "http://example.com/demo/pump",
-              "di": "http://opcfoundation.org/UA/DI/"
+              "tm": "https://www.w3.org/2019/wot/tm#"
             },
             "../opc-ua-wot-binding.context.jsonld"
           ],
@@ -1004,27 +1282,27 @@ namespace Opc.Ua.Types.Tests.Wot
           "description": "A predictive-maintenance projection view.",
           "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
           "securityDefinitions": {
-            "nosec_sc": { "scheme": "nosec" },
-            "pump_opcua_sc": {
+            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
+            "q:s:cHVtcA:b3BjdWFfc2M": {
               "scheme": "combo",
-              "allOf": ["pump_opcua_channel_sc", "pump_opcua_authentication_sc"]
+              "allOf": ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"]
             },
-            "pump_opcua_channel_sc": {
+            "q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             },
-            "pump_opcua_authentication_sc": {
+            "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M": {
               "scheme": "uav:authentication",
               "uav:userIdentityToken": "UserName"
             },
-            "identity_opcua_channel_sc": {
+            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             }
           },
-          "security": "nosec_sc",
+          "security": "q:p:bm9zZWNfc2M",
           "properties": {
             "pumpSpeed": {
               "@type": "uav:variable",
@@ -1042,7 +1320,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["pump_opcua_sc"]
+                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
@@ -1061,7 +1339,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "writeproperty", "observeproperty"],
-                  "security": ["pump_opcua_sc"]
+                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
@@ -1080,7 +1358,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["pump_opcua_sc"]
+                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure"
@@ -1099,7 +1377,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["pump_opcua_sc"]
+                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/motorTemperature"
@@ -1117,7 +1395,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1135,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1153,7 +1431,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
@@ -1162,7 +1440,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string PumpSourceJson = """
+        private const string PumpSourceJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1297,7 +1575,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string IdentitySourceJson = """
+        private const string IdentitySourceJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1374,7 +1652,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string AssetProjectionJson = """
+        private const string AssetProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1418,16 +1696,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string AssetResolvedJson = """
+        private const string AssetResolvedJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
             {
               "uav": "http://opcfoundation.org/UA/WoT-Binding/",
               "ua": "http://opcfoundation.org/UA/",
-              "tm": "https://www.w3.org/2019/wot/tm#",
-              "di": "http://opcfoundation.org/UA/DI/",
-              "pump": "http://example.com/demo/pump"
+              "tm": "https://www.w3.org/2019/wot/tm#"
             },
             "../opc-ua-wot-binding.context.jsonld"
           ],
@@ -1436,7 +1712,7 @@ namespace Opc.Ua.Types.Tests.Wot
           "title": "Pump 01 asset",
           "description": "An asset instance projection.",
           "uav:scenario": "http://example.com/scenario/AssetManagement",
-          "security": "nosec_sc",
+          "security": "q:p:bm9zZWNfc2M",
           "links": [
             {
               "rel": "ua:Organizes",
@@ -1452,8 +1728,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
           ],
           "securityDefinitions": {
-            "nosec_sc": { "scheme": "nosec" },
-            "identity_opcua_channel_sc": {
+            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
+            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
@@ -1473,7 +1749,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1491,7 +1767,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1509,7 +1785,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["identity_opcua_channel_sc"]
+                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
@@ -1518,7 +1794,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string MinimalPumpJson = """
+        private const string MinimalPumpJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1553,7 +1829,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string FirstWinsProjectionJson = """
+        private const string FirstWinsProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1583,7 +1859,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string TwoTypedPropertiesJson = """
+        private const string TwoTypedPropertiesJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1614,7 +1890,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string TypeTokenProjectionJson = """
+        private const string TypeTokenProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1644,7 +1920,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string ProjectionRoutedJson = """
+        private const string ProjectionRoutedJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1676,7 +1952,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string NoSecurityPumpJson = """
+        private const string NoSecurityPumpJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1699,7 +1975,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string NoSecurityProjectionJson = """
+        private const string NoSecurityProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1723,7 +1999,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string NoBasePumpJson = """
+        private const string NoBasePumpJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1747,7 +2023,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string NoBaseProjectionJson = """
+        private const string NoBaseProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1771,7 +2047,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string TwoSourceProjectionJson = """
+        private const string TwoSourceProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1802,7 +2078,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        private const string SelfProjectionJson = """
+        private const string SelfProjectionJson = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",

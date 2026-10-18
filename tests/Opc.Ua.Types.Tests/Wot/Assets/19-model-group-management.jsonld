@@ -7,10 +7,11 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["tm:ThingModel", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingModel",
   "id": "urn:example:model:pump-asset:management",
   "title": "Management",
-  "description": "The type-level action group. Its three members declare Methods on the pump type, and the group materializes to the Object that Organizes them on every instance.",
+  "description": "A type-level action group selecting three existing Method declarations. One canonical View retains its identity, and each parent reaches its members through a separate organizational occurrence with a ProjectionRoot Property.",
   "uav:scenario": "http://example.com/scenario/AssetManagement",
   "uav:projects": [
     {

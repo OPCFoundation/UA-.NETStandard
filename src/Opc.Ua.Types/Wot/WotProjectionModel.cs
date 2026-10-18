@@ -27,11 +27,26 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.Text.Json;
 
 namespace Opc.Ua.Wot
 {
+    /// <summary>
+    /// Selects explicitly supported legacy projection-plan processing.
+    /// </summary>
+    public enum WotProjectionCompatibilityMode
+    {
+        /// <summary>
+        /// Admit only current plans with an explicit result kind.
+        /// </summary>
+        None,
+
+        /// <summary>
+        /// Process DraftProjection1.1 documents whose old TD or TM marker identifies the result kind.
+        /// </summary>
+        DraftProjection11
+    }
+
     /// <summary>
     /// The endpoint a consumer of a projected affordance talks to.
     /// </summary>
@@ -60,16 +75,24 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotAffordanceKind
     {
-        /// <summary>Any affordance kind; the filter does not constrain it.</summary>
+        /// <summary>
+        /// Any affordance kind; the filter does not constrain it.
+        /// </summary>
         Any,
 
-        /// <summary>A member of <c>properties</c>.</summary>
+        /// <summary>
+        /// A member of <c>properties</c>.
+        /// </summary>
         Property,
 
-        /// <summary>A member of <c>actions</c>.</summary>
+        /// <summary>
+        /// A member of <c>actions</c>.
+        /// </summary>
         Action,
 
-        /// <summary>A member of <c>events</c>.</summary>
+        /// <summary>
+        /// A member of <c>events</c>.
+        /// </summary>
         Event
     }
 
@@ -104,6 +127,11 @@ namespace Opc.Ua.Wot
         /// An affordance matches only when it carries every listed value.
         /// </remarks>
         public ArrayOf<string> TypeTokens { get; init; }
+
+        /// <summary>
+        /// Gets or sets the context owner for <c>WotProjectionFilter</c>.
+        /// </summary>
+        internal JsonElement ContextOwner { get; init; }
     }
 
     /// <summary>
@@ -121,13 +149,14 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <remarks>
         /// Used for provenance and to qualify copied security scheme names as
-        /// <c>&lt;sourceName&gt;_&lt;scheme name&gt;</c>.
+        /// <c>q:s:&lt;base64url(sourceName)&gt;:&lt;base64url(schemeName)&gt;</c>,
+        /// using unpadded base64url of the exact UTF-8 names.
         /// </remarks>
         public string SourceName { get; init; } = string.Empty;
 
         /// <summary>
-        /// Gets the source document URI as authored, resolved against the
-        /// projection document's base.
+        /// Gets the source document URI as authored. Resolution retains this
+        /// spelling while resolving retrieval against the projection's base.
         /// </summary>
         public string Href { get; init; } = string.Empty;
 
