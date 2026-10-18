@@ -6,13 +6,8 @@
     <AssemblyName>ConsoleDataChannelAudio</AssemblyName>
     <PackageId>ConsoleDataChannelAudio</PackageId>
     <Company>OPC Foundation</Company>
-    <Description>Experimental console sample that streams looping audio over an OPC UA data channel and plays it back.</Description>
+    <Description>Finite opaque PCM messages over authenticated OPC UA flow carriers, with headless WAV output and Windows playback.</Description>
     <Copyright>Copyright © 2004-2026 OPC Foundation, Inc</Copyright>
-    <Nullable>enable</Nullable>
-    <!-- CA1812/CA1822: a console sample does not need instantiation analysis
-         or static members. DataChannels: the sample exists to demonstrate the
-         experimental surface, so it opts in deliberately. -->
-    <NoWarn>$(NoWarn);CA1812;CA1822;DataChannels</NoWarn>
     <!-- Opt into the root Directory.Build.targets no-op shape on per-TFM CI
          matrix entries that pin CustomTestTarget to a TFM this app cannot
          target. -->
@@ -20,9 +15,22 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Core\Opc.Ua.Core.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Bindings.WebTransport\Opc.Ua.Bindings.WebTransport.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Application setup and complete-message ownership are identical to the streaming sample.
+         Protocol negotiation and all carrier implementations remain in the production libraries. -->
+    <Compile Include="..\ConsoleDataChannelStreaming\SampleOptions.cs" Link="Shared\SampleOptions.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\SampleIdentityPair.cs" Link="Shared\SampleIdentityPair.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\SamplePolicy.cs" Link="Shared\SamplePolicy.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\StreamingHarness.cs" Link="Shared\StreamingHarness.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\ServiceTraffic.cs" Link="Shared\ServiceTraffic.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\MessageWorkload.cs" Link="Shared\MessageWorkload.cs" />
+    <Compile Include="..\ConsoleDataChannelStreaming\SampleResult.cs" Link="Shared\SampleResult.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />

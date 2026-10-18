@@ -1,0 +1,11 @@
+# Preserve the accepted byte-for-byte upstream overlay and third-party notices.
+upstream/** -text
+patches/** -text
+notices/** -text
+# Native compilation receipts must describe identical source bytes on Windows and Linux.
+src/** -text
+Cargo.toml -text
+Cargo.lock -text
+build/*.json text eol=lf
+build/*.py text eol=lf
+build/*.sh text eol=lf

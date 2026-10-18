@@ -8,6 +8,7 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Replacing the experimental Data Channels protocol](#replacing-the-experimental-data-channels-protocol)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -43,6 +44,38 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## Replacing the experimental Data Channels protocol
+
+The rewritten Data Channels draft is a deliberate **wire, model and API break
+from the earlier experiment**, not a replacement for stable Client/Server
+Services. Update both flow peers together; no legacy-draft compatibility mode
+is provided. Applications not using experimental flows need no flow migration.
+
+Replace the old Open/Modify/Close Service requests with generated manager
+Methods through ordinary `Call` when Session authorization is needed.
+Configured flows instead use explicit resource policy without creating a
+Session or model. Replace `DataChannelManager`, frame flags and `Write` with
+the ready `DataChannelContext` / `DataChannel` complete-message facade,
+awaited `SendAsync` outcomes and disposed receive-message leases.
+
+Regenerate model-dependent code and use the new constants and
+`DataChannelResult`; old provisional NodeIds and custom StatusCodes are not
+preserved. Native `opc.quic` now uses mutually authenticated TLS and
+`opcua-flow/1`, without an implicit UASC control connection. Select the
+optional Client/Server lane explicitly when it is required. Reconnection
+needs fresh context identity, flow IDs and authorization.
+
+The subsequent OPC 10000-28 revision pinned in [DataChannels.md](DataChannels.md)
+is another wire break: binary CONTROL replaces JSON, and both UASC profiles use
+FLO with a ChannelId prefix and RequestId zero. Upgrade both peers even if they
+already report draft `0.2.0` and model `2.0.0`; those versions and the model
+NodeIds did not change in this revision. Do not regenerate a different model
+solely for its compact binary wire discriminators. The PubSub adapter now rejects
+queue expiry unless a Publisher dependency/recovery policy is available.
+
+See [the migration table and carrier guide](DataChannels.md#migrating-from-the-earlier-experiment)
+and the [updated sample catalogue](Samples.md#experimental-data-channel-samples).
 
 ## Program state numbers and managed execution
 

@@ -108,15 +108,14 @@ namespace Opc.Ua.Bindings
         public const uint Error = 0x46525245;
 
         /// <summary>
-        /// A chunk carrying one data channel frame.
+        /// A chunk carrying one complete flow record and its ChannelId.
         /// </summary>
         /// <remarks>
-        /// Experimental. Defined by the OPC UA Data Channels errata as an
-        /// addition to the MessageTypes of OPC 10000-6 6.7.2.2. A STR
-        /// chunk is always final: a data channel frame is a single chunk,
-        /// so there is never a partially received Message to abort.
+        /// Experimental. OPC 10000-28 uses FLO for both dedicated and shared
+        /// UASC flow profiles. A FLO is always final and carries exactly one
+        /// common record; ordinary MSG remains a separate Service message.
         /// </remarks>
-        public const uint Stream = 0x00525453;
+        public const uint Flow = 0x004F4C46;
 
         /// <summary>
         /// Returns true if the message type is equal to the expected type.
@@ -166,7 +165,7 @@ namespace Opc.Ua.Bindings
                         case Open:
                         case Close:
                             return true;
-                        case Stream:
+                        case Flow:
                             // A data channel frame is a single chunk and
                             // is never a Message abort, so 'F' is the only
                             // acceptable chunk type. Accepting 'A' would

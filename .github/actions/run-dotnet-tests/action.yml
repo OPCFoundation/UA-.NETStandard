@@ -40,6 +40,10 @@ inputs:
     description: Collect Cobertura coverage ('true' or 'false').
     required: false
     default: 'false'
+  require-clean-exit:
+    description: Reject non-zero test-host exits even when the recorded counters all pass.
+    required: false
+    default: 'false'
   artifact-name:
     description: Name of the artifact that receives the results of this batch.
     required: true
@@ -126,23 +130,6 @@ runs:
         echo "OPCUA_PKCS11_PIN=1234"
       } >> "$GITHUB_ENV"
 
-  # Hosted Linux images need msquic to exercise QUIC rather than silently skip
-  # the transport tests. Keep provisioning strict for both PR and nightly runs.
-  - name: Setup msquic
-    if: ${{ contains(inputs.projects, 'Opc.Ua.Core.DataChannels.Tests') && runner.os == 'Linux' }}
-    shell: bash
-    run: |
-      set -euo pipefail
-      . /etc/os-release
-      curl -fsSL "https://packages.microsoft.com/config/${ID}/${VERSION_ID}/packages-microsoft-prod.deb" \
-        -o /tmp/packages-microsoft-prod.deb
-      sudo dpkg -i /tmp/packages-microsoft-prod.deb
-      sudo apt-get update
-      sudo apt-get install -y libmsquic
-
-      ldconfig -p | grep libmsquic
-      echo "UA_REQUIRE_QUIC=1" >> "$GITHUB_ENV"
-
   - name: Enable native core dumps
     # Issue #4447: on run 34158052372 the testhost was lost to a glibc abort -
     # `double free or corruption (out)` - and no dump was produced at all,
@@ -213,6 +200,7 @@ runs:
       CI_HANG_TIMEOUT: ${{ inputs.hang-timeout }}
       CI_PER_PROJECT_TIMEOUT: ${{ inputs.per-project-timeout }}
       CI_COVERAGE: ${{ inputs.coverage }}
+      CI_REQUIRE_CLEAN_EXIT: ${{ inputs.require-clean-exit }}
     run: |
       # The core_pattern set by 'Enable native core dumps' only takes effect for
       # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
@@ -239,6 +227,7 @@ runs:
         -HangTimeout $env:CI_HANG_TIMEOUT `
         -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
         -ResultsDirectory 'TestResults' `
+        -RequireCleanExit:($env:CI_REQUIRE_CLEAN_EXIT -eq 'true') `
         -Coverage:($env:CI_COVERAGE -eq 'true')
 
   # Apple Crash Reporter writes .crash (legacy) and .ips (JSON, macOS 12+)

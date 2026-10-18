@@ -1,0 +1,397 @@
+name: Native Data Channel validation
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NBGV_SetCloudBuildVersionVars: 'false'
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: '1'
+  CustomTestTarget: net10.0
+
+jobs:
+  windows:
+    name: Native Windows build and validation
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+    - name: Prepare verified public tools and source
+      shell: pwsh
+      run: |
+        $root = Join-Path $env:RUNNER_TEMP 'opcua-native'
+        $quic = & .\.github\scripts\prepare-native-quic.ps1 `
+          -ToolRoot (Join-Path $root 'tools') `
+          -CacheRoot (Join-Path $root 'cache') `
+          -QuicSourceRoot (Join-Path $root 'source\quic-go') `
+          -VerificationRoot (Join-Path $root 'source-verification')
+        $http3 = & .\.github\scripts\prepare-native-http3.ps1 `
+          -ToolRoot (Join-Path $root 'rust')
+        @{
+          root = $root
+          quic = $quic
+          http3 = $http3
+        } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $root 'build-inputs.json')
+        "OPCUA_NATIVE_BUILD_ROOT=$root" | Out-File -FilePath $env:GITHUB_ENV -Append
+    - name: Build production native assets and stage Linux checks
+      shell: pwsh
+      run: |
+        $inputs = Get-Content (Join-Path $env:OPCUA_NATIVE_BUILD_ROOT 'build-inputs.json') -Raw | ConvertFrom-Json
+        $assets = Join-Path $inputs.root 'quic-assets'
+        foreach ($rid in 'win-x64','linux-x64') {
+          & .\src\Opc.Ua.Native.QuicGo\build\Build-Native.ps1 `
+            -ToolRoot $inputs.quic.ToolRoot -CacheRoot $inputs.quic.CacheRoot `
+            -QuicSourceRoot $inputs.quic.QuicSourceRoot -OutputRoot $assets -RuntimeIdentifier $rid
+        }
+        & .\src\Opc.Ua.Native.Http3\Build-Native.ps1 `
+          -ToolchainRoot $inputs.http3.ToolchainRoot `
+          -VisualStudioRoot $inputs.http3.VisualStudioRoot `
+          -WindowsSdkRoot $inputs.http3.WindowsSdkRoot
+        & .\tests\Opc.Ua.Native.QuicGo.Tests\Test-Native.ps1 `
+          -ToolRoot $inputs.quic.ToolRoot -CacheRoot $inputs.quic.CacheRoot `
+          -QuicSourceRoot $inputs.quic.QuicSourceRoot -AssetRoot $assets `
+          -OutputRoot (Join-Path $inputs.root 'native-checks')
+        & .\tests\Opc.Ua.Native.QuicGo.Tests\Test-Native.ps1 `
+          -ToolRoot $inputs.quic.ToolRoot -CacheRoot $inputs.quic.CacheRoot `
+          -QuicSourceRoot $inputs.quic.QuicSourceRoot -AssetRoot $assets `
+          -OutputRoot (Join-Path $inputs.root 'native-checks') -Linux -StageOnly
+        "OPCUA_QUIC_NATIVE_PATH=$(Join-Path $assets 'win-x64\opcua_quic_go.dll')" |
+          Out-File -FilePath $env:GITHUB_ENV -Append
+        $quicHash = (Get-Content (Join-Path $assets 'win-x64\opcua_quic_go.dll.sha256') -Raw).Trim()
+        "OPCUA_QUIC_NATIVE_SHA256=$quicHash" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "OPCUA_HTTP3_NATIVE_PATH=$(Join-Path $env:GITHUB_WORKSPACE 'src\Opc.Ua.Native.Http3\artifacts\runtimes\win-x64\native\opcua_http3.dll')" |
+          Out-File -FilePath $env:GITHUB_ENV -Append
+        $http3Receipt = Get-Content .\src\Opc.Ua.Native.Http3\artifacts\receipts\win-x64.json -Raw |
+          ConvertFrom-Json
+        "OPCUA_HTTP3_NATIVE_SHA256=$($http3Receipt.sha256)" | Out-File -FilePath $env:GITHUB_ENV -Append
+    - name: Run managed native backends and real flow tests
+      uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: >-
+          tests/Opc.Ua.Native.QuicGo.Tests/Opc.Ua.Native.QuicGo.Tests.csproj;
+          tests/Opc.Ua.Bindings.Quic.Tests/Opc.Ua.Bindings.Quic.Tests.csproj;
+          tests/Opc.Ua.Bindings.WebTransport.Tests/Opc.Ua.Bindings.WebTransport.Tests.csproj;
+          tests/Opc.Ua.DataChannel.ClientServer.Tests/Opc.Ua.DataChannel.ClientServer.Tests.csproj;
+          tests/Opc.Ua.DataChannel.Samples.Tests/Opc.Ua.DataChannel.Samples.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.401'
+        coverage: 'true'
+        require-clean-exit: 'true'
+        per-project-timeout: '20'
+        hang-timeout: 3m
+        artifact-name: dotnet-results-native-win-x64
+    - name: Verify the packed native HTTP3 dependency
+      shell: pwsh
+      run: |
+        $output = Join-Path $env:OPCUA_NATIVE_BUILD_ROOT 'managed-package-check'
+        dotnet pack .\src\Opc.Ua.Bindings.WebTransport\Opc.Ua.Bindings.WebTransport.csproj `
+          -c Release --no-build --no-restore -p:BuildProjectReferences=false -o $output -v quiet
+        if ($LASTEXITCODE -ne 0) { throw 'WebTransport package validation failed.' }
+        $packages = @(Get-ChildItem $output -Filter '*.nupkg' -File)
+        if ($packages.Count -ne 1) { throw 'Expected one WebTransport validation package.' }
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = [IO.Compression.ZipFile]::OpenRead($packages[0].FullName)
+        try {
+          $manifests = @($archive.Entries | Where-Object {
+            $_.FullName -notmatch '/' -and $_.FullName.EndsWith('.nuspec')
+          })
+          if ($manifests.Count -ne 1) { throw 'Expected one package manifest.' }
+          $reader = [IO.StreamReader]::new($manifests[0].Open())
+          try { [xml]$metadata = $reader.ReadToEnd() } finally { $reader.Dispose() }
+          $groups = @($metadata.package.metadata.dependencies.group)
+          if ($groups.Count -eq 0) { throw 'The WebTransport package has no dependency groups.' }
+          foreach ($group in $groups) {
+            $dependencies = @($group.dependency | Where-Object {
+              $_.id -eq 'OPCFoundation.NetStandard.Opc.Ua.Native.Http3'
+            })
+            if ($dependencies.Count -ne 1 -or
+                $dependencies[0].version -ne $metadata.package.metadata.version -or
+                $dependencies[0].exclude -match 'Native|Runtime|All') {
+              throw 'The HTTP3 native runtime dependency is missing, suppressed or version-mismatched.'
+            }
+          }
+          if (@($archive.Entries | Where-Object {
+            $_.FullName -like '*Opc.Ua.Native.Http3.dll'
+          }).Count -ne 0) {
+            throw 'The native-only packaging placeholder must not ship as a managed library.'
+          }
+        }
+        finally {
+          $archive.Dispose()
+        }
+    - name: Run actual NativeAOT backend and carrier checks
+      shell: pwsh
+      run: |
+        $inputs = Get-Content (Join-Path $env:OPCUA_NATIVE_BUILD_ROOT 'build-inputs.json') -Raw | ConvertFrom-Json
+        $pins = Get-Content .\src\Opc.Ua.Native.Http3\build\public-inputs.json -Raw | ConvertFrom-Json
+        $vc = Join-Path $inputs.http3.VisualStudioRoot "VC\Tools\MSVC\$($pins.windows.msvc_directory)"
+        $sdk = Join-Path $inputs.http3.WindowsSdkRoot "Lib\$($pins.windows.sdk_version)"
+        $env:LIB = "$vc\lib\x64;$sdk\um\x64;$sdk\ucrt\x64"
+        $output = Join-Path $inputs.root 'quic-aot'
+        dotnet publish .\tests\Opc.Ua.Native.QuicGo.Tests\Aot\Opc.Ua.Native.QuicGo.Aot.csproj `
+          -c Release -r win-x64 -p:IlcUseEnvironmentalTools=true `
+          "-p:CppLinker=$vc\bin\Hostx64\x64\link.exe" "-p:CppLibCreator=$vc\bin\Hostx64\x64\lib.exe" `
+          -o $output --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC NativeAOT publication failed.' }
+        & (Join-Path $output 'Opc.Ua.Native.QuicGo.Aot.exe') $env:OPCUA_QUIC_NATIVE_PATH
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC NativeAOT network checks failed.' }
+        & .\tests\Opc.Ua.Native.Http3.Tests\Run-Managed.ps1 -NativeAot `
+          -VisualStudioRoot $inputs.http3.VisualStudioRoot -WindowsSdkRoot $inputs.http3.WindowsSdkRoot
+        $quicFlow = Join-Path $inputs.root 'quic-flow-aot'
+        dotnet publish .\tests\Opc.Ua.Bindings.Quic.Tests\Aot\Opc.Ua.Bindings.Quic.Aot.csproj `
+          -c Release -r win-x64 -p:IlcUseEnvironmentalTools=true `
+          "-p:CppLinker=$vc\bin\Hostx64\x64\link.exe" "-p:CppLibCreator=$vc\bin\Hostx64\x64\lib.exe" `
+          -o $quicFlow --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC flow NativeAOT publication failed.' }
+        & (Join-Path $quicFlow 'Opc.Ua.Bindings.Quic.Aot.exe') $env:OPCUA_QUIC_NATIVE_PATH 2>&1 |
+          Tee-Object (Join-Path $inputs.root 'quic-flow-aot.log')
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC flow NativeAOT network checks failed.' }
+        $webTransportFlow = Join-Path $inputs.root 'webtransport-flow-aot'
+        dotnet publish .\tests\Opc.Ua.Bindings.WebTransport.Tests\Aot\Opc.Ua.Bindings.WebTransport.Aot.csproj `
+          -c Release -r win-x64 -p:IlcUseEnvironmentalTools=true `
+          "-p:CppLinker=$vc\bin\Hostx64\x64\link.exe" "-p:CppLibCreator=$vc\bin\Hostx64\x64\lib.exe" `
+          -o $webTransportFlow --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'WebTransport flow NativeAOT publication failed.' }
+        & (Join-Path $webTransportFlow 'Opc.Ua.Bindings.WebTransport.Aot.exe') --require-aot 2>&1 |
+          Tee-Object (Join-Path $inputs.root 'webtransport-flow-aot.log')
+        if ($LASTEXITCODE -ne 0) { throw 'WebTransport flow NativeAOT network checks failed.' }
+    - name: Upload exact Linux inputs
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-linux-inputs
+        if-no-files-found: error
+        path: |
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/libopcua_quic_go.so
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/libopcua_quic_go.so.sha256
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/native-receipt.json
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/native-checks/linux-x64/identity-fixture
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/native-checks/linux-x64/wire-tests
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/native-checks/linux-x64/capability-server
+    - name: Upload verified QUIC package inputs
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-quic-package-inputs
+        if-no-files-found: error
+        path: |
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/win-x64/opcua_quic_go.dll
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/win-x64/opcua_quic_go.dll.sha256
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/win-x64/native-receipt.json
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/win-x64/overlay/*.patch
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/libopcua_quic_go.so
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/libopcua_quic_go.so.sha256
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/native-receipt.json
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/quic-assets/linux-x64/overlay/*.patch
+    - name: Upload verified Windows HTTP3 package inputs
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-http3-package-win-x64
+        if-no-files-found: error
+        path: |
+          src/Opc.Ua.Native.Http3/artifacts/runtimes/win-x64/native/opcua_http3.dll
+          src/Opc.Ua.Native.Http3/artifacts/receipts/win-x64.json
+          src/Opc.Ua.Native.Http3/artifacts/sbom/win-x64.cdx.json
+    - name: Upload native Windows evidence
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-evidence-win-x64
+        if-no-files-found: warn
+        path: |
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/native-checks/win-x64/*.json
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/native-checks/win-x64/*.log
+          ${{ env.OPCUA_NATIVE_BUILD_ROOT }}/*-flow-aot.log
+          src/Opc.Ua.Native.Http3/artifacts/receipts/*.json
+          src/Opc.Ua.Native.Http3/artifacts/logs/*.log
+          tests/Opc.Ua.Native.Http3.Tests/artifacts/managed-win-aot/*.trx
+
+  linux:
+    name: Native Linux build and validation
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+    - uses: actions/download-artifact@v8
+      with:
+        name: native-linux-inputs
+        path: native-linux-inputs
+    - name: Prepare the pinned native Rust image
+      shell: pwsh
+      run: |
+        if (-not (Get-Command podman -ErrorAction SilentlyContinue)) {
+          sudo apt-get update
+          if ($LASTEXITCODE -ne 0) { throw 'Package index refresh failed.' }
+          sudo apt-get install -y podman
+          if ($LASTEXITCODE -ne 0) { throw 'The required container engine is unavailable.' }
+        }
+        $pins = Get-Content ./src/Opc.Ua.Native.Http3/build/public-inputs.json -Raw | ConvertFrom-Json
+        podman pull $pins.linux.image
+        if ($LASTEXITCODE -ne 0) { throw 'The explicitly pinned public Rust image could not be acquired.' }
+        & ./src/Opc.Ua.Native.Http3/Build-Linux.ps1
+    - name: Verify and execute native Linux checks
+      shell: pwsh
+      run: |
+        $root = (Resolve-Path native-linux-inputs).Path
+        $library = Join-Path $root 'quic-assets/linux-x64/libopcua_quic_go.so'
+        $expected = (Get-Content "$library.sha256" -Raw).Trim()
+        if ((Get-FileHash $library -Algorithm SHA256).Hash -ne $expected) {
+          throw 'Downloaded QUIC asset does not match its build receipt.'
+        }
+        $tests = Join-Path $root 'native-checks/linux-x64'
+        chmod +x "$tests/identity-fixture" "$tests/wire-tests" "$tests/capability-server"
+        if ($LASTEXITCODE -ne 0) { throw 'Native test executables could not be prepared.' }
+        & "$tests/wire-tests" -test.v -test.timeout=30s
+        if ($LASTEXITCODE -ne 0) { throw 'Exact native wire regressions failed.' }
+        New-Item -ItemType Directory -Force native-results | Out-Null
+        python3 ./tests/Opc.Ua.Native.QuicGo.Tests/native/generic_network_test.py `
+          --library $library --fixture "$tests/identity-fixture" --peer-server "$tests/capability-server" `
+          --output native-results/network-tests.json
+        if ($LASTEXITCODE -ne 0) { throw 'Native QUIC network regressions failed.' }
+        "OPCUA_QUIC_NATIVE_PATH=$library" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "OPCUA_QUIC_NATIVE_SHA256=$expected" | Out-File -FilePath $env:GITHUB_ENV -Append
+        "OPCUA_HTTP3_NATIVE_PATH=$((Resolve-Path ./src/Opc.Ua.Native.Http3/artifacts/runtimes/linux-x64/native/libopcua_http3.so).Path)" |
+          Out-File -FilePath $env:GITHUB_ENV -Append
+        $http3Receipt = Get-Content ./src/Opc.Ua.Native.Http3/artifacts/receipts/linux-x64.json -Raw |
+          ConvertFrom-Json
+        "OPCUA_HTTP3_NATIVE_SHA256=$($http3Receipt.sha256)" | Out-File -FilePath $env:GITHUB_ENV -Append
+    - name: Run managed native backends and real flow tests
+      uses: ./.github/actions/run-dotnet-tests
+      with:
+        projects: >-
+          tests/Opc.Ua.Native.QuicGo.Tests/Opc.Ua.Native.QuicGo.Tests.csproj;
+          tests/Opc.Ua.Bindings.Quic.Tests/Opc.Ua.Bindings.Quic.Tests.csproj;
+          tests/Opc.Ua.Bindings.WebTransport.Tests/Opc.Ua.Bindings.WebTransport.Tests.csproj;
+          tests/Opc.Ua.DataChannel.ClientServer.Tests/Opc.Ua.DataChannel.ClientServer.Tests.csproj;
+          tests/Opc.Ua.DataChannel.Samples.Tests/Opc.Ua.DataChannel.Samples.Tests.csproj
+        custom-test-target: net10.0
+        framework: net10.0
+        configuration: Release
+        dotnet: '10.0.401'
+        coverage: 'true'
+        require-clean-exit: 'true'
+        per-project-timeout: '20'
+        hang-timeout: 3m
+        artifact-name: dotnet-results-native-linux-x64
+    - name: Run actual NativeAOT backend and carrier checks
+      shell: pwsh
+      run: |
+        dotnet publish ./tests/Opc.Ua.Native.QuicGo.Tests/Aot/Opc.Ua.Native.QuicGo.Aot.csproj `
+          -c Release -r linux-x64 -o native-aot/quic --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC NativeAOT publication failed.' }
+        & ./native-aot/quic/Opc.Ua.Native.QuicGo.Aot $env:OPCUA_QUIC_NATIVE_PATH
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC NativeAOT network checks failed.' }
+        dotnet publish ./tests/Opc.Ua.Native.Http3.Tests/Opc.Ua.Native.Http3.Tests.csproj `
+          -c Release -r linux-x64 -p:PublishAot=true -o native-aot/http3 --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'HTTP3 NativeAOT publication failed.' }
+        & ./native-aot/http3/Opc.Ua.Native.Http3.Tests --report-trx --results-directory native-results/http3-aot
+        if ($LASTEXITCODE -ne 0) { throw 'HTTP3 NativeAOT ABI checks failed.' }
+        dotnet publish ./tests/Opc.Ua.Bindings.Quic.Tests/Aot/Opc.Ua.Bindings.Quic.Aot.csproj `
+          -c Release -r linux-x64 -o native-aot/quic-flow --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC flow NativeAOT publication failed.' }
+        & ./native-aot/quic-flow/Opc.Ua.Bindings.Quic.Aot $env:OPCUA_QUIC_NATIVE_PATH 2>&1 |
+          Tee-Object native-results/quic-flow-aot.log
+        if ($LASTEXITCODE -ne 0) { throw 'QUIC flow NativeAOT network checks failed.' }
+        dotnet publish ./tests/Opc.Ua.Bindings.WebTransport.Tests/Aot/Opc.Ua.Bindings.WebTransport.Aot.csproj `
+          -c Release -r linux-x64 -o native-aot/webtransport-flow --nologo -v minimal
+        if ($LASTEXITCODE -ne 0) { throw 'WebTransport flow NativeAOT publication failed.' }
+        & ./native-aot/webtransport-flow/Opc.Ua.Bindings.WebTransport.Aot --require-aot 2>&1 |
+          Tee-Object native-results/webtransport-flow-aot.log
+        if ($LASTEXITCODE -ne 0) { throw 'WebTransport flow NativeAOT network checks failed.' }
+    - name: Upload verified Linux HTTP3 package inputs
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-http3-package-linux-x64
+        if-no-files-found: error
+        path: |
+          src/Opc.Ua.Native.Http3/artifacts/runtimes/linux-x64/native/libopcua_http3.so
+          src/Opc.Ua.Native.Http3/artifacts/receipts/linux-x64.json
+          src/Opc.Ua.Native.Http3/artifacts/sbom/linux-x64.cdx.json
+    - name: Upload native Linux evidence
+      if: ${{ always() }}
+      uses: actions/upload-artifact@v7
+      with:
+        name: native-evidence-linux-x64
+        if-no-files-found: warn
+        path: |
+          native-results/**/*.json
+          native-results/**/*.trx
+          native-results/**/*.log
+          src/Opc.Ua.Native.Http3/artifacts/receipts/*.json
+          src/Opc.Ua.Native.Http3/artifacts/logs/*.log
+
+  packages:
+    name: Verify unsigned native validation packages
+    needs: [windows, linux]
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CustomTestTarget: ''
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+    - uses: actions/download-artifact@v8
+      with:
+        name: native-quic-package-inputs
+        path: ${{ runner.temp }}/native-package-assets
+    - uses: actions/download-artifact@v8
+      with:
+        name: native-http3-package-win-x64
+        path: src/Opc.Ua.Native.Http3/artifacts
+    - uses: actions/download-artifact@v8
+      with:
+        name: native-http3-package-linux-x64
+        path: src/Opc.Ua.Native.Http3/artifacts
+    - name: Verify both native package configurations
+      shell: pwsh
+      run: |
+        $assets = Join-Path $env:RUNNER_TEMP 'native-package-assets'
+        $output = Join-Path $env:RUNNER_TEMP 'native-validation-packages'
+        $python = python -c 'import sys; print(sys.executable)'
+        if ($LASTEXITCODE -ne 0) { throw 'Python is required for native package verification.' }
+        python .\src\Opc.Ua.Native.QuicGo\build\verify_package.py --inputs $assets
+        if ($LASTEXITCODE -ne 0) { throw 'Native QUIC package input verification failed.' }
+        python .\tests\Opc.Ua.Native.QuicGo.Tests\native\package_verifier_test.py
+        if ($LASTEXITCODE -ne 0) { throw 'Native QUIC package-identity regressions failed.' }
+        foreach ($configuration in 'Release','Debug') {
+          dotnet pack .\src\Opc.Ua.Native.QuicGo\Opc.Ua.Native.QuicGo.csproj `
+            -c $configuration "-p:NativeQuicAssetRoot=$assets" "-p:NativeQuicPython=$python" `
+            -p:PackageVersion=0.0.0-native-validation -p:CollectCoverage=false -o $output -v quiet
+          if ($LASTEXITCODE -ne 0) { throw "Native QUIC $configuration validation packaging failed." }
+          & .\src\Opc.Ua.Native.Http3\Pack-Native.ps1 -ValidationOnly -Configuration $configuration
+        }
+        $packages = @(Get-ChildItem $output -Filter '*.nupkg' -File)
+        if ($packages.Count -ne 2) { throw 'Expected distinct Release and Debug native QUIC packages.' }
+        foreach ($package in $packages) {
+          python .\src\Opc.Ua.Native.QuicGo\build\verify_package.py $package.FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Native QUIC package payload verification failed.' }
+        }
+        python .\tests\Opc.Ua.Native.Http3.Tests\packaging_tests.py
+        if ($LASTEXITCODE -ne 0) { throw 'Native HTTP3 package regressions failed.' }
+    - name: Upload unsigned validation packages
+      uses: actions/upload-artifact@v7
+      with:
+        name: unsigned-native-validation-packages
+        if-no-files-found: error
+        path: |
+          ${{ runner.temp }}/native-validation-packages/*.nupkg
+          src/Opc.Ua.Native.Http3/artifacts/packages/*.nupkg

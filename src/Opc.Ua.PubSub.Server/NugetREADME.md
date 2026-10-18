@@ -26,6 +26,39 @@ argument metadata so generated `PublishSubscribeTypeClient`,
 The existing vendor-namespace configuration file remains available for
 compatibility.
 
+## DataChannel-backed PubSub connections
+
+The optional DataChannel integration uses the server's existing source
+registry, authorization policy, and accepted-flow router:
+
+```csharp
+using Opc.Ua.PubSub.Server.DataChannels;
+using Opc.Ua.Server.DataChannels;
+
+sources.Register(PubSubDataChannelSource.Create(
+    connection,
+    new DataChannelApplicationPolicy(["urn:example:publisher"]),
+    maximumFlows: 4));
+
+var flows = new ServerDataChannelPubSubFlowProvider(serverDataChannels);
+```
+
+Pass `flows` to `UseDataChannelTransport` / `AddDataChannelTransport`, or
+use `IPubSubBuilder.AddServerDataChannelTransport(carrierKind)` to resolve
+the registered `ServerDataChannelProvider` from DI. Register real
+carrier listeners and resource policies independently. This adapter
+routes by **resource URI, payload protocol, and carrier kind**, so
+different PubSub connections cannot consume each other's accepted flows.
+It does not run a second `DataChannelContext.AcceptAsync` loop.
+
+`PubSubDataChannelSource.Create` copies the connection's exact descriptor
+into a source declaration; it does not infer permissions from publisher
+identifiers or broaden a policy. Configured sources need no Session or
+model projection. Optional source/content node identities and
+Session-authorized flows continue through the existing Server control
+provider. Disposing a PubSub flow does not dispose that provider or the
+shared SecureChannel.
+
 ## Target frameworks
 
 `net48`, `net8.0`, `net9.0`, `net10.0`.

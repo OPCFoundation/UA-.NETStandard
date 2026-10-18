@@ -30,46 +30,43 @@
 using System;
 using Microsoft.Extensions.Logging;
 
-namespace Opc.Ua.Bindings
+namespace Opc.Ua.DataChannels
 {
     /// <summary>
     /// Source-generated log messages for the data channel engine.
     /// </summary>
     internal static partial class DataChannelLog
     {
-        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 0, Level = LogLevel.Warning,
-            Message = "DataChannel: A frame named ChannelId {ChannelId}, which is not open on this SecureChannel.")]
-        public static partial void DataChannelManagerUnknownChannel(
-            this ILogger logger,
-            uint channelId);
-
-        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 1, Level = LogLevel.Error,
-            Message = "DataChannel: A connection level credit grant would overflow the window.")]
-        public static partial void DataChannelManagerCreditOverflow(this ILogger logger);
-
-        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 2, Level = LogLevel.Error,
-            Message = "DataChannel: The scheduler round faulted.")]
-        public static partial void DataChannelManagerSchedulerFault(
-            this ILogger logger,
-            Exception exception);
-
+        /// <summary>
+        /// Records a bounded state transition without resource or grant material.
+        /// </summary>
         [LoggerMessage(EventId = CoreEventIds.DataChannel + 0, Level = LogLevel.Debug,
-            Message = "DataChannel {ChannelId}: entered {State} with {Status}.")]
-        public static partial void DataChannelStateChanged(
+            Message = "DataChannel {ChannelId}: entered {State} with {Result}.")]
+        public static partial void FlowStateChanged(
             this ILogger logger,
             uint channelId,
             DataChannelState state,
-            StatusCode status);
+            DataChannelResult result);
 
-        [LoggerMessage(EventId = CoreEventIds.DataChannel + 1, Level = LogLevel.Warning,
-            Message = "DataChannel {ChannelId}: rejected a frame, resetting with {Status}.")]
-        public static partial void DataChannelFrameRejected(
-            this ILogger logger,
-            uint channelId,
-            StatusCode status);
+        /// <summary>
+        /// Records a carrier exception without interpreting it as successful flow delivery.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 0, Level = LogLevel.Warning,
+            Message = "The data channel carrier operation failed.")]
+        public static partial void FlowCarrierFailure(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = CoreEventIds.DataChannel + 2, Level = LogLevel.Warning,
-            Message = "DataChannel: a STR frame arrived but the data channel feature is not enabled.")]
-        public static partial void DataChannelFeatureDisabled(this ILogger logger);
+        /// <summary>
+        /// Records a failing local observer without changing protocol outcomes.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 1, Level = LogLevel.Warning,
+            Message = "A data channel state observer failed.")]
+        public static partial void FlowObserverFailure(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Records a provider failure independently of authorization denial.
+        /// </summary>
+        [LoggerMessage(EventId = CoreEventIds.DataChannelManager + 2, Level = LogLevel.Warning,
+            Message = "The data channel authorization provider failed.")]
+        public static partial void FlowAuthorizationFailure(this ILogger logger, Exception exception);
     }
 }

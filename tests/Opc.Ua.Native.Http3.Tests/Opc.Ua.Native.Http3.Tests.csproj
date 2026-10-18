@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Opc.Ua.Native.Http3.Tests</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);artifacts\**</DefaultItemExcludes>
+    <IsAotCompatible>true</IsAotCompatible>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PlatformTarget>x64</PlatformTarget>
+    <NativeHttp3Rid Condition="'$(NativeHttp3Rid)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</NativeHttp3Rid>
+    <NativeHttp3Rid Condition="'$(NativeHttp3Rid)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</NativeHttp3Rid>
+    <NativeHttp3File Condition="'$(NativeHttp3Rid)' == 'win-x64'">opcua_http3.dll</NativeHttp3File>
+    <NativeHttp3File Condition="'$(NativeHttp3Rid)' == 'linux-x64'">libopcua_http3.so</NativeHttp3File>
+    <NativeHttp3Asset>$(MSBuildThisFileDirectory)..\..\src\Opc.Ua.Native.Http3\artifacts\runtimes\$(NativeHttp3Rid)\native\$(NativeHttp3File)</NativeHttp3Asset>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <None Include="$(NativeHttp3Asset)" Link="$(NativeHttp3File)"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="RequireNativeHttp3TestAsset" BeforeTargets="Build"
+          Condition="'$(_RestrictedToLegacyTfm)' != 'true'">
+    <Error Condition="'$(NativeHttp3File)' == ''" Text="Native HTTP3 tests support only win-x64 and linux-x64." />
+    <Error Condition="!Exists('$(NativeHttp3Asset)')"
+           Text="Build the production native HTTP3 asset before running the managed ABI tests." />
+  </Target>
+</Project>

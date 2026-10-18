@@ -1,0 +1,41 @@
+[package]
+name = "opcua-native-http3"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97"
+publish = false
+license-file = "LICENSE.txt"
+
+[lib]
+name = "opcua_http3"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+shiguredo_http3 = { path = "upstream", version = "=2026.1.0-canary.12" }
+
+[workspace]
+members = ["upstream"]
+resolver = "3"
+
+[[test]]
+name = "regressions"
+path = "../../tests/Opc.Ua.Native.Http3.Tests/native/regressions.rs"
+
+[[test]]
+name = "policy"
+path = "../../tests/Opc.Ua.Native.Http3.Tests/native/policy.rs"
+
+[[test]]
+name = "abi"
+path = "../../tests/Opc.Ua.Native.Http3.Tests/native/abi.rs"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.release]
+debug = 0
+incremental = false
+panic = "unwind"
+codegen-units = 1
+lto = "thin"

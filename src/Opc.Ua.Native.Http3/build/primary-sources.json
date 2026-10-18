@@ -1,0 +1,27 @@
+[
+  {
+    "name": "vs2026-redist",
+    "requested_url": "https://learn.microsoft.com/en-us/visualstudio/releases/2026/redistribution",
+    "final_url": "https://learn.microsoft.com/en-us/visualstudio/releases/2026/redistribution",
+    "sha256": "e6418e165411fa35a3db21eeb8a04ed734058ac79e5bc2f2778492ae54f21f1c",
+    "bytes": 48465
+  },
+  {
+    "name": "msvc-guidance",
+    "requested_url": "https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-180",
+    "final_url": "https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-180",
+    "sha256": "21d7a9fb7365818a30a863dba193e7e4410b05de5c6185a0e9d33f2177a1c7a6",
+    "bytes": 60136
+  },
+  {
+    "name": "vs2026-pro-enterprise-actual-terms",
+    "url": "https://visualstudio.microsoft.com/wp-content/uploads/2025/10/Visual_Studio_2026-License-Enterprise_Professional_ENU.docx",
+    "sha256": "dd2ab92a7c2bb90dd509e16572707a34b13bc0bc09b9199d115f25594ac39053",
+    "bytes": 67523
+  },
+  {
+    "name": "installed-sdk-terms",
+    "sha256": "0f4a26ac9dc50066f8a1bfeaaf3f092d1b9e4791df5487b9f3c31e7c3dc4d7f5",
+    "public_reference": "http://go.microsoft.com/fwlink/?LinkId=524842"
+  }
+]

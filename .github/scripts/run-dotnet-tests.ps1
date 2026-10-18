@@ -19,15 +19,12 @@
     executed test. A run that emits nothing, or emits a TRX with no results, is a
     broken discovery rather than a pass, and fails here.
 
-    The recorded results decide the verdict, not the 'dotnet test' exit code. A
-    non-zero exit is tolerated when - and only when - the TRX records at least
-    one test and no failure, error, timeout, abort or passedButRunAborted: that
-    combination means the host died during process exit, after the last test and
-    every teardown had already run. It was originally assumed to be a macOS-only
-    quirk, but Windows hosts do it too (observed on run 35714133848, job
-    'test-windows-net48 (5/30)', where Opc.Ua.Client.Tests reported 256 passed
-    and 0 failed and the host still exited 1). A host that dies mid-run is not
-    tolerated - that leaves a non-zero counter, which fails above.
+    The recorded results are the primary verdict. The default policy tolerates
+    a non-zero exit with passing results and no recorded failures for known
+    at-exit host issues, including Windows run 35714133848, job
+    'test-windows-net48 (5/30)'. Some mid-run crashes also leave only passing
+    counters, so native qualification sets RequireCleanExit rather than relying
+    on that tolerance.
 
  .PARAMETER Projects
     Semicolon-separated, repository-relative project paths to run in order.
@@ -78,6 +75,11 @@
     world-readable job log: a failing fuzz test prints a base64 reproducer, so
     a replay of unpublished crash inputs has to keep its output in the results
     tree.
+
+ .PARAMETER RequireCleanExit
+    Reject any non-zero test-host exit instead of applying the default at-exit
+    tolerance. Native validation requires this so a partial passing TRX cannot
+    conceal a crashed host.
 #>
 
 Param(
@@ -95,7 +97,8 @@ Param(
     [Parameter(Mandatory = $true)]
     [string] $ResultsDirectory,
     [switch] $Coverage,
-    [switch] $QuietOutput
+    [switch] $QuietOutput,
+    [switch] $RequireCleanExit
 )
 
 $ErrorActionPreference = 'Stop'
@@ -371,6 +374,7 @@ foreach ($project in $projectList) {
             -Passed $results.Passed `
             -Failed $results.Failed `
             -FixtureFailures $results.FixtureFailures `
+            -RequireCleanExit:$RequireCleanExit `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes

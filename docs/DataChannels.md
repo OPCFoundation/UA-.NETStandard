@@ -1,395 +1,451 @@
-# Data channels
+# Data Channels
 
-**Experimental.** This is an implementation of the *OPC UA Data Channels* errata, a
-proposed addition to OPC 10000-3, 10000-4 and 10000-6 that is **not** endorsed by the
-OPC Foundation. Every identifier it uses — the `STR` MessageType, the NodeIds in the
-65000 block, the twelve StatusCodes, the `opcua/1` ALPN protocol — is provisional and
-will change if and when the OPC Foundation assigns final values.
+**Experimental protocol replacement.** This implementation targets OPC 10000-28 Data Channels
+draft **0.2.0**, information-model version **2.0.0**, pinned to
+[`OPCF-Members/OPC10000-Core@673b3cf`](https://github.com/OPCF-Members/OPC10000-Core/tree/673b3cfde6b2c8d6510d5b598dec1180c0add205/source/data-channels).
+Identifiers and registrations remain provisional. This is not a claim of
+ratification, certified conformance, or compatibility with the earlier experimental
+implementation. See [migration](#migrating-from-the-earlier-experiment) and
+[limitations](#current-limitations) before deploying.
 
-## What it is
+This commit changes the wire format without changing the draft/model version
+strings or profile identifiers. Both peers must use the same wire revision;
+matching `0.2.0` or `2.0.0` alone is insufficient.
 
-OPC UA has no streaming primitive. A camera, a microphone, a firmware image or a log
-tail has to be carried by something that was designed for something else: `Read`
-polling, a `Subscription` carrying ByteString values, the FileTransfer model, or PubSub
-alongside the SecureChannel rather than on it.
+A Data Channel carries **complete application messages** over an authenticated
+association. The common runtime owns establishment, authorization, readiness,
+bounded queues, revisions and closure. Applications choose the carrier separately
+from the payload protocol. Configured flows require neither a Session nor an
+address-space model; optional Session control uses generated Methods through
+ordinary `Call`, not a new Service Set.
 
-A **data channel** is a named, authorized, flow-controlled, bidirectional stream of
-opaque bytes multiplexed onto an existing SecureChannel. It is opened by a Service,
-described in the AddressSpace, and carried by frames that interleave with ordinary
-Service traffic without blocking it.
+## Start with a working sample
 
-```text
-                 one SecureChannel
-   ┌──────────────────────────────────────────────┐
-   │  MSG  MSG        MSG              MSG        │  Service traffic, unchanged
-   │      STR STR STR    STR STR STR      STR STR │  channel 1: video
-   │   STR         STR            STR             │  channel 2: audio
-   │                STR                           │  channel 0: flow control, ping
-   └──────────────────────────────────────────────┘
+The [brokerless PubSub sample](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
+starts both peers on real loopback sockets and validates changing DataSet values,
+complete NetworkMessage bytes, a live revision and cleanup. From the repository
+root, using the SDK selected by `global.json`:
+
+```powershell
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0
 ```
 
-## Turning it on
+The default uses confidential Dedicated UASC, UADP and configured authorization.
+It creates no Session or optional Data Channel model and needs no broker, native
+library, pre-existing server or certificate-validation bypass.
 
-The feature is inert until it is enabled. Nothing changes for a peer that does not use
-it, and a peer that does use it never speaks first: it may not transmit a frame until an
-`OpenDataChannel` on that SecureChannel has completed successfully. That rule matters
-because an unrecognized `MessageType` is a protocol error that closes the SecureChannel,
-taking every Session, Subscription and Service call with it.
+```powershell
+# JSON, with ordinary Read/Publish on the same shared SecureChannel.
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --encoding json
 
-Consumers opt in by suppressing the experimental diagnostic. The engine is part of
-`OPCFoundation.NetStandard.Opc.Ua.Core`, so no extra package is needed for inline
-framing; `opc.quic` is a separate package because it carries channels on native QUIC
-streams:
-
-```xml
-<PropertyGroup>
-  <NoWarn>$(NoWarn);DataChannels</NoWarn>
-</PropertyGroup>
+# Add X.509 Session authorization and reverse the Publisher role.
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --authorization session --reverse --count 12
 ```
 
-## Where the code lives
+The sample README also documents separate server/client processes. `--reverse`
+changes the Publisher role, not transport connection initiation.
 
-The engine is part of `Opc.Ua.Core`, under `Stack/DataChannels`. `UaSCUaBinaryChannel`
-owns the `DataChannelManager` for its SecureChannel and dispatches `STR` chunks to it
-after decrypting, verifying and sequence-checking them, so the engine only ever sees
-authenticated content. `EnableDataChannels` turns the feature on for a channel; until it
-is called an incoming `STR` chunk closes the SecureChannel, which is what the
-interoperability rule of §5.16 requires of a peer that does not implement this
-specification.
+| Sample | Outcome |
+| --- | --- |
+| [SecureChannel PubSub](../samples/PubSub/ConsoleSecureChannelPubSub/README.md) | UADP/JSON, dedicated/shared UASC, configured/Session authorization, one or two processes |
+| [Streaming](../samples/Core/ConsoleDataChannelStreaming/README.md) | One complete-message workload across all four carriers; finite runs and a shared-channel Read/Publish benchmark |
+| [Audio](../samples/Core/ConsoleDataChannelAudio/README.md) | Complete opaque PCM messages; finite headless WAV output or explicit Windows playback |
 
-`SequenceNumberBudget` tracks the sequence space every MessageType on the channel draws
-on. Frames enter the same unsealed FIFO as Service responses. The single writer checks
-the budget, assigns a SequenceNumber and secures each frame under the current token,
-serialized against token activation and other message numbering. It refuses a frame with
-`Bad_SecureChannelTokenUnknown` before numbering when that token's space is exhausted, so
-a sender stalls rather than reuse a number (§5.1.1). An `OpenDataChannel` response queued
-before its first frame therefore stays ahead of it on the wire.
+For example, these finite managed-carrier runs need no native assets:
 
-The transport write is awaited outside the channel and send-order gates. Cancellation
-after queue admission cancels the caller's wait, not the committed write: the writer
-retains and releases its buffers and preserves the sequence order for subsequent traffic.
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet run --project samples\Core\ConsoleDataChannelStreaming -- --carrier dedicated --count 8 --size 64 --revise
+dotnet run --project samples\Core\ConsoleDataChannelAudio -- --carrier shared --wav received.wav --duration-ms 200 --frame-ms 20 --revise
+```
 
-`UaSCSecureChannelRegistry` maps a SecureChannel identifier to the channel that owns it.
-It is public because an application writing its own `IServerDataChannelTransport` for
-inline framing needs it to resolve the channel behind a request, which
-`samples/Core/ConsoleDataChannelStreaming` demonstrates.
+Choose a new WAV filename; the audio sample refuses to overwrite an existing
+file. The samples manage owned demo identities through the certificate manager
+and stores, explicitly trust their peer certificates, and fail on invalid input
+or unsuccessful cleanup. Their READMEs describe production trust and secret
+provisioning separately.
 
-The server-side Service surface — `IServerDataChannelTransport` and
-`InlineServerDataChannelTransport` — is part of `Opc.Ua.Server`. The `opc.quic` transport
-is its own package, `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`, because it carries
-data channels on native QUIC streams rather than as UASC chunks and needs no part of the
-inline framing.
+## Select a carrier and a payload
 
-## Server side
+Use `Opc.Ua.DataChannels.DataChannelProfiles`, rather than duplicating URI strings.
+Profile matching is exact; an unavailable profile is not substituted with another.
 
-`StandardServer` releases data-channel authorization timers and event subscriptions
-when it stops. Cleanup remains safe during subsequent disposal, even after the
-server's session and role managers have been released.
+| Carrier | Profile constant | Endpoint and security | Ordinary Services |
+| --- | --- | --- | --- |
+| Dedicated FLO/UASC | `DedicatedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/dedicated`; protected UASC | Not dispatched on this endpoint |
+| Shared FLO/UASC | `SharedUasc` | `opc.tcp` or binary `opc.wss`, resource `/flow/v1/shared`; protected UASC | Share the authenticated SecureChannel |
+| Native QUIC | `Quic` | `opc.quic`, ALPN `opcua-flow/1`; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
+| Native WebTransport | `WebTransport` | `opc.wt`, HTTP/3 and WebTransport draft-16; mutually authenticated TLS 1.3 | Only through the separately selected Client/Server lane |
+
+Both UASC profiles support raw TCP, Kestrel TCP and binary WSS
+(`opcua+uacp`). WSS is not WebTransport. HTTPS request/response, JSON WebSocket,
+Kestrel's older WebTransport draft and browser WebTransport are not substitute
+carriers.
+
+UASC flow endpoints reject `SecurityMode.None`. Confidential protection is the
+default. Integrity-only requires explicit binding permission **and** resource
+policy approval. Native endpoints use TLS/mTLS without an outer UASC layer;
+their discovery `None` fields do not mean unprotected data.
+
+The payload constants are independent of the carrier:
+
+| Constant | Payload |
+| --- | --- |
+| `UadpPayload` | A complete OPC UA Part 14 UADP NetworkMessage |
+| `JsonPayload` | A complete OPC UA Part 14 JSON NetworkMessage |
+| `OpaquePayload` | An application-defined complete message |
+
+Directions are relative to the **flow opener**: `OpenerToAcceptor`,
+`AcceptorToOpener` or `Duplex`. The transport initiator, flow opener and PubSub
+Publisher are different roles. Ordered and Datagram delivery are also distinct
+contracts; a datagram request never silently becomes an ordered stream.
+
+## Compose the application
+
+The common runtime is in `Opc.Ua.Core`, under `Stack\DataChannels`.
+`DataChannelContext` represents one authenticated association. The carrier
+validates transport security and supplies its identity evidence before protected
+HELLO. `OpenAsync` and `AcceptAsync` return a usable `DataChannel` only after
+OPEN/ACCEPT/READY; receipt of a Session grant alone does not establish a flow.
+
+Use the injected carrier factories and context factory, or their direct
+construction equivalents. One `DataChannelApplicationBudget` shared across the
+application bounds aggregate contexts, flows, bytes, messages, operations, grants,
+probes and streams. `DataChannelOptions` bounds each context and flow, with an
+injected `TimeProvider` for timers. Do not create a fresh application budget per
+connection and expect an application-wide limit.
+
+For UASC, supply `TransportChannelSettings.DataChannels` and connect through
+`UascDataChannelClient`. Its `UascDataChannelConnection` exposes the ready
+`Context`; `Services` is available only for Shared UASC. Server hosting attaches
+the provider through `UseDataChannels(provider, enableModel: false)` or the
+`IOpcUaServerBuilder.AddDataChannels` and `AddDataChannelSource` extensions.
+No provider means no flow endpoint.
+
+For native transport construction and deployment, see the
+[QUIC binding](../src/Opc.Ua.Bindings.Quic/NugetREADME.md) and
+[WebTransport binding](../src/Opc.Ua.Bindings.WebTransport/NugetREADME.md).
+Native dependencies remain outside Core, ordinary Client/Server and base PubSub.
+
+### Complete-message I/O
+
+Once a channel is ready, application code uses the same facade for every carrier.
+The following send assumes `flow`, a complete `ByteString payload` and a
+`CancellationToken cancellationToken` supplied by the application:
 
 ```csharp
-// One manager per SecureChannel. The channel implementation creates it.
-DataChannelManager channels = binaryChannel.EnableDataChannels(
-    isServer: true,
-    telemetry,
-    maxDataChannels: 16,
-    maxCreditPerChannel: 1024 * 1024);
-
-// Register the endpoints that can be streamed.
-var sources = new DataChannelSourceRegistry();
-sources.Register(new CameraSource(nodeId));
-
-var handler = new DataChannelServiceHandler(
-    channels,
-    sources,
-    new DataChannelServerCapabilities
-    {
-        MaxFrameSize = 8192,
-        MaxCreditPerChannel = 1024 * 1024,
-        SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
-        SupportedTransportProfileUris = [Profiles.UaTcpTransport]
-    },
-    authorizer,
-    auditor);
-
-OpenDataChannelResponse response = await handler.OpenDataChannelAsync(
-    context, sourceNodeId, offerId, requestedParameters, ct);
-
-// The channel may not carry a frame until the response is on the wire.
-handler.OnResponseSent(response.ChannelId);
-```
-
-## Application side
-
-```csharp
-DataChannel channel = channels.Channels[0];
-
-// Send. The frame is assigned its FrameSequenceNumber here, not at
-// transmission, which is what lets a GAP frame name a frame that was
-// never sent.
-channel.Write(frameBytes, DataChannelFrameFlags.MessageStart |
-                          DataChannelFrameFlags.MessageEnd |
-                          DataChannelFrameFlags.Marker);
-
-// Receive. Disposing the message is what returns its buffer *and*
-// releases flow-control credit: an application that never disposes
-// stalls the channel it is reading.
-using DataChannelMessage? message = await channel.ReadAsync(ct);
-
-if (message != null)
+DataChannelResult result = await flow.SendAsync(
+    payload,
+    cancellationToken: cancellationToken);
+if (result != DataChannelResult.Good)
 {
-    if (StatusCode.IsUncertain(message.Status))
-    {
-        // Frames GapFrom..GapTo were discarded or lost. A decoder can
-        // conceal, or wait for the next frame carrying IsMarker.
-    }
-
-    Decode(message.Payload.Span);
+    throw new InvalidOperationException($"Data Channel send failed: {result}.");
 }
 ```
 
-## What is implemented
+Check the result rather than treating admission pressure as delivery.
+`WouldBlock` can be retried under the application's finite deadline and pacing
+policy. `SendAsync` copies the complete message into bounded owned storage.
+Queue expiry and cancellation can prevent commitment; after commitment, the
+writer retains its buffers and preserves the secured write even if the caller
+stops waiting.
 
-| Area | State |
-|---|---|
-| `STR` MessageChunk, stream header, seven frame types, five flags | Complete, verified byte for byte against the specification's thirteen published hex vectors |
-| Serial arithmetic, replay window, bounded GAP runs | Complete |
-| Per-direction channel and connection credit, bootstrap, replenishment | Complete for inline framing |
-| Deficit round robin, per-channel quantum, anti-starvation | Complete |
-| Per-direction state machine, half-close, reset, drain timeout | Complete except `OpenTimeout` and `PingTimeout`, which are negotiated and carried but not yet enforced (§5.14) |
-| Deadline expiry and per-run `GAP` emission | Complete |
-| `PING`/`PONG` round-trip measurement and rate limiting (§5.11) | Complete on **both** sides: a sender is held to one unanswered PING and one per second per ChannelId, and a receiver discards a PING that breaches that bound and resets the channel once the breach persists. Enforcing only the sending half would bound a well-behaved peer and leave a hostile one with an amplification surface, since PING is credit-exempt and compels a PONG ahead of queued payload |
-| SequenceNumber budget, renewal threshold, stall-rather-than-reuse | Complete for the sender and the client-side renewal trigger; the `revisedLifetime` obligation of §5.1.1 is not implemented |
-| `OpenDataChannel`, `ModifyDataChannel`, `CloseDataChannel` | Complete, and served by `StandardServer`: a real Client opens a channel through a real Session |
-| Inline framing (`opc.tcp`, `opc.wss`) on the Server | Complete on the raw-socket `opc.tcp` listener. `InlineServerDataChannelTransport` resolves the UASC channel behind the request and enables the engine on it, so a Server with no transport configured still carries channels over the connection the Client already holds. A SecureChannel that can carry no frames is refused with `Bad_DataChannelTransportUnsupported` rather than accepted and then drained silently, which §5.16 requires |
-| Authorization | Complete, and **direction-aware**: `SourceToSink` requires Read on the source, `SinkToSource` requires Write, `Bidirectional` requires both (Part 4 errata §7.2, DCS-023). Re-evaluated on an interval, on `ActivateSession` and on role change |
-| Parameter negotiation, Session scoping, authorization recheck, audit | Complete, and driven from the Server. **Server-initiated offers (Part 4 §6) are not implemented**: the registry exists but nothing creates an offer or raises `DataChannelOfferedEventType`, so `TryRedeem` can only fail |
-| `opc.quic` — url scheme, ALPN negotiation and enforcement, control stream, client channel and factory | Complete (`Opc.Ua.Bindings.Quic`, **net8.0+**) |
-| `opc.quic` — listener, service host, endpoint discovery, reverse connect, certificate rotation | Complete |
-| `opc.quic` — data channels bound to per-channel streams, `RESET_STREAM` carrying the StatusCode | Complete. The stream is released when the channel reaches a terminal state, so an orderly close completes the writes and a `RESET` becomes a `RESET_STREAM` carrying the StatusCode |
-| `opc.quic` — direction to stream type and initiator (§7.4), `revisedTransportChannelId` | Complete; `SourceToSink` gets a server-initiated unidirectional stream whose id is returned to the Client |
-| `opc.quic` — TLS-to-OPC-UA key binding (§7.6.1) | Complete. The binding is verified on the connect path, comparing the TLS peer's subjectPublicKeyInfo against the OPN senderCertificate in constant time |
-| `DataChannelCapabilities` model projection | **Not wired.** `DataChannelModel` builds the values, but the Object is never instantiated under `ServerCapabilities`, so a Client cannot read the capabilities or discover the feature through the address space (Part 3 §6, Part 4 §10) |
-| Worked samples | `samples/Core/ConsoleDataChannelStreaming` (throughput benchmark) and `samples/Core/ConsoleDataChannelAudio` (looping audio, played back by the Client) |
-| Unreliable datagrams (§7.5) | **Not implementable on .NET.** `QuicConnection` exposes no RFC 9221 datagram API through .NET 10, so `SupportsUnreliableDatagrams` is `False` and the Server refuses `Unreliable` and `PartiallyReliable` with `Bad_DeliveryModeUnsupported` — which is what the errata requires rather than silently carrying them on the stream |
-| DI / fluent builder extension | Complete. `AddQuicTransport()` registers the listener and channel factories **and** the server-side data channel transport, so a DI-built Server carries channels on `opc.quic` streams with no further wiring. `UseQuicDataChannelTransport()` is the direct-construction fallback |
-| Connection loss and SecureChannel close | Complete. A closed SecureChannel or lost transport faults every data channel riding on it (§5.13), on both the inline and `opc.quic` paths |
+Every receive returns an owned message. Keep that lease alive through processing:
 
-## Why the QUIC binding is net8.0+
+```csharp
+while (true)
+{
+    using DataChannelMessage? message = await flow.ReadAsync(cancellationToken);
+    if (message is null)
+    {
+        break;
+    }
 
-`System.Net.Quic` carries `[RequiresPreviewFeatures]` on net8.0, so the binding enables
-preview features for that target and a net8.0 consumer sets `EnablePreviewFeatures` in
-its own project to use it. On net9.0 and net10.0 the API is stable and no opt-in applies.
-`QuicServerConnectionOptions.HandshakeTimeout` is .NET 9+, so on net8.0 the platform
-default bounds the handshake and the listener's own admission expiry still releases a
-stalled peer's slot. `Opc.Ua.Core` is unaffected and builds for all six TFMs.
-
-## Running the sample
-
-### Audio streaming
-
-`samples/Core/ConsoleDataChannelAudio` is the shortest path to seeing the feature do
-something a Subscription cannot. It stands up a Server and a Client in one process,
-synthesises a short melody as 16-bit PCM, and streams it on repeat over a data channel
-while the Client plays it:
-
-```sh
-cd samples/Core/ConsoleDataChannelAudio
-dotnet run                 # 20 ms frames
-dotnet run -- 60           # 60 ms frames
+    Console.WriteLine($"Received {message.Payload.Length} bytes.");
+}
 ```
 
-The source writes in real time rather than as fast as the channel will take it, because a
-media source is paced by its own clock and writing faster would only add latency. The
-progress line reports frames, bytes and credit stalls, so a consumer that cannot keep up
-is visible rather than silently buffered.
+`null` means directional EOF, not a reset or authorization success fallback.
+Disposal releases both byte and message-count capacity. Do not retain payload
+memory after disposing its message. `EndAsync` drains the local sending direction;
+the other direction of a duplex flow can continue. Observe its result and the
+peer's EOF before reporting orderly completion. `ResetAsync` and asynchronous
+disposal join flow resource release without closing unrelated flows.
 
-Playback uses NAudio, whose output devices are Windows interfaces; on Linux and macOS the
-sample writes the received stream to a WAV in the temp directory instead and says so on
-startup.
+`Parameters`, `GetStatus`, `GetDiagnostics` and `StateChanged` expose the admitted
+descriptor, outcomes and lifecycle. `UpdateAsync` performs the revision transaction;
+changing a local descriptor object is not a negotiated update. A repeated
+operation uses the same nonzero operation ID and proposal. A committed update
+cannot be rolled back by caller cancellation.
 
-### Throughput benchmark
+### Connection and Session ownership
 
-```sh
-cd samples/Core/ConsoleDataChannelStreaming
-dotnet run -- --transport tcp  --mode server --frames 2000 --size 1200
-dotnet run -- --transport quic --mode server --frames 2000 --size 1200
+A flow borrows its `Context`; owning one flow does not authorize disposing the
+association used by other flows. The UASC connection or native transport owner
+owns that association.
+
+To create a Session on Shared UASC, use the ordinary session factory's
+transport-taking `Create` overload with `connection.Services`, then open the
+Session. A configuration-only `CreateAsync` opens another transport and does not
+demonstrate sharing. The samples check transport identity and SecureChannel IDs
+as well as actual Read/Publish traffic.
+
+Finish the flows before disposing their transport. When closing only a shared
+Session, use `CloseAsync(..., closeChannel: false)`; its later disposal still owns
+the supplied transport. The samples close the Session, close the connection,
+then dispose the Session. Certificate handles passed to transport settings are
+owning handles: use independent `AddRef()` handles when retaining the originals,
+and release handles not transferred during failed establishment.
+
+After native WebTransport ingress is attached, readiness failures retain the
+HTTP/3 or CONNECT rejection instead of being masked by the transport's close
+token. Caller cancellation and the configured establishment deadline remain
+independent.
+
+## Optional model and Session authorization
+
+Configured authorization uses an explicit `IDataChannelAuthorizer` on both peers.
+Server applications can register exact resources and an `IDataChannelSourcePolicy`
+with `DataChannelSourceRegistry` and `ServerDataChannelProvider`. Unknown resources
+are denied. Configured flows do not become dependent on Sessions merely because
+the application also exposes an ordinary server.
+
+The independently enabled model provides the generated manager, sources,
+capabilities, offers, events and per-Session diagnostics. The manager's
+`OpenDataChannel`, `ModifyDataChannel` and `CloseDataChannel` are **Methods invoked
+through normal Call**, not request/response Service types.
+
+`DataChannelSessionControl` uses the generated manager proxy. Given an ordinary
+Session, a `SessionDataChannelAuthorizer` wrapping the local resource policy and
+the same clock used by that authorizer:
+
+```csharp
+var control = new DataChannelSessionControl(session, authorizer, clock);
+DataChannel flow = await control.OpenAsync(
+    context, sourceNodeId, parameters, cancellationToken);
 ```
 
-`--mode server` is the one that matters: it stands up a real `StandardServer`,
-connects a real Client, creates a Session, and opens the channel through
-`OpenDataChannel` — so it exercises the Service dispatch, the Session binding and
-the negotiation, not just the framing. `--mode direct` drives `DataChannelManager`
-directly and is kept because that is the shorter path for measuring the scheduler.
+The helper reserves an ID, obtains and validates the single-use grant, and waits
+for actual flow readiness. Both peers still enforce resource policy. Session
+permissions are additional checks, not replaced by application policy.
+`control.ModifyAsync` stages the complete update through Call and waits for its
+data-path outcome; the Call response alone is not a committed revision.
 
-The same application code drives both framings; only the transport differs. The
-sample reports throughput, discarded frames and the credit-stall counter, and the
-stall counter staying at zero over `opc.quic` is the visible consequence of QUIC
-owning the flow control there.
+Grants are bound to the authenticated context, peer, challenges and ChannelId.
+They do not carry an AuthenticationToken or private key. A disconnected control
+transport is not a closed Session. Session expiry, closure or revoked
+identity/permission invalidates its grants and dependent flows; configured
+neighbours remain independent. Context loss invalidates all flows on that context.
+Reconnect requires fresh context identity, IDs and authorization.
 
-## Measuring throughput against a competing Publish load
+The provider owns one accepted-flow router. Consumers select their exact
+resource/protocol/carrier through that router; they must not race separate
+`Context.AcceptAsync` calls against it.
 
-`--mode benchmark` answers a narrower question: what does a data channel sustain
-while the Session is also carrying Service traffic? It runs four cases — no
-subscription, then monitored items publishing at 10 ms, 100 ms and 1000 ms — for
-the transport given by `--transport`, and prints them as one table.
+## PubSub over the flow
 
-```sh
-dotnet run -- --transport tcp  --mode benchmark --frames 60000 --size 1200 \
-  --monitored-items 100 --repeat 5
-dotnet run -- --transport quic --mode benchmark --frames 60000 --size 1200 \
-  --monitored-items 100 --repeat 5
+The adapter in `Opc.Ua.PubSub.Transports.DataChannels` implements the existing
+`IPubSubTransportFactory` / `IPubSubTransport` contracts. It reuses Part 14
+**1.05.06** writers, readers, metadata, diagnostics, encoders and security.
+This feature does not upgrade the Part 14 version.
+
+Configure the connection with `DataChannelPubSubConfiguration.Configure` or
+`PubSubConnectionBuilder.WithDataChannel`. Register the provider using
+`PubSubApplicationBuilder.UseDataChannelTransport` or
+`IPubSubBuilder.AddDataChannelTransport`. See the
+[configuration example](../src/Opc.Ua.PubSub/NugetREADME.md#brokerless-datachannel-transport)
+and [PubSub guide](PubSub.md#data-channels-experimental).
+
+The negotiated payload protocol selects UADP or JSON; the carrier URI cannot
+choose the encoding. One complete encoded NetworkMessage is one flow payload,
+with every byte preserved. ChannelId never replaces PublisherId, WriterGroupId
+or DataSetWriterId. Multiple writers can share an authorized flow; different
+resource permissions, delivery contracts or lifetimes need separate flows.
+
+The PubSub adapter rejects `AllowQueueExpiry=true`. Dropping a key frame or
+metadata can invalidate later messages, so enabling expiry requires a
+Publisher-side dependency and recovery policy that this adapter does not yet
+provide. It neither silently clears the option nor parses or rewrites payloads
+to simulate recovery. Default no-expiry UADP and JSON delivery is unchanged.
+
+Carrier encryption is independent of optional Part 14 message security.
+SecureChannel protection alone requires no broker or SKS. Existing UADP
+signing/encryption remains available through its normal key provider; JSON does
+not silently satisfy a UADP message-security requirement.
+
+## Optional native Client/Server lane
+
+Native configured flows do not create UASC or Sessions. An application can
+explicitly select `DataChannelProfiles.ClientServerResource` for an ordered,
+duplex, confidential, opaque flow with no queue expiry. The common byte adapter
+carries one complete UACP/UASC chunk per DATA message and reuses ordinary
+Client/Server dispatch inside it.
+
+The lane, optional model and Session authorization are separate choices. See
+[Client/Server lane integration](DataChannelClientServer.md) for direct and DI
+composition and its native prerequisites. Do not start competing accepted-flow
+readers when hosting the lane beside PubSub or other resources.
+
+## Wire and resource boundaries
+
+The common record has a 13-byte header and either opaque DATA or binary CONTROL.
+CONTROL uses opcodes `0..14`, ordered little-endian fields, OPC UA Binary Guid
+layout, strict length-prefixed UTF-8 strings, and an exactly 32-byte challenge.
+Booleans are `0` or `1`; rates must be finite and nonnegative, with both zero
+representations treated as unlimited for ordered delivery. Datagram rates must
+be strictly positive. A Configured OPEN has no grant bytes;
+a Session OPEN has exactly one Guid. There is no JSON CONTROL fallback.
+
+Both dedicated and shared UASC use `FLOF`, RequestId zero, and a four-byte
+ChannelId followed by exactly one common record. Dedicated UASC admits only
+management zero and DATA one, never ordinary MSG Services or CREDIT. Native
+datagrams also carry an external ChannelId.
+The runtime rejects malformed framing, noncanonical control values, invalid
+association/stream ownership and premature application data; applications do
+not implement a second parser.
+
+Shared FLO credit starts at zero and counts encoded flow bytes. Both UASC
+carriers and native datagrams have 17 bytes of DATA overhead; native ordered
+streams have 13. Native ordered flows backpressure at the record header before
+allocating the body. Physical UASC ingress reserves a bounded context/application
+queue and waits at most `DrainTimeout` for DATA queue capacity. If the application
+does not drain it, the affected flow fails instead of indefinitely preventing
+later management processing. Native datagrams
+have finite admission, rate and replay budgets rather than stream-credit
+semantics.
+
+Native parser staging, incomplete records, queued messages and application-held
+leases share one application budget. DATA queue handoff transfers the existing
+ingress allocation and reservation; control admission covers overlapping encoded
+and decoded-value storage. Both new revision directions stay reserved until
+their directional barriers complete, and retained old messages keep their old
+revision charged.
+
+Each context withholds **512 bytes and four message slots** for fixed-field
+management/control progress, including a directional revision exchange and its
+CREDIT/ACK replies. DATA and generic carrier allocations cannot borrow this
+headroom. Unused headroom is not reported as retained `BufferedBytes` or
+`Messages`; it returns when the context closes. Larger establishment controls
+still need additional application admission. Native streams also reserve their
+two 13-byte parser staging areas before allocation.
+
+UASC flow chunks are final chunks and use the same per-sender security sequence
+as MSG/OPN/CLO. Numbering and writer admission remain atomic. The unsealed writer
+selects a pending control after at most eight consecutive Service messages;
+Services remain ahead of DATA. Already numbered or in-flight writes, including
+coalesced writes, cannot be reordered. FLO CONTROL on opc.wss is binary
+application data, not an RFC6455 control frame. These policies imply no
+wall-clock latency or one-frame Service-delay guarantee.
+Benchmark results include their actual load, pacing and loopback setup;
+numbers from the discarded framing are not evidence for this protocol.
+
+## Native deployment
+
+The optional native bindings target .NET 8 or newer. Native execution qualification
+uses .NET 10 on Windows x64 and glibc Linux x64. The backend packages and their
+deployment contracts are:
+
+- [Native.QuicGo](../src/Opc.Ua.Native.QuicGo/NugetREADME.md): pinned quic-go,
+  mutual-authentication and confirmed-handshake evidence, real datagrams and
+  reliable-reset observation. Load one compatible Go image for the process
+  lifetime; never unload it.
+- [Native.Http3](../src/Opc.Ua.Native.Http3/NugetREADME.md): the separate bounded
+  draft-16 HTTP/3 state engine using the same QUIC association, not a second
+  QUIC/TLS stack.
+
+Select exact reviewed native paths and expected SHA-256 values. The streaming
+sample documents `OPCUA_QUIC_NATIVE_PATH`, `OPCUA_QUIC_NATIVE_SHA256`,
+`OPCUA_HTTP3_NATIVE_PATH` and `OPCUA_HTTP3_NATIVE_SHA256`. Missing prerequisites,
+wrong ABI/layouts, hash mismatch or insufficient authentication fail explicitly;
+there is no PATH search, automatic download or carrier downgrade.
+
+The certificate bridge uses certificate-manager identities and explicit peer
+policy. The current native key interface requires supported exportable software
+keys; unsupported HSM/non-exportable signing is refused, not replaced by another
+identity. Compiler OS/glibc floors are not proof of execution on the minimum host.
+Read each package's runtime and license notices before redistribution.
+
+## Migrating from the earlier experiment
+
+**Upgrade both peers together.** There is no compatibility mode for the old draft.
+Ordinary stable Client/Server Services and non-flow PubSub transports are not
+replaced by this change.
+
+| Earlier experiment | Replacement |
+| --- | --- |
+| JSON CONTROL, dedicated MSG, shared STR and dedicated RequestId addressing | Binary CONTROL and identical FLO/ChannelId envelopes with RequestId zero on both UASC profiles |
+| New Open/Modify/Close Service requests and responses | Generated manager Methods through ordinary Call; configured flows need no Call |
+| `DataChannelManager`, direct registry access and response-sent callbacks | `DataChannelContext`, carrier factories and ready `DataChannel` facades |
+| Frame flags, fragments, GAP and old delivery modes | Complete messages, Ordered/Datagram delivery and transactional revisions |
+| Source/sink-relative directions | Opener-relative directions |
+| `channel.Write(...)` and frame queues | Await `SendAsync`; inspect its result and dispose each received message |
+| Implicit UASC control connection on `opc.quic`, ALPN `opcua/1` | Native mTLS flow association, ALPN `opcua-flow/1`; explicit optional Client/Server lane |
+| Old experimental NodeIds and custom StatusCodes | Regenerated model identifiers and `DataChannelResult` |
+| Sample `--transport`, direct-manager mode and old frame counters | `--carrier`, finite complete-message runs and validated received-byte summaries |
+
+Regenerate model-dependent code and use generated constants; do not transplant
+the old numeric IDs or status mappings. Re-provision endpoint/profile selection
+and resource policies. Existing transport connections, grants and channel IDs
+cannot be transferred into the new protocol.
+
+## Validation and current limits
+
+The common codec/runtime tests live in `Opc.Ua.Core.DataChannels.Tests`.
+Physical UASC tests, optional model/control tests, PubSub tests, native binding
+tests and real-process sample tests exercise their own layers. Passing a codec
+suite alone does not establish carrier or application interoperability.
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet test tests\Opc.Ua.Core.DataChannels.Tests\Opc.Ua.Core.DataChannels.Tests.csproj -f net10.0
+dotnet test tests\Opc.Ua.PubSub.Samples.Tests\Opc.Ua.PubSub.Samples.Tests.csproj -f net10.0
 ```
 
-Comparing inline framing against `opc.quic` means running it twice, which is
-deliberate: over inline framing the STR chunks share one SecureChannel and one
-SequenceNumber space with Publish, so the credit window is what keeps a media
-stream from starving the Service path; over `opc.quic` the channel owns its own
-stream and QUIC applies the flow control, so the two should barely interact.
+The existing `Opc.Ua.Aot.Tests` executable also includes native-free
+`DataChannelsAotTests`. These exercise direct and DI context construction,
+binary CONTROL, complete DATA, revision-window ownership and unsupported
+control rejection through the public runtime APIs. After publishing that
+project with NativeAOT on Windows, run the focused cases with:
 
-One Server, one Session and one data channel serve the whole matrix and only the
-subscription changes between cases, so every row runs on the same channel with
-the same negotiated credit. Each case takes one warm-up run that is discarded and
-then `--repeat` measured runs, reported as a median with the spread.
-
-### Reading the output honestly
-
-Three things will silently turn this measurement into a plausible-looking lie,
-so the benchmark checks for all three and says so in its output rather than
-leaving the reader to assume:
-
-- **The competing load may not exist.** If the monitored items do not report,
-  every "loaded" row is really a second baseline, the rows agree beautifully,
-  and any conclusion drawn from them is false. The `notif/s` column is the
-  evidence, and a row that received far fewer notifications than
-  `items x duration / interval` is called out.
-- **The Server revises the publishing interval.** `MinPublishingInterval`
-  defaults to 100 ms, so a requested 10 ms becomes 100 ms and two rows become
-  the same experiment however different the request column looks. The table
-  carries a `revised` column and warns when the two differ.
-- **The run may be shorter than a publishing cycle.** At 1000 ms a run of a few
-  hundred milliseconds contains no Publish traffic at all, so it understates the
-  load rather than measuring it. Raise `--frames` until a run lasts several
-  seconds.
-
-The figures are in-process loopback figures, bound by CPU and cryptography
-rather than by a network interface. They are for comparing the four cases
-against each other, not for quoting as link throughput. `DataChannel.Write`
-enqueues rather than blocking, so what is measured is the rate the pipeline
-drains at: first write to last frame received.
-
-Credit stalls are the mechanism rather than a fault. Over inline framing a
-stalled data channel is exactly what leaves the SecureChannel free for Publish,
-which is the property the credit window exists to provide.
-
-## Design notes worth knowing
-
-**The single-chunk rule is the load-bearing constraint.** A data channel frame is
-exactly one MessageChunk. A multi-chunk frame would sit in the existing chunk assembler
-and block every other Message on the connection until it completed — the precise failure
-a streaming layer exists to avoid.
-
-**Service traffic shares the ordered writer, not a second data-channel send gate.**
-Unsealed `MSG` responses and `STR` frames are numbered in FIFO order. Already-numbered
-`OPN`, `CLO` and client request chunks retain their sequence position ahead of unsealed
-work. The data-channel scheduler awaits each frame write before submitting another, so
-it does not build a separate frame backlog ahead of Service traffic.
-
-**The sequence arithmetic uses modulus 2^32−1, not 2^32.** Zero is excluded from the
-`FrameSequenceNumber` value space, so with modulus 2^32 the wrap from `4294967295` to
-`1` computes as a distance of two and the receiver reports a gap that did not happen.
-
-**Only `DATA` advances `HighestReceived`.** If a `GAP` advanced it, the `GAP` announcing
-an expiry would push `HighestReceived` past a lower-numbered frame that survived and is
-still to be transmitted, and the receiver would discard as a duplicate precisely the
-frame the per-run rule exists to protect.
-
-**`Closing` is per direction.** Receiving `END` marks the *peer's*
-direction ended and nothing more: it never starts the local drain clock and never stops
-the local application enqueueing. That is what makes `END` a half-close rather than a
-close, and it is why a long upload survives the other end half-closing. `Paused` is not
-tracked per direction — the channel carries a single state field — because credit is only
-ever withheld against the direction that carries payload towards this peer.
-
-**`IsFinal` is `F` and nothing else.** An Abort chunk's secured body is `Error` followed
-by `Reason` per OPC 10000-6 §6.7.3, so accepting `A` would let that parser read a 32-bit
-string length out of the attacker-controlled `FrameType`, `Flags` and `Reserved` bytes
-of the stream header.
-
-**The scheduler's deficit bounds volume, not frequency.** A round that leaves payload
-queued schedules the next one immediately. The loop originally waited for its idle tick
-between rounds, which capped a channel at one quantum per tick — about fifty frames a
-second. The sample measured 0.5 Mbit/s before the fix and 1.3 Gbit/s after it, and
-`ManyFramesDrainWithoutWaitingForTheIdleTick` fails loudly if the wake is dropped again.
-
-## Test coverage
-
-The suite is 316 tests on `net10.0` and 242 tests on `net48` over
-`tests/Opc.Ua.Core.DataChannels.Tests`, covering `Stack/DataChannels`,
-`Stack/Tcp/UaSCBinaryChannel.DataChannels.cs` and `Opc.Ua.Bindings.Quic`.
-
-`DataChannelIntegrationTests` is the end-to-end leg: a real Client Session
-drives `OpenDataChannel`, `ModifyDataChannel` and `CloseDataChannel` against a
-live `StandardServer` over `opc.tcp`, and payload crosses the same
-SecureChannel inline alongside the Service traffic. It is the only place
-`Opc.Ua.Server/Server/StandardServer.DataChannels.cs` — the Service dispatch,
-the per-SecureChannel state and the authorization chain — is exercised by a
-request that actually arrived off a socket.
-
-The paths at zero are not evenly distributed, which matters more than the
-percentage does: `opc.quic` reverse connect and the retired-key teardown of
-§7.6.1 are the largest gaps. Re-measure with the repo's own settings:
-
-```sh
-dotnet test tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj \
-  -f net10.0 -c Release --collect:"XPlat Code Coverage" --settings tests/coverlet.runsettings.xml
+```powershell
+.\tests\Opc.Ua.Aot.Tests\bin\Release\net10.0\win-x64\publish\Opc.Ua.Aot.Tests.exe --treenode-filter "/*/*/DataChannelsAotTests/*" --report-trx
 ```
 
-QUIC tests are guarded by `QuicConnection.IsSupported`, so the net472 and net48
-legs and any agent without msquic skip them rather than failing. There is
-deliberately **no build-time coverage gate**: a gate would fail exactly those
-agents.
+These TUnit cases use an in-process verified-plaintext UASC seam. They do not
+load QUIC/HTTP3 backends or qualify transport authentication, native resource
+retention, or the native Client/Server lane. The AOT project's executable
+runner is separate from the NUnit `dotnet test` commands above.
 
-## Deviation from the errata
+See the [Developer Guide](DeveloperGuide.md) for full-solution framework runs,
+coverage and the dedicated required Windows/Linux native workflow. Native tests
+require their actual assets and fail when prerequisites are absent; a skipped
+or empty test run is not native acceptance.
 
-`OpenDataChannel` in the errata carries `transportChannelId` in both the request and the
-response. No OPC UA service reuses a parameter name across the two, and the model
-compiler enforces it, so the response parameter here is `revisedTransportChannelId`. The
-errata needs the same correction.
+### Current limitations
 
-Two further corrections were raised against the errata while implementing it, and both
-are drafted in the [drafts repository](https://github.com/marcschier/opcua-drafts):
-
-- **Part 4 §9 assigns no numeric StatusCodes.** The clause lists fourteen symbolic ids
-  and says the numeric values are provisional, but never states them — while Part 3 pins
-  provisional NodeIds in the 65000+ block. These StatusCodes travel on the wire in the
-  `RESET` frame, so two implementations that each invent their own numbers cannot
-  interoperate. This implementation had to pick `1100`–`1113`, and the errata now
-  publishes the same block.
-- **Part 6 §5.7 states both scheduling obligations for senders only.** §5.8 says
-  backpressure is per channel and "stalls that stream and nothing else", but no **shall**
-  binds the receiver. Under inline framing one reader carries both the frames and the
-  Service traffic, so a receiver applying backpressure by not reading converts a
-  per-channel stall into a connection-wide one while breaking no stated rule. The errata
-  now states the receiver obligation and adds conformance unit DCF-039.
-
-## Building
-
-A cold build needs the model compiler built before the solution, otherwise the analyzers
-load half-built and produce thousands of spurious errors in generated code:
-
-```sh
-dotnet build tools/Opc.Ua.SourceGeneration.Core/Opc.Ua.SourceGeneration.Core.csproj
-dotnet build tools/Opc.Ua.SourceGeneration/Opc.Ua.SourceGeneration.csproj
-dotnet build tools/Opc.Ua.SourceGeneration.Stack/Opc.Ua.SourceGeneration.Stack.csproj
-dotnet build UA.slnx
-```
-
-After editing anything under `tools/Opc.Ua.SourceGeneration.Core/Design/`, rebuild
-`Opc.Ua.Core.Types` with `-t:Rebuild`: an incremental build keeps the stale analyzer and
-silently drops the new types while still reporting success.
+- **Reverse shared-UASC remains refused.** The pinned draft assigns ContextId
+  selection to the transport initiator but the first HELLO to the OPN requester.
+  Reverse connect separates these roles. No silent interpretation is selected;
+  ordinary reverse Services remain unchanged.
+- **WebTransport peer-STOP reset retention remains blocked.** The pinned QUIC
+  backend can discard the reliable-header boundary in its automatic STOP response.
+  The draft-16 header requirement and HTTP/3 accounting checks remain enforced.
+  A private opt-in native-policy candidate requires review and qualification
+  before adoption; observing the peer STOP alone does not satisfy this requirement.
+- Native release signing, final-artifact advisory/SBOM evidence and minimum-host
+  acceptance are separate gates. Local unsigned validation packages are not
+  approved product distributions.
+- Browser interoperability, ARM, musl, macOS native assets and non-exportable
+  native signing keys are not claimed. The audio sample's hardware playback is
+  Windows-only; headless WAV output is separate.
+- Optional Client/Server lane integration and coherent final-dependency
+  validation must be completed before claiming full rewrite acceptance.
+  Historical sample results do not qualify a replacement native binary.
 
 ## References
 
-- [OPC UA Part 6 — Data Channel Transport](https://github.com/marcschier/opcua-drafts/blob/main/core-specs/data-channels/OPC-UA-Part6-Data-Channel-Transport.md)
-- [OPC UA Part 4 — Data Channel Services](https://github.com/marcschier/opcua-drafts/blob/main/core-specs/data-channels/OPC-UA-Part4-Data-Channel-Services.md)
-- [OPC UA Part 3 — Data Channel Model](https://github.com/marcschier/opcua-drafts/blob/main/core-specs/data-channels/OPC-UA-Part3-Data-Channel-Model.md)
+- [Pinned specification sources](https://github.com/OPCF-Members/OPC10000-Core/tree/673b3cfde6b2c8d6510d5b598dec1180c0add205/source/data-channels)
+- [PubSub integration](PubSub.md#data-channels-experimental)
+- [Optional native Client/Server lane](DataChannelClientServer.md)
+- [Certificate manager and secret store](CertificateManager.md)
+- [Contributor build and test guide](DeveloperGuide.md)

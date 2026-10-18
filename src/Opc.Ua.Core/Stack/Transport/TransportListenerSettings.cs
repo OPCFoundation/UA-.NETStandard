@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.Bindings;
+using Opc.Ua.DataChannels;
 
 namespace Opc.Ua
 {
@@ -40,6 +41,7 @@ namespace Opc.Ua
     {
         /// <summary>
         /// Gets or sets the descriptions for the endpoints supported by the listener.
+        /// A reverse-connect listener does not publish server endpoints and may leave this null.
         /// </summary>
         public List<EndpointDescription>? Descriptions { get; set; }
 
@@ -73,6 +75,18 @@ namespace Opc.Ua
         /// connecting client.
         /// </remarks>
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
+        /// Gets or sets the factory for authenticated contexts on explicitly advertised
+        /// UASC flow endpoints. Ordinary endpoints never acquire a flow context.
+        /// </summary>
+        public IDataChannelContextFactory? DataChannels { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether flow endpoints may explicitly select Sign protection.
+        /// The flow authorizer must also permit integrity-only delivery.
+        /// </summary>
+        public bool AllowDataChannelIntegrity { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.

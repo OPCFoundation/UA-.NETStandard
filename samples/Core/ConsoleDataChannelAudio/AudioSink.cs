@@ -2,123 +2,119 @@
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using NAudio.Wave;
+using Opc.Ua;
 
 namespace Quickstarts.ConsoleDataChannelAudio
 {
     /// <summary>
-    /// Consumes the PCM a data channel delivers.
+    /// Consumes borrowed complete PCM messages without retaining the flow's receive buffers.
     /// </summary>
-    internal interface IAudioSink : IDisposable
+    internal interface IAudioSink : IAsyncDisposable
     {
         /// <summary>
-        /// What the sink does with the audio, for the console banner.
+        /// Gets the selected output for the console banner.
         /// </summary>
         string Description { get; }
 
         /// <summary>
-        /// Accepts one frame of audio.
+        /// Consumes a payload before its DataChannelMessage owner is disposed.
         /// </summary>
-        /// <param name="pcm">Little-endian 16-bit mono samples.</param>
-        void Write(ReadOnlySpan<byte> pcm);
+        ValueTask WriteAsync(ByteString pcm, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Drains playback or flushes the finite output before the sink is disposed.
+        /// </summary>
+        ValueTask CompleteAsync(CancellationToken cancellationToken);
     }
 
     /// <summary>
-    /// Chooses the sink that suits the platform.
+    /// Selects the requested output explicitly; playback failure never becomes silent headless success.
     /// </summary>
     internal static class AudioSink
     {
         /// <summary>
-        /// Creates a sink that plays the audio where the platform can, and
-        /// writes it to a WAV file where it cannot.
+        /// Opens an exclusively created WAV or the actual Windows device.
         /// </summary>
-        /// <remarks>
-        /// NAudio's output devices wrap WASAPI, WaveOut, DirectSound and ASIO,
-        /// all of which are Windows interfaces; NAudio 2.x has no ALSA or
-        /// CoreAudio backend. Rather than fail on Linux and macOS, the sample
-        /// writes a WAV there, which still demonstrates that the bytes arrived
-        /// intact and in order.
-        /// </remarks>
-        public static IAudioSink Create()
+        public static IAudioSink Create(string? wavePath)
         {
-            if (OperatingSystem.IsWindows())
+            if (wavePath != null)
             {
-                return new PlaybackAudioSink();
+                return new WaveFileAudioSink(wavePath);
             }
-
-            return new WaveFileAudioSink();
+            if (!OperatingSystem.IsWindows())
+            {
+                throw new PlatformNotSupportedException("NAudio playback requires Windows. Select --wav explicitly.");
+            }
+            return new PlaybackAudioSink();
         }
     }
 
     /// <summary>
-    /// Plays the audio through the default output device.
+    /// Plays the received PCM using NAudio's existing Windows output implementation.
     /// </summary>
     [System.Runtime.Versioning.SupportedOSPlatform("windows")]
     internal sealed class PlaybackAudioSink : IAudioSink
     {
         /// <summary>
-        /// Creates the sink and opens the output device.
+        /// Opens the default audio device and bounded playback buffer.
         /// </summary>
         public PlaybackAudioSink()
         {
-            var format = new WaveFormat(
-                AudioFormat.SampleRate,
-                AudioFormat.BitsPerSample,
-                AudioFormat.Channels);
-
-            m_buffer = new BufferedWaveProvider(format)
+            m_buffer = new BufferedWaveProvider(new WaveFormat(
+                AudioFormat.SampleRate, AudioFormat.BitsPerSample, AudioFormat.Channels))
             {
-                // Two seconds is far more than the stream needs and is there to
-                // absorb a scheduling hiccup, not to hide a slow consumer.
                 BufferDuration = TimeSpan.FromSeconds(2),
-                DiscardOnBufferOverflow = true
+                DiscardOnBufferOverflow = false
             };
-
             m_output = new WaveOutEvent();
-            m_output.Init(m_buffer);
-            m_output.Play();
+            try
+            {
+                m_output.Init(m_buffer);
+                m_output.Play();
+            }
+            catch
+            {
+                m_output.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
-        public string Description => "playing through the default output device";
+        public string Description => "Windows default audio device";
 
         /// <inheritdoc/>
-        public void Write(ReadOnlySpan<byte> pcm)
+        public ValueTask WriteAsync(ByteString pcm, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             m_buffer.AddSamples(pcm.ToArray(), 0, pcm.Length);
+            return ValueTask.CompletedTask;
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public async ValueTask CompleteAsync(CancellationToken cancellationToken)
+        {
+            while (m_buffer.BufferedBytes > 0)
+            {
+                if (m_output.PlaybackState != PlaybackState.Playing)
+                {
+                    throw new IOException("The output device stopped before the received PCM drained.");
+                }
+                await Task.Delay(10, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
         {
             m_output.Dispose();
+            return ValueTask.CompletedTask;
         }
 
         private readonly BufferedWaveProvider m_buffer;
@@ -126,52 +122,49 @@ namespace Quickstarts.ConsoleDataChannelAudio
     }
 
     /// <summary>
-    /// Writes the audio to a WAV file, for platforms where NAudio cannot play.
+    /// Writes exactly the received PCM and finalizes a standard RIFF/WAVE header using the existing NAudio helper.
     /// </summary>
     internal sealed class WaveFileAudioSink : IAudioSink
     {
         /// <summary>
-        /// Creates the sink and opens the file.
+        /// Requires a new explicit path; never truncates an existing file or uses a shared temporary directory.
         /// </summary>
-        /// <remarks>
-        /// The file goes in a directory created fresh for this run rather than
-        /// at a predictable path under the shared temp directory, and it is
-        /// opened with CreateNew. A fixed name in a world-writable directory
-        /// can be pre-created as a symlink by any local user, and an open that
-        /// truncates would then follow it and overwrite the target.
-        /// </remarks>
-        public WaveFileAudioSink()
+        public WaveFileAudioSink(string path)
         {
-            DirectoryInfo directory = Directory.CreateTempSubdirectory("ConsoleDataChannelAudio");
-            m_path = Path.Combine(directory.FullName, "audio.wav");
-
-            var stream = new FileStream(
-                m_path,
-                FileMode.CreateNew,
-                FileAccess.Write,
-                FileShare.Read);
-
-            m_writer = new WaveFileWriter(
-                stream,
-                new WaveFormat(
-                    AudioFormat.SampleRate,
-                    AudioFormat.BitsPerSample,
-                    AudioFormat.Channels));
+            m_path = path;
+            var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read,
+                4096, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            try
+            {
+                m_writer = new WaveFileWriter(stream,
+                    new WaveFormat(AudioFormat.SampleRate, AudioFormat.BitsPerSample, AudioFormat.Channels));
+            }
+            catch
+            {
+                stream.Dispose();
+                throw;
+            }
         }
 
         /// <inheritdoc/>
-        public string Description => $"writing to {m_path}";
+        public string Description => $"headless WAV: {m_path}";
 
         /// <inheritdoc/>
-        public void Write(ReadOnlySpan<byte> pcm)
+        public async ValueTask WriteAsync(ByteString pcm, CancellationToken cancellationToken)
         {
-            m_writer.Write(pcm.ToArray(), 0, pcm.Length);
+            await m_writer.WriteAsync(pcm.Memory, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public void Dispose()
+        public async ValueTask CompleteAsync(CancellationToken cancellationToken)
         {
-            m_writer.Dispose();
+            await m_writer.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return m_writer.DisposeAsync();
         }
 
         private readonly string m_path;

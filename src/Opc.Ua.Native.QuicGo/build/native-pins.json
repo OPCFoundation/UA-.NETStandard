@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "module": "github.com/quic-go/quic-go",
+  "version": "v0.64.0",
+  "commit": "9abbbad05626e3e9609e850cd98d375b73a3d2e7",
+  "module_sum": "h1:dlUpiyp9+7UrbbuhLvV7CJ9F8uoZxXf/vi2h8tkuuoA=",
+  "module_mod_sum": "h1:RAro2j2yN9a9EiPACLHT9IB2NXCvGQmmo/alT0yYI0w=",
+  "production_files": [
+    "bridge.go", "credentials.go", "endpoints.go", "operations.go", "registry.go", "trace.go",
+    "go.mod", "go.sum", "include/opcua_quic.h", "include/exports.map"
+  ],
+  "dependencies": {
+    "golang.org/x/net": "v0.60.0",
+    "golang.org/x/crypto": "v0.57.0",
+    "golang.org/x/sys": "v0.48.0"
+  },
+  "go": {
+    "version": "go1.27.2",
+    "archive_url": "https://go.dev/dl/go1.27.2.windows-amd64.zip",
+    "archive_sha256": "1314008898bd40df77af4b014f777f08873dbdfbcd3d92308728ee03304fe04f",
+    "executable_sha256": "b8cd508a0a7aac883cd750e9e75eb306d219e726bdf1cde29009490729437fbf"
+  },
+  "zig": {
+    "version": "0.17.0",
+    "archive_url": "https://ziglang.org/download/0.17.0/zig-x86_64-windows-0.17.0.zip",
+    "archive_sha256": "b5663f69581dcf391293fbf16c06cb80d81d806545ce618b4d0bab7f0eb8c428",
+    "executable_sha256": "f54b14f02a4d7d8ac62a94a0663486eb166bba3745d85b466238c1b93e723d46"
+  },
+  "rids": {
+    "win-x64": {"goos": "windows", "target": "x86_64-windows-gnu", "asset": "opcua_quic_go.dll"},
+    "linux-x64": {"goos": "linux", "target": "x86_64-linux-gnu.2.28", "asset": "libopcua_quic_go.so"}
+  },
+  "observation": [
+    {
+      "source": "internal/wire/transport_parameters.go",
+      "upstream_sha256": "aaa41c5ff8c4af9b033a7b0aa21f9e3f07395665d5c790489b44d9fff6a023e9",
+      "overlay_sha256": "8feb196ac0aa49f00a3788425502fa24955e59e90cc4f28445c3d7bd36b4d587"
+    },
+    {
+      "source": "qlog/event.go",
+      "upstream_sha256": "c3957b44296d3d9fd1f44320c7c85a38a637a20cc56f4c44b9dc6bd897be5296",
+      "overlay_sha256": "2354f11037d24de0d09a13dee632e01fcc35d154a571830d84608ccd13a6f656"
+    },
+    {
+      "source": "connection_logging.go",
+      "upstream_sha256": "567150b8256e382e7bbeb03398c2531e2cecd9c93ef523fb13a01a0ea96fd3b0",
+      "overlay_sha256": "659f3dfdc46327b949946c56559fce58b3d56cd66c6f10637f3e42ec969c0af6"
+    }
+  ],
+  "linux_test_image": "66e55c09f5ef12a5b7f056f2fcbec83bf29b724c374f4b26e9d2fe9ca00cd75a",
+  "linux_test_digest": "mcr.microsoft.com/dotnet/sdk@sha256:00e894f63c7c8208b327c2ef454211a0f785fdc4d2f1d3e15639d0588df7faba"
+}

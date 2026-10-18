@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
@@ -119,6 +120,8 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 Volatile.Write(ref m_disposed, 1);
+                m_dataChannelCertificateMonitor?.Dispose();
+                m_dataChannelCertificateMonitor = null;
 
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
@@ -438,7 +441,9 @@ namespace Opc.Ua.Bindings
         {
             using PendingRequestScope usage = TrackPendingRequest();
 
-            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Flow) ||
+                (SelectedDataChannelKind == DataChannelCarrierKind.DedicatedUasc &&
+                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, true);
             }
@@ -459,6 +464,14 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
+                        if (SelectedDataChannelKind == DataChannelCarrierKind.SharedUasc &&
+                            DataChannels?.IsReady != true)
+                        {
+                            ForceChannelFaultCore(
+                                StatusCodes.BadTcpMessageTypeInvalid,
+                                "Services are not accepted before protected flow-profile confirmation.");
+                            return false;
+                        }
                         // trace logger:
                         //     Utils.TraceMasks.ServiceDetail,
                         //     "ChannelId {Id}: ProcessRequestMessage",
@@ -475,7 +488,7 @@ namespace Opc.Ua.Bindings
                     // messages are always a single final chunk. Rejected before any
                     // security processing so no chunk of them is ever reassembled.
                     else if ((TcpMessageType.IsType(messageType, TcpMessageType.Open) ||
-                            TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
+                        TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
                         !TcpMessageType.IsFinal(messageType))
                     {
                         ForceChannelFaultCore(
@@ -616,6 +629,14 @@ namespace Opc.Ua.Bindings
 
                     // read the endpoint url.
                     int length = decoder.ReadInt32(null);
+
+                    if (length <= 0 && HasDataChannelEndpoints)
+                    {
+                        ForceChannelFaultCore(
+                            StatusCodes.BadTcpEndpointUrlInvalid,
+                            "A flow-capable listener requires an explicit HEL endpoint resource.");
+                        return false;
+                    }
 
                     if (length > 0)
                     {
@@ -931,6 +952,14 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadStructureMissing,
                         "Could not parse OpenSecureChannel request body.");
 
+                if (SelectedDataChannelKind.HasValue)
+                {
+                    UascDataChannelEndpoint.ValidateProtection(
+                        request.SecurityMode,
+                        SecurityPolicyUri,
+                        AllowDataChannelIntegrity);
+                }
+
                 // check the security mode.
                 if (request.SecurityMode != SecurityMode)
                 {
@@ -1106,6 +1135,12 @@ namespace Opc.Ua.Bindings
 
                 State = TcpChannelState.Open;
 
+                if (requestType == SecurityTokenRequestType.Issue &&
+                    SelectedDataChannelKind is DataChannelCarrierKind kind)
+                {
+                    AttachDataChannelContext(kind, clientChainBlob);
+                }
+
                 // send the response.
                 if (requestType == SecurityTokenRequestType.Renew)
                 {
@@ -1116,6 +1151,11 @@ namespace Opc.Ua.Bindings
                 {
                     await SendOpenSecureChannelResponseAsync(
                         requestId, CurrentToken!, request, false, ct).ConfigureAwait(false);
+                    if (DataChannels != null &&
+                        !BackgroundWork.Run(nameof(ConfirmDataChannelProfileAsync), ConfirmDataChannelProfileAsync))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                    }
                 }
 
                 // notify reverse
@@ -1141,7 +1181,12 @@ namespace Opc.Ua.Bindings
                 // report the audit event for open secure channel
                 ReportAuditOpenSecureChannelEvent?.Invoke(this, request!, clientCertificate ?? ClientCertificate, e);
 
-                if (State is not TcpChannelState.Closed and not TcpChannelState.Closing)
+                if (SelectedDataChannelKind.HasValue)
+                {
+                    ForceChannelFaultCore(
+                        e, StatusCodes.BadSecurityChecksFailed, "The authenticated flow endpoint could not be opened.");
+                }
+                else if (State is not TcpChannelState.Closed and not TcpChannelState.Closing)
                 {
                     SendServiceFault(
                         requestId,
@@ -1166,6 +1211,92 @@ namespace Opc.Ua.Bindings
                 }
                 chunksToProcess?.Release(BufferManager, "ProcessOpenSecureChannelRequest");
             }
+        }
+
+        /// <summary>
+        /// Attaches verified identity and certificate lifetime after the initial token has been activated.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void AttachDataChannelContext(DataChannelCarrierKind kind, ByteString clientChainBlob)
+        {
+            if (ClientCertificate == null ||
+                ServerCertificate == null ||
+                Quotas.CertificateValidator == null ||
+                DataChannelFactory == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Flow contexts require authenticated application certificates and an explicit provider.");
+            }
+            var identity = new DataChannelPeerIdentity(
+                UascDataChannelEndpoint.GetApplicationUri(
+                    ServerCertificate, EndpointDescription?.Server?.ApplicationUri),
+                UascDataChannelEndpoint.GetApplicationUri(ClientCertificate, null),
+                DataChannelCertificateIdentity.GetKeyThumbprint(ServerCertificate),
+                DataChannelCertificateIdentity.GetKeyThumbprint(ClientCertificate),
+                SecurityMode == MessageSecurityMode.SignAndEncrypt
+                    ? DataChannelProtectionMode.Confidential
+                    : DataChannelProtectionMode.Integrity,
+                isTransportInitiator: ReverseConnectionUrl != null);
+            DataChannelContext context = AttachDataChannels(
+                kind, identity, isUascInitiator: false, DataChannelFactory);
+            using CertificateCollection peerChain =
+                DefaultCertificateFactory.Instance.ParseChainBlob(clientChainBlob.ToArray());
+            m_dataChannelCertificateMonitor = new UascDataChannelCertificateMonitor(
+                ServerCertificate,
+                peerChain,
+                Quotas.CertificateValidator,
+                TimeProvider,
+                BackgroundWork,
+                CloseDataChannelForCertificateAsync);
+            context.Closed += OnDataChannelContextClosed;
+        }
+
+        /// <summary>
+        /// Confirms the profile without blocking the receive loop that must process peer HELLO.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask ConfirmDataChannelProfileAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                DataChannelContext context = DataChannels ??
+                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                await context.StartAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Channel disposal owns the matching context retirement.
+            }
+            catch (Exception exception)
+            {
+                using (await Gate.EnterAsync(CancellationToken.None).ConfigureAwait(false))
+                {
+                    ForceChannelFaultCore(
+                        exception,
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The selected flow profile could not be confirmed.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Retires this authenticated association when its actual certificate evidence becomes invalid.
+        /// </summary>
+        private async ValueTask CloseDataChannelForCertificateAsync(ServiceResult failure, CancellationToken token)
+        {
+            using (await Gate.EnterAsync(token).ConfigureAwait(false))
+            {
+                ForceChannelFaultCore(failure);
+            }
+        }
+
+        /// <summary>
+        /// Stops certificate revalidation when this context is retired.
+        /// </summary>
+        private void OnDataChannelContextClosed(DataChannelResult result)
+        {
+            Interlocked.Exchange(ref m_dataChannelCertificateMonitor, null)?.Dispose();
         }
 
         /// <summary>
@@ -1795,7 +1926,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="chunks">The chunks of the request message, if assembled.</param>
         /// <returns>The RequestHandle, or 0 if it cannot be read.</returns>
-        private uint ReadRequestHandle(BufferCollection? chunks)
+        private static uint ReadRequestHandle(BufferCollection? chunks)
         {
             if (chunks == null)
             {
@@ -1940,6 +2071,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Encodes and queues a response while the caller holds the channel gate.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private bool SendResponseCore(uint requestId, IServiceResponse response)
         {
             {
@@ -2113,6 +2245,7 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+        private UascDataChannelCertificateMonitor? m_dataChannelCertificateMonitor;
         private readonly ILogger m_eventLogger;
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;

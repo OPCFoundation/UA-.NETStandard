@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <PublishAot>true</PublishAot>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Native.QuicGo\Opc.Ua.Native.QuicGo.csproj" />
+    <Compile Include="..\TestCredentials.cs" Link="TestCredentials.cs" />
+    <Compile Include="..\NativeQuicLiveScenario.cs" Link="NativeQuicLiveScenario.cs" />
+  </ItemGroup>
+</Project>

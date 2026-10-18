@@ -1,0 +1,41 @@
+[package]
+name = "shiguredo_http3"
+version = "2026.1.0-canary.12"
+edition.workspace = true
+rust-version.workspace = true
+description = "Sans I/O HTTP/3 Library"
+readme = "README.md"
+homepage = "https://github.com/shiguredo/http3-rs"
+repository = "https://github.com/shiguredo/http3-rs"
+license = "Apache-2.0"
+include = ["/LICENSE", "/README.md", "/src/**"]
+
+[workspace]
+members = [
+  "crates/tokio-ngtcp2",
+  "crates/tokio-s2n-quic",
+  "examples/wt_server",
+  "interop/h3",
+  "interop/wt",
+  "pbt",
+]
+exclude = [
+  "fuzz",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.93"
+
+[workspace.dependencies]
+# 本ライブラリ (workspace ルートを参照)
+shiguredo_http3 = { path = "." }
+
+[dependencies]
+
+[features]
+
+# noprop は panic 必須 (パニックでケース失敗を検出するため)
+# test プロファイルは dev プロファイルの panic 設定を引き継ぐため dev 側に指定する
+[profile.dev]
+panic = "unwind"

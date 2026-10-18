@@ -1,0 +1,3 @@
+edition = "2024"
+max_width = 110
+newline_style = "Windows"

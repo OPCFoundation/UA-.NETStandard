@@ -1,226 +1,321 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
- *
- * Permission is hereby granted, free of charge, to any person
- * obtaining a copy of this software and associated documentation
- * files (the "Software"), to deal in the Software without
- * restriction, including without limitation the rights to use,
- * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
- * conditions:
- *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- * OTHER DEALINGS IN THE SOFTWARE.
- *
- * The complete license agreement can be found here:
- * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
 using System;
 using System.Globalization;
+using System.IO;
 using Opc.Ua;
+using Opc.Ua.DataChannels;
 
 namespace ConsoleDataChannelStreaming
 {
     /// <summary>
-    /// Which framing the sample exercises.
-    /// </summary>
-    internal enum SampleTransport
-    {
-        /// <summary>
-        /// Inline framing: STR MessageChunks interleaved with Service
-        /// traffic on one connection, with credit-based flow control.
-        /// </summary>
-        Tcp,
-
-        /// <summary>
-        /// opc.quic: the channel is bound to its own QUIC stream and QUIC
-        /// applies the flow control.
-        /// </summary>
-        Quic
-    }
-
-    internal enum SampleRunMode
-    {
-        Server,
-        Direct,
-        Benchmark
-    }
-
-    /// <summary>
-    /// The command line of the sample.
+    /// Explicit finite application choices, independent of carrier negotiation.
     /// </summary>
     internal sealed record SampleOptions
     {
         /// <summary>
-        /// Which framing to exercise.
+        /// Gets the selected carrier; unsupported selections never fall back.
         /// </summary>
-        public SampleTransport Transport { get; init; } = SampleTransport.Tcp;
-
-        public SampleRunMode RunMode { get; init; } = SampleRunMode.Server;
+        public DataChannelCarrierKind Carrier { get; init; } = DataChannelCarrierKind.DedicatedUasc;
 
         /// <summary>
-        /// How many monitored items the benchmark subscribes to, which is
-        /// what sets the size of the competing Publish load.
+        /// Gets whether normal Session Calls additionally authorize the flow.
         /// </summary>
-        public int MonitoredItems { get; init; } = 100;
+        public bool SessionAuthorization { get; init; }
 
         /// <summary>
-        /// How many measured runs the benchmark takes per case, after one
-        /// warm-up run that is discarded.
+        /// Gets whether the connecting application, rather than the listening application, sends payload.
         /// </summary>
-        public int Repeat { get; init; } = 3;
+        public bool ClientPublishes { get; init; }
 
         /// <summary>
-        /// How many frames to send.
+        /// Gets the number of complete opaque messages.
         /// </summary>
-        public int FrameCount { get; init; } = 300;
+        public int Count { get; init; } = 100;
 
         /// <summary>
-        /// The payload size of each frame.
+        /// Gets the complete application message length.
         /// </summary>
-        public int FrameSize { get; init; } = 1200;
+        public int Size { get; init; } = 1200;
 
         /// <summary>
-        /// The delivery guarantee to negotiate.
+        /// Gets optional pacing, not a transport delivery guarantee.
         /// </summary>
-        public DataChannelDeliveryMode DeliveryMode { get; init; }
-            = DataChannelDeliveryMode.ReliableOrdered;
+        public int IntervalMilliseconds { get; init; }
 
         /// <summary>
-        /// True when the user asked for usage.
+        /// Gets the finite deadline, including certificate setup and shutdown.
+        /// </summary>
+        public int TimeoutSeconds { get; init; } = 60;
+
+        /// <summary>
+        /// Gets an optional cancellation demonstration deadline starting only after the flow is ready.
+        /// </summary>
+        public int CancelAfterMilliseconds { get; init; }
+
+        /// <summary>
+        /// Gets whether the opener commits a new priority halfway through the run.
+        /// </summary>
+        public bool Revise { get; init; }
+
+        /// <summary>
+        /// Gets whether to compare shared-channel runs with and without competing Services.
+        /// </summary>
+        public bool Benchmark { get; init; }
+
+        /// <summary>
+        /// Gets the bounded number of benchmark repetitions.
+        /// </summary>
+        public int Repeat { get; init; } = 1;
+
+        /// <summary>
+        /// Gets how many real monitored items generate Publish notifications.
+        /// </summary>
+        public int MonitoredItems { get; init; } = 4;
+
+        /// <summary>
+        /// Gets the requested publishing interval; the actual revised value is reported.
+        /// </summary>
+        public int PublishingInterval { get; init; } = 50;
+
+        /// <summary>
+        /// Gets whether ordinary Read and Publish traffic is enabled on a shared connection.
+        /// </summary>
+        public bool ServiceLoad { get; init; } = true;
+
+        /// <summary>
+        /// Gets a fresh, exclusively owned state directory, removed after the run.
+        /// </summary>
+        public string? StateDirectory { get; init; }
+
+        /// <summary>
+        /// Gets the explicit reviewed native QUIC asset.
+        /// </summary>
+        public string? QuicLibrary { get; init; }
+
+        /// <summary>
+        /// Gets the independently supplied expected QUIC asset SHA-256.
+        /// </summary>
+        public string? QuicSha256 { get; init; }
+
+        /// <summary>
+        /// Gets the explicit reviewed native HTTP/3 asset.
+        /// </summary>
+        public string? Http3Library { get; init; }
+
+        /// <summary>
+        /// Gets the independently supplied expected HTTP/3 asset SHA-256.
+        /// </summary>
+        public string? Http3Sha256 { get; init; }
+
+        /// <summary>
+        /// Gets whether only command-line help was requested.
         /// </summary>
         public bool ShowHelp { get; init; }
 
         /// <summary>
-        /// Parses the command line.
+        /// Gets whether this carrier has an ordinary Service lane.
         /// </summary>
-        /// <param name="args">The arguments.</param>
-        public static SampleOptions Parse(string[] args)
+        public bool Shared => Carrier == DataChannelCarrierKind.SharedUasc;
+
+        /// <summary>
+        /// Parses strict choices rather than interpreting unknown input as a default transport.
+        /// </summary>
+        public static SampleOptions Parse(string[] arguments)
         {
-            var options = new SampleOptions();
-
-            for (int ii = 0; ii < args.Length; ii++)
+            var options = new SampleOptions
             {
-                string argument = args[ii];
-
-                switch (argument)
+                QuicLibrary = Environment.GetEnvironmentVariable("OPCUA_QUIC_LIBRARY") ??
+                    Environment.GetEnvironmentVariable("OPCUA_QUIC_NATIVE_PATH"),
+                QuicSha256 = Environment.GetEnvironmentVariable("OPCUA_QUIC_SHA256") ??
+                    Environment.GetEnvironmentVariable("OPCUA_QUIC_NATIVE_SHA256"),
+                Http3Library = Environment.GetEnvironmentVariable("OPCUA_HTTP3_LIBRARY") ??
+                    Environment.GetEnvironmentVariable("OPCUA_HTTP3_NATIVE_PATH"),
+                Http3Sha256 = Environment.GetEnvironmentVariable("OPCUA_HTTP3_SHA256") ??
+                    Environment.GetEnvironmentVariable("OPCUA_HTTP3_NATIVE_SHA256")
+            };
+            for (int index = 0; index < arguments.Length; index++)
+            {
+                string argument = arguments[index];
+                options = argument switch
                 {
-                    case "-h":
-                    case "--help":
-                        return options with { ShowHelp = true };
-                    case "--transport":
-                        options = options with
-                        {
-                            Transport = Next(args, ref ii)
-                                .Equals("quic", StringComparison.OrdinalIgnoreCase)
-                                ? SampleTransport.Quic
-                                : SampleTransport.Tcp
-                        };
-                        break;
-                    case "--frames":
-                        options = options with { FrameCount = ParseInt(Next(args, ref ii)) };
-                        break;
-                    case "--size":
-                        options = options with { FrameSize = ParseInt(Next(args, ref ii)) };
-                        break;
-                    case "--mode":
-                        string mode = Next(args, ref ii);
-                        if (mode.Equals("direct", StringComparison.OrdinalIgnoreCase))
-                        {
-                            options = options with { RunMode = SampleRunMode.Direct };
-                        }
-                        else if (mode.Equals("server", StringComparison.OrdinalIgnoreCase))
-                        {
-                            options = options with { RunMode = SampleRunMode.Server };
-                        }
-                        else if (mode.Equals("benchmark", StringComparison.OrdinalIgnoreCase))
-                        {
-                            options = options with { RunMode = SampleRunMode.Benchmark };
-                        }
-                        else
-                        {
-                            options = options with { DeliveryMode = ParseDeliveryMode(mode) };
-                        }
-                        break;
-                    case "--monitored-items":
-                        options = options with { MonitoredItems = ParseInt(Next(args, ref ii)) };
-                        break;
-                    case "--repeat":
-                        options = options with { Repeat = ParseInt(Next(args, ref ii)) };
-                        break;
-                    case "--delivery":
-                        options = options with { DeliveryMode = ParseDeliveryMode(Next(args, ref ii)) };
-                        break;
-                    default:
-                        Console.Error.WriteLine($"unknown argument '{argument}'");
-                        return options with { ShowHelp = true };
-                }
+                    "--help" or "-h" => options with { ShowHelp = true },
+                    "--carrier" => options with { Carrier = ParseCarrier(Next(arguments, ref index)) },
+                    "--authorization" => options with
+                    {
+                        SessionAuthorization = Choice(Next(arguments, ref index), "configured", "session")
+                    },
+                    "--publisher" => options with
+                    {
+                        ClientPublishes = Choice(Next(arguments, ref index), "server", "client")
+                    },
+                    "--mode" => options with
+                    {
+                        Benchmark = Choice(Next(arguments, ref index), "stream", "benchmark")
+                    },
+                    "--count" => options with { Count = Number(Next(arguments, ref index), 1, 1_000_000) },
+                    "--size" => options with { Size = Number(Next(arguments, ref index), 4, 32768) },
+                    "--interval-ms" => options with
+                    {
+                        IntervalMilliseconds = Number(Next(arguments, ref index), 0, 1000)
+                    },
+                    "--timeout" => options with { TimeoutSeconds = Number(Next(arguments, ref index), 1, 300) },
+                    "--cancel-after-ms" => options with
+                    {
+                        CancelAfterMilliseconds = Number(Next(arguments, ref index), 1, 60000)
+                    },
+                    "--repeat" => options with { Repeat = Number(Next(arguments, ref index), 1, 10) },
+                    "--monitored-items" => options with
+                    {
+                        MonitoredItems = Number(Next(arguments, ref index), 1, 1000)
+                    },
+                    "--publishing-interval" => options with
+                    {
+                        PublishingInterval = Number(Next(arguments, ref index), 10, 1000)
+                    },
+                    "--state" => options with { StateDirectory = Next(arguments, ref index) },
+                    "--quic-library" => options with { QuicLibrary = Next(arguments, ref index) },
+                    "--quic-sha256" => options with { QuicSha256 = Next(arguments, ref index) },
+                    "--http3-library" => options with { Http3Library = Next(arguments, ref index) },
+                    "--http3-sha256" => options with { Http3Sha256 = Next(arguments, ref index) },
+                    "--revise" => options with { Revise = true },
+                    _ => throw new ArgumentException($"Unknown argument '{argument}'. Use --help.")
+                };
             }
-
+            if (!options.ShowHelp)
+            {
+                options.Validate();
+            }
             return options;
         }
 
         /// <summary>
-        /// Prints the usage banner.
+        /// Validates application combinations before creating certificates or opening sockets.
+        /// </summary>
+        public void Validate()
+        {
+            if (Revise && Count < 2)
+            {
+                throw new ArgumentException("--revise requires at least two messages.");
+            }
+            if (Benchmark && !Shared)
+            {
+                throw new ArgumentException("The competing Read/Publish benchmark requires --carrier shared.");
+            }
+            if (Carrier is DataChannelCarrierKind.Quic or DataChannelCarrierKind.WebTransport)
+            {
+                ValidateAsset(QuicLibrary, QuicSha256, "QUIC");
+            }
+            if (Carrier == DataChannelCarrierKind.WebTransport)
+            {
+                ValidateAsset(Http3Library, Http3Sha256, "HTTP/3");
+            }
+        }
+
+        /// <summary>
+        /// Prints only supported finite modes.
         /// </summary>
         public static void PrintUsage()
         {
-            Console.WriteLine("usage: ConsoleDataChannelStreaming [options]");
-            Console.WriteLine();
-            Console.WriteLine("  --transport tcp|quic  framing to exercise (default tcp)");
-            Console.WriteLine("  --mode server|direct|benchmark");
-            Console.WriteLine("                        real Session/OpenDataChannel, direct manager,");
-            Console.WriteLine("                        or the throughput matrix (default server)");
-            Console.WriteLine("  --frames N            frames to send (default 300)");
-            Console.WriteLine("  --size N              payload bytes per frame (default 1200,");
-            Console.WriteLine("                        which fits one QUIC datagram without");
-            Console.WriteLine("                        IP fragmentation)");
-            Console.WriteLine("  --delivery reliable|reliable-unordered|partial|unreliable");
-            Console.WriteLine("  --monitored-items N   benchmark: items generating the competing");
-            Console.WriteLine("                        Publish load (default 100)");
-            Console.WriteLine("  --repeat N            benchmark: measured runs per case after one");
-            Console.WriteLine("                        discarded warm-up (default 3)");
-            Console.WriteLine("  -h, --help            this text");
+            Console.WriteLine(
+                "ConsoleDataChannelStreaming (.NET 10)\n" +
+                "  --carrier dedicated|shared|quic|webtransport (default dedicated)\n" +
+                "  --authorization configured|session (default configured)\n" +
+                "  --publisher server|client (default server; client always opens the flow)\n" +
+                "  --count N --size N --interval-ms N --timeout SECONDS\n" +
+                "  --cancel-after-ms N (cancel after traffic starts; expected nonzero exit)\n" +
+                "  --revise (commit a live priority revision halfway through the messages)\n" +
+                "  --mode stream|benchmark --repeat N --monitored-items N --publishing-interval MS\n" +
+                "  --state NEW-DIRECTORY (owned PKI; removed at shutdown)\n" +
+                "  --quic-library ABSOLUTE-PATH --quic-sha256 EXPECTED-HASH\n" +
+                "  --http3-library ABSOLUTE-PATH --http3-sha256 EXPECTED-HASH\n" +
+                "Native assets may also be selected with OPCUA_QUIC_LIBRARY/OPCUA_QUIC_SHA256 and\n" +
+                "OPCUA_HTTP3_LIBRARY/OPCUA_HTTP3_SHA256. No fallback, implicit UASC, or browser mode.");
         }
 
-        private static string Next(string[] args, ref int index)
+        /// <summary>
+        /// Rejects missing or unreviewed assets without substituting another carrier.
+        /// </summary>
+        private static void ValidateAsset(string? path, string? hash, string name)
         {
-            index++;
-            return index < args.Length ? args[index] : string.Empty;
-        }
-
-        private static int ParseInt(string value)
-        {
-            return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsed)
-                ? parsed
-                : 0;
-        }
-
-        private static DataChannelDeliveryMode ParseDeliveryMode(string value)
-        {
-            switch (value.ToLowerInvariant())
+            if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path) || !File.Exists(path) ||
+                !IsSha256(hash))
             {
-                case "reliable-unordered":
-                    return DataChannelDeliveryMode.ReliableUnordered;
-                case "partial":
-                    return DataChannelDeliveryMode.PartiallyReliable;
-                case "unreliable":
-                    return DataChannelDeliveryMode.Unreliable;
-                default:
-                    return DataChannelDeliveryMode.ReliableOrdered;
+                throw new ArgumentException(
+                    $"{name} requires an explicit existing absolute library path and reviewed SHA-256; no fallback.");
             }
+        }
+
+        /// <summary>
+        /// Validates the expected digest without accepting a locally computed replacement.
+        /// </summary>
+        private static bool IsSha256(string? value)
+        {
+            if (value == null || value.Length != 64)
+            {
+                return false;
+            }
+            foreach (char character in value)
+            {
+                if (!char.IsAsciiHexDigit(character))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Reads a required argument value.
+        /// </summary>
+        private static string Next(string[] arguments, ref int index)
+        {
+            if (++index >= arguments.Length || string.IsNullOrWhiteSpace(arguments[index]))
+            {
+                throw new ArgumentException("An option value is missing.");
+            }
+            return arguments[index];
+        }
+
+        /// <summary>
+        /// Parses a finite integer range without coercion.
+        /// </summary>
+        private static int Number(string value, int minimum, int maximum)
+        {
+            if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int number) ||
+                number < minimum || number > maximum)
+            {
+                throw new ArgumentException($"'{value}' must be an integer in [{minimum}, {maximum}].");
+            }
+            return number;
+        }
+
+        /// <summary>
+        /// Parses one of two explicit choices.
+        /// </summary>
+        private static bool Choice(string value, string first, string second)
+        {
+            return value == first ? false : value == second ? true :
+                throw new ArgumentException($"'{value}' must be '{first}' or '{second}'.");
+        }
+
+        /// <summary>
+        /// Keeps carrier selection independent of payload and authorization choices.
+        /// </summary>
+        private static DataChannelCarrierKind ParseCarrier(string value)
+        {
+            return value switch
+            {
+                "dedicated" => DataChannelCarrierKind.DedicatedUasc,
+                "shared" => DataChannelCarrierKind.SharedUasc,
+                "quic" => DataChannelCarrierKind.Quic,
+                "webtransport" => DataChannelCarrierKind.WebTransport,
+                _ => throw new ArgumentException($"Unknown carrier '{value}'. No transport fallback is available.")
+            };
         }
     }
 }

@@ -1,0 +1,11 @@
+[
+  "opcua_http3_abi_version",
+  "opcua_http3_api_revision",
+  "opcua_http3_command",
+  "opcua_http3_create",
+  "opcua_http3_destroy",
+  "opcua_http3_last_error",
+  "opcua_http3_layout",
+  "opcua_http3_poll",
+  "opcua_http3_resource_snapshot"
+]

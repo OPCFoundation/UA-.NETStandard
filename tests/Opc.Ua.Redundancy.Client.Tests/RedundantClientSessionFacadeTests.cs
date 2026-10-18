@@ -658,62 +658,39 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         /// <summary>
-        /// The data channel Services delegate to the current session like every
-        /// other Service on the facade. A redundant client that silently dropped
-        /// them would leave a channel opened against a session the caller can no
-        /// longer reach after a failover.
+        /// Modelled Data Channel operations use the current session's ordinary Call Service.
         /// </summary>
-        [Test]
-        public async Task LeaderDataChannelServiceCallsDelegateToCurrentSessionAsync()
+        [TestCase(Methods.DataChannelManager_OpenDataChannel)]
+        [TestCase(Methods.DataChannelManager_ModifyDataChannel)]
+        [TestCase(Methods.DataChannelManager_CloseDataChannel)]
+        public async Task LeaderDataChannelMethodsDelegateThroughCallAsync(uint methodId)
         {
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
             CancellationToken ct = CancellationToken.None;
-
-            var opened = new OpenDataChannelResponse();
-            var modified = new ModifyDataChannelResponse();
-            var closed = new CloseDataChannelResponse();
-
-            // Scoped opt-in: the Services carry [Experimental("DataChannels")],
-            // and the facade's delegation obligation applies to them regardless.
-#pragma warning disable DataChannels
-            session.Setup(s => s.OpenDataChannelAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<ulong>(),
-                    It.IsAny<DataChannelParametersDataType>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<OpenDataChannelResponse>(opened));
-            session.Setup(s => s.ModifyDataChannelAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<DataChannelParametersDataType>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ModifyDataChannelResponse>(modified));
-            session.Setup(s => s.CloseDataChannelAsync(
-                    It.IsAny<RequestHeader>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<StatusCode>(),
-                    It.IsAny<bool>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<CloseDataChannelResponse>(closed));
-
-            Assert.Multiple(async () =>
+            var request = new CallMethodRequest
             {
-                Assert.That(
-                    await facade.OpenDataChannelAsync(null, new NodeId(1u), 0, 0, null, ct)
-                        .ConfigureAwait(false),
-                    Is.SameAs(opened));
-                Assert.That(
-                    await facade.ModifyDataChannelAsync(null, 1, null, ct).ConfigureAwait(false),
-                    Is.SameAs(modified));
-                Assert.That(
-                    await facade.CloseDataChannelAsync(null, 1, StatusCodes.Good, false, ct)
-                        .ConfigureAwait(false),
-                    Is.SameAs(closed));
-            });
-#pragma warning restore DataChannels
+                ObjectId = ObjectIds.DataChannelManager,
+                MethodId = new NodeId(methodId),
+                InputArguments = [new Variant(7u)]
+            };
+            var response = new CallResponse
+            {
+                Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+            };
+            session.Setup(s => s.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.Is<ArrayOf<CallMethodRequest>>(calls => calls.Count == 1 && ReferenceEquals(calls[0], request)),
+                    ct))
+                .Returns(new ValueTask<CallResponse>(response));
+
+            CallResponse actual = await facade.CallAsync(null, [request], ct).ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(response));
+            session.Verify(s => s.CallAsync(
+                It.IsAny<RequestHeader>(),
+                It.Is<ArrayOf<CallMethodRequest>>(calls => calls.Count == 1 && ReferenceEquals(calls[0], request)),
+                ct), Times.Once);
         }
 
         [Test]

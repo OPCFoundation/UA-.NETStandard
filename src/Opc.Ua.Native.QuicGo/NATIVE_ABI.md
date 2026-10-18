@@ -1,0 +1,244 @@
+# Native QUIC ABI4 and reproducible packaging
+
+`native\include\opcua_quic.h` is authoritative. All ten production `opcua_quic_*`
+exports are Cdecl; scalar widths are fixed, x64 natural alignment is eight.
+No Go pointer or native-owned payload pointer crosses the boundary. Handles are
+distinct typed 64-bit identities, not pointers, and never recycle within the process.
+The ABI descriptor reports every layout; managed loading fails closed on a mismatch.
+The legacy proof's pair/suite/identity-generation exports are **not** included.
+
+| Structure | Bytes |
+| --- | ---: |
+| handle | 8 |
+| bytes | 16 |
+| identity | 96 |
+| peer rule | 32 |
+| config | 160 |
+| request | 48 |
+| result | 112 |
+| connection info | 920 |
+| counts | 40 |
+| ABI descriptor | 32 |
+
+## Ownership and bounds
+
+Begin validates/copies bounded input, admits one job, and returns without waiting for
+network, TLS or a free queue slot. Worker operations have deadlines of 1..60000 ms.
+Poll returns pending, short-buffer, or terminal observation. Terminal operation failure
+is in `result.status`, **not** poll's return. Short buffers do not consume/observe.
+Repeated terminal polls are stable. Release refuses pending or unobserved jobs.
+Cancel requests interruption; it never abandons buffers or revokes a returned result.
+
+- 128 process-wide outstanding jobs including unreleased terminal results. This accommodates
+  concurrent passive H3 read/STOP/accept watches without dropping real evidence; callers still
+  enforce their own per-connection admission/reserved write capacity.
+- 4 MiB conservative operation byte reservations, independent of job count.
+- 8 listeners; 32 native connections including inbound handshakes and unaccepted peers.
+  Address validation uses native QUIC Retry before inbound connection admission.
+- 256 stream handles and 1..32 incoming streams per direction per connection.
+- Stream receive windows: fixed 64 KiB; connection receive window: fixed 256 KiB.
+- Read/write payload: at most 64 KiB; 1..32 application policy rules.
+- Certificate/key/trust bundles: at most 16 KiB each; at most 16 certificates.
+- Bounded native datagram queues are quic-go's reviewed fixed queues. A blocked native
+  datagram Send has no per-datagram cancellation primitive: cancellation/deadline closes
+  **that connection** to unblock it. Receive cancellation does not close the connection.
+- Trace storage retains at most 256 stream facts per connection, not packet history.
+  It stores only current sent high-water, sent/received reset metadata and the first
+  actual peer STOP_SENDING. Releasing
+  a stream removes its facts; allocator high-water rejects late recreation of them.
+- Persistent native state is separately bounded by the handle/handshake/window limits.
+  `retained_bytes` is not a claim to measure all Go/TLS/socket memory.
+
+One read and one write can operate concurrently on a stream. A reset cannot overtake
+an active write; release cannot invalidate any referencing job, even an unreleased
+terminal job. Connection close interrupts its native I/O, but connection release
+requires all child streams and referencing jobs to be released. Listener close drains
+unaccepted peers and releases its own socket reference; accepted connections retain
+their transport independently until they close. Counters can be used to verify complete
+shutdown (allowing finite background transport cleanup).
+
+## Security and transport evidence
+
+Every endpoint has a supplied leaf, intermediates, private key, trust anchors and local
+URI. Every peer rule requires an exact certificate URI SAN **and** SHA256 SPKI pin.
+TLS performs ordinary chain/lifetime/EKU validation, plus connector hostname validation.
+Unknown roots, malformed material, missing key capability and empty policy fail closed.
+The listener's rule array is explicit and extensible to multiple applications/key rotations;
+there is no single hardcoded client and no authorization based on application records.
+Policies are immutable snapshots. Providers must enforce any additional revocation,
+trust-list or authorization rules before supplying a snapshot and close affected live
+connections when such policy changes. Online revocation fetches are not implemented.
+
+TLS 1.3 only; no tickets, resumption or early/0RTT endpoint API. Successful connector
+admission requires observation of a CertificateRequest, selection of the configured local
+certificate, completed TLS Certificate/CertificateVerify/Finished processing, verified expected
+peer identity, and authenticated HANDSHAKE_DONE receipt. A pinned/trusted server that omits
+CertificateRequest is refused, not treated as mutually authenticated. Server admission requires
+its own per-connection certificate selection and native post-client-auth handshake completion.
+Higher-layer application acceptance/authorization remains separate.
+
+The ABI2 layout, retained by ABI3 and ABI4, appends independent observations to the first 904 info bytes:
+`handshake_confirmed` at904, `mutual_tls_authenticated` at908, `local_certificate_used` at912,
+and zero `reserved` at916. Offset16 remains **local TLS HandshakeComplete**, not QUIC
+confirmation. Managed loading requires ABI4/info920. ABI1 lacks the authentication facts,
+ABI2 lacks the independent received-reset watcher, and ABI3 lacks the actual peer-STOP
+watcher; none is silently assumed. The ten export signatures and structure sizes are
+unchanged by these additive operation revisions.
+
+Peer facts return the actual verified certificate chain, authorized URI, leaf/SPKI hashes,
+ALPN and TLS/transport facts. Exact **remote** TP `0x1d` comes from the observation overlay,
+not the native merged draft07/09 capability. Local emission is the source-pinned native
+encoder, golden-tested for empty TP `0x1d`. No wire encoder/decoder behavior is patched.
+Typed `HandshakeConfirmed`, `MutualTlsAuthenticated` and `LocalCertificateUsed` properties
+reflect those new native fields. Typed reset09 flags map to empty TP `0x1d` and frame `0x24`;
+that protocol mapping is not an observation that a reset has already been transmitted.
+
+## Stream completion and reliable reset
+
+Native allocation supplies real bidirectional/unidirectional IDs. For H3, the host reserves
+client bidi0 for CONNECT and three actual uni IDs for control/QPACK before allocating
+application streams. This backend does not reserve or interpret H3/flow records.
+
+Write completion reports **actual accepted bytes**, including partial errors. FIN is
+reported successful only after the native send Close succeeds. Boundary flag2 writes
+the entire supplied prefix, then calls native `SetReliableBoundary` before returning.
+Immediate cancellation cannot overtake this marking. A failed partial prefix closes
+that connection rather than emitting an unassociated reset. Reset/close outcomes never
+derive final size from leased payloads.
+
+`WaitResetSent` waits for the actual **local** native packetizer frame and returns final
+size, reliable size, application error and original native encoder codepoint `0x24`
+or `0x04`. An ordinary reset can follow an actual peer STOP_SENDING even after a reliable
+boundary was established; see the policy limitation below. Reads return data before FIN/reset outcome.
+Received reset metadata is independently observed; it is not substituted for local
+send confirmation. `SentOffset` reports transmitted STREAM high-water, not Write counts.
+
+`WaitResetReceived` (stream operation28, operation revision2) independently waits for actual
+peer RESET_STREAM/RESET_STREAM_AT metadata already captured by the native packet recorder.
+It can run while Read is paused by application backpressure, or concurrently with Read/Write.
+It returns `Remote=true`, reset outcome, actual error/final/reliable/frame values and no payload.
+It neither consumes bytes nor cancels either direction; reliable prefix bytes may still be
+buffered and must retain their normal ownership/processing rules. It is distinct from
+`WaitPeerStopped`, which observes a peer STOP_SENDING directed at the local send half.
+Cancelling/timing out this watcher produces no invented EOF/reset evidence.
+
+Operation28 was introduced with ABI3/revision2. Keep the watcher bounded and drain/release
+it before releasing its stream.
+
+### Actual peer STOP and crossed resets
+
+`WaitPeerStopped` (stream operation29, operation revision3) observes the first authenticated
+received STOP_SENDING frame for a send-capable stream. Success returns `Remote=true`, the
+actual stream ID and peer application error, including error zero. Payload, byte count,
+final size, reliable size and reset frame type remain zero: a STOP is not a reset.
+It is independent of Read, Write and local send cancellation. A local Reset or FIN cannot
+complete it as peer evidence. Cancellation, timeout or connection closure without a
+recorded STOP fails without inventing a peer error. Repeated completed observations retain
+the first peer error, and concurrent same-kind watchers are bounded by the normal Busy rule.
+
+The older `WaitStopped` operation25 is retained as a send-context observer. It reports the
+first cancellation cause, which can be local. If local Reset wins first, a subsequent peer
+STOP cannot replace that context cause. Use operation29 for actual peer STOP, including
+crossed shutdown; do not interpret the legacy local context result as remote evidence.
+
+ABI4 is the runtime gate for operation29. The managed loader rejects ABI3 or older before
+admitting operations. Receipt revision3 is additional provenance, not a substitute for that
+runtime gate. Export signatures and all structure sizes remain unchanged.
+
+### STOP and application reliable-minimum policies
+
+The pinned native `handleStopSendingFrame` deliberately clears its reliable size and sends
+ordinary RESET_STREAM after STOP_SENDING. This is not an acknowledgement-driven optimization.
+An earlier local reset's error remains authoritative if STOP arrives later, while the
+subsequent actual reset can reduce reliable size to zero. The recorder reports these actual
+frames; it never substitutes the earlier reliable boundary or received reset metadata.
+
+[Reliable-reset draft09 section5.4](https://www.ietf.org/archive/id/draft-ietf-quic-reliable-stream-reset-09.txt)
+recommends ordinary RESET_STREAM in response to STOP; section5.2 permits application protocols
+to impose minimum reliable sizes.
+[WebTransport draft16 section4.4](https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-16.txt)
+requires header-sized reliable reset for WebTransport data streams. Generic QUIC correctness
+alone does **not** establish an exception to that application requirement.
+
+This pinned backend currently has no native policy setting that preserves a minimum reliable
+size after peer STOP. The new observation does not add such a policy or authorize a
+WebTransport binding to accept ordinary resets as reliable-prefix confirmation. That use
+requires an authoritative normative reconciliation or separately approved and qualified
+native policy support. No QUIC protocol behavior or the three-file observation overlay is
+changed here.
+
+### Late application-error cancellation
+
+An H3 ResetSend event can arrive while a body write still owns its lease. Attach a
+one-shot `NativeQuicCancellation` to the request rather than waiting for the send
+before attempting the conflicting `Reset` operation:
+
+```csharp
+using var reset = new NativeQuicCancellation();
+var request = new NativeQuicRequest(timeout, body)
+{
+    Cancellation = reset
+};
+Task<NativeQuicCompletion> writing = backend.StreamAsync(
+    stream, NativeQuicStreamOperation.Send, request, lifetimeToken).AsTask();
+
+// When the application learns the mapped wire error:
+await reset.CancelAsync(wireError);
+NativeQuicCompletion sent = await writing;
+```
+
+`CancelAsync` publishes the full 62-bit error before invoking cancellation callbacks.
+It awaits **only signalling callbacks**, not the native write or its body lease.
+The callback uses the existing C `opcua_quic_cancel(operation, error)` export, so it
+interrupts only the send direction and leaves the native prefix critical section intact.
+Passing `reset.Token` separately is optional. The first control request wins; repeat
+calls cannot overwrite its `ErrorCode`. Keep the control alive until its operation drains.
+
+The ordinary lifetime token continues using `CancellationErrorCode` unless the dynamic
+control has already been requested. A cancellation already delivered to native code
+remains authoritative: a later control request cannot replace that earlier wire error.
+For a send that already completed, cancellation may lose the race without emitting any
+reset. After draining, the host must use ordinary `Reset` if still required by stream state.
+Never infer reset transmission from successful signalling.
+
+For H3: reconcile the actual terminal write bytes with operation20, then obtain
+`WaitResetSent` **local** final/reliable/error evidence for operation22. Do not release
+the H3 lease early, cancel the receive half or manufacture reset metadata. No native
+ABI/export/library change is needed for this managed cancellation control.
+
+## Reproduction
+
+Use verified public Go1.27.2 and Zig0.17.0 Windows archives from `build\native-pins.json`.
+No installer or global PATH/configuration change is required. `ToolRoot` contains
+`go\bin\go.exe` and `zig\zig.exe`. `CacheRoot` is an existing writable Go/Zig cache;
+`QuicSourceRoot` is the exact source tree from the checksum-verified module zip.
+Reuse a reviewed tree instead of duplicating a full mirror. Every source file is compared
+with the verified Go module, then only the three pinned observation files are overlaid.
+Go forbids overlays directly in its module cache; an output-local small shim source tree
+uses a junction to the reviewed QUIC tree with a stable `./quic-go` replacement. This
+avoids embedding private source paths in native module build-info and makes no upstream
+source mirror. The committed go.mod/go.sum remain canonical, without local replacement.
+
+```powershell
+.\build\Build-Native.ps1 -ToolRoot $tools -CacheRoot $cache -QuicSourceRoot $quicSource `
+    -OutputRoot $output -RuntimeIdentifier win-x64
+.\build\Build-Native.ps1 -ToolRoot $tools -CacheRoot $cache -QuicSourceRoot $quicSource `
+    -OutputRoot $output -RuntimeIdentifier linux-x64
+.\build\Pack-Native.ps1 -ToolRoot $tools -CacheRoot $cache -QuicSourceRoot $quicSource `
+    -OutputRoot $packageOutput -UnsignedDevelopment
+```
+
+The scripts verify executable/source/module/overlay pins, run Go vet, build with
+`-trimpath -buildvcs=false -buildmode=c-shared`, restrict/inspect actual exports and
+emit path-free per-RID receipts plus asset SHA256 sidecars. Package verification
+checks hashes, source receipts, all exports and a strict file allowlist; test fixtures,
+keys, caches, PDBs, diagnostic paths, brand assets and private spec material are excluded.
+PowerShell recipes are packaged as `.ps1.txt` inert source, never NuGet install scripts;
+rename them to `.ps1` after extracting if using the recipe outside the repository.
+No cross-host bit-for-bit build or independent compiler-bootstrap claim is made.
+
+The root solution/package/workflow wiring is intentionally not performed by this package.
+Parent integration must add the optional project/test project, reference it only from
+opt-in bindings, invoke these build/pack scripts, and implement the certificate-manager
+provider/managed flow integration. The source adoption gate does not waive downstream
+signing, final linked SBOM/notices/SCA or advertised-minimum-host acceptance.

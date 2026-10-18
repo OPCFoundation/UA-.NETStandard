@@ -119,6 +119,13 @@ More applications, including platform-specific examples, are available in
 the companion
 [OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
 
+The experimental [Data Channels](docs/DataChannels.md) samples include
+[brokerless PubSub over a SecureChannel](samples/PubSub/ConsoleSecureChannelPubSub/README.md),
+[streaming](samples/Core/ConsoleDataChannelStreaming/README.md) and
+[finite audio/WAV output](samples/Core/ConsoleDataChannelAudio/README.md).
+They use the rewritten complete-message protocol; native QUIC/WebTransport
+are optional and have separate deployment and qualification requirements.
+
 ### Developer tools
 
 - [OPC UA MCP Server](docs/McpServer.md) — installable .NET tool and container

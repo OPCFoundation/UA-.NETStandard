@@ -23,6 +23,7 @@ OPCFoundation.NetStandard.Opc.Ua.AMB.Client
 OPCFoundation.NetStandard.Opc.Ua.AMB.Server
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic
+OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
 OPCFoundation.NetStandard.Opc.Ua.Configuration
@@ -87,6 +88,8 @@ OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows
 OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon
 OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry
 OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer
+OPCFoundation.NetStandard.Opc.Ua.Native.Http3
+OPCFoundation.NetStandard.Opc.Ua.Native.QuicGo
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector

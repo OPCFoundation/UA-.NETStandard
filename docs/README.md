@@ -123,6 +123,9 @@ started exercise and the other two paths are optional here.
 3. [PubSub guide](PubSub.md) — the fluent builder, hosting, configuration,
    encodings, and security.
 4. [Transport selection](PubSub.md#transports) — UDP, Ethernet, MQTT, and Kafka.
+5. [Brokerless PubSub over a SecureChannel](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
+   (experimental) - run complete UADP or JSON NetworkMessages over a dedicated
+   flow, or share the connection with ordinary Read/Publish traffic.
 
 ## 3. Add data types and application services
 
@@ -368,11 +371,13 @@ guide describes its current limitations.
   connectivity first.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
-- [Data Channels](DataChannels.md) (experimental) - inline streaming over a
-  SecureChannel, with flow control, scheduling, and the data-channel Service Set
-  in `Opc.Ua.Core`; `opc.quic` ships separately as
-  `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`. Identifiers are provisional,
-  and the errata is not endorsed by the OPC Foundation.
+- [Data Channels](DataChannels.md) (experimental) - complete-message flows over
+  dedicated/shared UASC, native QUIC or native WebTransport. Configured flows
+  need no Session; optional model control uses ordinary Call Methods.
+  Native bindings are isolated optional packages; identifiers remain provisional.
+- [Native Data Channel Client/Server lane](DataChannelClientServer.md)
+  (experimental) - explicitly host ordinary UACP/UASC inside a native flow,
+  independently of the optional model and Session authorization.
 
 These samples combine several draft or preview capabilities. Read the guides
 for their models first:

@@ -207,21 +207,6 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Unregister Nodes request type.
         /// </summary>
-        UnregisterNodes,
-
-        /// <summary>
-        /// Open data channel request type.
-        /// </summary>
-        OpenDataChannel,
-
-        /// <summary>
-        /// Modify data channel request type.
-        /// </summary>
-        ModifyDataChannel,
-
-        /// <summary>
-        /// Close data channel request type.
-        /// </summary>
-        CloseDataChannel
+        UnregisterNodes
     }
 }

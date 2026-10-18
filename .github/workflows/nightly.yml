@@ -162,6 +162,11 @@ jobs:
         coverage: ${{ matrix.entry.coverage }}
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  native-data-channels:
+    name: Native Data Channels
+    needs: discover
+    uses: ./.github/workflows/native-data-channels.yml
+
   aot:
     name: aot-${{ matrix.os }}
     needs: discover
@@ -263,7 +268,7 @@ jobs:
 
   coverage:
     name: coverage
-    needs: [discover, tests]
+    needs: [discover, tests, native-data-channels]
     runs-on: ubuntu-latest
     # always(): the coverage of a run whose tests failed is still worth
     # reporting.

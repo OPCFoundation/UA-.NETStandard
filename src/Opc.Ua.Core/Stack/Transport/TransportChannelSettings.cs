@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Opc.Ua.DataChannels;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -87,6 +88,18 @@ namespace Opc.Ua
         /// server the channel connects to.
         /// </remarks>
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
+        /// Gets or sets the factory for an explicitly selected UASC flow endpoint.
+        /// The authenticated context is created before protected profile confirmation.
+        /// </summary>
+        public IDataChannelContextFactory? DataChannels { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether an explicitly selected flow endpoint may use Sign.
+        /// Confidential protection is required by default; None is never permitted.
+        /// </summary>
+        public bool AllowDataChannelIntegrity { get; set; }
 
         /// <summary>
         /// Gets or sets a reference to the table of namespaces for the server.

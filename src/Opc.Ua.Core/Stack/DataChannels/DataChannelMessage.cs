@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,135 +28,59 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
-namespace Opc.Ua.Bindings
+namespace Opc.Ua.DataChannels
 {
     /// <summary>
-    /// One unit of payload delivered to the application, together with
-    /// the loss information the data channel layer detected around it.
+    /// One complete application message. Disposal releases its encoded-byte and message-count
+    /// reservation exactly once; a reset does not steal a message already handed to a reader.
     /// </summary>
-    /// <remarks>
-    /// The payload occupies a pooled buffer. Disposing the message
-    /// returns that buffer and, as Part 6 errata 5.8.2 requires, is what
-    /// releases flow control credit back to the sender: an application
-    /// that never disposes its messages stalls the channel it is reading.
-    /// </remarks>
     public sealed class DataChannelMessage : IDisposable
     {
         /// <summary>
-        /// Creates a message.
+        /// Takes ownership of a complete immutable body and its admission reservation.
         /// </summary>
-        /// <param name="owner">The channel that delivered it.</param>
-        /// <param name="buffer">The pooled buffer holding the payload.</param>
-        /// <param name="length">The payload length.</param>
-        /// <param name="flags">The flags the frame carried.</param>
-        /// <param name="frameSequenceNumber">The number the frame
-        /// carried.</param>
-        /// <param name="status">Good, or Uncertain_DataDiscarded when
-        /// frames were lost immediately before this one.</param>
-        /// <param name="gapFrom">The first lost number, when a gap
-        /// preceded this frame.</param>
-        /// <param name="gapTo">The last lost number.</param>
-        internal DataChannelMessage(
-            DataChannel owner,
-            byte[]? buffer,
-            int length,
-            DataChannelFrameFlags flags,
-            uint frameSequenceNumber,
-            StatusCode status,
-            uint gapFrom,
-            uint gapTo)
+        internal DataChannelMessage(ByteString payload, uint revision, uint messageId, Action release)
         {
-            m_owner = owner;
-            m_buffer = buffer;
-            Length = length;
-            Flags = flags;
-            FrameSequenceNumber = frameSequenceNumber;
-            Status = status;
-            GapFrom = gapFrom;
-            GapTo = gapTo;
+            m_payload = payload;
+            Revision = revision;
+            MessageId = messageId;
+            m_release = release;
         }
 
         /// <summary>
-        /// The payload bytes.
+        /// Gets complete payload bytes valid until disposal.
         /// </summary>
-        public ByteString Payload
-            => m_buffer != null && !m_disposed
-                ? new ByteString(new ReadOnlyMemory<byte>(m_buffer, 0, Length))
-                : ByteString.Empty;
+        public ByteString Payload => m_payload;
 
         /// <summary>
-        /// The payload length in bytes.
+        /// Gets the revision under which this message was admitted.
         /// </summary>
-        public int Length { get; }
+        public uint Revision { get; }
 
         /// <summary>
-        /// The flags the frame carried.
+        /// Gets the monotonically increasing sender DATA identifier.
         /// </summary>
-        public DataChannelFrameFlags Flags { get; }
+        public uint MessageId { get; }
 
         /// <summary>
-        /// The FrameSequenceNumber the frame carried.
+        /// Gets the complete application payload length.
         /// </summary>
-        public uint FrameSequenceNumber { get; }
+        public int Length => m_payload.Length;
 
-        /// <summary>
-        /// Good, or Uncertain_DataDiscarded when the delivered stream is
-        /// incomplete because frames were discarded or lost.
-        /// </summary>
-        public StatusCode Status { get; }
-
-        /// <summary>
-        /// The first FrameSequenceNumber lost immediately before this
-        /// frame, or zero when none were.
-        /// </summary>
-        public uint GapFrom { get; }
-
-        /// <summary>
-        /// The last FrameSequenceNumber lost immediately before this
-        /// frame, or zero when none were.
-        /// </summary>
-        public uint GapTo { get; }
-
-        /// <summary>
-        /// True when this frame begins a logical application message.
-        /// </summary>
-        public bool IsMessageStart
-            => (Flags & DataChannelFrameFlags.MessageStart) != 0;
-
-        /// <summary>
-        /// True when this frame ends a logical application message.
-        /// </summary>
-        public bool IsMessageEnd
-            => (Flags & DataChannelFrameFlags.MessageEnd) != 0;
-
-        /// <summary>
-        /// True when the sender marked this frame as a synchronization
-        /// point, for example a video key frame. A receiver that has just
-        /// recovered from a gap can resume here without understanding the
-        /// payload.
-        /// </summary>
-        public bool IsMarker
-            => (Flags & DataChannelFrameFlags.Marker) != 0;
-
-        /// <summary>
-        /// Returns the payload buffer to the pool and releases the flow
-        /// control credit it occupied.
-        /// </summary>
+        /// <inheritdoc/>
         public void Dispose()
         {
-            if (m_disposed)
+            Action? release = Interlocked.Exchange(ref m_release, null);
+            if (release != null)
             {
-                return;
+                m_payload = ByteString.Empty;
+                release();
             }
-
-            m_disposed = true;
-            m_owner.ReleaseMessage(m_buffer, Length);
-            m_buffer = null;
         }
 
-        private readonly DataChannel m_owner;
-        private byte[]? m_buffer;
-        private bool m_disposed;
+        private ByteString m_payload;
+        private Action? m_release;
     }
 }

@@ -1,918 +1,712 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Bindings;
+using Opc.Ua.Bindings.Native;
 using Opc.Ua.Client;
-using Opc.Ua.Client.Discovery;
+using Opc.Ua.Client.DataChannels;
 using Opc.Ua.Configuration;
+using Opc.Ua.DataChannels;
+using Opc.Ua.Native.QuicGo;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using Opc.Ua.Server.DataChannels;
+using Opc.Ua.Server.Hosting;
 using ClientSession = Opc.Ua.Client.ISession;
-using ClientMonitoredItem = Opc.Ua.Client.MonitoredItem;
-using ClientSubscription = Opc.Ua.Client.Subscription;
+using ServerSession = Opc.Ua.Server.ISession;
 
 namespace ConsoleDataChannelStreaming
 {
     /// <summary>
-    /// Wires a source and a sink data channel together over the framing the sample was asked for.
+    /// Composes real authenticated carrier factories and the common complete-message facade.
+    /// It contains application policy and ownership, not negotiation, framing or channel registries.
     /// </summary>
     internal sealed class StreamingHarness : IAsyncDisposable
     {
-        private StreamingHarness(
-            DataChannelManager? sourceManager,
-            DataChannelManager sinkManager,
-            DataChannel source,
-            DataChannel sink,
-            DataChannelFramingMode framingMode,
-            uint channelId,
-            DataChannelParametersDataType revisedParameters,
-            ulong revisedTransportChannelId,
-            Func<CancellationToken, ValueTask>? closeService = null,
-            IAsyncDisposable? owner = null,
-            Task? channelAttachTask = null)
-        {
-            m_sourceManager = sourceManager;
-            m_sinkManager = sinkManager;
-            Source = source;
-            Sink = sink;
-            FramingMode = framingMode;
-            ChannelId = channelId;
-            RevisedParameters = revisedParameters;
-            RevisedTransportChannelId = revisedTransportChannelId;
-            m_closeService = closeService;
-            m_owner = owner;
-            m_channelAttachTask = channelAttachTask;
-        }
-
-        public DataChannel Source { get; }
-
-        public DataChannel Sink { get; }
-
-        public DataChannelFramingMode FramingMode { get; }
-
-        public uint ChannelId { get; }
-
-        public DataChannelParametersDataType RevisedParameters { get; }
-
-        public ulong RevisedTransportChannelId { get; }
-
-        public static Task<StreamingHarness> CreateAsync(SampleOptions options, CancellationToken ct)
-        {
-            return options.RunMode == SampleRunMode.Direct
-                ? CreateDirectAsync(options, ct)
-                : CreateServerAsync(options, ct);
-        }
-
         /// <summary>
-        /// Starts a subscription whose Publish traffic competes with the
-        /// data channel, replacing any load already running.
+        /// Creates application-scoped budgets shared by all each application's contexts and carriers.
         /// </summary>
-        /// <remarks>
-        /// The benchmark varies the load on one long-lived harness rather
-        /// than standing up a Server per case. Several Servers in one
-        /// process share the process-wide SecureChannel registry the data
-        /// channel Services resolve through, and a Server that is still
-        /// shutting down is enough to make the next case send frames at a
-        /// channel that never enabled the feature.
-        /// </remarks>
-        /// <param name="publishingInterval">Interval in milliseconds.</param>
-        /// <param name="monitoredItems">How many items to monitor.</param>
-        /// <param name="ct">Cancellation token.</param>
-        public async Task StartPublishLoadAsync(
-            int publishingInterval,
-            int monitoredItems,
-            CancellationToken ct)
+        private StreamingHarness(SampleOptions options, ITelemetryContext telemetry)
         {
-            await StopPublishLoadAsync(ct).ConfigureAwait(false);
-
-            if (publishingInterval <= 0 || m_session == null || m_telemetry == null)
-            {
-                return;
-            }
-
-            var load = new PendingPublishLoad();
-            await load
-                .StartAsync(m_session, m_telemetry, publishingInterval, monitoredItems, ct)
-                .ConfigureAwait(false);
-
-            m_publishLoad = load;
-            MonitoredItemCount = monitoredItems;
-        }
-
-        /// <summary>
-        /// Removes the competing subscription, if one is running.
-        /// </summary>
-        /// <param name="ct">Cancellation token.</param>
-        public async Task StopPublishLoadAsync(CancellationToken ct)
-        {
-            PendingPublishLoad? load = m_publishLoad;
-            m_publishLoad = null;
-            MonitoredItemCount = 0;
-
-            if (load != null && m_session != null)
-            {
-                await load.StopAsync(m_session, ct).ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// How many DataChange notifications the Client actually received
-        /// while the harness was alive.
-        /// </summary>
-        /// <remarks>
-        /// This is the benchmark's honesty check. If the monitored items do
-        /// not report, the competing load is imaginary and every comparison
-        /// against the unsubscribed case is meaningless while still looking
-        /// entirely plausible.
-        /// </remarks>
-        public long PublishNotifications => m_publishLoad?.Notifications ?? 0;
-
-        /// <summary>
-        /// The publishing interval the Server revised the request to, which
-        /// is the interval the load actually ran at.
-        /// </summary>
-        public double RevisedPublishingInterval => m_publishLoad?.RevisedPublishingInterval ?? 0;
-
-        /// <summary>
-        /// How many monitored items the harness subscribed to.
-        /// </summary>
-        public int MonitoredItemCount { get; private set; }
-
-        public async ValueTask CloseDataChannelAsync(CancellationToken ct)
-        {
-            if (m_channelAttachTask != null)
-            {
-                await m_channelAttachTask.WaitAsync(ct).ConfigureAwait(false);
-            }
-
-            if (m_closeService != null)
-            {
-                await m_closeService(ct).ConfigureAwait(false);
-                return;
-            }
-
-            Source.Close();
-        }
-
-        private static Task<StreamingHarness> CreateDirectAsync(SampleOptions options, CancellationToken ct)
-        {
-            _ = ct;
-            ITelemetryContext telemetry = new ConsoleTelemetry();
-            var bufferManager = new BufferManager("sample", 65536, telemetry);
-
-            DataChannelSettings settings = SettingsFromOptions(options);
-            bool quic = options.Transport == SampleTransport.Quic;
-
-            var sourceTransport = new InProcessDataChannelTransport(bufferManager, telemetry, quic);
-            var sinkTransport = new InProcessDataChannelTransport(bufferManager, telemetry, quic);
-
-            var sourceManager = new DataChannelManager(sourceTransport, true, telemetry);
-            var sinkManager = new DataChannelManager(sinkTransport, false, telemetry);
-
-            sourceTransport.Peer = sinkManager;
-            sinkTransport.Peer = sourceManager;
-
-            const uint channelId = 1;
-            NodeId sourceNodeId = SourceNodeId;
-
-            DataChannel source = sourceManager.Register(channelId, sourceNodeId, settings, isSource: true);
-            DataChannel sink = sinkManager.Register(channelId, sourceNodeId, settings, isSource: false);
-
-            sourceManager.MarkOpen(channelId);
-            sinkManager.MarkOpen(channelId);
-
-            return Task.FromResult(new StreamingHarness(
-                sourceManager,
-                sinkManager,
-                source,
-                sink,
-                quic ? DataChannelFramingMode.Quic : DataChannelFramingMode.Inline,
-                channelId,
-                settings.ToParameters(),
-                0));
-        }
-
-        private static async Task<StreamingHarness> CreateServerAsync(
-            SampleOptions options,
-            CancellationToken ct)
-        {
-            var state = new ServerStreamingState(options);
-            DataChannelSampleServer.PendingState = state;
-
-            // The benchmark stands up a fresh Server per run, and a fixed
-            // port makes a new run race the previous listener as it shuts
-            // down - the new Client then reaches the old Server, whose data
-            // channel state belongs to a harness that is being torn down.
-            // A port per instance removes the race entirely.
-            int port = Interlocked.Add(ref s_endpointPort, 2);
-
-            string endpointUrl = options.Transport == SampleTransport.Quic
-                ? $"opc.quic://{Environment.MachineName}:{port + 1}/ConsoleDataChannelStreaming"
-                : $"opc.tcp://localhost:{port}/ConsoleDataChannelStreaming";
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder();
-            builder.Logging.ClearProviders();
-            builder.Logging.AddConsole();
-            builder.Logging.SetMinimumLevel(LogLevel.Warning);
-
-            IOpcUaBuilder opcUa = builder.Services.AddOpcUa();
-            if (options.Transport == SampleTransport.Quic)
-            {
-                opcUa.AddQuicTransport();
-
-                // The binding registry is process-wide, so registering it
-                // again for every harness the benchmark creates would stack
-                // up duplicate factories for one url scheme.
-                if (Interlocked.Exchange(ref s_quicFactoryRegistered, 1) == 0)
-                {
-                    ClientChannelManager.DefaultChannelBindings.RegisterChannelFactory(
-                        new QuicTransportChannelFactory(
-                            DefaultBufferManagerFactory.Instance,
-                            new QuicClientOptions
-                            {
-                                ServerCertificateValidation = (_, _, _, _) => true
-                            }));
-                }
-            }
-
-            opcUa.AddServer<DataChannelSampleServer>(o =>
-                {
-                    const string applicationName = "ConsoleDataChannelStreamingServer";
-                    o.ApplicationName = applicationName;
-                    o.ApplicationUri = "urn:localhost:OPCFoundation:ConsoleDataChannelStreamingServer";
-                    o.ProductUri = "uri:opcfoundation.org:ConsoleDataChannelStreamingServer";
-                    o.AutoAcceptUntrustedCertificates = true;
-                    o.PkiRoot = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "OPC Foundation",
-                        applicationName,
-                        "pki");
-                    o.RejectSHA1Certificates = true;
-                    o.MinCertificateKeySize = 2048;
-
-                    // The Server revises any PublishingInterval below its
-                    // minimum, and separately rounds it up to the publishing
-                    // resolution. Both default to 100 ms, so setting only the
-                    // minimum still leaves the benchmark's 10 ms case
-                    // silently revised to 100 ms and agreeing with the 100 ms
-                    // case for the wrong reason.
-                    o.ConfigureBuilder = server => server
-                        .SetMinPublishingInterval(10)
-                        .SetPublishingResolution(10);
-
-                    o.EndpointUrls.Add(endpointUrl);
-                });
-
-            IOpcUaBuilder clientOpcUa = builder.Services.AddOpcUa();
-            if (options.Transport == SampleTransport.Quic)
-            {
-                clientOpcUa.AddQuicTransport();
-            }
-
-            clientOpcUa
-                .AddClient(o =>
-                {
-                    const string applicationName = "ConsoleDataChannelStreamingClient";
-                    o.ApplicationName = applicationName;
-                    o.ApplicationUri = "urn:localhost:OPCFoundation:ConsoleDataChannelStreamingClient";
-                    o.ProductUri = "uri:opcfoundation.org:ConsoleDataChannelStreamingClient";
-                    o.PkiRoot = Path.Combine(
-                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                        "OPC Foundation",
-                        applicationName,
-                        "pki");
-                    o.AutoAcceptUntrustedCertificates = true;
-                    o.RejectSHA1SignedCertificates = true;
-                    o.MinimumCertificateKeySize = 2048;
-                    o.Session = new ManagedSessionOptions
-                    {
-                        SessionName = "ConsoleDataChannelStreaming",
-                        SessionTimeout = TimeSpan.FromSeconds(60),
-
-                        // The benchmark drives a subscription through the
-                        // classic Subscription/MonitoredItem API, which is
-                        // the one this stack exposes publicly. A managed
-                        // Session otherwise defaults to the newer engine,
-                        // where a classic Subscription is accepted, reports
-                        // itself created, and never causes a single Publish
-                        // request to be sent.
-                        SubscriptionEngineFactory = new ClassicSubscriptionEngineFactory()
-                    };
-                })
-                .AddDiscoveryAndConnect(o =>
-                {
-                    o.DiscoveryUrl = endpointUrl;
-                    o.SecurityMode = MessageSecurityMode.SignAndEncrypt;
-                    o.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
-                });
-
-            IHost host = builder.Build();
-            await host.StartAsync(ct).ConfigureAwait(false);
-
-            ClientSession session = await ConnectWithRetryAsync(host.Services, endpointUrl, options, ct)
-                .ConfigureAwait(false);
-
-            ITelemetryContext telemetry = host.Services.GetRequiredService<ITelemetryContext>();
-
-            OpenDataChannelResponse opened = await session.OpenDataChannelAsync(
-                null,
-                state.SourceNodeId,
-                0,
-                0,
-                SettingsFromOptions(options).ToParameters(),
-                ct).ConfigureAwait(false);
-
-            UaSCUaBinaryTransportChannel clientChannel =
-                session.TransportChannel as UaSCUaBinaryTransportChannel ??
-                throw new InvalidOperationException(
-                    $"The client transport is {session.TransportChannel.GetType().FullName}, not UASC binary.");
-
-            IAsyncDisposable? clientDataTransport = null;
-            Task? channelAttachTask = null;
-            DataChannelManager clientManager;
-            DataChannelFramingMode framingMode;
-            if (options.Transport == SampleTransport.Quic)
-            {
-                var bufferManager = new BufferManager("sample-quic-client-data-channels", 65536, telemetry);
-                QuicDataChannelTransport quicTransport = clientChannel.CreateDataChannelTransport(
-                    bufferManager,
-                    telemetry);
-                clientDataTransport = quicTransport;
-                clientManager = new DataChannelManager(
-                    quicTransport,
-                    isServer: false,
-                    telemetry,
-                    maxDataChannels: 16,
-                    maxCreditPerChannel: 1024 * 1024);
-                quicTransport.Manager = clientManager;
-                channelAttachTask = quicTransport.AttachChannelAsync(
-                    opened.ChannelId,
-                    opened.RevisedTransportChannelId,
-                    opened.RevisedParameters.Direction,
-                    ct).AsTask();
-                framingMode = DataChannelFramingMode.Quic;
-            }
-            else
-            {
-                clientManager = clientChannel.SecureChannel!.EnableDataChannels(
-                    isServer: false,
-                    telemetry,
-                    maxDataChannels: 16,
-                    maxCreditPerChannel: 1024 * 1024);
-                framingMode = DataChannelFramingMode.Inline;
-            }
-
-            DataChannel sink = clientManager.Register(
-                opened.ChannelId,
-                state.SourceNodeId,
-                DataChannelSettings.FromParameters(opened.RevisedParameters),
-                isSource: false,
-                opened.RevisedTransportChannelId);
-            clientManager.MarkOpen(opened.ChannelId);
-
-            DataChannel source = await state.WaitForSourceAsync(ct).ConfigureAwait(false);
-            var result = new StreamingHarness(
-                state.ServerManager,
-                clientManager,
-                source,
-                sink,
-                framingMode,
-                opened.ChannelId,
-                opened.RevisedParameters,
-                opened.RevisedTransportChannelId,
-                async closeCt => await session.CloseDataChannelAsync(
-                    null,
-                    opened.ChannelId,
-                    StatusCodes.Good,
-                    deleteQueued: false,
-                    closeCt).ConfigureAwait(false),
-                new ServerHarnessOwner(host, session, clientDataTransport),
-                channelAttachTask);
-
-            result.m_session = session;
-            result.m_telemetry = telemetry;
-            return result;
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            if (m_sourceManager != null && !ReferenceEquals(m_sourceManager, m_sinkManager))
-            {
-                await m_sourceManager.DisposeAsync().ConfigureAwait(false);
-            }
-            await m_sinkManager.DisposeAsync().ConfigureAwait(false);
-            if (m_owner != null)
-            {
-                await m_owner.DisposeAsync().ConfigureAwait(false);
-            }
-        }
-
-        private static DataChannelSettings SettingsFromOptions(SampleOptions options)
-        {
-            return new DataChannelSettings
-            {
-                Direction = DataChannelDirection.SourceToSink,
-                DeliveryMode = options.DeliveryMode,
-                ContentType = "video/H264",
-                MaxFrameSize = (uint)Math.Max(options.FrameSize, 1),
-                InitialCredit = (uint)Math.Max(options.FrameSize * 16, 65536),
-                FrameDeadline = options.DeliveryMode is DataChannelDeliveryMode.PartiallyReliable
-                    or DataChannelDeliveryMode.Unreliable
-                    ? 250u
-                    : 0u
-            };
-        }
-
-        private static async Task<ClientSession> ConnectWithRetryAsync(
-            IServiceProvider services,
-            string endpointUrl,
-            SampleOptions options,
-            CancellationToken ct)
-        {
-            Exception? last = null;
-            for (int ii = 0; ii < 20; ii++)
-            {
-                try
-                {
-                    return await ConnectSessionAsync(services, endpointUrl, options, ct)
-                        .ConfigureAwait(false);
-                }
-                catch (Exception ex) when (!ct.IsCancellationRequested)
-                {
-                    last = ex;
-                    await Task.Delay(250, ct).ConfigureAwait(false);
-                }
-            }
-
-            throw new InvalidOperationException("The in-process OPC UA server did not become ready.", last);
-        }
-
-        private static async Task<ClientSession> ConnectSessionAsync(
-            IServiceProvider services,
-            string endpointUrl,
-            SampleOptions options,
-            CancellationToken ct)
-        {
-            ApplicationConfiguration configuration = await services
-                .GetRequiredService<IOpcUaApplicationConfigurationProvider>()
-                .GetAsync(ct)
-                .ConfigureAwait(false);
-            IOpcUaDiscoveryService discovery = services.GetRequiredService<IOpcUaDiscoveryService>();
-            ArrayOf<EndpointDescription> endpoints = await discovery
-                .GetEndpointsAsync(endpointUrl, ct: ct)
-                .ConfigureAwait(false);
-            string transportProfile = options.Transport == SampleTransport.Quic
-                ? Profiles.UaQuicTransport
-                : Profiles.UaTcpTransport;
-            EndpointDescription? description = null;
-            foreach (EndpointDescription endpointDescription in endpoints)
-            {
-                if (endpointDescription.TransportProfileUri == transportProfile &&
-                    endpointDescription.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
-                    endpointDescription.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
-                {
-                    description = endpointDescription;
-                    break;
-                }
-            }
-
-            if (description == null)
-            {
-                throw new InvalidOperationException(
-                    $"No SignAndEncrypt/Basic256Sha256 endpoint was returned for {transportProfile}.");
-            }
-
-            var endpoint = new ConfiguredEndpoint(
-                null,
-                description,
-                EndpointConfiguration.Create(configuration));
-            ISessionFactory sessionFactory = services.GetRequiredService<ISessionFactory>();
-            return await sessionFactory.CreateAsync(
-                configuration,
-                endpoint,
-                updateBeforeConnect: false,
-                checkDomain: false,
-                "ConsoleDataChannelStreaming",
-                60_000,
-                new UserIdentity(),
-                default,
-                ct).ConfigureAwait(false);
-        }
-
-        private static readonly NodeId SourceNodeId = new("Camera1", 1);
-        private readonly DataChannelManager? m_sourceManager;
-        private readonly DataChannelManager m_sinkManager;
-        private readonly Func<CancellationToken, ValueTask>? m_closeService;
-        private readonly IAsyncDisposable? m_owner;
-        private readonly Task? m_channelAttachTask;
-        private PendingPublishLoad? m_publishLoad;
-        private ClientSession? m_session;
-        private ITelemetryContext? m_telemetry;
-        private static int s_endpointPort = 62550;
-        private static int s_quicFactoryRegistered;
-    }
-
-    internal sealed class ServerStreamingState : IDataChannelSource
-    {
-        public ServerStreamingState(SampleOptions options)
-        {
-            Transport = options.Transport;
-            SourceNodeId = new NodeId("Camera1", 1);
-            Capabilities = new DataChannelSourceCapabilities
-            {
-                Direction = DataChannelDirection.SourceToSink,
-                SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
-                ContentType = "video/H264",
-                MaxFrameSize = (uint)Math.Max(options.FrameSize, 1),
-                MaxChannels = 1,
-                Priority = 1
-            };
-        }
-
-        public NodeId SourceNodeId { get; }
-
-        public SampleTransport Transport { get; }
-
-        public NodeId NodeId => SourceNodeId;
-
-        public DataChannelSourceCapabilities Capabilities { get; }
-
-        public int ActiveChannelCount => m_channel == null ? 0 : 1;
-
-        public DataChannelManager? ServerManager { get; set; }
-
-        public void OnChannelOpened(DataChannel channel)
-        {
-            m_channel = channel;
-            m_opened.TrySetResult(channel);
-        }
-
-        public void OnChannelClosed(DataChannel channel, StatusCode reason)
-        {
-            if (ReferenceEquals(m_channel, channel))
-            {
-                m_channel = null;
-            }
-        }
-
-        public async Task<DataChannel> WaitForSourceAsync(CancellationToken ct)
-        {
-            using CancellationTokenRegistration registration = ct.Register(
-                static state => ((TaskCompletionSource<DataChannel>)state!).TrySetCanceled(),
-                m_opened);
-            return await m_opened.Task.ConfigureAwait(false);
-        }
-
-        private DataChannel? m_channel;
-        private readonly TaskCompletionSource<DataChannel> m_opened = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    }
-
-    /// <summary>
-    /// Creates the subscription whose Publish traffic competes with the
-    /// data channel for the SecureChannel, and counts what actually
-    /// arrived.
-    /// </summary>
-    /// <remarks>
-    /// The sample Server is a bare <see cref="StandardServer"/> with no
-    /// simulated nodes, so the load is generated by monitoring
-    /// <c>Server_ServerStatus_CurrentTime</c>, which changes continuously,
-    /// once per monitored item. The SamplingInterval is pinned to the
-    /// PublishingInterval so each item yields one notification per cycle and
-    /// the offered load is <c>items / interval</c> rather than whatever the
-    /// Server felt like sampling at.
-    /// </remarks>
-    internal sealed class PendingPublishLoad
-    {
-        public async Task StartAsync(
-            ClientSession session,
-            ITelemetryContext telemetry,
-            int publishingInterval,
-            int monitoredItems,
-            CancellationToken ct)
-        {
-            int count = Math.Max(monitoredItems, 1);
-
-            var subscription = new ClientSubscription(
-                telemetry,
-                new SubscriptionOptions
-                {
-                    DisplayName = "DataChannelBenchmarkLoad",
-                    PublishingInterval = publishingInterval,
-                    PublishingEnabled = true,
-                    KeepAliveCount = 100,
-                    LifetimeCount = 1000,
-                    MaxNotificationsPerPublish = 0
-                })
-            {
-                // Counted at the subscription rather than per item: the
-                // per-item Notification event is not carried when the stack
-                // clones a template item, so counting there can silently
-                // report zero while the Publish traffic is flowing normally
-                // - which would make the whole benchmark a lie that looks
-                // like a result.
-                FastDataChangeCallback = OnDataChange
-            };
-
-            if (!session.AddSubscription(subscription))
-            {
-                throw new InvalidOperationException("The subscription was not accepted by the Session.");
-            }
-
-            await subscription.CreateAsync(ct).ConfigureAwait(false);
-
-            for (int ii = 0; ii < count; ii++)
-            {
-                var item = new ClientMonitoredItem(
-                    telemetry,
-                    new MonitoredItemOptions
-                    {
-                        DisplayName = $"CurrentTime {ii}",
-                        StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
-                        AttributeId = Attributes.Value,
-                        MonitoringMode = MonitoringMode.Reporting,
-                        SamplingInterval = publishingInterval,
-                        QueueSize = 1,
-                        DiscardOldest = true
-                    });
-
-                subscription.AddItem(item);
-                m_items.Add(item);
-            }
-
-            await subscription.ApplyChangesAsync(ct).ConfigureAwait(false);
-
-            int refused = m_items.Count(i => ServiceResult.IsBad(i.Status.Error));
-            if (refused > 0)
-            {
-                throw new InvalidOperationException(
-                    $"The Server refused {refused} of {count} monitored items, so the " +
-                    "competing Publish load would not be what the benchmark reports.");
-            }
-
-            // Creating a subscription does not by itself put Publish requests
-            // on the wire in this stack - StartPublishing is otherwise only
-            // reached through the reconnect paths. Without this the
-            // subscription reports itself created and not stopped, the items
-            // report no error, and no notification ever arrives.
-            session.StartPublishing(session.OperationTimeout, false);
-
-            m_subscription = subscription;
-
-            // The Server revises the publishing interval against its own
-            // minimum, and it is the revised value the load actually runs
-            // at. Reporting the requested one would mislabel every row.
-            RevisedPublishingInterval = subscription.CurrentPublishingInterval;
-        }
-
-        /// <summary>
-        /// The publishing interval the Server revised the request to.
-        /// </summary>
-        public double RevisedPublishingInterval { get; private set; }
-
-        public async Task StopAsync(ClientSession session, CancellationToken ct)
-        {
-            ClientSubscription? subscription = m_subscription;
-            m_subscription = null;
-
-            if (subscription == null)
-            {
-                return;
-            }
-
-            subscription.FastDataChangeCallback = null;
-            m_items.Clear();
-
-            await session.RemoveSubscriptionAsync(subscription, ct).ConfigureAwait(false);
-            subscription.Dispose();
-        }
-
-        public long Notifications => Interlocked.Read(ref m_notifications);
-
-        private void OnDataChange(
-            ClientSubscription subscription,
-            DataChangeNotification notification,
-            ArrayOf<string> stringTable)
-        {
-            Interlocked.Add(ref m_notifications, notification.MonitoredItems.Count);
-        }
-
-        private readonly List<ClientMonitoredItem> m_items = [];
-        private ClientSubscription? m_subscription;
-        private long m_notifications;
-    }
-
-    internal sealed class DataChannelSampleServer : StandardServer
-    {
-        public DataChannelSampleServer(ITelemetryContext telemetry, TimeProvider timeProvider)
-            : base(telemetry, timeProvider)
-        {
-            ServerStreamingState state = PendingState ?? throw new InvalidOperationException("No sample state was provided.");
-            DataChannelSources.Register(state);
-
-            // Registering a source in DataChannelSourceRegistry states that
-            // it exists, not that any given user may read it. The default
-            // authorizer resolves the source in the AddressSpace and applies
-            // its RolePermissions and AccessRestrictions; a source that is
-            // registry-only, as this sample's is, has no such metadata and is
-            // therefore denied. Supplying an authorizer is how an application
-            // states the rule for sources it keeps outside the AddressSpace.
-            DataChannelAuthorizer = new SampleDataChannelAuthorizer(state.SourceNodeId);
-            DataChannelCapabilities = new DataChannelServerCapabilities
-            {
-                MaxDataChannels = 16,
-                MaxFrameSize = 64 * 1024,
-                MaxCreditPerChannel = 1024 * 1024,
-                SupportedDeliveryModes = [DataChannelDeliveryMode.ReliableOrdered],
-                SupportedTransportProfileUris =
-                    state.Transport == SampleTransport.Quic
-                        ? [Profiles.UaQuicTransport]
-                        : [Profiles.UaTcpTransport]
-            };
-            if (state.Transport == SampleTransport.Quic)
-            {
-                this.UseQuicDataChannelTransport();
-            }
-            else
-            {
-                DataChannelTransport = new TcpServerDataChannelTransport(state);
-            }
-        }
-
-        public static ServerStreamingState? PendingState { get; set; }
-    }
-
-    /// <summary>
-    /// Grants the one source this sample publishes to any activated Session
-    /// on a signed and encrypted SecureChannel.
-    /// </summary>
-    /// <remarks>
-    /// A real application would consult whatever authority actually governs
-    /// the source. What matters here is the shape: the decision is made per
-    /// request, it names the source explicitly rather than granting whatever
-    /// is asked for, and it refuses by default. It is re-evaluated for the
-    /// life of the channel, so withdrawing access closes the channel.
-    /// </remarks>
-    internal sealed class SampleDataChannelAuthorizer(NodeId sourceNodeId) : IDataChannelAuthorizer
-    {
-        public ValueTask<bool> IsAuthorizedAsync(
-            DataChannelRequestContext context,
-            NodeId requestedSourceNodeId,
-            DataChannelDirection direction,
-            CancellationToken ct)
-        {
-            // Part 4 errata §7.2: a channel carrying payload towards the source
-            // is a write, so this sample grants only the outbound direction it
-            // actually publishes rather than whatever is asked for.
-            bool authorized =
-                requestedSourceNodeId == sourceNodeId &&
-                direction == DataChannelDirection.SourceToSink &&
-                context.IsSessionActivated &&
-                context.SecurityMode == MessageSecurityMode.SignAndEncrypt;
-
-            return new ValueTask<bool>(authorized);
-        }
-    }
-
-    internal sealed class TcpServerDataChannelTransport(ServerStreamingState state) : IServerDataChannelTransport
-    {
-        public bool TryGetManager(
-            SecureChannelContext secureChannelContext,
-            DataChannelServerCapabilities capabilities,
-            ITelemetryContext telemetry,
-            out DataChannelManager manager,
-            out uint maxFrameSize,
-            out bool isReliable)
-        {
-            if (!UaSCSecureChannelRegistry.TryGet(
-                secureChannelContext.SecureChannelId,
-                out UaSCUaBinaryChannel? channel) ||
-                channel == null)
-            {
-                manager = null!;
-                maxFrameSize = 0;
-                isReliable = true;
-                return false;
-            }
-
-            manager = channel.EnableDataChannels(
-                isServer: true,
-                telemetry,
-                capabilities.MaxDataChannels,
-                capabilities.MaxCreditPerChannel);
-            state.ServerManager = manager;
-            maxFrameSize = capabilities.MaxFrameSize;
-            isReliable = true;
-            return true;
-        }
-
-        public ValueTask<ulong> AllocateServerStreamAsync(
-            SecureChannelContext secureChannelContext,
-            uint channelId,
-            DataChannelDirection direction,
-            CancellationToken ct)
-        {
-            throw new ServiceResultException(StatusCodes.BadDataChannelTransportUnsupported);
-        }
-
-        public ValueTask BindClientStreamAsync(
-            SecureChannelContext secureChannelContext,
-            uint channelId,
-            ulong streamId,
-            DataChannelDirection direction,
-            CancellationToken ct)
-        {
-            throw new ServiceResultException(StatusCodes.BadDataChannelTransportUnsupported);
-        }
-
-        public void AbortSecureChannel(SecureChannelContext secureChannelContext, StatusCode reason)
-        {
-        }
-    }
-
-    internal sealed class ServerHarnessOwner(
-        IHost host,
-        ClientSession session,
-        IAsyncDisposable? clientDataTransport) : IAsyncDisposable
-    {
-        public async ValueTask DisposeAsync()
-        {
-            await session.DisposeAsync().ConfigureAwait(false);
-            if (clientDataTransport != null)
-            {
-                await clientDataTransport.DisposeAsync().ConfigureAwait(false);
-            }
-            await host.StopAsync(CancellationToken.None).ConfigureAwait(false);
-            host.Dispose();
-        }
-    }
-
-    /// <summary>
-    /// Carries frames between two managers in one process, encoding and decoding each one so the sample exercises the real codec.
-    /// </summary>
-    internal sealed class InProcessDataChannelTransport : IDataChannelTransport
-    {
-        public InProcessDataChannelTransport(BufferManager bufferManager, ITelemetryContext telemetry, bool quic)
-        {
-            BufferManager = bufferManager;
-            TimeProvider = TimeProvider.System;
-            FramingMode = quic ? DataChannelFramingMode.Quic : DataChannelFramingMode.Inline;
-            HasTransportFlowControl = quic;
+            m_options = options;
             m_telemetry = telemetry;
         }
 
-        public DataChannelManager? Peer { get; set; }
+        /// <summary>
+        /// Gets the ready sender, independently of the transport initiator and flow opener.
+        /// </summary>
+        public DataChannel Source => m_source ?? throw new InvalidOperationException("The flow is not ready.");
 
-        public DataChannelFramingMode FramingMode { get; }
+        /// <summary>
+        /// Gets the ready receiver.
+        /// </summary>
+        public DataChannel Sink => m_sink ?? throw new InvalidOperationException("The flow is not ready.");
 
-        public int MaxFrameBodySize => 16384;
+        /// <summary>
+        /// Gets the actual listener port for process-level cleanup verification.
+        /// </summary>
+        public int Port { get; private set; }
 
-        public bool HasTransportFlowControl { get; }
+        /// <summary>
+        /// Gets the actual authenticated context identity shared by both peers.
+        /// </summary>
+        public Guid ContextId { get; private set; }
 
-        public BufferManager BufferManager { get; }
+        /// <summary>
+        /// Gets the actual UASC identifier, or zero for native-only transports.
+        /// </summary>
+        public uint SecureChannelId { get; private set; }
 
-        public TimeProvider TimeProvider { get; }
+        /// <summary>
+        /// Gets the ordinary Service connection's actual authenticated UASC identifier.
+        /// </summary>
+        public uint ServiceSecureChannelId { get; private set; }
 
-        public ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
+        /// <summary>
+        /// Gets whether ordinary Services and flow share the identical transport object.
+        /// </summary>
+        public bool SameServiceTransport { get; private set; }
+
+        /// <summary>
+        /// Gets whether the optional generated model was actually installed.
+        /// </summary>
+        public bool ModelEnabled { get; private set; }
+
+        /// <summary>
+        /// Gets the number of Sessions the actual server created.
+        /// </summary>
+        public int Sessions => m_sessions.Count;
+
+        /// <summary>
+        /// Gets actual ordinary Read/Publish notification observations.
+        /// </summary>
+        public ServiceTraffic? Services { get; private set; }
+
+        /// <summary>
+        /// Gets whether all application and native ownership counters returned to zero.
+        /// </summary>
+        public bool ResourcesReleased { get; private set; }
+
+        /// <summary>
+        /// Establishes a pair over the exact selected profile, then completes OPEN/ACCEPT/READY.
+        /// </summary>
+        public static async Task<StreamingHarness> CreateAsync(
+            SampleOptions options,
+            ITelemetryContext telemetry,
+            string resource,
+            string contentType,
+            CancellationToken cancellationToken)
         {
-            byte[] encoded = new byte[frame.EncodedSize];
-            DataChannelFrameCodec.Encode(encoded, frame);
-
-            if (DataChannelFrameCodec.TryDecode(encoded, 0, out DataChannelFrame received, out _))
+            var harness = new StreamingHarness(options, telemetry);
+            try
             {
-                Peer?.HandleFrame(received);
+                await harness.InitializeAsync(resource, contentType, cancellationToken).ConfigureAwait(false);
+                return harness;
             }
-
-            return default;
+            catch
+            {
+                await harness.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
         }
 
-        public void OnProtocolFault(DataChannelFrameError error)
+        /// <summary>
+        /// Commits one live revision using the opener, even when the listening application is the sender.
+        /// </summary>
+        public async Task ReviseAsync(CancellationToken cancellationToken)
         {
-            Console.Error.WriteLine($"protocol fault: {error}");
+            DataChannel opener = m_opener ?? throw new InvalidOperationException("No flow opener.");
+            DataChannelParametersDataType parameters = opener.Parameters;
+            parameters.Priority = 2;
+            if (m_control != null)
+            {
+                DataChannelStatusDataType status = await m_control.ModifyAsync(opener, 1, parameters, cancellationToken)
+                    .ConfigureAwait(false);
+                if (status.Revision != 2)
+                {
+                    throw new InvalidOperationException("The grant Call did not complete the data-path revision.");
+                }
+            }
+            else
+            {
+                RequireGood(await opener.UpdateAsync(parameters, 1, cancellationToken).ConfigureAwait(false));
+            }
+            if (Source.Revision != 2 || Sink.Revision != 2 ||
+                Source.Parameters.Priority != 2 || Sink.Parameters.Priority != 2)
+            {
+                throw new InvalidOperationException("Both peers must observe the same committed revision.");
+            }
         }
 
+        /// <summary>
+        /// Reads genuine server counters rather than assuming a successful client API call reached the wire.
+        /// </summary>
+        public (int Reads, int Publishes, int Calls) ServiceCounters()
+        {
+            int reads = 0;
+            int publishes = 0;
+            int calls = 0;
+            foreach (ServerSession session in m_sessions)
+            {
+                reads += session.ReadDiagnostics(data => checked((int)data.ReadCount.TotalCount));
+                publishes += session.ReadDiagnostics(data => checked((int)data.PublishCount.TotalCount));
+                calls += session.ReadDiagnostics(data => checked((int)data.CallCount.TotalCount));
+            }
+            return (reads, publishes, calls);
+        }
+
+        /// <summary>
+        /// Refuses non-successful complete-message operations without discarding their generated result.
+        /// </summary>
+        public static void RequireGood(DataChannelResult result)
+        {
+            if (result != DataChannelResult.Good)
+            {
+                throw new DataChannelException(result);
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (m_disposed)
+            {
+                return;
+            }
+            m_disposed = true;
+            try
+            {
+                await ReleaseNextAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    if (m_authorizer != null)
+                    {
+                        await m_authorizer.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (m_provider != null)
+                        {
+                            await m_provider.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            m_clientCredentials?.Dispose();
+                            m_serverCredentials?.Dispose();
+                        }
+                        finally
+                        {
+                            try
+                            {
+                                if (m_identities != null)
+                                {
+                                    await m_identities.DisposeAsync().ConfigureAwait(false);
+                                }
+                            }
+                            finally
+                            {
+                                m_server?.Dispose();
+                                m_lifetime.Cancel();
+                                m_lifetime.Dispose();
+                            }
+                        }
+                    }
+                }
+            }
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            if (m_nativeLoaded && m_native != null)
+            {
+                while (await m_native.GetCountsAsync(deadline.Token).ConfigureAwait(false) != default)
+                {
+                    await Task.Delay(20, deadline.Token).ConfigureAwait(false);
+                }
+            }
+            ResourcesReleased = m_serverBudget.Usage == default && m_clientBudget.Usage == default;
+            Console.WriteLine($"CLEANUP port={Port} resourcesReleased={ResourcesReleased}");
+            if (!ResourcesReleased)
+            {
+                throw new InvalidOperationException("Application-owned flow resources remain after shutdown.");
+            }
+        }
+
+        /// <summary>
+        /// Creates exact source policies independently from optional Server/Session installation.
+        /// </summary>
+        private async Task InitializeAsync(string resource, string contentType, CancellationToken cancellationToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_lifetime.Token);
+            CancellationToken token = linked.Token;
+            int tcpPort = FreeTcpPort();
+            int controlPort;
+            do
+            {
+                controlPort = FreeTcpPort();
+            }
+            while (controlPort == tcpPort);
+            string flowAddress = $"opc.tcp://127.0.0.1:{tcpPort}" +
+                (m_options.Shared ? DataChannelProfiles.SharedResource : DataChannelProfiles.DedicatedResource);
+            string controlAddress = $"opc.tcp://127.0.0.1:{controlPort}/control";
+            bool uasc = m_options.Carrier is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc;
+            ArrayOf<string> addresses = uasc
+                ? m_options.Shared || m_options.SessionAuthorization ? [flowAddress, controlAddress] : [flowAddress]
+                : [controlAddress];
+            m_identities = await SampleIdentityPair.CreateAsync(
+                m_options.StateDirectory, addresses, m_telemetry, token).ConfigureAwait(false);
+            SampleIdentityPair identities = m_identities;
+            ICertificateManager serverManager = SampleIdentityPair.Manager(identities.Server);
+            ICertificateManager clientManager = SampleIdentityPair.Manager(identities.Client);
+            using CertificateEntry serverIdentity = SampleIdentityPair.OwnCertificate(serverManager);
+            using CertificateEntry clientIdentity = SampleIdentityPair.OwnCertificate(clientManager);
+            using var serverPublic = new Certificate(serverIdentity.Certificate.RawData);
+            using var clientPublic = new Certificate(clientIdentity.Certificate.RawData);
+            var parameters = new DataChannelParametersDataType
+            {
+                ResourceUri = resource,
+                Protocol = DataChannelProfiles.OpaquePayload,
+                ContentType = contentType,
+                Direction = m_options.ClientPublishes
+                    ? DataChannelDirection.OpenerToAcceptor : DataChannelDirection.AcceptorToOpener,
+                Delivery = DataChannelDeliveryMode.Ordered,
+                Protection = DataChannelProtectionMode.Confidential,
+                MaxMessageSize = checked((uint)m_options.Size),
+                MaxReceiveBytes = checked((uint)Math.Max(65536, (m_options.Size + 17) * 16)),
+                Priority = 1
+            };
+            var serverPolicy = new SamplePolicy(m_options, parameters, SampleIdentityPair.ClientApplicationUri,
+                DataChannelCertificateIdentity.GetKeyThumbprint(clientPublic));
+            var clientPolicy = new SamplePolicy(m_options, parameters, SampleIdentityPair.ServerApplicationUri,
+                DataChannelCertificateIdentity.GetKeyThumbprint(serverPublic));
+            var registry = new DataChannelSourceRegistry();
+            var sourceId = new ExpandedNodeId("OpaqueSource", SampleIdentityPair.ModelNamespace);
+            registry.Register(new DataChannelSource(resource, serverPolicy)
+            {
+                SourceNodeId = m_options.SessionAuthorization ? sourceId : default,
+                SupportedProtocols = [parameters.Protocol],
+                SupportedDirections = [parameters.Direction],
+                SupportedDeliveryModes = [parameters.Delivery],
+                SupportedProtectionModes = [parameters.Protection],
+                ContentType = contentType,
+                MaxMessageSize = parameters.MaxMessageSize,
+                MaxReceiveBytes = parameters.MaxReceiveBytes,
+                MaxFlows = 1
+            });
+            var options = new DataChannelOptions { MaxFlows = 2, MaxMessageSize = 32768 };
+            m_provider = new ServerDataChannelProvider(
+                registry, options, m_serverBudget, TimeProvider.System, m_telemetry);
+            ServerDataChannelProvider provider = m_provider;
+            m_authorizer = new SessionDataChannelAuthorizer(clientPolicy, TimeProvider.System, m_telemetry);
+            SessionDataChannelAuthorizer authorizer = m_authorizer;
+            var clientContexts = new DataChannelContextFactory(
+                authorizer, options, m_clientBudget, TimeProvider.System, m_telemetry);
+            if (uasc || m_options.SessionAuthorization)
+            {
+                m_server = new StandardServer(m_telemetry);
+                StandardServer server = m_server;
+                server.UseDataChannels(provider, enableModel: m_options.SessionAuthorization);
+                await identities.Server.StartAsync(server, token).ConfigureAwait(false);
+                m_server = null;
+                server.CurrentInstance.IdentityRegistry.Register(new X509Authenticator(serverManager));
+                void Created(ServerSession session, SessionEventReason reason) => m_sessions.Enqueue(session);
+                server.CurrentInstance.SessionManager.SessionCreated += Created;
+                m_cleanup.Push(async () =>
+                {
+                    server.CurrentInstance.SessionManager.SessionCreated -= Created;
+                    using var shutdown = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await identities.Server.StopAsync(shutdown.Token).ConfigureAwait(false);
+                });
+                ModelEnabled = await server.CurrentInstance.NodeManager.FindNodeInAddressSpaceAsync(
+                    ObjectIds.DataChannelManager, token).ConfigureAwait(false) is DataChannelManagerState;
+                if (ModelEnabled != m_options.SessionAuthorization)
+                {
+                    throw new InvalidOperationException("Optional model installation does not match the selection.");
+                }
+            }
+            DataChannelContext clientContext;
+            DataChannelContext serverContext;
+            if (uasc)
+            {
+                Port = tcpPort;
+                (clientContext, serverContext) = await ConnectUascAsync(
+                    identities, clientIdentity, serverPublic, clientContexts, provider, flowAddress, token)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                (clientContext, serverContext) = await ConnectNativeAsync(
+                    serverManager, clientManager, serverPublic, clientPublic, provider, clientContexts,
+                    serverPolicy, token).ConfigureAwait(false);
+            }
+            ContextId = clientContext.Identity.ContextId;
+            if (!clientContext.IsReady || !serverContext.IsReady ||
+                ContextId == Guid.Empty || ContextId != serverContext.Identity.ContextId ||
+                !clientContext.Identity.Peer.IsTransportInitiator || serverContext.Identity.Peer.IsTransportInitiator)
+            {
+                throw new InvalidOperationException("The actual context pair is not authenticated and HELLO-ready.");
+            }
+            Console.WriteLine($"LISTENING carrier={m_options.Carrier} port={Port} context={ContextId}");
+            if (m_options.Shared || m_options.SessionAuthorization)
+            {
+                ClientSession session = await OpenSessionAsync(
+                    identities, clientIdentity, serverPublic, flowAddress, controlAddress, token)
+                    .ConfigureAwait(false);
+                m_session = session;
+                m_cleanup.Push(async () =>
+                {
+                    try
+                    {
+                        using var shutdown = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        StatusCode closed = await session.CloseAsync(10000, false, shutdown.Token)
+                            .ConfigureAwait(false);
+                        if (StatusCode.IsBad(closed))
+                        {
+                            throw new ServiceResultException(closed);
+                        }
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            if (m_uasc != null)
+                            {
+                                await m_uasc.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            await session.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                });
+                ServiceSecureChannelId = (session.TransportChannel as ISecureChannel)?.CurrentToken?.ChannelId ?? 0;
+                SameServiceTransport = ReferenceEquals(session.TransportChannel, m_uasc?.Services);
+                if (m_options.Shared &&
+                    (!SameServiceTransport || SecureChannelId == 0 || ServiceSecureChannelId != SecureChannelId ||
+                    session.ConfiguredEndpoint.Description.TransportProfileUri != DataChannelProfiles.SharedUasc))
+                {
+                    throw new InvalidOperationException("Ordinary traffic did not select the flow's SecureChannel.");
+                }
+                if (m_options.SessionAuthorization)
+                {
+                    m_control = new DataChannelSessionControl(session, authorizer, TimeProvider.System);
+                }
+            }
+            m_opener = m_control == null
+                ? await clientContext.OpenAsync(parameters, cancellationToken: token).ConfigureAwait(false)
+                : await m_control.OpenAsync(clientContext,
+                    ExpandedNodeId.ToNodeId(sourceId, m_session!.NamespaceUris), parameters, token)
+                    .ConfigureAwait(false);
+            m_cleanup.Push(() => m_opener.DisposeAsync());
+            DataChannel acceptor = Own(await provider.AcceptAsync(
+                resource, DataChannelProfiles.OpaquePayload, m_options.Carrier, token).ConfigureAwait(false) ??
+                throw new DataChannelException(DataChannelResult.Closed));
+            m_source = m_options.ClientPublishes ? m_opener : acceptor;
+            m_sink = m_options.ClientPublishes ? acceptor : m_opener;
+            if (m_source.ChannelId != m_sink.ChannelId || m_source.Revision != 1 || m_sink.Revision != 1)
+            {
+                throw new InvalidOperationException("Flow establishment did not return matching ready channels.");
+            }
+            if (m_options.Shared && m_options.ServiceLoad)
+            {
+                Services = Own(new ServiceTraffic(m_session!, m_options));
+                await Services.StartAsync(token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Uses the selected UASC profile without concrete transport casts or global transport registries.
+        /// </summary>
+        private async Task<(DataChannelContext Client, DataChannelContext Server)> ConnectUascAsync(
+            SampleIdentityPair identities,
+            CertificateEntry own,
+            Certificate peer,
+            IDataChannelContextFactory contexts,
+            ServerDataChannelProvider provider,
+            string address,
+            CancellationToken cancellationToken)
+        {
+            ApplicationConfiguration configuration = identities.Client.ApplicationConfiguration!;
+            ServiceMessageContext messageContext = configuration.CreateMessageContext();
+            var settings = new TransportChannelSettings
+            {
+                Description = DescribeEndpoint(address, peer, false),
+                Configuration = EndpointConfiguration.Create(configuration),
+                ClientCertificate = own.Certificate.AddRef(),
+                ServerCertificate = peer.AddRef(),
+                CertificateValidator = SampleIdentityPair.Manager(identities.Client),
+                NamespaceUris = messageContext.NamespaceUris,
+                Factory = messageContext.Factory,
+                DataChannels = contexts
+            };
+            var connector = new UascDataChannelClient(new TcpTransportChannelFactory(), m_telemetry);
+            try
+            {
+                m_uasc = await connector.ConnectAsync(new Uri(address), settings, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                settings.ClientCertificate?.Dispose();
+                settings.ServerCertificate?.Dispose();
+                throw;
+            }
+            m_cleanup.Push(() => m_uasc.DisposeAsync());
+            SecureChannelId = m_uasc.SecureChannelId;
+            if (!m_options.Shared && m_uasc.Services != null)
+            {
+                throw new InvalidOperationException("Dedicated flow endpoints must not expose ordinary Services.");
+            }
+            DataChannelContext server = await provider.WaitForContextAsync(
+                SampleIdentityPair.ClientApplicationUri, m_options.Carrier, cancellationToken).ConfigureAwait(false);
+            return (m_uasc.Context, server);
+        }
+
+        /// <summary>
+        /// Uses native-only library factories, including their real TLS, CONNECT and HELLO handshakes.
+        /// </summary>
+        private async Task<(DataChannelContext Client, DataChannelContext Server)> ConnectNativeAsync(
+            ICertificateManager serverManager,
+            ICertificateManager clientManager,
+            Certificate serverCertificate,
+            Certificate clientCertificate,
+            IDataChannelContextFactory serverContexts,
+            IDataChannelContextFactory clientContexts,
+            IWebTransportConnectAuthorizer connectPolicy,
+            CancellationToken cancellationToken)
+        {
+            m_native = new NativeQuicBackend(new NativeQuicLibrary(
+                m_options.QuicLibrary!, new ByteString(Convert.FromHexString(m_options.QuicSha256!))));
+            await m_native.GetCountsAsync(cancellationToken).ConfigureAwait(false);
+            m_nativeLoaded = true;
+            m_serverCredentials = new NativeQuicCertificateProvider(serverManager,
+                new NativeQuicCertificateOptions(
+                    SampleIdentityPair.ServerApplicationUri, ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    [new NativeQuicPeer(SampleIdentityPair.ClientApplicationUri,
+                        DataChannelCertificateIdentity.GetKeyThumbprint(clientCertificate))]));
+            NativeQuicCertificateProvider serverCredentials = m_serverCredentials;
+            m_clientCredentials = new NativeQuicCertificateProvider(clientManager,
+                new NativeQuicCertificateOptions(
+                    SampleIdentityPair.ClientApplicationUri, ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    [new NativeQuicPeer(SampleIdentityPair.ServerApplicationUri,
+                        DataChannelCertificateIdentity.GetKeyThumbprint(serverCertificate))]));
+            NativeQuicCertificateProvider clientCredentials = m_clientCredentials;
+            if (m_options.Carrier == DataChannelCarrierKind.Quic)
+            {
+                var server = new QuicDataChannelTransport(
+                    m_native, serverCredentials, serverContexts, applicationBudget: m_serverBudget);
+                var client = new QuicDataChannelTransport(
+                    m_native, clientCredentials, clientContexts, applicationBudget: m_clientBudget);
+                QuicDataChannelListener listener = Own(await server.ListenAsync(
+                    new Uri("opc.quic://127.0.0.1:0"), cancellationToken).ConfigureAwait(false));
+                Port = listener.EndpointUrl.Port;
+                Task<QuicDataChannelConnection> accept = OwnAsync(listener.AcceptAsync(cancellationToken));
+                Task<QuicDataChannelConnection> connect = OwnAsync(client.ConnectAsync(
+                    listener.EndpointUrl, cancellationToken));
+                await FinishPairAsync(accept, connect).ConfigureAwait(false);
+                return ((await connect.ConfigureAwait(false)).Context, (await accept.ConfigureAwait(false)).Context);
+            }
+            var library = new NativeHttp3Library(
+                m_options.Http3Library!, new ByteString(Convert.FromHexString(m_options.Http3Sha256!)));
+            var options = new WebTransportDataChannelOptions(WebTransportOriginPolicy.AbsentOnly);
+            var serverTransport = new WebTransportDataChannelTransport(m_native, library, serverCredentials,
+                serverContexts, m_serverBudget, options, connectPolicy);
+            var clientTransport = new WebTransportDataChannelTransport(m_native, library, clientCredentials,
+                clientContexts, m_clientBudget, options);
+            WebTransportDataChannelListener webListener = Own(await serverTransport.ListenAsync(
+                new Uri("opc.wt://127.0.0.1:0/flow/v1"), cancellationToken).ConfigureAwait(false));
+            Port = webListener.EndpointUrl.Port;
+            Task<WebTransportDataChannelConnection> webAccept = OwnAsync(webListener.AcceptAsync(cancellationToken));
+            Task<WebTransportDataChannelConnection> webConnect = OwnAsync(clientTransport.ConnectAsync(
+                webListener.EndpointUrl, cancellationToken));
+            await FinishPairAsync(webAccept, webConnect).ConfigureAwait(false);
+            return ((await webConnect.ConfigureAwait(false)).Context, (await webAccept.ConfigureAwait(false)).Context);
+        }
+
+        /// <summary>
+        /// Starts an ordinary Session on the shared connection, or explicitly on a separate control endpoint.
+        /// </summary>
+        private async Task<ClientSession> OpenSessionAsync(
+            SampleIdentityPair identities,
+            CertificateEntry own,
+            Certificate peer,
+            string sharedAddress,
+            string controlAddress,
+            CancellationToken cancellationToken)
+        {
+            ApplicationConfiguration configuration = identities.Client.ApplicationConfiguration!;
+            ICertificateManager manager = SampleIdentityPair.Manager(identities.Client);
+            CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates[0];
+            using Certificate? userCertificate = await manager.CertificateProvider.GetPrivateKeyCertificateAsync(
+                identifier, identities.Password, configuration.ApplicationUri, cancellationToken)
+                .ConfigureAwait(false) ??
+                throw new InvalidOperationException("The certificate manager could not load the user identity.");
+            UserIdentity identity = await UserIdentity.CreateAsync(
+                identifier, identities.Password, manager.CertificateProvider, cancellationToken).ConfigureAwait(false);
+            ISessionFactory factory = new DefaultSessionFactory(m_telemetry)
+                .WithSubscriptionEngine(DefaultSubscriptionEngineFactory.Instance);
+            var endpoint = new ConfiguredEndpoint(null,
+                DescribeEndpoint(m_options.Shared ? sharedAddress : controlAddress, peer, !m_options.Shared),
+                EndpointConfiguration.Create(configuration));
+            if (!m_options.Shared)
+            {
+                return await factory.CreateAsync(configuration, endpoint, false, "DataChannelControl", 60000,
+                    identity, [], cancellationToken).ConfigureAwait(false);
+            }
+            ClientSession session = factory.Create(
+                m_uasc!.Services!, configuration, endpoint, own.Certificate.AddRef());
+            try
+            {
+                await session.OpenAsync("DataChannelShared", 60000, identity, [],
+                    checkDomain: true, closeChannel: false, cancellationToken).ConfigureAwait(false);
+                return session;
+            }
+            catch
+            {
+                try
+                {
+                    await m_uasc.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Pins the selected endpoint profile and the independently trusted server certificate.
+        /// </summary>
+        private EndpointDescription DescribeEndpoint(string address, Certificate peer, bool control)
+        {
+            return new EndpointDescription
+            {
+                EndpointUrl = address,
+                TransportProfileUri = control ? Profiles.UaTcpTransport :
+                    m_options.Shared ? DataChannelProfiles.SharedUasc : DataChannelProfiles.DedicatedUasc,
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
+                ServerCertificate = new ByteString(peer.RawData),
+                Server = new ApplicationDescription
+                {
+                    ApplicationUri = SampleIdentityPair.ServerApplicationUri,
+                    ApplicationName = new LocalizedText("DataChannelSampleServer"),
+                    ProductUri = SampleIdentityPair.ModelNamespace,
+                    ApplicationType = ApplicationType.Server
+                },
+                UserIdentityTokens = control || m_options.Shared
+                    ?
+                    [
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "certificate",
+                            TokenType = UserTokenType.Certificate,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        }
+                    ]
+                    : []
+            };
+        }
+
+        /// <summary>
+        /// Retains ownership as soon as an asynchronous factory succeeds, including partial pair failures.
+        /// </summary>
+        private async Task<T> OwnAsync<T>(ValueTask<T> operation)
+            where T : IAsyncDisposable
+        {
+            return Own(await operation.ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Cancels the other establishment if either side fails, then observes both terminal outcomes.
+        /// </summary>
+        private async Task FinishPairAsync(Task first, Task second)
+        {
+            Task completed = await Task.WhenAny(first, second).ConfigureAwait(false);
+            if (!completed.IsCompletedSuccessfully)
+            {
+                m_lifetime.Cancel();
+            }
+            await Task.WhenAll(first, second).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Registers reverse acquisition-order asynchronous cleanup.
+        /// </summary>
+        private T Own<T>(T resource)
+            where T : IAsyncDisposable
+        {
+            m_cleanup.Push(resource.DisposeAsync);
+            return resource;
+        }
+
+        /// <summary>
+        /// Releases every owned resource even if an earlier disposer reports failure.
+        /// </summary>
+        private async ValueTask ReleaseNextAsync()
+        {
+            if (m_cleanup.TryPop(out Func<ValueTask>? release))
+            {
+                try
+                {
+                    await release().ConfigureAwait(false);
+                }
+                finally
+                {
+                    await ReleaseNextAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selects a free loopback port; only successful real listener startup is treated as readiness.
+        /// </summary>
+        private static int FreeTcpPort()
+        {
+            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            return ((IPEndPoint)listener.LocalEndpoint).Port;
+        }
+
+        private readonly SampleOptions m_options;
         private readonly ITelemetryContext m_telemetry;
-    }
-
-    internal sealed class ConsoleTelemetry : TelemetryContextBase
-    {
-        public ConsoleTelemetry()
-#pragma warning disable CA2000
-            : base(Microsoft.Extensions.Logging.LoggerFactory.Create(builder => builder
-                .AddConsole()
-                .SetMinimumLevel(LogLevel.Warning)))
-#pragma warning restore CA2000
-        {
-        }
+        private readonly DataChannelApplicationBudget m_serverBudget = new();
+        private readonly DataChannelApplicationBudget m_clientBudget = new();
+        private readonly ConcurrentStack<Func<ValueTask>> m_cleanup = new();
+        private readonly ConcurrentQueue<ServerSession> m_sessions = new();
+        private readonly CancellationTokenSource m_lifetime = new();
+        private UascDataChannelConnection? m_uasc;
+        private NativeQuicBackend? m_native;
+        private SampleIdentityPair? m_identities;
+        private ServerDataChannelProvider? m_provider;
+        private SessionDataChannelAuthorizer? m_authorizer;
+        private StandardServer? m_server;
+        private NativeQuicCertificateProvider? m_clientCredentials;
+        private NativeQuicCertificateProvider? m_serverCredentials;
+        private ClientSession? m_session;
+        private DataChannelSessionControl? m_control;
+        private DataChannel? m_opener;
+        private DataChannel? m_source;
+        private DataChannel? m_sink;
+        private bool m_nativeLoaded;
+        private bool m_disposed;
     }
 }

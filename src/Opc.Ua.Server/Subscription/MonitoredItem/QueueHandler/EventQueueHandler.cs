@@ -390,6 +390,11 @@ namespace Opc.Ua.Server
                 }
 
                 fields = transformed;
+                if (fields.Handle is IFilterTarget scoped &&
+                    !DataChannels.DataChannelEventScope.IsVisible(scoped, context.Session))
+                {
+                    continue;
+                }
                 foreach (Variant field in fields.EventFields)
                 {
                     StatusResult tmpStatus;

@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.DataChannels;
+using Opc.Ua.PubSub.Transports.DataChannels;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -362,6 +364,7 @@ namespace Opc.Ua.PubSub.Configuration
         private readonly List<ReaderGroupDataType> m_readerGroups = [];
         private Variant m_publisherId;
         private string m_transportProfileUri = string.Empty;
+        private ArrayOf<KeyValuePair> m_connectionProperties;
         private NetworkAddressUrlDataType m_address = new() { NetworkInterface = string.Empty };
         private bool m_enabled = true;
 
@@ -404,6 +407,21 @@ namespace Opc.Ua.PubSub.Configuration
         public PubSubConnectionBuilder WithTransportProfile(string transportProfileUri)
         {
             m_transportProfileUri = transportProfileUri ?? string.Empty;
+            return this;
+        }
+
+        /// <summary>
+        /// Selects a complete-message flow carrier and its independent UADP or JSON payload descriptor.
+        /// The endpoint address and all publisher/writer/reader identifiers remain independent.
+        /// </summary>
+        public PubSubConnectionBuilder WithDataChannel(
+            DataChannelCarrierKind carrierKind,
+            DataChannelParametersDataType parameters)
+        {
+            PubSubConnectionDataType connection = DataChannelPubSubConfiguration.Configure(
+                new PubSubConnectionDataType(), carrierKind, parameters);
+            m_transportProfileUri = DataChannelPubSubConfiguration.GetTransportProfile(carrierKind);
+            m_connectionProperties = connection.ConnectionProperties;
             return this;
         }
 
@@ -477,6 +495,7 @@ namespace Opc.Ua.PubSub.Configuration
                 Enabled = m_enabled,
                 PublisherId = m_publisherId,
                 TransportProfileUri = m_transportProfileUri,
+                ConnectionProperties = m_connectionProperties,
                 Address = new ExtensionObject(m_address),
                 WriterGroups = new ArrayOf<WriterGroupDataType>(m_writerGroups.ToArray()),
                 ReaderGroups = new ArrayOf<ReaderGroupDataType>(m_readerGroups.ToArray())

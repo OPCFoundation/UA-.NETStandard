@@ -6234,6 +6234,8 @@ namespace Opc.Ua.Client
                     expectedUrl != null &&
                     actualUrl.Scheme == expectedUrl.Scheme &&
                     (!matchPort || actualUrl.Port == expectedUrl.Port) &&
+                    DataChannels.DataChannelEndpointMatching.CanMatch(
+                        match, serverEndpoint, expectedUrl, actualUrl) &&
                     serverEndpoint.SecurityPolicyUri == m_endpoint.Description.SecurityPolicyUri &&
                     serverEndpoint.SecurityMode == m_endpoint.Description.SecurityMode)
                 {

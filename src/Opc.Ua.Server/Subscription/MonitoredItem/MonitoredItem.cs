@@ -1709,6 +1709,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            if (!DataChannels.DataChannelEventScope.IsVisible(instance, Session))
+            {
+                return;
+            }
 
             lock (m_lock)
             {

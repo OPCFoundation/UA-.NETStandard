@@ -101,6 +101,84 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Native qualification rejects a crashed host even when its partial TRX contains only passing counters.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(-1)]
+        [TestCase(134)]
+        public async Task StrictHostExitRejectsPassingPartialResultsAsync(int exitCode)
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1,
+                total: 27,
+                passed: 27,
+                failed: 0,
+                exitCode: exitCode,
+                timedOut: false,
+                requireCleanExit: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("clean host exit"));
+                Assert.That(verdict.Reason, Does.Contain(exitCode.ToString(CultureInfo.InvariantCulture)));
+            });
+        }
+
+        /// <summary>
+        /// Requiring a clean host exit still accepts a genuinely completed, passing native run.
+        /// </summary>
+        [Test]
+        public async Task StrictHostExitAcceptsCleanResultsAsync()
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1,
+                total: 49,
+                passed: 49,
+                failed: 0,
+                exitCode: 0,
+                timedOut: false,
+                requireCleanExit: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(verdict.Passed, Is.True);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Both native jobs carry the strict exit requirement through the shared action and executor.
+        /// </summary>
+        [Test]
+        public async Task NativeWorkflowRequiresCleanHostExitsAsync()
+        {
+            string root = FindRepositoryRoot();
+            string workflow = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "workflows", "native-data-channels.yml")).ConfigureAwait(false);
+            string action = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "actions", "run-dotnet-tests", "action.yml")).ConfigureAwait(false);
+            string executor = await File.ReadAllTextAsync(
+                Path.Combine(root, ".github", "scripts", "run-dotnet-tests.ps1")).ConfigureAwait(false);
+            workflow = workflow.Replace("\r\n", "\n", StringComparison.Ordinal);
+            int linux = workflow.IndexOf("\n  linux:", StringComparison.Ordinal);
+            int packages = workflow.IndexOf("\n  packages:", StringComparison.Ordinal);
+            Assert.That(linux, Is.GreaterThan(0));
+            Assert.That(packages, Is.GreaterThan(linux));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(workflow[..linux], Does.Contain("require-clean-exit: 'true'"));
+                Assert.That(workflow[linux..packages], Does.Contain("require-clean-exit: 'true'"));
+                Assert.That(action, Does.Contain("CI_REQUIRE_CLEAN_EXIT: ${{ inputs.require-clean-exit }}"));
+                Assert.That(action, Does.Contain("-RequireCleanExit:($env:CI_REQUIRE_CLEAN_EXIT -eq 'true')"));
+                Assert.That(executor, Does.Contain("-RequireCleanExit:$RequireCleanExit"));
+            });
+        }
+
+        /// <summary>
         /// The tolerance must not widen to cover a run that recorded failures.
         /// A non-zero failed counter is rejected whatever the exit code says -
         /// including exit code 0, which would otherwise let a broken suite
@@ -414,7 +492,8 @@ namespace Opc.Ua.Tools.Tests
             int exitCode,
             bool timedOut,
             int timeoutMinutes = 30,
-            string[]? fixtureFailures = null)
+            string[]? fixtureFailures = null,
+            bool requireCleanExit = false)
         {
             string script = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "get-test-verdict.ps1");
 
@@ -423,7 +502,7 @@ namespace Opc.Ua.Tools.Tests
             string command = string.Format(
                 CultureInfo.InvariantCulture,
                 ". {0}; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
-                "-TimedOut ${6} -TimeoutMinutes {7}{8} | ConvertTo-Json -Compress",
+                "-TimedOut ${6} -TimeoutMinutes {7}{8}{9} | ConvertTo-Json -Compress",
                 Quote(script),
                 trxFileCount,
                 total,
@@ -434,7 +513,8 @@ namespace Opc.Ua.Tools.Tests
                 timeoutMinutes,
                 fixtureFailures == null
                     ? string.Empty
-                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")");
+                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")",
+                requireCleanExit ? " -RequireCleanExit" : string.Empty);
 
             string output = await RunPowerShellAsync(command, "Get-TestRunVerdict").ConfigureAwait(false);
             Verdict? verdict = JsonSerializer.Deserialize<Verdict>(output.Trim(), s_json);

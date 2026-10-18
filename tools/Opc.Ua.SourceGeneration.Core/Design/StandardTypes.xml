@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<opc:ModelDesign
+<opc:ModelDesign IdentifierCompatibilityFile="StandardTypes.Compatibility.csv"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
   xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
@@ -414,10 +414,6 @@
       <opc:Property SymbolicName="MaxMonitoredItemsQueueSize" DataType="ua:UInt32" ModellingRule="Optional" />
 
       <opc:Property SymbolicName="ConformanceUnits" DataType="ua:QualifiedName" ValueRank="Array" ModellingRule="Optional" />
-
-      <opc:Object SymbolicName="DataChannelCapabilities" TypeDefinition="DataChannelCapabilitiesType" ModellingRule="Optional">
-        <opc:Description>Server wide data channel capabilities. Its absence states that the server does not support data channels.</opc:Description>
-      </opc:Object>
 
     </opc:Children>
   </opc:ObjectType>
@@ -9675,54 +9671,233 @@
     </opc:References>
   </opc:Object>
 
-  <!-- Data Channels. Experimental; identifiers are provisional. -->
+  <!-- Experimental Data Channel model; provisional identifiers. -->
 
-  <opc:ReferenceType SymbolicName="HasDataChannel" BaseType="ua:NonHierarchicalReferences" PartNo="3">
-    <opc:Description>Links a functional Object or Variable to the data channel source through which its content can be streamed.</opc:Description>
+  <opc:ReferenceType
+    SymbolicName="ua:HasDataChannel"
+    PartNo="3"
+    BaseType="ua:NonHierarchicalReferences"
+    Symmetric="false" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for HasDataChannel.</opc:Description>
     <opc:InverseName>DataChannelOf</opc:InverseName>
   </opc:ReferenceType>
 
-  <opc:ObjectType SymbolicName="IDataChannelSourceType" BaseType="ua:BaseInterfaceType" IsAbstract="true" PartNo="3">
-    <opc:Description>Interface implemented by any Object or Variable that can act as one end of a data channel.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:IDataChannelSourceType" PartNo="3" BaseType="ua:BaseInterfaceType" IsAbstract="true" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for IDataChannelSourceType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="Direction" DataType="DataChannelDirection" ModellingRule="Mandatory">
-        <opc:Description>The directions in which this endpoint can carry data.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedProtocols"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtocols.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="SupportedDeliveryModes" DataType="DataChannelDeliveryMode" ValueRank="Array" ModellingRule="Mandatory">
-        <opc:Description>The delivery modes this endpoint accepts in OpenDataChannel.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedDirections"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDirection"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDirections.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="ContentType" DataType="ua:String" ModellingRule="Mandatory">
-        <opc:Description>The IANA media type of the byte stream this endpoint produces or consumes.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedDeliveryModes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDeliveryMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDeliveryModes.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="ContentParameters" DataType="KeyValuePair" ValueRank="Array" ModellingRule="Optional">
-        <opc:Description>Content specific parameters that qualify ContentType.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedProtectionModes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelProtectionMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtectionModes.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxFrameSize" DataType="ua:UInt32" ModellingRule="Optional">
-        <opc:Description>The largest data channel frame payload, in bytes, this endpoint will emit or accept.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:ContentType"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ContentType.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxBitrate" DataType="ua:UInt32" ModellingRule="Optional">
-        <opc:Description>The peak rate, in bits per second, this endpoint may produce.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxMessageSize"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxMessageSize.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="Priority" DataType="ua:Byte" ModellingRule="Optional">
-        <opc:Description>The default scheduling priority applied when the client requests priority 255.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxReceiveBytes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxReceiveBytes.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxChannels" DataType="ua:UInt16" ModellingRule="Optional">
-        <opc:Description>The maximum number of data channels that may be open on this endpoint at the same time.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxRate"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:Double"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxRate.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="ActiveChannelCount" DataType="ua:UInt16" ModellingRule="Optional">
-        <opc:Description>The number of data channels currently open on this endpoint.</opc:Description>
+      <opc:Variable
+        SymbolicName="ua:ActiveChannelCount"
+        ModellingRule="Optional"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ActiveChannelCount.</opc:Description>
+      </opc:Variable>
+      <opc:Property
+        SymbolicName="ua:ResourceUri"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ResourceUri.</opc:Description>
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="DataChannelSourceType" BaseType="ua:BaseObjectType" PartNo="3">
-    <opc:Description>The plain, concrete realization of IDataChannelSourceType.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:DataChannelSourceType" PartNo="3" BaseType="ua:BaseObjectType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelSourceType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="Channels" DataType="DataChannelStatusDataType" ValueRank="Array" ModellingRule="Optional">
-        <opc:Description>The data channels currently open on this endpoint.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedProtocols"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtocols.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="Diagnostics" DataType="DataChannelDiagnosticsDataType" ValueRank="Array" ModellingRule="Optional">
-        <opc:Description>Per channel counters for the channels currently open on this endpoint.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedDirections"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDirection"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDirections.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SupportedDeliveryModes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDeliveryMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDeliveryModes.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SupportedProtectionModes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelProtectionMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtectionModes.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:ContentType"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ContentType.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:MaxMessageSize"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxMessageSize.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:MaxReceiveBytes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxReceiveBytes.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:MaxRate"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:Double"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxRate.</opc:Description>
+      </opc:Property>
+      <opc:Variable
+        SymbolicName="ua:ActiveChannelCount"
+        ModellingRule="Optional"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ActiveChannelCount.</opc:Description>
+      </opc:Variable>
+      <opc:Variable
+        SymbolicName="ua:Channels"
+        ModellingRule="Optional"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:DataChannelStatusDataType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for Channels.</opc:Description>
+      </opc:Variable>
+      <opc:Variable
+        SymbolicName="ua:Diagnostics"
+        ModellingRule="Optional"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:DataChannelDiagnosticsDataType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for Diagnostics.</opc:Description>
+      </opc:Variable>
+      <opc:Property
+        SymbolicName="ua:ResourceUri"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ResourceUri.</opc:Description>
       </opc:Property>
     </opc:Children>
     <opc:References>
@@ -9733,76 +9908,1613 @@
     </opc:References>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="DataChannelCapabilitiesType" BaseType="ua:BaseObjectType" PartNo="3">
-    <opc:Description>Server wide data channel limits and capabilities.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:DataChannelCapabilitiesType" PartNo="3" BaseType="ua:BaseObjectType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelCapabilitiesType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="MaxDataChannels" DataType="ua:UInt16" ModellingRule="Mandatory">
-        <opc:Description>The maximum number of data channels the server will keep open on one secure channel.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxFlows"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxFlows.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxFrameSize" DataType="ua:UInt32" ModellingRule="Mandatory">
-        <opc:Description>The largest data channel frame payload, in bytes, the server will emit or accept.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxMessageSize"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxMessageSize.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="SupportedDeliveryModes" DataType="DataChannelDeliveryMode" ValueRank="Array" ModellingRule="Mandatory">
-        <opc:Description>The delivery modes the server implements.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:MaxReceiveBytes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxReceiveBytes.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="SupportedTransportProfileUris" DataType="ua:String" ValueRank="Array" ModellingRule="Mandatory">
-        <opc:Description>The transport profile uris over which this server carries data channels.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedTransportProfileUris"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedTransportProfileUris.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxCreditPerChannel" DataType="ua:UInt32" ModellingRule="Mandatory">
-        <opc:Description>The largest flow control credit window, in bytes, the server will grant to one channel.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedProtocols"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtocols.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="MaxTotalBitrate" DataType="ua:UInt32" ModellingRule="Optional">
-        <opc:Description>The aggregate rate, in bits per second, the server will emit across all data channels of one secure channel.</opc:Description>
-      </opc:Property>
-      <opc:Property SymbolicName="SupportsUnreliableDatagrams" DataType="ua:Boolean" ModellingRule="Optional">
-        <opc:Description>True when the server can carry unreliable channels over a genuinely lossy path.</opc:Description>
-      </opc:Property>
-      <opc:Property SymbolicName="AllowInsecureDataChannels" DataType="ua:Boolean" ModellingRule="Optional">
-        <opc:Description>True only where the server permits a data channel on a secure channel whose security mode is None. Absence shall be read as False.</opc:Description>
-      </opc:Property>
-      <opc:Property SymbolicName="ActiveChannelCount" DataType="ua:UInt16" ModellingRule="Optional">
-        <opc:Description>The number of data channels currently open across the whole server.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SupportedDeliveryModes"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDeliveryMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDeliveryModes.</opc:Description>
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="DataChannelOfferedEventType" BaseType="ua:BaseEventType" IsAbstract="true" PartNo="3">
-    <opc:Description>Raised when the server wants to open a data channel towards a client.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:DataChannelManagerType" PartNo="3" BaseType="ua:BaseObjectType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelManagerType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="Offer" DataType="DataChannelOfferDataType" ModellingRule="Mandatory">
-        <opc:Description>The offered channel.</opc:Description>
+      <opc:Variable
+        SymbolicName="ua:Channels"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:DataChannelStatusDataType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for Channels.</opc:Description>
+      </opc:Variable>
+      <opc:Variable
+        SymbolicName="ua:Diagnostics"
+        ModellingRule="Optional"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:DataChannelDiagnosticsDataType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for Diagnostics.</opc:Description>
+      </opc:Variable>
+      <opc:Method SymbolicName="ua:OpenDataChannel" ModellingRule="Mandatory" NonExecutable="false">
+        <opc:Description>Value or operation for OpenDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="4">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>sourceNodeId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=17</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>binding</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102100</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>parameters</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102000</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>grant</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102200</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="sourceNodeId" DataType="ua:NodeId" ValueRank="Scalar">
+            <opc:Description>Argument sourceNodeId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="binding" DataType="ua:DataChannelBindingDataType" ValueRank="Scalar">
+            <opc:Description>Argument binding.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+            <opc:Description>Argument parameters.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="grant" DataType="ua:DataChannelGrantDataType" ValueRank="Scalar">
+            <opc:Description>Argument grant.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:ModifyDataChannel" ModellingRule="Mandatory" NonExecutable="false">
+        <opc:Description>Value or operation for ModifyDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="4">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>operationId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>requestedRevision</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>parameters</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102000</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>status</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102300</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="operationId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument operationId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="requestedRevision" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument requestedRevision.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+            <opc:Description>Argument parameters.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="status" DataType="ua:DataChannelStatusDataType" ValueRank="Scalar">
+            <opc:Description>Argument status.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:CloseDataChannel" ModellingRule="Mandatory" NonExecutable="false">
+        <opc:Description>Value or operation for CloseDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="2">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>deleteQueued</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="Mandatory"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>status</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102300</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="deleteQueued" DataType="ua:Boolean" ValueRank="Scalar">
+            <opc:Description>Argument deleteQueued.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="status" DataType="ua:DataChannelStatusDataType" ValueRank="Scalar">
+            <opc:Description>Argument status.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ua:DataChannelStateChangeEventType" PartNo="3" BaseType="ua:BaseEventType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelStateChangeEventType.</opc:Description>
+    <opc:Children>
+      <opc:Property
+        SymbolicName="ua:ChannelId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ChannelId.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:ContextId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:Guid"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ContextId.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Generation"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt64"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Generation.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SessionId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:NodeId"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for SessionId.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:State"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelState"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for State.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Revision"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Revision.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Result"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelResult"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Result.</opc:Description>
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="DataChannelStateChangeEventType" BaseType="ua:BaseEventType" IsAbstract="true" PartNo="3">
-    <opc:Description>Raised whenever a data channel changes state.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:AuditDataChannelEventType" PartNo="3" BaseType="ua:AuditSessionEventType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for AuditDataChannelEventType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="ChannelId" DataType="ua:UInt32" ModellingRule="Mandatory">
-        <opc:Description>The data channel whose state changed.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:ChannelId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ChannelId.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="State" DataType="DataChannelState" ModellingRule="Mandatory">
-        <opc:Description>The state entered.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:ContextId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:Guid"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ContextId.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="Status" DataType="ua:StatusCode" ModellingRule="Optional">
-        <opc:Description>The status code that caused the transition.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:Generation"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt64"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Generation.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Operation"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Operation.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Revision"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Revision.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:Result"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelResult"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Result.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:DataChannelSourceNodeId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:NodeId"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for DataChannelSourceNodeId.</opc:Description>
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="AuditOpenDataChannelEventType" BaseType="AuditSessionEventType" IsAbstract="true" PartNo="3">
-    <opc:Description>Audit event for a successful or rejected OpenDataChannel.</opc:Description>
+  <opc:ObjectType SymbolicName="ua:DataChannelOfferedEventType" PartNo="3" BaseType="ua:BaseEventType" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelOfferedEventType.</opc:Description>
     <opc:Children>
-      <opc:Property SymbolicName="DataChannelSourceNodeId" DataType="ua:NodeId" ModellingRule="Mandatory">
-        <opc:Description>The endpoint the channel was requested on.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:SourceNodeId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:NodeId"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for SourceNodeId.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="Parameters" DataType="DataChannelParametersDataType" ModellingRule="Mandatory">
-        <opc:Description>The parameters as revised by the server, or as requested when the request was rejected.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:ResourceUri"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ResourceUri.</opc:Description>
       </opc:Property>
-      <opc:Property SymbolicName="ChannelId" DataType="ua:UInt32" ModellingRule="Optional">
-        <opc:Description>The assigned channel id. Omitted when the request was rejected.</opc:Description>
+      <opc:Property
+        SymbolicName="ua:Parameters"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelParametersDataType"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for Parameters.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:RecipientSessionId"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:NodeId"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for RecipientSessionId.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:ExpiresAt"
+        ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UtcTime"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for ExpiresAt.</opc:Description>
       </opc:Property>
     </opc:Children>
   </opc:ObjectType>
+
+  <opc:DataType SymbolicName="ua:DataChannelDirection" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelDirection.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="3">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>OpenerToAcceptor</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>AcceptorToOpener</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Duplex</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="OpenerToAcceptor" Identifier="0">
+        <opc:Description>Value of OpenerToAcceptor.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="AcceptorToOpener" Identifier="1">
+        <opc:Description>Value of AcceptorToOpener.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Duplex" Identifier="2">
+        <opc:Description>Value of Duplex.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelDeliveryMode" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelDeliveryMode.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="2">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Ordered</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Datagram</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="Ordered" Identifier="0">
+        <opc:Description>Value of Ordered.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Datagram" Identifier="1">
+        <opc:Description>Value of Datagram.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelProtectionMode" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelProtectionMode.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="2">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Confidential</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Integrity</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="Confidential" Identifier="0">
+        <opc:Description>Value of Confidential.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Integrity" Identifier="1">
+        <opc:Description>Value of Integrity.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelState" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelState.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="6">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Opening</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Open</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Updating</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Draining</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Closed</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Faulted</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="Opening" Identifier="0">
+        <opc:Description>Value of Opening.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Open" Identifier="1">
+        <opc:Description>Value of Open.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Updating" Identifier="2">
+        <opc:Description>Value of Updating.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Draining" Identifier="3">
+        <opc:Description>Value of Draining.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Closed" Identifier="4">
+        <opc:Description>Value of Closed.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Faulted" Identifier="5">
+        <opc:Description>Value of Faulted.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelAuthorizationMode" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelAuthorizationMode.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="2">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Configured</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Session</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="Configured" Identifier="0">
+        <opc:Description>Value of Configured.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Session" Identifier="1">
+        <opc:Description>Value of Session.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelResult" PartNo="3" BaseType="ua:Enumeration" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelResult.</opc:Description>
+    <opc:Children>
+      <opc:Property SymbolicName="ua:EnumStrings" ModellingRule="None" TypeDefinition="ua:PropertyType" DataType="ua:LocalizedText" ValueRank="Array" AccessLevel="Read" ArrayDimensions="11">
+        <opc:DefaultValue>
+          <uax:ListOfLocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Good</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Unsupported</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>InvalidArgument</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>InvalidState</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>NotAuthorized</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>SecurityFailure</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>TooLarge</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Timeout</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>Closed</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>UnknownChannel</uax:Text>
+            </uax:LocalizedText>
+            <uax:LocalizedText>
+              <uax:Text>WouldBlock</uax:Text>
+            </uax:LocalizedText>
+          </uax:ListOfLocalizedText>
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:Fields>
+      <opc:Field Name="Good" Identifier="0">
+        <opc:Description>Value of Good.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Unsupported" Identifier="1">
+        <opc:Description>Value of Unsupported.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="InvalidArgument" Identifier="2">
+        <opc:Description>Value of InvalidArgument.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="InvalidState" Identifier="3">
+        <opc:Description>Value of InvalidState.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="NotAuthorized" Identifier="4">
+        <opc:Description>Value of NotAuthorized.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="SecurityFailure" Identifier="5">
+        <opc:Description>Value of SecurityFailure.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="TooLarge" Identifier="6">
+        <opc:Description>Value of TooLarge.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Timeout" Identifier="7">
+        <opc:Description>Value of Timeout.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Closed" Identifier="8">
+        <opc:Description>Value of Closed.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="UnknownChannel" Identifier="9">
+        <opc:Description>Value of UnknownChannel.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="WouldBlock" Identifier="10">
+        <opc:Description>Value of WouldBlock.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelParametersDataType" PartNo="3" BaseType="ua:Structure" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelParametersDataType.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="ResourceUri" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Value of ResourceUri.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Protocol" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Value of Protocol.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ContentType" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Value of ContentType.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Direction" DataType="ua:DataChannelDirection" ValueRank="Scalar">
+        <opc:Description>Value of Direction.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Delivery" DataType="ua:DataChannelDeliveryMode" ValueRank="Scalar">
+        <opc:Description>Value of Delivery.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Protection" DataType="ua:DataChannelProtectionMode" ValueRank="Scalar">
+        <opc:Description>Value of Protection.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="MaxMessageSize" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of MaxMessageSize.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="MaxReceiveBytes" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of MaxReceiveBytes.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="MaxRate" DataType="ua:Double" ValueRank="Scalar">
+        <opc:Description>Value of MaxRate.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Priority" DataType="ua:Byte" ValueRank="Scalar">
+        <opc:Description>Value of Priority.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="AllowQueueExpiry" DataType="ua:Boolean" ValueRank="Scalar">
+        <opc:Description>Value of AllowQueueExpiry.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelBindingDataType" PartNo="3" BaseType="ua:Structure" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelBindingDataType.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="ContextId" DataType="ua:Guid" ValueRank="Scalar">
+        <opc:Description>Value of ContextId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Generation" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of Generation.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="PeerApplicationUri" DataType="ua:String" ValueRank="Scalar">
+        <opc:Description>Value of PeerApplicationUri.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="PeerKeyThumbprint" DataType="ua:ByteString" ValueRank="Scalar">
+        <opc:Description>Value of PeerKeyThumbprint.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Challenge" DataType="ua:ByteString" ValueRank="Scalar">
+        <opc:Description>Value of Challenge.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ExpiresAt" DataType="ua:UtcTime" ValueRank="Scalar">
+        <opc:Description>Value of ExpiresAt.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelGrantDataType" PartNo="3" BaseType="ua:Structure" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelGrantDataType.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="GrantId" DataType="ua:Guid" ValueRank="Scalar">
+        <opc:Description>Value of GrantId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ChannelId" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of ChannelId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ContextId" DataType="ua:Guid" ValueRank="Scalar">
+        <opc:Description>Value of ContextId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Generation" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of Generation.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="SourceNodeId" DataType="ua:ExpandedNodeId" ValueRank="Scalar">
+        <opc:Description>Value of SourceNodeId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="SessionId" DataType="ua:NodeId" ValueRank="Scalar">
+        <opc:Description>Value of SessionId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+        <opc:Description>Value of Parameters.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ExpiresAt" DataType="ua:UtcTime" ValueRank="Scalar">
+        <opc:Description>Value of ExpiresAt.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelStatusDataType" PartNo="3" BaseType="ua:Structure" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelStatusDataType.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="ChannelId" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of ChannelId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ContextId" DataType="ua:Guid" ValueRank="Scalar">
+        <opc:Description>Value of ContextId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Generation" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of Generation.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="TransportStreamId" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of TransportStreamId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="SourceNodeId" DataType="ua:ExpandedNodeId" ValueRank="Scalar">
+        <opc:Description>Value of SourceNodeId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="SessionId" DataType="ua:NodeId" ValueRank="Scalar">
+        <opc:Description>Value of SessionId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="State" DataType="ua:DataChannelState" ValueRank="Scalar">
+        <opc:Description>Value of State.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Revision" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of Revision.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="PendingRevision" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of PendingRevision.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="OperationId" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of OperationId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Result" DataType="ua:DataChannelResult" ValueRank="Scalar">
+        <opc:Description>Value of Result.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+        <opc:Description>Value of Parameters.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="OpenerEnded" DataType="ua:Boolean" ValueRank="Scalar">
+        <opc:Description>Value of OpenerEnded.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="AcceptorEnded" DataType="ua:Boolean" ValueRank="Scalar">
+        <opc:Description>Value of AcceptorEnded.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="StartedAt" DataType="ua:UtcTime" ValueRank="Scalar">
+        <opc:Description>Value of StartedAt.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:DataType SymbolicName="ua:DataChannelDiagnosticsDataType" PartNo="3" BaseType="ua:Structure" PreserveExplicitNodes="true">
+    <opc:Description>Model contract for DataChannelDiagnosticsDataType.</opc:Description>
+    <opc:Fields>
+      <opc:Field Name="ChannelId" DataType="ua:UInt32" ValueRank="Scalar">
+        <opc:Description>Value of ChannelId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ContextId" DataType="ua:Guid" ValueRank="Scalar">
+        <opc:Description>Value of ContextId.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="Generation" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of Generation.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="MessagesSent" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of MessagesSent.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="MessagesReceived" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of MessagesReceived.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="BytesSent" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of BytesSent.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="BytesReceived" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of BytesReceived.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="QueueExpiryDrops" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of QueueExpiryDrops.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="AdmissionDrops" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of AdmissionDrops.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="ReplayDrops" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of ReplayDrops.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="RevisionDrops" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of RevisionDrops.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="CreditStalls" DataType="ua:UInt64" ValueRank="Scalar">
+        <opc:Description>Value of CreditStalls.</opc:Description>
+      </opc:Field>
+      <opc:Field Name="RoundTripTime" DataType="ua:Duration" ValueRank="Scalar">
+        <opc:Description>Value of RoundTripTime.</opc:Description>
+      </opc:Field>
+    </opc:Fields>
+  </opc:DataType>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelCapabilities"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataChannelCapabilitiesType" PreserveExplicitNodes="true">
+    <opc:Description>Value or operation for DataChannelCapabilities.</opc:Description>
+    <opc:Children>
+      <opc:Property
+        SymbolicName="ua:MaxFlows"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxFlows.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:MaxMessageSize"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxMessageSize.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:MaxReceiveBytes"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:UInt32"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for MaxReceiveBytes.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SupportedTransportProfileUris"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedTransportProfileUris.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SupportedProtocols"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedProtocols.</opc:Description>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:SupportedDeliveryModes"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DataChannelDeliveryMode"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for SupportedDeliveryModes.</opc:Description>
+      </opc:Property>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_ServerCapabilities</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelManager"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataChannelManagerType" PreserveExplicitNodes="true">
+    <opc:Description>Value or operation for DataChannelManager.</opc:Description>
+    <opc:Children>
+      <opc:Variable
+        SymbolicName="ua:Channels"
+        ModellingRule="None"
+        TypeDefinition="ua:BaseDataVariableType"
+        DataType="ua:DataChannelStatusDataType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="0">
+        <opc:Description>Value or operation for Channels.</opc:Description>
+      </opc:Variable>
+      <opc:Method
+        SymbolicName="ua:OpenDataChannel"
+        ModellingRule="None"
+        NonExecutable="false"
+        TypeDefinition="ua:DataChannelManagerType_OpenDataChannel">
+        <opc:Description>Value or operation for OpenDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="4">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>sourceNodeId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=17</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>binding</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102100</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>parameters</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102000</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>grant</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102200</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="sourceNodeId" DataType="ua:NodeId" ValueRank="Scalar">
+            <opc:Description>Argument sourceNodeId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="binding" DataType="ua:DataChannelBindingDataType" ValueRank="Scalar">
+            <opc:Description>Argument binding.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+            <opc:Description>Argument parameters.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="grant" DataType="ua:DataChannelGrantDataType" ValueRank="Scalar">
+            <opc:Description>Argument grant.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method
+        SymbolicName="ua:ModifyDataChannel"
+        ModellingRule="None"
+        NonExecutable="false"
+        TypeDefinition="ua:DataChannelManagerType_ModifyDataChannel">
+        <opc:Description>Value or operation for ModifyDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="4">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>operationId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>requestedRevision</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>parameters</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102000</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>status</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102300</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="operationId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument operationId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="requestedRevision" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument requestedRevision.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="parameters" DataType="ua:DataChannelParametersDataType" ValueRank="Scalar">
+            <opc:Description>Argument parameters.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="status" DataType="ua:DataChannelStatusDataType" ValueRank="Scalar">
+            <opc:Description>Argument status.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method
+        SymbolicName="ua:CloseDataChannel"
+        ModellingRule="None"
+        NonExecutable="false"
+        TypeDefinition="ua:DataChannelManagerType_CloseDataChannel">
+        <opc:Description>Value or operation for CloseDataChannel.</opc:Description>
+        <opc:Children>
+          <opc:Property
+            SymbolicName="ua:InputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="2">
+            <opc:Description>Value or operation for InputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>channelId</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=7</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>deleteQueued</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+          <opc:Property
+            SymbolicName="ua:OutputArguments"
+            ModellingRule="None"
+            TypeDefinition="ua:PropertyType"
+            DataType="ua:Argument"
+            ValueRank="Array"
+            AccessLevel="Read"
+            ArrayDimensions="1">
+            <opc:Description>Value or operation for OutputArguments.</opc:Description>
+            <opc:DefaultValue>
+              <uax:ListOfExtensionObject>
+                <uax:ExtensionObject>
+                  <uax:TypeId>
+                    <uax:Identifier>i=297</uax:Identifier>
+                  </uax:TypeId>
+                  <uax:Body>
+                    <uax:Argument>
+                      <uax:Name>status</uax:Name>
+                      <uax:DataType>
+                        <uax:Identifier>i=1102300</uax:Identifier>
+                      </uax:DataType>
+                      <uax:ValueRank>-1</uax:ValueRank>
+                      <uax:ArrayDimensions />
+                      <uax:Description />
+                    </uax:Argument>
+                  </uax:Body>
+                </uax:ExtensionObject>
+              </uax:ListOfExtensionObject>
+            </opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:InputArguments>
+          <opc:Argument Name="channelId" DataType="ua:UInt32" ValueRank="Scalar">
+            <opc:Description>Argument channelId.</opc:Description>
+          </opc:Argument>
+          <opc:Argument Name="deleteQueued" DataType="ua:Boolean" ValueRank="Scalar">
+            <opc:Description>Argument deleteQueued.</opc:Description>
+          </opc:Argument>
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="status" DataType="ua:DataChannelStatusDataType" ValueRank="Scalar">
+            <opc:Description>Argument status.</opc:Description>
+          </opc:Argument>
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelParametersDataType_Encoding_DefaultJson"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataTypeEncodingType" PreserveExplicitNodes="true">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:Description>Value or operation for Default JSON.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:DataChannelParametersDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelBindingDataType_Encoding_DefaultJson"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataTypeEncodingType" PreserveExplicitNodes="true">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:Description>Value or operation for Default JSON.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:DataChannelBindingDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelGrantDataType_Encoding_DefaultJson"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataTypeEncodingType" PreserveExplicitNodes="true">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:Description>Value or operation for Default JSON.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:DataChannelGrantDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelStatusDataType_Encoding_DefaultJson"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataTypeEncodingType" PreserveExplicitNodes="true">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:Description>Value or operation for Default JSON.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:DataChannelStatusDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+
+  <opc:Object
+    SymbolicName="ua:DataChannelDiagnosticsDataType_Encoding_DefaultJson"
+    PartNo="3"
+    ModellingRule="None"
+    TypeDefinition="ua:DataTypeEncodingType" PreserveExplicitNodes="true">
+    <opc:BrowseName>Default JSON</opc:BrowseName>
+    <opc:Description>Value or operation for Default JSON.</opc:Description>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasEncoding</opc:ReferenceType>
+        <opc:TargetId>ua:DataChannelDiagnosticsDataType</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
 
 </opc:ModelDesign>

@@ -32,6 +32,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -42,7 +43,7 @@ namespace Opc.Ua.Bindings
     /// The byte transport layer requires an IUaSCByteTransportFactory implementation.
     /// </summary>
     public class UaSCUaBinaryTransportChannel
-        : ITransportChannel, ISecureChannel, ITransportChannelBindingProvider, IServerRetryAfterHintProvider
+        : IDataChannelTransportChannel, ISecureChannel, ITransportChannelBindingProvider, IServerRetryAfterHintProvider
     {
         private const int kChannelCloseDefault = 1_000;
 
@@ -142,6 +143,9 @@ namespace Opc.Ua.Bindings
         public IUaSCByteTransport? Transport => m_channel?.Transport;
 
         /// <inheritdoc/>
+        public bool IsDisposed => Volatile.Read(ref m_disposed);
+
+        /// <inheritdoc/>
         public event ChannelTokenActivatedEventHandler OnTokenActivated
         {
             add => m_OnTokenActivated += value;
@@ -163,6 +167,9 @@ namespace Opc.Ua.Bindings
         /// carries the MessageType an extension owns.
         /// </remarks>
         public UaSCUaBinaryClientChannel? SecureChannel => m_channel;
+
+        /// <inheritdoc/>
+        public DataChannelContext? DataChannels => m_channel?.DataChannels;
 
         /// <inheritdoc/>
         public EndpointDescription EndpointDescription
@@ -540,6 +547,12 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
+            UascDataChannelEndpoint.Validate(
+                url,
+                settings.Description,
+                settings.DataChannels,
+                settings.AllowDataChannelIntegrity);
+
             // save the settings.
             m_url = url;
             m_settings = settings;
@@ -675,6 +688,16 @@ namespace Opc.Ua.Bindings
                 clientCertificate?.Dispose();
                 clientCertificateChain?.Dispose();
                 serverCertificate?.Dispose();
+                throw;
+            }
+
+            try
+            {
+                channel.ConfigureDataChannels(m_settings.DataChannels, m_settings.AllowDataChannelIntegrity);
+            }
+            catch
+            {
+                channel.Dispose();
                 throw;
             }
 

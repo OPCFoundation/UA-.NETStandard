@@ -33,6 +33,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.DataChannels;
 
 namespace Opc.Ua.Server.Hosting
 {
@@ -63,39 +64,19 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <summary>
-        /// Picks up the data channel hooks a transport binding or a host has
-        /// registered, so <c>AddQuicTransport()</c> alone is enough to carry
-        /// frames on <c>opc.quic</c> streams and no host has to reach for the
-        /// imperative <c>UseQuicDataChannelTransport()</c> fallback.
+        /// Resolves an explicitly registered application flow provider and independent model opt-in.
         /// </summary>
         /// <remarks>
-        /// Each hook is optional; leaving one unregistered keeps the
-        /// <see cref="StandardServer"/> default. Registering a transport is
-        /// safe for a server that also publishes non-matching endpoints,
-        /// because a transport that does not recognize the SecureChannel
-        /// declines it and the inline framing takes over.
+        /// Registering a native or UASC transport alone never enables the optional Session model.
+        /// There is no fallback from an unsupported selected carrier.
         /// </remarks>
         /// <param name="services">The service provider that supplies the hooks.</param>
         private void ResolveDataChannelHooks(IServiceProvider services)
         {
-            if (services.GetService<IServerDataChannelTransport>() is { } transport)
+            if (services.GetService<ServerDataChannelProvider>() is { } provider)
             {
-                DataChannelTransport = transport;
-            }
-
-            if (services.GetService<IDataChannelAuthorizer>() is { } authorizer)
-            {
-                DataChannelAuthorizer = authorizer;
-            }
-
-            if (services.GetService<IDataChannelAuditor>() is { } auditor)
-            {
-                DataChannelAuditor = auditor;
-            }
-
-            foreach (IDataChannelSource source in services.GetServices<IDataChannelSource>())
-            {
-                DataChannelSources.Register(source);
+                DataChannelProvider = provider;
+                EnableDataChannelModel = services.GetService<DataChannelModelOptions>()?.Enabled == true;
             }
         }
 

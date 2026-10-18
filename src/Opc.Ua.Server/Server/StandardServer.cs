@@ -483,6 +483,8 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
+            endpoints = IncludeDataChannelEndpoints(endpoints, profileUris);
+
             // consult the optional load-direction seam; when it directs the
             // Client to a peer it replaces the local endpoints (extension
             // beyond OPC 10000-4 §6.6; opt-in and gated).
@@ -494,7 +496,16 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 if (redirect)
                 {
-                    endpoints = directed;
+                    var matches = new List<EndpointDescription>();
+                    foreach (EndpointDescription endpoint in directed)
+                    {
+                        if (profileUris.Count == 0 || DataChannels.DataChannelSource.Contains(
+                            profileUris, endpoint.TransportProfileUri ?? string.Empty))
+                        {
+                            matches.Add(endpoint);
+                        }
+                    }
+                    endpoints = [.. matches];
                 }
             }
 
@@ -575,13 +586,6 @@ namespace Opc.Ua.Server
             string globalChannelId,
             Exception exception)
         {
-            // Part 6 errata §5.13: a closed SecureChannel faults every data
-            // channel that was riding on it. This is the only notification a
-            // Server gets that one has gone; the Session lifecycle does not
-            // cover it, because a SecureChannel may close while its Sessions
-            // are still alive and awaiting transfer.
-            AbortDataChannelsOfSecureChannel(globalChannelId, StatusCodes.BadSecureChannelClosed);
-
             ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception, m_logger);
         }
 
@@ -912,7 +916,8 @@ namespace Opc.Ua.Server
                     }
 
                     // return the endpoints supported by the server.
-                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
+                    serverEndpoints = IncludeDataChannelEndpoints(
+                        GetEndpointDescriptions(endpointUrl, BaseAddresses, default), default);
                 }
                 finally
                 {
@@ -4037,6 +4042,12 @@ namespace Opc.Ua.Server
         {
             ResourceIsolationOptions.ValidateHandshakeTimeout();
             base.ConfigureTransportListenerSettings(settings, endpointUri);
+            bool advertisesUascFlow =
+                endpointUri.Scheme is Utils.UriSchemeOpcTcp or Utils.UriSchemeOpcWss &&
+                settings.Descriptions?.Exists(static endpoint =>
+                    UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri).HasValue) == true;
+            settings.DataChannels = advertisesUascFlow ? DataChannelProvider : null;
+            settings.AllowDataChannelIntegrity = advertisesUascFlow && DataChannelProvider?.AllowIntegrity == true;
             settings.HandshakeTimeout = ResourceIsolationOptions.HandshakeTimeout;
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)

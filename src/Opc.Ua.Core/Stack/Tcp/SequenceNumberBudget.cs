@@ -42,7 +42,7 @@ namespace Opc.Ua.Bindings
     /// OPC 10000-6 6.7.2.4 requires that a SequenceNumber is never reused
     /// under one TokenId, and discharges that requirement by assuming the
     /// token lifetime is short enough relative to the chunk rate. Data
-    /// channels invalidate the assumption rather than the rule: STR
+    /// channels invalidate the assumption rather than the rule: FLO
     /// frames consume SequenceNumbers at the data rate of the channel
     /// rather than at Service call rate, which is three to six orders of
     /// magnitude higher. On a 10 Gbit/s link, minimum size frames exhaust

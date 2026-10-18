@@ -145,15 +145,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// Data-channel response notifications belong to one request even when channel evidence is cached.
+        /// Immutable channel evidence is shared without sharing response state between concurrent requests.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         [CancelAfter(30000)]
-        public async Task DataChannelResponseCallbacksRemainRequestScopedAsync(bool completeLater)
+        public async Task CachedChannelEvidencePreservesRequestScopedResponsesAsync(bool completeLater)
         {
             var contexts = new ConcurrentQueue<SecureChannelContext>();
-            var notified = new ConcurrentQueue<uint>();
             var pending = new ConcurrentDictionary<uint, TaskCompletionSource<IServiceResponse>>();
             var callback = new Mock<ITransportListenerCallback>();
             callback.Setup(value => value.ProcessRequestAsync(
@@ -162,15 +161,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     It.IsAny<CancellationToken>()))
                 .Returns((SecureChannelContext context, IServiceRequest request, CancellationToken _) =>
                 {
-                    if (request is not OpenDataChannelRequest)
+                    if (request.RequestHeader.RequestHandle > 2)
                     {
                         return new ValueTask<IServiceResponse>(Respond(request));
                     }
 
                     uint handle = request.RequestHeader.RequestHandle;
                     contexts.Enqueue(context);
-                    context.ResponseDispatched += () => notified.Enqueue(handle);
-                    IServiceResponse response = new OpenDataChannelResponse
+                    IServiceResponse response = new ReadResponse
                     {
                         ResponseHeader = new ResponseHeader { RequestHandle = handle }
                     };
@@ -187,11 +185,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             await using Loopback loopback = await Loopback.StartAsync(callback.Object).ConfigureAwait(false);
             using UaSCUaBinaryTransportChannel client = await loopback.ConnectAsync().ConfigureAwait(false);
-            var first = new OpenDataChannelRequest
+            var first = new ReadRequest
             {
                 RequestHeader = new RequestHeader { RequestHandle = 1, TimeoutHint = 10000 }
             };
-            var second = new OpenDataChannelRequest
+            var second = new ReadRequest
             {
                 RequestHeader = new RequestHeader { RequestHandle = 2, TimeoutHint = 10000 }
             };
@@ -200,25 +198,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             if (completeLater)
             {
                 Assert.That(await WaitForAsync(() => pending.Count == 2).ConfigureAwait(false), Is.True);
-                pending[2].SetResult(new OpenDataChannelResponse
+                pending[2].SetResult(new ReadResponse
                 {
                     ResponseHeader = new ResponseHeader { RequestHandle = 2 }
                 });
-                await responseB.ConfigureAwait(false);
-                Assert.That(await WaitForAsync(() => notified.Count == 1).ConfigureAwait(false), Is.True);
-                Assert.That(notified, Is.EqualTo(new uint[] { 2 }));
-                pending[1].SetResult(new OpenDataChannelResponse
+                IServiceResponse completedSecond = await responseB.ConfigureAwait(false);
+                Assert.That(completedSecond.ResponseHeader.RequestHandle, Is.EqualTo(2));
+                Assert.That(responseA.IsCompleted, Is.False);
+                pending[1].SetResult(new ReadResponse
                 {
                     ResponseHeader = new ResponseHeader { RequestHandle = 1 }
                 });
             }
 
-            await Task.WhenAll(responseA, responseB).ConfigureAwait(false);
+            IServiceResponse[] responses = await Task.WhenAll(responseA, responseB).ConfigureAwait(false);
             await client.SendRequestAsync(CreateReadRequest(3), CancellationToken.None).ConfigureAwait(false);
-            Assert.That(await WaitForAsync(() => notified.Count == 2).ConfigureAwait(false), Is.True);
             Assert.That(contexts, Has.Count.EqualTo(2));
-            Assert.That(contexts.First(), Is.Not.SameAs(contexts.Last()));
-            Assert.That(notified, Is.EquivalentTo(new uint[] { 1, 2 }));
+            Assert.That(contexts.First(), Is.SameAs(contexts.Last()));
+            Assert.That(responses.Select(response => response.ResponseHeader.RequestHandle),
+                Is.EqualTo(new uint[] { 1, 2 }));
             Assert.That(loopback.Logs.Where(log => log.Level >= LogLevel.Error), Is.Empty);
         }
 

@@ -1,0 +1,301 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/shiguredo/http3-rs",
+  "commit": "99a8c71d396b718a922f5108abe9c453c2671905",
+  "version": "2026.1.0-canary.12",
+  "archive_url": "https://codeload.github.com/shiguredo/http3-rs/zip/99a8c71d396b718a922f5108abe9c453c2671905",
+  "archive_sha256": "d5034bad6e74be146ddf05d022f1d44d0e36ed0bad1fce74d8a9cb46c2654475",
+  "overlay_sha256": "ea50f349e4a46bf979d8f1d48190ca832eca3c27f886c1aa48ad09a0707591da",
+  "review_diff_sha256": "e8e65801a501914a91d742adafd6869efdcfdf53b68520844a8621d08e0eef5c",
+  "files": [
+    {
+      "path": "src/connection/client.rs",
+      "original_sha256": "0d7df36743674fba1b0f5055d3a81ae0f5853b4272b891286cb221b9d197add2",
+      "sha256": "23af35ac5195c0506e02bb2e6b00b7a21cdcde6598a420e39393ed45b66b0e3c",
+      "bytes": 12402
+    },
+    {
+      "path": "src/connection/mod.rs",
+      "original_sha256": "bcd413356a316beb8e0e1aef16d3db8834a196daa4a156ade5b7cd3999d00418",
+      "sha256": "cbcd3a9759a8053775d53f52996a66445edfe1004f1c89d83e1662135d016b29",
+      "bytes": 347163
+    },
+    {
+      "path": "src/connection/receive_limits.rs",
+      "original_sha256": null,
+      "sha256": "6867542f421d09adef3e168c6d482b3454e6fc087dda57f8fdcdb30b2ec3bcd2",
+      "bytes": 3516
+    },
+    {
+      "path": "src/connection/server.rs",
+      "original_sha256": "fbf83a12629dba619b41606e7985703f03a8f32a1674e88e1759df08dcbf24ca",
+      "sha256": "6fc6f13d176f964b42d4f7fc40d9dcd8f011373a0acb273df7699a7ee7dad963",
+      "bytes": 12218
+    },
+    {
+      "path": "src/connection/wt_capsule.rs",
+      "original_sha256": "ffcd3d1cfbf4e723eb6e92854ead2d50e077c297dc702448d6aa13bc9b32e13d",
+      "sha256": "8750438bf8bbb81c90acf42444355cfc6f4ac38e3950a36e33a1520808bf73b0",
+      "bytes": 12462
+    },
+    {
+      "path": "src/connection/wt_session.rs",
+      "original_sha256": "5cfc741a4df39dd28e249884c81e7fb1f96c3746aca3258c0f751cc2650d2fa9",
+      "sha256": "c1ddb84612c307c57dae59979085687c22571a5cfead84e3a1f421cd67b20fdd",
+      "bytes": 52698
+    },
+    {
+      "path": "src/connection/wt_stream.rs",
+      "original_sha256": "8ec2ab33c522d27894ae5b827a06484f6446865443b040b61c93220e9a2d333c",
+      "sha256": "8ec2ab33c522d27894ae5b827a06484f6446865443b040b61c93220e9a2d333c",
+      "bytes": 42394
+    },
+    {
+      "path": "src/connection/wt_types.rs",
+      "original_sha256": "4e142ecb619c6c67d52a7b9bb1a4d6b55aa82172ff3f653e327be6bc4ee8be53",
+      "sha256": "4e142ecb619c6c67d52a7b9bb1a4d6b55aa82172ff3f653e327be6bc4ee8be53",
+      "bytes": 17551
+    },
+    {
+      "path": "src/error.rs",
+      "original_sha256": "8f0525f7ad9607c56f1a3888483f2b8521c75a017f17deff971746b5047a1d09",
+      "sha256": "8f0525f7ad9607c56f1a3888483f2b8521c75a017f17deff971746b5047a1d09",
+      "bytes": 14190
+    },
+    {
+      "path": "src/event.rs",
+      "original_sha256": "99c7ca93c91802257d1c64d4e0926a8c32ff850f3d500413835232e3d1737048",
+      "sha256": "99c7ca93c91802257d1c64d4e0926a8c32ff850f3d500413835232e3d1737048",
+      "bytes": 12453
+    },
+    {
+      "path": "src/frame/decoder.rs",
+      "original_sha256": "d91bd0b778bc7840bcd4a91abec6f11ca8bea989e26a17286bf299095e6bab97",
+      "sha256": "d91bd0b778bc7840bcd4a91abec6f11ca8bea989e26a17286bf299095e6bab97",
+      "bytes": 15923
+    },
+    {
+      "path": "src/frame/encoder.rs",
+      "original_sha256": "2f094e64860060fded3b636028b2377a1151d89df2dbbe4015cb605aac1900d9",
+      "sha256": "2f094e64860060fded3b636028b2377a1151d89df2dbbe4015cb605aac1900d9",
+      "bytes": 9602
+    },
+    {
+      "path": "src/frame/mod.rs",
+      "original_sha256": "09583031e5ad35c87b48f14654a88f8a742e3d6425adac5f1302e755634b6611",
+      "sha256": "09583031e5ad35c87b48f14654a88f8a742e3d6425adac5f1302e755634b6611",
+      "bytes": 17433
+    },
+    {
+      "path": "src/lib.rs",
+      "original_sha256": "b7feb60335be9390ca4edd15b41120243db403b39865ea0e25620e48b5bd4fc2",
+      "sha256": "b7feb60335be9390ca4edd15b41120243db403b39865ea0e25620e48b5bd4fc2",
+      "bytes": 2911
+    },
+    {
+      "path": "src/limits.rs",
+      "original_sha256": "dc86afcf68bcaedc8707c2655a1fe80f6e48471b30f3bbc14fb2c729bc477a59",
+      "sha256": "dc86afcf68bcaedc8707c2655a1fe80f6e48471b30f3bbc14fb2c729bc477a59",
+      "bytes": 2765
+    },
+    {
+      "path": "src/qpack/decoder.rs",
+      "original_sha256": "570459d412841115b2474cca94a8145e5496901dff5bf178bb728f7a3cd908e6",
+      "sha256": "570459d412841115b2474cca94a8145e5496901dff5bf178bb728f7a3cd908e6",
+      "bytes": 29358
+    },
+    {
+      "path": "src/qpack/decoder_stream.rs",
+      "original_sha256": "dde5e77168e6795889f16a54eb73a91191d30dfb11e7cd8e37437833b80b12f6",
+      "sha256": "dde5e77168e6795889f16a54eb73a91191d30dfb11e7cd8e37437833b80b12f6",
+      "bytes": 9884
+    },
+    {
+      "path": "src/qpack/dynamic_table.rs",
+      "original_sha256": "73f9028515a20fab1fedf4b8f4a21e9026b9e5c6216ee85b1ab635304b86bc79",
+      "sha256": "73f9028515a20fab1fedf4b8f4a21e9026b9e5c6216ee85b1ab635304b86bc79",
+      "bytes": 20654
+    },
+    {
+      "path": "src/qpack/encoder.rs",
+      "original_sha256": "1a6031e069d1dd173850931f1c42920ecb2a876050d2ebd52096643a22b1102b",
+      "sha256": "1a6031e069d1dd173850931f1c42920ecb2a876050d2ebd52096643a22b1102b",
+      "bytes": 31005
+    },
+    {
+      "path": "src/qpack/encoder_stream.rs",
+      "original_sha256": "4f36ff1dd4fa498ef485c0d01852bb0e58a78add21bfd91603536b00a7154e2c",
+      "sha256": "4f36ff1dd4fa498ef485c0d01852bb0e58a78add21bfd91603536b00a7154e2c",
+      "bytes": 18571
+    },
+    {
+      "path": "src/qpack/header.rs",
+      "original_sha256": "c67ffa56dbf4b84619fa4372d34abfa32e91d13fbd144d3fe91978a0333b15c6",
+      "sha256": "c67ffa56dbf4b84619fa4372d34abfa32e91d13fbd144d3fe91978a0333b15c6",
+      "bytes": 27706
+    },
+    {
+      "path": "src/qpack/huffman.rs",
+      "original_sha256": "794f5cbcd4d494e9f1b6b97fa6925be10baf0d9713f84dd9baaa1451806f6582",
+      "sha256": "794f5cbcd4d494e9f1b6b97fa6925be10baf0d9713f84dd9baaa1451806f6582",
+      "bytes": 25197
+    },
+    {
+      "path": "src/qpack/integer.rs",
+      "original_sha256": "07e90d2dbed5155220a93a6769863639a51208240bbb52c2632de1e6b6a19f35",
+      "sha256": "07e90d2dbed5155220a93a6769863639a51208240bbb52c2632de1e6b6a19f35",
+      "bytes": 4202
+    },
+    {
+      "path": "src/qpack/mod.rs",
+      "original_sha256": "1a30634ba86d48b5bdf877eeedc61055013787422977f227c6e04eed44de3dc3",
+      "sha256": "1a30634ba86d48b5bdf877eeedc61055013787422977f227c6e04eed44de3dc3",
+      "bytes": 1816
+    },
+    {
+      "path": "src/qpack/table.rs",
+      "original_sha256": "a1ec008e340eaa1d42f5176abe960f1d6b1d4500b497e7c7f43babe37f8fed6c",
+      "sha256": "a1ec008e340eaa1d42f5176abe960f1d6b1d4500b497e7c7f43babe37f8fed6c",
+      "bytes": 9796
+    },
+    {
+      "path": "src/qpack/wire.rs",
+      "original_sha256": "318db01c0899841939fd321ffcb9c0b960c3065a77a1f6470fb06b5ea4c1a4e1",
+      "sha256": "318db01c0899841939fd321ffcb9c0b960c3065a77a1f6470fb06b5ea4c1a4e1",
+      "bytes": 3542
+    },
+    {
+      "path": "src/settings.rs",
+      "original_sha256": "aa8946c55b9f82eaff914502479401f30fc401c4500d5662d04f868c8bda92fa",
+      "sha256": "aa8946c55b9f82eaff914502479401f30fc401c4500d5662d04f868c8bda92fa",
+      "bytes": 34854
+    },
+    {
+      "path": "src/stream/control.rs",
+      "original_sha256": "eac6bb709993613ba1e9e64dbdb54dbe8bd0a4b4d2b836b1f09ee4d794a02a48",
+      "sha256": "eac6bb709993613ba1e9e64dbdb54dbe8bd0a4b4d2b836b1f09ee4d794a02a48",
+      "bytes": 18393
+    },
+    {
+      "path": "src/stream/mod.rs",
+      "original_sha256": "01a9ad7393d225b86058fe222f49cd91adcd36e69e6cb3f7051096e1a1d90b5f",
+      "sha256": "24d71831b0e3ecf299a53bed38d671ac521dc5e8eeb29d33aa6ad16b0d9c0898",
+      "bytes": 12833
+    },
+    {
+      "path": "src/stream/request.rs",
+      "original_sha256": "a22da4d1e5980e06250deb403cf87bbb79ac4d1413a4bea4c5f48165efdb0911",
+      "sha256": "c1a7595fcd4e0d50f09a5c7223b105350b89e3522648ecec9ade9686278ea823",
+      "bytes": 46517
+    },
+    {
+      "path": "src/validation.rs",
+      "original_sha256": "4c1e660a049db2747ce564bb62e34834949eb93e817e164e0344abb1ce00b3c2",
+      "sha256": "4c1e660a049db2747ce564bb62e34834949eb93e817e164e0344abb1ce00b3c2",
+      "bytes": 32212
+    },
+    {
+      "path": "src/varint.rs",
+      "original_sha256": "e4f52ae9b8575c97fa30b33de3fe032bdc9b49b4c862e8f6650612e0492463b6",
+      "sha256": "e4f52ae9b8575c97fa30b33de3fe032bdc9b49b4c862e8f6650612e0492463b6",
+      "bytes": 12750
+    },
+    {
+      "path": "src/webtransport/capsule.rs",
+      "original_sha256": "cc9b5daae02974fd160619bb4d0c8f68f8a9e3cd4f672aa41f35ecbbc9916b79",
+      "sha256": "cc9b5daae02974fd160619bb4d0c8f68f8a9e3cd4f672aa41f35ecbbc9916b79",
+      "bytes": 22492
+    },
+    {
+      "path": "src/webtransport/connect/connect_error.rs",
+      "original_sha256": "20721d0debfe6d10e13d4f86051efc95b8288e40619a6365094923b6f908edaa",
+      "sha256": "20721d0debfe6d10e13d4f86051efc95b8288e40619a6365094923b6f908edaa",
+      "bytes": 2834
+    },
+    {
+      "path": "src/webtransport/connect/draft.rs",
+      "original_sha256": "785507343aee3b2585477780b909c703302ea6e10c4e253af7d19ad92d701d69",
+      "sha256": "785507343aee3b2585477780b909c703302ea6e10c4e253af7d19ad92d701d69",
+      "bytes": 10089
+    },
+    {
+      "path": "src/webtransport/connect/mod.rs",
+      "original_sha256": "a0fa743cfe463b457f837861f4e66151ecefd388d346b889bc24384a869cc3a7",
+      "sha256": "a0fa743cfe463b457f837861f4e66151ecefd388d346b889bc24384a869cc3a7",
+      "bytes": 26015
+    },
+    {
+      "path": "src/webtransport/connect/request.rs",
+      "original_sha256": "8ccacca0dca8e8765d31a9125324f5527275f743064a720c0d2a6301b32e8762",
+      "sha256": "8ccacca0dca8e8765d31a9125324f5527275f743064a720c0d2a6301b32e8762",
+      "bytes": 10352
+    },
+    {
+      "path": "src/webtransport/connect/response.rs",
+      "original_sha256": "5c12760d1713aa3d8ae3e620ea54b187984a679b3ea3ad64305971a0895dfcf1",
+      "sha256": "5c12760d1713aa3d8ae3e620ea54b187984a679b3ea3ad64305971a0895dfcf1",
+      "bytes": 3994
+    },
+    {
+      "path": "src/webtransport/connect/sf_parser.rs",
+      "original_sha256": "d2de7c36fdb5c2e7aec1154c8e2f7ada128ec2ead04208397ef779241ff5302b",
+      "sha256": "d2de7c36fdb5c2e7aec1154c8e2f7ada128ec2ead04208397ef779241ff5302b",
+      "bytes": 3432
+    },
+    {
+      "path": "src/webtransport/datagram.rs",
+      "original_sha256": "ef750fcb31e9934cb9f9742ede34250c9cecdd8cee30ab7c483f5c054f7a11f1",
+      "sha256": "ef750fcb31e9934cb9f9742ede34250c9cecdd8cee30ab7c483f5c054f7a11f1",
+      "bytes": 8747
+    },
+    {
+      "path": "src/webtransport/error.rs",
+      "original_sha256": "0d2a3a1d231d521c7fd6f19c5688ddf2b159b6c89b4395bbc4b8151d58998e62",
+      "sha256": "0d2a3a1d231d521c7fd6f19c5688ddf2b159b6c89b4395bbc4b8151d58998e62",
+      "bytes": 11720
+    },
+    {
+      "path": "src/webtransport/mod.rs",
+      "original_sha256": "a731c1ec9b69619080089fa8c68ab3487de3ce4de98d1df03f0f9f7578dc21dd",
+      "sha256": "a731c1ec9b69619080089fa8c68ab3487de3ce4de98d1df03f0f9f7578dc21dd",
+      "bytes": 2024
+    },
+    {
+      "path": "src/webtransport/session/flow_control.rs",
+      "original_sha256": "3d8a94d5337da140681bc26b0fc4fe441dd0d800bb5e81d72604ddffc1ba28c8",
+      "sha256": "3d8a94d5337da140681bc26b0fc4fe441dd0d800bb5e81d72604ddffc1ba28c8",
+      "bytes": 8705
+    },
+    {
+      "path": "src/webtransport/session/mod.rs",
+      "original_sha256": "ffe1396b18d2fe0e2d000c0c9d171a9edc5035af1aff5be02daa5a3282911a42",
+      "sha256": "ffe1396b18d2fe0e2d000c0c9d171a9edc5035af1aff5be02daa5a3282911a42",
+      "bytes": 58874
+    },
+    {
+      "path": "src/webtransport/settings.rs",
+      "original_sha256": "1e8f04d9b19538bdd2b8dd756311e31f2e6ae1158f563c587799b3e1b79de9a1",
+      "sha256": "1e8f04d9b19538bdd2b8dd756311e31f2e6ae1158f563c587799b3e1b79de9a1",
+      "bytes": 23738
+    },
+    {
+      "path": "src/webtransport/stream.rs",
+      "original_sha256": "6ab1f8a21818416a8065c15033f98fca84707ff8b2c5296d3763b58c0c745574",
+      "sha256": "6ab1f8a21818416a8065c15033f98fca84707ff8b2c5296d3763b58c0c745574",
+      "bytes": 19402
+    },
+    {
+      "path": "LICENSE",
+      "original_sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174
+    },
+    {
+      "path": "Cargo.toml.upstream",
+      "original_sha256": "cc80a75b596876489806aff1df09d9a4f09b0b1bfbee0ff162f5ccc8faf6a048",
+      "sha256": "cc80a75b596876489806aff1df09d9a4f09b0b1bfbee0ff162f5ccc8faf6a048",
+      "bytes": 948
+    }
+  ],
+  "selection": "Only compiled upstream src, license and original manifest; no servers/examples/fuzz/interop dependencies."
+}

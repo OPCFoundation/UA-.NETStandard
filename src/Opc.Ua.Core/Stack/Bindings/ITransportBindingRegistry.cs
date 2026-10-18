@@ -30,6 +30,18 @@
 namespace Opc.Ua.Bindings
 {
     /// <summary>
+    /// Optional listener-factory metadata for an explicitly registered transport composition.
+    /// It describes the endpoint profile actually implemented by that factory, not carrier authentication.
+    /// </summary>
+    public interface ITransportListenerProfile
+    {
+        /// <summary>
+        /// Gets the absolute profile URI used for the factory's endpoint and discovery projection.
+        /// </summary>
+        string TransportProfileUri { get; }
+    }
+
+    /// <summary>
     /// Per-host registry of OPC UA transport listener and channel
     /// factories keyed by URI scheme.
     /// </summary>

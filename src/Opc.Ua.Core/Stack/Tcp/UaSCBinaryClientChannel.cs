@@ -37,6 +37,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
@@ -158,12 +159,47 @@ namespace Opc.Ua.Bindings
             m_requestedSecurityMode = endpoint.SecurityMode;
             m_requestedSecurityPolicyUri = endpoint.SecurityPolicyUri;
             m_url = new Uri(endpoint.EndpointUrl);
+            m_dataChannelKind = UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri);
+            if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
+            {
+                m_dataChannelReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
         }
 
         /// <summary>
         /// Gets the bucket-safe receive limit advertised for future transports.
         /// </summary>
         internal int TransportReceiveBufferSize => m_transportReceiveBufferSize;
+
+        /// <summary>
+        /// Selects the explicit flow provider before starting the UASC handshake.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        internal void ConfigureDataChannels(IDataChannelContextFactory? factory, bool allowIntegrity)
+        {
+            if (State != TcpChannelState.Closed)
+            {
+                throw new InvalidOperationException("Flow configuration cannot change on an open connection.");
+            }
+            m_dataChannelKind = UascDataChannelEndpoint.Validate(
+                m_url!, EndpointDescription, factory, allowIntegrity);
+            if (m_dataChannelKind.HasValue)
+            {
+                if (ClientCertificate == null ||
+                    ServerCertificate == null ||
+                    Quotas.CertificateValidator == null ||
+                    string.IsNullOrEmpty(EndpointDescription?.Server?.ApplicationUri) ||
+                    EndpointDescription.ServerCertificate.IsNull ||
+                    !EndpointDescription.ServerCertificate.Span.StartsWith(ServerCertificate.RawData))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Flow endpoints require explicit, validated application and certificate evidence.");
+                }
+                m_dataChannelFactory = factory;
+            }
+        }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -174,6 +210,8 @@ namespace Opc.Ua.Bindings
 
             if (disposing)
             {
+                m_dataChannelCertificateMonitor?.Dispose();
+                m_dataChannelCertificateMonitor = null;
                 TokenActivatedCallback = null;
 
                 m_handshakeTimer?.Dispose();
@@ -195,6 +233,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="OperationCanceledException"></exception>
         public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
             using Activity? activity = CachedActivitySource.StartActivity();
@@ -206,6 +245,10 @@ namespace Opc.Ua.Bindings
             if (timeout <= 0)
             {
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
+            }
+            if (m_dataChannelKind.HasValue && m_dataChannelFactory == null)
+            {
+                throw UascDataChannelEndpoint.Unsupported();
             }
 
             WriteOperation operation;
@@ -283,6 +326,11 @@ namespace Opc.Ua.Bindings
                 }
                 await operation.EndAsync(int.MaxValue, ct: ct).ConfigureAwait(false);
 
+                if (DataChannels is DataChannelContext dataChannels)
+                {
+                    await dataChannels.StartAsync(ct).ConfigureAwait(false);
+                    m_dataChannelReady?.TrySetResult(true);
+                }
                 SendQueuedOperations();
             }
             catch (Exception exception)
@@ -363,6 +411,23 @@ namespace Opc.Ua.Bindings
             if (timeout <= 0)
             {
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
+            }
+            if (m_dataChannelKind == DataChannelCarrierKind.DedicatedUasc)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadServiceUnsupported,
+                    "A dedicated data endpoint does not accept ordinary Service requests.");
+            }
+            if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
+            {
+                if (State == TcpChannelState.Closed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                }
+                if (!await m_dataChannelReady!.Task.WaitAsync(ct).ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                }
             }
 
             using Activity? activity = CachedActivitySource.StartActivity();
@@ -649,7 +714,7 @@ namespace Opc.Ua.Bindings
 
             m_oscRequestSignature = null;
 
-            // Keep numbering and admission together so the writer cannot send an unsealed STR frame between them.
+            // Keep numbering and admission together so the writer cannot send an unsealed FLO frame between them.
             using (await SendOrder.EnterAsync(ct).ConfigureAwait(false))
             {
                 AsymmetricWriteResult written = await WriteAsymmetricMessageAsync(
@@ -718,6 +783,7 @@ namespace Opc.Ua.Bindings
             uint channelId;
 
             Certificate? serverCertificate = null;
+            ByteString serverChainBlob = default;
             uint requestId;
             uint sequenceNumber;
             try
@@ -735,6 +801,7 @@ namespace Opc.Ua.Bindings
                 messageBody = message.Body;
                 channelId = message.ChannelId;
                 serverCertificate = message.SenderCertificate;
+                serverChainBlob = message.SenderCertificateChain;
                 requestId = message.RequestId;
                 sequenceNumber = message.SequenceNumber;
 
@@ -856,6 +923,32 @@ namespace Opc.Ua.Bindings
                 State = TcpChannelState.Open;
                 m_reconnecting = false;
 
+                if (m_dataChannelKind is DataChannelCarrierKind kind && DataChannels == null)
+                {
+                    var identity = new DataChannelPeerIdentity(
+                        UascDataChannelEndpoint.GetApplicationUri(ClientCertificate!, null),
+                        UascDataChannelEndpoint.GetApplicationUri(
+                            ServerCertificate!, EndpointDescription?.Server?.ApplicationUri),
+                        DataChannelCertificateIdentity.GetKeyThumbprint(ClientCertificate!),
+                        DataChannelCertificateIdentity.GetKeyThumbprint(ServerCertificate!),
+                        SecurityMode == MessageSecurityMode.SignAndEncrypt
+                            ? DataChannelProtectionMode.Confidential
+                            : DataChannelProtectionMode.Integrity,
+                        isTransportInitiator: !ReverseSocket);
+                    DataChannelContext context = AttachDataChannels(
+                        kind, identity, isUascInitiator: true, m_dataChannelFactory!);
+                    using CertificateCollection peerChain =
+                        DefaultCertificateFactory.Instance.ParseChainBlob(serverChainBlob.ToArray());
+                    m_dataChannelCertificateMonitor = new UascDataChannelCertificateMonitor(
+                        ClientCertificate!,
+                        peerChain,
+                        Quotas.CertificateValidator!,
+                        TimeProvider,
+                        BackgroundWork,
+                        CloseDataChannelForCertificateAsync);
+                    context.Closed += OnDataChannelContextClosed;
+                }
+
                 // enable reconnects. DO NOT USE!
                 // m_waitBetweenReconnects = TcpMessageLimits.MinTimeBetweenReconnects;
                 m_waitBetweenReconnects = Timeout.Infinite;
@@ -914,6 +1007,25 @@ namespace Opc.Ua.Bindings
             }
 
             Shutdown(new ServiceResult(StatusCodes.BadResponseTooLarge));
+        }
+
+        /// <summary>
+        /// Faults only this connection when its actual application certificate evidence becomes invalid.
+        /// </summary>
+        private async ValueTask CloseDataChannelForCertificateAsync(ServiceResult failure, CancellationToken token)
+        {
+            using (await Gate.EnterAsync(token).ConfigureAwait(false))
+            {
+                ShutdownCore(failure);
+            }
+        }
+
+        /// <summary>
+        /// Stops certificate revalidation when this context is retired.
+        /// </summary>
+        private void OnDataChannelContextClosed(DataChannelResult result)
+        {
+            Interlocked.Exchange(ref m_dataChannelCertificateMonitor, null)?.Dispose();
         }
 
         /// <summary>
@@ -981,10 +1093,17 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
+            if (TcpMessageType.IsType(messageType, TcpMessageType.Flow) ||
+                (m_dataChannelKind == DataChannelCarrierKind.DedicatedUasc &&
+                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
+            {
+                return ProcessDataChannelMessage(messageType, messageChunk, false);
+            }
+
             // OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel
             // messages are always a single final chunk.
             if ((TcpMessageType.IsType(messageType, TcpMessageType.Open) ||
-                    TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
+                TcpMessageType.IsType(messageType, TcpMessageType.Close)) &&
                 !TcpMessageType.IsFinal(messageType))
             {
                 using (await Gate.EnterAsync(ct).ConfigureAwait(false))
@@ -1005,13 +1124,17 @@ namespace Opc.Ua.Bindings
             if (TcpMessageType.IsType(messageType, TcpMessageType.Message) ||
                 TcpMessageType.IsType(messageType, TcpMessageType.Close))
             {
+                if (TcpMessageType.IsType(messageType, TcpMessageType.Message) &&
+                    m_dataChannelKind == DataChannelCarrierKind.SharedUasc &&
+                    DataChannels?.IsReady != true)
+                {
+                    ForceReconnect(ServiceResult.Create(
+                        StatusCodes.BadTcpMessageTypeInvalid,
+                        "Services arrived before protected flow-profile confirmation."));
+                    return false;
+                }
                 m_logger.UaSCClientLog11(ChannelId);
                 return ProcessResponseMessage(messageType, messageChunk);
-            }
-
-            if (TcpMessageType.IsType(messageType, TcpMessageType.Stream))
-            {
-                return ProcessDataChannelMessage(messageType, messageChunk, false);
             }
 
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
@@ -1390,11 +1513,23 @@ namespace Opc.Ua.Bindings
                     true,
                     out bool limitsExceeded);
 
-                using (SendOrder.Enter())
+                if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
                 {
-                    buffers = SealSymmetricMessage(encoded, token);
-                    BeginWriteMessage(buffers, operation);
+                    buffers = encoded.Chunks;
+                    if (!BeginWriteSymmetricMessage(encoded, operation))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                    }
                     buffers = null;
+                }
+                else
+                {
+                    using (SendOrder.Enter())
+                    {
+                        buffers = SealSymmetricMessage(encoded, token);
+                        BeginWriteMessage(buffers, operation);
+                        buffers = null;
+                    }
                 }
                 success = true;
 
@@ -1474,6 +1609,9 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void ShutdownCore(ServiceResult reason)
         {
+            Interlocked.Exchange(ref m_dataChannelCertificateMonitor, null)?.Dispose();
+            NotifyChannelClosed();
+            m_dataChannelReady?.TrySetResult(false);
             // channel may already be closed
             if (State == TcpChannelState.Closed)
             {
@@ -1554,6 +1692,7 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private void ForceReconnectCore(ServiceResult reason)
         {
+            NotifyChannelClosed();
             // check if reconnect already started.
             if (m_reconnecting)
             {
@@ -2067,6 +2206,10 @@ namespace Opc.Ua.Bindings
         }
 
         private Uri? m_url;
+        private IDataChannelContextFactory? m_dataChannelFactory;
+        private UascDataChannelCertificateMonitor? m_dataChannelCertificateMonitor;
+        private DataChannelCarrierKind? m_dataChannelKind;
+        private readonly TaskCompletionSource<bool>? m_dataChannelReady;
         private Uri? m_via;
         private uint m_lastRequestId;
         private readonly ConcurrentDictionary<uint, WriteOperation> m_requests;

@@ -83,6 +83,60 @@ specification version without maintaining a second literal.
 See [Source-Generated NodeManagers](../../docs/NodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
 for the end-to-end pattern.
 
+### Explicit ModelDesign subtrees and allocation compatibility
+
+`PreserveExplicitNodes="true"` on a **top-level ModelDesign declaration** opts that declaration's
+predefined subtree into exact, allocation-preserving generation. Other declarations in the same
+namespace keep their normal behavior. This is separate from `ModelSourceGeneratorEmitNodeSetNodesOnly`,
+which continues to apply only to NodeSet2 inputs.
+
+```xml
+<opc:ObjectType SymbolicName="DeviceType" BaseType="ua:BaseObjectType"
+    NumericId="5001" PreserveExplicitNodes="true">
+  <opc:Children>
+    <opc:Property SymbolicName="SerialNumber" DataType="ua:String"
+        NumericId="5002" ModellingRule="Mandatory" />
+  </opc:Children>
+</opc:ObjectType>
+```
+
+The scoped path:
+
+- Requires an authored identifier or a matching identifier-CSV allocation for every published node.
+  It does not allocate identifiers for undeclared inherited children.
+- Emits constants for explicitly allocated instance children even when their modelling rule is `None`.
+  Do not add a modelling rule to an ordinary instance merely to obtain a constant.
+- Requires enumeration and Method argument metadata properties to be authored explicitly, preserving their values and
+  modelling rules. Binary/XML encoding nodes still use their normal symbolic names and require allocations,
+  but no legacy dictionary descriptions or `HasDescription` links are synthesized for the scoped data type.
+- Preserves authored namespace-metadata values and the null/empty distinction in Method argument dimensions.
+- Includes explicit concrete instance children even when the stack's type-definition optional-member policy
+  is enabled, binding them to existing typed state slots without adding a modelling rule.
+  Typed state classes and runtime factories retain inherited mandatory members.
+
+Runtime factories still produce instance templates. Supply an application `NodeIdFactory` when creating
+and registering instances; declaration identifiers and internal symbolic template markers are not
+additional published model allocations.
+
+When input removal or reordering would renumber previously generated identifiers, a ModelDesign root can
+name a **reviewed baseline ledger**:
+
+```xml
+<opc:ModelDesign ... IdentifierCompatibilityFile="Model.Compatibility.csv">
+```
+
+The path is relative to the design file. Supply both the ordinary allocation CSV and the compatibility
+CSV as `AdditionalFiles` (or filesystem/embedded inputs when invoking the Core generator directly).
+The compatibility file contains `SymbolicId,NumericId,NodeClass` rows captured from a known previous
+generation. Its rows reserve existing identifiers; they do not create nodes. Duplicate allocations,
+node-class changes and conflicts with authored identifiers fail validation.
+
+An optional fourth column, `Implicit`, is restricted to the legacy inherited-allocation path. It can
+preserve an actual previous generated identifier where that path historically ignored a same-name CSV
+row. It cannot override an explicit `NumericId`, and validation fails if the node becomes explicitly
+declared. Keep the original authoritative CSV row unchanged and retain the baseline generation hash and
+allocation comparison with the ledger. Neither option changes default generator behavior.
+
 ## Generate code from WoT Thing Models / Thing Descriptions
 
 An `AdditionalFiles` input can also be a W3C Web of Things (WoT) Thing Model or Thing Description. It is converted in memory to a NodeSet2 document (using the `Opc.Ua.Wot` converter) before the normal NodeSet2/ModelDesign pipeline above runs — the rest of the generator cannot tell the difference. No file or network I/O beyond the supplied `AdditionalFiles` content is performed, and externally referenced TD/TM documents are not resolved.

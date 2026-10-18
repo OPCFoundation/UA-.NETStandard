@@ -51,6 +51,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using System.Collections.Generic;
 
 using System.Security.Cryptography;
@@ -204,6 +205,12 @@ namespace Opc.Ua.Bindings
             appBuilder.Use((context, next) =>
             {
                 HttpsTransportListener.CompleteHttpHandshake(context);
+                if (!context.WebSockets.IsWebSocketRequest &&
+                    UascDataChannelEndpoint.IsFlowResource(context.Request.Path.Value ?? string.Empty))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    return Task.CompletedTask;
+                }
                 return next();
             });
 
@@ -239,6 +246,11 @@ namespace Opc.Ua.Bindings
             if (context.WebSockets.IsWebSocketRequest)
             {
                 return listener.AcceptWebSocketAsync(context);
+            }
+            if (UascDataChannelEndpoint.IsFlowResource(context.Request.Path.Value ?? string.Empty))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return Task.CompletedTask;
             }
 
             // 2) HTTP POST is the only verb defined for HTTPS binary / JSON
@@ -300,6 +312,12 @@ namespace Opc.Ua.Bindings
             appBuilder.Use((context, next) =>
             {
                 HttpsTransportListener.CompleteHttpHandshake(context);
+                if (!context.WebSockets.IsWebSocketRequest &&
+                    UascDataChannelEndpoint.IsFlowResource(context.Request.Path.Value ?? string.Empty))
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                    return Task.CompletedTask;
+                }
                 return next();
             });
             appBuilder.Run(context =>
@@ -453,6 +471,7 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback,
             CancellationToken ct = default)
         {
+            UascDataChannelEndpoint.ValidateListener(settings);
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
 
@@ -492,6 +511,8 @@ namespace Opc.Ua.Bindings
 
             // save the callback to the server.
             m_callback = callback!;
+            m_dataChannelFactory = settings.DataChannels;
+            m_allowDataChannelIntegrity = settings.AllowDataChannelIntegrity;
 
             m_serverCertProvider = settings.ServerCertificates!;
 
@@ -583,6 +604,7 @@ namespace Opc.Ua.Bindings
                     m_serverCertProvider,
                     m_descriptions,
                     m_telemetry);
+                channel.ConfigureDataChannels(m_dataChannelFactory, m_allowDataChannelIntegrity);
 
                 transport = new WebSocketClientByteTransport(
                     m_bufferManager,
@@ -706,6 +728,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendBinaryAsync(HttpContext context)
         {
+            if (UascDataChannelEndpoint.IsFlowResource(context.Request.Path.Value ?? string.Empty))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
             bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
             using IDisposable? retainedBody = bodyLease;
@@ -941,6 +968,11 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task SendJsonAsync(HttpContext context)
         {
+            if (UascDataChannelEndpoint.IsFlowResource(context.Request.Path.Value ?? string.Empty))
+            {
+                context.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
             context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease.CompleteHandshake();
             bool admitted = TryAdmitHttpBody(context, out IDisposable? bodyLease);
             using IDisposable? retainedBody = bodyLease;
@@ -1068,11 +1100,25 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task AcceptWebSocketAsync(HttpContext context)
         {
+            string resource = context.Request.Path.Value ?? "/";
+            bool isFlowResource = UascDataChannelEndpoint.IsFlowResource(resource);
+            DataChannelCarrierKind? kind = UascDataChannelEndpoint.GetResourceKind(resource);
+            if (isFlowResource &&
+                (!kind.HasValue || m_dataChannelFactory == null || context.Request.QueryString.HasValue ||
+                    !m_descriptions.Exists(endpoint =>
+                        UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri) == kind)))
+            {
+                await WriteResponseAsync(
+                    context.Response,
+                    "The selected flow endpoint is unavailable.",
+                    HttpStatusCode.NotFound).ConfigureAwait(false);
+                return;
+            }
             // m_callback is null when this listener was opened in
             // reverse-connect mode (the listener side does not service
             // inbound UASC requests; it just hands off the established
             // WebSocket to the awaiting client via ConnectionWaiting).
-            if (m_callback == null && !m_reverseConnectListener)
+            if (m_callback == null && !m_reverseConnectListener && !isFlowResource)
             {
                 await WriteResponseAsync(
                     context.Response,
@@ -1082,6 +1128,12 @@ namespace Opc.Ua.Bindings
             }
 
             string? selected = SelectWebSocketSubProtocol(context);
+            if (isFlowResource)
+            {
+                selected = context.WebSockets.WebSocketRequestedProtocols.Contains(Profiles.OpcUaWsSubProtocolUacp)
+                    ? Profiles.OpcUaWsSubProtocolUacp
+                    : null;
+            }
             if (selected == null)
             {
                 await WriteResponseAsync(
@@ -2115,13 +2167,19 @@ namespace Opc.Ua.Bindings
                     lease.Attach(transport);
                     var perWsListener = new WssChannelListener(this);
                     uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
+                    DataChannelCarrierKind? resourceKind = UascDataChannelEndpoint.GetResourceKind(
+                        context.Request.Path.Value ?? "/");
+                    List<EndpointDescription> endpoints = m_descriptions.FindAll(endpoint =>
+                        UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri) == resourceKind &&
+                        endpoint.TransportProfileUri is not
+                            (DataChannelProfiles.Quic or DataChannelProfiles.WebTransport));
                     channel = m_reverseConnectListener
                         ? new TcpReverseConnectChannel(
                             ListenerId,
                             perWsListener,
                             m_bufferManager,
                             m_quotas,
-                            m_descriptions,
+                            endpoints,
                             m_telemetry)
                         : new TcpServerChannel(
                             ListenerId,
@@ -2129,8 +2187,9 @@ namespace Opc.Ua.Bindings
                             m_bufferManager,
                             m_quotas,
                             m_serverCertProvider,
-                            m_descriptions,
+                            endpoints,
                             m_telemetry);
+                    channel.ConfigureDataChannels(m_dataChannelFactory, m_allowDataChannelIntegrity);
 
                     if (channel is TcpServerChannel forwardChannel)
                     {
@@ -2235,17 +2294,8 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                var context = new SecureChannelContext(
-                    channel.GlobalChannelId,
-                    channel.EndpointDescription,
-                    RequestEncoding.Binary,
-                    channel.ClientCertificateRawData,
-                    channel.ServerCertificateRawData,
-                    channel.ChannelThumbprint,
-                    peerAddress: (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
-
                 IServiceResponse response = await m_callback
-                    .ProcessRequestAsync(context, request)
+                    .ProcessRequestAsync(channel.GetRequestContext(), request)
                     .ConfigureAwait(false);
 
                 if (!await serverChannel.SendResponseAsync(requestId, response).ConfigureAwait(false))
@@ -2253,28 +2303,10 @@ namespace Opc.Ua.Bindings
                     // encoded and not retained for a reconnect: the response is no longer read.
                     (response as IPooledEncodeable)?.Reuse();
                 }
-                NotifyResponseDispatched(context);
             }
             catch (Exception ex)
             {
                 m_logger.ErrorProcessingRequest(ex, requestId);
-            }
-        }
-
-        /// <summary>
-        /// Notifies the service after dispatch without allowing callback failures to fault the request loop.
-        /// </summary>
-        private void NotifyResponseDispatched(SecureChannelContext context)
-        {
-            try
-            {
-                context.ResponseDispatched?.Invoke();
-            }
-            catch (Exception ex)
-            {
-                // A callback that throws must not fault the request loop; the
-                // response has already been handed to the transport.
-                m_logger.HttpsResponseDispatchedCallbackFailed(ex);
             }
         }
 
@@ -3493,6 +3525,8 @@ namespace Opc.Ua.Bindings
         private BufferManager m_bufferManager = null!;
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ITransportListenerCallback? m_callback;
+        private IDataChannelContextFactory? m_dataChannelFactory;
+        private bool m_allowDataChannelIntegrity;
 #if NET8_0_OR_GREATER
         private IHost? m_host;
 #else
@@ -3614,14 +3648,5 @@ namespace Opc.Ua.Bindings
             Message = "WSSLISTENER - opcua+openapi upgrade rejected: identity resolution threw.")]
         public static partial void OpenApiIdentityResolverThrew(this ILogger logger, Exception exception);
 
-        /// <summary>
-        /// Reports a callback failure after a response has been handed to the transport.
-        /// </summary>
-        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 19, Level = LogLevel.Error,
-            Message = "HTTPSLISTENER - A response-dispatched callback threw. " +
-                "The response itself has already been written.")]
-        public static partial void HttpsResponseDispatchedCallbackFailed(
-            this ILogger logger,
-            Exception exception);
     }
 }

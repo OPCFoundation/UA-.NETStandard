@@ -542,6 +542,19 @@ namespace Opc.Ua
                     }
                 }
 
+                if (TransportBindings.GetListenerFactory(address.Url.Scheme) is ITransportListenerProfile profile)
+                {
+                    if (!Uri.TryCreate(profile.TransportProfileUri, UriKind.Absolute, out _))
+                    {
+                        throw ServiceResultException.ConfigurationError(
+                            "The registered listener factory must supply an absolute transport profile URI.");
+                    }
+                    address.ProfileUri = profile.TransportProfileUri;
+                    address.DiscoveryUrl = address.Url;
+                    BaseAddresses.Add(address);
+                    continue;
+                }
+
                 switch (address.Url.Scheme)
                 {
                     case Utils.UriSchemeHttps:

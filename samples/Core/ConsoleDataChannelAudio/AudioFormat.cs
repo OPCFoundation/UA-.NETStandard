@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua;
 
 namespace Quickstarts.ConsoleDataChannelAudio
 {
@@ -36,10 +37,9 @@ namespace Quickstarts.ConsoleDataChannelAudio
     /// The PCM format the sample streams.
     /// </summary>
     /// <remarks>
-    /// Signed 16-bit little-endian mono, which is what <c>audio/L16</c> names
-    /// in the IANA registry and what the data channel advertises as its
-    /// ContentType. A data channel is content agnostic: the payload is opaque
-    /// octets and the media type is what tells the sink how to read them.
+    /// The application resource explicitly identifies signed 16-bit little-endian mono PCM.
+    /// These are opaque complete messages, not a newly defined media protocol.
+    /// They are not labelled audio/L16, whose registered byte order is big-endian.
     /// </remarks>
     internal static class AudioFormat
     {
@@ -64,9 +64,9 @@ namespace Quickstarts.ConsoleDataChannelAudio
         public const int BytesPerSample = BitsPerSample / 8 * Channels;
 
         /// <summary>
-        /// The IANA media type the data channel advertises.
+        /// The opaque content type; the application resource supplies the known PCM format.
         /// </summary>
-        public const string ContentType = "audio/L16";
+        public const string ContentType = "application/octet-stream";
 
         /// <summary>
         /// The number of bytes that carry a given duration of audio.
@@ -74,7 +74,7 @@ namespace Quickstarts.ConsoleDataChannelAudio
         /// <param name="milliseconds">The duration.</param>
         public static int BytesForDuration(int milliseconds)
         {
-            return SampleRate * BytesPerSample * milliseconds / 1000;
+            return checked(SampleRate * milliseconds / 1000 * BytesPerSample);
         }
     }
 
@@ -94,7 +94,7 @@ namespace Quickstarts.ConsoleDataChannelAudio
         /// <summary>
         /// Renders the melody as little-endian PCM.
         /// </summary>
-        public static byte[] Render()
+        public static ByteString Render()
         {
             var samples = new List<short>();
 
@@ -111,7 +111,7 @@ namespace Quickstarts.ConsoleDataChannelAudio
                 pcm[(ii * 2) + 1] = (byte)((samples[ii] >> 8) & 0xFF);
             }
 
-            return pcm;
+            return new ByteString(pcm);
         }
 
         private static void AppendNote(List<short> samples, double frequency, int milliseconds)

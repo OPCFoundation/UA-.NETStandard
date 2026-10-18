@@ -124,5 +124,10 @@ namespace Opc.Ua
         /// Event identifier offset for data-channel scheduling and connection diagnostics.
         /// </summary>
         public const int DataChannelManager = 630;
+
+        /// <summary>
+        /// Event identifier offset for the optional native Client/Server lane.
+        /// </summary>
+        public const int DataChannelByteTransport = 640;
     }
 }

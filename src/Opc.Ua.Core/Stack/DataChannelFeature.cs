@@ -30,16 +30,13 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Marks the DataChannel Service Set as experimental.
+    /// Identifies the provisional complete-message Data Channels API.
     /// </summary>
     /// <remarks>
-    /// The Services themselves are generated into the standard type surface
-    /// and are reachable from any Client, while the engine that carries the
-    /// frames ships separately in
-    /// <c>OPCFoundation.NetStandard.Opc.Ua.Core.Channels</c>. The marker
-    /// therefore lives here, where both the Services and their callers can see
-    /// it: every identifier the feature uses is provisional and will change if
-    /// and when the OPC Foundation assigns final values.
+    /// The common flow runtime ships in Core. Optional Session control uses
+    /// generated model Methods through the standard Call service, not a separate
+    /// Service Set. Carrier and model identifiers remain provisional until
+    /// their specification registrations are finalized.
     /// </remarks>
     public static class DataChannelFeature
     {

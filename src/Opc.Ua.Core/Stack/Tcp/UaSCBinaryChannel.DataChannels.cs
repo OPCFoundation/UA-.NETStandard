@@ -28,22 +28,22 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.DataChannels;
 
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Carries data channels over the SecureChannel using the inline framing of
-    /// the Part 6 errata: a frame is one STR MessageChunk, secured and written
-    /// exactly as a MSG chunk is.
+    /// Attaches the common flow runtime to an explicitly selected, authenticated UASC profile.
+    /// Endpoint/handshake selection remains with the transport owner; this never upgrades an ordinary endpoint.
     /// </summary>
     public partial class UaSCUaBinaryChannel
     {
         /// <summary>
-        /// Tracks how much of the SecureChannel SequenceNumber space remains
-        /// under the current SecurityToken. Every MessageType the channel
-        /// carries draws on the same space.
+        /// Gets remaining per-token sequence space shared by every UASC message type.
         /// </summary>
         internal SequenceNumberBudget SequenceBudget
         {
@@ -55,434 +55,418 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// True when the SequenceNumber space remaining under the current
-        /// token has fallen below the renewal threshold, so the owning channel
-        /// should initiate OpenSecureChannel with RenewalRequest ahead of the
-        /// normal lifetime based renewal.
+        /// Gets whether the owner should renew before exhausting sequence space.
         /// </summary>
         public bool IsSequenceRenewalDue => SequenceBudget.ShouldRenew;
 
         /// <summary>
-        /// The data channels multiplexed onto this SecureChannel, or
-        /// <c>null</c> when the feature has not been enabled on it.
+        /// Gets the explicitly attached data context, or null on ordinary endpoints.
         /// </summary>
-        public DataChannelManager? DataChannels => m_dataChannels;
+        public DataChannelContext? DataChannels => m_dataChannels;
 
         /// <summary>
-        /// Raised when a frame violates the framing rules badly enough to cost
-        /// the whole SecureChannel.
+        /// Reports a carrier-scoped flow protocol failure without exposing peer payloads.
         /// </summary>
-        /// <remarks>
-        /// The channel is faulted either way; this reports which rule was
-        /// broken, which the transport error alone does not carry.
-        /// </remarks>
-        public event EventHandler<DataChannelFrameError>? DataChannelProtocolFault;
+        public event Action<DataChannelResult>? DataChannelProtocolFault;
 
         /// <summary>
-        /// Enables the data channel feature on this SecureChannel.
+        /// Attaches after profile selection and authenticated OPN. The caller holds its handshake
+        /// serialization; this method does not reacquire Gate and never starts network traffic.
+        /// Call the returned context's StartAsync outside Gate after ingress has been attached.
         /// </summary>
-        /// <remarks>
-        /// Experimental. Until this is called the STR dispatch is inert and an
-        /// incoming frame closes the SecureChannel, which is what the
-        /// interoperability rule of the Part 6 errata §5.16 requires of a peer
-        /// that does not implement this specification. Calling it more than
-        /// once returns the manager already in place.
-        /// </remarks>
-        /// <param name="isServer">True on the server side, which allocates
-        /// ChannelIds.</param>
-        /// <param name="telemetry">Telemetry context.</param>
-        /// <param name="maxDataChannels">The most channels kept open at once
-        /// on this SecureChannel.</param>
-        /// <param name="maxCreditPerChannel">The largest window granted to one
-        /// channel.</param>
-        public DataChannelManager EnableDataChannels(
-            bool isServer,
-            ITelemetryContext telemetry,
-            ushort maxDataChannels = 16,
-            uint maxCreditPerChannel = 1024 * 1024)
+        public DataChannelContext AttachDataChannels(
+            DataChannelCarrierKind kind,
+            DataChannelPeerIdentity identity,
+            bool isUascInitiator,
+            IDataChannelAuthorizer authorizer,
+            DataChannelOptions options,
+            DataChannelApplicationBudget budget,
+            ITelemetryContext telemetry)
         {
-            using (Gate.Enter())
-            {
-                if (m_dataChannels != null)
-                {
-                    return m_dataChannels;
-                }
-
-                m_dataChannelsAreSource = isServer;
-                m_dataChannels = new DataChannelManager(
-                    new InlineDataChannelTransport(this),
-                    isServer,
-                    telemetry,
-                    maxDataChannels,
-                    maxCreditPerChannel);
-
-                return m_dataChannels;
-            }
+            return AttachDataChannels(kind, identity, isUascInitiator,
+                new DataChannelContextFactory(authorizer, options, budget, TimeProvider, telemetry));
         }
 
         /// <summary>
-        /// The largest secured body a data channel frame may occupy on this
-        /// SecureChannel.
+        /// Attaches an application factory's unstarted context after the selected profile's OPN.
+        /// Identity/key validation is the handshake owner's responsibility; claimed HELLO values are insufficient.
         /// </summary>
-        /// <remarks>
-        /// Computed with the arithmetic <c>WriteSymmetricMessage</c> uses to
-        /// split a message into chunks rather than an approximation of it,
-        /// because a frame at this size has to fit exactly one chunk. A second
-        /// chunk would carry the Intermediate chunk type, which the frame codec
-        /// rejects outright, and the send would be refused after the
-        /// SequenceNumber had already been claimed. The part an approximation
-        /// misses is the cipher block rounding: a 65535 byte send buffer under
-        /// a 16 byte block cipher loses its last 15 bytes, so a body sized
-        /// against the raw buffer overflows into a second chunk.
-        /// </remarks>
-        public int MaxDataChannelBodySize
+        /// <exception cref="ArgumentNullException"><paramref name="identity"/> is <c>null</c>.</exception>
+        /// <exception cref="DataChannelException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public DataChannelContext AttachDataChannels(
+            DataChannelCarrierKind kind,
+            DataChannelPeerIdentity identity,
+            bool isUascInitiator,
+            IDataChannelContextFactory factory)
         {
-            get
+            if (identity == null)
             {
-                int blockSize = EncryptionBlockSize > 0 ? EncryptionBlockSize : 1;
-                int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
-                int maxPlainTextSize = maxCipherTextSize / blockSize * blockSize;
-
-                // Conservative while no token is in force: assume padding is
-                // present, so the advertised size is never larger than what a
-                // later token can actually carry.
-                int paddingCountSize =
-                    SecurityMode != MessageSecurityMode.SignAndEncrypt ||
-                    CurrentToken?.SecurityPolicy?.NoSymmetricEncryptionPadding == true
-                        ? 0
-                        : blockSize > byte.MaxValue ? 2 : 1;
-
-                int available = maxPlainTextSize -
-                    SymmetricSignatureSize -
-                    TcpMessageLimits.SequenceHeaderSize -
-                    paddingCountSize -
-                    DataChannelConstants.StreamHeaderSize -
-                    DataChannelConstants.DeadlineSize;
-
-                return available > 0 ? available : 0;
+                throw new ArgumentNullException(nameof(identity));
             }
+            if (factory == null)
+            {
+                throw new ArgumentNullException(nameof(factory));
+            }
+            if (kind is not (DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc))
+            {
+                throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+            if (m_dataChannels != null)
+            {
+                throw new DataChannelException(DataChannelResult.InvalidState);
+            }
+            if (SecurityMode == MessageSecurityMode.None ||
+                CurrentToken == null ||
+                (SecurityMode == MessageSecurityMode.SignAndEncrypt
+                    ? identity.Protection != DataChannelProtectionMode.Confidential
+                    : identity.Protection != DataChannelProtectionMode.Integrity))
+            {
+                throw new DataChannelException(DataChannelResult.SecurityFailure);
+            }
+            if (kind == DataChannelCarrierKind.SharedUasc && identity.IsTransportInitiator != isUascInitiator)
+            {
+                throw new NotSupportedException(
+                    "Reversed shared-UASC roles need a specified protected context-selection exchange before first HELLO.");
+            }
+            var carrier = new UascDataChannelCarrier(this, kind, identity);
+            DataChannelContext context = factory.Create(carrier);
+            if (context == null || !context.UsesCarrier(carrier))
+            {
+                throw new DataChannelException(DataChannelResult.InvalidState);
+            }
+            m_dataChannelKind = kind;
+            m_dataChannelIsUascInitiator = isUascInitiator;
+            m_dataChannels = context;
+            return m_dataChannels;
         }
 
         /// <summary>
-        /// Routes an incoming STR chunk to the data channels.
+        /// Gets exact complete-record capacity using the same cipher-block arithmetic as UASC encoding.
+        /// The common record header is included; FLO ChannelId and UASC security overhead are excluded.
         /// </summary>
-        /// <remarks>
-        /// The chunk is decrypted, verified and sequence-checked here, so the
-        /// engine never sees content the channel has not authenticated. A STR
-        /// chunk arriving before the feature is enabled is a protocol error,
-        /// which is what OPC 10000-6 §6.7.2.2 requires of a receiver that does
-        /// not implement the MessageType.
-        /// </remarks>
-        /// <param name="messageType">The message type and chunk type.</param>
-        /// <param name="messageChunk">The chunk.</param>
-        /// <param name="isRequest">True when the chunk was sent by the client,
-        /// which selects the key set used to verify it.</param>
-        /// <returns>False, because this method never takes ownership of the
-        /// buffer.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public int GetMaxDataChannelRecordSize(DataChannelCarrierKind kind)
+        {
+            if (kind is not (DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc))
+            {
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+            int blockSize = EncryptionBlockSize > 0 ? EncryptionBlockSize : 1;
+            int maxCipherTextSize = SendBufferSize - TcpMessageLimits.SymmetricHeaderSize;
+            int maxPlainTextSize = maxCipherTextSize / blockSize * blockSize;
+            int paddingCountSize =
+                SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                CurrentToken?.SecurityPolicy?.NoSymmetricEncryptionPadding == true
+                    ? 0 : blockSize > byte.MaxValue ? 2 : 1;
+            int available = maxPlainTextSize -
+                SymmetricSignatureSize -
+                TcpMessageLimits.SequenceHeaderSize -
+                paddingCountSize -
+                4;
+            return Math.Max(0, available);
+        }
+
+        /// <summary>
+        /// Verifies UASC security and sequence state before handing bounded owned plaintext to the flow runtime.
+        /// Returns false because the receive-loop buffer is never retained.
+        /// </summary>
         protected bool ProcessDataChannelMessage(
             uint messageType,
             ArraySegment<byte> messageChunk,
             bool isRequest)
         {
-            DataChannelFrameError? fatalError = null;
-
-            using (Gate.Enter())
+            DataChannelContext? context = m_dataChannels;
+            if (context == null ||
+                (messageType & TcpMessageType.MessageTypeMask) != TcpMessageType.Flow ||
+                SecurityMode == MessageSecurityMode.None)
             {
-                DataChannelManager? channels = m_dataChannels;
-
-                if (channels == null)
-                {
-                    fatalError = DataChannelFrameError.MalformedHeader;
-                }
-                else
-                {
-                    ArraySegment<byte> body;
-                    uint requestId;
-
-                    try
-                    {
-                        body = ReadSymmetricMessage(
-                            messageChunk,
-                            isRequest,
-                            out ChannelToken _,
-                            out requestId,
-                            out uint sequenceNumber);
-
-                        if (!VerifySequenceNumber(sequenceNumber, nameof(ProcessDataChannelMessage)))
-                        {
-                            fatalError = DataChannelFrameError.MalformedHeader;
-                        }
-                    }
-                    catch (ServiceResultException)
-                    {
-                        fatalError = DataChannelFrameError.MalformedHeader;
-                        body = default;
-                        requestId = 0;
-                    }
-
-                    if (fatalError == null &&
-                        !DataChannelFrameCodec.TryValidateChunkHeaders(
-                            messageType,
-                            requestId,
-                            out DataChannelFrameError headerError))
-                    {
-                        fatalError = headerError;
-                    }
-
-                    DataChannelFrame frame = default;
-
-                    if (fatalError == null &&
-                        !DataChannelFrameCodec.TryDecode(
-                            new ReadOnlyMemory<byte>(body.Array!, body.Offset, body.Count),
-                            ReceiveBufferSize,
-                            out frame,
-                            out DataChannelFrameError error))
-                    {
-                        if (error.IsFatal())
-                        {
-                            fatalError = error;
-                        }
-                        else if (channels.TryGetChannel(frame.ChannelId, out DataChannel? faulted) &&
-                            faulted != null)
-                        {
-                            faulted.Reset(error.ToStatusCode());
-                        }
-                    }
-                    else if (fatalError == null)
-                    {
-                        channels.HandleFrame(frame);
-                    }
-                }
+                OnDataChannelProtocolFault(DataChannelResult.Unsupported);
+                return false;
             }
-
-            if (fatalError != null)
+            try
             {
-                OnDataChannelProtocolFault(fatalError.Value);
+                ArraySegment<byte> body = ReadSymmetricMessage(
+                    messageChunk, isRequest, out ChannelToken _, out uint requestId, out uint sequence);
+                if (!VerifySequenceNumber(sequence, nameof(ProcessDataChannelMessage)))
+                {
+                    OnDataChannelProtocolFault(DataChannelResult.SecurityFailure);
+                    return false;
+                }
+                context.QueueVerifiedUasc(
+                    (byte)(messageType >> 24), requestId, new ByteString(body.AsMemory()));
             }
-
+            catch (Exception exception) when (
+                exception is ServiceResultException or ArgumentException or CryptographicException)
+            {
+                OnDataChannelProtocolFault(DataChannelResult.SecurityFailure);
+            }
             return false;
         }
 
         /// <summary>
-        /// Secures a data channel frame under the channel's keys and writes it
-        /// as one STR chunk.
+        /// Queues unsealed flow bytes in the existing writer. Actual TryCommit, numbering and security
+        /// run together in SealWriteBatch, after Service precedence and before immutable secured ordering.
+        /// Cancellation after enqueue cannot release writer-owned chunks or create sequence gaps.
         /// </summary>
-        /// <remarks>
-        /// Assigning the SequenceNumber and applying message security are
-        /// serialized by the writer against Service traffic on the same channel, because
-        /// both draw on the same keys and the same counter. The SequenceNumber
-        /// is claimed inside that serialization and the send is refused with
-        /// <c>Bad_SecureChannelTokenUnknown</c> when the space under the
-        /// current SecurityToken is exhausted, so a sender stalls rather than
-        /// reuse a number (Part 6 errata §5.1.1). The write itself is awaited
-        /// outside it and runs through the same ordered writer as Service
-        /// traffic. Cancellation after queuing cancels the wait, not the write,
-        /// so later messages cannot leave a sequence gap.
-        /// </remarks>
-        /// <param name="frame">The frame to write.</param>
-        /// <param name="ct">Cancellation token.</param>
-        internal async ValueTask SendDataChannelFrameAsync(
-            DataChannelFrame frame,
-            CancellationToken ct)
+        /// <exception cref="ArgumentNullException"><paramref name="write"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask<DataChannelResult> SendDataChannelWriteAsync(
+            DataChannelWrite write,
+            CancellationToken cancellationToken)
         {
-            int size = frame.EncodedSize;
-            byte[] encoded = BufferManager.TakeBuffer(size, nameof(SendDataChannelFrameAsync), ct);
-            BufferCollection? chunks = null;
-            var operation = new DataChannelWriteOperation();
-
-            try
+            if (write == null)
             {
-                int written = DataChannelFrameCodec.Encode(encoded.AsSpan(0, size), frame);
-
-                using (await Gate.EnterAsync(ct).ConfigureAwait(false))
-                {
-                    EncodedSymmetricMessage message = EncodeSymmetricMessage(
-                        TcpMessageType.Stream,
-                        DataChannelConstants.FrameRequestId,
-                        new ArraySegment<byte>(encoded, 0, written),
-                        !m_dataChannelsAreSource,
-                        out bool limitsExceeded);
-                    chunks = message.Chunks;
-
-                    if (limitsExceeded || chunks.Count != 1)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDataChannelLimitsExceeded,
-                            "The data channel frame exceeds the negotiated buffer size.");
-                    }
-
-                    ct.ThrowIfCancellationRequested();
-                    if (!BeginWriteSymmetricMessage(message, operation))
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadConnectionClosed,
-                            "The transport was closed by the remote application.");
-                    }
-
-                    chunks = null;
-                }
-
-                ServiceResult result = await operation.Completion.WaitAsync(ct).ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
-                {
-                    throw new ServiceResultException(result);
-                }
+                throw new ArgumentNullException(nameof(write));
             }
-            finally
+            if (m_dataChannels == null || write.Path == DataChannelPath.Datagram)
             {
-                chunks?.Release(BufferManager, nameof(SendDataChannelFrameAsync));
-                BufferManager.ReturnBuffer(encoded, nameof(SendDataChannelFrameAsync));
+                return DataChannelResult.Unsupported;
+            }
+            int maximum = GetMaxDataChannelRecordSize(m_dataChannelKind) + 4;
+            if (write.Payload.Length > maximum)
+            {
+                return DataChannelResult.TooLarge;
+            }
+            if (!MemoryMarshal.TryGetArray(write.Payload.Memory, out ArraySegment<byte> encoded))
+            {
+                return DataChannelResult.InvalidArgument;
+            }
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (m_dataChannels == null)
+                {
+                    return DataChannelResult.Closed;
+                }
+                Task renewed = m_dataChannelTokenChanged.Task;
+                if (SequenceBudget.MustStall)
+                {
+                    await renewed.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                BufferCollection? chunks = null;
+                var operation = new DataChannelWriteOperation(write);
+                try
+                {
+                    using (await Gate.EnterAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        EncodedSymmetricMessage message = EncodeSymmetricMessage(
+                            TcpMessageType.Flow,
+                            write.RequestId,
+                            encoded,
+                            m_dataChannelIsUascInitiator,
+                            out bool limitsExceeded);
+                        chunks = message.Chunks;
+                        if (limitsExceeded || chunks.Count != 1)
+                        {
+                            return DataChannelResult.TooLarge;
+                        }
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (!BeginWriteSymmetricMessage(message, operation))
+                        {
+                            return DataChannelResult.Closed;
+                        }
+                        chunks = null;
+                    }
+                    ServiceResult result = await operation.Completion.ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
+                    if (operation.Result == DataChannelResult.WouldBlock && !write.IsCommitted)
+                    {
+                        await renewed.WaitAsync(cancellationToken).ConfigureAwait(false);
+                        continue;
+                    }
+                    return operation.Result;
+                }
+                finally
+                {
+                    chunks?.Release(BufferManager, nameof(SendDataChannelWriteAsync));
+                }
             }
         }
 
         /// <summary>
-        /// Joins a data-channel send to the shared writer without owning the queued buffers.
+        /// Joins writer completion without giving caller cancellation ownership of queued buffers.
         /// </summary>
-        private sealed class DataChannelWriteOperation
+        private sealed class DataChannelWriteOperation(DataChannelWrite write)
         {
             /// <summary>
-            /// Completes when the writer releases the frame buffers and reports the send result.
+            /// Gets the exact flow commitment cut-off.
             /// </summary>
-            public Task<ServiceResult> Completion => m_completion.Task;
+            internal DataChannelWrite Write { get; } = write;
 
             /// <summary>
-            /// Records the send result without faulting an abandoned completion task.
+            /// Gets physical writer completion, including final buffer release.
             /// </summary>
-            public void Complete(ServiceResult result)
+            internal Task<ServiceResult> Completion => m_completion.Task;
+
+            /// <summary>
+            /// Gets the protocol result of pre-security admission.
+            /// </summary>
+            internal DataChannelResult Result { get; private set; }
+
+            /// <summary>
+            /// Records pre-security refusal without reporting a transport failure.
+            /// </summary>
+            internal void Refuse(DataChannelResult result)
+            {
+                Result = result;
+            }
+
+            /// <summary>
+            /// Records actual writer completion.
+            /// </summary>
+            internal void Complete(ServiceResult result)
             {
                 m_completion.TrySetResult(result);
             }
 
-            /// <summary>
-            /// Completion signal independent of the caller's cancellation lifetime.
-            /// </summary>
             private readonly TaskCompletionSource<ServiceResult> m_completion =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>
-        /// Reports a framing violation whose blast radius is the whole
-        /// SecureChannel.
+        /// Reports a carrier-scoped protocol error and invokes normal UASC shutdown.
         /// </summary>
-        /// <param name="error">The rule that was broken.</param>
-        internal void OnDataChannelProtocolFault(DataChannelFrameError error)
+        internal void OnDataChannelProtocolFault(DataChannelResult result)
         {
-            DataChannelProtocolFault?.Invoke(this, error);
-
-            OnTransportError(ServiceResult.Create(
-                StatusCodes.BadTcpMessageTypeInvalid,
-                "A data channel frame violated the framing rules: {0}.",
-                error));
+            m_dataChannels?.CarrierClosed(result);
+            try
+            {
+                DataChannelProtocolFault?.Invoke(result);
+            }
+            finally
+            {
+                OnTransportError(ServiceResult.Create(
+                    StatusCodes.BadTcpMessageTypeInvalid, "The selected flow carrier rejected a protocol record."));
+            }
         }
 
         /// <summary>
-        /// Rebases the SequenceNumber budget when a new SecurityToken takes
-        /// effect, which restores the space the channel draws on.
+        /// Rebases sequence usage and wakes flow writers stalled before security commitment.
         /// </summary>
         private protected void NotifySecurityTokenActivated()
         {
-            Interlocked.Exchange(
-                ref m_sequenceNumberBaseline,
-                Interlocked.Read(ref m_sequenceNumber));
-
+            Interlocked.Exchange(ref m_sequenceNumberBaseline, Interlocked.Read(ref m_sequenceNumber));
             m_sequenceBudget.OnTokenActivated();
+            TaskSignal previous = Interlocked.Exchange(ref m_dataChannelTokenChanged, new TaskSignal());
+            previous.Complete();
         }
 
         /// <summary>
-        /// Aborts every data channel when the SecureChannel is gone.
+        /// Synchronously retires the context on transport replacement/loss without reacquiring Gate.
+        /// The asynchronous join never frees buffers still owned by the existing writer.
         /// </summary>
-        private protected void NotifyChannelClosed()
+        protected void NotifyChannelClosed()
         {
-            DataChannelManager? channels = Interlocked.Exchange(ref m_dataChannels, null);
-
-            if (channels == null)
+            DataChannelContext? context = Interlocked.Exchange(ref m_dataChannels, null);
+            if (context != null)
             {
-                return;
+                context.CarrierClosed(DataChannelResult.Closed);
+                _ = DisposeDataChannelContextAsync(context);
             }
-
-            // Abort first, so every channel reaches Faulted and its source is
-            // told synchronously. Disposing the manager stops its scheduler and
-            // is awaited off this path, because Dispose cannot block.
-            channels.AbortAll(StatusCodes.BadSecureChannelClosed);
-            _ = channels.DisposeAsync().AsTask();
+            m_dataChannelTokenChanged.Complete();
         }
 
         /// <summary>
-        /// How many SequenceNumbers this channel has issued under the
-        /// SecurityToken currently in force.
+        /// Observes asynchronous context cleanup from the synchronous channel close hook.
         /// </summary>
-        /// <remarks>
-        /// The counter runs for the lifetime of the channel while the space is
-        /// per token, so what has been consumed under the current token is the
-        /// distance from the value the counter held when that token was
-        /// activated. Observing the raw counter would leave a long lived channel
-        /// looking permanently exhausted.
-        /// </remarks>
+        private async Task DisposeDataChannelContextAsync(DataChannelContext context)
+        {
+            try
+            {
+                await context.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                m_logger.FlowCarrierFailure(exception);
+            }
+        }
+
+        /// <summary>
+        /// Gets actual issuance under the current security token, not channel-lifetime traffic.
+        /// </summary>
         internal long SequenceNumbersIssuedUnderCurrentToken
         {
             get
             {
                 long issued = Interlocked.Read(ref m_sequenceNumber);
                 long baseline = Interlocked.Read(ref m_sequenceNumberBaseline);
-
                 if (issued < baseline)
                 {
-                    // The space wrapped under this token, so the count restarts
-                    // from the new origin rather than going negative.
                     Interlocked.Exchange(ref m_sequenceNumberBaseline, 0);
                     return issued;
                 }
-
                 return issued - baseline;
             }
         }
 
         /// <summary>
-        /// Presents the SecureChannel to the engine as the transport that
-        /// carries its frames.
+        /// Adapts UASC only; native methods refuse rather than fabricate successful support.
         /// </summary>
-        /// <param name="channel">The SecureChannel.</param>
-        private sealed class InlineDataChannelTransport(UaSCUaBinaryChannel channel)
-            : IDataChannelTransport
+        private sealed class UascDataChannelCarrier(
+            UaSCUaBinaryChannel channel,
+            DataChannelCarrierKind kind,
+            DataChannelPeerIdentity identity) : IDataChannelCarrier
         {
-            /// <inheritdoc/>
-            public DataChannelFramingMode FramingMode => DataChannelFramingMode.Inline;
+            public DataChannelCarrierKind Kind => kind;
+            public DataChannelPeerIdentity Identity => identity;
+            public int MaxRecordSize => channel.GetMaxDataChannelRecordSize(kind);
+            public int MaxDatagramSize => 0;
+            public ulong ManagementStreamId => 0;
 
-            /// <inheritdoc/>
-            public int MaxFrameBodySize => channel.MaxDataChannelBodySize;
-
-            /// <inheritdoc/>
-            public bool HasTransportFlowControl => false;
-
-            /// <inheritdoc/>
-            public BufferManager BufferManager => channel.BufferManager;
-
-            /// <inheritdoc/>
-            public TimeProvider TimeProvider => channel.TimeProvider;
-
-            /// <inheritdoc/>
-            public ValueTask SendFrameAsync(DataChannelFrame frame, CancellationToken ct)
+            public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
             {
-                return channel.SendDataChannelFrameAsync(frame, ct);
+                throw new DataChannelException(DataChannelResult.Unsupported);
             }
 
-            /// <inheritdoc/>
-            public void OnProtocolFault(DataChannelFrameError error)
+            public ValueTask<bool> BindStreamAsync(
+                ulong streamId,
+                uint channelId,
+                bool locallyOpened,
+                CancellationToken cancellationToken = default)
             {
-                channel.OnDataChannelProtocolFault(error);
+                return new ValueTask<bool>(false);
+            }
+
+            public ValueTask<DataChannelResult> SendAsync(
+                DataChannelWrite write,
+                CancellationToken cancellationToken = default)
+            {
+                return channel.SendDataChannelWriteAsync(write, cancellationToken);
+            }
+
+            public ValueTask CloseFlowAsync(
+                ulong streamId,
+                DataChannelResult result,
+                CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask CloseAsync(
+                DataChannelResult result,
+                CancellationToken cancellationToken = default)
+            {
+                channel.OnTransportError(ServiceResult.Create(
+                    StatusCodes.BadSecureChannelClosed, "The authenticated data context was closed."));
+                return default;
             }
         }
 
-        private readonly SequenceNumberBudget m_sequenceBudget = new();
-
-        // CA2213: the manager is disposed by NotifyChannelClosed, which Dispose
-        // calls. The analyzer cannot follow the Interlocked.Exchange that hands
-        // ownership over, and the disposal is asynchronous because the manager
-        // is IAsyncDisposable while Dispose is not.
+        private readonly SequenceNumberBudget m_sequenceBudget;
+        private TaskSignal m_dataChannelTokenChanged = new();
+        // Disposal is transferred atomically to the asynchronous close join.
+        // TODO: Remove this suppression when CA2213 can track Interlocked ownership transfer.
 #pragma warning disable CA2213
-        private DataChannelManager? m_dataChannels;
+        private DataChannelContext? m_dataChannels;
 #pragma warning restore CA2213
-        private bool m_dataChannelsAreSource;
+        private DataChannelCarrierKind m_dataChannelKind;
+        private bool m_dataChannelIsUascInitiator;
         private long m_sequenceNumberBaseline;
     }
 }

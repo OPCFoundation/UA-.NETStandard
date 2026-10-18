@@ -75,6 +75,7 @@
   </Folder>
   <Folder Name="/samples/PubSub/">
     <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
+    <Project Path="samples/PubSub/ConsoleSecureChannelPubSub/ConsoleSecureChannelPubSub.csproj" />
   </Folder>
   <Folder Name="/samples/Recycling/">
     <Project Path="samples/Recycling/RecyclingServer/RecyclingServer.csproj" />
@@ -241,6 +242,9 @@
     <Project Path="src/Opc.Ua.WotCon.Server/Opc.Ua.WotCon.Server.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Https/Opc.Ua.Bindings.Https.csproj" />
     <Project Path="src/Opc.Ua.Bindings.Quic/Opc.Ua.Bindings.Quic.csproj" />
+    <Project Path="src/Opc.Ua.Bindings.WebTransport/Opc.Ua.Bindings.WebTransport.csproj" />
+    <Project Path="src/Opc.Ua.Native.QuicGo/Opc.Ua.Native.QuicGo.csproj" />
+    <Project Path="src/Opc.Ua.Native.Http3/Opc.Ua.Native.Http3.csproj" />
     <Project Path="src/Opc.Ua.Core/Opc.Ua.Core.csproj" />
     <Project Path="src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
@@ -365,6 +369,11 @@
     <Project Path="tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.DataChannels.Tests/Opc.Ua.Core.DataChannels.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Native.QuicGo.Tests/Opc.Ua.Native.QuicGo.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Bindings.Quic.Tests/Opc.Ua.Bindings.Quic.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Bindings.WebTransport.Tests/Opc.Ua.Bindings.WebTransport.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.DataChannel.ClientServer.Tests/Opc.Ua.DataChannel.ClientServer.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.DataChannel.Samples.Tests/Opc.Ua.DataChannel.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.CranesHoists.Tests/Opc.Ua.CranesHoists.Tests.csproj" />
@@ -393,6 +402,7 @@
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Machinery.Tests/Opc.Ua.Machinery.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PubSub.Samples.Tests/Opc.Ua.PubSub.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Eth.Tests/Opc.Ua.PubSub.Eth.Tests.csproj" />

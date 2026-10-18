@@ -1,0 +1,60 @@
+OPC UA Native HTTP3: third-party notices and distribution conditions
+================================================================
+
+The authored adapter/build integration is licensed under the OPC Foundation
+MIT License 1.00 (LICENSE.txt). That license does not relicense third-party
+code. The native image contains the components below. Complete retained
+notices are under notices/ and are hash-indexed by notices/manifest.json.
+
+HTTP/3:
+  shiguredo/http3-rs 2026.1.0-canary.12
+  commit 99a8c71d396b718a922f5108abe9c453c2671905
+  Apache-2.0. Original copyrights and modification notices are preserved.
+  OPC Foundation's exact eight-file resource-admission overlay is retained
+  as patches/http3-resource-bounds.patch plus patches/manifest.json.
+  The new receive guard is MIT licensed. No crypto/wire changes are claimed.
+  Its original 2026 OPC Foundation MIT text is retained verbatim in
+  notices/OPC-resource-guard-MIT.txt, alongside the package's authored-code license.
+
+Rust:
+  Public Rust 1.97.0, commit 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3.
+  Standard library/runtime: MIT OR Apache-2.0; Unicode tables: Unicode-3.0.
+  compiler_builtins 0.1.160:
+    MIT AND Apache-2.0 WITH LLVM-exception AND (MIT OR Apache-2.0).
+  Retained attribution includes hashbrown 0.17.1, rustc-demangle 0.1.27,
+  addr2line 0.25.1, adler2 2.0.1, gimli 0.32.3, memchr 2.7.6,
+  miniz_oxide 0.8.9 and object 0.37.3. Library source checksums and
+  per-component license expressions are in build/runtime-components.json.
+  The Rust library COPYRIGHT catalog and vendor notices are an attribution
+  superset, not a claim that every component is retained on every RID.
+
+Linux:
+  GNU startup and libgcc use GPL-3.0-or-later WITH GCC-exception-3.1.
+  Eligible compilation permits independent non-GPL application output;
+  this is not an unqualified GPL dependency or blanket exception.
+  OS-provided glibc/loader remain shared, replaceable and unbundled.
+  LGPL-2.1 and applicable per-file notices remain in notices/linux/.
+  glibc >=2.34 and libgcc_s ABI symbols through GCC_4.2.0 are required.
+  These ABI names do not require installing a GCC compiler on the host.
+
+Windows:
+  Static MSVC/UCRT code is governed by the licensed Visual Studio 2026
+  Pro/Enterprise Distributable Code grant, its REDIST list and exact
+  Windows SDK 10.0.26100.0 terms (including section 2's linked-.lib output
+  condition). It is not MIT or Apache licensed.
+  A valid applicable Visual Studio license, significant application
+  functionality, notices/protective terms and the distribution/trademark
+  restrictions remain required. The standalone V14 Runtime EULA does NOT
+  independently grant redistribution rights.
+  Public authorities and retrieved source hashes: build/primary-sources.json.
+  Actual terms and redistribution text: notices/microsoft/.
+
+Servicing:
+  Do not bundle toolchains, system DLLs/shared objects, PDBs, test identities,
+  private specifications, examples, web servers or another Go runtime.
+  Rebuild/redeploy after Rust/stdlib/static CRT/source/overlay changes.
+  Updating vc_redist alone cannot patch statically linked code.
+  The two accepted RID assets are inspected against exact export/dependency
+  allowlists. The canary library is not independent security certification.
+  Signing, final-product security/SCA/VEX and minimum-host validation are
+  mandatory downstream distribution gates, not waived by source adoption.

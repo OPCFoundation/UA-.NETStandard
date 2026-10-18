@@ -21,6 +21,7 @@
 - [Fluent builder walkthrough](#fluent-builder-walkthrough)
 - [Dependency injection / hosting](#dependency-injection--hosting)
 - [Transports](#transports)
+- [Data Channels (experimental)](#data-channels-experimental)
 - [Encodings](#encodings)
 - [Transcoding](#transcoding)
 - [Discovery](#discovery)
@@ -559,6 +560,7 @@ Server-side address space — see
 | Ethernet / UADP | `Opc.Ua.PubSub.Eth` | `pubsub-eth-uadp` | `opc.eth://` |
 | MQTT / UADP + JSON | `Opc.Ua.PubSub.Mqtt` | `pubsub-mqtt-uadp`, `pubsub-mqtt-json` | `mqtt://`, `mqtts://`, `ws://`, `wss://` |
 | Kafka / UADP + JSON | `Opc.Ua.PubSub.Kafka` | `pubsub-kafka-uadp`, `pubsub-kafka-json` | `kafka://`, `kafkas://` |
+| Data Channels / UADP + JSON (experimental) | `Opc.Ua.PubSub` adapter plus selected carrier | `DataChannelProfiles` carrier and independent payload constants | Explicit dedicated/shared UASC, `opc.quic://`, `opc.wt://` |
 
 ### UDP / UADP
 
@@ -886,6 +888,57 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 **SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
 
 **NativeAOT.** The default pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) backend is validated for NativeAOT/trimming on `net10.0`. The opt-in Confluent.Kafka backend uses native librdkafka and is not NativeAOT or trimming compatible. See [Native AOT](#native-aot).
+
+## Data Channels (experimental)
+
+The [rewritten Data Channels binding](DataChannels.md) carries complete existing
+Part 14 **1.05.06** NetworkMessages over an authenticated flow. It is not a new
+encoding, a UDP/MQTT bridge or a Part 14 version upgrade. The base PubSub package
+contains the adapter; native QUIC and WebTransport remain optional dependencies
+of the selected carrier, not of ordinary PubSub applications.
+
+Choose the carrier independently from `DataChannelProfiles.UadpPayload` or
+`JsonPayload`. Use `DataChannelPubSubConfiguration.Configure` or
+`PubSubConnectionBuilder.WithDataChannel`, then register the actual flow provider
+through `PubSubApplicationBuilder.UseDataChannelTransport` or the DI builder's
+`AddDataChannelTransport`. The
+[package example](../src/Opc.Ua.PubSub/NugetREADME.md#brokerless-datachannel-transport)
+shows the complete configuration and ownership contracts.
+
+The adapter preserves encoded bytes and the existing PublisherId,
+WriterGroupId, DataSetWriterId, metadata and message-security pipeline.
+It does not infer UADP versus JSON from the carrier URI. Multiple writers can
+share a flow with the same authorized contract. Keep receive-message ownership
+through decoding and sink delivery; orderly END drains accepted messages
+before disconnecting a receive-only connection.
+
+`AllowQueueExpiry=true` is refused: the adapter has no Publisher dependency and
+recovery policy for expired metadata, key frames or their dependent messages.
+No-expiry delivery remains the default. Binary Data Channel CONTROL does not
+change either UADP or JSON NetworkMessage bytes.
+
+Configured flows need neither a Session nor an address space. Optional Session
+authorization uses generated manager Call Methods and fresh context-bound
+grants. A server hosting several flow consumers must use its shared
+accepted-flow router, not competing `Context.AcceptAsync` loops.
+
+Carrier confidentiality needs no broker or SKS. Optional UADP message security
+remains independent and uses its normal key provider; selecting JSON cannot
+silently satisfy a configured UADP security policy.
+
+Run the [brokerless SecureChannel sample](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
+for a finite, real-socket demonstration:
+
+```powershell
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0
+```
+
+Its default creates no Session or optional model. `--shared` adds Read/Publish
+on the same authenticated connection, `--encoding json` selects JSON,
+`--authorization session` enables generated model control, and `--reverse`
+changes the Publisher role without changing connection initiation. Separate
+server/client processes, exact-byte evidence, changing typed fields, live
+revision and teardown checks are documented in the sample.
 
 ## Encodings
 

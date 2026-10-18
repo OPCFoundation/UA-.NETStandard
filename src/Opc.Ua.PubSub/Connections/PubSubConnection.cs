@@ -48,6 +48,7 @@ using Opc.Ua.PubSub.Security;
 using Opc.Ua.PubSub.StateMachine;
 using Opc.Ua.PubSub.Transcoding;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Transports.DataChannels;
 using PubSubJsonActionNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonActionNetworkMessage;
 
 namespace Opc.Ua.PubSub.Connections
@@ -80,6 +81,9 @@ namespace Opc.Ua.PubSub.Connections
         private readonly UadpSecurityWrapOptions m_securityWrapOptions;
         private readonly MessageSecurityMode m_requiredSecurityMode;
         private readonly int m_maxNetworkMessageSize;
+        private readonly bool m_isDataChannelTransport;
+        private readonly int m_flowMaxMessageSize;
+        private string m_encodingProfileUri;
         private readonly UadpReassembler m_reassembler;
         private readonly List<PubSubDiscoveryCollector> m_discoveryCollectors = [];
         private readonly Dictionary<ActionCorrelationKey, PendingActionRequest> m_pendingActions = [];
@@ -246,6 +250,14 @@ namespace Opc.Ua.PubSub.Connections
             m_reassembler = new UadpReassembler(timeProvider);
             Name = configuration.Name ?? string.Empty;
             TransportProfileUri = configuration.TransportProfileUri ?? string.Empty;
+            m_isDataChannelTransport = DataChannelPubSubConfiguration.TryGetCarrierKind(TransportProfileUri, out _);
+            m_encodingProfileUri = TransportProfileUri;
+            if (m_isDataChannelTransport)
+            {
+                DataChannelParametersDataType parameters = DataChannelPubSubConfiguration.GetParameters(configuration);
+                m_encodingProfileUri = DataChannelPubSubConfiguration.GetEncodingProfile(parameters.Protocol);
+                m_flowMaxMessageSize = (int)parameters.MaxMessageSize;
+            }
             PublisherId = configuration.PublisherId.IsNull
                 ? PublisherId.Null
                 : PublisherId.From(configuration.PublisherId);
@@ -326,6 +338,50 @@ namespace Opc.Ua.PubSub.Connections
                 {
                     return m_transport;
                 }
+            }
+        }
+
+        /// <summary>
+        /// Gets the payload mapping used by data, discovery and metadata, independently of the carrier URI.
+        /// </summary>
+        internal string EncodingProfileUri => ResolveEncoderProfile();
+
+        /// <summary>
+        /// Combines an explicitly configured Part 14 limit with the current negotiated complete-message budget.
+        /// </summary>
+        private int MaxNetworkMessageSize
+        {
+            get
+            {
+                int transportLimit = CurrentTransport is IPubSubEncodingTransport encodingTransport
+                    ? (int)Math.Min(encodingTransport.MaxNetworkMessageSize, int.MaxValue)
+                    : m_flowMaxMessageSize;
+                return m_maxNetworkMessageSize <= 0 ? transportLimit :
+                    transportLimit <= 0 ? m_maxNetworkMessageSize : Math.Min(m_maxNetworkMessageSize, transportLimit);
+            }
+        }
+
+        /// <summary>
+        /// Reflects a real flow fault or recovery in the existing connection and child state machines.
+        /// </summary>
+        private void OnTransportStateChanged(object? sender, PubSubTransportStateChangedEventArgs args)
+        {
+            if (!ReferenceEquals(CurrentTransport, sender))
+            {
+                return;
+            }
+            if (args.IsConnected)
+            {
+                if (State.TryMarkOperational())
+                {
+                    _ = State.TryResumeCascade();
+                }
+            }
+            else
+            {
+                StatusCode status = StatusCode.IsBad(args.Status) ? args.Status : StatusCodes.BadConnectionClosed;
+                m_diagnostics.RecordError(status, "The PubSub data flow is unavailable.");
+                _ = State.TryFault(status);
             }
         }
 
@@ -427,11 +483,35 @@ namespace Opc.Ua.PubSub.Connections
 
             try
             {
+                if (m_isDataChannelTransport)
+                {
+                    transport.StateChanged += OnTransportStateChanged;
+                }
                 await ConfigureLastWillAsync(transport, cancellationToken).ConfigureAwait(false);
                 await transport.OpenAsync(cancellationToken).ConfigureAwait(false);
+                if (transport is IPubSubEncodingTransport encodingTransport)
+                {
+                    if (m_isDataChannelTransport && encodingTransport.EncodingProfileUri != m_encodingProfileUri)
+                    {
+                        throw new InvalidOperationException(
+                            "The negotiated PubSub encoding disagrees with configuration.");
+                    }
+                    m_encodingProfileUri = encodingTransport.EncodingProfileUri;
+                    foreach (WriterGroup writerGroup in m_writerGroups)
+                    {
+                        writerGroup.EncodingProfileOverride = ResolveEncoderProfile();
+                    }
+                }
+                if (m_isDataChannelTransport &&
+                    ((m_writerGroups.Count > 0 && ResolveEncoder() is null) ||
+                    (m_readerGroups.Count > 0 && ResolveDecoder() is null)))
+                {
+                    throw new InvalidOperationException("The negotiated PubSub payload has no registered codec.");
+                }
             }
             catch
             {
+                transport.StateChanged -= OnTransportStateChanged;
                 await transport.DisposeAsync().ConfigureAwait(false);
                 _ = State.TryFault(StatusCodes.BadCommunicationError);
                 throw;
@@ -442,32 +522,46 @@ namespace Opc.Ua.PubSub.Connections
                 m_transport = transport;
             }
 
-            if (State.TryMarkOperational())
+            try
             {
-                _ = State.TryResumeCascade();
-            }
-            await PublishStartupDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
-            await StartPeriodicDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
+                if (m_isDataChannelTransport && !transport.IsConnected)
+                {
+                    throw new InvalidOperationException("The PubSub flow closed during connection startup.");
+                }
+                if (State.TryMarkOperational())
+                {
+                    _ = State.TryResumeCascade();
+                }
+                await PublishStartupDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
+                await StartPeriodicDiscoveryAnnouncementsAsync(cancellationToken).ConfigureAwait(false);
 
-            // Start receive pump.
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            lock (m_gate)
-            {
-                m_receiveCts = cts;
-            }
-            m_receiveLoop = Task.Run(() => ReceiveLoopAsync(cts.Token), cts.Token);
+                // Start receive pump.
+                var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                lock (m_gate)
+                {
+                    m_receiveCts = cts;
+                }
+                m_receiveLoop = Task.Run(() => ReceiveLoopAsync(cts.Token), cts.Token);
 
-            for (int i = 0; i < m_readerGroups.Count; i++)
-            {
-                ReaderGroup rg = m_readerGroups[i];
-                await rg.EnableAsync(cancellationToken).ConfigureAwait(false);
+                for (int i = 0; i < m_readerGroups.Count; i++)
+                {
+                    ReaderGroup rg = m_readerGroups[i];
+                    await rg.EnableAsync(cancellationToken).ConfigureAwait(false);
+                }
+                for (int i = 0; i < m_writerGroups.Count; i++)
+                {
+                    WriterGroup wg = m_writerGroups[i];
+                    await wg.EnableAsync(cancellationToken).ConfigureAwait(false);
+                }
+                await ApplyActivationRolesAsync(cancellationToken).ConfigureAwait(false);
             }
-            for (int i = 0; i < m_writerGroups.Count; i++)
+            catch
             {
-                WriterGroup wg = m_writerGroups[i];
-                await wg.EnableAsync(cancellationToken).ConfigureAwait(false);
+                await DisableAsync(CancellationToken.None).ConfigureAwait(false);
+                _ = State.TryEnable();
+                _ = State.TryFault(StatusCodes.BadCommunicationError);
+                throw;
             }
-            await ApplyActivationRolesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         internal async ValueTask ApplyActivationRolesAsync(CancellationToken cancellationToken = default)
@@ -551,6 +645,7 @@ namespace Opc.Ua.PubSub.Connections
             cts?.Dispose();
             if (transport is not null)
             {
+                transport.StateChanged -= OnTransportStateChanged;
                 try
                 {
                     await transport.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -1334,7 +1429,7 @@ namespace Opc.Ua.PubSub.Connections
             ushort requestId,
             ByteString correlationData)
         {
-            if (TransportProfileFamily(TransportProfileUri) == "Json")
+            if (TransportProfileFamily(m_encodingProfileUri) == "Json")
             {
                 return new PubSubJsonActionNetworkMessage
                 {
@@ -1961,7 +2056,7 @@ namespace Opc.Ua.PubSub.Connections
         private PubSubNetworkMessage ConvertDiscoveryMessageForTransport(
             UadpDiscoveryResponseMessage response)
         {
-            if (TransportProfileFamily(TransportProfileUri) != "Json")
+            if (TransportProfileFamily(m_encodingProfileUri) != "Json")
             {
                 return response;
             }
@@ -2537,8 +2632,8 @@ namespace Opc.Ua.PubSub.Connections
             }
             ReadOnlyMemory<byte> payload = encoded.Value;
 
-            if (m_maxNetworkMessageSize > 0 &&
-                payload.Length > m_maxNetworkMessageSize &&
+            if (MaxNetworkMessageSize > 0 &&
+                payload.Length > MaxNetworkMessageSize &&
                 networkMessage is UadpNetworkMessage uadpForChunk)
             {
                 await SendChunkedAsync(transport, uadpForChunk, context, writerGroup, cancellationToken)
@@ -2598,7 +2693,7 @@ namespace Opc.Ua.PubSub.Connections
                 return true;
             }
             return networkMessage is UadpDiscoveryRequestMessage or UadpDiscoveryResponseMessage &&
-                TransportProfileFamily(TransportProfileUri) == "Uadp";
+                TransportProfileFamily(m_encodingProfileUri) == "Uadp";
         }
 
         private ValueTask<ReadOnlyMemory<byte>> EncodeNetworkMessageAsync(
@@ -2637,7 +2732,7 @@ namespace Opc.Ua.PubSub.Connections
                 chunkFrames = UadpEncoder.EncodeChunks(
                     message,
                     context,
-                    m_maxNetworkMessageSize,
+                    MaxNetworkMessageSize,
                     wrapper is null ? 0 : GetSecurityOverhead(wrapper),
                     securityEnabled: wrapper is not null,
                     sequenceNumber,
@@ -2728,14 +2823,14 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.NoTransportOpen(Name);
                 return;
             }
-            if (m_maxNetworkMessageSize > 0 && frame.Length > m_maxNetworkMessageSize)
+            if (MaxNetworkMessageSize > 0 && frame.Length > MaxNetworkMessageSize)
             {
                 // Only unsecured DataSetMessage NetworkMessages can be split
                 // into chunk NetworkMessages here; a secured frame would have
                 // to be secured per chunk, which needs the original payload.
                 IReadOnlyList<UadpChunkFrame>? chunks = UadpChunker.TrySplitNetworkMessage(
                     frame,
-                    m_maxNetworkMessageSize,
+                    MaxNetworkMessageSize,
                     securityOverhead: 0,
                     securityEnabled: false,
                     unchecked((ushort)Interlocked.Increment(ref m_chunkSequenceNumber)));
@@ -2804,12 +2899,12 @@ namespace Opc.Ua.PubSub.Connections
 
         private INetworkMessageEncoder? ResolveEncoder()
         {
-            if (m_encoders.TryGetValue(TransportProfileUri, out INetworkMessageEncoder? exact))
+            if (m_encoders.TryGetValue(m_encodingProfileUri, out INetworkMessageEncoder? exact))
             {
                 return exact;
             }
             // Fallback: pick by encoding family.
-            string family = TransportProfileFamily(TransportProfileUri);
+            string family = TransportProfileFamily(m_encodingProfileUri);
             foreach (KeyValuePair<string, INetworkMessageEncoder> entry in m_encoders)
             {
                 if (TransportProfileFamily(entry.Key) == family)
@@ -2822,11 +2917,11 @@ namespace Opc.Ua.PubSub.Connections
 
         private INetworkMessageDecoder? ResolveDecoder()
         {
-            if (m_decoders.TryGetValue(TransportProfileUri, out INetworkMessageDecoder? exact))
+            if (m_decoders.TryGetValue(m_encodingProfileUri, out INetworkMessageDecoder? exact))
             {
                 return exact;
             }
-            string family = TransportProfileFamily(TransportProfileUri);
+            string family = TransportProfileFamily(m_encodingProfileUri);
             foreach (KeyValuePair<string, INetworkMessageDecoder> entry in m_decoders)
             {
                 if (TransportProfileFamily(entry.Key) == family)
@@ -2841,7 +2936,7 @@ namespace Opc.Ua.PubSub.Connections
         {
             // Map a transport profile to the encoding family used to
             // populate the WriterGroup's PubSubNetworkMessage subtype.
-            return TransportProfileFamily(TransportProfileUri) switch
+            return TransportProfileFamily(m_encodingProfileUri) switch
             {
                 "Json" => Profiles.PubSubMqttJsonTransport,
                 _ => Profiles.PubSubUdpUadpTransport

@@ -200,9 +200,15 @@ jobs:
         # code-coverage below collects every artifact matching dotnet-results-*.
         artifact-name: dotnet-results-${{ matrix.entry.id }}
 
+  native-data-channels:
+    name: Native Data Channels
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    uses: ./.github/workflows/native-data-channels.yml
+
   code-coverage:
     name: code coverage
-    needs: [discover, build-and-test]
+    needs: [discover, build-and-test, native-data-channels]
     runs-on: ubuntu-latest
     # always(): the coverage of a run whose tests failed is still worth
     # reporting. Gated on the same condition build-and-test itself uses, so a
@@ -597,6 +603,7 @@ jobs:
     - build-solutions
     - fuzz-replay
     - fuzz-drop
+    - native-data-channels
     steps:
     - name: Evaluate job results
       shell: pwsh
@@ -608,6 +615,7 @@ jobs:
         BUILD_RESULT: ${{ needs.build-solutions.result }}
         FUZZ_RESULT: ${{ needs.fuzz-replay.result }}
         FUZZ_DROP_RESULT: ${{ needs.fuzz-drop.result }}
+        NATIVE_RESULT: ${{ needs.native-data-channels.result }}
       run: |
         if ($env:RELEVANT_CHANGES -eq 'true') {
           Write-Host 'This change is build-relevant; the full pull-request matrix was expanded.'
@@ -623,6 +631,7 @@ jobs:
           'build-solutions'  = $env:BUILD_RESULT
           'fuzz-replay'      = $env:FUZZ_RESULT
           'fuzz-public-drop' = $env:FUZZ_DROP_RESULT
+          'native-data-channels' = $env:NATIVE_RESULT
         }
 
         $bad = @()
