@@ -29,7 +29,9 @@ await foreach (AutoIdScanEventTypeRecord e in
   `LockTagAsync`, `SetTagPasswordAsync`; the status a device reports for a tag is
   returned, not thrown.
 - RTLS `GetLocationAsync` and `GetSupportedLocationTypesAsync`.
-- `ReadDeviceAsync` with `AutoIdReadOptions` (`Default`, `StatusOnly`).
+- `ReadDeviceAsync` with `AutoIdReadOptions` (`Default`, `StatusOnly`); the
+  snapshot also carries the NodeIds of the variables to monitor and the methods
+  the device publishes.
 - Asynchronous streams of scan, access, presence and logbook entry events.
 
 A browse the server rejects throws `ServiceResultException` instead of yielding an

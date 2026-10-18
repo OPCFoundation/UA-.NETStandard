@@ -126,6 +126,51 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public async Task TheDeviceSnapshotNamesTheVariablesToMonitorAndThePublishedMethodsAsync()
+        {
+            AutoIdReaderEntry reader = await ReaderAsync(AutoIdHostFixture.RfidName).ConfigureAwait(false);
+            AutoIdReaderEntry rtls = await ReaderAsync(AutoIdHostFixture.RtlsName).ConfigureAwait(false);
+            AutoIdDeviceState device = m_host!.RfidReader.Device;
+
+            AutoIdDeviceSnapshot snapshot = await m_client!.ReadDeviceAsync(reader).ConfigureAwait(false);
+            AutoIdDeviceSnapshot statusOnly = await m_client.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly)
+                .ConfigureAwait(false);
+            AutoIdDeviceSnapshot locating = await m_client.ReadDeviceAsync(rtls, AutoIdReadOptions.StatusOnly)
+                .ConfigureAwait(false);
+            DataValue status = await m_session!.ReadValueAsync(snapshot.DeviceStatusId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot.DeviceStatusId, Is.EqualTo(device.DeviceStatus!.NodeId));
+                Assert.That(snapshot.LastScanDataId, Is.EqualTo(device.LastScanData!.NodeId));
+                Assert.That(snapshot.LastScanTimestampId, Is.EqualTo(device.LastScanTimestamp!.NodeId));
+                Assert.That(snapshot.DeviceLocationId, Is.EqualTo(device.DeviceLocation!.NodeId));
+                Assert.That(
+                    statusOnly.DeviceStatusId,
+                    Is.EqualTo(snapshot.DeviceStatusId),
+                    "the ids come from the browse");
+                Assert.That(statusOnly.LastScanDataId, Is.EqualTo(snapshot.LastScanDataId));
+                Assert.That(status.WrappedValue.TryGetValue(out DeviceStatusEnumeration value), Is.True);
+                Assert.That(value, Is.EqualTo(snapshot.DeviceStatus));
+                Assert.That(
+                    snapshot.Methods.ToArray()!.Select(method => method.Name),
+                    Is.SupersetOf(new[]
+                    {
+                        BrowseNames.Scan, BrowseNames.ScanStart, BrowseNames.ScanStop, BrowseNames.ReadTag,
+                        BrowseNames.WriteTag, BrowseNames.WriteTagID, BrowseNames.KillTag, BrowseNames.LockTag,
+                        BrowseNames.SetTagPassword
+                    }));
+                Assert.That(snapshot.HasMethod(BrowseNames.ReadTag), Is.True);
+                Assert.That(snapshot.HasMethod(BrowseNames.GetLocation), Is.False);
+                Assert.That(statusOnly.Methods, Is.EqualTo(snapshot.Methods));
+                Assert.That(locating.HasMethod(BrowseNames.GetLocation), Is.True);
+                Assert.That(locating.HasMethod(BrowseNames.GetSupportedLocationTypes), Is.True);
+                Assert.That(locating.HasMethod(BrowseNames.ReadTag), Is.False);
+                Assert.That(locating.DeviceLocationId.IsNull, Is.True, "the locating system has no device location");
+            });
+        }
+
+        [Test]
         public async Task AReaderWithoutAScanHasAnUncertainLastScanAndNoOptionalPropertiesAsync()
         {
             AutoIdReader fresh = await m_host!.Runtime.CreateReaderAsync(

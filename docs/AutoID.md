@@ -300,9 +300,21 @@ than yielding an empty list, a rejected method call throws with the server's
 status, and every asynchronous member honours cancellation. The status a device
 reports for a tag command is returned as data. `AutoIdReadOptions` narrows
 `ReadDeviceAsync`: `Default` reads everything the device publishes, `StatusOnly`
-reads two variables. `Observe*Async` methods (scan, access, presence and log
-entry events) take a streaming subscription the caller owns; the monitored item
-lives as long as the enumeration.
+reads two variables. Whatever the options, the snapshot carries the NodeIds of
+`DeviceStatus`, `LastScanData`, `LastScanTimestamp` and `DeviceLocation` and the
+browse names of the methods the device publishes, taken from the same browse:
+
+```csharp
+AutoIdDeviceSnapshot device = await autoId.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly);
+if (device.HasMethod(BrowseNames.ScanStart))
+{
+    // monitor device.DeviceStatusId and device.LastScanDataId, then start the scan
+}
+```
+
+`Observe*Async` methods (scan, access, presence and log entry events) take a
+streaming subscription the caller owns; the monitored item lives as long as the
+enumeration.
 
 ## MCP tools
 

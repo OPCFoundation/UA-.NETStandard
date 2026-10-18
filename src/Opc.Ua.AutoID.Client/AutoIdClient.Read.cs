@@ -39,7 +39,8 @@ namespace Opc.Ua.AutoID.Client
         /// Reads the state of a reader device in one browse and one read.
         /// </summary>
         /// <remarks>
-        /// The optional variables a device does not publish are left at their defaults in the
+        /// The browse also yields the NodeIds of the variables to monitor and the methods the device
+        /// publishes. The optional variables a device does not publish are left at their defaults in the
         /// snapshot; a bad status for a variable the device does publish is thrown as a
         /// <see cref="ServiceResultException"/>. <see cref="AutoIdReadOptions"/> narrows the read.
         /// </remarks>
@@ -59,17 +60,30 @@ namespace Opc.Ua.AutoID.Client
 
             ArrayOf<ReferenceDescription> children = await BrowseChildrenAsync(
                 reader.NodeId,
-                NodeClass.Variable,
+                NodeClass.Variable | NodeClass.Method,
                 cancellationToken).ConfigureAwait(false);
             var byName = new Dictionary<(int Namespace, string Name), NodeId>();
+            var methods = new List<QualifiedName>();
             for (int index = 0; index < children.Count; index++)
             {
                 ReferenceDescription child = children[index];
                 var id = ExpandedNodeId.ToNodeId(child.NodeId, Session.NamespaceUris);
-                if (!id.IsNull && child.BrowseName.Name != null)
+                if (id.IsNull || child.BrowseName.Name == null)
+                {
+                    continue;
+                }
+                if (child.NodeClass == NodeClass.Method)
+                {
+                    methods.Add(child.BrowseName);
+                }
+                else
                 {
                     byName[(child.BrowseName.NamespaceIndex, child.BrowseName.Name)] = id;
                 }
+            }
+            NodeId VariableId(string name)
+            {
+                return byName.TryGetValue((autoId, name), out NodeId id) ? id : NodeId.Null;
             }
 
             var reads = new List<ReadValueId>();
@@ -157,6 +171,11 @@ namespace Opc.Ua.AutoID.Client
             return new AutoIdDeviceSnapshot
             {
                 NodeId = reader.NodeId,
+                DeviceStatusId = VariableId(BrowseNames.DeviceStatus),
+                LastScanDataId = VariableId(BrowseNames.LastScanData),
+                LastScanTimestampId = VariableId(BrowseNames.LastScanTimestamp),
+                DeviceLocationId = VariableId(BrowseNames.DeviceLocation),
+                Methods = methods.ToArray().ToArrayOf(),
                 DeviceName = TextOf(Value(BrowseNames.DeviceName, true)),
                 DeviceStatus = status.WrappedValue.TryGetValue(out DeviceStatusEnumeration deviceStatus)
                     ? deviceStatus
