@@ -128,10 +128,22 @@ namespace Opc.Ua.Extrusion.Tests
             if (all)
             {
                 options.Common.Materials = new Mock<IMaterialListProvider>().Object;
+                options.Common.MaterialDensityUnit = KilogramPerCubicMetre;
                 options.Features.IncludeAll();
             }
             return options;
         }
+
+        /// <summary>
+        /// Gets the UNECE kilogram per cubic metre (KMQ) a test material catalogue publishes as its DensityUnit.
+        /// </summary>
+        internal static EUInformation KilogramPerCubicMetre => new()
+        {
+            NamespaceUri = "http://www.opcfoundation.org/UA/units/un/cefact",
+            UnitId = 4934993,
+            DisplayName = new LocalizedText("en", "kg/m³"),
+            Description = new LocalizedText("en", "kilogram per cubic metre")
+        };
 
         /// <summary>
         /// Exercises every concrete public constructor without creating an abstract ExtrusionDevice.

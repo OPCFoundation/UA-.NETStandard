@@ -2782,8 +2782,11 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(error))
                         {
+                            // The subscription does not take the item, so nothing
+                            // else releases it and its queues.
                             monitoredItems[ii] = null!;
                             Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            monitoredItem.Dispose();
                             continue;
                         }
                     }

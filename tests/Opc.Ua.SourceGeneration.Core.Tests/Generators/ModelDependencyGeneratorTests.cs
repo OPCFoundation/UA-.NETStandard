@@ -423,6 +423,56 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
+        public void EmitVariableSerializesAbsentNodeSetValue()
+        {
+            Namespace target = ConfigureSelf();
+            var withoutValue = new VariableDesign
+            {
+                BrowseName = "RatedFlow",
+                SymbolicId = new XmlQualifiedName("PumpType_RatedFlow", TestUri),
+                SymbolicName = new XmlQualifiedName("RatedFlow", TestUri),
+                TypeDefinition = new XmlQualifiedName("PropertyType", Types.Namespaces.OpcUa),
+                DataType = new XmlQualifiedName("Double", Types.Namespaces.OpcUa),
+                NodeSetValueIsNull = true
+            };
+            var withDataTypeDefault = new VariableDesign
+            {
+                BrowseName = "Count",
+                SymbolicId = new XmlQualifiedName("PumpType_Count", TestUri),
+                SymbolicName = new XmlQualifiedName("Count", TestUri),
+                TypeDefinition = new XmlQualifiedName("PropertyType", Types.Namespaces.OpcUa),
+                DataType = new XmlQualifiedName("Int32", Types.Namespaces.OpcUa)
+            };
+            var objectType = new ObjectTypeDesign
+            {
+                ClassName = "Pump",
+                SymbolicId = new XmlQualifiedName("PumpType", TestUri),
+                SymbolicName = new XmlQualifiedName("PumpType", TestUri),
+                HasChildren = true,
+                Children = new ListOfChildren { Items = [withoutValue, withDataTypeDefault] }
+            };
+            m_mockModelDesign.Setup(m => m.TargetNamespace).Returns(target);
+            m_mockModelDesign.Setup(m => m.Nodes).Returns([objectType]);
+
+            var generator = new ModelDependencyGenerator(BuildContext());
+            generator.Emit();
+
+            ModelDependencyV1 payload = ReadSelfPayload();
+            IReadOnlyList<DependencyChild> children = payload.Nodes
+                .Single(node => node.SymbolicName == "PumpType")
+                .Children;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    children.Single(child => child.SymbolicName == "RatedFlow").NodeSetValueIsNull,
+                    Is.True);
+                Assert.That(
+                    children.Single(child => child.SymbolicName == "Count").NodeSetValueIsNull,
+                    Is.False);
+            });
+        }
+
+        [Test]
         public void PayloadWithoutMethodIdentityRemainsReadable()
         {
             var payload = new ModelDependencyV1

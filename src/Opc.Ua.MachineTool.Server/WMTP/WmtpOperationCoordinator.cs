@@ -51,33 +51,95 @@ namespace Opc.Ua.MachineTool.Server
         /// <summary>
         /// Gets whether the caller is executing this peripheral's provider or authorization callback.
         /// </summary>
-        internal bool IsInCallback => ReferenceEquals(s_executing.Value, this);
+        internal bool IsInCallback => ReferenceEquals(s_executing.Value?.Owner, this);
+
+        /// <summary>
+        /// Gets whether this peripheral's operation encloses the caller, directly or through callbacks
+        /// of other peripherals. Waiting for its completion would wait for the caller itself.
+        /// </summary>
+        private bool IsCallbackAncestor
+        {
+            get
+            {
+                for (CallbackFrame? frame = s_executing.Value; frame != null; frame = frame.Parent)
+                {
+                    if (ReferenceEquals(frame.Owner, this))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
 
         /// <summary>
         /// Executes a provider operation. A null request denotes an explicitly trusted application refresh.
         /// </summary>
         /// <typeparam name="T">The operation result type.</typeparam>
+        /// <param name="request">The caller, or null for a trusted application refresh.</param>
+        /// <param name="operation">The operation to authorize.</param>
+        /// <param name="execute">The provider or state work.</param>
+        /// <param name="cancellationToken">Cancels admission and the work.</param>
+        /// <param name="maintenance">
+        /// Marks short internal freshness work without equipment calls. Maintenance is refused while any
+        /// operation is active. Other operations wait up to one second for running maintenance instead of
+        /// being refused, so a regular age tick never surfaces to a caller as BadServerTooBusy, while a
+        /// stalled one still does rather than holding the caller until its own timeout.
+        /// </param>
         internal async ValueTask<T> RunAsync<T>(
             WmtpRequest? request,
             WmtpOperation operation,
             Func<CancellationToken, ValueTask<T>> execute,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool maintenance = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
             ActiveOperation active;
-            lock (m_gate)
+            CancellationTokenSource? waitLimit = null;
+            try
             {
-                EnsureActive();
-                if (m_active != null)
+                while (true)
                 {
-                    throw new ServiceResultException(StatusCodes.BadServerTooBusy,
-                        "This peripheral already has an active operation.");
+                    Task running;
+                    lock (m_gate)
+                    {
+                        EnsureActive();
+                        if (m_active == null)
+                        {
+                            active = new ActiveOperation(
+                                request?.SessionId ?? NodeId.Null, maintenance, cancellationToken);
+                            m_active = active;
+                            break;
+                        }
+                        if (maintenance || !m_active.Maintenance || IsCallbackAncestor)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadServerTooBusy,
+                                "This peripheral already has an active operation.");
+                        }
+                        running = m_active.Completion.Task;
+                    }
+                    if (waitLimit == null)
+                    {
+                        waitLimit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        waitLimit.CancelAfter(kMaintenanceWaitMilliseconds);
+                    }
+                    try
+                    {
+                        await running.WaitAsync(waitLimit.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadServerTooBusy,
+                            "This peripheral's maintenance did not complete in time.");
+                    }
                 }
-                active = new ActiveOperation(request?.SessionId ?? NodeId.Null, cancellationToken);
-                m_active = active;
             }
-            WmtpOperationCoordinator? previous = s_executing.Value;
-            s_executing.Value = this;
+            finally
+            {
+                waitLimit?.Dispose();
+            }
+            CallbackFrame? previous = s_executing.Value;
+            s_executing.Value = new CallbackFrame(this, previous);
             try
             {
                 if (request != null)
@@ -120,8 +182,8 @@ namespace Opc.Ua.MachineTool.Server
                         new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 }
             }
-            WmtpOperationCoordinator? previous = s_executing.Value;
-            s_executing.Value = this;
+            CallbackFrame? previous = s_executing.Value;
+            s_executing.Value = new CallbackFrame(this, previous);
             using CancellationTokenSource abort = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_shutdown.Token);
             try
@@ -159,7 +221,7 @@ namespace Opc.Ua.MachineTool.Server
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
-            if (ReferenceEquals(s_executing.Value, this))
+            if (IsInCallback)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState,
                     "A provider callback cannot await disposal of its own peripheral.");
@@ -246,6 +308,31 @@ namespace Opc.Ua.MachineTool.Server
         }
 
         /// <summary>
+        /// One immutable link of the flowing callback chain; nested peripherals extend it.
+        /// </summary>
+        private sealed class CallbackFrame
+        {
+            /// <summary>
+            /// Creates a link for an operation executing inside its parent's callbacks, if any.
+            /// </summary>
+            internal CallbackFrame(WmtpOperationCoordinator owner, CallbackFrame? parent)
+            {
+                Owner = owner;
+                Parent = parent;
+            }
+
+            /// <summary>
+            /// Gets the executing peripheral's coordinator.
+            /// </summary>
+            internal WmtpOperationCoordinator Owner { get; }
+
+            /// <summary>
+            /// Gets the enclosing callback link.
+            /// </summary>
+            internal CallbackFrame? Parent { get; }
+        }
+
+        /// <summary>
         /// Owns cancellation and asynchronous drainage for a single accepted call.
         /// </summary>
         private sealed class ActiveOperation
@@ -253,11 +340,17 @@ namespace Opc.Ua.MachineTool.Server
             /// <summary>
             /// Creates an operation with caller-local cancellation.
             /// </summary>
-            internal ActiveOperation(NodeId sessionId, CancellationToken cancellationToken)
+            internal ActiveOperation(NodeId sessionId, bool maintenance, CancellationToken cancellationToken)
             {
                 SessionId = sessionId;
+                Maintenance = maintenance;
                 Cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             }
+
+            /// <summary>
+            /// Gets whether this is short internal freshness work that other operations wait for.
+            /// </summary>
+            internal bool Maintenance { get; }
 
             /// <summary>
             /// Gets the actual calling session, not an invented protocol identifier.
@@ -279,6 +372,9 @@ namespace Opc.Ua.MachineTool.Server
             internal int Aborted;
         }
 
+        /// <summary>The longest time an operation waits for running maintenance before it is refused.</summary>
+        private const int kMaintenanceWaitMilliseconds = 1000;
+
         /// <summary>The application policy.</summary>
         private readonly IWmtpAuthorization? m_authorization;
 
@@ -288,8 +384,8 @@ namespace Opc.Ua.MachineTool.Server
         /// <summary>Cancels authorization callbacks that are not the primary active operation.</summary>
         private readonly CancellationTokenSource m_shutdown = new();
 
-        /// <summary>The provider callback reentrancy marker.</summary>
-        private static readonly AsyncLocal<WmtpOperationCoordinator?> s_executing = new();
+        /// <summary>The provider callback reentrancy chain, innermost peripheral first.</summary>
+        private static readonly AsyncLocal<CallbackFrame?> s_executing = new();
 
         /// <summary>The currently admitted operation, if any.</summary>
         private ActiveOperation? m_active;
