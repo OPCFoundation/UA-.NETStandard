@@ -34,9 +34,9 @@ namespace Opc.Ua.AutoID.Client
     /// </summary>
     /// <remarks>
     /// The defaults read the mandatory variables and everything optional the device publishes: the
-    /// nameplate, the optional device properties and the last scan. A caller that polls the status
-    /// of a device on a cycle reads once with the defaults and then polls with
-    /// <see cref="StatusOnly"/>, which is one browse-free read of two variables.
+    /// nameplate, the optional device properties and the last scan. <see cref="StatusOnly"/>
+    /// limits the value read to <c>DeviceStatus</c> and <c>DeviceName</c>; each call still
+    /// browses the reader to discover its published variables and methods.
     /// </remarks>
     public sealed record AutoIdReadOptions
     {
