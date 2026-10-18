@@ -78,7 +78,7 @@ namespace Opc.Ua.Server
         public (IAsyncNodeManager[] NodeManagers,
             IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers) GetDispatchView()
         {
-            RoutingSnapshot snapshot = Volatile.Read(ref m_snapshot);
+            RoutingSnapshot snapshot = ReadSnapshot;
             return (snapshot.VisibleNodeManagers, snapshot.VisibleNamespaceManagers);
         }
 
