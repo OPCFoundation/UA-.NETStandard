@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -85,6 +86,11 @@ namespace Opc.Ua.Server
                 // advance the head instead of shifting the list: removing the first entry
                 // moved every queued event for each dequeued one.
                 value = m_events[m_head];
+                bool indexed = m_indexedCount == m_events.Count;
+                if (indexed && ItemsInQueue <= kMaxNoOfEntriesCheckedForDuplicateEvents)
+                {
+                    RemoveRecentHandle(value);
+                }
                 m_events[m_head++] = null!;
                 if (m_head == m_events.Count)
                 {
@@ -96,6 +102,7 @@ namespace Opc.Ua.Server
                     // moves fewer events than were dequeued since the last compaction.
                     CompactEvents();
                 }
+                m_indexedCount = indexed ? m_events.Count : -1;
                 return true;
             }
             return false;
@@ -131,28 +138,34 @@ namespace Opc.Ua.Server
                 Dequeue(out EventFieldList _);
             }
 
+            bool indexed = m_indexedCount == m_events.Count;
             m_events.Add(value);
+            m_indexedCount = indexed ? m_events.Count : -1;
+
+            if (indexed)
+            {
+                AddRecentHandle(value);
+                if (ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents)
+                {
+                    // the entry that fell out of the newest entries is no longer checked.
+                    RemoveRecentHandle(
+                        m_events[m_events.Count - 1 - (int)kMaxNoOfEntriesCheckedForDuplicateEvents]);
+                }
+            }
         }
 
         /// <inheritdoc/>
         public bool IsEventContainedInQueue(IFilterTarget instance)
         {
             // a duplicate is the same instance reported again through another notifier
-            // path, so it sits among the most recently queued events: scan from the newest.
-            int lowestIndex =
-                ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
-                    ? m_events.Count - (int)kMaxNoOfEntriesCheckedForDuplicateEvents
-                    : m_head;
-
-            for (int i = m_events.Count - 1; i >= lowestIndex; i--)
+            // path, so it sits among the most recently queued events. The handles of the
+            // newest entries are counted in an index, so the check does not visit every
+            // queued event for each event that is not a duplicate.
+            if (m_indexedCount != m_events.Count)
             {
-                if (m_events[i] is EventFieldList processedEvent &&
-                    IsEventRaisedFor(processedEvent, instance))
-                {
-                    return true;
-                }
+                RebuildRecentHandles();
             }
-            return false;
+            return instance != null && m_recentHandles != null && m_recentHandles.ContainsKey(instance);
         }
 
         /// <summary>
@@ -192,6 +205,9 @@ namespace Opc.Ua.Server
                     m_events.RemoveRange((int)queueSize, m_events.Count - (int)queueSize);
                 }
             }
+
+            // the next duplicate check counts the remaining events again.
+            m_indexedCount = -1;
         }
 
         /// <summary>
@@ -209,8 +225,86 @@ namespace Opc.Ua.Server
         {
             if (m_head > 0)
             {
+                bool indexed = m_indexedCount == m_events.Count;
                 m_events.RemoveRange(0, m_head);
                 m_head = 0;
+                m_indexedCount = indexed ? m_events.Count : -1;
+            }
+        }
+
+        /// <summary>
+        /// Counts the handles of the newest queued events again, after the queue was
+        /// truncated or <see cref="m_events"/> was changed outside of this class.
+        /// </summary>
+        private void RebuildRecentHandles()
+        {
+            m_recentHandles?.Clear();
+            int count = m_events.Count;
+            int lowestIndex = Math.Max(m_head, count - (int)kMaxNoOfEntriesCheckedForDuplicateEvents);
+            for (int i = lowestIndex; i < count; i++)
+            {
+                AddRecentHandle(m_events[i]);
+            }
+            m_indexedCount = count;
+        }
+
+        /// <summary>
+        /// Counts the event instance that <paramref name="queuedEvent"/> was raised for.
+        /// </summary>
+        private void AddRecentHandle(EventFieldList queuedEvent)
+        {
+            object? key = GetRaisedFor(queuedEvent);
+            if (key != null)
+            {
+                m_recentHandles ??= new Dictionary<object, int>(ReferenceComparer.Instance);
+                m_recentHandles.TryGetValue(key, out int count);
+                m_recentHandles[key] = count + 1;
+            }
+        }
+
+        /// <summary>
+        /// Uncounts the event instance that <paramref name="queuedEvent"/> was raised for.
+        /// </summary>
+        private void RemoveRecentHandle(EventFieldList queuedEvent)
+        {
+            object? key = GetRaisedFor(queuedEvent);
+            if (key != null && m_recentHandles != null && m_recentHandles.TryGetValue(key, out int count))
+            {
+                if (count > 1)
+                {
+                    m_recentHandles[key] = count - 1;
+                }
+                else
+                {
+                    m_recentHandles.Remove(key);
+                }
+            }
+        }
+
+        /// <summary>
+        /// The event instance a queued event was raised for, see <see cref="IsEventRaisedFor"/>.
+        /// </summary>
+        private static object? GetRaisedFor(EventFieldList queuedEvent)
+        {
+            object? handle = queuedEvent?.Handle;
+            return handle is FilteredRetainTarget wrapper ? wrapper.Target : handle;
+        }
+
+        /// <summary>
+        /// Compares event instances by reference.
+        /// </summary>
+        private sealed class ReferenceComparer : IEqualityComparer<object>
+        {
+            public static readonly ReferenceComparer Instance = new();
+
+            public new bool Equals(object? x, object? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            public int GetHashCode(object obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
             }
         }
 
@@ -225,6 +319,19 @@ namespace Opc.Ua.Server
         /// The index of the oldest queued event in <see cref="m_events"/>.
         /// </summary>
         private int m_head;
+
+        /// <summary>
+        /// How many times each event instance is the handle of one of the newest
+        /// <see cref="kMaxNoOfEntriesCheckedForDuplicateEvents"/> queued events.
+        /// </summary>
+        private Dictionary<object, int>? m_recentHandles;
+
+        /// <summary>
+        /// The <see cref="List{T}.Count"/> of <see cref="m_events"/> that
+        /// <see cref="m_recentHandles"/> matches; any other count makes the duplicate check
+        /// rebuild the index.
+        /// </summary>
+        private int m_indexedCount;
 
         /// <summary>
         /// The logger to use here and in derived classes
