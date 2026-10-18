@@ -41,6 +41,12 @@ namespace Opc.Ua.Server
         private const uint kMaxNoOfEntriesCheckedForDuplicateEvents = 1000;
 
         /// <summary>
+        /// The number of dequeued slots at the front of <see cref="m_events"/> from which the
+        /// list is compacted once they are half of it.
+        /// </summary>
+        private const int kMinDequeuedSlotsToCompact = 32;
+
+        /// <summary>
         /// Creates an empty queue.
         /// </summary>
         public EventMonitoredItemQueue(bool createDurable, uint monitoredItemId, ITelemetryContext telemetry)
@@ -68,16 +74,28 @@ namespace Opc.Ua.Server
         public uint QueueSize { get; protected set; }
 
         /// <inheritdoc/>
-        public int ItemsInQueue => m_events.Count;
+        public int ItemsInQueue => m_events.Count - m_head;
 
         /// <inheritdoc/>
         public virtual bool Dequeue(out EventFieldList value)
         {
             value = null!;
-            if (m_events.Count != 0)
+            if (m_head < m_events.Count)
             {
-                value = m_events[0];
-                m_events.RemoveAt(0);
+                // advance the head instead of shifting the list: removing the first entry
+                // moved every queued event for each dequeued one.
+                value = m_events[m_head];
+                m_events[m_head++] = null!;
+                if (m_head == m_events.Count)
+                {
+                    m_events.Clear();
+                    m_head = 0;
+                }
+                else if (m_head >= kMinDequeuedSlotsToCompact && m_head * 2 >= m_events.Count)
+                {
+                    // moves fewer events than were dequeued since the last compaction.
+                    CompactEvents();
+                }
                 return true;
             }
             return false;
@@ -108,7 +126,7 @@ namespace Opc.Ua.Server
             }
 
             //Discard oldest
-            if (m_events.Count == QueueSize)
+            if (ItemsInQueue == QueueSize)
             {
                 Dequeue(out EventFieldList _);
             }
@@ -122,9 +140,9 @@ namespace Opc.Ua.Server
             // a duplicate is the same instance reported again through another notifier
             // path, so it sits among the most recently queued events: scan from the newest.
             int lowestIndex =
-                m_events.Count > kMaxNoOfEntriesCheckedForDuplicateEvents
+                ItemsInQueue > kMaxNoOfEntriesCheckedForDuplicateEvents
                     ? m_events.Count - (int)kMaxNoOfEntriesCheckedForDuplicateEvents
-                    : 0;
+                    : m_head;
 
             for (int i = m_events.Count - 1; i >= lowestIndex; i--)
             {
@@ -161,6 +179,7 @@ namespace Opc.Ua.Server
         public virtual void SetQueueSize(uint queueSize, bool discardOldest)
         {
             QueueSize = queueSize;
+            CompactEvents();
 
             if (m_events.Count > QueueSize)
             {
@@ -176,9 +195,36 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// the contained in the queue
+        /// Copies the queued events, ordered oldest to newest.
+        /// </summary>
+        internal EventFieldList[] CopyQueuedEvents()
+        {
+            return m_events.GetRange(m_head, ItemsInQueue).ToArray();
+        }
+
+        /// <summary>
+        /// Removes the dequeued slots at the front of <see cref="m_events"/>.
+        /// </summary>
+        private void CompactEvents()
+        {
+            if (m_head > 0)
+            {
+                m_events.RemoveRange(0, m_head);
+                m_head = 0;
+            }
+        }
+
+        /// <summary>
+        /// The events in the queue, oldest first. A dequeued event leaves a null slot at the
+        /// front of the list until the list is compacted, so the queued events are the last
+        /// <see cref="ItemsInQueue"/> entries.
         /// </summary>
         protected List<EventFieldList> m_events;
+
+        /// <summary>
+        /// The index of the oldest queued event in <see cref="m_events"/>.
+        /// </summary>
+        private int m_head;
 
         /// <summary>
         /// The logger to use here and in derived classes

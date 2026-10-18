@@ -72,6 +72,68 @@ namespace Opc.Ua.Server.Tests
                 Is.False);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EventQueueKeepsOrderAcrossDequeueCompactionAndShrink(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(100, true);
+            var handles = new List<AuditSessionEventState>();
+
+            void Enqueue(int value)
+            {
+                var handle = new AuditSessionEventState(null);
+                handles.Add(handle);
+                queue.Enqueue(new EventFieldList { EventFields = [new Variant(value)], Handle = handle });
+            }
+
+            int Dequeue()
+            {
+                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
+                return fields.EventFields[0].GetInt32();
+            }
+
+            // 150 events into a queue of 100 discard the oldest 50.
+            for (int i = 0; i < 150; i++)
+            {
+                Enqueue(i);
+            }
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(100));
+            Assert.That(queue.IsEventContainedInQueue(handles[49]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[50]), Is.True);
+
+            // dequeue across the compaction threshold, interleaved with new events.
+            int expected = 50;
+            for (int i = 0; i < 70; i++)
+            {
+                Assert.That(Dequeue(), Is.EqualTo(expected++));
+                if (i % 2 == 0)
+                {
+                    Enqueue(150 + (i / 2));
+                }
+            }
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(65));
+            Assert.That(queue.IsEventContainedInQueue(handles[119]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[120]), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(handles[handles.Count - 1]), Is.True);
+
+            // shrinking keeps the oldest or newest of the queued events.
+            queue.SetQueueSize(10, discardOldest);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+            int first = discardOldest ? 175 : 120;
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.That(Dequeue(), Is.EqualTo(first + i));
+            }
+            Assert.That(queue.Dequeue(out _), Is.False);
+            Assert.That(queue.ItemsInQueue, Is.Zero);
+            Assert.That(queue.IsEventContainedInQueue(handles[handles.Count - 1]), Is.False);
+
+            Enqueue(1000);
+            Assert.That(Dequeue(), Is.EqualTo(1000));
+        }
+
         [Test]
         public void EventOverflowKeepsPositionWhenNotDiscardingOldest()
         {

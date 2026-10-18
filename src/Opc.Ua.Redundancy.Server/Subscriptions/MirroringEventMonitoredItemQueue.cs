@@ -167,7 +167,7 @@ namespace Opc.Ua.Redundancy.Server
             return new EventQueueSnapshot
             {
                 QueueSize = QueueSize,
-                Events = [.. m_events]
+                Events = CopyQueuedEvents()
             };
         }
 
