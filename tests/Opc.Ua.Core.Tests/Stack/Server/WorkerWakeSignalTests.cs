@@ -162,6 +162,32 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         [Test]
+        public async Task CancelledWaiterBelowTheTopLeavesTheStackInOrderAsync()
+        {
+            var signal = new WorkerWakeSignal();
+            using var cancellation = new CancellationTokenSource();
+            Task bottom = signal.WaitAsync(new WorkerWakeSignal.Waiter(signal), CancellationToken.None).AsTask();
+            Task middle = signal.WaitAsync(new WorkerWakeSignal.Waiter(signal), cancellation.Token).AsTask();
+            Task top = signal.WaitAsync(new WorkerWakeSignal.Waiter(signal), CancellationToken.None).AsTask();
+            cancellation.Cancel();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Assert.CatchAsync<OperationCanceledException>(
+                async () => await middle.WaitAsync(deadline.Token).ConfigureAwait(false));
+            Assert.That(signal.ParkedCount, Is.EqualTo(2));
+
+            Assert.That(signal.TryIssue(), Is.True);
+            await top.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(bottom.IsCompleted, Is.False);
+            Assert.That(signal.TryIssue(), Is.True);
+            await bottom.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(signal.ParkedCount, Is.Zero);
+
+            // closing twice is harmless
+            signal.Close();
+            signal.Close();
+        }
+
+        [Test]
         public async Task CancellationRacingAWakeNeverLosesTheTokenAsync()
         {
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
