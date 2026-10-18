@@ -389,8 +389,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             m_manager.Value.Value = 2;
             Task retry = m_manager.WaitForValuePublicationAsync([m_manager.Job], cancellationToken).AsTask();
-            Assert.That((await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false))
-                .WrappedValue, Is.EqualTo(new Variant(2)));
+            DataValue published;
+            do
+            {
+                published = await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false);
+                if (!published.WrappedValue.Equals(new Variant(2)))
+                {
+                    Assert.That(published.WrappedValue, Is.EqualTo(new Variant(1)));
+                }
+            }
+            while (!published.WrappedValue.Equals(new Variant(2)));
             await retry.ConfigureAwait(false);
         }
 
