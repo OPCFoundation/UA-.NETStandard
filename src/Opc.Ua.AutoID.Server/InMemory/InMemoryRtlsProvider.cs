@@ -41,7 +41,12 @@ namespace Opc.Ua.AutoID.Server
     /// <remarks>
     /// It supports <c>Scan</c> (every known object), <c>ScanStart</c>, <c>GetLocation</c> and
     /// <c>GetSupportedLocationTypes</c>. <c>GetLocation</c> returns the stored result when its
-    /// location is of the requested type and reports an unknown object otherwise.
+    /// location is of the requested type. Otherwise the optional location converter translates
+    /// the stored location, for example from the local coordinate system the system was
+    /// configured with (OPC 30010 9.3.4) into WGS84. Without a converter, or when the converter
+    /// cannot translate the location, the stored result is returned unchanged and the reader
+    /// answers <c>Bad_InvalidState</c>: the requested type is supported but not available for
+    /// that object. An object that was never registered is reported as unknown.
     /// </remarks>
     public sealed class InMemoryRtlsProvider : IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRtlsProvider, IDisposable
     {
@@ -52,13 +57,20 @@ namespace Opc.Ua.AutoID.Server
         /// The location types the system supports; the first is the default. Defaults to WGS84 and local.
         /// </param>
         /// <param name="cycleInterval">The duration of one scan cycle; defaults to 20 milliseconds.</param>
+        /// <param name="locationConverter">
+        /// Translates a stored location into another location type, or returns <see langword="null"/>
+        /// when it cannot. <c>GetLocation</c> calls it when the stored location is not of the
+        /// requested type. Optional.
+        /// </param>
         public InMemoryRtlsProvider(
             ArrayOf<LocationTypeEnumeration> supportedLocationTypes = default,
-            TimeSpan? cycleInterval = null)
+            TimeSpan? cycleInterval = null,
+            Func<Location, LocationTypeEnumeration, Location?>? locationConverter = null)
         {
             SupportedLocationTypes = supportedLocationTypes.Count == 0
                 ? new[] { LocationTypeEnumeration.WGS84, LocationTypeEnumeration.LOCAL }.ToArrayOf()
                 : supportedLocationTypes;
+            m_locationConverter = locationConverter;
             m_engine = new InMemoryScanEngine(Snapshot, cycleInterval ?? TimeSpan.FromMilliseconds(20));
         }
 
@@ -155,27 +167,28 @@ namespace Opc.Ua.AutoID.Server
             RtlsLocationResult? found = null;
             lock (m_lock)
             {
-                if (id.Length > 0 &&
-                    m_known.TryGetValue(id, out RtlsLocationResult? stored) &&
-                    stored.Location is { } location &&
-                    LocationMatches(location, locationType))
+                if (id.Length > 0)
                 {
-                    found = stored;
+                    m_known.TryGetValue(id, out found);
                 }
             }
-            return new ValueTask<RtlsLocationResult?>(found);
-        }
-
-        private static bool LocationMatches(Location location, LocationTypeEnumeration type)
-        {
-            return (type, location.SwitchField) switch
+            if (found?.Location is not { } location ||
+                location.SwitchField == LocationFields.None ||
+                AutoIdReader.IsLocationOfType(location, locationType) ||
+                m_locationConverter == null)
             {
-                (LocationTypeEnumeration.NMEA, LocationFields.NMEA) => true,
-                (LocationTypeEnumeration.LOCAL, LocationFields.Local) => true,
-                (LocationTypeEnumeration.WGS84, LocationFields.WGS84) => true,
-                (LocationTypeEnumeration.NAME, LocationFields.Name) => true,
-                _ => false
-            };
+                return new ValueTask<RtlsLocationResult?>(found);
+            }
+            if (m_locationConverter(location, locationType) is { } converted &&
+                AutoIdReader.IsLocationOfType(converted, locationType))
+            {
+                // The stored result stays as registered: the caller gets a copy in the requested type.
+                var copy = (RtlsLocationResult)found.Clone();
+                copy.Location = converted;
+                copy.EncodingMask |= (uint)ScanResultFields.Location;
+                return new ValueTask<RtlsLocationResult?>(copy);
+            }
+            return new ValueTask<RtlsLocationResult?>(found);
         }
 
         /// <summary>
@@ -204,5 +217,6 @@ namespace Opc.Ua.AutoID.Server
         private readonly Lock m_lock = new();
         private readonly Dictionary<ByteString, RtlsLocationResult> m_known = [];
         private readonly InMemoryScanEngine m_engine;
+        private readonly Func<Location, LocationTypeEnumeration, Location?>? m_locationConverter;
     }
 }

@@ -564,6 +564,12 @@ namespace Opc.Ua.AutoID.Tests
                         new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = AutoIdTestData.Bytes("\t"u8.ToArray()) },
                         "UID",
                         LocationTypeEnumeration.WGS84).ConfigureAwait(false))!;
+                ServiceResultException notAvailable = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_client.GetLocationAsync(
+                        rtls,
+                        new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id },
+                        "UID",
+                        LocationTypeEnumeration.LOCAL).ConfigureAwait(false))!;
                 ServiceResultException unsupportedType = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_client.GetLocationAsync(
                         rtls,
@@ -579,6 +585,7 @@ namespace Opc.Ua.AutoID.Tests
                     Assert.That(found.Location.WGS84.Latitude, Is.EqualTo(48.13));
                     Assert.That(found.Speed, Is.EqualTo(1.5));
                     Assert.That(unknown.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotFound));
+                    Assert.That(notAvailable.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
                     Assert.That(unsupportedType.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
                     Assert.That(scan.Results[0], Is.TypeOf<RtlsLocationResult>());
                 });

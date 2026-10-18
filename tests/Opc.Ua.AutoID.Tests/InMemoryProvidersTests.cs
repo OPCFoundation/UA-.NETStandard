@@ -168,12 +168,82 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(scan.Results.Count, Is.EqualTo(1));
                 Assert.That(byByteString, Is.SameAs(located));
                 Assert.That(byEpc, Is.SameAs(located));
-                Assert.That(otherType, Is.Null);
+                Assert.That(otherType, Is.SameAs(located), "a known object keeps its stored location");
                 Assert.That(byString, Is.Null);
                 Assert.That(forgotten, Is.True);
                 Assert.That(forgottenAgain, Is.False);
                 Assert.Throws<ArgumentNullException>(() => rtls.Locate(id, null!));
                 Assert.Throws<ArgumentException>(() => rtls.Locate(default, located));
+            });
+        }
+
+        [Test]
+        public async Task TheLocationConverterTranslatesIntoTheRequestedTypeAsync()
+        {
+            int calls = 0;
+            using var rtls = new InMemoryRtlsProvider(
+                new[] { LocationTypeEnumeration.LOCAL, LocationTypeEnumeration.WGS84, LocationTypeEnumeration.NAME }
+                    .ToArrayOf(),
+                TimeSpan.FromMilliseconds(2),
+                (location, type) =>
+                {
+                    calls++;
+                    return type switch
+                    {
+                        LocationTypeEnumeration.WGS84 => new Location
+                        {
+                            SwitchField = LocationFields.WGS84,
+                            WGS84 = new WGS84Coordinate { Latitude = 48.0 + location.Local.Y, Longitude = 11.0 }
+                        },
+                        // A converter that answers with another type than requested is ignored.
+                        LocationTypeEnumeration.NAME => new Location { SwitchField = LocationFields.NMEA, NMEA = "x" },
+                        _ => null
+                    };
+                });
+            ByteString id = AutoIdTestData.Bytes(4, 5, 7);
+            var located = new RtlsLocationResult
+            {
+                CodeType = "UID",
+                ScanData = new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id },
+                Timestamp = DateTimeUtc.Now,
+                EncodingMask = (uint)ScanResultFields.Location,
+                Location = new Location { SwitchField = LocationFields.Local, Local = new LocalCoordinate { Y = 1.0 } }
+            };
+            rtls.Locate(id, located);
+            rtls.Locate(AutoIdTestData.Bytes(1), new RtlsLocationResult { CodeType = "UID" });
+            var byteString = new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id };
+
+            RtlsLocationResult? local = await rtls.GetLocationAsync(byteString, "UID", LocationTypeEnumeration.LOCAL)
+                .ConfigureAwait(false);
+            RtlsLocationResult? wgs84 = await rtls.GetLocationAsync(byteString, "UID", LocationTypeEnumeration.WGS84)
+                .ConfigureAwait(false);
+            RtlsLocationResult? wrongAnswer = await rtls.GetLocationAsync(
+                byteString, "UID", LocationTypeEnumeration.NAME).ConfigureAwait(false);
+            RtlsLocationResult? noAnswer = await rtls.GetLocationAsync(byteString, "UID", LocationTypeEnumeration.NMEA)
+                .ConfigureAwait(false);
+            RtlsLocationResult? noLocation = await rtls.GetLocationAsync(
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = AutoIdTestData.Bytes(1) },
+                "UID", LocationTypeEnumeration.WGS84).ConfigureAwait(false);
+            RtlsLocationResult? unknown = await rtls.GetLocationAsync(
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = AutoIdTestData.Bytes(2) },
+                "UID", LocationTypeEnumeration.WGS84).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(local, Is.SameAs(located));
+                Assert.That(wgs84, Is.Not.SameAs(located));
+                Assert.That(wgs84!.Location.WGS84.Latitude, Is.EqualTo(49.0));
+                Assert.That(wgs84.ScanData.ByteString, Is.EqualTo(id));
+                Assert.That(wgs84.Timestamp, Is.EqualTo(located.Timestamp));
+                Assert.That(
+                    located.Location.SwitchField,
+                    Is.EqualTo(LocationFields.Local),
+                    "the stored result is unchanged");
+                Assert.That(wrongAnswer, Is.SameAs(located));
+                Assert.That(noAnswer, Is.SameAs(located));
+                Assert.That(noLocation!.Location?.SwitchField ?? LocationFields.None, Is.EqualTo(LocationFields.None));
+                Assert.That(unknown, Is.Null);
+                Assert.That(calls, Is.EqualTo(3));
             });
         }
 

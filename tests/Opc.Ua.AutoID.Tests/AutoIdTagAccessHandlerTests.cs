@@ -327,6 +327,10 @@ namespace Opc.Ua.AutoID.Tests
             GetLocationMethodStateResult noId = await device.GetLocation.OnCallAsync!(
                 context, device.GetLocation, device.NodeId, new ScanData(), LocationTypeEnumeration.NAME, "UID",
                 CancellationToken.None).ConfigureAwait(false);
+            GetLocationMethodStateResult unknown = await device.GetLocation.OnCallAsync!(
+                context, device.GetLocation, device.NodeId,
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = AutoIdTestData.Bytes(9) },
+                LocationTypeEnumeration.NAME, "UID", CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -334,11 +338,59 @@ namespace Opc.Ua.AutoID.Tests
                     types.SupportedLocationTypes.ToArray(),
                     Is.EqualTo([LocationTypeEnumeration.WGS84, LocationTypeEnumeration.NAME]));
                 Assert.That(found.Result.Location.Name, Is.EqualTo("Bay 3"));
-                Assert.That(wrongType.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+                Assert.That(wrongType.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(unknown.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
                 Assert.That(unsupported.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(noId.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(device.LengthUnit!.Value.DisplayName.Text, Is.EqualTo("m"));
                 Assert.That(device.SpeedUnit!.Value.UnitId, Is.EqualTo(5067859));
+            });
+        }
+
+        [Test]
+        public async Task GetLocationOfASupportedTypeTheObjectHasNotIsNotAvailableAsync()
+        {
+            // The default system supports WGS84 and LOCAL; the object was located in local coordinates.
+            var provider = new InMemoryRtlsProvider();
+            ByteString tag = AutoIdTestData.Bytes(7, 7, 1);
+            provider.Locate(tag, LocalResult(tag, 2.0, 3.0));
+            (RtlsDeviceState device, ISystemContext context) = await CreateRtlsAsync("NoReference", provider)
+                .ConfigureAwait(false);
+
+            GetLocationMethodStateResult local = await GetLocationAsync(
+                device, context, tag, LocationTypeEnumeration.LOCAL).ConfigureAwait(false);
+            GetLocationMethodStateResult wgs84 = await GetLocationAsync(
+                device, context, tag, LocationTypeEnumeration.WGS84).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(local.ServiceResult), Is.True);
+                Assert.That(local.Result.Location.Local.X, Is.EqualTo(2.0));
+                Assert.That(wgs84.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            });
+        }
+
+        [Test]
+        public async Task GetLocationTranslatesALocalLocationWithTheConfiguredConverterAsync()
+        {
+            var provider = new InMemoryRtlsProvider(locationConverter: LocalToWgs84);
+            ByteString tag = AutoIdTestData.Bytes(7, 7, 2);
+            provider.Locate(tag, LocalResult(tag, 10.0, 20.0));
+            (RtlsDeviceState device, ISystemContext context) = await CreateRtlsAsync("Reference", provider)
+                .ConfigureAwait(false);
+
+            GetLocationMethodStateResult wgs84 = await GetLocationAsync(
+                device, context, tag, LocationTypeEnumeration.WGS84).ConfigureAwait(false);
+            GetLocationMethodStateResult local = await GetLocationAsync(
+                device, context, tag, LocationTypeEnumeration.LOCAL).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(wgs84.ServiceResult), Is.True);
+                Assert.That(wgs84.Result.Location.SwitchField, Is.EqualTo(LocationFields.WGS84));
+                Assert.That(wgs84.Result.Location.WGS84.Latitude, Is.EqualTo(48.0 + (20.0 / 111_320.0)));
+                Assert.That(wgs84.Result.ScanData.ByteString, Is.EqualTo(tag));
+                Assert.That(local.Result.Location.SwitchField, Is.EqualTo(LocationFields.Local));
             });
         }
 
@@ -358,6 +410,69 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(device.GeographicalUnit!.Value.UnitId, Is.EqualTo(3));
                 Assert.That(device.SpeedUnit!.Value.DisplayName.Text, Is.EqualTo("kn"));
             });
+        }
+
+        private async Task<(RtlsDeviceState Device, ISystemContext Context)> CreateRtlsAsync(
+            string name,
+            InMemoryRtlsProvider provider)
+        {
+            AutoIdReader reader = await m_fixture!.Runtime.CreateReaderAsync(m_fixture.Name(Unique(name)), provider)
+                .ConfigureAwait(false);
+            return ((RtlsDeviceState)reader.Device, m_fixture.Context);
+        }
+
+        private static ValueTask<GetLocationMethodStateResult> GetLocationAsync(
+            RtlsDeviceState device,
+            ISystemContext context,
+            ByteString tag,
+            LocationTypeEnumeration type)
+        {
+            return device.GetLocation!.OnCallAsync!(
+                context,
+                device.GetLocation,
+                device.NodeId,
+                new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = tag },
+                type,
+                "UID",
+                CancellationToken.None);
+        }
+
+        private static RtlsLocationResult LocalResult(ByteString tag, double x, double y)
+        {
+            return new RtlsLocationResult
+            {
+                CodeType = "UID",
+                ScanData = new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = tag },
+                Timestamp = DateTimeUtc.Now,
+                EncodingMask = (uint)ScanResultFields.Location,
+                Location = new Location
+                {
+                    SwitchField = LocationFields.Local,
+                    Local = new LocalCoordinate { X = x, Y = y }
+                }
+            };
+        }
+
+        /// <summary>
+        /// A local coordinate system in metres whose origin is at 48 N 11 E and whose Y axis points north.
+        /// </summary>
+        private static Location? LocalToWgs84(Location location, LocationTypeEnumeration type)
+        {
+            if (type != LocationTypeEnumeration.WGS84 || location.SwitchField != LocationFields.Local)
+            {
+                return null;
+            }
+            return new Location
+            {
+                SwitchField = LocationFields.WGS84,
+                WGS84 = new WGS84Coordinate
+                {
+                    N_S_Hemisphere = "N",
+                    Latitude = 48.0 + (location.Local.Y / 111_320.0),
+                    E_W_Hemisphere = "E",
+                    Longitude = 11.0 + (location.Local.X / 74_600.0)
+                }
+            };
         }
 
         private ValueTask<ReadTagMethodStateResult> ReadAsync(RfidReaderDeviceState device)

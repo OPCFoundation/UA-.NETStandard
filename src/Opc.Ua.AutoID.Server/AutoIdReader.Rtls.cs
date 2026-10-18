@@ -34,6 +34,22 @@ namespace Opc.Ua.AutoID.Server
 {
     public sealed partial class AutoIdReader
     {
+        /// <summary>
+        /// Gets whether <paramref name="location"/> is a location of <paramref name="type"/>
+        /// (OPC 30010 9.2.3 and 9.4.1).
+        /// </summary>
+        internal static bool IsLocationOfType(Location location, LocationTypeEnumeration type)
+        {
+            return (type, location.SwitchField) switch
+            {
+                (LocationTypeEnumeration.NMEA, LocationFields.NMEA) => true,
+                (LocationTypeEnumeration.LOCAL, LocationFields.Local) => true,
+                (LocationTypeEnumeration.WGS84, LocationFields.WGS84) => true,
+                (LocationTypeEnumeration.NAME, LocationFields.Name) => true,
+                _ => false
+            };
+        }
+
         private async ValueTask<GetLocationMethodStateResult> GetLocationCallAsync(
             ISystemContext context,
             ScanData identifier,
@@ -62,6 +78,18 @@ namespace Opc.Ua.AutoID.Server
                 return new GetLocationMethodStateResult
                 {
                     ServiceResult = BadResult(StatusCodes.BadNotFound, "The location system does not know the identifier.")
+                };
+            }
+            if (location.Location is not { } value ||
+                !IsLocationOfType(value, locationType))
+            {
+                // OPC 30010 6.6.3.2: the result carries the location in the requested type. A supported
+                // type the system cannot provide for this object is not available (Bad_InvalidState).
+                return new GetLocationMethodStateResult
+                {
+                    ServiceResult = BadResult(
+                        StatusCodes.BadInvalidState,
+                        "The location of the identifier is not available as the requested location type.")
                 };
             }
             ValidateResults([location]);
@@ -94,14 +122,7 @@ namespace Opc.Ua.AutoID.Server
                         ServiceResult = BadResult(StatusCodes.BadNotFound, "The device has no location configured.")
                     });
             }
-            bool matches = (locationType, location.SwitchField) switch
-            {
-                (LocationTypeEnumeration.NMEA, LocationFields.NMEA) => true,
-                (LocationTypeEnumeration.LOCAL, LocationFields.Local) => true,
-                (LocationTypeEnumeration.WGS84, LocationFields.WGS84) => true,
-                (LocationTypeEnumeration.NAME, LocationFields.Name) => true,
-                _ => false
-            };
+            bool matches = IsLocationOfType(location, locationType);
             return new ValueTask<GetDeviceLocationMethodStateResult>(
                 matches
                     ? new GetDeviceLocationMethodStateResult

@@ -53,6 +53,12 @@ namespace Opc.Ua.AutoID.Server
         /// Returns the location of an object (<c>GetLocation</c>, OPC 30010 6.6.3.2): the location
         /// just acquired or the last known one, which the result's timestamp tells apart.
         /// </summary>
+        /// <remarks>
+        /// The location of the result must be of <paramref name="locationType"/>. When the system
+        /// knows the object but cannot provide its location as that type, return the result with
+        /// the location it has: the reader answers <c>Bad_InvalidState</c> (the command is not
+        /// available) instead of passing a location of another type to the client.
+        /// </remarks>
         /// <param name="identifier">The identifier of the located object.</param>
         /// <param name="codeType">The format of <paramref name="identifier"/>.</param>
         /// <param name="locationType">The requested location type, one of <see cref="SupportedLocationTypes"/>.</param>

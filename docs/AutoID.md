@@ -190,7 +190,31 @@ and the sink throws `ObjectDisposedException` after the reader was disposed.
 Four simulated providers ship in the package and back the tests and the sample:
 `InMemoryRfidReaderProvider` (an EPC Gen2 reader with memory banks, passwords,
 locks and kill), `InMemoryScanReaderProvider` (OCR and optical),
-`InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`.
+`InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`. `InMemoryRtlsProvider` stores each object's location in the type it
+was registered with. A `locationConverter` translates it into the other supported
+types, for example from the local coordinate system the system was configured
+with (OPC 30010 9.3.4) into WGS84:
+
+```csharp
+// A site whose local origin is at 48 N 11 E, X pointing east and Y north, in metres.
+var rtls = new InMemoryRtlsProvider(locationConverter: (location, type) =>
+    type == LocationTypeEnumeration.WGS84 && location.SwitchField == LocationFields.Local
+        ? new Location
+        {
+            SwitchField = LocationFields.WGS84,
+            WGS84 = new WGS84Coordinate
+            {
+                N_S_Hemisphere = "N",
+                Latitude = 48.0 + (location.Local.Y / 111_320.0),
+                E_W_Hemisphere = "E",
+                Longitude = 11.0 + (location.Local.X / 74_600.0)
+            }
+        }
+        : null);
+```
+
+Without a converter, or when it returns `null`, `GetLocation` for another type
+answers `Bad_InvalidState`.
 
 ## Behavior of the methods
 
@@ -201,7 +225,7 @@ locks and kill), `InMemoryScanReaderProvider` (OCR and optical),
 | `ScanStop` (6.1.3.6) | `Bad_InvalidState` when no scan is active; any session may stop a scan |
 | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword` | A malformed identifier, empty code type, over-long read or undefined enumeration is `Bad_InvalidArgument`. Everything the tag decides (`PASSWORD_ERROR_4`, `OUT_OF_RANGE_ERROR_7`, ...) is returned in `Status` with a good call result |
 | `GetDeviceLocation` (6.1.3.7) | Available when a location is configured; a location of another type is `Bad_NotSupported` |
-| `GetLocation`, `GetSupportedLocationTypes` (6.6.3) | An unsupported location type is `Bad_InvalidArgument`, an unknown object `Bad_NotFound` |
+| `GetLocation`, `GetSupportedLocationTypes` (6.6.3) | The result carries the location in the requested type. An unsupported location type is `Bad_InvalidArgument`, an unknown object `Bad_NotFound`, and a supported type the object's location is not available in `Bad_InvalidState` (6.6.3.2: not available, for example due to the configuration) |
 
 A method the provider does not support is not instantiated; calling it fails with
 the stack's status for an unpublished method.
