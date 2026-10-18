@@ -330,7 +330,7 @@ answers `Bad_InvalidState`.
 | `ScanStart` (6.1.3.5) | Infinite settings allowed; `Bad_InvalidState` while a scan is active. The scan stops through `ScanStop`, when the provider completes it, when the starting session closes, or at shutdown |
 | `ScanStop` (6.1.3.6) | `Bad_InvalidState` when no scan is active; any session may stop a scan |
 | `ReadTag`, `WriteTag`, `WriteTagID`, `KillTag`, `LockTag`, `SetTagPassword` | A malformed identifier, empty code type, over-long read or undefined enumeration is `Bad_InvalidArgument`. Everything the tag decides (`PASSWORD_ERROR_4`, `OUT_OF_RANGE_ERROR_7`, ...) is returned in `Status` with a good call result |
-| `GetDeviceLocation` (6.1.3.7) | Available when a location is configured; a location of another type is `Bad_NotSupported` |
+| `GetDeviceLocation` (6.1.3.7) | Available when a location is configured. Same mapping as `GetLocation`: an undefined location type is `Bad_InvalidArgument`, a location that is not available in the requested type `Bad_InvalidState`. 6.1.3.7 lists only the Call Service codes of OPC 10000-4 5.12.2, where `Bad_NotSupported` would mean the method is not supported for the object; 5.12.2.4 allows reusing a code with the same canonical meaning |
 | `GetLocation`, `GetSupportedLocationTypes` (6.6.3) | The result carries the location in the requested type. An unsupported location type is `Bad_InvalidArgument`, an unknown object `Bad_NotFound`, and a supported type the object's location is not available in `Bad_InvalidState` (6.6.3.2: not available, for example due to the configuration) |
 
 A method the provider does not support is not instantiated; calling it fails with

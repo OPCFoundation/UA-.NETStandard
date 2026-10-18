@@ -110,30 +110,45 @@ namespace Opc.Ua.AutoID.Server
                 });
         }
 
+        /// <summary>
+        /// Answers <c>GetDeviceLocation</c> (OPC 30010 6.1.3.7) with the same mapping as
+        /// <c>GetLocation</c> (6.6.3.2): an undefined location type is <c>Bad_InvalidArgument</c>,
+        /// and a location that is not available in the requested type is <c>Bad_InvalidState</c>.
+        /// </summary>
+        /// <remarks>
+        /// 6.1.3.7 lists only the Call Service status codes of OPC 10000-4 5.12.2. There
+        /// <c>Bad_NotSupported</c> means that the Method is not supported for the Object, which is
+        /// wrong for a published method; 5.12.2.4 allows reusing a status code with the same canonical
+        /// meaning, so the method reuses <c>Bad_InvalidState</c> like 6.6.3.2 does for "not available".
+        /// </remarks>
         private ValueTask<GetDeviceLocationMethodStateResult> GetDeviceLocationCallAsync(
             LocationTypeEnumeration locationType)
         {
-            Location? location = Device.DeviceLocation?.Value;
-            if (location is null)
+            if (!AutoIdCompat.IsDefined(locationType))
             {
                 return new ValueTask<GetDeviceLocationMethodStateResult>(
                     new GetDeviceLocationMethodStateResult
                     {
-                        ServiceResult = BadResult(StatusCodes.BadNotFound, "The device has no location configured.")
+                        ServiceResult = BadResult(StatusCodes.BadInvalidArgument, "The location type is not defined.")
                     });
             }
-            bool matches = IsLocationOfType(location, locationType);
-            return new ValueTask<GetDeviceLocationMethodStateResult>(
-                matches
-                    ? new GetDeviceLocationMethodStateResult
+            Location? location = Device.DeviceLocation?.Value;
+            if (location is null || !IsLocationOfType(location, locationType))
+            {
+                return new ValueTask<GetDeviceLocationMethodStateResult>(
+                    new GetDeviceLocationMethodStateResult
                     {
-                        ServiceResult = ServiceResult.Good,
-                        Location = location
-                    }
-                    : new GetDeviceLocationMethodStateResult
-                    {
-                        ServiceResult = BadResult(StatusCodes.BadNotSupported, "The device location is not available as the requested location type.")
+                        ServiceResult = BadResult(
+                            StatusCodes.BadInvalidState,
+                            "The device location is not available as the requested location type.")
                     });
+            }
+            return new ValueTask<GetDeviceLocationMethodStateResult>(
+                new GetDeviceLocationMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Location = location
+                });
         }
 
         private static bool SupportsLocationType(IAutoIdRtlsProvider provider, LocationTypeEnumeration type)

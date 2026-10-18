@@ -129,6 +129,9 @@ namespace Opc.Ua.AutoID.Client
         /// <param name="reader">The reader.</param>
         /// <param name="locationType">The type of location to return.</param>
         /// <param name="cancellationToken">Cancels the call.</param>
+        /// <exception cref="ServiceResultException">The location type is not defined
+        /// (<c>Bad_InvalidArgument</c>) or the device location is not available in that type
+        /// (<c>Bad_InvalidState</c>).</exception>
         public ValueTask<Location> GetDeviceLocationAsync(
             AutoIdReaderEntry reader,
             LocationTypeEnumeration locationType,

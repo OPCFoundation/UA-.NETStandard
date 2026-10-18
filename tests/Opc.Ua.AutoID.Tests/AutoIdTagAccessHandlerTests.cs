@@ -269,6 +269,9 @@ namespace Opc.Ua.AutoID.Tests
             GetDeviceLocationMethodStateResult other = await device.GetDeviceLocation.OnCallAsync!(
                 context, device.GetDeviceLocation, device.NodeId, LocationTypeEnumeration.WGS84, CancellationToken.None)
                 .ConfigureAwait(false);
+            GetDeviceLocationMethodStateResult undefined = await device.GetDeviceLocation.OnCallAsync!(
+                context, device.GetDeviceLocation, device.NodeId, (LocationTypeEnumeration)99, CancellationToken.None)
+                .ConfigureAwait(false);
             reader.SetDeviceLocation(new Location { SwitchField = LocationFields.Name, Name = "Truck 7" });
             GetDeviceLocationMethodStateResult moved = await device.GetDeviceLocation.OnCallAsync!(
                 context, device.GetDeviceLocation, device.NodeId, LocationTypeEnumeration.NAME, CancellationToken.None)
@@ -277,7 +280,9 @@ namespace Opc.Ua.AutoID.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(matching.Location.NMEA, Is.EqualTo("4807.038,N"));
-                Assert.That(other.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+                Assert.That(other.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(other.Location, Is.Null);
+                Assert.That(undefined.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(moved.Location.Name, Is.EqualTo("Truck 7"));
                 Assert.Throws<ArgumentNullException>(() => reader.SetDeviceLocation(null!));
             });

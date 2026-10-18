@@ -659,6 +659,9 @@ namespace Opc.Ua.AutoID.Tests
             ServiceResultException other = Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.GetDeviceLocationAsync(reader, LocationTypeEnumeration.WGS84)
                     .ConfigureAwait(false))!;
+            ServiceResultException undefined = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.GetDeviceLocationAsync(reader, (LocationTypeEnumeration)99)
+                    .ConfigureAwait(false))!;
             ServiceResultException none = Assert.CatchAsync<ServiceResultException>(
                 async () => await m_client.GetDeviceLocationAsync(ocr, LocationTypeEnumeration.NAME)
                     .ConfigureAwait(false))!;
@@ -666,7 +669,9 @@ namespace Opc.Ua.AutoID.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(location.Name, Is.EqualTo("Dock 1"));
-                Assert.That(other.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotSupported));
+                Assert.That(other.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState),
+                    "a defined type the location is not available in, like GetLocation (6.6.3.2)");
+                Assert.That(undefined.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidArgument));
                 Assert.That(none.StatusCode, Is.AnyOf(
                         (uint)StatusCodes.BadMethodInvalid,
                         (uint)StatusCodes.BadNodeIdUnknown,
