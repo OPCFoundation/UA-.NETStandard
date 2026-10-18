@@ -1064,7 +1064,9 @@ namespace Opc.Ua.DataChannels
         internal FlowRecordDecoder Decoder { get; } = new(limits);
         internal FlowReceiveReservation? Reservation { get; set; }
 
-        /// <summary>Fixed stream-input and decoder header allocations, independent of an admitted record body.</summary>
+        /// <summary>
+        /// Fixed stream-input and decoder header allocations, independent of an admitted record body.
+        /// </summary>
         internal const int ParserStorageBytes = 2 * FlowRecordCodec.HeaderSize;
     }
 

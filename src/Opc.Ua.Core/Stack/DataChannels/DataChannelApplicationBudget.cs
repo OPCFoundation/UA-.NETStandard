@@ -499,10 +499,14 @@ namespace Opc.Ua.DataChannels
             }
         }
 
-        /// <summary>Capacity for a fixed-field revision exchange and its encoding/decoding overlap.</summary>
+        /// <summary>
+        /// Capacity for a fixed-field revision exchange and its encoding/decoding overlap.
+        /// </summary>
         internal const int ControlHeadroomBytes = 512;
 
-        /// <summary>Slots for both directional barriers plus CREDIT and ACK, independent of DATA-message capacity.</summary>
+        /// <summary>
+        /// Slots for both directional barriers plus CREDIT and ACK, independent of DATA-message capacity.
+        /// </summary>
         internal const int ControlHeadroomMessages = 4;
 
         private readonly Lock m_gate = new();
