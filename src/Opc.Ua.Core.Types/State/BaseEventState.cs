@@ -44,8 +44,13 @@ namespace Opc.Ua
             EventSeverity severity,
             LocalizedText message)
         {
-            m_eventId = PropertyState<ByteString>.With<VariantBuilder>(this, Uuid.NewUuid().ToByteString());
-            m_eventType = PropertyState<NodeId>.With<VariantBuilder>(this, GetDefaultTypeDefinitionId(context.NamespaceUris));
+            // the fields carry the event time as their source timestamp: a field without
+            // one is stamped with the current time on every read, and an event's fields are
+            // read once per select clause and monitored item it is delivered to.
+            DateTimeUtc time = DateTimeUtc.Now;
+
+            m_eventId = WithTimestamp(PropertyState<ByteString>.With<VariantBuilder>(this, Uuid.NewUuid().ToByteString()), time);
+            m_eventType = WithTimestamp(PropertyState<NodeId>.With<VariantBuilder>(this, GetDefaultTypeDefinitionId(context.NamespaceUris)), time);
 
             TypeDefinitionId = m_eventType.Value;
             if (source != null)
@@ -55,6 +60,7 @@ namespace Opc.Ua
                     m_sourceNode = new PropertyState<NodeId>.Implementation<VariantBuilder>(this)
                     {
                         Value = source.NodeId,
+                        Timestamp = time,
                         RolePermissions = source.RolePermissions,
                         UserRolePermissions = source.UserRolePermissions,
                         NodeId = source.NodeId
@@ -63,14 +69,28 @@ namespace Opc.Ua
 
                 if (!source.BrowseName.IsNull)
                 {
-                    m_sourceName = PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name!); // QualifiedName.IsNull is false here, so Name is non-null
+                    m_sourceName = WithTimestamp(PropertyState<string>.With<VariantBuilder>(this, source.BrowseName.Name!), time); // QualifiedName.IsNull is false here, so Name is non-null
                 }
             }
 
-            m_time = PropertyState<DateTimeUtc>.With<VariantBuilder>(this, DateTimeUtc.Now);
-            m_receiveTime = PropertyState<DateTimeUtc>.With<VariantBuilder>(this, DateTimeUtc.Now);
-            m_severity = PropertyState<ushort>.With<VariantBuilder>(this, (ushort)severity);
-            m_message = PropertyState<LocalizedText>.With<VariantBuilder>(this, message);
+            m_time = WithTimestamp(PropertyState<DateTimeUtc>.With<VariantBuilder>(this, time), time);
+            DateTimeUtc receiveTime = DateTimeUtc.Now;
+            m_receiveTime = WithTimestamp(PropertyState<DateTimeUtc>.With<VariantBuilder>(this, receiveTime), receiveTime);
+            m_severity = WithTimestamp(PropertyState<ushort>.With<VariantBuilder>(this, (ushort)severity), time);
+            m_message = WithTimestamp(PropertyState<LocalizedText>.With<VariantBuilder>(this, message), time);
+        }
+
+        /// <summary>
+        /// Sets the source timestamp of an event field.
+        /// </summary>
+        /// <typeparam name="T">The type of the field.</typeparam>
+        /// <param name="field">The field.</param>
+        /// <param name="timestamp">The source timestamp.</param>
+        private static T WithTimestamp<T>(T field, DateTimeUtc timestamp)
+            where T : BaseVariableState
+        {
+            field.Timestamp = timestamp;
+            return field;
         }
     }
 
