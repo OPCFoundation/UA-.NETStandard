@@ -56,10 +56,16 @@ namespace Opc.Ua.Redundancy
 {
     /// <summary>
     /// Extension beyond OPC 10000-4 §6.6: binds an external <c>RaftCs</c> <see cref="RaftNode"/> replica to the
-    /// <see cref="IRaftConsensus"/> seam. Proposals map to <see cref="RaftNode.ProposeAsync"/>, the committed apply
-    /// stream is <see cref="RaftNode.Committed"/>, and leadership is observed from <see cref="RaftNode.IsLeader"/>.
+    /// <see cref="IRaftSnapshotConsensus"/> seam. Proposals map to <see cref="RaftNode.ProposeAsync"/>, the committed
+    /// apply stream is <see cref="RaftNode.Committed"/> (with log indices and snapshots,
+    /// <see cref="RaftNode.CommittedItems"/>), compaction records a snapshot in the node's storage and discards the log
+    /// behind it, and leadership is observed from <see cref="RaftNode.IsLeader"/>.
     /// </summary>
-    public sealed class DefaultRaftConsensus : IRaftConsensus
+    /// <remarks>
+    /// <see cref="CompactAsync"/> needs storage that keeps snapshots (<see cref="IRaftSnapshotStorage"/>): the
+    /// in-memory storage of the factory methods and <c>RaftCs.Storage.File</c> do.
+    /// </remarks>
+    public sealed class DefaultRaftConsensus : IRaftSnapshotConsensus
     {
         /// <summary>
         /// Creates an adapter over a <c>RaftCs</c> replica.
@@ -85,6 +91,7 @@ namespace Opc.Ua.Redundancy
             TimeSpan readyTimeout = default)
         {
             m_node = node ?? throw new ArgumentNullException(nameof(node));
+            m_committedItems = new CommittedItemReader(node.CommittedItems);
             m_ownsNode = ownsNode;
             m_ownedHost = ownedHost;
             m_pollInterval = leadershipPollInterval <= TimeSpan.Zero
@@ -232,6 +239,20 @@ namespace Opc.Ua.Redundancy
         public ChannelReader<ReadOnlyMemory<byte>> Committed => m_node.Committed;
 
         /// <inheritdoc/>
+        public ChannelReader<RaftCommittedItem> CommittedItems => m_committedItems;
+
+        /// <inheritdoc/>
+        /// <exception cref="NotSupportedException">The node's storage does not keep snapshots.</exception>
+        public async ValueTask CompactAsync(
+            ulong appliedIndex,
+            ReadOnlyMemory<byte> snapshot,
+            CancellationToken ct = default)
+        {
+            await m_node.CreateSnapshotAsync(appliedIndex, snapshot, ct).ConfigureAwait(false);
+            await m_node.CompactAsync(appliedIndex, ct).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             if (Interlocked.Exchange(ref m_started, 1) == 0)
@@ -335,7 +356,39 @@ namespace Opc.Ua.Redundancy
             }
         }
 
+        /// <summary>
+        /// The <see cref="RaftCommittedItem"/> view of <see cref="RaftNode.CommittedItems"/>.
+        /// </summary>
+        private sealed class CommittedItemReader : ChannelReader<RaftCommittedItem>
+        {
+            public CommittedItemReader(ChannelReader<CommittedItem> items)
+            {
+                m_items = items;
+            }
+
+            public override Task Completion => m_items.Completion;
+
+            public override bool TryRead(out RaftCommittedItem item)
+            {
+                if (m_items.TryRead(out CommittedItem? next))
+                {
+                    item = new RaftCommittedItem(next.Kind == CommittedItemKind.Snapshot, next.Index, next.Data);
+                    return true;
+                }
+                item = null!;
+                return false;
+            }
+
+            public override ValueTask<bool> WaitToReadAsync(CancellationToken cancellationToken = default)
+            {
+                return m_items.WaitToReadAsync(cancellationToken);
+            }
+
+            private readonly ChannelReader<CommittedItem> m_items;
+        }
+
         private readonly RaftNode m_node;
+        private readonly CommittedItemReader m_committedItems;
         private readonly bool m_ownsNode;
         private readonly IAsyncDisposable? m_ownedHost;
         private readonly TimeSpan m_pollInterval;

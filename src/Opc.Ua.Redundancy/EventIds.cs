@@ -44,5 +44,6 @@ namespace Opc.Ua
     internal static class RedundancyEventIds
     {
         public const int RaftLeaderElection = 0;
+        public const int RaftSharedKeyValueStore = 10;
     }
 }
