@@ -119,6 +119,11 @@ namespace Opc.Ua.Server
                             RequireAccess(await m_serviceDispatch.ValidateReadRequestAsync(
                                 context, read.NodesToRead[i], permissionsOnly: true, cancellationToken: ct)
                                 .ConfigureAwait(false));
+                            if (read.NodesToRead[i].AttributeId == Attributes.Value)
+                            {
+                                await ValidateRetainedValueAccessAsync(context, read.NodesToRead[i].NodeId, ct)
+                                    .ConfigureAwait(false);
+                            }
                         }
                     }
                     return;
@@ -152,6 +157,25 @@ namespace Opc.Ua.Server
                     return;
                 default:
                     throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+        }
+
+        /// <summary>
+        /// Reads current effective access metadata, including UserAccessLevel callbacks, without reading the Value.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask ValidateRetainedValueAccessAsync(
+            OperationContext context, NodeId nodeId, CancellationToken ct)
+        {
+            (object? handle, IAsyncNodeManager? owner) = await GetManagerHandleAsync(nodeId, ct).ConfigureAwait(false);
+            NodeMetadata? metadata = handle == null || owner == null
+                ? null
+                : await owner.GetNodeMetadataAsync(context, handle, BrowseResultMask.NodeClass, ct)
+                    .ConfigureAwait(false);
+            if (metadata == null ||
+                (metadata.NodeClass == NodeClass.Variable && (metadata.AccessLevel & AccessLevels.CurrentRead) == 0))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
         }
 

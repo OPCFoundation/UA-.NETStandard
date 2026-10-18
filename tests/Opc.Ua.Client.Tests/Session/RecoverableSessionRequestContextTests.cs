@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Tests.Stack.Client.Fakes;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client.Tests.SessionContexts
 {
@@ -42,6 +43,88 @@ namespace Opc.Ua.Client.Tests.SessionContexts
     [Parallelizable(ParallelScope.All)]
     public sealed class RecoverableSessionRequestContextTests
     {
+        /// <summary>
+        /// A replacement peer's trusted certificate must still identify the captured Server before a new send.
+        /// </summary>
+        [TestCase(Profiles.UaTcpTransport, "same-identity")]
+        [TestCase(Profiles.UaTcpTransport, "different-application")]
+        [TestCase(Profiles.UaTcpTransport, "missing-certificate")]
+        [TestCase(Profiles.HttpsJsonTransport, "different-application")]
+        [TestCase(Profiles.HttpsJsonTransport, "different-host")]
+        [TestCase(Profiles.HttpsJsonTransport, "missing-certificate")]
+        public async Task ReplacementPeerCertificateMustIdentifyTheCapturedServer(
+            string profile, string replacementKind)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            const string applicationUri = "urn:localhost:original-rse-server";
+            StatusCode expectedStatus = replacementKind switch
+            {
+                "missing-certificate" => StatusCodes.BadCertificateInvalid,
+                "different-host" => StatusCodes.BadCertificateHostNameInvalid,
+                "different-application" when profile == Profiles.UaTcpTransport => StatusCodes.BadCertificateUriInvalid,
+                _ => StatusCodes.Good
+            };
+            using Certificate original = CertificateBuilder.Create("CN=Original RSE Server")
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, ["server.example.test"]))
+                .CreateForRSA();
+            using Certificate replacement = CertificateBuilder.Create("CN=Renewed RSE Server")
+                .AddExtension(new X509SubjectAltNameExtension(
+                    replacementKind == "different-application" ? "urn:different:trusted-server" : applicationUri,
+                    [replacementKind == "different-host" ? "different.invalid" : "server.example.test"]))
+                .CreateForRSA();
+            await using var channels = new SessionChannelHarness(configureChannel: channel =>
+            {
+                channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
+                channel.Mock.Setup(value => value.ServerChannelCertificate).Returns(original.RawData);
+            });
+            ConfiguredEndpoint endpoint = SessionChannelHarness.CreateEndpoint(
+                profile == Profiles.UaTcpTransport
+                    ? "opc.tcp://server.example.test:4840"
+                    : "https://server.example.test:4840");
+            endpoint.Description.TransportProfileUri = profile;
+            endpoint.Description.Server.ApplicationUri = applicationUri;
+            await using Client.ManagedSession owner = await Client.ManagedSession.CreateAsync(
+                new ManagedSessionOptions { Endpoint = endpoint },
+                channels.Configuration,
+                new DefaultSessionFactory(channels.Telemetry),
+                telemetry: channels.Telemetry,
+                channelManager: channels.Manager,
+                updateBeforeConnect: false,
+                ct: timeout.Token).ConfigureAwait(false);
+            await using SessionRequestContext context =
+                await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
+            ScriptedChannel transport = channels.CreatedChannels[0];
+            int reads = 0;
+            transport.RequestHandler = (request, _) =>
+            {
+                if (request is ReadRequest { NodesToRead.Count: 1 } read &&
+                    read.NodesToRead[0].NodeId == new NodeId(100u))
+                {
+                    Interlocked.Increment(ref reads);
+                }
+                return new ValueTask<IServiceResponse>(transport.CreateResponse(request));
+            };
+            transport.Mock.Setup(value => value.ServerChannelCertificate)
+                .Returns(replacementKind == "missing-certificate" ? [] : replacement.RawData);
+            await channels.Manager.ReconnectAsync((IManagedTransportChannel)owner.TransportChannel, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(transport.Channel.EndpointDescription.Server.ApplicationUri, Is.EqualTo(applicationUri));
+            if (expectedStatus == StatusCodes.Good)
+            {
+                _ = await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false);
+                Assert.That(reads, Is.EqualTo(1));
+                Assert.That(context.Invalidated.IsCompleted, Is.False);
+            }
+            else
+            {
+                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+                Assert.That(failure.StatusCode, Is.EqualTo(expectedStatus));
+                Assert.That(reads, Is.Zero);
+                Assert.That(context.Invalidated.IsCompleted, Is.True);
+            }
+        }
+
         /// <summary>
         /// Fresh exchanges can follow verified reactivation without weakening a strict context.
         /// </summary>

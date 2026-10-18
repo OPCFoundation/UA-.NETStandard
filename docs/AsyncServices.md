@@ -246,6 +246,9 @@ References are Session-scoped. Foreign-Session IDs/tokens look unknown after
 normal authorization. A known operation in the requesting Session still
 returns BadUserAccessDenied for a changed creator or revoked permission.
 Permissions are rechecked after waits and before disclosure.
+Retained Value reads also recheck the node's effective current read access,
+including `UserAccessLevel` callbacks. Revocation denies collection without
+running the Value callback again, acknowledging or changing the stored outcome.
 
 HTTPS UA JSON uses its real TLS transport protection without relabelling UA
 MessageSecurityMode or policy. The native listener sets
@@ -275,6 +278,14 @@ The channel manager replaces a native transport that still holds the earlier
 peer certificate. Existing recovery handles must still pass all Session,
 identity, mapping and encoding guards. An endpoint refresh is not authorization
 to downgrade a mapping or recreate an operation.
+Before a recoverable request is sent, the binding checks the actual peer
+certificate against its captured Server identity, rather than trusting a copied
+ApplicationUri in refreshed discovery. UA-TCP ApplicationCertificates must
+identify that application; HTTPS TLS certificates must identify the captured
+transport host and need not contain the OPC UA application URI. Existing domain
+validation requirements still apply. A mismatched or missing replacement
+certificate invalidates the binding before the original request or collection
+payload is dispatched.
 
 An explicit change confined to current transport `MaxMessageSize` is delivery
 capacity, not a new Session or a new encoding interpretation. The manager opens

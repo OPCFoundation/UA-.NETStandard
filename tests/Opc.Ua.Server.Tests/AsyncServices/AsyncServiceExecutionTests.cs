@@ -35,9 +35,9 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Time.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.TestFramework;
@@ -1614,6 +1614,99 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         }
 
         /// <summary>
+        /// Retained values obey current effective read access without running their value callback again.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task RetainedReadRechecksUserAccessLevelWithoutRepeatingTheRead(bool callback, bool duringWait)
+        {
+            var policy = new RevocablePolicy
+            {
+                CollectionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously)
+            };
+            await using ExecutionTestContext test =
+                await ExecutionTestContext.CreateAsync(delayRead: false, policy: policy).ConfigureAwait(false);
+            test.Server.Scenario.Blob = ByteString.From([1, 2, 3]);
+            test.Server.Scenario.DelayBlob = duringWait;
+            SubmitServiceRequest request = test.BlobRequest();
+            request.WaitTime = duringWait ? 0 : 5000;
+            Assert.That(request.Request.TryGetValue(out ReadRequest? original), Is.True);
+            NodeId nodeId = original!.NodesToRead[0].NodeId;
+            (object? handle, _) =
+                await test.Server.CurrentInstance.NodeManager.GetManagerHandleAsync(nodeId, test.Timeout)
+                    .ConfigureAwait(false);
+            Assert.That(handle, Is.InstanceOf<NodeHandle>());
+            Assert.That(((NodeHandle)handle!).Node, Is.InstanceOf<BaseVariableState>());
+            var variable = (BaseVariableState)((NodeHandle)handle).Node!;
+            SubmitServiceResponse admitted = await test.SendAsync<SubmitServiceResponse>(request).ConfigureAwait(false);
+            ByteString token = admitted.Operation.ServerToken;
+            Assert.That(admitted.Operation.State,
+                Is.EqualTo(duringWait ? ServiceOperationState.Pending : ServiceOperationState.OutcomeAvailable));
+            if (!duringWait)
+            {
+                Assert.That(admitted.Result.TryGetValue(out ReadResponse? initial), Is.True);
+                Assert.That(initial!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            admitted.Reuse();
+            Task<IServiceResponse>? waiting = null;
+            if (duringWait)
+            {
+                await test.Server.Scenario.Entered.WaitAsync(test.Timeout).ConfigureAwait(false);
+                waiting = test.SendAsync<IServiceResponse>(new GetServiceResultRequest
+                {
+                    RequestHeader = test.NewHeader(),
+                    ServerToken = token,
+                    WaitTime = 5000
+                }).AsTask();
+                await policy.CollectionEntered.Task.WaitAsync(test.Timeout).ConfigureAwait(false);
+                Assert.That(waiting.IsCompleted, Is.False);
+            }
+            if (callback)
+            {
+                variable.OnReadUserAccessLevel = (context, node, ref access) =>
+                {
+                    access = AccessLevels.CurrentWrite;
+                    return ServiceResult.Good;
+                };
+            }
+            else
+            {
+                variable.UserAccessLevel = AccessLevels.CurrentWrite;
+            }
+            ReadResponse ordinary = await test.SendAsync<ReadResponse>(new ReadRequest
+            {
+                RequestHeader = test.NewHeader(),
+                NodesToRead = [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }]
+            }).ConfigureAwait(false);
+            Assert.That(ordinary.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            ordinary.Reuse();
+            test.Server.Scenario.Release();
+            IServiceResponse denied = waiting != null
+                ? await waiting.ConfigureAwait(false)
+                : await test.SendAsync<IServiceResponse>(new GetServiceResultRequest
+                {
+                    RequestHeader = test.NewHeader(),
+                    ServerToken = token
+                }).ConfigureAwait(false);
+            Assert.That(denied, Is.InstanceOf<ServiceFault>());
+            Assert.That(denied.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            ((ServiceFault)denied).Reuse();
+            Assert.That(test.Server.Scenario.BlobReads, Is.EqualTo(1));
+            variable.OnReadUserAccessLevel = null;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            GetServiceResultResponse recovered = await test.GetAsync(token).ConfigureAwait(false);
+            Assert.That(recovered.Operation.State, Is.EqualTo(ServiceOperationState.OutcomeAvailable));
+            Assert.That(recovered.Result.TryGetValue(out ReadResponse? result), Is.True);
+            Assert.That(result!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Results[0].WrappedValue.TryGetValue(out ByteString value), Is.True);
+            Assert.That(value, Is.EqualTo(test.Server.Scenario.Blob));
+            Assert.That(test.Server.Scenario.BlobReads, Is.EqualTo(1));
+            recovered.Reuse();
+        }
+
+        /// <summary>
         /// A changed collection policy is rechecked after waiting and does not rewrite or release the outcome.
         /// </summary>
         [Test]
@@ -1911,6 +2004,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             public async ValueTask DisposeAsync()
             {
                 Server.Release();
+                Server.Scenario.Release();
                 await m_fixture.StopAsync().ConfigureAwait(false);
                 m_timeout.Dispose();
             }

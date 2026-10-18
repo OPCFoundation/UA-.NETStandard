@@ -161,6 +161,9 @@ A claimed profile URI, URL scheme or request header is not proof of TLS.
 Transport protection does not grant application or user permissions.
 HTTPS transport certificates and OPC UA ApplicationCertificates keep their
 separate mapping-defined roles.
+The recoverable Client binding verifies the transport peer's certificate against
+the captured application identity or HTTPS host before sending an exchange;
+discovery metadata alone cannot establish that identity.
 
 ## Reading a response
 
@@ -279,6 +282,9 @@ This does not conceal every authorization failure. A known record in the
 requesting Session can produce BadUserAccessDenied when its creator or current
 permission check fails. Normal authentication and general Service-permission
 errors also retain their ordinary behaviour.
+For a retained Read of a Value, current authorization includes the effective
+`UserAccessLevel.CurrentRead` permission and its metadata callback, not only
+role permissions. This check must not invoke the original Value read again.
 
 ## Optional runtime model
 

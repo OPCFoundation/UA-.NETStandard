@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
 {
@@ -91,12 +92,17 @@ namespace Opc.Ua.Client
             m_endpoint = CoreUtils.Clone(session.ConfiguredEndpoint.Description)!;
             m_endpointConfiguration = CoreUtils.Clone(session.ConfiguredEndpoint.Configuration)
                 ?? EndpointConfiguration.Create();
+            m_checkDomain = session.CheckDomain;
             if (allowSameSessionRecovery &&
                 m_identity!.TokenType == UserTokenType.Anonymous &&
                 m_endpoint.SecurityMode == MessageSecurityMode.Sign)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadNotSupported, "Anonymous Sign sessions cannot reactivate on a replacement channel.");
+            }
+            if (allowSameSessionRecovery)
+            {
+                ValidateServerIdentity(m_transport);
             }
             m_requestTransport = new RequestContextTransport(this);
             try
@@ -358,6 +364,7 @@ namespace Opc.Ua.Client
                 Invalidate();
                 throw InvalidSession();
             }
+            ValidateServerIdentity(transport);
             int currentLimit = transport.MessageContext.MaxMessageSize;
             if (currentLimit < 0 ||
                 (m_maxMessageSize > 0 && (currentLimit == 0 || currentLimit > m_maxMessageSize)))
@@ -367,6 +374,60 @@ namespace Opc.Ua.Client
                     "The current transport would exceed the captured message-size safety ceiling.");
             }
             return transport;
+        }
+
+        /// <summary>
+        /// Binds the transport-authenticated peer certificate to the intended Server, not refreshed discovery text.
+        /// HTTPS authenticates its transport host; its TLS certificate need not be an ApplicationCertificate.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ValidateServerIdentity(ITransportChannel transport)
+        {
+            ByteString peer = ByteString.From(transport.ServerChannelCertificate.AsSpan());
+            if (!peer.IsEmpty && peer == m_verifiedServerCertificate)
+            {
+                return;
+            }
+            bool https = m_endpoint.TransportProfileUri is
+                Profiles.HttpsBinaryTransport or Profiles.HttpsJsonTransport;
+            if (peer.IsEmpty &&
+                m_verifiedServerCertificate.IsEmpty &&
+                m_endpoint.SecurityMode == MessageSecurityMode.None &&
+                !https)
+            {
+                m_verifiedServerCertificate = peer;
+                return;
+            }
+            try
+            {
+                if (peer.IsEmpty)
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateInvalid);
+                }
+                using Certificate certificate = Utils.ParseCertificateBlob(peer, m_messageContext.Telemetry);
+                var expected = new ConfiguredEndpoint(null, m_endpoint, m_endpointConfiguration);
+                if (!https)
+                {
+                    ServiceResult identity = CertificateValidationHelpers.ValidateServerCertificateApplicationUri(
+                        certificate, expected);
+                    if (ServiceResult.IsBad(identity))
+                    {
+                        throw new ServiceResultException(identity);
+                    }
+                }
+                if ((m_checkDomain || https) &&
+                    (expected.EndpointUrl == null ||
+                        !CertificateValidationHelpers.FindDomain(certificate, expected.EndpointUrl)))
+                {
+                    throw new ServiceResultException(StatusCodes.BadCertificateHostNameInvalid);
+                }
+                m_verifiedServerCertificate = peer;
+            }
+            catch (ServiceResultException)
+            {
+                Invalidate();
+                throw;
+            }
         }
 
         /// <summary>
@@ -523,6 +584,8 @@ namespace Opc.Ua.Client
         private readonly int m_maxMessageSize;
         private readonly EndpointDescription m_endpoint;
         private readonly EndpointConfiguration m_endpointConfiguration;
+        private readonly bool m_checkDomain;
+        private ByteString m_verifiedServerCertificate;
 
         private readonly TaskCompletionSource<bool> m_invalidated =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
