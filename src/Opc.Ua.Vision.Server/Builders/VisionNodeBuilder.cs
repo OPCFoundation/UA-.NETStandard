@@ -163,6 +163,7 @@ namespace Opc.Ua.Vision.Server.Builders
                 pipelinesFolder,
                 qualifiedName);
             pipeline.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            VisionMandatoryProperties.Initialize(m_context.Context, pipeline);
             var builder = new VisionPipelineBuilder(m_context, m_registry, m_dispatcher, pipeline, browseName);
             configure(builder);
             builder.Finalize(pipelinesFolder);
@@ -288,6 +289,7 @@ namespace Opc.Ua.Vision.Server.Builders
                 m_frame.CreateOrReplaceParentFrame(m_context.Context, null);
                 m_frame.ParentFrame!.Value = parentNodeId;
             }
+            m_frame.CreateOrReplaceRole(m_context.Context, null).Value = m_role;
             parent.AddChild(m_frame);
             var registration = new FrameRegistration(
                 m_browseName,
@@ -465,6 +467,7 @@ namespace Opc.Ua.Vision.Server.Builders
             IntrinsicCalibrationState calibration = BuildContext.Context
                 .CreateInstanceOfIntrinsicCalibrationType(calibrations, qualifiedName);
             calibration.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            VisionMandatoryProperties.Initialize(BuildContext.Context, calibration);
             var builder = new VisionIntrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
@@ -492,6 +495,7 @@ namespace Opc.Ua.Vision.Server.Builders
             ExtrinsicCalibrationState calibration = BuildContext.Context
                 .CreateInstanceOfExtrinsicCalibrationType(calibrations, qualifiedName);
             calibration.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            VisionMandatoryProperties.Initialize(BuildContext.Context, calibration);
             var builder = new VisionExtrinsicCalibrationBuilder(BuildContext, calibration);
             configure(builder);
             calibrations.AddChild(calibration);
@@ -523,6 +527,7 @@ namespace Opc.Ua.Vision.Server.Builders
                 endpoints,
                 qualifiedName);
             endpoint.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            VisionMandatoryProperties.Initialize(BuildContext.Context, endpoint);
             var builder = new VisionStreamEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
@@ -550,6 +555,7 @@ namespace Opc.Ua.Vision.Server.Builders
                 endpoints,
                 qualifiedName);
             endpoint.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            VisionMandatoryProperties.Initialize(BuildContext.Context, endpoint);
             var builder = new VisionClipEndpointBuilder(BuildContext, endpoint);
             configure(builder);
             endpoints.AddChild(endpoint);
@@ -566,6 +572,8 @@ namespace Opc.Ua.Vision.Server.Builders
 
         internal void Finalize(FolderState parent)
         {
+            Sensor.CreateOrReplaceRealityKind(BuildContext.Context, null).Value = m_realityKind;
+            Sensor.CreateOrReplaceModality(BuildContext.Context, null).Value = m_modality;
             parent.AddChild(Sensor);
             HashSet<string> facets = ComputeFacets();
             var registration = new SensorRegistration(
@@ -1374,5 +1382,50 @@ namespace Opc.Ua.Vision.Server.Builders
         private IVisionInferenceProvider? m_inferenceProvider;
         private IVisionFeedbackSink? m_feedbackSink;
         private bool m_inferenceOnServer = true;
+    }
+
+    /// <summary>
+    /// Publishes a value for the mandatory Perception properties that no
+    /// builder method configures, and the null NodeId for the references a
+    /// configuration may leave unset. The model declares no Value for them,
+    /// so a created instance starts with a null Value.
+    /// </summary>
+    internal static class VisionMandatoryProperties
+    {
+        /// <summary>
+        /// The Server keeps no calibration time or staleness information:
+        /// PerformedAt is unknown and the calibration is not known to be stale.
+        /// </summary>
+        public static void Initialize(ISystemContext context, VisionCalibrationState calibration)
+        {
+            calibration.CreateOrReplacePerformedAt(context, null).Value = DateTimeUtc.MinValue;
+            calibration.CreateOrReplaceValid(context, null).Value = true;
+            if (calibration is ExtrinsicCalibrationState extrinsic)
+            {
+                extrinsic.CreateOrReplaceSourceFrame(context, null).Value = NodeId.Null;
+                extrinsic.CreateOrReplaceTargetFrame(context, null).Value = NodeId.Null;
+            }
+        }
+
+        /// <summary>
+        /// The Server keeps no endpoint state and does not authenticate media access.
+        /// </summary>
+        public static void Initialize(ISystemContext context, MediaEndpointState endpoint)
+        {
+            endpoint.CreateOrReplaceState(context, null).Value = VisionEndpointStateEnum.Inactive;
+            endpoint.CreateOrReplaceAuthentication(context, null).Value = VisionEndpointAuthenticationEnum.None;
+            endpoint.CreateOrReplaceSecureTransport(context, null).Value = false;
+        }
+
+        /// <summary>
+        /// The Server keeps no pipeline state; a pipeline without a sensor or a
+        /// deployment references the null NodeId.
+        /// </summary>
+        public static void Initialize(ISystemContext context, InferencePipelineState pipeline)
+        {
+            pipeline.CreateOrReplaceState(context, null).Value = VisionEndpointStateEnum.Inactive;
+            pipeline.CreateOrReplaceSensor(context, null).Value = NodeId.Null;
+            pipeline.CreateOrReplaceDeployment(context, null).Value = NodeId.Null;
+        }
     }
 }
