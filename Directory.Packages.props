@@ -22,10 +22,10 @@
     <PackageVersion Include="Crdt" Version="1.1.2" />
     <PackageVersion Include="Crdt.Transport" Version="1.1.2" />
     <PackageVersion Include="Dekaf" Version="1.21.1" />
-    <PackageVersion Include="RaftCs" Version="1.1.2" />
-    <PackageVersion Include="RaftCs.Transport" Version="1.1.2" />
-    <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.2" />
-    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.2" />
+    <PackageVersion Include="RaftCs" Version="1.1.4" />
+    <PackageVersion Include="RaftCs.Transport" Version="1.1.4" />
+    <PackageVersion Include="RaftCs.Transport.NanoMsg" Version="1.1.4" />
+    <PackageVersion Include="RaftCs.Storage.File" Version="1.1.4" />
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.4.0" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
