@@ -73,7 +73,7 @@ namespace Opc.Ua.Server
             {
                 ReleaseUnreturnedHistoryContinuationPoints(
                     context, sessionContinuationPoints, historyRequest, nodesToRead, results);
-                ReleaseFailedHistoryResults(context, results, failure);
+                ReleaseFailedHistoryResults(context, nodesToRead, results, failure);
                 throw;
             }
         }
@@ -228,7 +228,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
-                ReleaseFailedHistoryResults(context, results, failure);
+                ReleaseFailedHistoryResults(context, [node], results, failure);
                 throw;
             }
         }
@@ -237,17 +237,22 @@ namespace Opc.Ua.Server
         /// Disposes the continuation points in already produced results after a failed request.
         /// </summary>
         /// <param name="context">The operation context of the request.</param>
+        /// <param name="requested">
+        /// The operations of the request. A result that carries a continuation point the client supplied is kept,
+        /// since the client still holds it.
+        /// </param>
         /// <param name="results">The results produced so far.</param>
         /// <param name="failure">The failure that aborted the request.</param>
         private static void ReleaseFailedHistoryResults(
             OperationContext context,
+            ArrayOf<HistoryReadValueId> requested,
             List<HistoryReadResult> results,
             Exception failure)
         {
             List<Exception>? failures = null;
             foreach (HistoryReadResult? result in results)
             {
-                if (result is null || result.ContinuationPoint.IsEmpty)
+                if (result is null || result.ContinuationPoint.IsEmpty || IsClientSupplied(requested, result))
                 {
                     continue;
                 }
@@ -264,6 +269,18 @@ namespace Opc.Ua.Server
             {
                 throw new AggregateException("HistoryRead and continuation cleanup failed.", failures);
             }
+        }
+
+        private static bool IsClientSupplied(ArrayOf<HistoryReadValueId> requested, HistoryReadResult result)
+        {
+            for (int ii = 0; ii < requested.Count; ii++)
+            {
+                if (requested[ii] != null && requested[ii].ContinuationPoint.Equals(result.ContinuationPoint))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 }

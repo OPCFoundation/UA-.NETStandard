@@ -116,8 +116,13 @@ namespace Opc.Ua.Server
             {
                 return new DetachedModifyResult(StatusCodes.BadMonitoredItemFilterUnsupported, null);
             }
+            double defaultSamplingInterval = monitoredItem.SamplingInterval;
+            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+            {
+                defaultSamplingInterval = subscription.PublishingInterval;
+            }
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
-                parameters.SamplingInterval, monitoredItem.SamplingInterval, metadata,
+                parameters.SamplingInterval, defaultSamplingInterval, metadata,
                 monitoredItem.AttributeId, MinSupportedSamplingInterval);
             uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
                 monitoredItem.IsDurable, parameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);

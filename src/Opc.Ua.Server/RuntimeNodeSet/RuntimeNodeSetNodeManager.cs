@@ -322,24 +322,40 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return base.OnNodeRemovedAsync(node, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        protected override ValueTask DisposeAsyncCore()
+        {
+            m_referenceMutationGate.Dispose();
+            return base.DisposeAsyncCore();
+        }
+
+        /// <inheritdoc/>
         public override async ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)
         {
-            await base.AddReferencesAsync(references, cancellationToken)
-                .ConfigureAwait(false);
-
-            foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                if (!PredefinedNodes.ContainsKey(entry.Key))
-                {
-                    continue;
-                }
+                await base.AddReferencesAsync(references, cancellationToken)
+                    .ConfigureAwait(false);
 
-                foreach (IReference reference in entry.Value)
+                foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
                 {
-                    TrackAddedReference(entry.Key, reference);
+                    if (!PredefinedNodes.ContainsKey(entry.Key))
+                    {
+                        continue;
+                    }
+
+                    foreach (IReference reference in entry.Value)
+                    {
+                        TrackAddedReference(entry.Key, reference);
+                    }
                 }
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
             }
         }
 
@@ -349,13 +365,22 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             AddReferencesItem item,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await base.AddReferenceAsync(context, item, cancellationToken).ConfigureAwait(false);
-            if (result.StatusCode == StatusCodes.Good)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                TrackAddedReference(item.SourceNodeId,
-                    new NodeStateReference(item.ReferenceTypeId, !item.IsForward, item.TargetNodeId));
+                ServiceResult result = await base.AddReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.StatusCode == StatusCodes.Good)
+                {
+                    TrackAddedReference(item.SourceNodeId,
+                        new NodeStateReference(item.ReferenceTypeId, !item.IsForward, item.TargetNodeId));
+                }
+                return result;
             }
-            return result;
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -364,13 +389,21 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             DeleteReferencesItem item,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await base.DeleteReferenceAsync(context, item, cancellationToken)
-                .ConfigureAwait(false);
-            if (result.StatusCode == StatusCodes.Good || result.StatusCode == StatusCodes.BadNoMatch)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                ForgetAddedReference(item.SourceNodeId, item.ReferenceTypeId, !item.IsForward, item.TargetNodeId);
+                ServiceResult result = await base.DeleteReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.StatusCode == StatusCodes.Good || result.StatusCode == StatusCodes.BadNoMatch)
+                {
+                    ForgetAddedReference(item.SourceNodeId, item.ReferenceTypeId, !item.IsForward, item.TargetNodeId);
+                }
+                return result;
             }
-            return result;
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
         }
 
         public override async ValueTask<ServiceResult> DeleteReferenceAsync(
@@ -381,19 +414,27 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             bool deleteBidirectional,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await base.DeleteReferenceAsync(
-                sourceHandle,
-                referenceTypeId,
-                isInverse,
-                targetId,
-                deleteBidirectional,
-                cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsGood(result) &&
-                sourceHandle is NodeHandle handle)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                ForgetAddedReference(handle.NodeId, referenceTypeId, isInverse, targetId);
+                ServiceResult result = await base.DeleteReferenceAsync(
+                    sourceHandle,
+                    referenceTypeId,
+                    isInverse,
+                    targetId,
+                    deleteBidirectional,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(result) &&
+                    sourceHandle is NodeHandle handle)
+                {
+                    ForgetAddedReference(handle.NodeId, referenceTypeId, isInverse, targetId);
+                }
+                return result;
             }
-            return result;
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
         }
 
         internal IReadOnlyDictionary<NodeId, DataTypeDefinition> GetDataTypeDefinitions(bool completeMetadata = false)
@@ -523,8 +564,16 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     "with another runtime NodeSet NodeManager.");
             }
 
-            Dictionary<NodeId, IList<IReference>> addedReferences =
-                GetAddedReferences();
+            Dictionary<NodeId, IList<IReference>> addedReferences;
+            await m_referenceMutationGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                addedReferences = GetAddedReferences();
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
             await replacementRuntime
                 .AddReferencesAsync(addedReferences, ct)
                 .ConfigureAwait(false);
@@ -766,6 +815,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         private readonly string? m_defaultNamespaceUri;
         private readonly Action<INodeManagerBuilder>? m_configure;
         private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? m_configureAsync;
+        private readonly SemaphoreSlim m_referenceMutationGate = new(1, 1);
         private readonly Lock m_addedReferencesLock = new();
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
         private IFluentDispatcher? m_dispatcher;

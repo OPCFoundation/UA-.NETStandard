@@ -1326,6 +1326,41 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task ModifyMonitoredItemsAsyncDetachedItemNegativeIntervalUsesPublishingIntervalAsync()
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            using MonitoredItem item = CreateDetachedMonitoredItem();
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.PublishingInterval).Returns(750);
+            item.SubscriptionCallback = subscription.Object;
+            var request = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 43,
+                    SamplingInterval = -1,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
+            var errors = new List<ServiceResult> { ServiceResult.Good };
+            var filterResults = new List<MonitoringFilterResult> { null! };
+
+            await sut.ModifyMonitoredItemsAsync(
+                CreateContext(),
+                TimestampsToReturn.Both,
+                [item],
+                new[] { request }.ToArrayOf(),
+                errors,
+                filterResults,
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            Assert.That(item.SamplingInterval, Is.EqualTo(750));
+        }
+
+        [Test]
         public async Task ModifyMonitoredItemsAsyncDetachedItemWithFilterReportsUnsupportedFilterAsync()
         {
             using MasterNodeManager sut = CreateMasterNodeManager();

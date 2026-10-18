@@ -256,6 +256,7 @@ namespace Opc.Ua.Server
 
             var items = MonitoredItems.Values.ToList();
             MonitoredItems.Clear();
+            m_eventLinkCounts.Clear();
 
             foreach (IMonitoredItem item in items)
             {
@@ -434,7 +435,7 @@ namespace Opc.Ua.Server
                 {
                     return (monitoredNode, StatusCodes.BadMonitoredItemIdInvalid);
                 }
-                monitoredNode.Remove(monitoredItem);
+                RemoveEventLink(monitoredNode, monitoredItem);
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
@@ -442,9 +443,7 @@ namespace Opc.Ua.Server
                     MonitoredNodes.Remove(source.NodeId);
                     monitoredNode.Dispose();
                 }
-                if (!MonitoredNodes.Values.Any(node =>
-                    node.EventMonitoredItems.TryGetValue(monitoredItem.Id, out IEventMonitoredItem? remaining) &&
-                    ReferenceEquals(remaining, monitoredItem)))
+                if (!IsEventMonitoredItemLinked(monitoredItem.Id))
                 {
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }
@@ -479,18 +478,16 @@ namespace Opc.Ua.Server
             {
                 return (monitoredNode, StatusCodes.BadMonitoredItemIdInvalid);
             }
-            monitoredNode.EventMonitoredItems.TryRemove(monitoredItem.Id, out _);
-
             // this links the node to specified monitored item and ensures all events
             // reported by the node are added to the monitored item's queue.
-            monitoredNode.Add(monitoredItem);
+            AddEventLink(monitoredNode, monitoredItem);
 
             // A Server subscription shares this item across the manager's root notifiers.
             if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem) &&
                 (!MonitoredItems.TryGetValue(monitoredItem.Id, out registeredItem) ||
                     !ReferenceEquals(registeredItem, monitoredItem)))
             {
-                monitoredNode.Remove(monitoredItem);
+                RemoveEventLink(monitoredNode, monitoredItem);
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
@@ -560,7 +557,7 @@ namespace Opc.Ua.Server
                     return (StatusCodes.BadInvalidState, false);
                 }
 
-                monitoredNode.Remove(eventItem);
+                RemoveEventLink(monitoredNode, eventItem);
             }
             else
             {
@@ -681,7 +678,7 @@ namespace Opc.Ua.Server
                             : (StatusCodes.BadMonitoredItemIdInvalid, false);
                     }
 
-                    monitoredNode.Add((IEventMonitoredItem)monitoredItem);
+                    AddEventLink(monitoredNode, (IEventMonitoredItem)monitoredItem);
                 }
                 else
                 {
@@ -710,7 +707,7 @@ namespace Opc.Ua.Server
                     {
                         if (isEvent)
                         {
-                            monitoredNode!.Remove((IEventMonitoredItem)monitoredItem);
+                            RemoveEventLink(monitoredNode!, (IEventMonitoredItem)monitoredItem);
                         }
                         else
                         {
@@ -736,15 +733,37 @@ namespace Opc.Ua.Server
 
         private bool IsEventMonitoredItemLinked(uint monitoredItemId)
         {
-            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            return m_eventLinkCounts.ContainsKey(monitoredItemId);
+        }
+
+        private void AddEventLink(MonitoredNode2 monitoredNode, IEventMonitoredItem eventItem)
+        {
+            bool linked = monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id);
+            monitoredNode.Add(eventItem);
+            if (!linked && monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id))
             {
-                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                m_eventLinkCounts.AddOrUpdate(eventItem.Id, 1, static (_, count) => count + 1);
+            }
+        }
+
+        private void RemoveEventLink(MonitoredNode2 monitoredNode, IEventMonitoredItem eventItem)
+        {
+            bool linked = monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id);
+            monitoredNode.Remove(eventItem);
+            if (!linked || monitoredNode.EventMonitoredItems.ContainsKey(eventItem.Id))
+            {
+                return;
+            }
+            while (m_eventLinkCounts.TryGetValue(eventItem.Id, out int count))
+            {
+                if (count <= 1
+                    ? ((ICollection<KeyValuePair<uint, int>>)m_eventLinkCounts).Remove(
+                        new KeyValuePair<uint, int>(eventItem.Id, count))
+                    : m_eventLinkCounts.TryUpdate(eventItem.Id, count - 1, count))
                 {
-                    return true;
+                    return;
                 }
             }
-
-            return false;
         }
 
         private bool IsMultiConsumerNode(NodeId nodeId)
@@ -754,5 +773,6 @@ namespace Opc.Ua.Server
 
         private readonly IAsyncNodeManager m_nodeManager;
         private readonly IServerInternal m_server;
+        private readonly ConcurrentDictionary<uint, int> m_eventLinkCounts = new();
     }
 }
