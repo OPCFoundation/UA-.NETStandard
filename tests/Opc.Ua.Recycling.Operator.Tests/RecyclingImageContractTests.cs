@@ -70,7 +70,7 @@ namespace Opc.Ua.Recycling.Operator.Tests
         }
 
         /// <summary>
-        /// Source builds use the repository-pinned SDK and publish portable IL on the native build platform.
+        /// Source builds use a compatible pinned SDK and publish portable IL on the native build platform.
         /// </summary>
         [TestCase("RecyclingServer")]
         [TestCase("RecyclingOperatorConsole")]
@@ -84,8 +84,12 @@ namespace Opc.Ua.Recycling.Operator.Tests
                 ?? throw new InvalidOperationException("The repository SDK version is required.");
 
             Assert.That(
-                dockerfile,
-                Does.Contain($"FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:{sdk}-azurelinux3.0"));
+                global.RootElement.GetProperty("sdk").GetProperty("rollForward").GetString(),
+                Is.EqualTo("latestMajor"),
+                "The image version check uses the repository's minimum-SDK roll-forward policy.");
+            Assert.That(global.RootElement.GetProperty("sdk").GetProperty("allowPrerelease").GetBoolean(), Is.False);
+            Assert.That(UsesCompatibleSdkImage(dockerfile, Version.Parse(sdk)), Is.True,
+                "The source stage must pin a stable Azure Linux SDK at or above the repository minimum.");
             Assert.That(dockerfile, Does.Contain($"samples/Recycling/{project}/{project}.csproj"));
             Assert.That(dockerfile, Does.Contain("-f net10.0"));
             Assert.That(dockerfile, Does.Contain("-p:CustomTestTarget=net10.0"));
@@ -95,6 +99,67 @@ namespace Opc.Ua.Recycling.Operator.Tests
             Assert.That(dockerfile, Does.Not.Contain("--runtime"));
             Assert.That(dockerfile, Does.Not.Contain("-p:RuntimeIdentifier="));
             Assert.That(dockerfile, Does.Not.Contain("$TARGETPLATFORM"));
+        }
+
+        /// <summary>
+        /// The minimum SDK and newer stable SDKs satisfy the source-image version contract.
+        /// </summary>
+        [TestCase("10.0.400")]
+        [TestCase("10.0.401")]
+        [TestCase("10.0.402")]
+        [TestCase("11.0.100")]
+        public void SdkImageAcceptsMinimumAndNewerStableVersions(string sdk)
+        {
+            string dockerfile =
+                $"FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:{sdk}-azurelinux3.0 AS build";
+
+            Assert.That(UsesCompatibleSdkImage(dockerfile, new Version(10, 0, 400)), Is.True);
+        }
+
+        /// <summary>
+        /// Older, prerelease, floating and incomplete SDK versions do not satisfy the image contract.
+        /// </summary>
+        [TestCase("10.0.399")]
+        [TestCase("9.0.999")]
+        [TestCase("10.0.401-preview.1")]
+        [TestCase("latest")]
+        [TestCase("10.0")]
+        [TestCase("10..400")]
+        public void SdkImageRejectsUnsupportedVersions(string sdk)
+        {
+            string dockerfile =
+                $"FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:{sdk}-azurelinux3.0 AS build";
+
+            Assert.That(UsesCompatibleSdkImage(dockerfile, new Version(10, 0, 400)), Is.False);
+        }
+
+        /// <summary>
+        /// Version compatibility does not relax the native-platform, distribution or source-stage requirements.
+        /// </summary>
+        [TestCase("FROM mcr.microsoft.com/dotnet/sdk:10.0.400-azurelinux3.0 AS build")]
+        [TestCase("FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.400-azurelinux3.0 AS build")]
+        [TestCase("FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.400-alpine AS build")]
+        [TestCase("FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.400-azurelinux3.0 AS unused")]
+        public void SdkImageRejectsIncorrectBuildStage(string dockerfile)
+        {
+            Assert.That(UsesCompatibleSdkImage(dockerfile, new Version(10, 0, 400)), Is.False);
+        }
+
+        /// <summary>
+        /// The source stage is recognized among other stages with either checkout line ending.
+        /// </summary>
+        [TestCase("\n")]
+        [TestCase("\r\n")]
+        public void SdkImageAcceptsMultistageDockerfile(string newline)
+        {
+            string dockerfile = string.Join(newline,
+                "ARG PUBLISH_SOURCE=build",
+                "FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-azurelinux3.0 AS build",
+                "RUN dotnet publish",
+                "FROM scratch AS prebuilt",
+                "FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS runtime");
+
+            Assert.That(UsesCompatibleSdkImage(dockerfile, new Version(10, 0, 400)), Is.True);
         }
 
         /// <summary>
@@ -230,6 +295,34 @@ namespace Opc.Ua.Recycling.Operator.Tests
             Assert.That(console, Does.Not.Contain("identities.json"));
             Assert.That(console, Does.Not.Contain("/coordinator:/data"));
             Assert.That(console, Does.Not.Contain("/data/state"));
+        }
+
+        /// <summary>
+        /// Checks the pinned SDK image used by the native source-build stage.
+        /// </summary>
+        private static bool UsesCompatibleSdkImage(string dockerfile, Version minimumSdk)
+        {
+            const string prefix = "FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:";
+            const string suffix = "-azurelinux3.0 AS build";
+            string[] stages = dockerfile.Split('\n')
+                .Select(static line => line.TrimEnd('\r'))
+                .Where(static line =>
+                    line.StartsWith("FROM ", StringComparison.Ordinal) &&
+                    line.EndsWith(" AS build", StringComparison.Ordinal))
+                .ToArray();
+
+            if (stages.Length != 1 ||
+                !stages[0].StartsWith(prefix, StringComparison.Ordinal) ||
+                !stages[0].EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            string version = stages[0][prefix.Length..^suffix.Length];
+            return version.Count(static c => c == '.') == 2 &&
+                version.All(static c => char.IsAsciiDigit(c) || c == '.') &&
+                Version.TryParse(version, out Version? sdk) &&
+                sdk >= minimumSdk;
         }
 
         /// <summary>
