@@ -885,6 +885,17 @@ modality (`WithModality`), and the nested builders — `WithOptics(...)`,
 `AddExtrinsicCalibration(...)`, `AddStreamEndpoint(...)`,
 `AddClipEndpoint(...)`, `UseMediaProvider(...)`.
 
+The model declares no value for the mandatory properties of sensors,
+frames, calibrations, media endpoints and pipelines. When the configuration
+leaves them unset, the builders publish these defaults:
+
+- The builder's reality kind (`Physical`), modality (`Area2D`) and frame role (`Other`).
+- `Inactive` for endpoint and pipeline `State`.
+- `None` for `Authentication`.
+- `false` for `SecureTransport`.
+- For calibrations, an unknown `PerformedAt` (the null `DateTime`) and `Valid` `true`.
+- The null `NodeId` for the `SourceFrame`, `TargetFrame`, `Sensor` and `Deployment` references.
+
 `WithFrameId(frameId)` also adds a `MountedOn` reference to the
 `CoordinateFrameType` instance with the matching `FrameId` when one has
 been registered under `Vision/Frames`. This is the recommended way to

@@ -51,6 +51,14 @@ An `.xml` `AdditionalFiles` item whose root element is neither a `ModelDesign`
 (`http://opcfoundation.org/UA/2011/03/UANodeSet.xsd`) is not a model input and is skipped,
 so XML files meant for other analyzers or tools can share the `AdditionalFiles` item group.
 
+A Variable or VariableType that a `NodeSet2` declares without a `<Value>` element has a null
+Value (OPC 10000-6 F.5): the generated node and its `CreateInstanceOf*` factory start with
+`Variant.Null`. Instances inherit that null value unless they declare a value of their own.
+This also applies when the model is consumed from a referenced assembly. A `ModelDesign`
+declaration without a `DefaultValue` keeps the default value of its DataType.
+To initialize a variable before publishing data, set its value when creating the node,
+for example to an empty structure for a structured DataType.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |
