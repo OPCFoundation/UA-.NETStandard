@@ -2637,6 +2637,9 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected void RestoreQueue()
         {
+            // Only the restore of the subscription manager stages the queues, because it
+            // completes or aborts them once every stored subscription was restored.
+            m_queueRestoreStaged = RestoredQueueStaging.IsRequested;
             switch (MonitoringMode)
             {
                 case MonitoringMode.Reporting:
@@ -2678,6 +2681,12 @@ namespace Opc.Ua.Server
 
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            if (m_queueRestoreStaged)
+                            {
+                                (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+                            }
+
                             // initialize with existing queue
                             m_dataChangeQueueHandler = new DataChangeQueueHandler(
                                 restoredQueue,
@@ -2695,6 +2704,10 @@ namespace Opc.Ua.Server
                                 m_monitoredItemQueueFactory,
                                 m_server.Telemetry,
                                 QueueOverflowHandler);
+                            if (m_queueRestoreStaged)
+                            {
+                                m_dataChangeQueueHandler.RestorableQueue?.BeginRestore();
+                            }
 
                             m_dataChangeQueueHandler.SetQueueSize(
                                 QueueSize,
@@ -2719,6 +2732,12 @@ namespace Opc.Ua.Server
                         }
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            if (m_queueRestoreStaged)
+                            {
+                                (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+                            }
+
                             // initialize with existing queue
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
@@ -2745,6 +2764,10 @@ namespace Opc.Ua.Server
                                 m_server.Telemetry,
                                 QueueOverflowHandler,
                                 null);
+                            if (m_queueRestoreStaged)
+                            {
+                                m_eventQueueHandler.RestorableQueue?.BeginRestore();
+                            }
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
@@ -2831,7 +2854,80 @@ namespace Opc.Ua.Server
             eventQueueHandler?.Dispose();
         }
 
+        /// <summary>
+        /// Writes the queues the restore of the item staged to their storage. Called
+        /// once every stored subscription was restored and the store was told so, so
+        /// it does not throw: a queue that fails is logged, and the others are still
+        /// committed.
+        /// </summary>
+        internal void CommitQueueRestore()
+        {
+            lock (m_lock)
+            {
+                if (!m_queueRestoreStaged)
+                {
+                    return;
+                }
+                m_queueRestoreStaged = false;
+            }
+            ForEachRestorableQueue(static queue => queue.CommitRestore());
+        }
+
+        /// <summary>
+        /// Keeps the stored contents of the queues of the item when they are
+        /// disposed, and drops what the restore staged. Used when an aborted restore
+        /// releases the item: the stored contents are needed when the restore is
+        /// retried.
+        /// </summary>
+        internal void AbortQueueRestore()
+        {
+            lock (m_lock)
+            {
+                m_queueRestoreStaged = false;
+            }
+            ForEachRestorableQueue(static queue => queue.AbortRestore());
+        }
+
+        /// <summary>
+        /// Applies the action to each restorable queue of the item while holding the
+        /// item lock, so that it is serialized with the changes of the queues. A queue
+        /// whose action throws is logged and does not keep the action from the others.
+        /// </summary>
+        private void ForEachRestorableQueue(Action<IRestorableMonitoredItemQueue> action)
+        {
+            var queues = new List<IRestorableMonitoredItemQueue>(4);
+            lock (m_lock)
+            {
+                AddRestorableQueue(queues, m_dataChangeQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_eventQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_restoredDataChangeQueue as IRestorableMonitoredItemQueue);
+                AddRestorableQueue(queues, m_restoredEventQueue as IRestorableMonitoredItemQueue);
+                foreach (IRestorableMonitoredItemQueue queue in queues)
+                {
+                    try
+                    {
+                        action(queue);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.FailedToCompleteQueueRestoreForMonitoredItem(ex, Id, SubscriptionId);
+                    }
+                }
+            }
+        }
+
+        private static void AddRestorableQueue(
+            List<IRestorableMonitoredItemQueue> queues,
+            IRestorableMonitoredItemQueue? queue)
+        {
+            if (queue != null && !queues.Exists(existing => ReferenceEquals(existing, queue)))
+            {
+                queues.Add(queue);
+            }
+        }
+
         private readonly Lock m_lock = new();
+        private bool m_queueRestoreStaged;
 
         /// <summary>
         /// The filter applied when a monitored item has none: no deadband, StatusValue trigger.
@@ -3001,6 +3097,18 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             uint id,
+            uint subscriptionId);
+
+        /// <summary>
+        /// Logs a restored queue that failed to complete or abort its staged restore.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 9, Level = LogLevel.Error,
+            Message = "Failed to complete the restore of the queue of monitored item with id {MonitoredItemId}," +
+                " SubscriptionId={SubscriptionId}")]
+        public static partial void FailedToCompleteQueueRestoreForMonitoredItem(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId,
             uint subscriptionId);
     }
 }

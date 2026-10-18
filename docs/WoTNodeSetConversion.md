@@ -11,6 +11,10 @@ For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
 `WotDocumentSet` with caller-supplied thing/schema resolution while preserving
 set-local precedence. It performs no transport I/O itself.
 
+See [WoT design and provider contracts](WoT.md) for resolver ownership and
+DataType declaration inputs, and [WoT bindings](WotBindings.md) for binding
+authoring and runtime integration.
+
 ## Contents
 
 - [Which specification revision this tracks](#which-specification-revision-this-tracks)
@@ -298,6 +302,8 @@ identifier from a member named `B` of `Root/A`, and a base-namespace
 name. A document-authored `uav:id` always wins over generation; author one when
 the identity must be fixed independently of its browse path.
 
+<a id="preservation-digests-and-the-two-things-that-can-be-measured"></a>
+
 ### Preservation digests, equality and size
 
 Annex G distinguishes retained-byte digests, JSON-value equality and
@@ -539,6 +545,8 @@ handles them in one direction with full round-trip fidelity:
   preserved under the affordance's projected local name, so an affordance
   that also carries `uav:browseName` round-trips under that browse name's
   local part rather than its original map key.
+
+<a id="opaque-object-bounds"></a>
 
 The opaque terms `uav:metadata`, `uav:propertyConfiguration`,
 `uav:actionConfiguration` and `uav:eventConfiguration` are never read and
@@ -834,6 +842,8 @@ attributes of the argument Properties travel in the `uav:nodes` preservation
 projection.
 
 **WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
+
+<a id="component-template-declarations"></a>
 
 ## ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)
 

@@ -291,6 +291,8 @@ Assumes the client or server path.
 - [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
   protocol bindings. Read WoT connectivity first.
+  [WoT design and provider contracts](WoT.md) covers resolver ownership and
+  DataType declaration inputs.
 
 ### Session recovery and performance
 
