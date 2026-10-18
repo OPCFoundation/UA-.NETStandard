@@ -73,6 +73,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
             yield return new TestCaseData(StatusCodes.BadShutdown, true);
             yield return new TestCaseData(StatusCodes.BadSecureChannelClosed, true);
             yield return new TestCaseData(StatusCodes.BadNoCommunication, true);
+            yield return new TestCaseData(StatusCodes.BadTimeout, true);
+            yield return new TestCaseData(StatusCodes.BadRequestTimeout, true);
             yield return new TestCaseData(StatusCodes.BadUserAccessDenied, false);
             yield return new TestCaseData(StatusCodes.BadNotFound, false);
             yield return new TestCaseData(StatusCodes.BadInvalidArgument, false);

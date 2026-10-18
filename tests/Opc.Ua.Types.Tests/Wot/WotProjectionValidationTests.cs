@@ -59,10 +59,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 () => WotProjection.IsProjection(null!));
         }
 
+        /// <summary>
+        /// Verifies that a document without the projection annotation is not a projection.
+        /// </summary>
         [Test]
         public void ADocumentWithoutTheProjectionAnnotationIsNotAProjection()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": ["https://www.w3.org/2022/wot/td/v1.1"],
               "@type": "Thing",
@@ -98,10 +101,13 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionScenarioMissing);
         }
 
+        /// <summary>
+        /// Verifies that a missing manifest is reported.
+        /// </summary>
         [Test]
         public void AMissingManifestIsReported()
         {
-            const string json = """
+            const string json = /*lang=json,strict*/ """
             {
               "@context": [
                 "https://www.w3.org/2022/wot/td/v1.1",
@@ -134,11 +140,14 @@ namespace Opc.Ua.Types.Tests.Wot
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
         }
 
+        /// <summary>
+        /// Verifies that a manifest entry missing its required keys is reported.
+        /// </summary>
         [Test]
         public void AManifestEntryMissingItsRequiredKeysIsReported()
         {
             WotProjection projection = ParseProjection(
-                Projection(sources: """[ { "uav:sourceName": "a" } ]"""),
+                Projection(sources: /*lang=json,strict*/ """[ { "uav:sourceName": "a" } ]"""),
                 out List<WotDiagnostic> diagnostics);
 
             AssertHas(diagnostics, WotDiagnosticCode.ProjectionManifestInvalid);
@@ -338,7 +347,8 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = Parse(json);
             diagnostics = [];
-            WotProjection projection = WotProjection.Parse(document, diagnostics)!;
+            var projection = WotProjection.Parse(
+                document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
             Assert.That(projection, Is.Not.Null, "The document carries uav:projection.");
             return projection;
         }

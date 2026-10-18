@@ -5113,7 +5113,28 @@ namespace Opc.Ua.Server
 
             if (success)
             {
-                OnMonitoredItemCreated(context, handle, restoredItem);
+                bool created = false;
+                try
+                {
+                    OnMonitoredItemCreated(context, handle, restoredItem);
+                    created = true;
+                }
+                finally
+                {
+                    if (!created)
+                    {
+                        // release the item so that a retry of the restore can recreate it.
+                        StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
+                            context, restoredItem, handle);
+                        if (StatusCode.IsGood(statusCode) &&
+                            m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(context, handle);
+                        }
+                        restoredItem.Dispose();
+                        monitoredItem = null;
+                    }
+                }
             }
 
             return success;

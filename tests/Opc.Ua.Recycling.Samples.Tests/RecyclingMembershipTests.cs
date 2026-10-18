@@ -185,6 +185,32 @@ namespace Opc.Ua.Recycling.Samples.Tests
         }
 
         /// <summary>
+        /// Request timeouts must enter transport recovery instead of permanently faulting a live process view.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RequestTimeoutRemainsRecoverableDuringReadOrMembershipCommand(bool failsDuringRead)
+        {
+            if (failsDuringRead)
+            {
+                m_client.Setup(client => client.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadRequestTimeout));
+            }
+            else
+            {
+                m_client.Setup(client => client.ExecuteAsync(
+                    It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
+                    .Throws(new ServiceResultException(StatusCodes.BadRequestTimeout));
+            }
+            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+            Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.TransportUnavailable));
+            Assert.That(m_runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+            m_client.Verify(static client => client.DisposeAsync(), Times.Never);
+        }
+
+        /// <summary>
         /// A replacement transport waits for its former owned lease, then registers and initializes without takeover.
         /// </summary>
         [Test]

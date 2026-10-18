@@ -7,10 +7,11 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["tm:ThingModel", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingModel",
   "id": "urn:example:model:pump-asset:alarms",
   "title": "Alarms",
-  "description": "The type-level event group. Selecting by predicate rather than by name means an event added to the pump type joins the group of every instance without the group being edited.",
+  "description": "A type-level event group selected by predicate. A newly selected event declaration changes the canonical View membership without requiring another canonical View for each organizational occurrence.",
   "uav:scenario": "http://example.com/scenario/AssetManagement",
   "uav:projects": [
     {

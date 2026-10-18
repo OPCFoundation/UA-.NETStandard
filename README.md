@@ -58,7 +58,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   ([Cranes and Hoists](docs/CranesHoists.md)),
   OPC 40223 (Pumps and Vacuum Pumps),
   OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
-- **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
+- **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
   LLMs / Copilot can drive an OPC UA client.
@@ -78,6 +78,10 @@ The default-off [Recoverable Service Execution (RSE) prototype](docs/AsyncServic
 implements the OPC 10000-27 draft with experimental Submit/Get/Control exchanges
 and a two-hop certificate demonstration. Async Service API names are unchanged;
 the provisional contract is not an adopted OPC UA standard.
+
+The [recycling operator console](samples/Recycling/README.md#operator-console-walkthrough) demonstrates
+live browser monitoring, native companion-specification inspection, material genealogy,
+and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:
@@ -117,9 +121,8 @@ versions are released.
 
 ### Samples
 
-The stack also includes a large collection of
-[platform-independent sample applications](docs/Samples.md) that turn its
-core services and companion models into runnable client/server workflows.
+The [platform-independent sample applications](docs/Samples.md) show how to use
+the stack's core services and companion models in client/server workflows.
 More applications, including platform-specific examples, are available in
 the companion
 [OPC UA .NET Samples repository](https://github.com/OPCFoundation/UA-.NETStandard-Samples).
@@ -156,8 +159,8 @@ Most of the mechanical migration work is automated:
   [`opcua-v20-migration`](.agents/skills/opcua-v20-migration/SKILL.md)
   skill walks Copilot / Claude / any coding agent through installing
   the NuGet, running `dotnet format analyzers` to apply auto-fixes,
-  and handling the small residual manual patterns. The skill knows
-  which sub-doc to load for each symptom so it stays context-efficient.
+  and handling the remaining manual changes. It selects the migration
+  sub-document for each symptom.
 
 Copilot CLI discovers the skill automatically inside a clone. To install it
 for use in any repository:

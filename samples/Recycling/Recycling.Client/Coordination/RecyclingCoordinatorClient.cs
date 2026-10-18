@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -65,7 +66,20 @@ namespace Opc.Ua.Recycling
         /// <summary>
         /// Actual authenticated user certificate fingerprint, used when preserving end-user forwarding identity.
         /// </summary>
-        public string CertificateSha256 => RecyclingAuthorization.CertificateHash(m_session.Identity);
+        public string CertificateSha256
+        {
+            get
+            {
+                IUserIdentity identity = m_session.Identity;
+                if (identity.TokenType != UserTokenType.Certificate ||
+                    identity.TokenHandler.Token is not X509IdentityToken token || token.CertificateData.IsEmpty)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied, "A trusted X.509 user identity is required.");
+                }
+                return Convert.ToHexString(SHA256.HashData(token.CertificateData.Span));
+            }
+        }
 
         /// <inheritdoc/>
         public string ConnectionId => m_session.SessionId.ToString();
@@ -114,7 +128,10 @@ namespace Opc.Ua.Recycling
 
         /// <summary>
         /// Observes committed typed UA structures through a real monitored item.
-        /// A bad source status is surfaced as unavailable, never replaced by fresh Good values.
+        /// Live history contains each stage's latest execution and the latest source admission.
+        /// Use ReadSnapshotAsync or paged ReadHistoryAsync for complete retained genealogy.
+        /// Non-Good source status is surfaced as unavailable with its original status and timestamps.
+        /// The last Good snapshot is retained without promoting Uncertain data to usable production state.
         /// </summary>
         public async IAsyncEnumerable<CoordinatorNotification> WatchAsync(
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -129,26 +146,12 @@ namespace Opc.Ua.Recycling
             await foreach (DataValueChange change in m_session.DefaultStreaming.SubscribeDataChangesAsync(
                 m_stateId, options, cancellationToken).ConfigureAwait(false))
             {
-                if (StatusCode.IsBad(change.Value.StatusCode))
+                CoordinatorNotification? notification = CreateNotification(
+                    change.Value, m_session.MessageContext, ref last);
+                if (notification != null)
                 {
-                    yield return new CoordinatorNotification(
-                        last ?? new CommittedSnapshot(), false, change.Value.StatusCode.ToString());
-                    continue;
+                    yield return notification;
                 }
-                if (!change.Value.WrappedValue.TryGetValue<SnapshotDataType>(
-                    out SnapshotDataType? value, m_session.MessageContext) ||
-                    value == null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadDecodingError, "Expected a typed recycling snapshot.");
-                }
-                CommittedSnapshot snapshot = RecyclingModelMapping.FromWire(value);
-                if (last != null && last.RunId == snapshot.RunId && last.Revision > snapshot.Revision)
-                {
-                    continue;
-                }
-                last = snapshot;
-                yield return new CoordinatorNotification(snapshot, true, string.Empty);
             }
         }
 
@@ -162,6 +165,44 @@ namespace Opc.Ua.Recycling
             await m_session.DefaultStreaming.DisposeAsync().ConfigureAwait(false);
             await m_session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await m_session.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Detaches a monitored value while preserving quality and rejecting stale same-run revisions.
+        /// </summary>
+        internal static CoordinatorNotification? CreateNotification(
+            in DataValue value,
+            IServiceMessageContext messageContext,
+            ref CommittedSnapshot? last)
+        {
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                return new CoordinatorNotification(
+                    last ?? new CommittedSnapshot(), false, value.StatusCode.ToString())
+                {
+                    StatusCode = value.StatusCode,
+                    SourceTimestampUtc = value.SourceTimestamp.ToDateTime(),
+                    ServerTimestampUtc = value.ServerTimestamp.ToDateTime()
+                };
+            }
+            if (!value.WrappedValue.TryGetValue<SnapshotDataType>(
+                out SnapshotDataType? snapshotValue, messageContext) || snapshotValue == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadDecodingError, "Expected a typed recycling snapshot.");
+            }
+            CommittedSnapshot snapshot = RecyclingModelMapping.FromWire(snapshotValue);
+            if (last != null && last.RunId == snapshot.RunId && last.Revision > snapshot.Revision)
+            {
+                return null;
+            }
+            last = snapshot;
+            return new CoordinatorNotification(snapshot, true, string.Empty)
+            {
+                StatusCode = value.StatusCode,
+                SourceTimestampUtc = value.SourceTimestamp.ToDateTime(),
+                ServerTimestampUtc = value.ServerTimestamp.ToDateTime()
+            };
         }
 
         private static ushort NamespaceIndex(ManagedSession session)
