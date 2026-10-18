@@ -55,6 +55,18 @@
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Robotics\Opc.Ua.Mcp.Robotics.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.CranesHoists\Opc.Ua.Mcp.CranesHoists.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.MachineTool\Opc.Ua.Mcp.MachineTool.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.GMS\Opc.Ua.Mcp.GMS.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Server\Opc.Ua.GMS.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Server\Opc.Ua.MachineTool.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Server\Opc.Ua.CranesHoists.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj"

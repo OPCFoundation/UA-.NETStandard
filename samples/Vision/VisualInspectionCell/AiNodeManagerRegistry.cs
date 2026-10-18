@@ -52,7 +52,8 @@ namespace Vision.VisualInspectionCell
         public AINodeManager? NodeManager => Volatile.Read(ref m_nodeManager);
 
         public ValueTask OnServerStartedAsync(
-            IServerContext server, CancellationToken cancellationToken = default)
+            IServerContext server,
+            CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (server is IServerInternal internalServer)
@@ -63,7 +64,6 @@ namespace Vision.VisualInspectionCell
                 Volatile.Write(ref m_nodeManager, manager);
                 if (manager != null)
                 {
-                    FixDeploymentMethodDeclarations(manager);
                     BindVisionPipeline(internalServer, manager);
                 }
                 if (m_logger.IsEnabled(LogLevel.Information))
@@ -93,39 +93,6 @@ namespace Vision.VisualInspectionCell
             }
         }
 
-        private void FixDeploymentMethodDeclarations(AINodeManager ai)
-        {
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.Invoke, 6136);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.InvokeAsync, 6139);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.GetCapabilities, 6056);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.BeginTransfer, 6157);
-            if (!ai.FallbackDeploymentId.IsNull)
-            {
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.Invoke, 6136);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.InvokeAsync, 6139);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.GetCapabilities, 6056);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.BeginTransfer, 6157);
-            }
-        }
-
-        private static void FixMethodDeclaration(
-            AINodeManager ai,
-            NodeId deploymentId,
-            string browseName,
-            uint methodDeclarationId)
-        {
-            if (deploymentId.IsNull)
-            {
-                return;
-            }
-            BaseInstanceState deployment = ai.FindPredefinedNode<BaseInstanceState>(deploymentId);
-            var children = new List<BaseInstanceState>();
-            deployment.GetChildren(ai.SystemContext, children);
-            MethodState? method = children.OfType<MethodState>().FirstOrDefault(
-                child => string.Equals(child.BrowseName.Name, browseName, StringComparison.Ordinal));
-            method?.MethodDeclarationId = new NodeId(methodDeclarationId, deploymentId.NamespaceIndex);
-        }
-
         private static InferencePipelineState? FindPipeline(VisionNodeManager? vision)
         {
             FolderState? pipelines = vision?.Root.Pipelines;
@@ -148,14 +115,16 @@ namespace Vision.VisualInspectionCell
 
     internal static partial class AINodeManagerRegistryLog
     {
-        [LoggerMessage(EventId = VisualInspectionCellEventIds.AI + 1,
+        [LoggerMessage(
+            EventId = VisualInspectionCellEventIds.AI + 1,
             Level = LogLevel.Information,
             Message = "Captured AI node manager; LearningJob={LearningJobNodeId}.")]
         public static partial void AIManagerCaptured(
             this ILogger<AINodeManagerRegistry> logger,
             string learningJobNodeId);
 
-        [LoggerMessage(EventId = VisualInspectionCellEventIds.AI + 2,
+        [LoggerMessage(
+            EventId = VisualInspectionCellEventIds.AI + 2,
             Level = LogLevel.Information,
             Message = "Bound Vision pipeline to Deployment={DeploymentNodeId}, LearningJob={LearningJobNodeId}.")]
         public static partial void VisionPipelineBound(

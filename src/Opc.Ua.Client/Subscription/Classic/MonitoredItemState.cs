@@ -100,6 +100,13 @@ namespace Opc.Ua.Client
         /// </summary>
         [DataTypeField(Order = 18)]
         public partial uint CacheQueueSize { get; init; }
+
+        /// <summary>
+        /// The original monitored target, or null when its identity is unknown.
+        /// This is runtime identity, not a request to resolve or retarget an item.
+        /// </summary>
+        [DataTypeField(Order = 19)]
+        internal NodeId ResolvedNodeId { get; set; }
     }
 
     /// <summary>

@@ -620,6 +620,71 @@ document's projection root or a loaded portable NodeId. Unresolved placement
 fails Projection; browse-path placement and TM-root fallback are not implemented.
 This is distinct from [source browse-path addressing](WotBindings.md#portable-browse-path-targets).
 
+**A source that is itself a projection.** `uav:resolvedFrom` names, per *WoT
+Binding* §12, "the reference the selection was made by" — the immediate
+selection, not the ultimate origin. A projection that selects from another
+projection therefore names an intermediate document, and an intermediate
+materializes a View rather than Nodes. The conversion records exactly that
+immediate reference: a `uav:resolvedFrom` the selected source already carries is
+validated (it must be a non-empty string, otherwise `ProjectionSourceUnresolved`
+is reported) but is not propagated as the new
+selection's provenance, so the ultimate origin stays reachable by walking the
+intermediate's own metadata. Resolution follows the chain depth-first
+to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
+requires; only when no document in the chain materialized the affordance is the
+member omitted, and the omission names the deepest source the walk reached.
+
+### Carried dependencies and View membership
+
+A resolved projection stays self-contained: when it selects an affordance, it also
+carries the affordances that one depends on, such as the unit property named by
+`uav:unitProperty` or the targets of `uav:actsOn`. Those dependencies remain in
+the resolved document (and in its JSON) so that conversion and native
+materialization keep their `HasProperty` and action relationships. They are
+structural support, not members the projection selected.
+
+`WotDocument.IsSupportOnly(kind, name)` reports, per resolved document and per
+collection, which affordances were carried only as support. The state is
+not serialized, is set only by `WotProjectionResolver`, and is `false` for any
+document it did not produce. An affordance the projection selects explicitly is never
+support-only, including through an explicit `uav:selectAll` of an outer projection over an
+inner one. A value-only selection from an inner projection keeps its carried unit
+support-only in the outer. The View builder organizes only affordances that are not
+support-only, so the View lists the selected measurements and not their units unless
+the units were selected.
+
+### Archive context for single-document conversion
+
+A document of a partitioned NodeSet export states references whose authoritative facts
+(a reverse reference, a symmetric ReferenceType) live in sibling partitions. A caller
+that converts one document at a time supplies those siblings through
+`IWotArchiveContextProvider` backed by a `WotNodeSetConverter.ArchiveContextIndex`.
+The index groups partitions by their declared model identity (URI, version, publication
+date) together with the namespace table, never by the namespace table alone. An archive
+that declares no model has no authoritative identity and neither contributes to nor
+receives a context. Partitions of a group must agree on server URIs and shared aliases,
+and a group in which two partitions declare the same NodeId (in any equivalent
+spelling) is conflicted, so asking for its context fails instead of letting one sibling
+override another. A returned context is a completed, read-only snapshot. An index whose
+build was cut short by a bound is marked incomplete, so a document that carries
+preserved native nodes fails explicitly rather than validating against a subset.
+
+A missing native event is accepted
+only when both of these hold: the owning preserved type declares it through a native
+`GeneratesEvent` reference (directly or through its type or supertype chain), and a
+bounded, validated selected EventType carrier supplies an identity equal to the
+normalized authored native target. When the native node is present it is compared in
+full, and an ambiguous native key or a missing map stays strict. A readable document
+is never archive authority by itself.
+
+The resolver document budget (`WotNodeSetConverterOptions.MaxResolverDocuments`)
+defaults to 256 documents. The aggregation sample states a larger budget (1024) because
+its corpus exceeds the default; hosts with a larger corpus must do the same. The
+canonical corpus inventory lists 540 JSON documents, and the verified registry
+manifest holds 535 documents (394 Thing Descriptions and 141 Thing Models). These
+statements describe the conversion contract only. Complete XML validation and full
+JSON Schema validation remain unclaimed and deferred.
+
 ## Security and input limits
 
 ### Management authorization

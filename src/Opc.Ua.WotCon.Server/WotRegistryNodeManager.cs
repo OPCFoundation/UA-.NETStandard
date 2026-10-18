@@ -71,19 +71,21 @@ namespace Opc.Ua.WotCon.Server
             IWotRegistryService registry,
             WotMaterializationCoordinator coordinator)
             : base(
-                  server,
-                  configuration,
-                  server.Telemetry.CreateLogger<WotRegistryNodeManager>(),
-                  Namespaces.WotCon,
-                  XRegistryWellKnown.XRegistryNamespaceUri)
+                server,
+                configuration,
+                server.Telemetry.CreateLogger<WotRegistryNodeManager>(),
+                Namespaces.WotCon,
+                XRegistryWellKnown.XRegistryNamespaceUri)
         {
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
             m_wotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
-                server.NamespaceUris, Namespaces.WotCon);
+                server.NamespaceUris,
+                Namespaces.WotCon);
             m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
-                server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
+                server.NamespaceUris,
+                XRegistryWellKnown.XRegistryNamespaceUri);
             if (NodeIdFactory is not INodeIdFactoryPolicy)
             {
                 NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.String);
@@ -144,7 +146,8 @@ namespace Opc.Ua.WotCon.Server
             CancellationToken cancellationToken = default)
         {
             var registryNodeId = ExpandedNodeId.ToNodeId(
-                ObjectIds.WoTRegistry, Server.NamespaceUris);
+                ObjectIds.WoTRegistry,
+                Server.NamespaceUris);
             if (predefinedNode is BaseObjectState registry &&
                 registry.NodeId == registryNodeId)
             {
@@ -166,7 +169,8 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private void EnsureRegistryManagementMethods(
-            ISystemContext context, BaseObjectState registry)
+            ISystemContext context,
+            BaseObjectState registry)
         {
             if (registry is not RegistryState typed)
             {
@@ -223,11 +227,15 @@ namespace Opc.Ua.WotCon.Server
                 await AddRootNotifierAsync(m_registryNode, cancellationToken)
                     .ConfigureAwait(false);
                 if (externalReferences.TryGetValue(
-                        Ua.ObjectIds.Server, out IList<IReference>? serverRefs) ||
+                    Ua.ObjectIds.Server,
+                    out IList<IReference>? serverRefs) ||
                     (serverRefs = EnsureList(externalReferences, Ua.ObjectIds.Server)) != null)
                 {
-                    serverRefs.Add(new NodeStateReference(
-                        Ua.ReferenceTypeIds.HasNotifier, false, m_registryNode.NodeId));
+                    serverRefs.Add(
+                        new NodeStateReference(
+                            Ua.ReferenceTypeIds.HasNotifier,
+                            false,
+                            m_registryNode.NodeId));
                 }
             }
 
@@ -408,10 +416,18 @@ namespace Opc.Ua.WotCon.Server
 
         private void ApplyRegistrySettings(ISystemContext context, BaseObjectState registry)
         {
+            if (registry is WoTRegistryState typed)
+            {
+                typed.AddAutoRefresh(context);
+            }
             SetChildValue(registry, "AutoRefresh", new Variant(m_options.AutoRefresh));
-            SetChildValue(registry, "RefreshMode",
+            SetChildValue(
+                registry,
+                "RefreshMode",
                 new Variant((int)WoTRefreshModeEnum.EventDriven));
-            SetChildValue(registry, "VocabularyVersion",
+            SetChildValue(
+                registry,
+                "VocabularyVersion",
                 new Variant(Wot.WotNodeSetConverter.VocabularyNamespace));
             SetChildValue(registry, "DeletePolicy", new Variant((int)Coordinator.DeletePolicy));
             if (registry is WoTRegistryState typed)
@@ -571,7 +587,9 @@ namespace Opc.Ua.WotCon.Server
             }
 
             ServiceResult decoded = WotRefreshArguments.TryDecode(
-                inputArguments, Server.MessageContext, out WotRefreshRequest request);
+                inputArguments,
+                Server.MessageContext,
+                out WotRefreshRequest request);
             if (ServiceResult.IsBad(decoded))
             {
                 return decoded;
@@ -763,7 +781,9 @@ namespace Opc.Ua.WotCon.Server
                     PopulateResourceEventFields(evt, e);
                     SetEventEnum(evt, BrowseNames.LoadState, e.LoadState);
                     SetEventValue(
-                        evt, BrowseNames.FailedNodeId, new Variant(e.FailedNodeId));
+                        evt,
+                        BrowseNames.FailedNodeId,
+                        new Variant(e.FailedNodeId));
                     SetEventValue(evt, BrowseNames.Reason, new Variant(e.Reason));
                     return evt;
                 }
@@ -791,8 +811,10 @@ namespace Opc.Ua.WotCon.Server
                 EventSeverity.Medium,
                 new LocalizedText(message));
             evt.SetChildValue(
-                SystemContext, Ua.BrowseNames.SourceName,
-                source.DisplayName.Text ?? "WoTRegistry", false);
+                SystemContext,
+                Ua.BrowseNames.SourceName,
+                source.DisplayName.Text ?? "WoTRegistry",
+                false);
         }
 
         /// <summary>
@@ -801,7 +823,8 @@ namespace Opc.Ua.WotCon.Server
         /// coordinator's event arguments.
         /// </summary>
         private void PopulateResourceEventFields(
-            BaseEventState evt, WotMaterializationEventArgs e)
+            BaseEventState evt,
+            WotMaterializationEventArgs e)
         {
             SetEventValue(evt, BrowseNames.Xid, new Variant(e.Xid));
             SetEventValue(evt, BrowseNames.ResourceId, new Variant(e.ResourceId));
@@ -839,9 +862,9 @@ namespace Opc.Ua.WotCon.Server
             try
             {
                 await m_projection.ReconcileAsync(
-                        change.Previous,
-                        change.Current,
-                        CancellationToken.None)
+                    change.Previous,
+                    change.Current,
+                    CancellationToken.None)
                     .ConfigureAwait(false);
                 if (m_registryNode is WoTRegistryState registry)
                 {
@@ -904,7 +927,8 @@ namespace Opc.Ua.WotCon.Server
         }
 
         private static IList<IReference> EnsureList(
-            IDictionary<NodeId, IList<IReference>> externalReferences, NodeId nodeId)
+            IDictionary<NodeId, IList<IReference>> externalReferences,
+            NodeId nodeId)
         {
             if (!externalReferences.TryGetValue(nodeId, out IList<IReference>? list))
             {
@@ -1121,28 +1145,36 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Logs that raising a WoT materialization event failed.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 0, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 0,
+            Level = LogLevel.Warning,
             Message = "Failed to report WoT materialization event.")]
         public static partial void FailedToReportMaterializationEvent(this ILogger logger, Exception ex);
 
         /// <summary>
         /// Logs that reconciling the registry projection failed.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 1,
+            Level = LogLevel.Warning,
             Message = "WoT registry projection reconcile failed.")]
         public static partial void RegistryProjectionReconcileFailed(this ILogger logger, Exception ex);
 
         /// <summary>
         /// Logs that a registry refresh failed for the supplied reason.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 2, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 2,
+            Level = LogLevel.Warning,
             Message = "WoT registry refresh ({Reason}) failed.")]
         public static partial void RegistryRefreshFailed(this ILogger logger, Exception ex, string reason);
 
         /// <summary>
         /// Logs that a registry management call was denied because channel security was too weak.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 3, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 3,
+            Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': channel security mode {Mode} is too low.")]
         public static partial void ManagementCallDeniedSecurityMode(
             this ILogger logger,
@@ -1152,14 +1184,18 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Logs that a registry management call was denied because the caller was anonymous.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 4, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 4,
+            Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': anonymous or missing identity.")]
         public static partial void ManagementCallDeniedAnonymousIdentity(this ILogger logger, string operation);
 
         /// <summary>
         /// Logs that a registry management call was denied because the caller lacks the required role.
         /// </summary>
-        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryNodeManager + 5, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = WotConServerEventIds.WotRegistryNodeManager + 5,
+            Level = LogLevel.Warning,
             Message = "Denied WoT registry '{Operation}': caller lacks required role.")]
         public static partial void ManagementCallDeniedMissingRole(this ILogger logger, string operation);
     }

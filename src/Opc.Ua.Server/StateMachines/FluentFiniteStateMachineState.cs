@@ -109,34 +109,7 @@ namespace Opc.Ua.Server.StateMachines
         internal void SetSuspended(ISystemContext context, bool suspended)
         {
             IsSuspended = suspended;
-
-            StatusCode status = suspended
-                ? StatusCodes.BadStateNotActive
-                : StatusCodes.Good;
-            ApplySuspensionStatus(context, CurrentState, status);
-            ApplySuspensionStatus(context, LastTransition, status);
-        }
-
-        private static void ApplySuspensionStatus(
-            ISystemContext context,
-            BaseVariableState? variable,
-            StatusCode status)
-        {
-            if (variable == null)
-            {
-                return;
-            }
-            variable.StatusCode = status;
-            var children = new List<BaseInstanceState>();
-            variable.GetChildren(context, children);
-            foreach (BaseInstanceState child in children)
-            {
-                if (child is BaseVariableState childVariable)
-                {
-                    childVariable.StatusCode = status;
-                }
-            }
-            variable.ClearChangeMasks(context, includeChildren: true);
+            SetActive(context, !suspended);
         }
 
         /// <inheritdoc/>

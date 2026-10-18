@@ -42,9 +42,12 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
     /// Produced by <see cref="MonitoredItem.Snapshot"/> and consumed by
     /// <see cref="ISubscriptionManager.LoadAsync"/>.
     /// Per-item runtime values (filter result, last sample,
-    /// current sampling interval) are intentionally not captured — the
-    /// transfer path re-binds them from the server via
-    /// <c>GetMonitoredItems</c>, and the recreate path mints fresh ones.
+    /// current sampling interval) are intentionally not captured. After
+    /// <c>GetMonitoredItems</c> re-binds the saved handles, transfer-on-load
+    /// reapplies the saved monitoring parameters using <c>ModifyMonitoredItems</c>
+    /// to obtain the revised interval, queue size and filter result. It does not
+    /// recreate the item or change its monitoring mode. Recreation obtains new
+    /// parameters and identifiers from <c>CreateMonitoredItems</c>.
     /// </para>
     /// <para>
     /// The snapshot is itself an <see cref="IEncodeable"/> via the

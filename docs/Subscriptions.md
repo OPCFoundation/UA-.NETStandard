@@ -797,6 +797,19 @@ The restore path:
 subscriptions regroup items into the same affinity-pinned partition
 the source had.
 
+After a snapshot transfer, V2 rebinds the saved item handles and reapplies the
+saved monitoring parameters with `ModifyMonitoredItems`. The response supplies
+the actual revised sampling interval, queue size and filter result:
+`GetMonitoredItems` returns handles only. This does not recreate the items or
+change their monitoring mode or triggering links. Live items that already have
+revised parameters do not require this extra snapshot-restoration step.
+Refresh enqueueing is ordered with concurrent options changes, so a restored
+snapshot cannot overwrite newer requested sampling intervals, queue sizes or
+filters.
+A successful initiated transfer also reports `PublishState.Transferred` to the
+target handler after handle synchronization, before attempting retained-message
+recovery; failed synchronization does not report transfer completion.
+
 Republishing retained notifications and requesting initial values are independent.
 If an origin session disconnects before acknowledging a message, a transfer can
 recover that message from the server's retransmission queue. With
@@ -938,6 +951,46 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `item.TriggeringItemId` / `item.TriggeredItems` (1:1) | `IMonitoredItem.TriggeringItems` (plural, N:M) and `IMonitoredItem.TriggeredItems` (reverse "items I trigger") — both on-demand projections by stable name. Matches OPC UA Part 4 §5.13.5 N:M; runtime desired-state mutations from imperative `SetTriggeringAsync` are immediately visible. |
 
 ### Persistence (save / load)
+
+Classic snapshots preserve the original resolved target of relative-path items
+as SDK-owned metadata. `Session.Load(..., transferSubscriptions: true)` restores
+`ResolvedNodeId` and `Status.NodeId` on the local monitored-item objects before
+`TransferSubscriptionsAsync` or `ReactivateSubscriptionsAsync` is called.
+These operations use the saved handles without translating the path again, so
+a changed browse relationship or lost browse permission does not retarget an
+existing server monitored item.
+
+```csharp
+// Before deliberately closing the origin session:
+origin.DeleteSubscriptionsOnClose = false;
+origin.Save(snapshotStream, origin.Subscriptions);
+
+// With a connected target session and the snapshot stream positioned at its start:
+var restored = new SubscriptionCollection(
+    target.Load(snapshotStream, transferSubscriptions: true));
+if (!await target.TransferSubscriptionsAsync(restored, sendInitialValues: true, ct))
+{
+    throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+}
+
+foreach (Subscription subscription in restored)
+{
+    await subscription.ApplyChangesAsync(ct);
+}
+```
+
+Attach notification handlers after loading and before transfer. Loading only
+restores local objects; it does not perform the server transfer. For a restored
+session, use `ReactivateSubscriptionsAsync` after reactivating that session
+instead. No call to `ResolveItemNodeIdsAsync` or a resolution-state setter is
+needed for transfer, reactivation, or subsequent maintenance.
+
+Loading for recreation or creating a replacement server subscription resolves
+paths afresh instead of reusing the saved target. Changing `StartNodeId` or
+`RelativePath` on a created item, or while its creation is in flight, throws
+`BadInvalidState` immediately; assigning the same value is allowed. Delete the
+server item successfully before changing its target, or replace the item.
+Failed deletion retains its handle and target for retry.
 
 | Classic | V2 |
 |---|---|

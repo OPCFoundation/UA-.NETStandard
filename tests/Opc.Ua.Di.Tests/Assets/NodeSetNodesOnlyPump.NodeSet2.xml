@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A DI-style companion model: a DeviceType subtype, which inherits the
+  Mandatory InstanceDeclarations of DeviceType, and one device instance that
+  declares every Mandatory child of DeviceType with its own NodeId.
+
+  PumpType also declares a Mandatory Sensor whose SensorType holds a
+  Mandatory DeviceType Transmitter; neither declaration repeats the Mandatory
+  children of its type definition. PumpType declares a Controller that
+  references a Motor; Pump1 declares the Controller but neither the Motor nor
+  the Sensor.
+-->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+    xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/NodeSetNodesOnlyPump/</Uri>
+    <Uri>http://opcfoundation.org/UA/DI/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/NodeSetNodesOnlyPump/" Version="1.0.0" PublicationDate="2026-10-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2025-01-08T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/DI/" Version="1.05.0" PublicationDate="2025-11-15T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="Int32">i=6</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasEffect">i=54</Alias>
+  </Aliases>
+  <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:SensorType">
+    <DisplayName>SensorType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5010</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5010" BrowseName="1:Transmitter" ParentNodeId="ns=1;i=1001">
+    <DisplayName>Transmitter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1002</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:PumpType">
+    <DisplayName>PumpType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=1002</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6000</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5011</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5012</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=5013</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=5011" BrowseName="1:Sensor" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Sensor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5012" BrowseName="1:Controller" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Controller</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasEffect">ns=1;i=5013</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=5013" BrowseName="1:Motor" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Motor</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6000" BrowseName="1:RatedFlow" ParentNodeId="ns=1;i=1000" DataType="Double">
+    <DisplayName>RatedFlow</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=5000" BrowseName="1:Pump1">
+    <DisplayName>Pump1</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1000</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6010</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6011</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6012</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6013</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6014</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6015</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6016</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6017</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6018</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=6020</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=6020" BrowseName="1:Controller" ParentNodeId="ns=1;i=5000">
+    <DisplayName>Controller</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=6010" BrowseName="1:RatedFlow" ParentNodeId="ns=1;i=5000" DataType="Double">
+    <DisplayName>RatedFlow</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6011" BrowseName="2:SerialNumber" ParentNodeId="ns=1;i=5000" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String>SN-0001</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6012" BrowseName="2:RevisionCounter" ParentNodeId="ns=1;i=5000" DataType="Int32">
+    <DisplayName>RevisionCounter</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6013" BrowseName="2:Manufacturer" ParentNodeId="ns=1;i=5000" DataType="LocalizedText">
+    <DisplayName>Manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6014" BrowseName="2:Model" ParentNodeId="ns=1;i=5000" DataType="LocalizedText">
+    <DisplayName>Model</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6015" BrowseName="2:HardwareRevision" ParentNodeId="ns=1;i=5000" DataType="String">
+    <DisplayName>HardwareRevision</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6016" BrowseName="2:SoftwareRevision" ParentNodeId="ns=1;i=5000" DataType="String">
+    <DisplayName>SoftwareRevision</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6017" BrowseName="2:DeviceRevision" ParentNodeId="ns=1;i=5000" DataType="String">
+    <DisplayName>DeviceRevision</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=6018" BrowseName="2:DeviceManual" ParentNodeId="ns=1;i=5000" DataType="String">
+    <DisplayName>DeviceManual</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>

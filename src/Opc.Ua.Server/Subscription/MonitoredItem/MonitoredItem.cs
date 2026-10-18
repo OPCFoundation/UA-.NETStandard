@@ -38,14 +38,15 @@ namespace Opc.Ua.Server
     /// <summary>
     /// A handle that describes how to access a node/attribute via an i/o manager.
     /// </summary>
-    public class MonitoredItem :
+    public partial class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
         IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
         IMonitoredItemTransferState,
-        IReadySignalingMonitoredItem
+        IReadySignalingMonitoredItem,
+        IMonitoredItemValuePublication
     {
         /// <summary>
         /// Initializes the object with its node type.
@@ -718,6 +719,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
                 SetDetachState(m_isDetached, isDeleted: true);
                 QueueNodeIdUnknown();
             }
@@ -728,6 +730,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_valuePublication?.Fail(StatusCodes.BadInvalidState);
                 SetDetachState(isDetached: true, m_isDeleted);
             }
         }
@@ -795,6 +798,7 @@ namespace Opc.Ua.Server
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
                 SetDetachState(isDetached: false, isDeleted: false);
+                m_finalValuePublished = false;
             }
         }
 
@@ -1079,6 +1083,10 @@ namespace Opc.Ua.Server
 
                 aggregateFilter?.CommitChange(filterToUse, aggregateChange);
                 m_filterToUse = (IMonitoringFilter?)aggregateFilter ?? filterToUse;
+                if (aggregateFilter != null)
+                {
+                    m_valuePublication?.Fail(StatusCodes.BadNotSupported);
+                }
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1352,6 +1360,7 @@ namespace Opc.Ua.Server
                 // a sampling or disabled item must not report (Part 4, 5.13.1.3).
                 if (monitoringMode != MonitoringMode.Reporting)
                 {
+                    m_valuePublication?.Complete(published: false);
                     m_resendData = false;
                 }
 
@@ -1443,9 +1452,16 @@ namespace Opc.Ua.Server
                 }
 
                 // check monitoring mode.
-                if (m_isDisposed ||
-                    MonitoringMode == MonitoringMode.Disabled ||
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)) ||
                     (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
+                {
+                    return;
+                }
+
+                // A terminal observation is pinned until its real Publish response is built.
+                // Older asynchronous reads and report-by-exception work cannot replace it.
+                if (m_valuePublication != null)
                 {
                     return;
                 }
@@ -2186,6 +2202,11 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                if (maxNotificationsPerPublish == 0)
+                {
+                    return IsReadyToPublish || m_resendData;
+                }
+
                 if (!IsReadyToPublish)
                 {
                     if (!m_resendData)
@@ -2209,9 +2230,10 @@ namespace Opc.Ua.Server
                         notificationCount < maxNotificationsPerPublish &&
                         m_dataChangeQueueHandler.PublishSingleValue(
                             out DataValue value,
-                            out ServiceResult error))
+                            out ServiceResult error,
+                            out bool required))
                     {
-                        Publish(context, notifications, diagnostics, value, error);
+                        PublishObservedValue(context, notifications, diagnostics, value, error, required);
 
                         notificationCount++;
 
@@ -2229,7 +2251,8 @@ namespace Opc.Ua.Server
                         m_lastValue.StatusCode.Code,
                         m_lastValue.StatusCode.Overflow,
                         Id);
-                    Publish(context, notifications, diagnostics, m_lastValue, m_lastError!);
+                    PublishObservedValue(
+                        context, notifications, diagnostics, m_lastValue, m_lastError!, m_finalValuePending);
                 }
 
                 bool moreValuesToPublish = m_dataChangeQueueHandler?.ItemsInQueue > 0;
@@ -2323,6 +2346,10 @@ namespace Opc.Ua.Server
 
             ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
+            if (m_publishingFinalValue)
+            {
+                m_valuePublication?.TrackNotification(item);
+            }
 
             // update diagnostic info.
             DiagnosticInfo? diagnosticInfo = null;
@@ -2686,9 +2713,14 @@ namespace Opc.Ua.Server
                         // filter, so re-queueing it then would report it a second time.
                         if (queueLastValue && m_readyToPublish && !m_lastValue.IsNull)
                         {
-                            m_dataChangeQueueHandler.QueueValue(
-                                m_lastValue,
-                                m_lastError!);
+                            if (m_finalValuePending)
+                            {
+                                m_dataChangeQueueHandler.QueueRequiredValue(m_lastValue, m_lastError!);
+                            }
+                            else
+                            {
+                                m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
+                            }
                         }
                     }
                     else // create event queue.
@@ -2721,6 +2753,9 @@ namespace Opc.Ua.Server
         /// <exception cref="ServiceResultException"></exception>
         protected void RestoreQueue()
         {
+            // Only the restore of the subscription manager stages the queues, because it
+            // completes or aborts them once every stored subscription was restored.
+            m_queueRestoreStaged = RestoredQueueStaging.IsRequested;
             switch (MonitoringMode)
             {
                 case MonitoringMode.Reporting:
@@ -2762,6 +2797,12 @@ namespace Opc.Ua.Server
 
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            if (m_queueRestoreStaged)
+                            {
+                                (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+                            }
+
                             // initialize with existing queue
                             m_dataChangeQueueHandler = new DataChangeQueueHandler(
                                 restoredQueue,
@@ -2779,6 +2820,10 @@ namespace Opc.Ua.Server
                                 m_monitoredItemQueueFactory,
                                 m_server.Telemetry,
                                 QueueOverflowHandler);
+                            if (m_queueRestoreStaged)
+                            {
+                                m_dataChangeQueueHandler.RestorableQueue?.BeginRestore();
+                            }
 
                             m_dataChangeQueueHandler.SetQueueSize(
                                 QueueSize,
@@ -2803,6 +2848,12 @@ namespace Opc.Ua.Server
                         }
                         if (restoredQueue != null)
                         {
+                            // the queue keeps its stored contents until the restore completes.
+                            if (m_queueRestoreStaged)
+                            {
+                                (restoredQueue as IRestorableMonitoredItemQueue)?.BeginRestore();
+                            }
+
                             // initialize with existing queue
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
@@ -2829,6 +2880,10 @@ namespace Opc.Ua.Server
                                 m_server.Telemetry,
                                 QueueOverflowHandler,
                                 null);
+                            if (m_queueRestoreStaged)
+                            {
+                                m_eventQueueHandler.RestorableQueue?.BeginRestore();
+                            }
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
@@ -2883,6 +2938,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
+                m_valuePublication?.Complete(published: false);
                 SetDetachState(m_isDetached, m_isDeleted);
 
                 // A NodeManager reload may be handing this item to its replacement right now.
@@ -2914,7 +2970,80 @@ namespace Opc.Ua.Server
             eventQueueHandler?.Dispose();
         }
 
+        /// <summary>
+        /// Writes the queues the restore of the item staged to their storage. Called
+        /// once every stored subscription was restored and the store was told so, so
+        /// it does not throw: a queue that fails is logged, and the others are still
+        /// committed.
+        /// </summary>
+        internal void CommitQueueRestore()
+        {
+            lock (m_lock)
+            {
+                if (!m_queueRestoreStaged)
+                {
+                    return;
+                }
+                m_queueRestoreStaged = false;
+            }
+            ForEachRestorableQueue(static queue => queue.CommitRestore());
+        }
+
+        /// <summary>
+        /// Keeps the stored contents of the queues of the item when they are
+        /// disposed, and drops what the restore staged. Used when an aborted restore
+        /// releases the item: the stored contents are needed when the restore is
+        /// retried.
+        /// </summary>
+        internal void AbortQueueRestore()
+        {
+            lock (m_lock)
+            {
+                m_queueRestoreStaged = false;
+            }
+            ForEachRestorableQueue(static queue => queue.AbortRestore());
+        }
+
+        /// <summary>
+        /// Applies the action to each restorable queue of the item while holding the
+        /// item lock, so that it is serialized with the changes of the queues. A queue
+        /// whose action throws is logged and does not keep the action from the others.
+        /// </summary>
+        private void ForEachRestorableQueue(Action<IRestorableMonitoredItemQueue> action)
+        {
+            var queues = new List<IRestorableMonitoredItemQueue>(4);
+            lock (m_lock)
+            {
+                AddRestorableQueue(queues, m_dataChangeQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_eventQueueHandler?.RestorableQueue);
+                AddRestorableQueue(queues, m_restoredDataChangeQueue as IRestorableMonitoredItemQueue);
+                AddRestorableQueue(queues, m_restoredEventQueue as IRestorableMonitoredItemQueue);
+                foreach (IRestorableMonitoredItemQueue queue in queues)
+                {
+                    try
+                    {
+                        action(queue);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.FailedToCompleteQueueRestoreForMonitoredItem(ex, Id, SubscriptionId);
+                    }
+                }
+            }
+        }
+
+        private static void AddRestorableQueue(
+            List<IRestorableMonitoredItemQueue> queues,
+            IRestorableMonitoredItemQueue? queue)
+        {
+            if (queue != null && !queues.Exists(existing => ReferenceEquals(existing, queue)))
+            {
+                queues.Add(queue);
+            }
+        }
+
         private readonly Lock m_lock = new();
+        private bool m_queueRestoreStaged;
 
         /// <summary>
         /// The filter applied when a monitored item has none: no deadband, StatusValue trigger.
@@ -3084,6 +3213,18 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             uint id,
+            uint subscriptionId);
+
+        /// <summary>
+        /// Logs a restored queue that failed to complete or abort its staged restore.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 9, Level = LogLevel.Error,
+            Message = "Failed to complete the restore of the queue of monitored item with id {MonitoredItemId}," +
+                " SubscriptionId={SubscriptionId}")]
+        public static partial void FailedToCompleteQueueRestoreForMonitoredItem(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId,
             uint subscriptionId);
     }
 }

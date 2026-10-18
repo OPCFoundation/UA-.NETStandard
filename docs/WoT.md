@@ -17,6 +17,8 @@ distributed HA, or full JSON Schema conformance.
 - [Dry-run validation](#dry-run-validation)
 - [Recovery](#recovery)
 - [Bridge deletion and recovery](#bridge-deletion-and-recovery)
+- [Conversion providers](#conversion-providers)
+- [DataType declaration inputs](#datatype-declaration-inputs)
 
 ## Ownership and publication
 
@@ -550,3 +552,35 @@ Initialize/recover the same registry, then retry DeleteAsset.
 An uninitialized empty snapshot is not proof of deletion; invalid recovery
 records or missing backing registry fail startup.
 Successful cleanup removes both TD and recovery record.
+
+## Conversion providers
+
+`WotNodeSetConverter` converts a document to a NodeSet2 model. It resolves
+declarations from the captured sibling documents of the Thing before any
+loaded type. Callers supply the exact original bytes and the contextual
+declarations; the converter does not perform a fresh default lookup or use an
+arbitrary Web resolver.
+See [type binding](WotBindings.md#resolving-a-type-binding-the-local-context).
+
+An embedded `uav:nodeSet` needs no external model fetch. Required models absent
+from both the converted document and the caller's resolver remain diagnostics.
+
+### DataType declaration inputs
+
+Stored definitions can be referenced by graph identity, qualified name, or
+portable NodeId. Lookup uses the carrying element's original context. Graph
+identities need not resemble document locations; ambiguous owners fail.
+`uav:dataTypeDefinition`, `uav:fieldDataTypeDefinition`, typed links, and
+`uav:dataTypeSubtypeOf` contribute dependencies. Recursive fields are legal;
+inheritance cycles are not. An acyclic base/derived pair in one document does
+not create a cycle between documents.
+Opaque metadata and literal instance values are not definition indexes.
+
+`IWotCapturedDataTypeDefinitions` on the captured Thing resolver supplies
+complete `WotDataTypeDefinitionSource` values through `DataTypeDefinitions`.
+`IWotDataTypeDefinitionResolver.ResolveDataTypeDefinitionsAsync` resolves
+definitions on demand. Resolvers own the documents they return; the converter
+does not dispose borrowed documents and does not retain them after conversion.
+
+Generated NodeSets declare the namespaces their Nodes own; merely referring to
+a namespace does not claim it.

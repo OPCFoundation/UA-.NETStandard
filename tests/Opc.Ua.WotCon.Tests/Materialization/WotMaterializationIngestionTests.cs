@@ -151,6 +151,40 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// A readable document converts even when an unrelated sibling holds
+        /// bytes that are not a WoT document: native archive context is only
+        /// composed for documents that carry preserved native nodes.
+        /// </summary>
+        [Test]
+        public async Task AReadableDocumentConvertsDespiteAMalformedSiblingAsync()
+        {
+            using var registry = new WotRegistryService();
+            var contents = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            await StoreAsync(
+                registry, WotRegistryGroups.ThingModels, "tm-good",
+                WoTDocumentKindEnum.ThingModel, DataTypeModel(), contents).ConfigureAwait(false);
+            await StoreAsync(
+                registry, WotRegistryGroups.ThingModels, "tm-garbage",
+                WoTDocumentKindEnum.ThingModel, MalformedDataTypeModel(), contents)
+                .ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            WotResource garbage = snapshot.FindResource(WotRegistryGroups.ThingModels, "tm-garbage")!;
+            contents[garbage.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
+
+            WotConversionOutput good = await ConvertStoredAsync(
+                registry, contents, WotRegistryGroups.ThingModels, "tm-good").ConfigureAwait(false);
+            WotConversionOutput selected = await ConvertStoredAsync(
+                registry, contents, WotRegistryGroups.ThingModels, "tm-garbage").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(good.Succeeded, Is.True, string.Join("; ", good.Errors));
+                Assert.That(selected.Succeeded, Is.False, "A selected malformed document still fails.");
+                Assert.That(selected.Errors, Is.Not.Empty);
+            });
+        }
+
+        /// <summary>
         /// WoT Connectivity Section 7.3 lets a stored document say which Node
         /// contains it. A sibling in the registry is the first place that is
         /// looked for.

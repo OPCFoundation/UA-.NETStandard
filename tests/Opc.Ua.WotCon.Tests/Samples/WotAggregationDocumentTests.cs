@@ -35,6 +35,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -378,6 +379,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             var resolver = new WotProjectionResolver(
                 new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            using IDisposable allViewsScope = Assert.EnterMultipleScope();
 
             foreach (string pumpName in s_pumpAssetNames)
             {
@@ -388,7 +390,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 WotConversionResult<WotDocument> assetResult = await resolver
                     .ResolveAsync(asset).ConfigureAwait(false);
 
-                Assert.That(assetResult.Success, Is.True, pumpName + ": " + string.Join("; ", assetResult.Diagnostics));
+                Assert.That(
+                    assetResult.Success,
+                    Is.True,
+                    pumpName + Environment.NewLine + string.Join(
+                        Environment.NewLine,
+                        (assetResult.Diagnostics.ToArray() ?? Array.Empty<WotDiagnostic>()).Select(d => d.ToString())));
                 using WotDocument assetView = assetResult.Value!;
                 JsonElement root = assetView.RootElement;
                 Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
@@ -624,6 +631,327 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AssertConnectsToSuperType(generated, nonHierarchicalReferences, di.FileName);
         }
 
+        /// <summary>
+        /// A link whose authoritative facts live in sibling partitions validates
+        /// clean against the context of the partitions that share its namespace
+        /// table, and still conflicts when the readable reference is genuinely wrong.
+        /// </summary>
+        [Test]
+        public async Task LinkedNativeReferenceValidatesAgainstSiblingPartitionsAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            string directory = DocumentPath("opc-ua-di");
+            byte[] cpIdentifier = File.ReadAllBytes(Path.Combine(directory, "opc-ua-di-cpidentifier.json"));
+            string text = Encoding.UTF8.GetString(cpIdentifier);
+            const string target = "\"nsu=http://opcfoundation.org/UA/DI/;i=6247\"";
+            Assert.That(text, Does.Contain(target));
+            byte[] conflicting = Encoding.UTF8.GetBytes(text.Replace(
+                target, "\"nsu=http://opcfoundation.org/UA/DI/;i=6000\"", StringComparison.Ordinal));
+
+            var contexts = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                using WotDocument sibling = WotDocument.Parse(File.ReadAllBytes(path), options);
+                contexts.Add(sibling);
+            }
+
+            using WotDocument document = WotDocument.Parse(cpIdentifier, options);
+            using WotDocument wrong = WotDocument.Parse(conflicting, options);
+            WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContext = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options, new ContextResolver(contexts)).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContextConflict = await WotNodeSetConverter
+                .ToNodeSetResultAsync(wrong, options, new ContextResolver(contexts)).ConfigureAwait(false);
+
+            // Same namespace table, different model (publication date): its
+            // symmetric/forward references must not bless this model's claim.
+            const string publication = "\"publicationDate\": \"2025-11-15T00:00:00Z\"";
+            var foreign = new WotNodeSetConverter.ArchiveContextIndex(options);
+            WotDocument? foreignSibling = null;
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                string siblingText = File.ReadAllText(path);
+                WotDocument parsed = WotDocument.Parse(Encoding.UTF8.GetBytes(siblingText.Replace(
+                    publication, "\"publicationDate\": \"2024-01-01T00:00:00Z\"", StringComparison.Ordinal)), options);
+                foreign.Add(parsed);
+                if (path.EndsWith("opc-ua-di-networktype.json", StringComparison.Ordinal))
+                {
+                    foreignSibling = parsed;
+                }
+                else
+                {
+                    parsed.Dispose();
+                }
+            }
+            using WotDocument? foreignNetworkType = foreignSibling;
+
+            var duplicated = new WotNodeSetConverter.ArchiveContextIndex(options);
+            duplicated.Add(document);
+            duplicated.Add(document);
+
+            // The same identity spelled differently is one identity, not two witnesses.
+            var respelled = new WotNodeSetConverter.ArchiveContextIndex(options);
+            respelled.Add(document);
+            using WotDocument variant = WotDocument.Parse(Encoding.UTF8.GetBytes(text.Replace(
+                "nsu=http://opcfoundation.org/UA/DI/;i=", "ns=1;i=", StringComparison.Ordinal)), options);
+            respelled.Add(variant);
+
+            var incomplete = new WotNodeSetConverter.ArchiveContextIndex(options);
+            incomplete.Add(document);
+            incomplete.MarkIncomplete("test bound");
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(foreignNetworkType, Is.Not.Null);
+            Assert.That(foreign.Find(foreignNetworkType!), Is.Not.Null, "The foreign model must restore on its own.");
+            Assert.That(
+                (await WotNodeSetConverter.ToNodeSetResultAsync(
+                    document, options, new ContextResolver(foreign)).ConfigureAwait(false))
+                    .Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A foreign model sharing the namespace table must not validate this claim.");
+            Assert.That(() => duplicated.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => respelled.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => incomplete.Find(document), Throws.InvalidOperationException);
+            Assert.That(
+                alone.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A lone partition cannot see the reverse reference or symmetric ReferenceType.");
+            Assert.That(
+                withContext.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.False);
+            Assert.That(withContext.Success, Is.True);
+            Assert.That(
+                withContextConflict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True);
+        }
+
+        /// <summary>
+        /// Exhausting the resolver document or byte bound while composing the native
+        /// context fails the document that needs it explicitly, never with a partial
+        /// context, and cancellation propagates.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExhaustedNativeContextBoundFailsExplicitlyAsync(bool documentBound)
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            int selectedLength = contents[resource.DefaultVersion!.DigestHex].Length;
+            long aggregate = contents.Values.Sum(c => (long)c.Length);
+            Assert.That(contents, Has.Count.GreaterThan(2));
+            Assert.That(aggregate, Is.GreaterThan(selectedLength));
+            if (documentBound)
+            {
+                options.MaxResolverDocuments = 2;
+            }
+            else
+            {
+                options.MaxResolverTotalBytes = selectedLength;
+            }
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput output = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(output.Succeeded, Is.False);
+            Assert.That(output.NodeSet, Is.Null);
+            Assert.That(
+                string.Join("; ", output.Errors),
+                Does.Contain("The native document context is incomplete")
+                    .And.Contain("resolver document or byte limit"));
+            Assert.That(
+                async () => await new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options)
+                    .ConvertAsync(
+                        resource,
+                        contents[resource.DefaultVersion!.DigestHex],
+                        snapshot,
+                        contents,
+                        cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        /// <summary>
+        /// A malformed sibling is only omitted from the native context. A document of
+        /// the model still converts, and the malformed document fails by itself.
+        /// </summary>
+        [Test]
+        public async Task MalformedSiblingIsOmittedFromNativeContextOnlyAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource broken = FindResource(snapshot, "opc-ua-di-networktype");
+            contents[broken.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput selected = await converter.ConvertAsync(
+                broken,
+                contents[broken.DefaultVersion.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput other = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(selected.Succeeded, Is.False);
+            Assert.That(selected.Errors, Is.Not.Empty);
+            Assert.That(string.Join("; ", other.Errors), Does.Not.Contain("limit"));
+        }
+
+        /// <summary>
+        /// An archive that declares no model has no authoritative identity, so a set of them supplies
+        /// no cross-document context, while the same export with its model does.
+        /// </summary>
+        [Test]
+        public async Task UnmodelledNativeCarriersSupplyNoCrossDocumentAuthorityAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            options.PreservationMode = WotNodeSetPreservationMode.Always;
+            string source = RepositoryPath(Path.Combine(
+                "tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml"));
+            UANodeSet modelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            UANodeSet unmodelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            unmodelled.Models = null;
+            using WotDocumentSet modelledSet = await ExportSetAsync(modelled, options).ConfigureAwait(false);
+            using WotDocumentSet unmodelledSet = await ExportSetAsync(unmodelled, options).ConfigureAwait(false);
+            var withModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var withoutModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var empty = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList())
+            {
+                withModel.Add(entry.Document);
+            }
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                withoutModel.Add(entry.Document);
+            }
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(
+                modelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The modelled export must carry preserved native nodes.");
+            Assert.That(
+                unmodelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The unmodelled export must carry preserved native nodes.");
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList().Where(CarriesNative))
+            {
+                Assert.That(withModel.Find(entry.Document), Is.Not.Null, entry.Href);
+            }
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                Assert.That(withoutModel.Find(entry.Document), Is.Null, entry.Href);
+                WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(empty))
+                    .ConfigureAwait(false);
+                WotConversionResult<UANodeSet> viaIndex = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
+                    .ConfigureAwait(false);
+                Assert.That(viaIndex.Success, Is.EqualTo(alone.Success), entry.Href);
+                Assert.That(Describe(viaIndex), Is.EqualTo(Describe(alone)), entry.Href);
+            }
+        }
+
+        private static bool CarriesNative(WotDocumentSetEntry entry)
+        {
+            return entry.Document.TryGetEnvelope(out _) || entry.Document.TryGetNativeProjection(out _);
+        }
+
+        private static string[] Describe(WotConversionResult<UANodeSet> result)
+        {
+            return [.. result.Diagnostics.Select(d =>
+                $"{d.Severity}|{d.Code}|{d.Location?.JsonPointer}|{d.Location?.NodeId}|{d.Message}")];
+        }
+        private static async Task<WotDocumentSet> ExportSetAsync(UANodeSet source, WotNodeSetConverterOptions options)
+        {
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+                source, "opc-ua-di", "OPC UA Device Integration", options).ConfigureAwait(false);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            return result.Value!;
+        }
+
+        private static Opc.Ua.WotCon.Server.Registry.WotResource FindResource(
+            Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+            string resourceId)
+        {
+            return snapshot.AllResources().Single(
+                r => string.Equals(r.ResourceId, resourceId, StringComparison.Ordinal));
+        }
+
+        private static async Task<(Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot,
+            Dictionary<string, ByteString>)> StoreDiPartitionsAsync()
+        {
+            using var registry = new Opc.Ua.WotCon.Server.Registry.WotRegistryService();
+            var contents = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            foreach (string path in Directory.GetFiles(DocumentPath("opc-ua-di"), "*.json"))
+            {
+                byte[] bytes = File.ReadAllBytes(path);
+                bool model = Encoding.UTF8.GetString(bytes).Contains("tm:ThingModel", StringComparison.Ordinal);
+                ByteString content = ByteString.From(bytes);
+                contents[Opc.Ua.WotCon.Server.Registry.WotContentDigest.ToHex(
+                    Opc.Ua.WotCon.Server.Registry.WotContentDigest.Compute(content))] = content;
+                await registry.UpsertResourceAsync(new Opc.Ua.WotCon.Server.Registry.WotUpsertResourceRequest
+                {
+                    GroupId = model
+                        ? Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingModels
+                        : Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingDescriptions,
+                    ResourceId = Path.GetFileNameWithoutExtension(path),
+                    Kind = model ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                    Content = content
+                }).ConfigureAwait(false);
+            }
+            return (registry.Current, contents);
+        }
+
+        /// <summary>
+        /// A resolver that supplies a native archive context and resolves no external references.
+        /// </summary>
+        private sealed class ContextResolver : IWotThingResolver, IWotArchiveContextProvider
+        {
+            /// <summary>
+            /// Creates the resolver over a context index.
+            /// </summary>
+            /// <param name="contexts">The index that supplies the native contexts.</param>
+            public ContextResolver(WotNodeSetConverter.ArchiveContextIndex contexts)
+            {
+                m_contexts = contexts;
+            }
+
+            /// <inheritdoc/>
+            public UANodeSet? GetArchiveContext(WotDocument document)
+            {
+                return m_contexts.Find(document);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+
+            private readonly WotNodeSetConverter.ArchiveContextIndex m_contexts;
+        }
+
         private static void AssertConnectsToSuperType(
             UANodeSet nodeSet,
             string expectedSuperType,
@@ -674,6 +1002,65 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
                     Is.False,
                     source + ": " + string.Join("; ", report.Diagnostics));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that the checked-in native Pumps partitions restore the complete source Pumps NodeSet.
+        /// </summary>
+        [Test]
+        public async Task NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync()
+        {
+            const int expectedNodeCount = 9624;
+            const int expectedPartitionCount = 339;
+            string root = RepositoryPath(string.Empty);
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
+                Path.Combine("samples", "DI", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
+            SampleDocument[] partitions = [.. WotAggregationDocumentGenerator
+                .ReadManifestDocuments(DocumentPath(string.Empty).TrimEnd('\\', '/'))
+                .ToList()
+                .Where(document => document.Path.StartsWith("opc-ua-pumps/", StringComparison.Ordinal))];
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            IWotNodeResolver resolver = WotAggregationDocumentGenerator.CreateCompanionNodeResolver(root);
+            var entries = new List<WotDocumentSetEntry>();
+            try
+            {
+                foreach (SampleDocument partition in partitions)
+                {
+                    entries.Add(new WotDocumentSetEntry(
+                        partition.ResourceId, WotDocument.Parse(partition.Json.ToArray(), options)));
+                }
+                using var set = new WotDocumentSet("opc-ua-pumps", entries.ToArrayOf());
+                entries.Clear();
+
+                WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(
+                    set, options, resolver).ConfigureAwait(false);
+
+                Assert.That(partitions, Has.Length.EqualTo(expectedPartitionCount));
+                Assert.That(
+                    Directory.EnumerateFiles(
+                        DocumentPath("opc-ua-pumps"), "*.json", SearchOption.AllDirectories).Count(),
+                    Is.EqualTo(expectedPartitionCount));
+                Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+                Assert.That(
+                    restored.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    string.Join("; ", restored.Diagnostics));
+                Assert.That(source.Items, Has.Length.EqualTo(expectedNodeCount));
+                Assert.That(restored.Value!.Items, Has.Length.EqualTo(expectedNodeCount));
+                NodeSetComparisonResult comparison = WotNodeSetConverter.CompareDocumentSet(
+                    source, restored.Value, options);
+                Assert.That(
+                    comparison.AreEquivalent,
+                    Is.True,
+                    string.Join("; ", comparison.Differences.Take(20)));
+            }
+            finally
+            {
+                foreach (WotDocumentSetEntry entry in entries)
+                {
+                    entry.Dispose();
+                }
             }
         }
 
@@ -1064,7 +1451,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public async Task PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
         {
             ArrayOf<SampleDocument> documents = ReadPumpDocuments();
-            await WotAggregationDocumentGenerator.ReadPumpDocumentSetAsync(documents).ConfigureAwait(false);
+            // The complete linked set validates the readable claims that the partition-local reads below omit.
+            UANodeSet linkedSet = await WotAggregationDocumentGenerator
+                .ReadPumpDocumentSetAsync(ReadSubstitutedManifestDocuments().Filter(document =>
+                    document.Path.StartsWith("sample-pump/", StringComparison.Ordinal))).ConfigureAwait(false);
+            Assert.That(linkedSet.Items, Is.Not.Null.And.Not.Empty);
             var placeholders = new HashSet<string>(StringComparer.Ordinal);
             foreach (string pumpName in s_pumpAssetNames)
             {
@@ -1509,41 +1900,105 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(result.Success, Is.True, fileName);
             using WotDocument view = result.Value!;
             JsonElement map = view.RootElement.GetProperty(mapName);
-            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> sources = SubstituteEndpoints(ReadPumpDocuments());
-            var units = new Dictionary<string, Affordance>(StringComparer.Ordinal);
+            ArrayOf<SampleDocument> sources = ReadSubstitutedManifestDocuments().Filter(candidate =>
+                candidate.Path.StartsWith("sample-pump/", StringComparison.Ordinal));
+
+            // A selected property that declares uav:unitProperty carries its unit property into the view as a
+            // supporting dependency, so the declared units are expected alongside the selected members.
+            var expectedSupport = new List<(string Id, Affordance Declaration)>();
             if (mapName == "properties")
             {
-                List<Affordance> declarations = [.. ReadAffordances(sources, mapName)];
-                foreach (string name in expectedMembers)
+                foreach (string selected in expectedMembers)
                 {
-                    string localPath = s_propertyBindings.Single(binding => binding.Name == name).LocalPath;
-                    Affordance declaration = FindAffordance(sources, mapName, LocalNodeId(pumpName, localPath));
-                    if (declaration.Value.TryGetProperty("uav:unitProperty", out JsonElement pointer))
+                    string selectedPath = s_propertyBindings.Single(binding => binding.Name == selected).LocalPath;
+                    Affordance selectedDeclaration = FindAffordance(
+                        sources, mapName, LocalNodeId(pumpName, selectedPath));
+                    if (selectedDeclaration.Value.TryGetProperty("uav:unitProperty", out JsonElement unitPointer))
                     {
-                        Affordance unit = declarations.Single(candidate =>
-                            candidate.ResourceId == declaration.ResourceId && candidate.Pointer == pointer.GetString());
-                        units[unit.Name] = unit;
+                        string unitId = LocalNodeId(pumpName, selectedPath + ".EngineeringUnits");
+                        Assert.That(unitPointer.GetString(), Does.StartWith("/properties/"), selected);
+                        expectedSupport.Add((unitId, FindAffordance(sources, mapName, unitId)));
                     }
                 }
             }
-            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers.Concat(units.Keys).Distinct()), fileName);
-            foreach (JsonProperty member in map.EnumerateObject())
+
+            var membersNameById = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (expectedSupport.Count > 0 && fileName != $"{pumpName}.Members.td.json")
             {
-                if (Array.IndexOf(expectedMembers, member.Name) < 0)
+                using WotDocument membersDocument = WotDocument.Parse(
+                    File.ReadAllBytes(DocumentPath($"{pumpName}.Members.td.json")),
+                    WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+                WotConversionResult<WotDocument> membersResult = await resolver.ResolveAsync(membersDocument)
+                    .ConfigureAwait(false);
+                Assert.That(membersResult.Success, Is.True, pumpName + " members");
+                using WotDocument membersView = membersResult.Value!;
+                foreach (JsonProperty entry in membersView.RootElement.GetProperty("properties").EnumerateObject())
                 {
-                    Affordance unit = units[member.Name];
-                    Assert.That(member.Value.GetProperty("type").GetString(), Is.EqualTo("string"), member.Name);
-                    Assert.That(member.Value.GetProperty("uav:id").GetString(),
-                        Is.EqualTo(unit.Value.GetProperty("uav:id").GetString()), member.Name);
-                    Assert.That(member.Value.GetProperty("uav:resolvedFrom").GetString(),
-                        Is.EqualTo(unit.ResourceId + "#" + unit.Pointer), member.Name);
-                    Assert.That(JsonNode.DeepEquals(
-                        JsonNode.Parse(member.Value.GetProperty("uav:engineeringUnits").GetRawText()),
-                        JsonNode.Parse(unit.Value.GetProperty("uav:engineeringUnits").GetRawText())), Is.True, member.Name);
+                    string entryId = entry.Value.GetProperty("uav:id").GetString()!;
+                    Assert.That(membersNameById.TryAdd(entryId, entry.Name), Is.True,
+                        "duplicate members-view identity " + entryId);
+                }
+            }
+
+            using IDisposable multipleScope = Assert.EnterMultipleScope();
+            Assert.That(
+                PropertyNames(map).Where(name => expectedMembers.Contains(name)),
+                Is.EquivalentTo(expectedMembers),
+                fileName);
+            Assert.That(
+                map.EnumerateObject()
+                    .Where(entry => !expectedMembers.Contains(entry.Name))
+                    .Select(entry => entry.Value.GetProperty("uav:id").GetString()),
+                Is.EquivalentTo(expectedSupport.Select(support => support.Id)),
+                fileName + " supporting members");
+            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
+            foreach ((string supportId, Affordance supportDeclaration) in expectedSupport)
+            {
+                JsonProperty[] carried = map.EnumerateObject().Where(entry =>
+                    entry.Value.TryGetProperty("uav:id", out JsonElement id) && id.GetString() == supportId)
+                    .ToArray();
+                Assert.That(carried, Has.Length.EqualTo(1), fileName + " carried " + supportId);
+                if (carried.Length != 1)
+                {
                     continue;
                 }
+                JsonProperty support = carried[0];
+                string supportReference = fileName == $"{pumpName}.Members.td.json"
+                    ? supportDeclaration.ResourceId + "#" + supportDeclaration.Pointer
+                    : membersNameById.TryGetValue(supportId, out string? membersName)
+                        ? $"{pumpName.ToLowerInvariant()}-members#/properties/{EscapePointer(membersName)}"
+                        : "<unmatched>";
+                Assert.That(
+                    support.Value.GetProperty("uav:resolvedFrom").GetString(),
+                    Is.EqualTo(supportReference),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:mapToType").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:mapToType").GetString()),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:browseName").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:browseName").GetString()),
+                    support.Name);
+                AssertJsonEquivalent(
+                    support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
+                        ? carriedUnits
+                        : null,
+                    supportDeclaration.Value.TryGetProperty(
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? declaredUnits : null,
+                    support.Name + " uav:engineeringUnits");
+                Assert.That(
+                    support.Value.GetProperty("type").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
+                    support.Name);
+                AssertJsonEquivalent(
+                    support.Value.GetProperty("uav:componentOf"),
+                    supportDeclaration.Value.GetProperty("uav:componentOf"),
+                    support.Name + " uav:componentOf");
+            }
+            foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
+            {
                 string localPath = mapName == "properties"
                     ? s_propertyBindings.Single(binding => binding.Name == member.Name).LocalPath
                     : member.Name;
@@ -1576,10 +2031,25 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         Is.EqualTo(localId), member.Name);
                     Assert.That(member.Value.GetProperty("uav:mapToType").GetString(),
                         Is.EqualTo(declaration.Value.GetProperty("uav:mapToType").GetString()), member.Name);
+                    if (declaration.Value.TryGetProperty("uav:unitProperty", out _))
+                    {
+                        string unitId = LocalNodeId(pumpName, localPath + ".EngineeringUnits");
+                        string unitReference = member.Value.GetProperty("uav:unitProperty").GetString()!;
+                        Assert.That(unitReference, Does.StartWith("/properties/"), member.Name);
+                        Assert.That(
+                            map.TryGetProperty(unitReference["/properties/".Length..], out JsonElement unitMember),
+                            Is.True,
+                            member.Name + " unit reference " + unitReference);
+                        Assert.That(
+                            unitMember.ValueKind == JsonValueKind.Object &&
+                            unitMember.GetProperty("uav:id").GetString() == unitId,
+                            Is.True,
+                            member.Name + " unit identity");
+                    }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
-                        Assert.That(member.Value.GetProperty("const").GetRawText(),
-                            Is.EqualTo(constant.GetRawText()), member.Name);
+                        AssertJsonEquivalent(member.Value.GetProperty("const"), constant, member.Name + " const");
+
                     }
                 }
                 else
@@ -1765,6 +2235,20 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        private static void AssertJsonEquivalent(JsonElement? actual, JsonElement? expected, string message)
+        {
+            Assert.That(actual.HasValue, Is.EqualTo(expected.HasValue), message + " presence");
+            if (actual.HasValue && expected.HasValue)
+            {
+                Assert.That(
+                    JsonNode.DeepEquals(
+                        JsonNode.Parse(actual.Value.GetRawText()),
+                        JsonNode.Parse(expected.Value.GetRawText())),
+                    Is.True,
+                    message + Environment.NewLine + actual.Value.GetRawText() + Environment.NewLine +
+                    expected.Value.GetRawText());
+            }
+        }
         private static Affordance FindAffordance(
             ArrayOf<SampleDocument> documents,
             string mapName,

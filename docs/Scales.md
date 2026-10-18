@@ -40,7 +40,7 @@ Integration and OPC 30050 PackML.
 | --- | --- |
 | `Opc.Ua.PackML` | The source-generated OPC 30050 PackML model. It also has `PackMLStateMachineController`, which drives the nested base / machine / execute state machines with their transition events |
 | `Opc.Ua.Scales` | The source-generated OPC 40200 model. `ScalesModel` maps the 14 scale kinds, their product types and the Annex C notifications. `ScalesProfiles` holds the 21 facet URIs. The package also has the contracts both sides share |
-| `Opc.Ua.Scales.Server` | `ScalesNodeManager`, the builders `IScaleBuilder` / `IScaleSystemBuilder` / `IScaleModuleBuilder` / `IProductionPresetBuilder`, the runtime handles and controllers, and the `AddScales()` / `ConfigureScales()` hosting pipeline |
+| `Opc.Ua.Scales.Server` | `ScalesNodeManager`, the shared `ScalesRuntime`, scale/system/module/preset builders, runtime handles and controllers, and standalone or additive Machinery hosting |
 | `Opc.Ua.Scales.Client` | `ScalesClient` for discovery, weighing, products, PackML, the type methods, recipes, snapshots and streaming. Also `AddScalesClient()` |
 
 The contracts (`ScaleIdentification`, `WeighingRangeDefinition`,
@@ -104,7 +104,7 @@ publishes the top-level node in two places:
   transitively, because the mandatory *Machinery Machine Identification*
   facet includes the CU *Machinery Find Machines*.
 
-`ScalesNodeManager` does both by default
+`ScalesRuntime`, shared by standalone and composed hosts, does both by default
 (`ScalesServerOptions.OrganizeIntoMachinesFolder`). With the option turned
 off, the server no longer advertises the facets that include *Machinery
 Machine Identification*: Base Scale and every kind facet, Scale System,
@@ -218,6 +218,110 @@ generated classes. Without it they arrive as `ExtensionObject`.
 A second DI owner, such as `AddOpcUaDi`, is rejected with an
 `InvalidOperationException` at registration time.
 
+### Composing with Machinery and other companions
+
+Use `AddScalesToMachinery()` after `AddMachinery()` instead of registering a
+second owner with `AddScales()`. The Machinery options must include
+`MachineryParts.BuildingBlocks`.
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.Machinery.Server;
+using Opc.Ua.Scales;
+using Opc.Ua.Scales.Server;
+using Opc.Ua.Scales.Server.Runtime;
+using Opc.Ua.Server;
+
+services.AddOpcUa()
+    .AddServer<StandardServer>(ConfigureServer)
+    .AddMachinery(options =>
+    {
+        options.Parts = MachineryParts.BuildingBlocks;
+        options.InstanceNamespaceUri = "urn:acme:plant:instances";
+    })
+    .AddScalesToMachinery(options => options.RequireSiUnits = true)
+    .ConfigureScalesFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        ScalesRuntime scales = context.Runtime;
+        ScaleHandle scale = await scales.CreateScaleAsync(
+            new QualifiedName("BaggingScale", scales.InstanceNamespaceIndex),
+            ScaleKind.AutomaticFilling,
+            builder => builder
+                .WithIdentification(new ScaleIdentification
+                {
+                    Manufacturer = new LocalizedText("Acme"),
+                    SerialNumber = "S-1",
+                    ProductInstanceUri = "urn:acme:scale:S-1"
+                })
+                .WithWeighingRange(new WeighingRangeDefinition(0, 30, 0.005, 0.01))
+                .WithZeroAndTare()
+                .WithRegisterWeight()
+                .WithPackMLState()
+                .WithTypeFeatures(),
+            ct);
+        scale.PublishLoad(12.5);
+    });
+```
+
+`ScalesMachineryModelProvider` uses the existing `IMachineryModelProvider`
+pipeline. DI, IA and Machinery load first; PackML loads before Scales and is
+not loaded again when another provider already supplied it. The server package
+references `Opc.Ua.Machinery.Server` for this composition infrastructure;
+standalone servers still load the same dependency models as before.
+
+`ConfigureScalesFor<TNodeManager>` accepts
+`Func<IScalesBuildContext, CancellationToken, ValueTask>`. Successive callbacks
+share one `ScalesRuntime`, and run before the Machinery builder is sealed.
+`context.Manager` is the existing owner, not a `ScalesNodeManager` created behind
+the scenes. `GetRequiredService<T>()` provides injectable application services.
+The standalone manager's methods delegate to that same runtime implementation.
+
+Composition covers all fourteen `ScaleKind` values, `CreateScaleSystemAsync`,
+weighing subdevices, feeder/printer modules, product methods and DI locking,
+PackML state, recipe/report files, and scale events and alarms. It does not add
+new kind-specific behavior beyond the existing runtime; the
+[known limitations](#known-limitations) apply equally to both hosting paths.
+Scales conformance contributions are aggregated by the shared owner.
+
+Add [`AddPumpsToMachinery()`](Pumps.md#coexisting-with-a-server-that-already-owns-di)
+to host pumps alongside these scales. Both runtimes mint instances in
+`MachineryServerOptions.InstanceNamespaceUri` and preserve their native type
+definitions and browse-name namespaces. Additional model namespaces belong in
+`AdditionalNamespaceUris`; do not repeat the owner's instance URI there.
+
+For [AMB](AMB.md), also register `AddAssetManagement()` and use the existing
+owner inside the Scales configurator:
+
+```csharp
+await context.GetRequiredService<Opc.Ua.AMB.Server.Assets.IAssetManagement>()
+    .RegisterAssetAsync(
+        context.Manager.Device(scale.Scale).Node,
+        asset => asset.WithConfigurableAssetId("S-1"),
+        ct);
+```
+
+AMB is a sidecar: the scale and all asset additions remain in the Machinery
+owner. Nested scale/module events remain linked through `HasNotifier`, so clients
+may subscribe to the subdevice, its scale system, or the server.
+
+### Direct composition and lifetime
+
+Without dependency injection, supply `new ScalesMachineryModelProvider()` and
+`new MachineryModelProvider(MachineryParts.BuildingBlocks)` to a
+`MachineryNodeManager`. After its address space has initialized, obtain
+`ScalesRuntime scales = owner.CreateScalesRuntime(options)` and call
+`CreateScaleAsync` or `CreateScaleSystemAsync` exactly as in the hosted callback.
+The first call selects the runtime options; subsequent calls return the same
+runtime. On a standalone `ScalesNodeManager`, this returns its existing `Runtime`.
+
+The stock Machinery manager owns the composed runtime's lifetime. Shutdown
+cancels queued publications, drains active constructions, closes recipe/report file
+handles and content buffers, and detaches the product lock service from session
+notifications. Repeated asynchronous disposal is safe. An application-owned
+Machinery-compatible DI manager uses `DisposeMachineryResourcesAsync()` during
+its own asynchronous disposal.
+
 ### Options
 
 | `ScalesServerOptions` | Default | Meaning |
@@ -230,7 +334,7 @@ A second DI owner, such as `AddOpcUaDi`, is rejected with an
 
 ### Creating scales
 
-| `ScalesNodeManager` member | Purpose |
+| `ScalesNodeManager` / `ScalesRuntime` member | Purpose |
 | --- | --- |
 | `CreateScaleAsync(name, kind, configure[, parent])` | A scale below the `DeviceSet`, or below an explicit parent |
 | `CreateScaleSystemAsync(name, configure)` | A scale system with its scales |
@@ -581,6 +685,10 @@ are left out (`ScaleFacetsBringTheMachineIdentificationTheyIncludeAsync`,
 
 See [the samples README](../samples/Scales/README.md) for how to run them.
 
+`ScalesServer` accepts `--host`, `--port`, an absolute `--pki-root`,
+`--autoaccept true|false`, and an optional `--run-seconds` from 1 through 3600.
+Without a runtime limit, the server runs until stopped interactively.
+
 ## Testing
 
 ```bash
@@ -592,7 +700,8 @@ dotnet test tests/Opc.Ua.Scales.Tests
 | `ScalesUnitTests` | The weighing engine, units and the model tables, with no server |
 | `ScalesNodeManagerTests` | Every kind, the methods, PackML, presets, zones, facets, in-process |
 | `ScaleTypeControllerTests` | The type controllers, modules, recipes, recipe files and systems |
-| `ScalesClientServerE2eTests` | A hosted server through `AddScales` / `ConfigureScales`, driven by `ScalesClient` over a real session |
+| `ScalesCompositionTests` | Every scale kind on the stock Machinery owner, provider ordering, instance ownership, cancellation, and standalone/composed file-resource disposal |
+| `ScalesClientServerE2eTests` | Standalone and shared Machinery/Pumps/Scales hosts over real sessions, including AMB aliases, file methods, PackML, weight subscriptions and nested events |
 
 The end-to-end fixture is the one that matters for anything a client sees.
 Two defects this work found passed every in-process assertion:

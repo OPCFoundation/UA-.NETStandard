@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 2,
+  "scenario": "equipment-faults",
+  "seed": 104729,
+  "equipmentFaults": [
+    { "stage": "feed-conveyor", "kind": "Jam", "startTick": 8, "endTick": 12 },
+    { "stage": "primary-shredding", "kind": "Jam", "startTick": 14, "endTick": 18 },
+    { "stage": "pelletizing", "kind": "StrandBreak", "startTick": 40, "endTick": 44 }
+  ]
+}

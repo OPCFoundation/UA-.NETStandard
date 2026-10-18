@@ -56,6 +56,33 @@ runs:
     shell: pwsh
     run: ./.azurepipelines/set-version.ps1
 
+  - name: Setup Linux desktop and native rendering dependencies
+    if: >-
+      ${{ runner.os == 'Linux' &&
+          contains(inputs.projects, 'Opc.Ua.Vision.Tests') }}
+    shell: bash
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y libopengl0 libvulkan1 mesa-vulkan-drivers libx11-6 libxext6 libxrender1 libfontconfig1 libfreetype6 fonts-dejavu-core xvfb xauth
+
+  - name: Configure Linux Vision native library search path
+    if: >-
+      ${{ runner.os == 'Linux' &&
+          contains(inputs.projects, 'Opc.Ua.Vision.Tests') }}
+    shell: pwsh
+    env:
+      CI_NATIVE_CONFIGURATION: ${{ inputs.configuration }}
+      CI_NATIVE_FRAMEWORK: ${{ inputs.framework }}
+    run: |
+      $ErrorActionPreference = 'Stop'
+      # OpenUSD's transitive ELF dependencies do not inherit .NET's native probing paths.
+      $outputDirectory = "$env:GITHUB_WORKSPACE/tests/Opc.Ua.Vision.Tests/bin/$env:CI_NATIVE_CONFIGURATION/$env:CI_NATIVE_FRAMEWORK"
+      $directories = @($outputDirectory, "$outputDirectory/runtimes/linux-x64/native")
+      if ($env:LD_LIBRARY_PATH) {
+          $directories += $env:LD_LIBRARY_PATH
+      }
+      "LD_LIBRARY_PATH=$($directories -join ':')" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
   # SoftHSM2 stands in for a hardware token so the PKCS#11 store is exercised
   # against a real module rather than a substitute. The tests skip themselves
   # when no module is present or the token is not provisioned, so this step only

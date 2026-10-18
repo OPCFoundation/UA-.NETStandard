@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Manages a subscription created by a client.
     /// </summary>
-    public class Subscription :
+    public partial class Subscription :
 
         ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle,
@@ -195,13 +195,34 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var subscription = new Subscription(server, storedSubscription, timeProvider);
-            await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await subscription.LoadRetransmissionStateAsync(cancellationToken).ConfigureAwait(false);
 
-            await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
-                .ConfigureAwait(false);
+                await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
+                    .ConfigureAwait(false);
 
-            subscription.RestoreTriggeringLinks(
-                (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+                subscription.RestoreTriggeringLinks(
+                    (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+            }
+            catch
+            {
+                // The subscription is not returned, so release its monitored items
+                // and diagnostics here; the stored item queues are kept for a retry.
+                try
+                {
+                    await subscription.ReleaseAbortedRestoreAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    subscription.m_logger.DeleteItemsForSubscriptionFailed(e);
+                }
+                finally
+                {
+                    subscription.Dispose();
+                }
+                throw;
+            }
 
             return subscription;
         }
@@ -385,6 +406,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
+                    EndValuePublications();
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
                         monitoredItemKVP.Value?.Value?.Dispose();
@@ -668,12 +690,47 @@ namespace Opc.Ua.Server
         /// Once deletion starts, monitored-item cleanup is not cancelled. Diagnostics
         /// teardown follows that cleanup so cancellation or shutdown cannot leave items registered.
         /// </remarks>
-        public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
+        public ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
+        {
+            return DeleteCoreAsync(context, keepStoredQueues: false);
+        }
+
+        /// <summary>
+        /// Releases a subscription whose restore was aborted. Its monitored items are
+        /// removed from the node managers and disposed and its diagnostics are deleted
+        /// as by <see cref="DeleteAsync"/>, but the stored contents of the item queues
+        /// are kept, because a retry of the restore needs them.
+        /// </summary>
+        internal ValueTask ReleaseAbortedRestoreAsync()
+        {
+            return DeleteCoreAsync(null, keepStoredQueues: true);
+        }
+
+        /// <summary>
+        /// Writes the queues the restore of the monitored items staged to their
+        /// storage. Called once every stored subscription was restored.
+        /// </summary>
+        internal void CommitRestoredQueues()
+        {
+            List<IMonitoredItem> monitoredItems;
+            lock (m_lock)
+            {
+                monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
+            }
+
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                (monitoredItem as MonitoredItem)?.CommitQueueRestore();
+            }
+        }
+
+        private async ValueTask DeleteCoreAsync(OperationContext? context, bool keepStoredQueues)
         {
             // Mark the subscription deleted first so any concurrent service call that reaches a
             // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
             // operating on a subscription that is being torn down.
             Volatile.Write(ref m_deleted, 1);
+            EndValuePublications();
 
             try
             {
@@ -689,6 +746,14 @@ namespace Opc.Ua.Server
                     m_itemsToCheck.Clear();
                     m_itemsToPublish.Clear();
                     ClearReadyCandidates();
+                }
+
+                if (keepStoredQueues)
+                {
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        (monitoredItem as MonitoredItem)?.AbortQueueRestore();
+                    }
                 }
 
                 if (monitoredItems.Count > 0)
@@ -1445,6 +1510,7 @@ namespace Opc.Ua.Server
                             "Subscription ownership changed during transfer.");
                     }
                     m_subscription.Session = m_destinationSession;
+                    m_subscription.EndValuePublications(StatusCodes.BadInvalidState);
                 }
 
                 if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
@@ -1656,6 +1722,7 @@ namespace Opc.Ua.Server
                         default);
                 }
                 Session = null!;
+                EndValuePublications();
             }
 
             lock (m_diagnosticsLock)
@@ -1851,6 +1918,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 m_expired = true;
+                EndValuePublications();
 
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
                 message.SequenceNumber = m_messageQueue.AssignSequenceNumber();
@@ -3846,35 +3914,42 @@ namespace Opc.Ua.Server
                 monitoredItems.Add(null!);
             }
 
-            await m_server.NodeManager.RestoreMonitoredItemsAsync(
-                [.. storedMonitoredItems],
-                monitoredItems,
-                m_savedOwnerIdentity!,
-                cancellationToken).ConfigureAwait(false);
-
-            lock (m_lock)
+            try
             {
-                foreach (IMonitoredItem monitoredItem in monitoredItems)
-                {
-                    // skip MonitoredItem if recreation failed
-                    if (monitoredItem == null)
-                    {
-                        continue;
-                    }
-                    monitoredItem.SubscriptionCallback = this;
-
-                    LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
-                    m_monitoredItems.Add(monitoredItem.Id, node);
-                    OnMonitoredItemAdded(monitoredItem);
-
-                    // update sampling interval diagnostics.
-                    AddItemToSamplingInterval(
-                        monitoredItem.SamplingInterval,
-                        monitoredItem.MonitoringMode);
-                }
-
-                TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS RESTORED");
+                await m_server.NodeManager.RestoreMonitoredItemsAsync(
+                    [.. storedMonitoredItems],
+                    monitoredItems,
+                    m_savedOwnerIdentity!,
+                    cancellationToken).ConfigureAwait(false);
             }
+            finally
+            {
+                // Items created before a failure are added too, so that deleting the
+                // subscription releases them.
+                lock (m_lock)
+                {
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        // skip MonitoredItem if recreation failed
+                        if (monitoredItem == null)
+                        {
+                            continue;
+                        }
+                        monitoredItem.SubscriptionCallback = this;
+
+                        LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
+                        m_monitoredItems.Add(monitoredItem.Id, node);
+                        OnMonitoredItemAdded(monitoredItem);
+
+                        // update sampling interval diagnostics.
+                        AddItemToSamplingInterval(
+                            monitoredItem.SamplingInterval,
+                            monitoredItem.MonitoringMode);
+                    }
+                }
+            }
+
+            TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS RESTORED");
         }
 
         /// <summary>

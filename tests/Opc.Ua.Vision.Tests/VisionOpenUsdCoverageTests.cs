@@ -44,7 +44,7 @@ namespace Opc.Ua.Vision.Tests
     /// and for the internal <see cref="DeviceSelector"/> guard clauses.
     /// </summary>
     /// <remarks>
-    /// Three families of paths in this provider are host-topology-dependent
+    /// Some paths in this provider are host-topology-dependent
     /// and therefore cannot be honestly covered by a unit test on this host:
     /// <list type="bullet">
     /// <item><description>The <c>else</c> branch of the constructor at
@@ -56,19 +56,15 @@ namespace Opc.Ua.Vision.Tests
     /// branch, so it inherits the same restriction. See
     /// <see cref="SceneCameraCaptureProviderTests.CaptureAsyncReportsNoRenderingBackendWhenDeviceProbeFailedAndNeverReturnsSuccessWithEmptyImage"/>
     /// for the CI-side invariants.</description></item>
-    /// <item><description>The full success path of <c>CaptureCore</c>
-    /// (rendering RGBA, PNG-encoding, returning <c>Succeeded</c>) requires
-    /// a well-formed USD stage and OpenUSD plugin tree, and belongs in
-    /// integration tests.</description></item>
-    /// <item><description>Every reachable path inside <c>CaptureCore</c>
-    /// (<c>StageOpenFailed</c>, <c>CameraResolveFailed</c>, <c>RenderFailed</c>,
-    /// <c>BlankFrame</c>, <c>EncodingFailed</c>) is unreachable from managed
-    /// test code today: <c>UsdStage.Open</c> tears the test host down inside
-    /// native code for both an existing malformed <c>.usda</c> file and a
-    /// syntactically valid minimal <c>.usda</c> stage. This is a second
-    /// instance of the same "answers instead of refusing" pattern the
-    /// <c>ValidateRequest</c> comment already calls out for missing files —
-    /// filed as a defect below rather than covered here.</description></item>
+    /// <item><description>The success path of <c>CaptureCore</c>,
+    /// retained-scene replacement and missing-camera recovery are exercised by
+    /// <see cref="OpenUsdNativeCaptureTests"/>. Those integration tests register
+    /// both bundled runtime manifests before opening well-formed stages;
+    /// uninitialized native resolver state must not be confused with a missing
+    /// graphics backend.</description></item>
+    /// <item><description>Malformed-stage and native renderer failures are not
+    /// forced in this in-process fixture: a native access violation cannot be
+    /// caught by the provider's managed error handling.</description></item>
     /// <item><description>Similarly, <c>DeviceSelector.FormatException</c>
     /// is only invoked when a backend probe throws; on this host every probe
     /// succeeds, so the helper is unreachable from a unit test.</description></item>
@@ -88,7 +84,9 @@ namespace Opc.Ua.Vision.Tests
 
             using var provider = new OpenUsdSceneCameraCaptureProvider(options, telemetry: null);
 
-            Assert.That(provider.PluginPath, Is.Null,
+            Assert.That(
+                provider.PluginPath,
+                Is.Null,
                 "A configured PluginPath that does not exist must resolve to null so " +
                 "the provider falls back to the auto-discovery path.");
         }
@@ -106,7 +104,9 @@ namespace Opc.Ua.Vision.Tests
 
                 using var provider = new OpenUsdSceneCameraCaptureProvider(options, telemetry: null);
 
-                Assert.That(provider.PluginPath, Is.EqualTo(tempPluginDir),
+                Assert.That(
+                    provider.PluginPath,
+                    Is.EqualTo(tempPluginDir),
                     "A configured PluginPath that exists on disk must be returned verbatim.");
             }
             finally
@@ -142,15 +142,18 @@ namespace Opc.Ua.Vision.Tests
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Status, Is.EqualTo(SceneCameraCaptureStatus.InvalidRequest),
-                    "A missing local file must be refused in managed code so the native " +
-                    "resolver never sees it; otherwise UsdStage.Open can tear the process down.");
-                Assert.That(result.Reason, Is.Not.Null);
-                Assert.That(result.Reason, Does.Contain("does not name a readable file"));
-                Assert.That(result.Image.IsNull, Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.Status,
+                        Is.EqualTo(SceneCameraCaptureStatus.InvalidRequest),
+                        "A missing local file must be refused in managed code so the native " +
+                        "resolver never sees it; otherwise UsdStage.Open can tear the process down.");
+                    Assert.That(result.Reason, Is.Not.Null);
+                    Assert.That(result.Reason, Does.Contain("does not name a readable file"));
+                    Assert.That(result.Image.IsNull, Is.True);
+                });
         }
 
         [Test]
@@ -168,13 +171,14 @@ namespace Opc.Ua.Vision.Tests
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Status, Is.EqualTo(SceneCameraCaptureStatus.InvalidRequest));
-                Assert.That(result.Reason, Is.Not.Null);
-                Assert.That(result.Reason, Does.Contain("not supported"));
-                Assert.That(result.Image.IsNull, Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.Status, Is.EqualTo(SceneCameraCaptureStatus.InvalidRequest));
+                    Assert.That(result.Reason, Is.Not.Null);
+                    Assert.That(result.Reason, Does.Contain("not supported"));
+                    Assert.That(result.Image.IsNull, Is.True);
+                });
         }
 
         [Test]
@@ -194,7 +198,9 @@ namespace Opc.Ua.Vision.Tests
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.That(result.TimestampUtc, Is.EqualTo(ts),
+            Assert.That(
+                result.TimestampUtc,
+                Is.EqualTo(ts),
                 "A caller-supplied TimestampUtc must be echoed back on failure results " +
                 "so the caller can correlate the failure with the request it made.");
         }
@@ -214,13 +220,16 @@ namespace Opc.Ua.Vision.Tests
             SceneCameraCaptureResult result = await provider.CaptureAsync(request, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.Backend, Is.Not.Null);
-                Assert.That(result.Backend, Is.SameAs(provider.Backend),
-                    "Every result must carry the provider's Backend descriptor unchanged so " +
-                    "the caller can correlate a failure with the graphics backend it used.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.Backend, Is.Not.Null);
+                    Assert.That(
+                        result.Backend,
+                        Is.SameAs(provider.Backend),
+                        "Every result must carry the provider's Backend descriptor unchanged so " +
+                        "the caller can correlate a failure with the graphics backend it used.");
+                });
         }
 
         [Test]
@@ -238,16 +247,17 @@ namespace Opc.Ua.Vision.Tests
                 TimestampUtc = ts
             };
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(request.StageIdentifier, Is.EqualTo("urn:test:cam"));
-                Assert.That(request.PrimPath, Is.EqualTo("/World/Camera"));
-                Assert.That(request.Width, Is.EqualTo(640));
-                Assert.That(request.Height, Is.EqualTo(480));
-                Assert.That(request.TimeCode, Is.EqualTo(42.5));
-                Assert.That(request.Format, Is.EqualTo(SceneCameraImageFormat.Png));
-                Assert.That(request.TimestampUtc, Is.EqualTo(ts));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(request.StageIdentifier, Is.EqualTo("urn:test:cam"));
+                    Assert.That(request.PrimPath, Is.EqualTo("/World/Camera"));
+                    Assert.That(request.Width, Is.EqualTo(640));
+                    Assert.That(request.Height, Is.EqualTo(480));
+                    Assert.That(request.TimeCode, Is.EqualTo(42.5));
+                    Assert.That(request.Format, Is.EqualTo(SceneCameraImageFormat.Png));
+                    Assert.That(request.TimestampUtc, Is.EqualTo(ts));
+                });
         }
 
         [Test]
@@ -257,13 +267,16 @@ namespace Opc.Ua.Vision.Tests
                 new OpenUsdSceneCaptureOptions { PreferSoftware = true },
                 telemetry: null);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(provider.Backend, Is.Not.Null);
-                Assert.That(provider.Backend.Name, Is.Not.Empty,
-                    "PreferSoftware=true changes the D3D12 probe order on Windows but must " +
-                    "still resolve to a named backend descriptor.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(provider.Backend, Is.Not.Null);
+                    Assert.That(
+                        provider.Backend.Name,
+                        Is.Not.Empty,
+                        "PreferSoftware=true changes the D3D12 probe order on Windows but must " +
+                        "still resolve to a named backend descriptor.");
+                });
         }
 
         [Test]
@@ -273,36 +286,41 @@ namespace Opc.Ua.Vision.Tests
                 new OpenUsdSceneCaptureOptions { AllowSoftwareFallback = false },
                 telemetry: null);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(provider.Backend, Is.Not.Null);
-                Assert.That(provider.Backend.Name, Is.Not.Empty,
-                    "AllowSoftwareFallback=false drops the WARP probe on Windows but must " +
-                    "still resolve to a named backend descriptor when hardware D3D12 is available.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(provider.Backend, Is.Not.Null);
+                    Assert.That(
+                        provider.Backend.Name,
+                        Is.Not.Empty,
+                        "AllowSoftwareFallback=false drops the WARP probe on Windows but must " +
+                        "still resolve to a named backend descriptor when hardware D3D12 is available.");
+                });
         }
 
         [Test]
         public void DeviceSelectorTrySelectDeviceThrowsArgumentNullExceptionForNullOptions()
         {
-            Assert.That(() =>
-                    DeviceSelector.TrySelectDevice(
-                        null!,
-                        NullLogger.Instance,
-                        out _,
-                        out _),
+            Assert.That(
+                () =>
+                        DeviceSelector.TrySelectDevice(
+                            null!,
+                            NullLogger.Instance,
+                            out _,
+                            out _),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
         public void DeviceSelectorTrySelectDeviceThrowsArgumentNullExceptionForNullLogger()
         {
-            Assert.That(() =>
-                    DeviceSelector.TrySelectDevice(
-                        new OpenUsdSceneCaptureOptions(),
-                        null!,
-                        out _,
-                        out _),
+            Assert.That(
+                () =>
+                        DeviceSelector.TrySelectDevice(
+                            new OpenUsdSceneCaptureOptions(),
+                            null!,
+                            out _,
+                            out _),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -317,23 +335,28 @@ namespace Opc.Ua.Vision.Tests
 
             if (!selected)
             {
-                Assert.That(reason, Is.Not.Empty,
+                Assert.That(
+                    reason,
+                    Is.Not.Empty,
                     "TrySelectDevice must fill the aggregate reason when every probe fails, " +
                     "so the caller can surface it in a diagnostic.");
                 return;
             }
             try
             {
-                Assert.Multiple(() =>
-                {
-                    Assert.That(device.Device, Is.Not.Null);
-                    Assert.That(device.Backend, Is.Not.Null);
-                    Assert.That(device.Backend.IsAvailable, Is.True);
-                    Assert.That(device.Backend.Name, Is.Not.Empty);
-                    Assert.That(reason, Is.Empty,
-                        "aggregateReason must be empty on the success path so the caller " +
-                        "does not log a stale unavailable message.");
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(device.Device, Is.Not.Null);
+                        Assert.That(device.Backend, Is.Not.Null);
+                        Assert.That(device.Backend.IsAvailable, Is.True);
+                        Assert.That(device.Backend.Name, Is.Not.Empty);
+                        Assert.That(
+                            reason,
+                            Is.Empty,
+                            "aggregateReason must be empty on the success path so the caller " +
+                            "does not log a stale unavailable message.");
+                    });
             }
             finally
             {
@@ -364,7 +387,9 @@ namespace Opc.Ua.Vision.Tests
             {
                 thrown = ex;
             }
-            Assert.That(thrown, Is.Not.Null,
+            Assert.That(
+                thrown,
+                Is.Not.Null,
                 "A pre-cancelled token must cancel the capture before touching the render pipeline; " +
                 "the check runs before ValidateRequest so the stage identifier value is irrelevant.");
         }
@@ -374,7 +399,8 @@ namespace Opc.Ua.Vision.Tests
         {
             var provider = new OpenUsdSceneCameraCaptureProvider();
             provider.Dispose();
-            Assert.DoesNotThrow(provider.Dispose,
+            Assert.DoesNotThrow(
+                provider.Dispose,
                 "Dispose must be idempotent - a defensive host may call it twice.");
 
             var request = new SceneCameraCaptureRequest
@@ -394,7 +420,9 @@ namespace Opc.Ua.Vision.Tests
             {
                 thrown = ex;
             }
-            Assert.That(thrown, Is.Not.Null,
+            Assert.That(
+                thrown,
+                Is.Not.Null,
                 "A capture request after Dispose must be refused with ObjectDisposedException, " +
                 "not swallowed and answered as a failure.");
         }

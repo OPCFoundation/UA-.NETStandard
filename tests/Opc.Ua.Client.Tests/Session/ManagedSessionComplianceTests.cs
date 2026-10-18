@@ -789,7 +789,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             sessionFactory.Setup(f => f.CreateAsync(
                     configuration,
-                    endpoint,
+                    It.Is<ConfiguredEndpoint>(candidate =>
+                        !ReferenceEquals(candidate, endpoint) &&
+                        candidate.EndpointUrl == endpoint.EndpointUrl),
                     false,
                     false,
                     It.IsAny<string>(),

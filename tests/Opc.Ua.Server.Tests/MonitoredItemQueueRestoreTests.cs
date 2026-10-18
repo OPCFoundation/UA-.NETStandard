@@ -281,6 +281,89 @@ namespace Opc.Ua.Server.Tests
                 Has.Some.Contains("Failed to pre-hydrate queue for monitored item with id 3"));
         }
 
+        /// <summary>
+        /// Verifies that the commit of a restored queue is serialized with the values the item queues, so the
+        /// storage ends with the newest value.
+        /// </summary>
+        [Test]
+        public async Task CommitOfARestoredQueueIsSerializedWithQueuedValuesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            StoredMonitoredItem stored = CreateStoredItem();
+            var queue = new GatedRestorableQueue(stored.Id, telemetry);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            MonitoredItem item;
+            using (RestoredQueueStaging.Begin())
+            {
+                item = new MonitoredItem(
+                    server.Object,
+                    Mock.Of<IAsyncNodeManager>(),
+                    new object(),
+                    stored);
+            }
+            using MonitoredItem restoredItem = item;
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+            Assert.That(queue.Stored, Is.EqualTo(s_storedValue), "the staged queue keeps its stored contents");
+
+            Task commit = Task.Run(item.CommitQueueRestore);
+            Task enqueue = Task.CompletedTask;
+            Task first;
+            try
+            {
+                Assert.That(queue.CommitStarted.Wait(TimeSpan.FromSeconds(30)), Is.True);
+                enqueue = Task.Run(() => item.QueueValue(new DataValue(Variant.From(3)), ServiceResult.Good));
+                first = await Task.WhenAny(enqueue, Task.Delay(500)).ConfigureAwait(false);
+            }
+            finally
+            {
+                // Release the gate and let both workers finish before the item, whose lock they hold, is disposed.
+                queue.ReleaseCommit();
+                await Task.WhenAll(commit, enqueue).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+            }
+
+            Assert.That(first, Is.Not.SameAs(enqueue), "the value is queued once the commit completed");
+            int[] persisted = queue.Stored;
+            Assert.That(persisted, Is.EqualTo(queue.Values), "the storage holds the contents of the queue");
+            Assert.That(persisted[persisted.Length - 1], Is.EqualTo(3), "the storage ends with the newest value");
+        }
+
+        /// <summary>
+        /// Verifies that a monitored item restored without the subscription manager does not stage its queue:
+        /// the queue writes every change to its storage at once, as before staging existed.
+        /// </summary>
+        [Test]
+        public void RestoreWithoutTheSubscriptionManagerDoesNotStageTheQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            StoredMonitoredItem stored = CreateStoredItem();
+            var queue = new GatedRestorableQueue(stored.Id, telemetry);
+            queue.ResetQueue(10, false);
+            queue.Enqueue(new DataValue(Variant.From(1)), ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                stored);
+
+            item.QueueValue(new DataValue(Variant.From(2)), ServiceResult.Good);
+
+            Assert.That(queue.BeginRestoreCalled, Is.False);
+            Assert.That(queue.Stored, Is.EqualTo(s_storedValues), "the change is written at once");
+        }
+
         private static StoredMonitoredItem StoreItemWithPendingHistoryFailure(
             IServerInternal server,
             uint queueSize,
@@ -478,6 +561,116 @@ namespace Opc.Ua.Server.Tests
 
             private readonly ConcurrentBag<string> m_messages;
         }
+
+        /// <summary>
+        /// A restorable queue that writes its values to a simulated storage, and whose commit waits until the
+        /// test releases it after it captured the values to write.
+        /// </summary>
+        private sealed class GatedRestorableQueue : DataChangeMonitoredItemQueue, IRestorableMonitoredItemQueue
+        {
+            public GatedRestorableQueue(uint monitoredItemId, ITelemetryContext telemetry)
+                : base(false, monitoredItemId, telemetry)
+            {
+            }
+
+            public ManualResetEventSlim CommitStarted { get; } = new();
+
+            public int[] Values
+            {
+                get
+                {
+                    lock (m_contents)
+                    {
+                        return [.. m_contents];
+                    }
+                }
+            }
+
+            public int[] Stored { get; private set; } = [];
+
+            public override void Enqueue(DataValue value, ServiceResult error)
+            {
+                base.Enqueue(value, error);
+                Change(values => values.Add(ValueOf(value)));
+            }
+
+            public override void OverwriteLastValue(DataValue value, ServiceResult error)
+            {
+                base.OverwriteLastValue(value, error);
+                Change(values => values[values.Count - 1] = ValueOf(value));
+            }
+
+            public override bool Dequeue(out DataValue value, out ServiceResult error)
+            {
+                bool dequeued = base.Dequeue(out value, out error);
+                if (dequeued)
+                {
+                    Change(values => values.RemoveAt(0));
+                }
+                return dequeued;
+            }
+
+            public bool BeginRestoreCalled { get; private set; }
+
+            public void BeginRestore()
+            {
+                BeginRestoreCalled = true;
+                m_staged = true;
+            }
+
+            public void CommitRestore()
+            {
+                m_staged = false;
+                int[] values = Values;
+                CommitStarted.Set();
+                m_release.Wait();
+                Stored = values;
+            }
+
+            public void AbortRestore()
+            {
+                m_staged = true;
+            }
+
+            public void ReleaseCommit()
+            {
+                m_release.Set();
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    CommitStarted.Dispose();
+                    m_release.Dispose();
+                }
+                base.Dispose(disposing);
+            }
+
+            private void Change(Action<List<int>> change)
+            {
+                lock (m_contents)
+                {
+                    change(m_contents);
+                    if (!m_staged)
+                    {
+                        Stored = [.. m_contents];
+                    }
+                }
+            }
+
+            private static int ValueOf(DataValue value)
+            {
+                return value.WrappedValue.TryGetValue(out int result) ? result : 0;
+            }
+
+            private readonly List<int> m_contents = [];
+            private readonly ManualResetEventSlim m_release = new();
+            private volatile bool m_staged;
+        }
+
+        private static readonly int[] s_storedValue = [1];
+        private static readonly int[] s_storedValues = [1, 2];
 
         private sealed class NoopDisposable : IDisposable
         {

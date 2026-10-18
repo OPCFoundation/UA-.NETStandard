@@ -203,6 +203,8 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 WotRegistryServerOptions options =
                     sp.GetRequiredService<WotRegistryServerOptions>();
+                // A converter options instance registered in DI replaces these defaults (TryAdd), so a
+                // deployment holding a large partitioned model states its resolver budget explicitly.
                 var converterOptions = new WotNodeSetConverterOptions
                 {
                     MaxJsonDepth = options.Bounds.MaxJsonDepth,

@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -309,7 +310,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// documents from a registry snapshot, so a Thing Description synthesized by
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
-    internal sealed class SnapshotThingResolver : IWotThingResolver, IWotCapturedDataTypeDefinitions
+    internal sealed class SnapshotThingResolver :
+        IWotThingResolver, IWotCapturedDataTypeDefinitions, IWotArchiveContextProvider
     {
         /// <summary>
         /// Initializes a new <c>SnapshotThingResolver</c> instance.
@@ -320,11 +322,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
-            ArrayOf<WotDataTypeDefinitionSource> dataTypeDefinitions = default)
+            ArrayOf<WotDataTypeDefinitionSource> dataTypeDefinitions = default,
+            Func<WotNodeSetConverter.ArchiveContextIndex>? archiveContexts = null)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
             DataTypeDefinitions = dataTypeDefinitions.IsNull ? [] : dataTypeDefinitions;
+            m_archiveContexts = archiveContexts;
+        }
+
+        /// <inheritdoc/>
+        public UANodeSet? GetArchiveContext(WotDocument document)
+        {
+            return m_archiveContexts?.Invoke().Find(document);
         }
 
         /// <summary>
@@ -352,5 +362,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private readonly WotRegistrySnapshot m_snapshot;
         private readonly IReadOnlyDictionary<string, ByteString> m_contents;
+        private readonly Func<WotNodeSetConverter.ArchiveContextIndex>? m_archiveContexts;
     }
 }

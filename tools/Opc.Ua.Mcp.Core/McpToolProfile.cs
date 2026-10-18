@@ -73,7 +73,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
-        Full,
+        Full = 7,
 
         /// <summary>
         /// Asset Management Basics discovery, monitoring and asset maintenance.
@@ -198,6 +198,21 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Leased, policy-controlled execution of supported WoT protocol forms.
         /// </summary>
-        WotRuntime
+        WotRuntime,
+
+        /// <summary>
+        /// MachineTool and Wireless Machine Tool Peripheral discovery, monitoring and configured workflows.
+        /// </summary>
+        MachineTool = 33,
+
+        /// <summary>
+        /// Geometric measurement system equipment, production monitoring and result workflows.
+        /// </summary>
+        Gms = 34,
+
+        /// <summary>
+        /// Crane and hoist monitoring and explicitly configured limit requests.
+        /// </summary>
+        CranesHoists = 35
     }
 }

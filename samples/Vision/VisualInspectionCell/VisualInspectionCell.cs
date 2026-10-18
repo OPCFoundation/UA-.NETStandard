@@ -65,16 +65,19 @@ namespace Vision.VisualInspectionCell
                 throw new ArgumentNullException(nameof(context));
             }
 
-            context.Nodes.AddFrame("FixtureFrame", frame => frame
-                .WithFrameId(FixtureFrameId)
-                .WithRole(VisionFrameRoleEnum.World)
-                .WithTransform(new VisionPose3DDataType
-                {
-                    FrameId = FixtureFrameId,
-                    Position = s_zeroPosition.ToArrayOf(),
-                    Orientation = s_identityOrientation.ToArrayOf(),
-                    Covariance = []
-                }));
+            context.Nodes.AddFrame(
+                "FixtureFrame",
+                frame => frame
+                    .WithFrameId(FixtureFrameId)
+                    .WithRole(VisionFrameRoleEnum.World)
+                    .WithTransform(
+                        new VisionPose3DDataType
+                        {
+                            FrameId = FixtureFrameId,
+                            Position = s_zeroPosition.ToArrayOf(),
+                            Orientation = s_identityOrientation.ToArrayOf(),
+                            Covariance = []
+                        }));
             AddSensor(context);
             AddPipeline(context);
             await AddOperatorDialogAsync(context, cancellationToken).ConfigureAwait(false);
@@ -84,38 +87,43 @@ namespace Vision.VisualInspectionCell
 
         private void AddSensor(IVisionBuildContext context)
         {
-            context.Nodes.AddImageSensor(SensorBrowseName, sensor => sensor
-                .WithSensorId("fixture-camera-01")
-                .WithModality(VisionSensorModalityEnum.Area2D)
-                .WithRealityKind(VisionRealityKindEnum.Simulated)
-                .WithManufacturer("OPC Foundation")
-                .WithModel("Fixture PNG camera")
-                .WithSerialNumber("FIXTURE-CAM-0001")
-                .WithDeviceUri("file://visual-inspection-cell/fixtures")
-                .WithFrameId(FixtureFrameId)
-                .WithResolution(VisualInspectionMediaProvider.Width, VisualInspectionMediaProvider.Height)
-                .WithPixelFormat(VisualInspectionMediaProvider.PixelFormat)
-                .WithIntrinsics(new VisionIntrinsicsDataType
-                {
-                    Fx = 10.0,
-                    Fy = 10.0,
-                    Cx = 400.0,
-                    Cy = 300.0,
-                    Skew = 0.0,
-                    DistortionModel = VisionDistortionModelEnum.None,
-                    DistortionCoefficients = [],
-                    Width = VisualInspectionMediaProvider.Width,
-                    Height = VisualInspectionMediaProvider.Height
-                })
-                .AddClipEndpoint(ClipEndpointBrowseName, endpoint => endpoint
-                    .WithEndpointId("fixture-pngs")
-                    .WithEndpointUri("opcua-inline://visual-inspection-cell/fixtures")
-                    .WithClipFormat(VisionClipFormatEnum.Png)
-                    .WithQuality(100u)
+            context.Nodes.AddImageSensor(
+                SensorBrowseName,
+                sensor => sensor
+                    .WithSensorId("fixture-camera-01")
+                    .WithModality(VisionSensorModalityEnum.Area2D)
+                    .WithRealityKind(VisionRealityKindEnum.Simulated)
+                    .WithManufacturer("OPC Foundation")
+                    .WithModel("Fixture PNG camera")
+                    .WithSerialNumber("FIXTURE-CAM-0001")
+                    .WithDeviceUri("file://visual-inspection-cell/fixtures")
+                    .WithFrameId(FixtureFrameId)
                     .WithResolution(VisualInspectionMediaProvider.Width, VisualInspectionMediaProvider.Height)
-                    .WithInlineDelivery(enabled: true, maxInlineClipSize: 1_048_576u)
-                    .WithDefaultProfileName("FixturePng"))
-                .UseMediaProvider(m_mediaProvider));
+                    .WithPixelFormat(VisualInspectionMediaProvider.PixelFormat)
+                    .WithIntrinsics(
+                        new VisionIntrinsicsDataType
+                        {
+                            Fx = 10.0,
+                            Fy = 10.0,
+                            Cx = 400.0,
+                            Cy = 300.0,
+                            Skew = 0.0,
+                            DistortionModel = VisionDistortionModelEnum.None,
+                            DistortionCoefficients = [],
+                            Width = VisualInspectionMediaProvider.Width,
+                            Height = VisualInspectionMediaProvider.Height
+                        })
+                    .AddClipEndpoint(
+                        ClipEndpointBrowseName,
+                        endpoint => endpoint
+                            .WithEndpointId("fixture-pngs")
+                            .WithEndpointUri("opcua-inline://visual-inspection-cell/fixtures")
+                            .WithClipFormat(VisionClipFormatEnum.Png)
+                            .WithQuality(100u)
+                            .WithResolution(VisualInspectionMediaProvider.Width, VisualInspectionMediaProvider.Height)
+                            .WithInlineDelivery(enabled: true, maxInlineClipSize: 1_048_576u)
+                            .WithDefaultProfileName("FixturePng"))
+                    .UseMediaProvider(m_mediaProvider));
         }
 
         private void AddPipeline(IVisionBuildContext context)
@@ -123,22 +131,24 @@ namespace Vision.VisualInspectionCell
             NodeId sensorNodeId = FindSensor(context)?.NodeId ?? NodeId.Null;
             (NodeId deployment, NodeId learningJob) = ResolveAIBindings(context);
             bool offServer = m_options.InferenceLocation == VisualInspectionInferenceLocation.EdgeOffServer;
-            context.Nodes.AddPipeline(PipelineBrowseName, pipeline =>
-            {
-                pipeline.WithPipelineId(PipelineId)
-                    .WithSensor(sensorNodeId)
-                    .WithDeployment(deployment)
-                    .WithLearningJob(learningJob)
-                    .UseFeedbackSink(m_feedbackSink);
-                if (offServer)
+            context.Nodes.AddPipeline(
+                PipelineBrowseName,
+                pipeline =>
                 {
-                    pipeline.UseInferenceProvider(m_inferenceProvider, onServer: false);
-                }
-                else
-                {
-                    pipeline.UseInferenceProvider(m_inferenceProvider, onServer: true);
-                }
-            });
+                    pipeline.WithPipelineId(PipelineId)
+                        .WithSensor(sensorNodeId)
+                        .WithDeployment(deployment)
+                        .WithLearningJob(learningJob)
+                        .UseFeedbackSink(m_feedbackSink);
+                    if (offServer)
+                    {
+                        pipeline.UseInferenceProvider(m_inferenceProvider, onServer: false);
+                    }
+                    else
+                    {
+                        pipeline.UseInferenceProvider(m_inferenceProvider, onServer: true);
+                    }
+                });
         }
 
         private void AttachRuntimeTargets(IVisionBuildContext context)
@@ -165,6 +175,14 @@ namespace Vision.VisualInspectionCell
                 results);
             m_inferenceProvider.Attach(target);
             m_feedbackSink.Attach(target);
+            ClipEndpointState clip = FindChild<ClipEndpointState>(
+                sensor.Media?.ClipEndpoints,
+                context,
+                ClipEndpointBrowseName) ??
+                throw new InvalidOperationException("The fixture clip endpoint was not registered.");
+            clip.CreateOrReplaceState(context.Context, null).Value = VisionEndpointStateEnum.Ready;
+            pipeline.CreateOrReplaceState(context.Context, null).Value = VisionEndpointStateEnum.Ready;
+            pipeline.CreateOrReplaceContinuous(context.Context, null).Value = false;
         }
 
         private async ValueTask AddOperatorDialogAsync(
@@ -260,7 +278,8 @@ namespace Vision.VisualInspectionCell
 
     internal static partial class VisualInspectionCellLog
     {
-        [LoggerMessage(EventId = VisualInspectionCellEventIds.Configurator + 1,
+        [LoggerMessage(
+            EventId = VisualInspectionCellEventIds.Configurator + 1,
             Level = LogLevel.Information,
             Message = "Configured visual inspection pipeline {PipelineBrowseName} with {InferenceLocation} perception.")]
         public static partial void CellConfigured(

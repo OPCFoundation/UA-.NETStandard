@@ -212,11 +212,14 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// </summary>
         public string DataTypeNamespace { get; set; } = string.Empty;
 
-        /// <summary>Value rank (variables only; <c>Scalar = 0</c> per <c>Opc.Ua.ValueRanks</c>).</summary>
+        /// <summary>
+        /// Value rank (variables only), using the ModelDesign ValueRank values.
+        /// </summary>
         public int ValueRank { get; set; }
 
         /// <summary>
-        /// Modelling rule (0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder, 4=MandatoryPlaceholder, 5=ExposesItsArray).
+        /// Modelling rule: 0=None, 1=Mandatory, 2=Optional, 3=OptionalPlaceholder,
+        /// 4=MandatoryPlaceholder, 5=ExposesItsArray.
         /// </summary>
         public byte ModellingRule { get; set; }
 
@@ -283,6 +286,14 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string? DefaultValueXml { get; set; }
 
         /// <summary>
+        /// Whether the variable was imported from a NodeSet2 that declares no
+        /// Value for it, so that its Value is null rather than the default
+        /// value of its DataType (variables only). Carried as a variable flag
+        /// that older readers ignore.
+        /// </summary>
+        public bool NodeSetValueIsNull { get; set; }
+
+        /// <summary>
         /// The namespace table the namespace indexes in
         /// <see cref="DefaultValueXml"/> refer to in the producing model
         /// (index 0 is the OPC UA namespace): the producer's design
@@ -334,6 +345,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// String NodeId identifier for the effective method declaration.
         /// </summary>
         public string? MethodDeclarationStringId { get; set; }
+
+        /// <summary>
+        /// Explicit instance-declaration descendants, empty for older payloads and leaf declarations.
+        /// </summary>
+        public ArrayOf<DependencyChild> Children { get; set; } = [];
     }
 
     /// <summary>
@@ -469,6 +485,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kDeclarationDataType = 0x01;
         private const byte kDeclarationBrowseNameNamespace = 0x01;
         private const byte kDeclarationReferenceType = 0x02;
+        private const byte kNestedChildrenTrailer = 0x02;
+        private const byte kNestedChildrenTrailerVersion = 1;
+        private const int kMaxNestedChildDepth = 100;
+        private const int kMaxNestedChildren = 100_000;
         private const byte kExtendedIdentifierTrailer = 0x20;
         private const byte kExtendedIdentifierTrailerVersion = 1;
         private const byte kStructureFieldTrailer = 0x10;
@@ -482,6 +502,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
+        // A reader that predates this flag ignores it and keeps implying the
+        // DataType default, which is what it did before.
+        private const byte kNodeSetValueIsNull = 0x20;
 
         /// <summary>
         /// Namespace URI that qualifies the standard reference types.
@@ -628,66 +651,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 writer.Write(node.Children.Count);
                 foreach (DependencyChild child in node.Children)
                 {
-                    WriteString(writer, child.BrowseName);
-                    WriteString(writer, child.SymbolicName);
-                    WriteString(writer, child.TypeDefinitionName);
-                    WriteString(writer, child.TypeDefinitionNamespace);
-                    WriteString(writer, child.DataTypeName);
-                    WriteString(writer, child.DataTypeNamespace);
-                    writer.Write(child.ValueRank);
-                    writer.Write(child.ModellingRule);
-                    writer.Write(child.InstanceKind);
-                    byte variableFlags = 0;
-                    if (child.AccessLevelSpecified)
-                    {
-                        variableFlags |= kAccessLevelSpecified;
-                    }
-                    if (child.RawAccessLevel.HasValue)
-                    {
-                        variableFlags |= kRawAccessLevel;
-                    }
-                    if (child.RawUserAccessLevel.HasValue)
-                    {
-                        variableFlags |= kRawUserAccessLevel;
-                    }
-                    if (child.MinimumSamplingIntervalSpecified)
-                    {
-                        variableFlags |= kMinimumSamplingIntervalSpecified;
-                    }
-                    if (child.HistorizingSpecified)
-                    {
-                        variableFlags |= kHistorizingSpecified;
-                    }
-                    writer.Write(variableFlags);
-                    writer.Write(child.AccessLevel);
-                    writer.Write(child.RawAccessLevel.GetValueOrDefault());
-                    writer.Write(child.RawUserAccessLevel.GetValueOrDefault());
-                    writer.Write(child.MinimumSamplingInterval);
-                    writer.Write(child.Historizing);
-                    WriteNullableString(writer, child.DefaultValueXml);
-                    writer.Write(child.InputArguments.Count);
-                    foreach (DependencyMethodArg a in child.InputArguments)
-                    {
-                        WriteString(writer, a.Name);
-                        WriteString(writer, a.DataTypeName);
-                        WriteString(writer, a.DataTypeNamespace);
-                        writer.Write(a.ValueRank);
-                    }
-                    writer.Write(child.OutputArguments.Count);
-                    foreach (DependencyMethodArg a in child.OutputArguments)
-                    {
-                        WriteString(writer, a.Name);
-                        WriteString(writer, a.DataTypeName);
-                        WriteString(writer, a.DataTypeNamespace);
-                        writer.Write(a.ValueRank);
-                    }
+                    WriteChild(writer, child);
                 }
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
             bool hasStructureFieldTrailer = HasStructureFieldTrailer();
             bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
             bool hasDeclarationTrailer = HasDeclarationTrailer();
-            // The structure field, value namespace and declaration trailers
+            bool hasNestedChildrenTrailer = HasNestedChildrenTrailer();
+            // The structure field, value namespace, declaration and nested-child trailers
             // are written after the extended identifier trailer, which is
             // always written with them: a reader that predates them only reads
             // the capabilities as "trailers present" (honouring the
@@ -698,6 +670,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 hasStructureFieldTrailer ||
                 hasValueNamespaceTrailer ||
                 hasDeclarationTrailer ||
+                hasNestedChildrenTrailer ||
                 HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
@@ -732,6 +705,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kDeclarationTrailer;
                 }
+                if (hasNestedChildrenTrailer)
+                {
+                    capabilities |= kNestedChildrenTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
@@ -752,6 +729,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasDeclarationTrailer)
                 {
                     WriteDeclarationTrailer(writer);
+                }
+                if (hasNestedChildrenTrailer)
+                {
+                    WriteNestedChildrenTrailer(writer);
                 }
             }
         }
@@ -813,82 +794,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     var children = new DependencyChild[childCount];
                     for (int j = 0; j < childCount; j++)
                     {
-                        var c = new DependencyChild
-                        {
-                            BrowseName = ReadString(reader),
-                            SymbolicName = ReadString(reader),
-                            TypeDefinitionName = ReadString(reader),
-                            TypeDefinitionNamespace = ReadString(reader),
-                            DataTypeName = ReadString(reader),
-                            DataTypeNamespace = ReadString(reader),
-                            ValueRank = reader.ReadInt32(),
-                            ModellingRule = reader.ReadByte(),
-                            InstanceKind = reader.ReadByte()
-                        };
-                        byte variableFlags = reader.ReadByte();
-                        c.AccessLevelSpecified =
-                            (variableFlags & kAccessLevelSpecified) != 0;
-                        c.AccessLevel = reader.ReadByte();
-                        uint rawAccessLevel = reader.ReadUInt32();
-                        if ((variableFlags & kRawAccessLevel) != 0)
-                        {
-                            c.RawAccessLevel = rawAccessLevel;
-                        }
-                        uint rawUserAccessLevel = reader.ReadUInt32();
-                        if ((variableFlags & kRawUserAccessLevel) != 0)
-                        {
-                            c.RawUserAccessLevel = rawUserAccessLevel;
-                        }
-                        c.MinimumSamplingInterval = reader.ReadInt32();
-                        c.MinimumSamplingIntervalSpecified =
-                            (variableFlags & kMinimumSamplingIntervalSpecified) != 0;
-                        c.Historizing = reader.ReadBoolean();
-                        c.HistorizingSpecified =
-                            (variableFlags & kHistorizingSpecified) != 0;
-                        c.DefaultValueXml = ReadNullableString(reader);
-                        if (c.DefaultValueXml != null)
-                        {
-                            ValidateDefaultValueXml(c.DefaultValueXml);
-                        }
-                        int inCount = reader.ReadInt32();
-                        if (inCount is < 0 or > 100)
-                        {
-                            throw new InvalidDataException(
-                                "ModelDependencyV1: invalid input arg count " + inCount);
-                        }
-                        if (inCount > 0)
-                        {
-                            var args = new DependencyMethodArg[inCount];
-                            for (int k = 0; k < inCount; k++)
-                            {
-                                args[k] = new DependencyMethodArg(
-                                    ReadString(reader),
-                                    ReadString(reader),
-                                    ReadString(reader),
-                                    reader.ReadInt32());
-                            }
-                            c.InputArguments = args;
-                        }
-                        int outCount = reader.ReadInt32();
-                        if (outCount is < 0 or > 100)
-                        {
-                            throw new InvalidDataException(
-                                "ModelDependencyV1: invalid output arg count " + outCount);
-                        }
-                        if (outCount > 0)
-                        {
-                            var args = new DependencyMethodArg[outCount];
-                            for (int k = 0; k < outCount; k++)
-                            {
-                                args[k] = new DependencyMethodArg(
-                                    ReadString(reader),
-                                    ReadString(reader),
-                                    ReadString(reader),
-                                    reader.ReadInt32());
-                            }
-                            c.OutputArguments = args;
-                        }
-                        children[j] = c;
+                        children[j] = ReadChild(reader);
                     }
                     node.Children = children;
                 }
@@ -951,7 +857,286 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     ReadDeclarationTrailer(reader);
                 }
+                if (trailersReadable &&
+                    (capabilities & kNestedChildrenTrailer) != 0)
+                {
+                    ReadNestedChildrenTrailer(reader);
+                }
             }
+        }
+
+        private static void WriteChild(BinaryWriter writer, DependencyChild child)
+        {
+            WriteString(writer, child.BrowseName);
+            WriteString(writer, child.SymbolicName);
+            WriteString(writer, child.TypeDefinitionName);
+            WriteString(writer, child.TypeDefinitionNamespace);
+            WriteString(writer, child.DataTypeName);
+            WriteString(writer, child.DataTypeNamespace);
+            writer.Write(child.ValueRank);
+            writer.Write(child.ModellingRule);
+            writer.Write(child.InstanceKind);
+            byte variableFlags = 0;
+            if (child.AccessLevelSpecified)
+            {
+                variableFlags |= kAccessLevelSpecified;
+            }
+            if (child.RawAccessLevel.HasValue)
+            {
+                variableFlags |= kRawAccessLevel;
+            }
+            if (child.RawUserAccessLevel.HasValue)
+            {
+                variableFlags |= kRawUserAccessLevel;
+            }
+            if (child.MinimumSamplingIntervalSpecified)
+            {
+                variableFlags |= kMinimumSamplingIntervalSpecified;
+            }
+            if (child.HistorizingSpecified)
+            {
+                variableFlags |= kHistorizingSpecified;
+            }
+            if (child.NodeSetValueIsNull)
+            {
+                variableFlags |= kNodeSetValueIsNull;
+            }
+            writer.Write(variableFlags);
+            writer.Write(child.AccessLevel);
+            writer.Write(child.RawAccessLevel.GetValueOrDefault());
+            writer.Write(child.RawUserAccessLevel.GetValueOrDefault());
+            writer.Write(child.MinimumSamplingInterval);
+            writer.Write(child.Historizing);
+            WriteNullableString(writer, child.DefaultValueXml);
+            WriteMethodArguments(writer, child.InputArguments);
+            WriteMethodArguments(writer, child.OutputArguments);
+        }
+
+        private static DependencyChild ReadChild(BinaryReader reader)
+        {
+            var child = new DependencyChild
+            {
+                BrowseName = ReadString(reader),
+                SymbolicName = ReadString(reader),
+                TypeDefinitionName = ReadString(reader),
+                TypeDefinitionNamespace = ReadString(reader),
+                DataTypeName = ReadString(reader),
+                DataTypeNamespace = ReadString(reader),
+                ValueRank = reader.ReadInt32(),
+                ModellingRule = reader.ReadByte(),
+                InstanceKind = reader.ReadByte()
+            };
+            byte flags = reader.ReadByte();
+            child.AccessLevelSpecified = (flags & kAccessLevelSpecified) != 0;
+            child.AccessLevel = reader.ReadByte();
+            uint rawAccess = reader.ReadUInt32();
+            child.RawAccessLevel = (flags & kRawAccessLevel) != 0 ? rawAccess : null;
+            uint rawUserAccess = reader.ReadUInt32();
+            child.RawUserAccessLevel = (flags & kRawUserAccessLevel) != 0 ? rawUserAccess : null;
+            child.MinimumSamplingInterval = reader.ReadInt32();
+            child.MinimumSamplingIntervalSpecified = (flags & kMinimumSamplingIntervalSpecified) != 0;
+            child.Historizing = reader.ReadBoolean();
+            child.HistorizingSpecified = (flags & kHistorizingSpecified) != 0;
+            child.NodeSetValueIsNull = (flags & kNodeSetValueIsNull) != 0;
+            child.DefaultValueXml = ReadNullableString(reader);
+            if (child.DefaultValueXml != null)
+            {
+                ValidateDefaultValueXml(child.DefaultValueXml);
+            }
+            child.InputArguments = ReadMethodArguments(reader, "input");
+            child.OutputArguments = ReadMethodArguments(reader, "output");
+            return child;
+        }
+
+        private static void WriteMethodArguments(BinaryWriter writer, IReadOnlyList<DependencyMethodArg> arguments)
+        {
+            writer.Write(arguments.Count);
+            foreach (DependencyMethodArg argument in arguments)
+            {
+                WriteString(writer, argument.Name);
+                WriteString(writer, argument.DataTypeName);
+                WriteString(writer, argument.DataTypeNamespace);
+                writer.Write(argument.ValueRank);
+            }
+        }
+
+        private static DependencyMethodArg[] ReadMethodArguments(BinaryReader reader, string kind)
+        {
+            int count = reader.ReadInt32();
+            if (count is < 0 or > 100)
+            {
+                throw new InvalidDataException("ModelDependencyV1: invalid " + kind + " arg count " + count);
+            }
+            if (count == 0)
+            {
+                return [];
+            }
+            var arguments = new DependencyMethodArg[count];
+            for (int index = 0; index < count; index++)
+            {
+                arguments[index] = new DependencyMethodArg(
+                    ReadString(reader), ReadString(reader), ReadString(reader), reader.ReadInt32());
+            }
+            return arguments;
+        }
+
+        private bool HasNestedChildrenTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (child.Children.Count > 0)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void WriteNestedChildrenTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var nested = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                int remaining = kMaxNestedChildren;
+                nested.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    nested.Write(node.Children.Count);
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        WriteNestedChildren(nested, child.Children, 1, ref remaining);
+                    }
+                }
+            }
+            writer.Write(kNestedChildrenTrailerVersion);
+            writer.Write(checked((int)body.Length));
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private static void WriteNestedChildren(
+            BinaryWriter writer,
+            ArrayOf<DependencyChild> children,
+            int depth,
+            ref int remaining)
+        {
+            ValidateNestedChildren(children.Count, depth, ref remaining);
+            writer.Write(children.Count);
+            foreach (DependencyChild child in children)
+            {
+                WriteChild(writer, child);
+                WriteString(writer, child.BrowseNameNamespace);
+                WriteString(writer, child.ReferenceTypeName);
+                WriteString(writer, child.ReferenceTypeNamespace);
+                WriteString(writer, child.MethodStateName);
+                WriteString(writer, child.MethodStateNamespace);
+                WriteString(writer, child.MethodDeclarationName);
+                WriteString(writer, child.MethodDeclarationNamespace);
+                writer.Write(child.MethodDeclarationNumericId);
+                WriteNullableString(writer, child.MethodDeclarationStringId);
+                IReadOnlyList<string>? uris = child.DefaultValueNamespaceUris;
+                writer.Write(uris?.Count ?? -1);
+                if (uris != null)
+                {
+                    foreach (string uri in uris)
+                    {
+                        WriteString(writer, uri);
+                    }
+                }
+                WriteNestedChildren(writer, child.Children, depth + 1, ref remaining);
+            }
+        }
+
+        private void ReadNestedChildrenTrailer(BinaryReader reader)
+        {
+            byte version = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException("ModelDependencyV1: invalid nested-child trailer length " + length);
+            }
+            if (version != kNestedChildrenTrailerVersion)
+            {
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+            using var body = new MemoryStream(reader.ReadBytes(length), writable: false);
+            using var nested = new BinaryReader(body, Encoding.UTF8, leaveOpen: false);
+            int nodeCount = nested.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException("ModelDependencyV1: invalid nested-child node count " + nodeCount);
+            }
+            int remaining = kMaxNestedChildren;
+            foreach (DependencyNode node in Nodes)
+            {
+                int childCount = nested.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException("ModelDependencyV1: invalid nested-child count " + childCount);
+                }
+                foreach (DependencyChild child in node.Children)
+                {
+                    child.Children = ReadNestedChildren(nested, 1, ref remaining);
+                }
+            }
+            if (body.Position != body.Length)
+            {
+                throw new InvalidDataException("ModelDependencyV1: unexpected nested-child trailer data.");
+            }
+        }
+
+        private static ArrayOf<DependencyChild> ReadNestedChildren(BinaryReader reader, int depth, ref int remaining)
+        {
+            int count = reader.ReadInt32();
+            ValidateNestedChildren(count, depth, ref remaining);
+            if (count == 0)
+            {
+                return [];
+            }
+            var children = new DependencyChild[count];
+            for (int index = 0; index < count; index++)
+            {
+                DependencyChild child = ReadChild(reader);
+                child.BrowseNameNamespace = ReadString(reader);
+                child.ReferenceTypeName = ReadString(reader);
+                child.ReferenceTypeNamespace = ReadString(reader);
+                child.MethodStateName = ReadString(reader);
+                child.MethodStateNamespace = ReadString(reader);
+                child.MethodDeclarationName = ReadString(reader);
+                child.MethodDeclarationNamespace = ReadString(reader);
+                child.MethodDeclarationNumericId = reader.ReadUInt32();
+                child.MethodDeclarationStringId = ReadNullableString(reader);
+                int uriCount = reader.ReadInt32();
+                if (uriCount < -1 || uriCount == 0 || uriCount > ushort.MaxValue + 1)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid nested value namespace count " + uriCount);
+                }
+                if (uriCount >= 0)
+                {
+                    var uris = new string[uriCount];
+                    for (int uri = 0; uri < uriCount; uri++)
+                    {
+                        uris[uri] = ReadString(reader);
+                    }
+                    child.DefaultValueNamespaceUris = uris;
+                }
+                child.Children = ReadNestedChildren(reader, depth + 1, ref remaining);
+                children[index] = child;
+            }
+            return ArrayOf.Wrapped(children);
+        }
+
+        private static void ValidateNestedChildren(int count, int depth, ref int remaining)
+        {
+            if (count < 0 || count > remaining || (count > 0 && depth > kMaxNestedChildDepth))
+            {
+                throw new InvalidDataException("ModelDependencyV1: nested-child count or depth limit exceeded.");
+            }
+            remaining -= count;
         }
 
         private bool HasDeclarationTrailer()

@@ -88,7 +88,7 @@ namespace Opc.Ua.Mcp.Tools
                     results.Add(new Dictionary<string, object?>
                     {
                         ["nodeId"] = nodeIds[i],
-                        ["result"] = OpcUaJsonHelper.DataValueToDict(response.Results[i])
+                        ["result"] = OpcUaJsonHelper.DataValueToDict(response.Results[i], session.MessageContext)
                     });
                 }
 
@@ -224,7 +224,7 @@ namespace Opc.Ua.Mcp.Tools
                     if (histResult.HistoryData.TryGetValue(out HistoryData? historyData))
                     {
                         resultDict["dataValues"] = historyData.DataValues
-                            .ToArray()!.Select(OpcUaJsonHelper.DataValueToDict)
+                            .ToArray()!.Select(value => OpcUaJsonHelper.DataValueToDict(value, session.MessageContext))
                             .ToList();
                     }
 

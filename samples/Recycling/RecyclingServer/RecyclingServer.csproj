@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>RecyclingServer</AssemblyName>
+    <RootNamespace>Opc.Ua.Recycling</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <IsAotCompatible>true</IsAotCompatible>
+    <PublishAot Condition="'$(RuntimeIdentifier)' != ''">true</PublishAot>
+    <Description>Generic deterministic recycling simulator and typed OPC UA coordination sample.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Recycling.Client\Recycling.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Scales.Server\Opc.Ua.Scales.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Extrusion.Server\Opc.Ua.Extrusion.Server.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.PlasticsRubber.Server\Opc.Ua.PlasticsRubber.Server.csproj" />
+    <ProjectReference Include="..\..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Recycling.Samples.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\Recycling.Client\Model\Recycling.xml">
+      <Link>Model\Recycling.xml</Link>
+      <ModelSourceGeneratorModelUri>urn:opcfoundation.org:sample:recycling</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>RecyclingModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Recycling.Model</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <!-- Preserve the original journal configuration hash input and resource name. -->
+    <EmbeddedResource Include="..\Recycling.Client\Model\Recycling.xml" LogicalName="Recycling.Model.xml" />
+  </ItemGroup>
+  <Import Project="..\..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+</Project>

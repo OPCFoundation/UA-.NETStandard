@@ -682,7 +682,8 @@ namespace Opc.Ua.Bindings
                         {
                             if (m_partialMessageChunks == null)
                             {
-                                m_partialMessageChunks = [];
+                                // most messages are a single, final chunk
+                                m_partialMessageChunks = isFinal ? new BufferCollection(1) : [];
                                 m_partialMessageStartedAt = TimeProvider.GetTimestamp();
                                 m_partialMessageOwner = owner;
                             }
@@ -1400,14 +1401,14 @@ namespace Opc.Ua.Bindings
                     "The transport was closed by the remote application.");
 
             Interlocked.Increment(ref m_activeWriteRequests);
-            ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
+            var chunk = new ArraySegment<byte>(buffer.GetArray(), buffer.Offset, buffer.Count);
 
             // Queued rather than started inline. The write completes by calling
             // HandleWriteComplete, which enters the gate, and the caller may be
             // holding it: started inline, the synchronous prologue would run on
             // the caller's stack, disclaim the caller's own entitlement and then
             // block on a gate that this very thread holds.
-            QueueWrite(new PendingWrite(transport, chunk, buffer.GetArray(), null, state));
+            QueueWrite(new PendingWrite(transport, chunk, state));
         }
 
         /// <summary>
@@ -1438,7 +1439,7 @@ namespace Opc.Ua.Bindings
 
             // Queued rather than started inline, for the reason given in
             // BeginWriteMessage(ArraySegment{byte}, object).
-            QueueWrite(new PendingWrite(transport, default, null, buffers, state));
+            QueueWrite(new PendingWrite(transport, buffers, state));
         }
 
         /// <summary>
@@ -1493,7 +1494,7 @@ namespace Opc.Ua.Bindings
         /// </para>
         /// </remarks>
         private protected bool BeginWriteSymmetricMessage(
-            EncodedSymmetricMessage message,
+            in EncodedSymmetricMessage message,
             object? state)
         {
             IUaSCByteTransport? transport = m_transport;
@@ -1503,7 +1504,7 @@ namespace Opc.Ua.Bindings
             }
 
             Interlocked.Increment(ref m_activeWriteRequests);
-            var write = new PendingWrite(transport, default, null, null, state, message);
+            var write = new PendingWrite(transport, in message, state);
 
             lock (m_writeQueueLock)
             {
@@ -1712,7 +1713,7 @@ namespace Opc.Ua.Bindings
             for (int ii = 0; ii < batch.Count; ii++)
             {
                 PendingWrite write = batch[ii];
-                if (write.Unsealed is EncodedSymmetricMessage message)
+                if (write.TryGetUnsealed(out EncodedSymmetricMessage message))
                 {
                     // A message queued for a transport the channel no longer uses (a
                     // reconnect replaced it, or the channel closed) is not numbered:
@@ -1742,7 +1743,7 @@ namespace Opc.Ua.Bindings
                     {
                         // returns the chunks to the pool when it fails.
                         BufferCollection sealedChunks = SealSymmetricMessage(message, token);
-                        write = new PendingWrite(write.Transport, default, null, sealedChunks, write.State);
+                        write = new PendingWrite(write.Transport, sealedChunks, write.State);
                     }
                     catch (Exception ex)
                     {
@@ -1797,7 +1798,7 @@ namespace Opc.Ua.Bindings
             for (int ii = 0; ii < batch.Count; ii++)
             {
                 PendingWrite write = batch[ii];
-                if (write.Unsealed == null && ReferenceEquals(write.Transport, broken))
+                if (!write.IsUnsealed && ReferenceEquals(write.Transport, broken))
                 {
                     if (write.Buffers == null && write.BackingBuffer != null)
                     {
@@ -1849,30 +1850,113 @@ namespace Opc.Ua.Bindings
         /// buffer to return, a collection of buffers, or a message the writer
         /// still has to seal.
         /// </summary>
+        /// <remarks>
+        /// Every response is copied into the write queue, into the writer's batch and
+        /// back after sealing, each time into an array on the heap with write barriers.
+        /// The three kinds therefore share one payload reference and two integers
+        /// (40 bytes on 64-bit, where separate fields for each kind took about 80).
+        /// </remarks>
         private readonly struct PendingWrite
         {
-            public PendingWrite(
-                IUaSCByteTransport transport,
-                ReadOnlyMemory<byte> chunk,
-                byte[]? backingBuffer,
-                BufferCollection? buffers,
-                object? state,
-                EncodedSymmetricMessage? unsealed = null)
+            /// <summary>
+            /// One contiguous chunk; its array is returned to the buffer manager.
+            /// </summary>
+            public PendingWrite(IUaSCByteTransport transport, ArraySegment<byte> chunk, object? state)
             {
                 Transport = transport;
-                Chunk = chunk;
-                BackingBuffer = backingBuffer;
-                Buffers = buffers;
                 State = state;
-                Unsealed = unsealed;
+                m_payload = chunk.Array;
+                m_offsetOrMessageType = chunk.Offset;
+                m_countOrRequestId = (uint)chunk.Count;
+                m_kind = kChunk;
+            }
+
+            /// <summary>
+            /// A collection of buffers, numbered and secured.
+            /// </summary>
+            public PendingWrite(IUaSCByteTransport transport, BufferCollection buffers, object? state)
+            {
+                Transport = transport;
+                State = state;
+                m_payload = buffers;
+                m_offsetOrMessageType = 0;
+                m_countOrRequestId = 0;
+                m_kind = kBuffers;
+            }
+
+            /// <summary>
+            /// A message the writer still has to seal.
+            /// </summary>
+            public PendingWrite(IUaSCByteTransport transport, in EncodedSymmetricMessage message, object? state)
+            {
+                Transport = transport;
+                State = state;
+                m_payload = message.Chunks;
+                m_offsetOrMessageType = unchecked((int)message.MessageType);
+                m_countOrRequestId = message.RequestId;
+                m_kind = (byte)(kUnsealed |
+                    (message.IsRequest ? kIsRequest : 0) |
+                    (message.Aborted ? kAborted : 0));
             }
 
             public IUaSCByteTransport Transport { get; }
-            public ReadOnlyMemory<byte> Chunk { get; }
-            public byte[]? BackingBuffer { get; }
-            public BufferCollection? Buffers { get; }
             public object? State { get; }
-            public EncodedSymmetricMessage? Unsealed { get; }
+
+            /// <summary>
+            /// The chunk of a single-chunk write, empty otherwise.
+            /// </summary>
+            public ReadOnlyMemory<byte> Chunk => m_kind == kChunk
+                ? new ReadOnlyMemory<byte>((byte[]?)m_payload, m_offsetOrMessageType, (int)m_countOrRequestId)
+                : default;
+
+            /// <summary>
+            /// The array of a single-chunk write, to return to the buffer manager.
+            /// </summary>
+            public byte[]? BackingBuffer => m_kind == kChunk ? (byte[]?)m_payload : null;
+
+            /// <summary>
+            /// The buffers of a sealed write of buffers.
+            /// </summary>
+            public BufferCollection? Buffers => m_kind == kBuffers ? (BufferCollection)m_payload! : null;
+
+            /// <summary>
+            /// Whether the message still has to be sealed.
+            /// </summary>
+            public bool IsUnsealed => (m_kind & kUnsealed) != 0;
+
+            /// <summary>
+            /// The message still to seal, if any.
+            /// </summary>
+            public bool TryGetUnsealed(out EncodedSymmetricMessage message)
+            {
+                if (!IsUnsealed)
+                {
+                    message = default;
+                    return false;
+                }
+
+                message = new EncodedSymmetricMessage(
+                    unchecked((uint)m_offsetOrMessageType),
+                    m_countOrRequestId,
+                    (m_kind & kIsRequest) != 0,
+                    (m_kind & kAborted) != 0,
+                    (BufferCollection)m_payload!);
+                return true;
+            }
+
+            private const byte kChunk = 1;
+            private const byte kBuffers = 2;
+            private const byte kUnsealed = 4;
+            private const byte kIsRequest = 8;
+            private const byte kAborted = 16;
+
+            /// <summary>
+            /// The chunk's array, or the buffers (sealed or not).
+            /// </summary>
+            private readonly object? m_payload;
+            private readonly int m_offsetOrMessageType;
+            private readonly uint m_countOrRequestId;
+            private readonly byte m_kind;
         }
 
         /// <summary>

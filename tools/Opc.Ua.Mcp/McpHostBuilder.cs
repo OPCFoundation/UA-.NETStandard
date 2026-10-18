@@ -29,6 +29,7 @@
 
 using System;
 using System.Globalization;
+using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -76,6 +77,9 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpGds();
             services.AddOpcUaMcpWorkflows();
             services.AddOpcUaMcpWotRuntime();
+            services.AddOpcUaMcpMachineTool();
+            services.AddOpcUaMcpGms();
+            services.AddOpcUaMcpCranesHoists();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -107,6 +111,16 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
+            options.CertificateIdentities = configuration.GetSection("McpServer:CertificateIdentities")
+                .GetChildren()
+                .Select(identity => new McpCertificateIdentity(identity.Key, new Opc.Ua.Client.X509ClientIdentityOptions
+                {
+                    StoreType = identity["StoreType"] ?? string.Empty,
+                    StorePath = identity["StorePath"] ?? string.Empty,
+                    SubjectName = identity["SubjectName"],
+                    Thumbprint = identity["Thumbprint"]
+                }))
+                .ToArrayOf();
             options.Execution = McpExecutionConfiguration.Read(configuration);
             options.TransferRoot = configuration["McpServer:TransferRoot"] ?? options.TransferRoot;
             string? configuredLimit = configuration["McpServer:MaxTransferBytes"];
@@ -219,6 +233,9 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaGdsTools(toolProfile)
                 .WithOpcUaWorkflowTools(toolProfile)
                 .WithOpcUaWotRuntimeTools(toolProfile)
+                .WithOpcUaMachineToolTools(toolProfile)
+                .WithOpcUaGmsTools(toolProfile)
+                .WithOpcUaCranesHoistsTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
         }
@@ -273,6 +290,9 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaGdsTools(toolProfiles)
                 .WithOpcUaWorkflowTools(toolProfiles)
                 .WithOpcUaWotRuntimeTools(toolProfiles)
+                .WithOpcUaMachineToolTools(toolProfiles)
+                .WithOpcUaGmsTools(toolProfiles)
+                .WithOpcUaCranesHoistsTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
         }

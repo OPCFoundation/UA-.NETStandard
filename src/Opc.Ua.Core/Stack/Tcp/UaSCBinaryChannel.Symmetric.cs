@@ -687,39 +687,8 @@ namespace Opc.Ua.Bindings
                 const int headerSize = TcpMessageLimits.SymmetricHeaderSize +
                     TcpMessageLimits.SequenceHeaderSize;
 
-                // write the body to stream.
-                using var ostrm = new ArraySegmentStream(
-                    BufferManager,
-                    sendBufferSize,
-                    headerSize,
-                    maxPayloadSize);
-
-                // check for encodeable body.
-                if (messageBody is IEncodeable encodeable)
-                {
-                    // debug code used to verify that message aborts are handled correctly.
-                    // int maxMessageSize = Quotas.MessageContext.MaxMessageSize;
-                    // Quotas.MessageContext.MaxMessageSize = Int32.MaxValue;
-
-                    BinaryEncoder.EncodeMessage(encodeable, ostrm, Quotas.MessageContext, true);
-
-                    // Quotas.MessageContext.MaxMessageSize = maxMessageSize;
-                }
-
-                // check for raw bytes.
-                var rawBytes = messageBody as ArraySegment<byte>?;
-
-                if (rawBytes != null)
-                {
-                    using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
-                    // BufferManager-backed ArraySegment is always created with a non-null backing array.
-                    encoder.WriteRawBytes(
-                        rawBytes.Value.GetArray(),
-                        rawBytes.Value.Offset,
-                        rawBytes.Value.Count);
-                }
-
-                chunksToProcess = ostrm.GetBuffers("WriteSymmetricMessage");
+                // write the body to chunks.
+                chunksToProcess = EncodeMessageBody(messageBody, sendBufferSize, headerSize, maxPayloadSize);
 
                 // ensure there is at least one chunk.
                 if (chunksToProcess.Count == 0)
@@ -832,6 +801,114 @@ namespace Opc.Ua.Bindings
                     chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// Encodes the body of a symmetric message to the message stream of the thread.
+        /// </summary>
+        /// <returns>The chunks holding the body. The caller owns them.</returns>
+        private BufferCollection EncodeMessageBody(
+            object messageBody,
+            int sendBufferSize,
+            int headerSize,
+            int maxPayloadSize)
+        {
+            var messageStream = MessageStream.Rent(
+                BufferManager,
+                sendBufferSize,
+                headerSize,
+                maxPayloadSize);
+            ArraySegmentStream ostrm = messageStream.Stream;
+            BufferCollection chunks;
+            try
+            {
+                // check for encodeable body.
+                if (messageBody is IEncodeable encodeable)
+                {
+                    using var encoder = new BinaryEncoder(messageStream.Writer, Quotas.MessageContext);
+                    encoder.EncodeMessage(encodeable, encodeable.TypeId);
+                }
+
+                // check for raw bytes.
+                var rawBytes = messageBody as ArraySegment<byte>?;
+
+                if (rawBytes != null)
+                {
+                    using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
+                    // BufferManager-backed ArraySegment is always created with a non-null backing array.
+                    encoder.WriteRawBytes(
+                        rawBytes.Value.GetArray(),
+                        rawBytes.Value.Offset,
+                        rawBytes.Value.Count);
+                }
+
+                chunks = ostrm.GetBuffers("WriteSymmetricMessage");
+            }
+            catch
+            {
+                // a body that failed to encode returns the buffers the stream holds, and the
+                // stream is not used again.
+                ostrm.ReleaseBuffers();
+                throw;
+            }
+
+            // the stream is empty again: the next message of the thread can use it.
+            messageStream.Return();
+            return chunks;
+        }
+
+        /// <summary>
+        /// The stream, and the writer over it, a thread encodes the bodies of symmetric
+        /// messages to; every message gets an encoder of its own that borrows the writer.
+        /// </summary>
+        /// <remarks>
+        /// Encoding is synchronous, so a thread encodes one message at a time; it takes the
+        /// stream for a message and gives it back once the stream handed its buffers over
+        /// (<see cref="ArraySegmentStream.GetBuffers"/>), so the encoded message references
+        /// neither. A message encoded while the thread's stream is taken gets a new one.
+        /// </remarks>
+        private sealed class MessageStream
+        {
+            private MessageStream(BufferManager bufferManager, int bufferSize, int start, int count)
+            {
+                Stream = new ArraySegmentStream(bufferManager, bufferSize, start, count);
+                Writer = new BinaryWriter(Stream, Encoding.UTF8, true);
+            }
+
+            public ArraySegmentStream Stream { get; }
+
+            public BinaryWriter Writer { get; }
+
+            public static MessageStream Rent(BufferManager bufferManager, int bufferSize, int start, int count)
+            {
+                MessageStream? stream = t_messageStream;
+                if (stream == null)
+                {
+                    return new MessageStream(bufferManager, bufferSize, start, count);
+                }
+                t_messageStream = null;
+                stream.Stream.Reset(bufferManager, bufferSize, start, count);
+                return stream;
+            }
+
+            public void Return()
+            {
+                t_messageStream = this;
+            }
+
+            [ThreadStatic]
+            private static MessageStream? t_messageStream;
+        }
+
+        /// <summary>
+        /// Decodes a message in one buffer, without a stream over it.
+        /// </summary>
+        /// <typeparam name="T">The type of the message.</typeparam>
+        private protected static T DecodeMessage<T>(ArraySegment<byte> buffer, IServiceMessageContext context)
+            where T : IEncodeable
+        {
+            using var decoder = new BinaryDecoder(buffer, context);
+            return decoder.DecodeMessage<T>();
         }
 
         /// <summary>

@@ -1416,10 +1416,21 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            using var responseStream = new ArraySegmentStream(chunksToProcess);
-            return BinaryDecoder.DecodeMessage<IServiceResponse>(
-                responseStream,
-                Quotas.MessageContext) ??
+            IServiceResponse? response;
+            if (chunksToProcess.Count == 1)
+            {
+                // a response in one chunk, which most are, is decoded from that chunk's
+                // buffer without a stream over the chunk list, as the server decodes requests.
+                response = DecodeMessage<IServiceResponse>(chunksToProcess[0], Quotas.MessageContext);
+            }
+            else
+            {
+                using var responseStream = new ArraySegmentStream(chunksToProcess);
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    responseStream,
+                    Quotas.MessageContext);
+            }
+            return response ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");

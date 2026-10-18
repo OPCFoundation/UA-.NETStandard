@@ -66,6 +66,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             Assert.That(names.Distinct(StringComparer.Ordinal).Count(), Is.EqualTo(names.Length));
             Assert.That(names.Count(name => name == "Connect"), Is.EqualTo(1));
+            Assert.That(names.Count(name => name == "ConnectCertificate"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "Disconnect"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetEndpoints"), Is.EqualTo(1));
             Assert.That(names.Count(name => name == "GetConnectionStatus"), Is.EqualTo(1));
@@ -95,6 +96,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("full,di,amb")]
         [TestCase("wot,xregistry")]
         [TestCase("wot,wot-documents,xregistry,core")]
+        [TestCase("machinetool,gms,craneshoists")]
+        [TestCase("machinery,machinetool,gds,gms,craneshoists")]
+        [TestCase("full,machinetool,gms,craneshoists")]
         public void IndustrialCompositionsAreExactUnionsWithoutDuplicates(string profiles)
         {
             var set = McpToolProfileSet.Parse(profiles);
@@ -211,7 +215,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// The shared session lifecycle tools.
         /// </summary>
         private static readonly string[] kConnections =
-            ["Connect", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
+            ["Connect", "ConnectCertificate", "Disconnect", "GetEndpoints", "GetConnectionStatus"];
     }
 }
 #endif

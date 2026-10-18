@@ -440,6 +440,26 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Validates the endpoint a reconnect rediscovers before the session
+        /// is recreated against it. Only a Good result accepts the
+        /// rediscovered endpoint; any other result, an exception or a
+        /// cancellation keeps the endpoint in use and fails the reconnect
+        /// attempt. See <see cref="ManagedSession.ValidateRediscoveredEndpoint"/>.
+        /// </summary>
+        /// <param name="validator">The validator.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="validator"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithRediscoveredEndpointValidator(RediscoveredEndpointValidator validator)
+        {
+            if (validator == null)
+            {
+                throw new ArgumentNullException(nameof(validator));
+            }
+            m_options = m_options with { ValidateRediscoveredEndpoint = validator };
+            return this;
+        }
+
+        /// <summary>
         /// Use the supplied <see cref="IReconnectPolicy"/> directly. Overrides
         /// any options-based reconnect configuration.
         /// </summary>

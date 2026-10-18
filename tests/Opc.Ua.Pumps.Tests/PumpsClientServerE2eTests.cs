@@ -41,6 +41,7 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.Pumps.Client;
 using Opc.Ua.Pumps.Server;
 using Opc.Ua.Pumps.Server.Builders;
@@ -63,24 +64,30 @@ namespace Opc.Ua.Pumps.Tests
     {
         private static string s_endpointUrl = string.Empty;
 
-        [Test]
-        public async Task ClientReadsBackEverythingTheServerPublishesAsync()
+        /// <summary>
+        /// Reads standalone and composed servers through both bounded and legacy clients.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ClientReadsBackEverythingTheServerPublishesAsync(bool composed, bool bounded)
         {
             IPumpGroupBuilder? liveMeasurements = null;
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddOpcUa()
-                .AddServer<StandardServer>(ConfigureServer)
-                .AddPumps()
-                .ConfigurePumps(async context =>
-                {
-                    IPumpBuilder pump = await context.Manager.CreatePumpAsync(
-                        new QualifiedName(
-                            "Pump_1",
-                            context.Manager.InstanceNamespaceIndex),
-                        context.CancellationToken);
+            IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
+                .AddServer<StandardServer>(ConfigureServer);
 
-                    pump.WithNameplate(new PumpNameplate
+            async ValueTask ConfigureAsync(PumpsRuntime runtime, CancellationToken ct)
+            {
+                IPumpBuilder pump = await runtime.CreatePumpAsync(
+                    new QualifiedName("Pump_1", runtime.InstanceNamespaceIndex),
+                    ct);
+
+                pump.WithNameplate(
+                    new PumpNameplate
                     {
                         NodeId = NodeId.Null,
                         Manufacturer = new LocalizedText("Acme Pumps"),
@@ -95,58 +102,86 @@ namespace Opc.Ua.Pumps.Tests
                         TypeOfProduct = "Centrifugal pump"
                     });
 
-                    pump.Measurements
-                        .SetAnalog(
-                            BrowseNames.DifferentialPressure,
-                            350_000.0,
-                            new EUInformation { DisplayName = new LocalizedText("Pa") },
-                            new Range { Low = 0, High = 1_000_000 })
-                        .SetAnalog(BrowseNames.MassFlow, 12.5)
-                        .SetAnalog(BrowseNames.PumpEfficiency, 0.78);
-                    liveMeasurements = pump.Measurements;
+                pump.Measurements
+                    .SetAnalog(
+                        BrowseNames.DifferentialPressure,
+                        350_000.0,
+                        new EUInformation { DisplayName = new LocalizedText("Pa") },
+                        new Range { Low = 0, High = 1_000_000 })
+                    .SetAnalog(BrowseNames.MassFlow, 12.5)
+                    .SetAnalog(BrowseNames.PumpEfficiency, 0.78);
+                liveMeasurements = pump.Measurements;
 
-                    // <Vibration> is an OptionalPlaceholder (OPC 40223 §7.32).
-                    pump.Measurements.AddVibration("DriveEndBearing")
-                        .SetAnalog(
-                            BrowseNames.OverallVibrationVelocityRMS,
-                            2.8,
-                            new EUInformation { DisplayName = new LocalizedText("mm/s") });
+                // <Vibration> is an OptionalPlaceholder (OPC 40223 §7.32).
+                pump.Measurements.AddVibration("DriveEndBearing")
+                    .SetAnalog(
+                        BrowseNames.OverallVibrationVelocityRMS,
+                        2.8,
+                        new EUInformation { DisplayName = new LocalizedText("mm/s") });
 
-                    pump.MultiPump
-                        .Set(BrowseNames.PumpRole, Variant.From(PumpRoleEnum.Master))
-                        .Set(BrowseNames.NumberOfPumps, Variant.From(2u))
-                        .Set(
-                            BrowseNames.RedundantPumpIDs,
-                            Variant.From((ArrayOf<string>)["Pump_2"]));
+                pump.MultiPump
+                    .Set(BrowseNames.PumpRole, Variant.From(PumpRoleEnum.Master))
+                    .Set(BrowseNames.NumberOfPumps, Variant.From(2u))
+                    .Set(
+                        BrowseNames.RedundantPumpIDs,
+                        Variant.From((ArrayOf<string>)["Pump_2"]));
 
-                    pump.Signals.SetDiscrete(BrowseNames.PumpOperation, true);
+                pump.Signals.SetDiscrete(BrowseNames.PumpOperation, true);
 
-                    pump.Design.SetAnalog(BrowseNames.MaximumAllowableWorkingPressure, 1_600_000.0);
-                    pump.SystemRequirements.SetAnalog(BrowseNames.MaximumFlow, 20.0);
+                pump.Design.SetAnalog(BrowseNames.MaximumAllowableWorkingPressure, 1_600_000.0);
+                pump.SystemRequirements.SetAnalog(BrowseNames.MaximumFlow, 20.0);
 
-                    pump.Supervision(BrowseNames.SupervisionProcessFluid)
-                        .SetDiscrete(BrowseNames.Cavitation, true)
-                        .SetDiscrete(BrowseNames.Dry, false);
-                    pump.Supervision(BrowseNames.SupervisionPumpOperation)
-                        .SetDiscrete(BrowseNames.MotorOverheat, false);
+                pump.Supervision(BrowseNames.SupervisionProcessFluid)
+                    .SetDiscrete(BrowseNames.Cavitation, true)
+                    .SetDiscrete(BrowseNames.Dry, false);
+                pump.Supervision(BrowseNames.SupervisionPumpOperation)
+                    .SetDiscrete(BrowseNames.MotorOverheat, false);
 
-                    pump.MaintenanceCategory(BrowseNames.GeneralMaintenance)
-                        .Set(
-                            BrowseNames.StateOfTheItem,
-                            Variant.From(StateOfTheItemEnum.OperatingState))
-                        .SetAnalog(BrowseNames.OperatingTime, 1234.0);
+                pump.MaintenanceCategory(BrowseNames.GeneralMaintenance)
+                    .Set(
+                        BrowseNames.StateOfTheItem,
+                        Variant.From(StateOfTheItemEnum.OperatingState))
+                    .SetAnalog(BrowseNames.OperatingTime, 1234.0);
 
-                    pump.AddPort(PumpPortKind.InletConnection, "Suction")
-                        .Set(BrowseNames.Direction, Variant.From(PortDirectionEnum.In));
-                    pump.AddPort(PumpPortKind.Drive, "Motor");
+                pump.AddPort(PumpPortKind.InletConnection, "Suction")
+                    .Set(BrowseNames.Direction, Variant.From(PortDirectionEnum.In));
+                pump.AddPort(PumpPortKind.Drive, "Motor");
+                configured.TrySetResult(true);
+            }
 
-                });
+            if (composed)
+            {
+                serverBuilder.AddMachinery(
+                    options =>
+                        {
+                            options.Parts = MachineryParts.BuildingBlocks;
+                            options.InstanceNamespaceUri = "urn:opcua:pumps:composition:instances";
+                        })
+                    .AddPumpsToMachinery()
+                    .ConfigurePumpsFor<MachineryNodeManager>(
+                        (context, ct) => ConfigureAsync(context.Runtime, ct));
+            }
+            else
+            {
+                serverBuilder.AddPumps().ConfigurePumps(
+                    context => ConfigureAsync(context.Manager.Runtime, context.CancellationToken));
+            }
 
             await using ServiceProvider provider = services.BuildServiceProvider();
             IHostedService hostedService = provider.GetServices<IHostedService>().Single();
             await hostedService.StartAsync(CancellationToken.None);
             try
             {
+                for (int ii = 0; ii < 300 && !configured.Task.IsCompleted; ii++)
+                {
+                    if (hostedService is BackgroundService { ExecuteTask: { IsFaulted: true } startup })
+                    {
+                        await startup;
+                    }
+                    await Task.Delay(100);
+                }
+                Assert.That(configured.Task.IsCompleted, Is.True, "the Pumps configurator completed");
+
                 using var clientFixture = new ClientFixture(NUnitTelemetryContext.Create());
                 await clientFixture.LoadClientConfigurationAsync(
                     System.IO.Path.Combine(
@@ -157,7 +192,9 @@ namespace Opc.Ua.Pumps.Tests
                     new Uri(s_endpointUrl),
                     SecurityPolicies.None);
 
-                PumpsClient pumps = session.Pumps(NUnitTelemetryContext.Create());
+                PumpsClient pumps = bounded
+                    ? session.Pumps(NUnitTelemetryContext.Create(), maximumBrowseReferences: 256)
+                    : session.Pumps(NUnitTelemetryContext.Create());
                 Assert.That(pumps.IsSupported, Is.True, "the server publishes the Pumps namespace");
 
                 var discovered = new List<PumpEntry>();
@@ -166,7 +203,9 @@ namespace Opc.Ua.Pumps.Tests
                     discovered.Add(entry);
                 }
 
-                Assert.That(discovered, Has.Count.EqualTo(1),
+                Assert.That(
+                    discovered,
+                    Has.Count.EqualTo(1),
                     "the pump is organized into both DeviceSet and Machines, and must " +
                     "still be reported once");
                 PumpEntry found = discovered[0];
@@ -174,67 +213,75 @@ namespace Opc.Ua.Pumps.Tests
 
                 PumpNameplate? nameplate = await pumps.ReadNameplateAsync(found.NodeId);
                 Assert.That(nameplate, Is.Not.Null);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(nameplate!.Manufacturer.Text, Is.EqualTo("Acme Pumps"));
-                    Assert.That(nameplate.SerialNumber, Is.EqualTo("SN-001"));
-                    Assert.That(nameplate.Model.Text, Is.EqualTo("PumpX-2000"));
-                    Assert.That(nameplate.Location, Is.EqualTo("Plant 1 / Utility Skid"));
-                    Assert.That(nameplate.YearOfConstruction, Is.EqualTo(2025));
-                    Assert.That(nameplate.MonthOfConstruction, Is.EqualTo(4));
-                    Assert.That(nameplate.CountryOfOrigin, Is.EqualTo("DE"));
-                    Assert.That(nameplate.ArticleNumber, Is.EqualTo("ART-4711"));
-                    Assert.That(nameplate.TypeOfProduct, Is.EqualTo("Centrifugal pump"));
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(nameplate!.Manufacturer.Text, Is.EqualTo("Acme Pumps"));
+                        Assert.That(nameplate.SerialNumber, Is.EqualTo("SN-001"));
+                        Assert.That(nameplate.Model.Text, Is.EqualTo("PumpX-2000"));
+                        Assert.That(nameplate.Location, Is.EqualTo("Plant 1 / Utility Skid"));
+                        Assert.That(nameplate.YearOfConstruction, Is.EqualTo(2025));
+                        Assert.That(nameplate.MonthOfConstruction, Is.EqualTo(4));
+                        Assert.That(nameplate.CountryOfOrigin, Is.EqualTo("DE"));
+                        Assert.That(nameplate.ArticleNumber, Is.EqualTo("ART-4711"));
+                        Assert.That(nameplate.TypeOfProduct, Is.EqualTo("Centrifugal pump"));
 
-                    // Not configured, so not published.
-                    Assert.That(nameplate.Supplier, Is.Null);
-                });
+                        // Not configured, so not published.
+                        Assert.That(nameplate.Supplier, Is.Null);
+                    });
 
                 PumpValueSet measurements = await pumps.ReadMeasurementsAsync(found.NodeId);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        measurements.GetDouble(BrowseNames.DifferentialPressure),
-                        Is.EqualTo(350_000.0));
-                    Assert.That(measurements.GetDouble(BrowseNames.MassFlow), Is.EqualTo(12.5));
-                    Assert.That(
-                        measurements.GetDouble(BrowseNames.PumpEfficiency),
-                        Is.EqualTo(0.78));
-                    Assert.That(
-                        measurements[BrowseNames.DifferentialPressure]!
-                            .EngineeringUnits!.DisplayName.Text,
-                        Is.EqualTo("Pa"));
-                    Assert.That(
-                        measurements[BrowseNames.DifferentialPressure]!.EuRange!.High,
-                        Is.EqualTo(1_000_000.0));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(
+                            measurements.GetDouble(BrowseNames.DifferentialPressure),
+                            Is.EqualTo(350_000.0));
+                        Assert.That(measurements.GetDouble(BrowseNames.MassFlow), Is.EqualTo(12.5));
+                        Assert.That(
+                            measurements.GetDouble(BrowseNames.PumpEfficiency),
+                            Is.EqualTo(0.78));
+                        Assert.That(
+                            measurements[BrowseNames.DifferentialPressure]!
+                                .EngineeringUnits!.DisplayName.Text,
+                            Is.EqualTo("Pa"));
+                        Assert.That(
+                            measurements[BrowseNames.DifferentialPressure]!.EuRange!.High,
+                            Is.EqualTo(1_000_000.0));
+                    });
 
                 PumpValueSet? vibration = measurements.Group("DriveEndBearing");
-                Assert.That(vibration, Is.Not.Null,
+                Assert.That(
+                    vibration,
+                    Is.Not.Null,
                     "a <Vibration> instance must be read as a nested group");
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        vibration!.GetDouble(BrowseNames.OverallVibrationVelocityRMS),
-                        Is.EqualTo(2.8));
-                    Assert.That(
-                        vibration[BrowseNames.OverallVibrationVelocityRMS]!
-                            .EngineeringUnits!.DisplayName.Text,
-                        Is.EqualTo("mm/s"));
-                    Assert.That(measurements.Contains("DriveEndBearing"), Is.False,
-                        "the vibration object is a group, not a value");
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(
+                            vibration!.GetDouble(BrowseNames.OverallVibrationVelocityRMS),
+                            Is.EqualTo(2.8));
+                        Assert.That(
+                            vibration[BrowseNames.OverallVibrationVelocityRMS]!
+                                .EngineeringUnits!.DisplayName.Text,
+                            Is.EqualTo("mm/s"));
+                        Assert.That(
+                            measurements.Contains("DriveEndBearing"),
+                            Is.False,
+                            "the vibration object is a group, not a value");
+                    });
 
                 MultiPumpConfiguration? multiPump = await pumps.ReadMultiPumpAsync(found.NodeId);
                 Assert.That(multiPump, Is.Not.Null);
                 string[] redundantPumpIds = ["Pump_2"];
-                Assert.Multiple(() =>
-                {
-                    Assert.That(multiPump!.PumpRole, Is.EqualTo(PumpRoleEnum.Master));
-                    Assert.That(multiPump.NumberOfPumps, Is.EqualTo(2u));
-                    Assert.That(multiPump.RedundantPumpIDs.IsNull, Is.False);
-                    Assert.That(multiPump.RedundantPumpIDs.ToArray(), Is.EqualTo(redundantPumpIds));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(multiPump!.PumpRole, Is.EqualTo(PumpRoleEnum.Master));
+                        Assert.That(multiPump.NumberOfPumps, Is.EqualTo(2u));
+                        Assert.That(multiPump.RedundantPumpIDs.IsNull, Is.False);
+                        Assert.That(multiPump.RedundantPumpIDs.ToArray(), Is.EqualTo(redundantPumpIds));
+                    });
 
                 PumpValueSet signals = await pumps.ReadSignalsAsync(found.NodeId);
                 Assert.That(signals.GetBoolean(BrowseNames.PumpOperation), Is.True);
@@ -243,70 +290,77 @@ namespace Opc.Ua.Pumps.Tests
                     await pumps.ReadSupervisionAsync(found.NodeId);
                 Assert.That(supervision, Is.Not.Null);
                 List<KeyValuePair<string, PumpValue>> raised = [.. supervision!.ActiveSignals];
-                Assert.Multiple(() =>
-                {
-                    Assert.That(supervision.HasActiveSignals, Is.True);
-                    Assert.That(raised, Has.Count.EqualTo(1),
-                        "only Cavitation is raised; Dry and MotorOverheat are false");
-                    Assert.That(raised[0].Value.Name, Is.EqualTo(BrowseNames.Cavitation));
-                    Assert.That(
-                        raised[0].Key,
-                        Is.EqualTo(BrowseNames.SupervisionProcessFluid));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(supervision.HasActiveSignals, Is.True);
+                        Assert.That(
+                            raised,
+                            Has.Count.EqualTo(1),
+                            "only Cavitation is raised; Dry and MotorOverheat are false");
+                        Assert.That(raised[0].Value.Name, Is.EqualTo(BrowseNames.Cavitation));
+                        Assert.That(
+                            raised[0].Key,
+                            Is.EqualTo(BrowseNames.SupervisionProcessFluid));
+                    });
 
                 PumpConfigurationData? configuration =
                     await pumps.ReadConfigurationAsync(found.NodeId);
                 Assert.That(configuration, Is.Not.Null);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        configuration!.Design.GetDouble(
-                            BrowseNames.MaximumAllowableWorkingPressure),
-                        Is.EqualTo(1_600_000.0));
-                    Assert.That(
-                        configuration.SystemRequirements.GetDouble(BrowseNames.MaximumFlow),
-                        Is.EqualTo(20.0));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(
+                            configuration!.Design.GetDouble(
+                                BrowseNames.MaximumAllowableWorkingPressure),
+                            Is.EqualTo(1_600_000.0));
+                        Assert.That(
+                            configuration.SystemRequirements.GetDouble(BrowseNames.MaximumFlow),
+                            Is.EqualTo(20.0));
+                    });
 
                 PumpMaintenanceData? maintenance =
                     await pumps.ReadMaintenanceAsync(found.NodeId);
                 Assert.That(maintenance, Is.Not.Null);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        maintenance!.StateOfTheItem,
-                        Is.EqualTo(StateOfTheItemEnum.OperatingState));
-                    Assert.That(
-                        maintenance.General.GetDouble(BrowseNames.OperatingTime),
-                        Is.EqualTo(1234.0));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(
+                            maintenance!.StateOfTheItem,
+                            Is.EqualTo(StateOfTheItemEnum.OperatingState));
+                        Assert.That(
+                            maintenance.General.GetDouble(BrowseNames.OperatingTime),
+                            Is.EqualTo(1234.0));
+                    });
 
                 ArrayOf<PumpPortDescriptor> ports = await pumps.ReadPortsAsync(found.NodeId);
                 Assert.That(ports.Count, Is.EqualTo(2));
                 PumpPortDescriptor inlet = FindPort(ports, "Suction");
                 PumpPortDescriptor drive = FindPort(ports, "Motor");
-                Assert.Multiple(() =>
-                {
-                    Assert.That(inlet.Kind, Is.EqualTo(PumpPortKind.InletConnection));
-                    Assert.That(inlet.Direction, Is.EqualTo(PortDirectionEnum.In));
-                    Assert.That(drive.Kind, Is.EqualTo(PumpPortKind.Drive));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(inlet.Kind, Is.EqualTo(PumpPortKind.InletConnection));
+                        Assert.That(inlet.Direction, Is.EqualTo(PortDirectionEnum.In));
+                        Assert.That(drive.Kind, Is.EqualTo(PumpPortKind.Drive));
+                    });
 
                 PumpSnapshot snapshot = await pumps.ReadPumpAsync(found.NodeId);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(snapshot.NodeId, Is.EqualTo(found.NodeId));
-                    Assert.That(snapshot.BrowseName.Name, Is.EqualTo("Pump_1"));
-                    Assert.That(snapshot.Nameplate, Is.Not.Null);
-                    Assert.That(snapshot.Operational, Is.Not.Null);
-                    Assert.That(snapshot.Configuration, Is.Not.Null);
-                    Assert.That(snapshot.Supervision, Is.Not.Null);
-                    Assert.That(snapshot.Maintenance, Is.Not.Null);
-                    Assert.That(snapshot.Ports.Count, Is.EqualTo(2));
-                    Assert.That(
-                        snapshot.Operational!.Measurements.GetDouble(BrowseNames.MassFlow),
-                        Is.EqualTo(12.5));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(snapshot.NodeId, Is.EqualTo(found.NodeId));
+                        Assert.That(snapshot.BrowseName.Name, Is.EqualTo("Pump_1"));
+                        Assert.That(snapshot.Nameplate, Is.Not.Null);
+                        Assert.That(snapshot.Operational, Is.Not.Null);
+                        Assert.That(snapshot.Configuration, Is.Not.Null);
+                        Assert.That(snapshot.Supervision, Is.Not.Null);
+                        Assert.That(snapshot.Maintenance, Is.Not.Null);
+                        Assert.That(snapshot.Ports.Count, Is.EqualTo(2));
+                        Assert.That(
+                            snapshot.Operational!.Measurements.GetDouble(BrowseNames.MassFlow),
+                            Is.EqualTo(12.5));
+                    });
 
                 await AssertRuntimeUpdateIsPublishedAsync(
                     clientFixture.Config,
@@ -363,7 +417,9 @@ namespace Opc.Ua.Pumps.Tests
                 }
             }
             await session.DefaultStreaming.DisposeAsync();
-            Assert.That(received, Is.EqualTo(13.5),
+            Assert.That(
+                received,
+                Is.EqualTo(13.5),
                 "a monitored item must see a value written through the builder after it subscribed");
         }
 
@@ -384,9 +440,10 @@ namespace Opc.Ua.Pumps.Tests
         private static void ConfigureServer(OpcUaServerOptions options)
         {
             string applicationName = nameof(PumpsClientServerE2eTests);
+            // Leave room for ECC certificate filenames under deep net48 artifact paths.
             string testRoot = System.IO.Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                applicationName,
+                "pumps",
                 Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
