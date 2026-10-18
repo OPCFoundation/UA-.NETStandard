@@ -1,7 +1,13 @@
 # Opc.Ua.Vision.Client
 
-Client-side helpers for the **OPC UA — Vision** companion model (working-group
-draft).
+Client-side helpers for **OPC 40100-1** and the **Perception model**.
+
+`vision.MachineVision()` provides independent released-model discovery, typed
+control/management proxies, recipe/configuration upload, and result-download workflows.
+Part 2 asset snapshots and relationships are extensions from
+`Opc.Ua.MachineVision.Client`. Released-model operations do not require the
+Perception namespace; sensor/pipeline discovery uses the Perception model.
+See the [Machine Vision guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md#typed-clients).
 
 Built on **Opc.Ua.Vision** and **Opc.Ua.Client**, this package exposes a
 high-level surface over the source-generated proxies so a client can drive a
@@ -80,6 +86,12 @@ example.
 | `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Vision model (required) |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Server` | Hosting a Vision server |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools that let a language model use `VisionClient` from an agent |
+
+## Versioning
+
+This package follows the repository root version without a forced-preview override.
+Development builds still use the root prerelease version. The separate
+`Opc.Ua.Vision.OpenUsd` renderer remains preview-only.
 
 ## License
 

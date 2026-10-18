@@ -210,7 +210,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             try
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), m_options);
-                var resolver = new SnapshotThingResolver(snapshot, contents);
+                var resolver = new SnapshotThingResolver(
+                    snapshot, contents, () => GetArchiveContexts(snapshot, contents, cancellationToken));
 
                 // WoT Binding Section 5.1.5: the local context has two parts,
                 // consulted in this order - the sibling documents of this
@@ -325,7 +326,72 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Gets the native NodeSet contexts of the supplied snapshot, reusing the
+        /// previous index while the snapshot is unchanged.
+        /// </summary>
+        /// <remarks>
+        /// A document of a partitioned model states references whose
+        /// authoritative facts live in sibling partitions, so the converter
+        /// validates it against the preserved nodes of the documents of its own
+        /// model. The document count and byte total are bounded like the sibling
+        /// index, and every document read is charged, malformed or not. Exhausting
+        /// a bound marks the index incomplete, so a document that needs context
+        /// fails with an explicit message rather than validating against an
+        /// arbitrary subset. A malformed sibling is omitted; its own conversion
+        /// reports the failure.
+        /// </remarks>
+        private WotNodeSetConverter.ArchiveContextIndex GetArchiveContexts(
+            WotRegistrySnapshot snapshot,
+            IReadOnlyDictionary<string, ByteString> contents,
+            CancellationToken cancellationToken)
+        {
+            lock (m_resolverLock)
+            {
+                if (m_archiveContexts is not null && ReferenceEquals(m_archiveSnapshot, snapshot))
+                {
+                    return m_archiveContexts;
+                }
+                var index = new WotNodeSetConverter.ArchiveContextIndex(m_options);
+                int maxDocuments = m_options.MaxResolverDocuments;
+                long maxBytes = m_options.MaxResolverTotalBytes;
+                int read = 0;
+                long total = 0;
+                foreach (WotResource resource in snapshot.AllResources())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    WotResourceVersion? version = resource.DefaultVersion;
+                    if (version is null || !contents.TryGetValue(version.DigestHex, out ByteString content))
+                    {
+                        continue;
+                    }
+                    if (read >= maxDocuments || content.Length > maxBytes - total)
+                    {
+                        index.MarkIncomplete(
+                            "the registry exceeds the resolver document or byte limit " +
+                            $"({maxDocuments} documents, {maxBytes} bytes).");
+                        break;
+                    }
+                    read++;
+                    total += content.Length;
+                    try
+                    {
+                        using var sibling = WotDocument.Parse(content.Span.ToArray(), m_options);
+                        index.Add(sibling);
+                    }
+                    catch (Exception ex) when (ex is FormatException or System.Text.Json.JsonException)
+                    {
+                        continue;
+                    }
+                }
+                m_archiveSnapshot = snapshot;
+                m_archiveContexts = index;
+                return index;
+            }
+        }
         private readonly WotNodeSetConverterOptions m_options;
+        private WotRegistrySnapshot? m_archiveSnapshot;
+        private WotNodeSetConverter.ArchiveContextIndex? m_archiveContexts;
         private readonly WotExternalSchemaResolver m_schemaResolver;
         private readonly System.Threading.Lock m_resolverLock = new();
         private IWotNodeResolver? m_addressSpace;

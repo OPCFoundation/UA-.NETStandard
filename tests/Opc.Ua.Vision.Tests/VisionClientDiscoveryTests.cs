@@ -30,7 +30,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
 
 namespace Opc.Ua.Vision.Tests
@@ -103,7 +102,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task DiscoverSensorsReturnsBrowsedSensorInstances()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType, "Cam1");
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType, "Cam1");
 
             ArrayOf<NodeId> nodes = await harness.Client.DiscoverSensorsAsync()
                 .ConfigureAwait(false);
@@ -144,7 +143,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task EnumerateSensorsYieldsEntriesWithBrowseNameAndTypeDefinition()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType, "Cam1");
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType, "Cam1");
 
             var entries = new List<VisionNodeEntry>();
             await foreach (VisionNodeEntry entry in harness.Client.EnumerateSensorsAsync())
@@ -196,13 +195,13 @@ namespace Opc.Ua.Vision.Tests
         public async Task DiscoverSensorsReturnsEmptyWhenSensorTypeMismatched()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType, "Cam1");
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType, "Cam1");
             harness.NodeCache
                 .Setup(c => c.IsTypeOfAsync(
                     Moq.It.IsAny<NodeId>(),
                     Moq.It.IsAny<NodeId>(),
                     Moq.It.IsAny<System.Threading.CancellationToken>()))
-                .Returns(new System.Threading.Tasks.ValueTask<bool>(false));
+                .Returns(new ValueTask<bool>(false));
 
             ArrayOf<NodeId> nodes = await harness.Client.DiscoverSensorsAsync()
                 .ConfigureAwait(false);

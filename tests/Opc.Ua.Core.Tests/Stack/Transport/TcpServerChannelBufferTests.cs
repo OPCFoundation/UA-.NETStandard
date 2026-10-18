@@ -62,9 +62,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var transport = new GateByteTransport(responseCount);
             channel.SetTransport(transport);
 
+            // responses above an eighth of the send buffer keep their send buffer;
+            // smaller ones move to a buffer of their own size.
             for (uint requestId = 1; requestId <= responseCount; requestId++)
             {
-                channel.SendResponse(requestId, CreateResponse());
+                channel.SendResponse(requestId, CreateLargeResponse(16 * 1024));
             }
 
             Assert.That(
@@ -103,8 +105,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -223,8 +224,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -248,8 +248,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(
                 await WaitForOutstandingCountAsync(pool, expected: 0, 30).ConfigureAwait(false),
                 Is.True);
-            Assert.That(pool.RentCount, Is.EqualTo(1));
-            Assert.That(pool.ReturnCount, Is.EqualTo(1));
+            Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
             Assert.That(pool.DuplicateReturnCount, Is.Zero);
         }
 
@@ -337,7 +336,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var transport = new GateByteTransport(expectedSendCount: 1);
             channel.SetTransport(transport);
 
-            channel.SendResponse(1, CreateResponse());
+            // large enough to keep the send buffer (smaller responses move to a
+            // buffer of their own size).
+            channel.SendResponse(1, CreateLargeResponse(16 * 1024));
 
             Assert.That(
                 await CompletesWithinAsync(transport.AllSendsStarted, 30).ConfigureAwait(false),
@@ -1671,7 +1672,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool();
             var budget = new ChunkReassemblyBudget(1024);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
             provider.Setup(value => value.HasSession(It.IsAny<string>())).Returns(() =>
             {
@@ -1693,7 +1694,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool();
             var budget = new ChunkReassemblyBudget(1024);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             provider.Setup(value => value.HasSession(It.IsAny<string>()))
                 .Throws(new InvalidOperationException("Membership lookup failed."));
             using TestServerChannel channel = CreateOpenChannel(pool, budget: budget, bindingProvider: provider.Object);
@@ -1712,7 +1713,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task ManagedMembershipIgnoresSuccessfulResponseCountsAsync()
         {
             var pool = new TrackingArrayPool();
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             bool hasSession = false;
             provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
             using TestServerChannel channel = CreateOpenChannel(pool, bindingProvider: provider.Object);
@@ -1748,7 +1749,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using TestServerChannel probe = CreateOpenChannel(pool);
             int rented = probe.GetRentedLengthForTest(32);
             var budget = new ChunkReassemblyBudget(2 * rented, rented);
-            var provider = new Mock<ISessionBindingProvider>();
+            var provider = new Mock<IServerSessionBindingProvider>();
             bool hasSession = true;
             provider.Setup(p => p.HasSession(It.IsAny<string>())).Returns(() => hasSession);
             using TestServerChannel holder = CreateOpenChannel(pool, budget: budget);
@@ -1920,7 +1921,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             FakeTimeProvider? clock = null,
             int? channelLifetime = null,
             ChunkReassemblyBudget? budget = null,
-            ISessionBindingProvider? bindingProvider = null,
+            IServerSessionBindingProvider? bindingProvider = null,
             IServerResourceIsolationProvider? isolation = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

@@ -89,6 +89,13 @@ namespace Opc.Ua.Schema.Model
         /// <inheritdoc/>
         public bool UseAllowSubtypes { get; set; }
 
+        /// <summary>
+        /// Whether the target model was read from a NodeSet2 rather than
+        /// from a ModelDesign. Internal provenance for the generators; it is
+        /// deliberately not part of <see cref="IModelDesign"/>.
+        /// </summary>
+        internal bool IsSourceNodeSet { get; private set; }
+
         /// <inheritdoc/>
         public NamespaceTable NamespaceUris { get; private set; } = null!;
 
@@ -431,6 +438,7 @@ namespace Opc.Ua.Schema.Model
                 namespaces,
                 designFilePaths[0],
                 identifierFilePath);
+            IsSourceNodeSet = targetModel.IsSourceNodeSet;
 
             for (int ii = targetIndex - 1; ii >= 0; ii--)
             {
@@ -1811,6 +1819,7 @@ namespace Opc.Ua.Schema.Model
                 model.IsSourceNodeSet = true;
 
                 ExcludeNodes(model); // not consistent with model design, todo: consider removing
+                var assignedNodeIds = new HashSet<NodeId>(settings.NodesById.Keys);
 
                 foreach (NodeDesign node in model.Items)
                 {
@@ -1818,6 +1827,24 @@ namespace Opc.Ua.Schema.Model
 
                     foreach (KeyValuePair<string, HierarchyNode> ii in node.Hierarchy.Nodes)
                     {
+                        if (ii.Key.Length != 0 &&
+                            !ii.Value.ExplicitlyDefined &&
+                            ii.Value.Instance is NodeDesign inheritedChild &&
+                            inheritedChild.HasIdentifier())
+                        {
+                            // Keep a generated identity for inherited children, not the dependency's published ID.
+                            // An explicit string also preserves identifier constants for predefined instances.
+                            string identifier = inheritedChild.SymbolicId.Name;
+                            ushort namespaceIndex = settings.NamespaceUris.GetIndexOrAppend(
+                                inheritedChild.SymbolicId.Namespace);
+                            uint suffix = 0;
+                            while (!assignedNodeIds.Add(new NodeId(identifier, namespaceIndex)))
+                            {
+                                identifier = inheritedChild.SymbolicId.Name + "_" +
+                                    (++suffix).ToString(CultureInfo.InvariantCulture);
+                            }
+                            inheritedChild.SetIdentifier(identifier);
+                        }
                         if (ii.Value.Instance is InstanceDesign instance &&
                             instance.NumericId <= 0 &&
                             instance.StringId == null &&
@@ -5267,6 +5294,19 @@ namespace Opc.Ua.Schema.Model
             VariableTypeDesign mergedType,
             VariableTypeDesign variableType)
         {
+            // A NodeSet2 VariableType without a Value has a null Value: it does
+            // not take over the Value of its supertype, and neither do the
+            // instances created from it.
+            mergedType.NodeSetValueIsNull = variableType.NodeSetValueIsNull;
+            if (HasAbsentNodeSetValue(
+                variableType.NodeSetValueIsNull,
+                variableType.DefaultValue,
+                variableType.DecodedValue))
+            {
+                mergedType.DecodedValue = null;
+                mergedType.DecodedValueNamespaceUris = null;
+                mergedType.DefaultValue = null;
+            }
             if (variableType.DecodedValue != null)
             {
                 mergedType.DecodedValue = variableType.DecodedValue;
@@ -5311,6 +5351,19 @@ namespace Opc.Ua.Schema.Model
                 mergedType.Historizing = variableType.Historizing;
                 mergedType.HistorizingSpecified = true;
             }
+        }
+
+        /// <summary>
+        /// Whether a node imported from a NodeSet2 declares no Value, so that
+        /// the Value it would otherwise take over from its supertype, its
+        /// TypeDefinition or the instance declaration it overrides is cleared.
+        /// </summary>
+        private static bool HasAbsentNodeSetValue(
+            bool nodeSetValueIsNull,
+            System.Xml.XmlElement? defaultValue,
+            object? decodedValue)
+        {
+            return nodeSetValueIsNull && defaultValue == null && decodedValue == null;
         }
 
         private static void MergeTypes(
@@ -5469,6 +5522,7 @@ namespace Opc.Ua.Schema.Model
                 MinimumSamplingIntervalSpecified = type.MinimumSamplingIntervalSpecified,
                 Historizing = type.Historizing,
                 HistorizingSpecified = type.HistorizingSpecified,
+                NodeSetValueIsNull = type.NodeSetValueIsNull,
                 Category = type.Category,
                 Purpose = type.Purpose,
                 ReleaseStatus = type.ReleaseStatus,
@@ -5673,6 +5727,20 @@ namespace Opc.Ua.Schema.Model
             VariableDesign mergedVariable,
             VariableDesign variable)
         {
+            // A NodeSet2 node without a Value has a null Value, whatever its
+            // DataType or TypeDefinition; a ModelDesign declaration implies the
+            // DataType default.
+            mergedVariable.NodeSetValueIsNull = variable.NodeSetValueIsNull;
+            if (HasAbsentNodeSetValue(
+                variable.NodeSetValueIsNull,
+                variable.DefaultValue,
+                variable.DecodedValue))
+            {
+                mergedVariable.DecodedValue = null;
+                mergedVariable.DecodedValueNamespaceUris = null;
+                mergedVariable.DefaultValue = null;
+            }
+
             if (variable.TypeDefinition != null &&
                 variable.TypeDefinition != s_baseDataVariableTypeQn)
             {
@@ -5834,8 +5902,13 @@ namespace Opc.Ua.Schema.Model
             string basePath,
             Dictionary<string, InstanceDesign> nodes,
             int depth,
-            bool fromInstance)
+            bool fromInstance,
+            HashSet<XmlQualifiedName> typePath)
         {
+            if (!typePath.Add(type.SymbolicId))
+            {
+                throw new InvalidOperationException($"Cyclic base type: {type.SymbolicId}.");
+            }
             if (type.BaseTypeNode != null)
             {
                 SetOverriddenNodes(
@@ -5843,7 +5916,8 @@ namespace Opc.Ua.Schema.Model
                     basePath,
                     nodes,
                     depth + 1,
-                    fromInstance);
+                    fromInstance,
+                    typePath);
             }
 
             if (type.Children != null && type.Children.Items != null)
@@ -5866,7 +5940,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1);
+                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1, typePath);
 
                     if (nodes.TryGetValue(browsePath, out InstanceDesign? overriddenInstance))
                     {
@@ -5920,13 +5994,15 @@ namespace Opc.Ua.Schema.Model
                     nodes[browsePath] = instance;
                 }
             }
+            typePath.Remove(type.SymbolicId);
         }
 
         private void SetOverriddenNodes(
             InstanceDesign parent,
             string basePath,
             Dictionary<string, InstanceDesign> nodes,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath)
         {
             if (depth > MaxRecursionDepth)
             {
@@ -5934,14 +6010,15 @@ namespace Opc.Ua.Schema.Model
                     $"{parent.SymbolicId.Name} max recursion exceeded. Check model.");
             }
 
-            if (parent.TypeDefinitionNode != null)
+            if (parent.TypeDefinitionNode != null && ShouldExpandType(parent, typePath))
             {
                 SetOverriddenNodes(
                     parent.TypeDefinitionNode,
                     basePath,
                     nodes,
                     depth + 1,
-                    true);
+                    true,
+                    typePath);
             }
 
             if (parent.Children != null && parent.Children.Items != null)
@@ -5964,7 +6041,7 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
-                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1);
+                    SetOverriddenNodes(instance, browsePath, nodes, depth + 1, typePath);
 
                     if (nodes.TryGetValue(browsePath, out InstanceDesign? overriddenInstance))
                     {
@@ -6010,15 +6087,92 @@ namespace Opc.Ua.Schema.Model
             }
 
             var nodes = new Dictionary<string, InstanceDesign>();
+            var typePath = new HashSet<XmlQualifiedName>();
             switch (node)
             {
                 case TypeDesign type:
-                    SetOverriddenNodes(type, string.Empty, nodes, depth + 1, false);
+                    SetOverriddenNodes(type, string.Empty, nodes, depth + 1, false, typePath);
                     break;
                 case InstanceDesign instance:
-                    SetOverriddenNodes(instance, string.Empty, nodes, depth + 1);
+                    SetOverriddenNodes(instance, string.Empty, nodes, depth + 1, typePath);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Stops implicit expansion at a recursive optional declaration while retaining
+        /// its explicitly declared children. Mandatory recursion has no finite instance.
+        /// </summary>
+        private static bool ShouldExpandType(
+            InstanceDesign instance,
+            HashSet<XmlQualifiedName> typePath)
+        {
+            if (instance.TypeDefinitionNode == null)
+            {
+                return false;
+            }
+            if (!typePath.Contains(instance.TypeDefinitionNode.SymbolicId))
+            {
+                return !IsOptionalExpansion(instance) ||
+                    !HasMandatoryPathToType(instance.TypeDefinitionNode, typePath);
+            }
+            if (IsOptionalExpansion(instance))
+            {
+                return false;
+            }
+            throw new InvalidOperationException(
+                $"Recursive mandatory instance '{instance.SymbolicId}' has no finite expansion.");
+        }
+
+        private static bool IsOptionalExpansion(InstanceDesign instance)
+        {
+            return instance.ModellingRule is ModellingRule.Optional or
+                ModellingRule.OptionalPlaceholder or ModellingRule.MandatoryPlaceholder;
+        }
+
+        /// <summary>
+        /// Finds a mandatory return path before entering an optional edge, so a finite
+        /// A-optional-B-mandatory-A cycle is cut at the optional declaration, not at required A children.
+        /// </summary>
+        private static bool HasMandatoryPathToType(TypeDesign root, HashSet<XmlQualifiedName> targets)
+        {
+            var pending = new Queue<NodeDesign>();
+            var visited = new HashSet<XmlQualifiedName>();
+            pending.Enqueue(root);
+            while (pending.Count != 0)
+            {
+                NodeDesign node = pending.Dequeue();
+                if (!visited.Add(node.SymbolicId))
+                {
+                    continue;
+                }
+                if (node is TypeDesign type)
+                {
+                    if (targets.Contains(type.SymbolicId))
+                    {
+                        return true;
+                    }
+                    if (type.BaseTypeNode != null)
+                    {
+                        pending.Enqueue(type.BaseTypeNode);
+                    }
+                }
+                if (node is InstanceDesign { TypeDefinitionNode: { } definition })
+                {
+                    pending.Enqueue(definition);
+                }
+                if (node.Children?.Items != null)
+                {
+                    foreach (InstanceDesign child in node.Children.Items)
+                    {
+                        if (!IsOptionalExpansion(child))
+                        {
+                            pending.Enqueue(child);
+                        }
+                    }
+                }
+            }
+            return false;
         }
 
         private void TranslateReferences(
@@ -6237,7 +6391,9 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyReference> references,
             bool suppressInverseHierarchicalAtTypeLevel,
             bool inherited,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6253,6 +6409,10 @@ namespace Opc.Ua.Schema.Model
                     $"{basePath} max recursion exceeded. Check model.");
             }
 
+            if (!typePath.Add(type.SymbolicId))
+            {
+                throw new InvalidOperationException($"Cyclic base type: {type.SymbolicId}.");
+            }
             if (type.BaseTypeNode != null &&
                 type is VariableTypeDesign or ObjectTypeDesign)
             {
@@ -6263,7 +6423,9 @@ namespace Opc.Ua.Schema.Model
                     references,
                     true,
                     true,
-                    depth + 1);
+                    depth + 1,
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             TranslateReferences(
@@ -6327,9 +6489,12 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
+            typePath.Remove(type.SymbolicId);
         }
 
         /// <summary>
@@ -6342,7 +6507,9 @@ namespace Opc.Ua.Schema.Model
             List<HierarchyNode> nodes,
             List<HierarchyReference> references,
             bool inherited,
-            int depth)
+            int depth,
+            HashSet<XmlQualifiedName> typePath,
+            bool rootIsTypeDefinition)
         {
             if (m_logger.IsEnabled(LogLevel.Debug))
             {
@@ -6358,7 +6525,7 @@ namespace Opc.Ua.Schema.Model
                     $"{basePath} max recursion exceeded. Check model.");
             }
 
-            if (parent.TypeDefinitionNode != null)
+            if (parent.TypeDefinitionNode != null && ShouldExpandType(parent, typePath))
             {
                 BuildInstanceHierarchy(
                     parent.TypeDefinitionNode,
@@ -6367,7 +6534,9 @@ namespace Opc.Ua.Schema.Model
                     references,
                     true,
                     inherited,
-                    depth + 1);
+                    depth + 1,
+                    typePath,
+                    rootIsTypeDefinition);
             }
 
             if (parent.TypeDefinition != null && parent is MethodDesign method)
@@ -6386,7 +6555,9 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
 
@@ -6452,9 +6623,11 @@ namespace Opc.Ua.Schema.Model
                         }
                     }
 
-                    if (instance.ModellingRule
-                        is ModellingRule.OptionalPlaceholder
-                        or ModellingRule.MandatoryPlaceholder &&
+                    // Preserve published nested type declarations, but do not materialize
+                    // their placeholders when expanding a concrete instance.
+                    if (!rootIsTypeDefinition &&
+                        (instance.ModellingRule is
+                            ModellingRule.OptionalPlaceholder or ModellingRule.MandatoryPlaceholder) &&
                         depth > 3)
                     {
                         continue;
@@ -6468,7 +6641,9 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         inherited,
-                        depth + 1);
+                        depth + 1,
+                        typePath,
+                        rootIsTypeDefinition);
                 }
             }
         }
@@ -6499,7 +6674,9 @@ namespace Opc.Ua.Schema.Model
                         references,
                         false,
                         false,
-                        depth + 1);
+                        depth + 1,
+                        [],
+                        rootIsTypeDefinition: true);
                     break;
                 case InstanceDesign instance:
                     BuildInstanceHierarchy(
@@ -6508,7 +6685,9 @@ namespace Opc.Ua.Schema.Model
                         nodes,
                         references,
                         false,
-                        depth + 1);
+                        depth + 1,
+                        [],
+                        rootIsTypeDefinition: false);
                     break;
             }
         }
@@ -7175,6 +7354,7 @@ namespace Opc.Ua.Schema.Model
                     c.MinimumSamplingIntervalSpecified;
                 variable.Historizing = c.Historizing;
                 variable.HistorizingSpecified = c.HistorizingSpecified;
+                variable.NodeSetValueIsNull = c.NodeSetValueIsNull;
                 if (c.DefaultValueXml != null)
                 {
                     variable.DefaultValue = ParseDependencyDefaultValue(
@@ -7275,6 +7455,17 @@ namespace Opc.Ua.Schema.Model
                     }
                     method.MethodDeclarationNode = declaration;
                 }
+            }
+            if (c.Children.Count > 0)
+            {
+                var descendants = new InstanceDesign[c.Children.Count];
+                for (int index = 0; index < descendants.Length; index++)
+                {
+                    descendants[index] = MaterialiseDependencyChild(instance.SymbolicId, c.Children[index]);
+                    descendants[index].Parent = instance;
+                }
+                instance.Children = new ListOfChildren { Items = descendants };
+                instance.HasChildren = true;
             }
             // Mark as inherited-declaration so consumer code paths
             // that iterate children for emission can short-circuit.
@@ -7384,33 +7575,45 @@ namespace Opc.Ua.Schema.Model
                 {
                     continue;
                 }
-                foreach (InstanceDesign instance in type.Children.Items)
+                LinkPayloadChildren(type.Children.Items);
+            }
+        }
+
+        /// <summary>
+        /// Links every explicitly carried descendant, including parameters of generic Object containers.
+        /// </summary>
+        private void LinkPayloadChildren(IEnumerable<InstanceDesign> children)
+        {
+            foreach (InstanceDesign instance in children)
+            {
+                if (instance.Children?.Items != null)
                 {
-                    if (instance.TypeDefinition != null &&
-                        instance.TypeDefinitionNode == null &&
-                        m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
-                    {
-                        instance.TypeDefinitionNode = tdNode as TypeDesign;
-                    }
-                    if (instance is VariableDesign variable &&
-                        variable.DataType != null &&
-                        variable.DataTypeNode == null &&
-                        m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
-                    {
-                        variable.DataTypeNode = dtNode as DataTypeDesign;
-                    }
-                    if (instance is VariableDesign payloadVariable &&
-                        payloadVariable.DefaultValue != null &&
-                        payloadVariable.DecodedValue == null &&
-                        payloadVariable.DecodedValueNamespaceUris != null)
-                    {
-                        LinkPayloadDefaultValue(payloadVariable);
-                    }
-                    if (instance is MethodDesign method)
-                    {
-                        LinkDependencyMethodArguments(method.InputArguments);
-                        LinkDependencyMethodArguments(method.OutputArguments);
-                    }
+                    LinkPayloadChildren(instance.Children.Items);
+                }
+                if (instance.TypeDefinition != null &&
+                    instance.TypeDefinitionNode == null &&
+                    m_nodes.TryGetValue(instance.TypeDefinition, out NodeDesign? tdNode))
+                {
+                    instance.TypeDefinitionNode = tdNode as TypeDesign;
+                }
+                if (instance is VariableDesign variable &&
+                    variable.DataType != null &&
+                    variable.DataTypeNode == null &&
+                    m_nodes.TryGetValue(variable.DataType, out NodeDesign? dtNode))
+                {
+                    variable.DataTypeNode = dtNode as DataTypeDesign;
+                }
+                if (instance is VariableDesign payloadVariable &&
+                    payloadVariable.DefaultValue != null &&
+                    payloadVariable.DecodedValue == null &&
+                    payloadVariable.DecodedValueNamespaceUris != null)
+                {
+                    LinkPayloadDefaultValue(payloadVariable);
+                }
+                if (instance is MethodDesign method)
+                {
+                    LinkDependencyMethodArguments(method.InputArguments);
+                    LinkDependencyMethodArguments(method.OutputArguments);
                 }
             }
         }

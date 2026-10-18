@@ -43,6 +43,26 @@ namespace Quickstarts.Servers
     public static class Utils
     {
         /// <summary>
+        /// The alarm simulation period in CTT mode: a full alarm cycle takes 40 periods (20 s), which the
+        /// CTT's "Alarm Cycle Time" setting must match.
+        /// </summary>
+        public const int CttAlarmSimulationInterval = 500;
+
+        /// <summary>
+        /// Configures the node manager factories for a CTT run. Call before the node managers are created.
+        /// </summary>
+        public static void ConfigureCttModeNodeManagers()
+        {
+            foreach (IAsyncNodeManagerFactory factory in AsyncNodeManagerFactories)
+            {
+                if (factory is Alarms.AlarmNodeManagerFactory alarmFactory)
+                {
+                    alarmFactory.SimulationInterval = CttAlarmSimulationInterval;
+                }
+            }
+        }
+
+        /// <summary>
         /// Applies custom settings to quickstart servers for CTT run.
         /// </summary>
         public static async Task ApplyCTTModeAsync(TextWriter output, IStandardServer server)

@@ -28,6 +28,9 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using Opc.Ua.Vision.MachineVision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -67,14 +70,47 @@ namespace Opc.Ua.Vision.Server
     /// </summary>
     public sealed class VisionModelProvider : IVisionModelProvider
     {
+        /// <summary>
+        /// Creates the backwards-compatible draft-only model provider.
+        /// </summary>
+        public VisionModelProvider()
+            : this(MachineVisionParts.None)
+        {
+        }
+
+        /// <summary>
+        /// Creates a provider including the selected released models and their dependencies.
+        /// </summary>
+        public VisionModelProvider(MachineVisionParts parts)
+        {
+            if ((parts & ~MachineVisionParts.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(parts));
+            }
+            Parts = parts;
+        }
+
+        /// <summary>
+        /// Gets the released models contributed by this provider.
+        /// </summary>
+        public MachineVisionParts Parts { get; }
+
         /// <inheritdoc/>
         public int Order => int.MinValue;
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespaceUris => new string[]
+        public ArrayOf<string> NamespaceUris
         {
-            global::Opc.Ua.Vision.Namespaces.Vision
-        };
+            get
+            {
+                var namespaces = new List<string> { Perception.Namespaces.Vision };
+                if ((Parts & MachineVisionParts.Control) != 0)
+                {
+                    namespaces.Add(MachineVisionModels.ControlNamespaceUri);
+                }
+                return namespaces.ToArrayOf();
+            }
+        }
 
         /// <inheritdoc/>
         public void AddPredefinedNodes(NodeStateCollection nodes, ISystemContext context)
@@ -87,7 +123,11 @@ namespace Opc.Ua.Vision.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            nodes.AddOpcUaVision(context);
+            nodes.AddOpcUaVisionPerception(context);
+            if ((Parts & MachineVisionParts.Control) != 0)
+            {
+                nodes.AddOpcUaMachineVision(context);
+            }
         }
     }
 }

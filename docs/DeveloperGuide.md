@@ -78,6 +78,7 @@ Notes:
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
 - **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Client member extensions are opt-in.** A client library can set `ModelSourceGeneratorClientAccessorsOnly` to generate typed variable accessors and placeholder enumerators over a referenced model, without checking in generated C# or duplicating model types. See [optional client member accessors](../tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors) for the inputs and configuration.
 - **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
@@ -316,6 +317,9 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 - **Add a new feature** — implement it in the right library, add unit and (for client/server/pubsub) integration tests, update or add a doc under `docs/`, and keep backward compatibility (see [Coding standards](#coding-standards-dos-and-donts)).
 - **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
+  Describe the repository's current interfaces and behavior, not the implementation
+  history or whether a feature was already present. Version-to-version changes
+  belong in the migration guides and changelogs.
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
@@ -380,15 +384,22 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 
 Stable (public-release) versions are produced **only** from a canonical `release/<major>.<minor>` branch (e.g. `release/2.0`, `release/2.1`) — never from `master`, a tag, or any other branch — and only at the exact commit whose `version.json` carries the plain `<major>.<minor>.<patch>` version with no prerelease label (e.g. `2.0.0`). Patch numbers increase by exactly one per release on their line (`2.0.0` → `2.0.1` → `2.0.2`); a new minor line resets the patch to zero (`2.1.0`). See **[Release process](ReleaseProcess.md)** for the full branch/version model and the step-by-step procedure for cutting a release, shipping a patch or minor version, backporting a fix, and promoting a stable candidate.
 
-The XRegistry, WoT Connectivity, Vision, Robotics, Redundancy, Positioning,
+The XRegistry, WoT Connectivity, Robotics, CranesHoists, Redundancy, Positioning,
 OpenUSD, and AI package families remain preview packages even when
 the root version is stable. Their numeric version follows the root version:
 for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
 families (`N` a committed, manually curated number in `preview-version.props`
 that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
-same policy applies to the Robotics and Vision MCP extensions and the
-OpenUSD connector tools. The package validation manifest
+same policy applies to the Robotics MCP extension, the Vision.OpenUsd renderer,
+and the OpenUSD connector tools. All CranesHoists model/server/client/MCP
+packages and their Debug variants use that preview policy. The Vision,
+MachineVision, MachineTool (including bundled WMTP), and GMS model/client/server
+packages and their MCP packages follow the root version without a
+forced-preview override. The industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, Device Integration, ISA-95 and Positioning), plus the WoT and
+xRegistry MCP extensions, also follow the root release channel. Development
+versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.

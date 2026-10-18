@@ -285,10 +285,14 @@ namespace Opc.Ua.SourceGeneration
                         var children = new List<DependencyChild>(type.Children.Items.Length);
                         foreach (InstanceDesign child in type.Children.Items)
                         {
-                            if (child == null)
+                            if (child != null)
                             {
-                                continue;
+                                children.Add(CreateChild(child));
                             }
+                        }
+
+                        DependencyChild CreateChild(InstanceDesign child)
+                        {
                             byte instanceKind = child switch
                             {
                                 PropertyDesign => 3,
@@ -378,6 +382,8 @@ namespace Opc.Ua.SourceGeneration
                                     effectiveVariable.HistorizingSpecified;
                                 entryChild.DefaultValueXml =
                                     effectiveVariable.DefaultValue?.OuterXml;
+                                entryChild.NodeSetValueIsNull =
+                                    effectiveVariable.NodeSetValueIsNull;
                                 entryChild.DefaultValueNamespaceUris =
                                     GetDefaultValueNamespaceUris(effectiveVariable);
                             }
@@ -444,7 +450,19 @@ namespace Opc.Ua.SourceGeneration
                                     }
                                 }
                             }
-                            children.Add(entryChild);
+                            if (child.Children?.Items != null)
+                            {
+                                var descendants = new List<DependencyChild>(child.Children.Items.Length);
+                                foreach (InstanceDesign descendant in child.Children.Items)
+                                {
+                                    if (descendant != null)
+                                    {
+                                        descendants.Add(CreateChild(descendant));
+                                    }
+                                }
+                                entryChild.Children = [.. descendants];
+                            }
+                            return entryChild;
                         }
                         if (children.Count > 0)
                         {

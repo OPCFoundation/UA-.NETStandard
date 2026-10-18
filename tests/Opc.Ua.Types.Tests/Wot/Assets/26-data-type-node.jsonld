@@ -56,7 +56,7 @@
   ],
   "links": [
     {
-      "rel": "ua:HasSubtype",
+      "rel": "ua:HasSupertype",
       "href": "i=22",
       "uav:refName": "Structure",
       "uav:refId": "i=45"

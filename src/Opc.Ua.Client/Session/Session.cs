@@ -348,7 +348,7 @@ namespace Opc.Ua.Client
 
             // Create timer for keep alive event triggering but in off state
             m_keepAliveTimer = m_timeProvider.CreateTimer(
-                _ => m_keepAliveEvent.Set(),
+                _ => OnKeepAliveTimer(),
                 this,
                 Timeout.InfiniteTimeSpan,
                 Timeout.InfiniteTimeSpan);
@@ -602,7 +602,14 @@ namespace Opc.Ua.Client
                 m_serverCertificate = null;
                 m_keepAliveCancellation?.Dispose();
                 m_keepAliveCancellation = null;
-                m_engine?.Dispose();
+                if (m_engine is IAsyncDisposable asyncEngine)
+                {
+                    await asyncEngine.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    m_engine?.Dispose();
+                }
             }
 
             base.Dispose(disposing);
@@ -1080,7 +1087,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public virtual void Snapshot(out SessionState state)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             Snapshot(out SessionConfiguration configuration);
 
             // Snapshot subscription state
@@ -1102,7 +1109,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public virtual void Restore(SessionState state)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ThrowIfDisposed();
             RestoreSessionState(state);
             if (state.Subscriptions.IsEmpty)
@@ -1229,13 +1236,7 @@ namespace Opc.Ua.Client
             {
                 IServiceMessageContext context = MessageContext
                     ?? throw new InvalidOperationException("Missing service message context");
-                using var encoder = new BinaryEncoder(
-                    stream, context, true);
-                encoder.WriteStringArray(
-                    null, context.NamespaceUris.ToArrayOf());
-                encoder.WriteStringArray(
-                    null, context.ServerUris.ToArrayOf());
-                sessionConfiguration.Encode(encoder);
+                SnapshotCodec.SaveConfiguration(stream, context, sessionConfiguration);
             }
             return sessionConfiguration;
         }
@@ -1246,7 +1247,7 @@ namespace Opc.Ua.Client
             IEnumerable<Subscription> subscriptions,
             IEnumerable<Type>? knownTypes = null)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             // Snapshot subscription state
             var subscriptionStates = new List<SubscriptionState>();
             foreach (Subscription subscription in subscriptions)
@@ -1257,17 +1258,10 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            using var encoder = new BinaryEncoder(
-                stream, context, true);
-            encoder.WriteStringArray(
-                null, context.NamespaceUris.ToArrayOf());
-            encoder.WriteStringArray(
-                null, context.ServerUris.ToArrayOf());
-            encoder.WriteInt32(null, subscriptionStates.Count);
-            foreach (SubscriptionState state in subscriptionStates)
-            {
-                state.Encode(encoder);
-            }
+            SnapshotCodec.SaveSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                subscriptionStates.ToArray());
         }
 
         /// <inheritdoc/>
@@ -1276,44 +1270,37 @@ namespace Opc.Ua.Client
             bool transferSubscriptions = false,
             IEnumerable<Type>? knownTypes = null)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            using var decoder = new BinaryDecoder(
-                stream, context, true);
-            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
-            decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()!),
-                new StringTable(serverUris.Memory.ToArray()!));
-
-            int count = decoder.ReadInt32(null);
-            if (count <= 0)
+            ArrayOf<SubscriptionState> states = SnapshotCodec.LoadSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                out ServiceMessageContext restoredContext);
+            var subscriptions = new SubscriptionCollection(states.Count);
+            foreach (SubscriptionState savedState in states)
             {
-                return [];
-            }
-
-            var subscriptions = new SubscriptionCollection(count);
-            for (int i = 0; i < count; i++)
-            {
-                var state = new SubscriptionState();
-                state.Decode(decoder);
-                // Restore subscription from state
-                Subscription subscription = CreateSubscription(state);
-                subscription.Restore(state);
+                SubscriptionState state = savedState;
                 if (!transferSubscriptions)
                 {
-                    // ServerId must be reset if the saved list of subscriptions
-                    // is not used to transfer a subscription
-                    foreach (MonitoredItem monitoredItem in subscription.MonitoredItems)
+                    // Persisted target identity is for adoption, not authority
+                    // for a freshly created server item.
+                    state = state with
                     {
-                        monitoredItem.ServerId = 0;
-                    }
+                        MonitoredItems = state.MonitoredItems.ConvertAll(item => item with
+                        {
+                            ServerId = 0,
+                            ResolvedNodeId = NodeId.Null
+                        })
+                    };
                 }
+                Subscription subscription = CreateSubscription(state);
+                subscription.Restore(state);
                 AddSubscription(subscription);
                 subscriptions.Add(subscription);
             }
+            m_restoredSubscriptionContext = restoredContext;
             return subscriptions;
         }
 
@@ -1392,7 +1379,7 @@ namespace Opc.Ua.Client
             ArrayOf<EndpointDescription> refreshedEndpoints = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             ArrayOf<EndpointDescription> discoveryServerEndpoints = refreshedEndpoints.IsEmpty
                 ? m_endpoint.DiscoveryEndpoints
@@ -1414,6 +1401,10 @@ namespace Opc.Ua.Client
 
             if (TransportChannel is ManagedTransportChannelLease lease)
             {
+                // A session attaching to a shared channel that another caller
+                // is still opening has no installed transport to read the
+                // certificate from yet.
+                await lease.Entry.WaitForTransportAsync(ct).ConfigureAwait(false);
                 using ClientChannelCertificateSnapshot certificates = lease.Entry.SnapshotClientCertificate();
                 CertificateEntry? replacement = BuildInstanceCertificateEntry(
                     certificates.Certificate,
@@ -1839,7 +1830,7 @@ namespace Opc.Ua.Client
             }
 
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
             CancellationTokenSource lockHolder = EnterReconnectLockHolder(ct);
@@ -2312,7 +2303,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ByteString serverNonce = default;
 
             lock (m_lock)
@@ -2535,7 +2526,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (subscription == null)
             {
                 throw new ArgumentNullException(nameof(subscription));
@@ -2567,7 +2558,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (subscriptions == null)
             {
                 throw new ArgumentNullException(nameof(subscriptions));
@@ -2597,7 +2588,7 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(subscriptions);
             int failedSubscriptions = 0;
 
@@ -2711,7 +2702,7 @@ namespace Opc.Ua.Client
             ICollection<Subscription>? notTransferred,
             CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ArrayOf<uint> subscriptionIds = CreateSubscriptionIdsForTransfer(
                 subscriptions,
                 sessionRecreatedInPlace);
@@ -2883,7 +2874,7 @@ namespace Opc.Ua.Client
 
         private async Task FetchNamespaceTablesAsync(ISessionClient serviceClient, CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             ArrayOf<ReadValueId> nodesToRead = PrepareNamespaceTableNodesToRead();
 
             // read from server.
@@ -2908,7 +2899,7 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async Task FetchTypeTreeAsync(ExpandedNodeId typeId, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             await FetchTypeTreeAsync(typeId, [typeId], ct)
                 .ConfigureAwait(false);
         }
@@ -2918,7 +2909,7 @@ namespace Opc.Ua.Client
             ArrayOf<ExpandedNodeId> typeIds,
             CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             var visited = new HashSet<ExpandedNodeId>();
             foreach (ExpandedNodeId typeId in typeIds)
             {
@@ -2995,7 +2986,7 @@ namespace Opc.Ua.Client
 
         private async Task FetchOperationLimitsAsync(SessionClient serviceClient, CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             // Helper extraction
             static uint GetUInt32(ref int index, ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors)
@@ -3521,7 +3512,7 @@ namespace Opc.Ua.Client
             bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             NodeId previousSessionId = SessionId;
             IManagedTransportChannel? oldManagedLease = ManagedChannel;
@@ -4033,7 +4024,7 @@ namespace Opc.Ua.Client
 
             Closing = true;
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             try
             {
                 // stop the keep alive timer.
@@ -4114,10 +4105,12 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // clean up.
+                // clean up. Asynchronously: the synchronous Dispose blocks a thread
+                // until the subscription engine has stopped, and many sessions closed
+                // at once that way starve the thread pool their own close needs.
                 if (closeChannel)
                 {
-                    Dispose();
+                    await DisposeAsync().ConfigureAwait(false);
                 }
 
                 return result;
@@ -4132,7 +4125,7 @@ namespace Opc.Ua.Client
         public async Task ReloadInstanceCertificateAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             await AcquireIdentityUpdateLockAsync(ct).ConfigureAwait(false);
             try
             {
@@ -4242,7 +4235,7 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             bool resetReconnect = false;
             try
             {
@@ -4566,7 +4559,7 @@ namespace Opc.Ua.Client
             uint sequenceNumber,
             CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
 
             // Republish is part of the classic publish flow. With the V2
             // subscription engine, the SubscriptionManager handles republish
@@ -4643,7 +4636,7 @@ namespace Opc.Ua.Client
             CancellationToken ct,
             bool sessionRecreatedInPlace = false)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             bool transferred = false;
             // Per-subscription outcome of the transfer. Only an in-place
             // recreate needs it: a subscription the server did take over is
@@ -4787,7 +4780,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Starts a timer to check that the connection to the server is still available.
         /// </summary>
-        private async ValueTask StartKeepAliveTimerAsync()
+        internal async ValueTask StartKeepAliveTimerAsync()
         {
             int keepAliveInterval = m_keepAliveInterval;
 
@@ -4826,7 +4819,8 @@ namespace Opc.Ua.Client
                     m_keepAliveCancellation = keepAliveCancellation;
                 }
 
-                // send initial keep alive.
+                // send initial keep alive, not deferred by earlier responses.
+                Volatile.Write(ref m_keepAliveDeferredFrom, 0);
                 m_keepAliveTimer.Change(TimeSpan.Zero, TimeSpan.FromMilliseconds(m_keepAliveInterval));
             }
         }
@@ -4834,10 +4828,15 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            base.SessionCreated(sessionId, sessionCookie);
-            if (!sessionCookie.IsNull)
+            lock (m_requestContextIdentity)
             {
-                m_hadSession = true;
+                base.SessionCreated(sessionId, sessionCookie);
+                if (!sessionCookie.IsNull)
+                {
+                    m_hadSession = true;
+                }
+                m_requestContextGeneration++;
+                RequestContextChanged?.Invoke();
             }
         }
 
@@ -4894,7 +4893,7 @@ namespace Opc.Ua.Client
                     UpdateLastKeepAliveTime();
                 }
 
-                ResetKeepAliveTimer();
+                DeferKeepAlive();
             }
 
             base.RequestCompleted(request, response!, serviceName);
@@ -4912,6 +4911,54 @@ namespace Opc.Ua.Client
                 ref m_lastKeepAliveTime,
                 m_timeProvider.GetUtcNow().UtcDateTime.Ticks);
             Interlocked.Exchange(ref m_lastKeepAliveTimestamp, m_timeProvider.GetTimestamp());
+        }
+
+        /// <summary>
+        /// Defers the next keep alive to one keep alive interval from now.
+        /// </summary>
+        /// <remarks>
+        /// Called for every successful response, so it only records the time
+        /// instead of moving the timer, which takes the timer queue lock. The
+        /// timer callback moves the timer when it fires before the deferred time.
+        /// </remarks>
+        private void DeferKeepAlive()
+        {
+            Volatile.Write(ref m_keepAliveDeferredFrom, m_timeProvider.GetTimestamp());
+        }
+
+        /// <summary>
+        /// Signals the keep alive worker unless a response arrived within the
+        /// last keep alive interval. Then the timer is moved to one interval after
+        /// that response, which is when moving it on every response would have
+        /// made it fire.
+        /// </summary>
+        private void OnKeepAliveTimer()
+        {
+            long deferredFrom = Volatile.Read(ref m_keepAliveDeferredFrom);
+            if (deferredFrom != 0)
+            {
+                var interval = TimeSpan.FromMilliseconds(m_keepAliveInterval);
+                TimeSpan remaining = interval - m_timeProvider.GetElapsedTime(deferredFrom);
+                if (remaining > TimeSpan.Zero)
+                {
+                    lock (m_lock)
+                    {
+                        if (m_keepAliveWorker != null && !Disposed)
+                        {
+                            try
+                            {
+                                m_keepAliveTimer.Change(remaining, interval);
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // the session is being disposed
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
+            m_keepAliveEvent.Set();
         }
 
         /// <summary>
@@ -6738,6 +6785,28 @@ namespace Opc.Ua.Client
 #pragma warning restore CA2213
 
         /// <summary>
+        /// The activity source for service calls, resolved once per telemetry
+        /// context: the GetActivitySource extension walks the stack to find the
+        /// calling assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource
+        {
+            get
+            {
+                ITelemetryContext telemetry = m_telemetry;
+                Tuple<ITelemetryContext, ActivitySource>? cached = m_activitySource;
+                if (cached == null || !ReferenceEquals(cached.Item1, telemetry))
+                {
+                    cached = Tuple.Create(telemetry, telemetry.GetActivitySource());
+                    m_activitySource = cached;
+                }
+                return cached.Item2;
+            }
+        }
+
+        private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
+
+        /// <summary>
         /// The session telemetry context
         /// </summary>
         protected ITelemetryContext m_telemetry;
@@ -6870,6 +6939,9 @@ namespace Opc.Ua.Client
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
+
+        /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
+        private ServiceMessageContext? m_restoredSubscriptionContext;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;
@@ -6890,6 +6962,7 @@ namespace Opc.Ua.Client
 #pragma warning restore CA2213
         private long m_lastKeepAliveTime;
         private long m_lastKeepAliveTimestamp;
+        private long m_keepAliveDeferredFrom;
         private StatusCode m_lastKeepAliveErrorStatusCode;
         private ServerState m_serverState;
         private int m_keepAliveInterval;

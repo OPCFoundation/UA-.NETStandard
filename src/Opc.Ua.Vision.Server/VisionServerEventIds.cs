@@ -35,6 +35,11 @@ namespace Opc.Ua.Vision.Server
     internal static class VisionServerEventIds
     {
         /// <summary>
+        /// Released Machine Vision runtime messages.
+        /// </summary>
+        public const int MachineVisionRuntime = 16010;
+
+        /// <summary>
         /// The Vision node manager finished creating its address space.
         /// </summary>
         public const int NodeManagerReady = 16000;

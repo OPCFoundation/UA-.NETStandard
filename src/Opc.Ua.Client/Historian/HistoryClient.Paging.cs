@@ -34,6 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client.Historian
 {
@@ -50,6 +51,12 @@ namespace Opc.Ua.Client.Historian
             HistoryReadNodeOptions? nodeOptions,
             [EnumeratorCancellation] CancellationToken cancellationToken)
         {
+            SessionRequestContext? requestContext =
+                Options.BindSessionGeneration && Session is not Session { IsGenerationBound: true }
+                    ? await SessionRequestContext.CaptureAsync(Session, cancellationToken).ConfigureAwait(false)
+                    : null;
+            ISession session = requestContext?.Session ?? Session;
+            ILogger? logger = null;
             ByteString continuationPoint = ByteString.Empty;
             ByteString liveContinuationPoint = ByteString.Empty;
             uint pagesRead = 0;
@@ -58,6 +65,7 @@ namespace Opc.Ua.Client.Historian
                 nodeOptions?.IndexRange ?? default);
             try
             {
+                logger = session.MessageContext?.Telemetry?.CreateLogger<HistoryClient>();
                 while (true)
                 {
                     if (Options.MaxPagesPerRead > 0 &&
@@ -85,7 +93,7 @@ namespace Opc.Ua.Client.Historian
                         }
                     };
 
-                    HistoryReadResponse response = await Session.HistoryReadAsync(
+                    HistoryReadResponse response = await session.HistoryReadAsync(
                         null,
                         historyReadDetails,
                         timestampsToReturn,
@@ -93,6 +101,11 @@ namespace Opc.Ua.Client.Historian
                         nodesToRead,
                         cancellationToken).ConfigureAwait(false);
 
+                    if (response.ResponseHeader != null &&
+                        StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+                    {
+                        throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+                    }
                     if (response.Results.Count != 1)
                     {
                         throw new ServiceResultException(
@@ -135,45 +148,63 @@ namespace Opc.Ua.Client.Historian
             }
             finally
             {
-                if (!liveContinuationPoint.IsEmpty)
+                try
                 {
-                    try
+                    if (!liveContinuationPoint.IsEmpty)
                     {
-                        var releaseNodes = new HistoryReadValueId[]
-                        {
-                            new()
-                            {
-                                NodeId = nodeId,
-                                ContinuationPoint = liveContinuationPoint,
-                                IndexRange = indexRange,
-                                DataEncoding = nodeOptions?.DataEncoding ?? QualifiedName.Null
-                            }
-                        };
-                        _ = await Session.HistoryReadAsync(
-                            null,
-                            historyReadDetails,
-                            timestampsToReturn,
-                            releaseContinuationPoints: true,
-                            releaseNodes,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (ServiceResultException)
-                    {
-                        // Best-effort cleanup.
-                    }
-                    catch (TaskCanceledException)
-                    {
-                        // Best-effort cleanup.
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // Best-effort cleanup.
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        // Best-effort cleanup.
+                        await ReleaseHistoryPointAsync(
+                            session, nodeId, liveContinuationPoint, historyReadDetails, timestampsToReturn,
+                            indexRange, nodeOptions?.DataEncoding ?? QualifiedName.Null, logger).ConfigureAwait(false);
                     }
                 }
+                finally
+                {
+                    if (requestContext != null)
+                    {
+                        await requestContext.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Releases the last known continuation point without replacing an enumeration's primary failure.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static async ValueTask ReleaseHistoryPointAsync(
+            ISession session, NodeId nodeId, ByteString point, ExtensionObject details,
+            TimestampsToReturn timestamps, string indexRange, QualifiedName dataEncoding, ILogger? logger)
+        {
+            try
+            {
+                HistoryReadResponse response = await session.HistoryReadAsync(
+                    null, details, timestamps, releaseContinuationPoints: true,
+                    [
+                        new HistoryReadValueId
+                        {
+                            NodeId = nodeId,
+                            ContinuationPoint = point,
+                            IndexRange = indexRange,
+                            DataEncoding = dataEncoding
+                        }
+                    ],
+                    CancellationToken.None).ConfigureAwait(false);
+                if (response.ResponseHeader != null && StatusCode.IsBad(response.ResponseHeader.ServiceResult))
+                {
+                    throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+                }
+                if (response.Results.Count != 1)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUnexpectedError);
+                }
+                if (StatusCode.IsBad(response.Results[0].StatusCode))
+                {
+                    throw new ServiceResultException(response.Results[0].StatusCode);
+                }
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                logger?.HistoryContinuationCleanupFailed(exception, nodeId);
             }
         }
 
@@ -201,7 +232,7 @@ namespace Opc.Ua.Client.Historian
             return builder.ToString();
         }
 
-        private static ArrayOf<DataValue> DecodeHistoryData(HistoryReadResult result)
+        private ArrayOf<DataValue> DecodeHistoryData(HistoryReadResult result)
         {
             if (result.HistoryData.IsNull)
             {
@@ -209,12 +240,13 @@ namespace Opc.Ua.Client.Historian
             }
             if (result.HistoryData.TryGetValue(out HistoryData? data) && data != null)
             {
+                ValidateDecodedPageCount(data.DataValues.Count);
                 return data.DataValues;
             }
             throw CreateUnexpectedHistoryPayloadException(nameof(HistoryData));
         }
 
-        private static ArrayOf<ModifiedHistoryValue> DecodeHistoryModifiedData(
+        private ArrayOf<ModifiedHistoryValue> DecodeHistoryModifiedData(
             HistoryReadResult result)
         {
             if (result.HistoryData.IsNull)
@@ -225,6 +257,8 @@ namespace Opc.Ua.Client.Historian
             {
                 throw CreateUnexpectedHistoryPayloadException(nameof(HistoryModifiedData));
             }
+            ValidateDecodedPageCount(data.DataValues.Count);
+            ValidateDecodedPageCount(data.ModificationInfos.Count);
             if (data.DataValues.Count != data.ModificationInfos.Count)
             {
                 throw new ServiceResultException(
@@ -244,7 +278,7 @@ namespace Opc.Ua.Client.Historian
             return values.ToArrayOf();
         }
 
-        private static ArrayOf<HistoryEventFieldList> DecodeHistoryEvents(
+        private ArrayOf<HistoryEventFieldList> DecodeHistoryEvents(
             HistoryReadResult result)
         {
             if (result.HistoryData.IsNull)
@@ -253,9 +287,24 @@ namespace Opc.Ua.Client.Historian
             }
             if (result.HistoryData.TryGetValue(out HistoryEvent? data) && data != null)
             {
+                ValidateDecodedPageCount(data.Events.Count);
                 return data.Events;
             }
             throw CreateUnexpectedHistoryPayloadException(nameof(HistoryEvent));
+        }
+
+        /// <summary>
+        /// Rejects an oversized decoded page before copying modified values or exposing any item.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ValidateDecodedPageCount(int count)
+        {
+            if (Options.MaxDecodedPageItems > 0 && count > Options.MaxDecodedPageItems)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "HistoryRead exceeded the configured decoded page item limit.");
+            }
         }
 
         private static ServiceResultException CreateUnexpectedHistoryPayloadException(
@@ -265,5 +314,19 @@ namespace Opc.Ua.Client.Historian
                 StatusCodes.BadDecodingError,
                 $"HistoryRead returned a payload other than {expectedType}.");
         }
+    }
+
+    /// <summary>
+    /// Source-generated diagnostics for continuation-point cleanup.
+    /// </summary>
+    internal static partial class HistoryClientLog
+    {
+        /// <summary>
+        /// Reports a cleanup failure without replacing the read failure or exposing the continuation point.
+        /// </summary>
+        [LoggerMessage(EventId = ClientEventIds.HistoryClient, Level = LogLevel.Warning,
+            Message = "Failed to release a history continuation point for {NodeId}.")]
+        internal static partial void HistoryContinuationCleanupFailed(
+            this ILogger logger, Exception exception, NodeId nodeId);
     }
 }

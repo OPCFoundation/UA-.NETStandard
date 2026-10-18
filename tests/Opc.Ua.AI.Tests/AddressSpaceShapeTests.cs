@@ -73,10 +73,36 @@ namespace Opc.Ua.AI.Tests
 
             Assert.That(
                 nm.RootId,
-                Is.EqualTo(new NodeId(
-                    Opc.Ua.AI.Objects.AiModelManagement,
-                    nm.NamespaceIndex)),
+                Is.EqualTo(
+                    new NodeId(
+                        Opc.Ua.AI.Objects.AiModelManagement,
+                        nm.NamespaceIndex)),
                 "the entry point must be the one the model declares");
+        }
+
+        [TestCase("Invoke")]
+        [TestCase("InvokeAsync")]
+        [TestCase("GetCapabilities")]
+        [TestCase("BeginTransfer")]
+        public async Task DeploymentMethodsResolveTheirDeclarationsToTheBoundInstance(string name)
+        {
+            using AINodeManager nm = await CreateAsync().ConfigureAwait(false);
+            DeploymentState deployment = nm.FindPredefinedNode<DeploymentState>(nm.PrimaryDeploymentId);
+            MethodState method = deployment.FindChild(nm.SystemContext, new QualifiedName(name, nm.NamespaceIndex)) as
+                MethodState
+                ?? throw new AssertionException("The deployment method is missing.");
+            ExpandedNodeId declaration = name switch
+            {
+                "Invoke" => MethodIds.DeploymentType_Invoke,
+                "InvokeAsync" => MethodIds.DeploymentType_InvokeAsync,
+                "GetCapabilities" => MethodIds.DeploymentType_GetCapabilities,
+                "BeginTransfer" => MethodIds.DeploymentType_BeginTransfer,
+                _ => throw new ArgumentOutOfRangeException(nameof(name))
+            };
+            var expected = ExpandedNodeId.ToNodeId(declaration, nm.SystemContext.NamespaceUris);
+
+            Assert.That(method.MethodDeclarationId, Is.EqualTo(expected));
+            Assert.That(deployment.FindMethod(nm.SystemContext, expected), Is.SameAs(method));
         }
 
         [Test]
@@ -146,7 +172,8 @@ namespace Opc.Ua.AI.Tests
             // absent from the index, so browsing IT returned BadNodeIdUnknown. The
             // collection the specification defines was unreachable.
             Assert.That(
-                nm.IndexedNode(root.Jobs!.NodeId), Is.Not.Null,
+                nm.IndexedNode(root.Jobs!.NodeId),
+                Is.Not.Null,
                 "the Jobs folder must be indexed, not only present on the tree");
 
             Assert.That(nm.IndexedNode(begun.Transfer), Is.Not.Null);
@@ -200,7 +227,8 @@ namespace Opc.Ua.AI.Tests
             // Method can grow it. Transfers already had a cap; jobs did not.
             Assert.That(live, Is.LessThanOrEqualTo(3));
             Assert.That(
-                nm.IndexedNode(started[^1]), Is.Not.Null,
+                nm.IndexedNode(started[^1]),
+                Is.Not.Null,
                 "the most recent job must survive");
         }
 

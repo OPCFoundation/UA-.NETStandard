@@ -118,6 +118,24 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Creates an encoder that writes through a writer it borrows: disposing or closing the
+        /// encoder flushes the writer but neither disposes it nor its stream. The channels keep
+        /// one writer per thread over the stream they encode messages to, and create an encoder
+        /// for every message.
+        /// </summary>
+        /// <param name="writer">The writer, over the stream the encoder writes to.</param>
+        /// <param name="context">The message context to use for the encoding.</param>
+        internal BinaryEncoder(BinaryWriter writer, IServiceMessageContext context)
+        {
+            Context = context ?? throw new ArgumentNullException(nameof(context));
+            m_writer = writer ?? throw new ArgumentNullException(nameof(writer));
+            m_ostrm = writer.BaseStream;
+            m_leaveOpen = true;
+            m_borrowsWriter = true;
+            m_nestingLevel = 0;
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -125,7 +143,10 @@ namespace Opc.Ua
             if (m_writer != null)
             {
                 m_writer.Flush();
-                m_writer.Dispose();
+                if (!m_borrowsWriter)
+                {
+                    m_writer.Dispose();
+                }
                 m_writer = null!;
             }
 
@@ -222,7 +243,10 @@ namespace Opc.Ua
 
             int position = (int)m_writer.BaseStream.Position;
             m_writer.Flush();
-            m_writer.Dispose();
+            if (!m_borrowsWriter)
+            {
+                m_writer.Dispose();
+            }
 
             // Clear the reference so a following Dispose() does not flush a
             // writer that is already disposed - which throws for every owned
@@ -2541,7 +2565,7 @@ namespace Opc.Ua
                     encoding = NodeIdEncodingBits.ByteString;
                     break;
                 default:
-                    uint id = Convert.ToUInt32(nodeId.NumericIdentifier, CultureInfo.InvariantCulture);
+                    uint id = nodeId.NumericIdentifier;
 
                     if (id <= byte.MaxValue && namespaceIndex == 0)
                     {
@@ -2559,7 +2583,7 @@ namespace Opc.Ua
                     break;
             }
 
-            return Convert.ToByte(encoding, CultureInfo.InvariantCulture);
+            return (byte)encoding;
         }
 
         /// <summary>
@@ -2760,6 +2784,7 @@ namespace Opc.Ua
         private int m_bufferPosition;
         private bool m_closed;
         private readonly bool m_leaveOpen;
+        private readonly bool m_borrowsWriter;
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
         private uint m_nestingLevel;

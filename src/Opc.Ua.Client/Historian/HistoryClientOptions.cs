@@ -44,6 +44,20 @@ namespace Opc.Ua.Client.Historian
         public uint DefaultMaxValuesPerNode { get; init; }
 
         /// <summary>
+        /// Maximum decoded values or events accepted in one server response.
+        /// Zero preserves the unbounded legacy behavior. This bounds client-side page copies and yields,
+        /// not the transport decoder; configure message and array quotas separately.
+        /// </summary>
+        public int MaxDecodedPageItems { get; init; }
+
+        /// <summary>
+        /// Captures a managed session generation for each history enumeration and its continuation cleanup.
+        /// The default preserves legacy behavior. For a policy decision that precedes the enumeration,
+        /// construct this client with <see cref="SessionRequestContext.Session"/> captured before that decision.
+        /// </summary>
+        public bool BindSessionGeneration { get; init; }
+
+        /// <summary>
         /// Default timestamps mode for reads.
         /// </summary>
         public TimestampsToReturn DefaultTimestampsToReturn { get; init; }

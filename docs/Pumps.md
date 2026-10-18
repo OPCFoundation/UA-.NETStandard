@@ -32,7 +32,7 @@ them back into typed snapshots. Both sides share one set of contracts.
 | Package | Contents |
 | --- | --- |
 | `Opc.Ua.Pumps` | The source-generated OPC 40223 model (typed node states, `ObjectTypeIds`, `BrowseNames`, the 13 enumerations and 5 option sets, `PhysicalAddressDataType`, `AddOpcUaPumps`), `PumpsModel`, and the snapshot contracts both sides share |
-| `Opc.Ua.Pumps.Server` | `PumpsNodeManager`, the fluent builders `IPumpBuilder` / `IPumpGroupBuilder`, and the `AddPumps()` / `ConfigurePumps()` hosting pipeline |
+| `Opc.Ua.Pumps.Server` | `PumpsNodeManager`, the shared `PumpsRuntime`, the fluent builders `IPumpBuilder` / `IPumpGroupBuilder`, and standalone or additive Machinery hosting |
 | `Opc.Ua.Pumps.Client` | `PumpsClient` for discovery, nameplate, configuration, measurements, supervision, maintenance, ports and whole-pump snapshots, plus `AddPumpsClient()` |
 
 The contracts (`PumpNameplate`, `PumpValueSet`, `PumpSupervisionStatus`,
@@ -92,7 +92,7 @@ clients also treat as a machine, so a conforming server publishes it twice:
 - as a child of the DI `DeviceSet`, and
 - through an `Organizes` reference from the Machinery `Machines` folder.
 
-`PumpsNodeManager` does both by default
+`PumpsRuntime`, used by both the standalone and composed hosts, does both by default
 (`PumpsServerOptions.OrganizeIntoMachinesFolder`), and
 `PumpsClient.EnumeratePumpsAsync` looks in both places and de-duplicates.
 Matching goes by type hierarchy, so a vendor subtype of `PumpType` is found
@@ -211,7 +211,7 @@ connection that supplies the values.
 | --- | --- | --- |
 | `OrganizeIntoMachinesFolder` | `true` | Also reference every pump from the OPC 40001-1 `Machines` folder. Turning it off hides pumps from Machinery clients |
 | `LoadIndustrialAutomationModel` | `true` | Load OPC 10000-200 IA. Machinery types `MonitoringType/Status/Stacklight` with the IA `BasicStacklightType`, so without IA the Machinery model fails to load; there is rarely a reason to turn this off |
-| `AdditionalNamespaceUris` | `[]` | Extra namespaces for a subclass that composes further models into the same address space |
+| `AdditionalNamespaceUris` | `[]` | Extra model or vendor-extension namespaces registered by the owner |
 
 ### Load order
 
@@ -220,7 +220,7 @@ in the address space before Machinery loads, and Pumps builds on both.
 
 ### Creating pumps
 
-| `PumpsNodeManager` member | Meaning |
+| `PumpsNodeManager` / `PumpsRuntime` member | Meaning |
 | --- | --- |
 | `CreatePumpAsync(QualifiedName browseName, CancellationToken)` | Creates a pump below the DI `DeviceSet`. A browse name already taken there is rejected with `BadBrowseNameDuplicated` |
 | `CreatePumpAsync(QualifiedName, NodeState? parent, CancellationToken)` | Same, below an explicit parent |
@@ -240,21 +240,99 @@ notifier.
 `AddPumps` claims the Device Integration address space, so it cannot be
 combined with `AddOpcUaDi` or another DI-owning registration; the second
 registration throws `InvalidOperationException` at startup. A server that
-already has a DI manager loads the model into it and configures it through
-the DI pipeline:
+uses the stock Machinery owner instead calls `AddPumpsToMachinery`. Do not
+combine `AddMachinery` and `AddPumps`.
 
 ```csharp
-protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
-    ISystemContext context, CancellationToken ct = default)
-{
-    var nodes = new NodeStateCollection();
-    nodes.AddOpcUaDi(context);
-    nodes.AddOpcUaIA(context);
-    nodes.AddOpcUaMachinery(context);
-    nodes.AddOpcUaPumps(context);
-    return new ValueTask<NodeStateCollection>(nodes);
-}
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua;
+using Opc.Ua.Machinery.Server;
+using Opc.Ua.Pumps.Server;
+using Opc.Ua.Server;
+
+services.AddOpcUa()
+    .AddServer<StandardServer>(ConfigureServer)
+    .AddMachinery(options =>
+    {
+        options.Parts = MachineryParts.BuildingBlocks;
+        options.InstanceNamespaceUri = "urn:acme:plant:instances";
+    })
+    .AddPumpsToMachinery()
+    .ConfigurePumpsFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        PumpsRuntime pumps = context.Runtime;
+        var pump = await pumps.CreatePumpAsync(
+            new QualifiedName("FeedPump", pumps.InstanceNamespaceIndex), ct);
+        pump.WithNameplate(new Opc.Ua.Pumps.PumpNameplate
+        {
+            NodeId = NodeId.Null,
+            Manufacturer = new LocalizedText("Acme"),
+            SerialNumber = "P-1",
+            ProductInstanceUri = "urn:acme:pump:P-1"
+        });
+        pump.Measurements.SetAnalog(Opc.Ua.Pumps.BrowseNames.MassFlow, 12.5);
+    });
 ```
+
+`AddMachinery` must precede `AddPumpsToMachinery`, and its selected parts must
+include `BuildingBlocks`. `PumpsMachineryModelProvider` contributes only Pumps
+and any additional configured namespaces; the built-in Machinery provider
+loads DI, IA and Machinery first. The Machinery owner controls these shared
+dependencies, so `LoadIndustrialAutomationModel` affects standalone hosting only.
+The server package references `Opc.Ua.Machinery.Server`, but standalone servers
+continue to load the same four models, not every Machinery part.
+
+`ConfigurePumpsFor<TNodeManager>` accepts
+`Func<IPumpsBuildContext, CancellationToken, ValueTask>`. Its `Runtime` uses
+the same builders as `PumpsNodeManager.Runtime`. `Manager` is the existing
+DI/Machinery owner, and `GetRequiredService<T>()` resolves application services.
+Successive configurators share one runtime and run in the Machinery configuration
+pipeline before its builder is sealed. Optional groups remain lazy, including
+groups added after startup, and their updates still notify subscribed clients.
+
+Pumps and other companions can therefore share one owner, for example by also
+calling [`AddScalesToMachinery`](Scales.md#composing-with-machinery-and-other-companions).
+Model namespaces identify types and browse names; all newly created instance
+NodeIds use the Machinery owner's application namespace. Do not repeat that
+instance URI in `AdditionalNamespaceUris`.
+
+For [AMB](AMB.md), add `AddAssetManagement()` and register a pump inside its
+configurator through the actual owner:
+
+```csharp
+await context.GetRequiredService<Opc.Ua.AMB.Server.Assets.IAssetManagement>()
+    .RegisterAssetAsync(
+        context.Manager.TopologyElement(pump.Pump).Node,
+        asset => asset.WithConfigurableAssetId("P-1"),
+        ct);
+```
+
+No second DI manager is created. AMB remains a sidecar and the asset keeps
+its native `PumpType`.
+
+### Direct composition and lifetime
+
+Without dependency injection, supply `new PumpsMachineryModelProvider()` alongside
+`new MachineryModelProvider(MachineryParts.BuildingBlocks)` to the
+`MachineryNodeManager` constructor. Providers are dependency-ordered even if
+supplied in reverse order. After the address space has initialized:
+
+```csharp
+PumpsRuntime pumps = owner.CreatePumpsRuntime();
+var pump = await pumps.CreatePumpAsync(
+    new QualifiedName("FeedPump", pumps.InstanceNamespaceIndex), ct);
+```
+
+The first `CreatePumpsRuntime(options)` call selects the options; later calls
+return that same runtime. A standalone `PumpsNodeManager` returns its existing
+`Runtime`. The stock Machinery manager disposes its composed runtime on shutdown,
+cancelling queued creations and awaiting the active creation. Keep builders only
+for the owner's lifetime.
+
+An application-owned Machinery-compatible DI manager may instead load the same
+models itself, call `CreatePumpsRuntime`, and release registered resources through
+`DisposeMachineryResourcesAsync()` from its asynchronous disposal path.
+No inheritance change to the sealed stock managers is required.
 
 The [PumpDeviceIntegrationServer sample](../samples/DI/PumpDeviceIntegrationServer)
 follows the same pattern in its own `DiNodeManager` subclass, because the same
@@ -420,6 +498,29 @@ subscribed to can instead be bound to their source once with
 `With(browseName, node => ((BaseVariableState)node).OnReadValue = …)`.
 
 ## Client reference
+
+For bounded interactive group reads, choose the overload with an explicit limit:
+
+```csharp
+PumpsClient pumps = session.Pumps(telemetry, maximumBrowseReferences: 256);
+PumpValueSet values = await pumps.ReadMeasurementsAsync(
+    pumpId, new PumpReadOptions { IncludeTimestamps = true }, cancellationToken);
+```
+
+The limit applies to each browse and to a value-set read including its nested
+groups. Exceeding it fails instead of truncating the result. This mode also
+rejects incomplete value-set responses, ambiguous member resolution, duplicate
+value names and invalid engineering metadata. Denied or uncertain service
+responses are not treated as optional absence. The same overload is available
+on the injected `PumpsClientFactory.CreateAsync`. Constructor and factory
+overloads without an explicit limit do not enable this bounded-read mode.
+Continuation cleanup accepts an empty successful release response without masking
+the original limit error or cancellation. A failed release preserves both failures.
+
+`EnumeratePortEntriesAsync` returns port identities without reading every
+engineering group. Use it to select a port before fetching its values with
+`ReadValueSetAsync`; `EnumeratePortsAsync` returns complete port
+descriptors.
 
 ### Creating the client
 
@@ -653,6 +754,12 @@ The rows below follow the specification's structure.
 
 ## Samples
 
+`PumpsServer` accepts `--host`, `--port`, `--pki-root`, `--autoaccept` and
+`--run-seconds`. The PKI path must be absolute; a supplied runtime must be from
+1 through 3600 seconds. Without the runtime option, the server runs until
+stopped interactively. Certificate auto-accept is enabled by default for sample
+convenience; disable it when testing explicit peer trust.
+
 | Sample | Shows |
 | --- | --- |
 | [PumpsServer](../samples/Pumps/PumpsServer) | `AddPumps` / `ConfigurePumps` with two pumps: nameplate, every group builder, units and ranges, ports, documentation links, and a simulation that publishes runtime updates to subscribers |
@@ -673,7 +780,8 @@ dotnet test tests/Opc.Ua.Pumps.Tests
 | `PumpsNodeManagerTests` | Model loading, pump creation, folders, NodeIds |
 | `PumpBuilderTests` | Every builder shape in-process |
 | `PumpValueSetTests` | Value-set and supervision evaluation |
-| `PumpsClientServerE2eTests` | A server through `AddPumps`/`ConfigurePumps`, read back by `PumpsClient` over a real session |
+| `PumpsCompositionTests` | Stock Machinery owner, ordered providers, lazy groups, instance ownership, cancellation and runtime disposal |
+| `PumpsClientServerE2eTests` | Standalone and composed Machinery hosts, read back by `PumpsClient` over real sessions and live data-change subscriptions |
 
 The end-to-end test is the one that matters for anything a client sees. An
 in-process assertion on the typed model passes even when a client sees

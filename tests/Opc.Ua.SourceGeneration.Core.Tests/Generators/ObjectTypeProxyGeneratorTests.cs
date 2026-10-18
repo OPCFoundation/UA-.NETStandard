@@ -417,18 +417,19 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "public partial class FooTypeClient : global::" + kTestNamespacePrefix + ".FooBaseTypeClient"));
         }
 
-        [Test]
-        public void Emit_MethodNameShadowsAncestor_EmitsNewModifier()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MethodEmitsNewOnlyWhenItsInputSignatureMatchesAncestor(bool matchingSignature)
         {
-            // Both base and derived declare a method called DoIt; the
-            // generator must emit `public new async ... DoItAsync(...)` on
-            // the derived proxy so that it hides (not overrides) the base
-            // implementation.
-            MethodDesign baseDoIt = CreateMethod("DoIt");
+            MethodDesign baseDoIt = CreateMethod(
+                "DoIt",
+                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
             ObjectTypeDesign baseType = CreateObjectType("FooBaseType", baseDoIt);
             MethodDesign derivedDoIt = CreateMethod(
                 "DoIt",
-                inputs: [CreateParameter("requestId", BasicDataType.Int32)]);
+                inputs: [CreateParameter(
+                    "requestId",
+                    matchingSignature ? BasicDataType.Int32 : BasicDataType.String)]);
             ObjectTypeDesign derived = CreateObjectType("FooType", derivedDoIt);
             derived.BaseTypeNode = baseType;
             m_mockModelDesign
@@ -443,9 +444,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             new ObjectTypeProxyGenerator(CreateContext()).Emit();
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
-            // The derived class section contains the `new` modifier on the
-            // shadowed method.
-            Assert.That(content, Does.Contain("public new async"));
+            Assert.That(
+                content.Contains("public new async", StringComparison.Ordinal),
+                Is.EqualTo(matchingSignature));
         }
 
         [Test]
@@ -773,6 +774,40 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(content, Does.Not.Contain("? count"));
                 Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(count)"));
             });
+        }
+
+        [TestCase(BasicDataType.BaseDataType, ValueRank.Scalar)]
+        [TestCase(BasicDataType.Number, ValueRank.Scalar)]
+        [TestCase(BasicDataType.Integer, ValueRank.Scalar)]
+        [TestCase(BasicDataType.UInteger, ValueRank.Scalar)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.Any)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.BaseDataType, ValueRank.ScalarOrOneDimension)]
+        [TestCase(BasicDataType.Double, ValueRank.Any)]
+        [TestCase(BasicDataType.Double, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.Double, ValueRank.ScalarOrOneDimension)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.Any)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.ScalarOrArray)]
+        [TestCase(BasicDataType.UserDefined, ValueRank.ScalarOrOneDimension)]
+        public void VariantBackedMethodArgumentsKeepTheirOriginalWrapper(
+            BasicDataType dataType,
+            ValueRank rank)
+        {
+            MethodDesign method = CreateMethod(
+                "Report",
+                inputs: [CreateParameter("request", dataType, valueRank: rank)],
+                outputs: [CreateParameter("result", dataType, valueRank: rank)]);
+            ObjectTypeDesign objectType = CreateObjectType("RecordsType", method);
+            m_mockModelDesign.Setup(model => model.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.That(content, Does.Contain("ValueTask<global::Opc.Ua.Variant> ReportAsync("));
+            Assert.That(content, Does.Contain("global::Opc.Ua.Variant request,"));
+            Assert.That(content, Does.Contain("global::Opc.Ua.Variant _result = _outputArguments[0];"));
+            Assert.That(content, Does.Not.Contain("TryGetValue(out _result"));
+            Assert.That(content, Does.Not.Contain("Variant.From(request)"));
+            Assert.That(content, Does.Not.Contain("Variant.FromStructure(request)"));
         }
 
         private string EmitToString(

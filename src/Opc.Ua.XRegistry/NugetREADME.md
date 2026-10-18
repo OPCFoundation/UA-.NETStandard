@@ -22,6 +22,10 @@ This package contains:
   JSON compatibility documents to exact native values and compares committed value forms
   without aliasing `1`, `1.0`, or signed zero. Importing these declarations does not claim
   that a running registry implements the corresponding new facets.
+- `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
+  Resource binding and optional verification seam, independent of content lookup. The binding
+  pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not
+  establish identity or trust.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

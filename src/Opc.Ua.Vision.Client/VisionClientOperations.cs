@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -55,7 +56,7 @@ namespace Opc.Ua.Vision.Client
 
         public bool TryGetVisionNamespaceIndex(out ushort namespaceIndex)
         {
-            int index = Session.NamespaceUris.GetIndex(Namespaces.Vision);
+            int index = Session.NamespaceUris.GetIndex(Perception.Namespaces.Vision);
             if (index < 0)
             {
                 namespaceIndex = 0;
@@ -97,45 +98,53 @@ namespace Opc.Ua.Vision.Client
                     ct: cancellationToken).ConfigureAwait(false);
             if (errors.Count > 0 && ServiceResult.IsBad(errors[0]))
             {
-                return ArrayOf<ReferenceDescription>.Empty;
+                return [];
             }
-            return results.Count > 0 ? results[0] : ArrayOf<ReferenceDescription>.Empty;
+            return results.Count > 0 ? results[0] : [];
         }
 
         public ValueTask<ArrayOf<ReferenceDescription>> BrowseHierarchicalObjectsAsync(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
         {
             return BrowseAsync(
                 nodeId,
-                Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeIds.HierarchicalReferences,
                 BrowseDirection.Forward,
                 (uint)NodeClass.Object,
                 cancellationToken);
         }
 
         public async ValueTask<ArrayOf<NodeId>> DiscoverInstancesAsync(
-            NodeId root, NodeId typeDefinition, CancellationToken cancellationToken)
+            NodeId root,
+            NodeId typeDefinition,
+            CancellationToken cancellationToken)
         {
             if (typeDefinition.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
             ArrayOf<ReferenceDescription> references = await BrowseHierarchicalObjectsAsync(
-                root, cancellationToken).ConfigureAwait(false);
+                root,
+                cancellationToken).ConfigureAwait(false);
             var matches = new List<NodeId>();
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
-                    reference.TypeDefinition, Session.NamespaceUris);
-                NodeId child = ExpandedNodeId.ToNodeId(
-                    reference.NodeId, Session.NamespaceUris);
+                var typeDef = ExpandedNodeId.ToNodeId(
+                    reference.TypeDefinition,
+                    Session.NamespaceUris);
+                var child = ExpandedNodeId.ToNodeId(
+                    reference.NodeId,
+                    Session.NamespaceUris);
                 if (typeDef.IsNull || child.IsNull)
                 {
                     continue;
                 }
                 if (await Session.NodeCache.IsTypeOfAsync(
-                        typeDef, typeDefinition, cancellationToken).ConfigureAwait(false))
+                    typeDef,
+                    typeDefinition,
+                    cancellationToken).ConfigureAwait(false))
                 {
                     matches.Add(child);
                 }
@@ -144,15 +153,18 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<ArrayOf<NodeId>> BrowseChildNodeIdsAsync(
-            NodeId parent, CancellationToken cancellationToken)
+            NodeId parent,
+            CancellationToken cancellationToken)
         {
             ArrayOf<ReferenceDescription> references = await BrowseHierarchicalObjectsAsync(
-                parent, cancellationToken).ConfigureAwait(false);
+                parent,
+                cancellationToken).ConfigureAwait(false);
             var children = new List<NodeId>(references.Count);
             for (int ii = 0; ii < references.Count; ii++)
             {
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
-                    references[ii].NodeId, Session.NamespaceUris);
+                var nodeId = ExpandedNodeId.ToNodeId(
+                    references[ii].NodeId,
+                    Session.NamespaceUris);
                 if (!nodeId.IsNull)
                 {
                     children.Add(nodeId);
@@ -174,14 +186,17 @@ namespace Opc.Ua.Vision.Client
             }
             TranslateBrowsePathsToNodeIdsResponse response = await Session
                 .TranslateBrowsePathsToNodeIdsAsync(
-                    null, paths.ToArrayOf(), cancellationToken).ConfigureAwait(false);
+                    null,
+                    paths.ToArrayOf(),
+                    cancellationToken).ConfigureAwait(false);
             var results = new List<NodeId>(browseNames.Count);
             for (int ii = 0; ii < response.Results.Count; ii++)
             {
                 BrowsePathResult result = response.Results[ii];
-                results.Add(StatusCode.IsGood(result.StatusCode) && result.Targets.Count > 0
-                    ? ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris)
-                    : NodeId.Null);
+                results.Add(
+                    StatusCode.IsGood(result.StatusCode) && result.Targets.Count > 0
+                        ? ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, Session.NamespaceUris)
+                        : NodeId.Null);
             }
             while (results.Count < browseNames.Count)
             {
@@ -197,7 +212,10 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken)
         {
             ArrayOf<NodeId> nodes = await ResolveChildrenAsync(
-                parent, [browseName], namespaceIndex, cancellationToken).ConfigureAwait(false);
+                parent,
+                [browseName],
+                namespaceIndex,
+                cancellationToken).ConfigureAwait(false);
             return nodes.Count > 0 ? nodes[0] : NodeId.Null;
         }
 
@@ -233,7 +251,8 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<DataValue> ReadValueAsync(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
         {
             if (nodeId.IsNull)
             {
@@ -243,7 +262,8 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<ArrayOf<DataValue>> ReadValuesAsync(
-            ArrayOf<NodeId> nodeIds, CancellationToken cancellationToken)
+            ArrayOf<NodeId> nodeIds,
+            CancellationToken cancellationToken)
         {
             var reads = new List<ReadValueId>(nodeIds.Count);
             for (int ii = 0; ii < nodeIds.Count; ii++)
@@ -252,26 +272,64 @@ namespace Opc.Ua.Vision.Client
                 {
                     continue;
                 }
-                reads.Add(new ReadValueId
-                {
-                    NodeId = nodeIds[ii],
-                    AttributeId = Attributes.Value
-                });
+                reads.Add(
+                    new ReadValueId
+                    {
+                        NodeId = nodeIds[ii],
+                        AttributeId = Attributes.Value
+                    });
             }
             if (reads.Count == 0)
             {
-                return ArrayOf<DataValue>.Empty;
+                return [];
             }
-            ArrayOf<ReadValueId> nodesToRead = reads.ToArrayOf();
+            var nodesToRead = reads.ToArrayOf();
             ReadResponse response = await Session.ReadAsync(
-                null, 0, TimestampsToReturn.Both, nodesToRead, cancellationToken)
+                null,
+                0,
+                TimestampsToReturn.Both,
+                nodesToRead,
+                cancellationToken)
                 .ConfigureAwait(false);
+            if (response.ResponseHeader is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadDecodingError, "The Vision read header is missing.");
+            }
+            if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult))
+            {
+                throw new ServiceResultException(response.ResponseHeader.ServiceResult);
+            }
             ClientBase.ValidateResponse(response.Results, nodesToRead);
             return response.Results;
         }
 
+        public static void RequireGood(ArrayOf<DataValue> values)
+        {
+            foreach (DataValue value in values)
+            {
+                RequireGood(value);
+            }
+        }
+
+        public static DataValue RequireGood(in DataValue value)
+        {
+            if (!StatusCode.IsGood(value.StatusCode))
+            {
+                throw new ServiceResultException(
+                    value.StatusCode,
+                    "A Vision member could not be read reliably.");
+            }
+            return value;
+        }
+
+        public static ServiceResultException InvalidMember()
+        {
+            return new(StatusCodes.BadTypeMismatch, "A published Vision member has the wrong data type.");
+        }
+
         public async ValueTask<T> ReadStructureAsync<T>(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
             where T : class, IEncodeable
         {
             DataValue value = await ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
@@ -281,7 +339,8 @@ namespace Opc.Ua.Vision.Client
             }
 #pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
             if (!value.WrappedValue.TryGetValue(
-                    out T structure, Session.MessageContext))
+                out T structure,
+                Session.MessageContext))
 #pragma warning restore CS8600
             {
                 throw new ServiceResultException(
@@ -292,7 +351,8 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<T?> TryReadStructureAsync<T>(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
             where T : class, IEncodeable
         {
             if (nodeId.IsNull)
@@ -306,14 +366,16 @@ namespace Opc.Ua.Vision.Client
             }
 #pragma warning disable CS8600 // TryGetValue uses [MaybeNullWhen(false)] on encodeable overloads.
             return value.WrappedValue.TryGetValue(
-                    out T structure, Session.MessageContext)
+                out T structure,
+                Session.MessageContext)
                 ? structure
                 : null;
 #pragma warning restore CS8600
         }
 
         public async ValueTask<ArrayOf<T>> ReadStructureArrayAsync<T>(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
             where T : class, IEncodeable
         {
             DataValue value = await ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
@@ -322,7 +384,8 @@ namespace Opc.Ua.Vision.Client
                 throw new ServiceResultException(value.StatusCode);
             }
             if (!value.WrappedValue.TryGetValue(
-                    out ArrayOf<T> array, Session.MessageContext))
+                out ArrayOf<T> array,
+                Session.MessageContext))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadTypeMismatch,
@@ -332,22 +395,24 @@ namespace Opc.Ua.Vision.Client
         }
 
         public async ValueTask<ArrayOf<T>> TryReadStructureArrayAsync<T>(
-            NodeId nodeId, CancellationToken cancellationToken)
+            NodeId nodeId,
+            CancellationToken cancellationToken)
             where T : class, IEncodeable
         {
             if (nodeId.IsNull)
             {
-                return ArrayOf<T>.Empty;
+                return [];
             }
             DataValue value = await ReadValueAsync(nodeId, cancellationToken).ConfigureAwait(false);
             if (StatusCode.IsBad(value.StatusCode))
             {
-                return ArrayOf<T>.Empty;
+                return [];
             }
             return value.WrappedValue.TryGetValue(
-                    out ArrayOf<T> array, Session.MessageContext)
+                out ArrayOf<T> array,
+                Session.MessageContext)
                 ? array
-                : ArrayOf<T>.Empty;
+                : [];
         }
 
         public static string? ReadString(DataValue value)
@@ -363,7 +428,8 @@ namespace Opc.Ua.Vision.Client
                 result = (TEnum)Enum.ToObject(typeof(TEnum), intValue);
                 return true;
             }
-            if (value.WrappedValue.TryGetValue(out uint uintValue))
+            if (value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.UInt32 &&
+                value.WrappedValue.TryGetValue(out uint uintValue))
             {
                 result = (TEnum)Enum.ToObject(typeof(TEnum), uintValue);
                 return true;
@@ -384,7 +450,9 @@ namespace Opc.Ua.Vision.Client
         }
 
         private static BrowsePath CreateBrowsePath(
-            NodeId parent, string browseName, ushort namespaceIndex)
+            NodeId parent,
+            string browseName,
+            ushort namespaceIndex)
         {
             return new BrowsePath
             {
@@ -395,7 +463,7 @@ namespace Opc.Ua.Vision.Client
                     [
                         new RelativePathElement
                         {
-                            ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                            ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                             IsInverse = false,
                             IncludeSubtypes = true,
                             TargetName = new QualifiedName(browseName, namespaceIndex)
@@ -419,7 +487,12 @@ namespace Opc.Ua.Vision.Client
             var probe = new VisionPose3DDataType();
             if (!factory.TryGetEncodeableType(probe.BinaryEncodingId, out _))
             {
-                factory.Builder.AddOpcUaVision().Commit();
+                factory.Builder.AddOpcUaVisionPerception().Commit();
+            }
+            if (!factory.ContainsEncodeableType(MachineVision.DataTypeIds.ResultDataType))
+            {
+                MachineVision.OpcUaMachineVisionExtensions
+                    .AddOpcUaMachineVision(factory.Builder).Commit();
             }
         }
     }

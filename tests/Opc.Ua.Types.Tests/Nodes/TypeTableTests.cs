@@ -35,12 +35,15 @@ using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Nodes
 {
+    /// <summary>
+    /// Contains tests for type table.
+    /// </summary>
     [TestFixture]
     [Category("TypeTable")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class TypeTableTests
+    public partial class TypeTableTests
     {
         private static readonly NodeId s_rootTypeId = new(1000);
         private static readonly NodeId s_childTypeId = new(1001);

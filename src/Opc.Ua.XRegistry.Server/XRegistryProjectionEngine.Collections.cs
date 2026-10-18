@@ -46,7 +46,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Removes every node the engine published below the registry Object: document-backed
         /// Groups and Resources, collection-qualified Groups, metadata-only Resources,
-        /// engine-created collection views and label Properties. Drains the Xid lookups, unbinds
+        /// engine-created collection views, registry Epoch and label Properties. Drains the Xid lookups, unbinds
         /// the registry Methods and releases the registry Object. Host-owned collection views and
         /// the registry Object remain. Removals left by an earlier failed activation are retried
         /// first. A later <see cref="AttachAsync"/> projects the then committed generation again.
@@ -86,6 +86,15 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     UnwireMethod(registryNode, BrowseNames.CreateGroup);
                     UnwireMethod(registryNode, BrowseNames.GetOrCreateGroup);
+                }
+                if (m_ownedRegistryEpoch is { } epoch)
+                {
+                    await m_context.DeleteNodeAsync(epoch.NodeId, CancellationToken.None).ConfigureAwait(false);
+                    if (registryNode is RegistryState root && ReferenceEquals(root.Epoch, epoch))
+                    {
+                        root.Epoch = null;
+                    }
+                    m_ownedRegistryEpoch = null;
                 }
                 m_resourcesByXid.Clear();
                 m_entitiesByXid.Clear();

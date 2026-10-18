@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2005-2026 The OPC Foundation, Inc. OPC Foundation MIT License 1.00. -->
+<opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:programs="http://opcfoundation.org/UA/SDK/Programs/"
+  xmlns="urn:opcfoundation:tests:programs"
+  TargetNamespace="urn:opcfoundation:tests:programs"
+  TargetXmlNamespace="urn:opcfoundation:tests:programs:types"
+  TargetVersion="1.0.0" TargetPublicationDate="2026-10-14T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace Name="DomainDownloadModel" Prefix="Opc.Ua.TestModels.DomainDownload"
+      XmlNamespace="urn:opcfoundation:tests:programs:types" XmlPrefix="Download">urn:opcfoundation:tests:programs</opc:Namespace>
+    <opc:Namespace Name="OpcUaPrograms" Prefix="Opc.Ua.Programs"
+      XmlNamespace="http://opcfoundation.org/UA/SDK/Programs/Types.xsd"
+      XmlPrefix="Programs">http://opcfoundation.org/UA/SDK/Programs/</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+  <opc:ObjectType SymbolicName="DomainDownloadType" BaseType="programs:ManagedProgramType">
+    <opc:Children>
+      <opc:Method SymbolicName="ua:Start" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="DomainName" DataType="ua:String" />
+          <opc:Argument Name="DomainSource" DataType="ua:String" />
+          <opc:Argument Name="DomainDestination" DataType="ua:String" />
+        </opc:InputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="ua:Suspend" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ua:Resume" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="ua:Halt" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="ua:ProgramDiagnostic" TypeDefinition="ua:ProgramDiagnostic2Type"
+        ModellingRule="Mandatory" />
+      <opc:Object SymbolicName="TransferStateMachine" TypeDefinition="TransferStateMachineType"
+        ModellingRule="Mandatory" />
+      <opc:Object SymbolicName="ua:Running" TypeDefinition="ua:StateType" ModellingRule="None">
+        <opc:References>
+          <opc:Reference>
+            <opc:ReferenceType>ua:HasSubStateMachine</opc:ReferenceType>
+            <opc:TargetId>DomainDownloadType_TransferStateMachine</opc:TargetId>
+          </opc:Reference>
+        </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="ua:FinalResultData" TypeDefinition="ua:BaseObjectType"
+        ModellingRule="Mandatory">
+        <opc:Children>
+          <opc:Variable SymbolicName="BytesTransferred" DataType="ua:UInt32" ModellingRule="Mandatory" />
+          <opc:Variable SymbolicName="Completed" DataType="ua:Boolean" ModellingRule="Mandatory" />
+          <opc:Variable SymbolicName="ErrorCode" DataType="ua:StatusCode" ModellingRule="Mandatory" />
+        </opc:Children>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="NamedProgramType" BaseType="programs:ManagedProgramType">
+    <opc:Children>
+      <opc:Method SymbolicName="Create" ModellingRule="None">
+        <opc:InputArguments>
+          <opc:Argument Name="Name" DataType="ua:String" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="InvocationId" DataType="ua:NodeId" />
+          <opc:Argument Name="Label" DataType="ua:String" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:ObjectType SymbolicName="TransferStateMachineType" BaseType="ua:FiniteStateMachineType">
+    <opc:Children>
+      <opc:Variable SymbolicName="ua:LastTransition" TypeDefinition="ua:FiniteTransitionVariableType"
+        ModellingRule="Mandatory">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:Number" DataType="ua:UInt32" ModellingRule="Mandatory" />
+          <opc:Property SymbolicName="ua:TransitionTime" DataType="ua:UtcTime" ModellingRule="Mandatory" />
+        </opc:Children>
+      </opc:Variable>
+      <opc:Object SymbolicName="Opening" TypeDefinition="ua:InitialStateType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:StateNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">1</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="Sending" TypeDefinition="ua:StateType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:StateNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">2</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="Closing" TypeDefinition="ua:StateType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:StateNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">3</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+      </opc:Object>
+      <opc:Object SymbolicName="OpeningToSending" TypeDefinition="ua:TransitionType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:TransitionNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">10</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:References>
+          <opc:Reference><opc:ReferenceType>ua:FromState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Opening</opc:TargetId></opc:Reference>
+          <opc:Reference><opc:ReferenceType>ua:ToState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Sending</opc:TargetId></opc:Reference>
+        </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="SendingToSending" TypeDefinition="ua:TransitionType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:TransitionNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">11</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:References>
+          <opc:Reference><opc:ReferenceType>ua:FromState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Sending</opc:TargetId></opc:Reference>
+          <opc:Reference><opc:ReferenceType>ua:ToState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Sending</opc:TargetId></opc:Reference>
+        </opc:References>
+      </opc:Object>
+      <opc:Object SymbolicName="SendingToClosing" TypeDefinition="ua:TransitionType" ModellingRule="None">
+        <opc:Children>
+          <opc:Property SymbolicName="ua:TransitionNumber" DataType="ua:UInt32">
+            <opc:DefaultValue><UInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">12</UInt32></opc:DefaultValue>
+          </opc:Property>
+        </opc:Children>
+        <opc:References>
+          <opc:Reference><opc:ReferenceType>ua:FromState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Sending</opc:TargetId></opc:Reference>
+          <opc:Reference><opc:ReferenceType>ua:ToState</opc:ReferenceType><opc:TargetId>TransferStateMachineType_Closing</opc:TargetId></opc:Reference>
+        </opc:References>
+      </opc:Object>
+    </opc:Children>
+  </opc:ObjectType>
+</opc:ModelDesign>

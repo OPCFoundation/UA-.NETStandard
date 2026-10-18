@@ -66,6 +66,7 @@ the manual constructors when you need finer control.
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
 - [Alarms and conditions](#alarms-and-conditions)
+- [Programs](#programs)
 - [Client-side reverse connect](#client-side-reverse-connect)
 - [Channel manager](#channel-manager)
 - [Application instance (advanced)](#application-instance-advanced)
@@ -903,7 +904,7 @@ capacities. The server owns and disposes only the default provider it creates.
 ### Committed session bindings
 
 Managed servers automatically supply their session manager's committed-binding
-view to transport listeners. A custom `ISessionBindingProvider` registered as a
+view to transport listeners. A custom `IServerSessionBindingProvider` registered as a
 singleton is applied by the hosted server; direct hosts can assign
 `ServerBase.SessionBindingProvider` before startup. This optional seam preserves
 existing session-manager and transport-callback interfaces. Its snapshots are
@@ -1015,7 +1016,7 @@ one policy per token type of the registered authenticators instead
 
 | Extension | Purpose |
 |---|---|
-| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
+| `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Configures roles and identity-mapping rules on the default role manager. Well-known roles are configured when the manager is resolved; custom role nodes are materialized when the server address space starts. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
 | `AddIdentityAuthenticator(IUserTokenAuthenticator)` | Registers an already-constructed authenticator instance. |
 | `AddIdentityAuthenticator(Func<IServiceProvider, ICertificateValidatorEx?, IUserTokenAuthenticator>)` | Creates an authenticator during startup with injected services and the effective certificate validator, which may be `null`. |
@@ -1114,7 +1115,12 @@ services.AddOpcUa()
     }));
 ```
 
-Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
+Both `AddSecureServer` and `AddReferenceServer` honor `ConfigureRoles` and
+previously registered `RoleConfigurationOptions`. They preserve an explicitly
+registered `IRoleManager`; options do not silently replace or mutate that custom
+manager. Configuration remains deferred until service resolution and startup.
+
+Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to explicitly replace the default role manager.
 `AddServer<TServer>()` remains available for custom server implementations.
 Custom types that need session, subscription, or durable-subscription DI
 hooks must derive from `DependencyInjectionStandardServer`. The same
@@ -1526,6 +1532,19 @@ The direct constructor fallback remains available:
 var cts = new ComplexTypeSystem(session, telemetry);
 await cts.LoadAsync(ct: ct);
 ```
+
+## Programs
+
+Register the managed Part 10 server host with
+`AddServer(...).AddPrograms(definitions)` or the overload that resolves
+definitions/providers from `IServiceProvider` per server start. Registration
+does not create or start workloads. Client registration is available through
+`AddClient(...).AddProgramClient()`.
+
+The direct alternatives are `ProgramNodeManagerFactory`, `ProgramRuntime.AttachAsync`
+and `ProgramClient`. They use the same execution/lifecycle and generated proxy
+paths, not independent implementations. See [Programs](Programs.md) for provider
+contracts, explicit lifetime limits, typed client examples and compatibility rules.
 
 ## Alarms and conditions
 

@@ -485,6 +485,69 @@ whose only mandatory unit is AMB Client Asset Identification.
 `Func<CancellationToken, Task<AmbClient>>`). It registers the AMB data types
 with the session.
 
+For bounded interactive reads, opt into the strict constructor:
+
+```csharp
+var assets = new AmbClient(session, telemetry, new AmbClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128
+});
+AssetIdentificationRecord identity = await assets.ReadIdentificationAsync(assetId, cancellationToken);
+foreach (AssetReadValue field in identity.Values)
+{
+    // IsAbsent identifies a missing optional browse path, not a failed value read.
+    Console.WriteLine($"{field.SourceNodeId}: {field.Value.StatusCode}");
+}
+```
+
+Hosted clients can use the same immutable options:
+
+```csharp
+services.AddOpcUa()
+    .AddClient(options =>
+    {
+        options.ApplicationName = "AssetClient";
+        options.ApplicationUri = "urn:localhost:AssetClient";
+    })
+    .AddAssetManagementClient(new AmbClientOptions
+    {
+        MaximumBrowseReferences = 1024,
+        MaximumBrowsePages = 128
+    });
+```
+
+Both `AmbClientFactory.CreateAsync` and the registered
+`Func<CancellationToken, Task<AmbClient>>` apply these limits. Alternatively,
+register an `AmbClientOptions` singleton before resolving the factory, or pass
+options directly to the three-argument `AmbClientFactory` constructor. Without
+options, the existing factory and builder APIs retain tolerant behavior.
+Invalid limits are rejected before the factory opens a session.
+
+Strict traversal limits apply while collecting pages and walking the asset
+graph. Reads are batched, and returned records expose source identity, browse
+path and the original `DataValue` in `Values`. Non-Good and wrongly typed reads
+throw `AmbValueReadException`, whose `ReadValue` retains the original evidence.
+A missing optional path has `IsAbsent == true`; a present Good-null value does
+not, including a typed null `ExtensionObject` in a structure field such as
+`LocalTime` or `MaintenanceSupplier`. Scalar fields still require their expected
+value type. The existing constructor retains its tolerant behavior.
+
+Strict condition inspection requires `DeviceHealthAlarms` and does not start an
+implicit condition-refresh subscription. The existing event-observation methods
+retain their documented stream semantics and do not populate the read-specific
+`Values` evidence. Transport quotas still bound incoming message/value sizes;
+the traversal options are not additional byte quotas.
+
+Event observation falls back to known maintenance classes when subtype browsing
+is denied or reaches a traversal limit. An incomplete class set is not cached,
+so a later strict address-space read retries discovery and reports its failure.
+
+Category `NodeVersion` describes alias-set changes, not an asset-wide metadata
+ETag. A caller preparing an edit must also revalidate current alias membership,
+the exact edit target, permissions and relevant old value. The client does not
+provide atomic compare-and-swap.
+
 | Area | Calls |
 | --- | --- |
 | Discovery | `FindAssetsAsync(pattern, category)`, `EnumerateAssetsAsync(category)`, `DiscoverAssetsAsync`, `ReadNodeVersionAsync`, `ObserveAssetSetChangesAsync` |
@@ -517,6 +580,10 @@ read as not set.
 | [AmbClient](../samples/AMB/AmbClient) | Discovery, snapshots of every asset, the location hierarchies, AddLink and RemoveLink, writing an AssetId, and streams of health alarms and maintenance activities |
 
 See [samples/AMB](../samples/AMB/README.md) for how to run them.
+
+`AmbServer` accepts `--host`, `--port`, an absolute `--pki-root`,
+`--autoaccept true|false` and an optional `--run-seconds` from 1 through 3600.
+Ordinary standalone defaults and persistent state behavior are unchanged.
 
 ## Testing
 

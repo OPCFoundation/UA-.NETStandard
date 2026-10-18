@@ -73,6 +73,146 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
-        Full
+        Full = 7,
+
+        /// <summary>
+        /// Asset Management Basics discovery, monitoring and asset maintenance.
+        /// </summary>
+        Amb,
+
+        /// <summary>
+        /// Machinery building blocks, process values, energy, jobs and results.
+        /// </summary>
+        Machinery,
+
+        /// <summary>
+        /// Weighing, products, recipes and PackML operations.
+        /// </summary>
+        Scales,
+
+        /// <summary>
+        /// Pump discovery, measurements, supervision and maintenance.
+        /// </summary>
+        Pumps,
+
+        /// <summary>
+        /// Device Integration topology, locking, transfers and software updates.
+        /// </summary>
+        Di,
+
+        /// <summary>
+        /// ISA-95 common objects and V1/V2 job control.
+        /// </summary>
+        Isa95,
+
+        /// <summary>
+        /// Relative spatial locations, global positioning and coordinate transforms.
+        /// </summary>
+        Positioning,
+
+        /// <summary>
+        /// WoT Connectivity assets, registry materialization and lifecycle events.
+        /// </summary>
+        Wot,
+
+        /// <summary>
+        /// Generic xRegistry groups, resources, versions and document transfers.
+        /// </summary>
+        XRegistry,
+
+        /// <summary>
+        /// WoT document inspection, bounded dependency resolution, planning and conversion.
+        /// </summary>
+        WotDocuments,
+
+        /// <summary>
+        /// GDS application directory discovery and administration.
+        /// </summary>
+        Gds,
+
+        /// <summary>
+        /// GDS pull and remote push certificate lifecycle.
+        /// </summary>
+        Certificates,
+
+        /// <summary>
+        /// Secret-safe credential and authorization-token issuance.
+        /// </summary>
+        Credentials,
+
+        /// <summary>
+        /// Part 21 device registrar and onboarding ticket administration.
+        /// </summary>
+        Onboarding,
+
+        /// <summary>
+        /// Generic role mappings and node permission administration.
+        /// </summary>
+        Roles,
+
+        /// <summary>
+        /// Generic user and password-policy administration.
+        /// </summary>
+        Users,
+
+        /// <summary>
+        /// Generic file-system and temporary file-transfer workflows.
+        /// </summary>
+        Files,
+
+        /// <summary>
+        /// Bounded alarm and condition observations and explicit controls.
+        /// </summary>
+        Alarms,
+
+        /// <summary>
+        /// Historical values, aggregates, events and annotations.
+        /// </summary>
+        History,
+
+        /// <summary>
+        /// Runtime type discovery and bounded schema generation.
+        /// </summary>
+        Schemas,
+
+        /// <summary>
+        /// Named, policy-controlled PubSub transport runtimes.
+        /// </summary>
+        PubSubRuntime,
+
+        /// <summary>
+        /// Standard remote PubSub address-space configuration.
+        /// </summary>
+        PubSubConfiguration,
+
+        /// <summary>
+        /// Explicit PubSub client adapters and declarative bridges.
+        /// </summary>
+        PubSubBridge,
+
+        /// <summary>
+        /// Secret-safe PubSub security-group and key-service workflows.
+        /// </summary>
+        PubSubSecurity,
+
+        /// <summary>
+        /// Leased, policy-controlled execution of supported WoT protocol forms.
+        /// </summary>
+        WotRuntime,
+
+        /// <summary>
+        /// MachineTool and Wireless Machine Tool Peripheral discovery, monitoring and configured workflows.
+        /// </summary>
+        MachineTool = 33,
+
+        /// <summary>
+        /// Geometric measurement system equipment, production monitoring and result workflows.
+        /// </summary>
+        Gms = 34,
+
+        /// <summary>
+        /// Crane and hoist monitoring and explicitly configured limit requests.
+        /// </summary>
+        CranesHoists = 35
     }
 }

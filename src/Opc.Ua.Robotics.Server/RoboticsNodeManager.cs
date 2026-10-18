@@ -41,7 +41,10 @@ namespace Opc.Ua.Robotics.Server
     /// Stock DI-based node manager for compiled Robotics models and
     /// application-owned instances.
     /// </summary>
-    public sealed class RoboticsNodeManager : DiNodeManager, IRoboticsNodeIdFactory
+    public sealed class RoboticsNodeManager :
+        DiNodeManager,
+        IRoboticsNodeIdFactory,
+        ICompanionNodeIdReservationOwner
     {
         private readonly RoboticsServerOptions m_options;
         private readonly ArrayOf<IRoboticsModelProvider> m_providers;
@@ -143,6 +146,12 @@ namespace Opc.Ua.Robotics.Server
                     node);
             }
             return node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        void ICompanionNodeIdReservationOwner.ReleaseNodeIdReservation(NodeState node)
+        {
+            m_buildCoordinator.ReleaseNodeId(node);
         }
 
         /// <inheritdoc/>

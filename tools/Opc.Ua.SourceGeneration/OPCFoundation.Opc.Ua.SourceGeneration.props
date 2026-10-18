@@ -11,10 +11,14 @@
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitObjectTypeProxies" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorObjectTypeProxyNamespace" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorUseTypeDefinitionModellingRules" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorEmitNodeSetNodesOnly" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorGenerateNodeManager" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorEmitDependencyMetadata" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitFluentApi" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorFluentAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorsOnly" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorNamespace" />
+    <CompilerVisibleProperty Include="ModelSourceGeneratorClientAccessorClassName" />
     <CompilerVisibleProperty Include="ModelSourceGeneratorOmitEventRecords" />
   </ItemGroup>
   <ItemGroup>

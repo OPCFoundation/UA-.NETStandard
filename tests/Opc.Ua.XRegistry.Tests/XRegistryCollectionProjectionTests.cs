@@ -525,6 +525,7 @@ namespace Opc.Ua.XRegistry.Tests
             GroupCollectionState view = harness.View("messagegroups");
             GroupState group = harness.GroupIn(view, "orders");
             MetadataResourceState message = harness.MessageIn(group, "created");
+            NodeId epochNodeId = harness.Registry.Epoch!.NodeId;
 
             await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false);
             ServiceResult delete = await InvokeDeleteAsync(harness, message.Delete!, message, 0)
@@ -532,14 +533,63 @@ namespace Opc.Ua.XRegistry.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(harness.Deleted, Is.EqualTo(new[] { message.NodeId, group.NodeId, view.NodeId }));
+                Assert.That(harness.Deleted,
+                    Is.EqualTo(new[] { message.NodeId, group.NodeId, view.NodeId, epochNodeId }));
                 Assert.That(harness.Live.Keys.Where(nodeId => nodeId != harness.Registry.NodeId), Is.Empty);
+                Assert.That(harness.Registry.Epoch, Is.Null);
                 Assert.That(harness.Registry.FindChild(harness.Context, view.BrowseName), Is.Null);
                 Assert.That(harness.Engine.EventSourceFor("/messagegroups/orders/messages/created"),
                     Is.Not.SameAs(message));
                 Assert.That(delete.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(harness.Strategy.Deletes, Is.Empty);
             });
+        }
+
+        [Test]
+        public async Task DetachRetainsHostOwnedRegistryEpochAsync()
+        {
+            Harness harness = Harness.Create();
+            harness.Registry.AddEpoch(harness.Context);
+            PropertyState<uint> epoch = harness.Registry.Epoch!;
+            epoch.NodeId = new NodeId("HostEpoch", 1);
+            harness.Live[epoch.NodeId] = epoch;
+            harness.Strategy.Committed = Generation(
+                1, Collection("messagegroups", Group("messagegroups", "orders", 1)));
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Registry.Epoch, Is.SameAs(epoch));
+            Assert.That(harness.Live.Keys, Is.EquivalentTo(new[] { harness.Registry.NodeId, epoch.NodeId }));
+            Assert.That(harness.Deleted, Does.Not.Contain(epoch.NodeId));
+        }
+
+        [Test]
+        public async Task DetachRetriesEngineOwnedEpochRemovalAfterFailureAsync()
+        {
+            Harness harness = Harness.Create();
+            harness.Strategy.Committed = Generation(1);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            PropertyState<uint> epoch = harness.Registry.Epoch!;
+            harness.FailDelete = nodeId => nodeId == epoch.NodeId;
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+            Assert.That(harness.Registry.Epoch, Is.SameAs(epoch));
+            Assert.That(harness.Live.ContainsKey(epoch.NodeId), Is.True);
+
+            harness.FailDelete = null;
+            await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch, Is.Null);
+            Assert.That(harness.Live.Keys, Is.EqualTo(new[] { harness.Registry.NodeId }));
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch, Is.Not.SameAs(epoch));
+            Assert.That(harness.Live.ContainsKey(harness.Registry.Epoch!.NodeId), Is.True);
+            Assert.That(harness.Duplicates, Is.Empty);
+            await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Live.Keys, Is.EqualTo(new[] { harness.Registry.NodeId }));
         }
 
         [Test]

@@ -27,6 +27,7 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Runtime subtype replacement (`IPredefinedNodeSubtypeReplacer`)](#runtime-subtype-replacement-ipredefinednodesubtypereplacer)
   - [Monitoring and subscriptions](#monitoring-and-subscriptions)
     - [Sampling interval revision](#sampling-interval-revision)
+    - [Final-value publication before node removal](#final-value-publication-before-node-removal)
   - [History](#history)
   - [Security](#security)
   - [Threading contract for nodes and browsers](#threading-contract-for-nodes-and-browsers)
@@ -66,6 +67,7 @@ a server yet, start with [Getting started](GettingStarted.md).
   - [Typed model-traversal — the `Configure(I{Manager}NodeManagerBuilder)` partial](#typed-model-traversal--the-configureimanagernodemanagerbuilder-partial)
     - [What the generator emits per model](#what-the-generator-emits-per-model)
     - [Methods with arguments — typed `OnCall` overloads](#methods-with-arguments--typed-oncall-overloads)
+    - [Complete Method results and diagnostic forwarding](#complete-method-results-and-diagnostic-forwarding)
   - [Event sources — typed `Publish<TEvent>` on notifier wrappers](#event-sources--typed-publishtevent-on-notifier-wrappers)
     - [Where the typed overload appears](#where-the-typed-overload-appears)
     - [Two registration shapes](#two-registration-shapes)
@@ -203,6 +205,8 @@ The master node manager builds a routing table keyed by namespace index. During 
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
 
+Read and Write call `ReadAsync`/`WriteAsync` only on the managers that appear in the route of a requested namespace, in dispatch order, so a request does not pay for managers that cannot own any of its nodes. If any valid node is in a namespace without a route, every manager is called as before. A manager that processes nodes outside the namespaces it registers must register them with `RegisterNamespaceManager` to keep receiving those Reads and Writes.
+
 The master node manager also merges references across managers. Each manager receives the shared `externalReferences` table while `CreateAddressSpaceAsync` runs. After all managers have created their nodes and historical-access advertisement has been reconciled, the master calls `AddReferencesAsync(externalReferences, ...)` on every manager. `MasterNodeManager.CreateExternalReference` is the helper most custom managers use to put a cross-manager reference in that table. The target manager then materialises the reference on the node it owns, so a node owned by one manager can be browseable from a parent, folder, metadata object, or notifier owned by another manager. Attaching a child only in the source manager is not enough when the source and target owners differ.
 
 At runtime, the same reference handling is used for lifecycle-managed managers. A prepared manager builds its address space while hidden from client routing, the master adds its external references during commit, and rollback/removal removes the cross-manager references that were added for that generation.
@@ -306,6 +310,25 @@ attribute operations. Type/rank checks, access checks, audit reporting, and
 semantic-change notifications remain part of the manager service path; directly
 mutating a node value is not a replacement for a client Write service call.
 
+For `OnWriteValueAsync` and `OnSimpleWriteValueAsync`, successful results normally
+copy the requested value, status and source timestamp into the node cache.
+An external committed-state publisher can opt out for that operation:
+
+```csharp
+return new AttributeWriteResult(result)
+{
+    SuppressCacheUpdate = true
+};
+```
+
+This returns the handler's result without changing cached data or manufacturing
+a value-change mask. Access, type and writable-metadata checks still run.
+The external publisher owns observation updates and their notifications; for an
+indexed write, the handler also owns applying the range to its authoritative data.
+The default is `false`, so existing handlers and ordinary write-through variables
+keep their current behavior. Suppression does not turn an uncommitted or failed
+command into a successful write.
+
 #### Method Calls
 
 `CustomNodeManager2.Call` completes synchronously through its synchronous
@@ -386,6 +409,22 @@ support filter validation, event subscriptions, condition refresh, and role chec
 See [monitoring selection](AsyncServerSupport.md#monitored-item-manager-selection)
 for the tradeoff between periodic sampling and change notifications.
 
+For terminal observations before deleting dynamic nodes, use the
+[final-value publication barrier](#final-value-publication-before-node-removal),
+not `ClearChangeMasksAsync` alone.
+
+A sampling group checks the Read permission of an item through
+`ValidateRolePermissionsAsync` when it starts sampling the item, and reuses the
+verdict until one of its inputs changes: the Session or its effective identity
+(ActivateSession with another user, or granted roles refreshed after a role
+change), the item's node handle, the `RolePermissions` or `UserRolePermissions`
+of any `NodeState`, or the default permissions of a namespace. A revoked
+permission therefore yields `BadUserAccessDenied` within one or two sampling
+cycles, as before. Each item
+is also revalidated at least once per second, which bounds the delay for
+permissions a node manager computes without such a change, for example through
+`OnReadRolePermissions`.
+
 #### Sampling interval revision
 
 When a client creates or modifies a monitored item the node manager revises the
@@ -444,6 +483,38 @@ to 2000 ms; a node that declares 5000 ms still wins and is revised to 5000 ms.
 automatically through their `MinSupportedSamplingInterval` property. Node
 managers that implement `INodeManager` directly can call
 `SubscriptionManager.CalculateRevisedSamplingInterval` to apply the same rule.
+
+#### Final-value publication before node removal
+
+`AsyncCustomNodeManager` implements `INodeValuePublication` for terminal
+observations such as a completed production job. Stop the subtree's producers,
+keep its values unchanged, and await the owning manager's barrier before deletion:
+
+```csharp
+await manager.WaitForValuePublicationAsync(
+    [job], TimeSpan.FromSeconds(10), cancellationToken);
+cancellationToken.ThrowIfCancellationRequested();
+await manager.DeleteNodeAsync(manager.SystemContext, job.NodeId, cancellationToken);
+```
+
+Completion means final Value notifications entered **responses to real Publish
+requests**, not merely a queue, transport delivery or client acknowledgment.
+Only the terminal queue entry counts; an earlier equal-valued notification
+cannot satisfy the barrier.
+The barrier makes permission-checked final reads, preserves index ranges and
+protects pending terminal samples from overwrite. Ordinary refreshes should
+continue using `ClearChangeMasksAsync` without waiting for Publish requests.
+
+Membership is a snapshot of reporting Value items with live sessions;
+descendants are included. New subscriptions, event/non-Value items and
+detached durable subscriptions are outside it. Losing a captured subscriber
+releases its obligation; disabling publishing does not. There is no atomic
+subscription-admission/deletion transaction.
+
+The default deadline is 30 seconds; explicit deadlines must be positive and
+finite. Timeout, cancellation, read/permission failure, transfer or unsupported
+aggregate/custom items fail rather than imply delivery. **Retain the nodes on
+failure.** Never await the barrier while holding a gate its callbacks need.
 
 ### History
 
@@ -546,6 +617,23 @@ Three rules follow for node types that customise browsing:
   node and skips `OnPopulateBrowser` altogether.
 
 ### Delivery and callback lifecycle
+
+Composed asynchronous session resources use
+`AsyncCustomNodeManager.RegisterSessionClosingHandler` and retain its
+registration lease. The existing session-close pipeline awaits each handler
+outside manager gates and attempts the remaining handlers after a failure.
+Disposing the lease unregisters future calls; manager disposal drains admitted
+calls. Overrides of `SessionClosingAsync` must await their base implementation.
+A handler must not await disposal of its own manager. The synchronous
+`SessionManager.SessionClosing` event remains suitable only for nonblocking
+cleanup.
+
+`FluentNodeManagerBase.RegisterNodeResource` attaches one composite resource
+to an exact indexed node. Actual node removal and manager disposal await its
+cleanup, including disposal-only startup aborts. The resource must join
+concurrent disposal calls; Machinery's per-machine resource group supplies
+that behavior. This registration does not use value change-mask callbacks,
+which can run on an unrelated publisher's execution path.
 
 Event delivery for a node follows enqueue order. The Server node and
 nodes opting into parallel event consumers deliver each event concurrently
@@ -1400,6 +1488,7 @@ The builder exposes:
 | `OnRead` / `OnReadAsync` | `BaseVariableState.OnReadValue` |
 | `OnWrite` / `OnWriteAsync` | `BaseVariableState.OnWriteValue` |
 | `OnCall` / `OnCallAsync` | `MethodState.OnCallMethod*` |
+| `OnCallWithResult` | `MethodState.OnCallMethodWithResultAsync` — ordered outputs and resolved operation/input diagnostics |
 | `OnReadRolePermissions` / `OnReadUserRolePermissions` | `NodeState.OnRead*RolePermissions` — compute the permission set per request (e.g. grant a caller a role on its own record) |
 | `OnNodeAdded` / `OnNodeRemoved` | Lifecycle dispatch from `NotifyNodeAdded` |
 | `OnEvent`, `OnConditionRefresh`, `OnHistoryRead`, `OnHistoryUpdate` | Node or manager-level dispatch keyed by `NodeId` |
@@ -1416,6 +1505,11 @@ tree. Virtual node families are registered during the same phase but
 materialize individual nodes per service operation as described below.
 There is no reflection, no `Activator.CreateInstance`, no
 `Expression.Compile` — the whole pipeline is NativeAOT-safe.
+
+For methods that need an operation result and per-input diagnostics together,
+see [complete method invocation results](#complete-method-results-and-diagnostic-forwarding). This
+asynchronous handler is exclusive with ordinary method handlers and also works
+on virtual method families.
 
 #### On-demand virtual node families
 
@@ -1869,6 +1963,85 @@ The end-to-end sample lives in
 in `CalcNodeManager.Configure.cs`). The companion AOT round-trip tests
 in `tests/Opc.Ua.Aot.Tests/CalculatorNodeManagerAotTests.cs` exercise
 each shape over a real `Session.CallAsync(...)`.
+
+#### Complete Method results and diagnostic forwarding
+
+Use `OnCallWithResult` when a Method handler must return operation diagnostics
+and ordered input-argument results as well as output values. The ordinary
+`OnCall` handlers remain available for methods that only need an operation result
+and output values.
+
+Configure a predefined method through the fluent node-manager builder:
+
+```csharp
+builder.Node<MethodState>(methodId)
+    .OnCallWithResult(async (context, method, objectId, inputs, ct) =>
+    {
+        MethodInvocationResult result =
+            await device.InvokeAsync(objectId, inputs, ct).ConfigureAwait(false);
+        return result;
+    });
+```
+
+The hook also works on the `IVirtualNodeBuilder` returned by `ResolveNodes`.
+Its handler is applied to each materialized method without replacing an existing
+handler. Typed method builders retain their concrete `INodeBuilder<TState>` type
+when chaining the extension. For direct configuration, assign the same delegate
+to `MethodState.OnCallMethodWithResultAsync`.
+
+Fluent registration rejects duplicate complete-result handlers and mixing
+complete-result and ordinary handlers with `BadConfigurationError`, in either
+registration order. A synchronous call returns `BadNotSupported` rather than
+blocking on a complete-result handler.
+
+`MethodState.CallAsync` validates executability, access, input count, and input
+types before invoking the handler. The handler receives the actual receiver
+`objectId`, supplied inputs, and the caller's cancellation token.
+
+- `OperationResult` must be non-null. Its status and diagnostic text are retained.
+- `OutputArguments` use declaration order. A Good or Uncertain operation result
+  must include every declared output. Bad results do not expose outputs.
+- `InputArgumentResults` may be omitted. When present, it must include one
+  non-null `ServiceResult` for every supplied input, including Good positions.
+  The stack does not fabricate input results omitted by the handler.
+- The result snapshots both argument arrays during construction.
+
+A null callback result, an incomplete input-result array, or an incorrect output
+count for a Good or Uncertain result produces `BadUnexpectedError` without
+copying partial outputs.
+
+Store diagnostic strings in `ServiceResult`, not indexes from another response's
+string table. When forwarding a decoded diagnostic, construct a `ServiceResult`
+with the source response's string table; it resolves namespace URIs, symbolic
+IDs, locale, and localized text before the server encodes them into its own
+response table.
+
+Nested diagnostic text is retained even when the inner status is Good.
+Encoding respects `DiagnosticInfo.MaxInnerDepth`, counting the outer diagnostic
+as one level.
+
+For `BadInvalidArgument`, `AsyncCustomNodeManager` and `CustomNodeManager2`
+retain every supplied input result, including useful diagnostics on Good
+positions, and preserve the original operation diagnostics. They encode input
+diagnostics into the receiving response's string table only when requested.
+Additional information also requires the receiving session's authorization.
+The client cannot supply the internal permission flag: request admission clears
+it before pre-session or session-less returns and before session validation can
+fail. An admitted session grants it only after the SecurityAdmin or ConfigureAdmin
+role check; pre-session and session-less requests do not inherit that privilege.
+Final Call assembly retains requested operation text on Good results and
+inner-status-only diagnostics even when no strings are added to the response
+table. Ordinary callbacks retain their null-`ServiceResult` success convention;
+a null complete `MethodInvocationResult` remains invalid.
+
+`CustomNodeManager2` subclasses must explicitly implement `ICallAsyncNodeManager`
+to enable asynchronous dispatch through `AsyncNodeManagerAdapter`. Without that
+opt-in, a complete-result handler returns `BadNotSupported` on the legacy
+synchronous path; the adapter never blocks on the asynchronous handler.
+
+These contracts complement the OPC UA Part 4 Call service's ordered argument
+results and diagnostics; they do not add remote execution or change node
+ownership.
 
 ### Event sources — typed `Publish<TEvent>` on notifier wrappers
 
@@ -2684,6 +2857,12 @@ ordering-sensitive code. The call is idempotent per node and still completes
 children added since an earlier call. It does not re-run `OnAfterCreate` on
 ancestors which were already created; assemble parent-wired children before
 the parent's first completion, or wire those late children explicitly.
+
+Explicit references to `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations remain on generated type templates, not runtime instances.
+Instance factories omit these references whether the model resolves their
+targets by identifier or by a hierarchy path, including direct children of
+object and variable types. Ordinary references are preserved in both contexts.
 
 Notes:
 

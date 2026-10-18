@@ -33,7 +33,7 @@ using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using Opc.Ua;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Vision.VisualInspectionCell
 {
@@ -112,7 +112,7 @@ namespace Vision.VisualInspectionCell
         {
             string selected = ResolveFixtureName(fixtureName);
             string path = Path.Combine(FixtureDirectory, selected);
-            ByteString png = ByteString.From(File.ReadAllBytes(path));
+            var png = ByteString.From(File.ReadAllBytes(path));
             return new VisionImageReferenceDataType
             {
                 Uri = FormattableString.Invariant($"opcua-inline://visual-inspection-cell/fixtures/{selected}"),

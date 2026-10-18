@@ -46,6 +46,7 @@
   <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
     <Compile Remove="OpenUsdConnectorRunnerTests.cs" />
     <Compile Remove="OpenUsdViewHostTests.cs" />
+    <Compile Remove="ViewportCaptureFailureTests.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\*.usda">

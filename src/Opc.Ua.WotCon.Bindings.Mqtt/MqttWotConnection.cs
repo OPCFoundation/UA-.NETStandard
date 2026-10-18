@@ -121,6 +121,14 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             MqttClientOptionsBuilder builder = new MqttClientOptionsBuilder()
                 .WithTcpServer(host, port)
                 .WithClientId(clientId);
+            if (options.StreamProvider is not null)
+            {
+                builder.WithStreamProvider(options.StreamProvider);
+            }
+            if (options.MaximumPacketSize > 0)
+            {
+                builder.WithMaximumPacketSize(options.MaximumPacketSize);
+            }
 
             string? username = null;
             byte[] password = [];

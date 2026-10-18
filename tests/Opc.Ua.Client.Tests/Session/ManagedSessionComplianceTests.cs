@@ -575,6 +575,20 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             yield return Case<CancelRequest, CancelResponse>(
                 "Cancel",
                 m => m.CancelAsync(null, 0, default).AsTask());
+            yield return Case<CreateSessionRequest, CreateSessionResponse>(
+                "CreateSession",
+                m => m.CreateSessionAsync(null, new ApplicationDescription(),
+                    null, null, null, default, default, 60000, 0,
+                    default).AsTask());
+            yield return Case<ActivateSessionRequest, ActivateSessionResponse>(
+                "ActivateSession",
+                m => m.ActivateSessionAsync(null, new SignatureData(),
+                    new ArrayOf<SignedSoftwareCertificate>(),
+                    new ArrayOf<string>(), default, null,
+                    default).AsTask());
+            yield return Case<CloseSessionRequest, CloseSessionResponse>(
+                "CloseSession",
+                m => m.CloseSessionAsync(null, false, default).AsTask());
         }
 
         private static TestCaseData Case<TRequest, TResponse>(
@@ -676,6 +690,75 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// While a writer (reconnect, failover) holds the service lock, a
+        /// service call waits for it instead of taking the reader lock
+        /// synchronously.
+        /// </summary>
+        [Test]
+        public async Task ServiceCallWaitsWhileAWriterHoldsTheServiceLockAsync()
+        {
+            m_innerSession.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse()));
+            var serviceLock = (AsyncReaderWriterLock)typeof(ManagedSessionClass)
+                .GetField("m_serviceLock", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(m_managedSession)!;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            Task<ReadResponse> read;
+            using (await serviceLock.WriterLockAsync(timeout.Token).ConfigureAwait(false))
+            {
+                read = m_managedSession.ReadAsync(
+                    null, 0, TimestampsToReturn.Both,
+                    new ArrayOf<ReadValueId>(), timeout.Token).AsTask();
+                await Task.Delay(100, timeout.Token).ConfigureAwait(false);
+                Assert.That(read.IsCompleted, Is.False);
+            }
+
+            Assert.That(await read.WaitAsync(timeout.Token).ConfigureAwait(false), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// A service call that fails before the inner call starts (no inner
+        /// session) reports the error through the returned task and releases
+        /// the reader lock.
+        /// </summary>
+        [Test]
+        public async Task ServiceCallWithoutInnerSessionFaultsTheTaskAsync()
+        {
+            FieldInfo sessionField = typeof(ManagedSessionClass)
+                .GetField("m_session", BindingFlags.NonPublic | BindingFlags.Instance)!;
+            object? inner = sessionField.GetValue(m_managedSession);
+            ValueTask<ReadResponse> read;
+            sessionField.SetValue(m_managedSession, null);
+            try
+            {
+                read = m_managedSession.ReadAsync(
+                    null, 0, TimestampsToReturn.Both,
+                    new ArrayOf<ReadValueId>(), default);
+            }
+            finally
+            {
+                sessionField.SetValue(m_managedSession, inner);
+            }
+
+            Assert.That(
+                async () => await read.ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property("StatusCode")
+                    .EqualTo(StatusCodes.BadNotConnected));
+
+            var serviceLock = (AsyncReaderWriterLock)typeof(ManagedSessionClass)
+                .GetField("m_serviceLock", BindingFlags.NonPublic | BindingFlags.Instance)!
+                .GetValue(m_managedSession)!;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using AsyncReaderWriterLock.Releaser writer =
+                await serviceLock.WriterLockAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Connects a managed session through a mock factory so its worker and service gate follow the real lifecycle.
         /// </summary>
         private static async Task<ManagedSessionClass>
@@ -706,7 +789,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             sessionFactory.Setup(f => f.CreateAsync(
                     configuration,
-                    endpoint,
+                    It.Is<ConfiguredEndpoint>(candidate =>
+                        !ReferenceEquals(candidate, endpoint) &&
+                        candidate.EndpointUrl == endpoint.EndpointUrl),
                     false,
                     false,
                     It.IsAny<string>(),

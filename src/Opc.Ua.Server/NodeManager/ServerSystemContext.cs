@@ -41,14 +41,8 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server.</param>
         public ServerSystemContext(IServerInternal server)
-            : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+            : this(server, (OperationContext)null!)
         {
-            Server = server;
-            OperationContext = null!;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
         }
 
         /// <summary>
@@ -57,14 +51,15 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="context">The context.</param>
         public ServerSystemContext(IServerInternal server, OperationContext context)
-             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+             : base(
+                (server ?? throw new ArgumentNullException(nameof(server))).Telemetry,
+                context,
+                server.NamespaceUris,
+                server.ServerUris,
+                server.TypeTree,
+                server.Factory)
         {
             Server = server;
-            OperationContext = context;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
         }
 
         /// <summary>
@@ -73,17 +68,20 @@ namespace Opc.Ua.Server
         /// <param name="server">The server.</param>
         /// <param name="session">The session.</param>
         public ServerSystemContext(IServerInternal server, ISession session)
-             : base((server ?? throw new ArgumentNullException(nameof(server))).Telemetry)
+             : this(server, (OperationContext)null!)
         {
-            Server = server;
-            OperationContext = null!;
-            SessionId = session.Id;
-            UserIdentity = session.Identity;
-            PreferredLocales = session.PreferredLocales;
-            NamespaceUris = server.NamespaceUris;
-            ServerUris = server.ServerUris;
-            TypeTable = server.TypeTree;
-            EncodeableFactory = server.Factory;
+            SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ServerSystemContext"/> class
+        /// with the values of another context.
+        /// </summary>
+        /// <param name="source">The context to copy.</param>
+        protected ServerSystemContext(ServerSystemContext source)
+            : base(source)
+        {
+            Server = source.Server;
         }
 
         /// <summary>
@@ -93,6 +91,13 @@ namespace Opc.Ua.Server
         /// components such as the historian dispatcher.
         /// </summary>
         public IServerInternal Server { get; }
+
+        /// <summary>
+        /// The node manager context this per-request copy was made from, set by
+        /// <see cref="OperationContext.GetSystemContext"/> to recognise its cached copy.
+        /// Copies do not inherit it.
+        /// </summary>
+        internal ServerSystemContext? CopiedFrom { get; set; }
 
         /// <summary>
         /// The operation context associated with system context.
@@ -115,7 +120,7 @@ namespace Opc.Ua.Server
         /// <returns>A copy of the system context.</returns>
         public ServerSystemContext Copy()
         {
-            return (ServerSystemContext)MemberwiseClone();
+            return Clone();
         }
 
         /// <summary>
@@ -127,7 +132,7 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(OperationContext context)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             if (context != null)
             {
@@ -146,21 +151,17 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ISession session)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             copy.OperationContext = null!;
 
             if (session != null)
             {
-                copy.SessionId = session.Id;
-                copy.UserIdentity = session.Identity;
-                copy.PreferredLocales = session.PreferredLocales;
+                copy.SetSessionValues(session.Id, session.Identity, session.PreferredLocales);
             }
             else
             {
-                copy.SessionId = default;
-                copy.UserIdentity = null;
-                copy.PreferredLocales = default;
+                copy.SetSessionValues(default, null, default);
             }
 
             return copy;
@@ -175,22 +176,30 @@ namespace Opc.Ua.Server
         /// </returns>
         public ServerSystemContext Copy(ServerSystemContext context)
         {
-            var copy = (ServerSystemContext)MemberwiseClone();
+            var copy = Clone();
 
             if (context != null)
             {
-                copy.OperationContext = context.OperationContext;
-                copy.SessionId = context.SessionId;
-                copy.UserIdentity = context.UserIdentity;
-                copy.PreferredLocales = context.PreferredLocales;
-                copy.NamespaceUris = context.NamespaceUris;
-                copy.ServerUris = context.ServerUris;
-                copy.TypeTable = context.TypeTable;
-                copy.EncodeableFactory = context.EncodeableFactory;
-                copy.NodeIdFactory = context.NodeIdFactory;
+                copy.SetValuesFrom(context);
             }
 
             return copy;
+        }
+
+        /// <summary>
+        /// Copies this context. A plain <see cref="ServerSystemContext"/> is copied with
+        /// its copy constructor, which is cheaper than <see cref="object.MemberwiseClone"/>
+        /// on the per-request path. A derived context is cloned so that the copy keeps its
+        /// type and fields.
+        /// </summary>
+        private ServerSystemContext Clone()
+        {
+            if (GetType() == typeof(ServerSystemContext))
+            {
+                return new ServerSystemContext(this);
+            }
+
+            return (ServerSystemContext)MemberwiseClone();
         }
     }
 }

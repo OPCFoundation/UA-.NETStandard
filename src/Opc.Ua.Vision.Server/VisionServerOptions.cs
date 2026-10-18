@@ -63,13 +63,19 @@ namespace Opc.Ua.Vision.Server
         public string SpecificationVersion { get; set; } = DefaultSpecificationVersion;
 
         /// <summary>
+        /// Gets or sets the released OPC 40100 models to serve in addition to the Perception model.
+        /// Existing applications retain their address space unless they explicitly enable a part.
+        /// </summary>
+        public MachineVisionParts MachineVisionParts { get; set; }
+
+        /// <summary>
         /// Gets or sets the additional facets the Server declares beyond those
         /// the facet calculator derives from the address space. This is the
         /// escape hatch for facets whose requirements cannot be inspected
         /// structurally (for example, an interop facet requiring behavioural
         /// contract that is met by the host).
         /// </summary>
-        public ArrayOf<string> AdditionalFacets { get; set; } = ArrayOf<string>.Empty;
+        public ArrayOf<string> AdditionalFacets { get; set; } = [];
 
         /// <summary>
         /// Validates the option values.
@@ -80,8 +86,14 @@ namespace Opc.Ua.Vision.Server
         /// <exception cref="ServiceResultException">
         /// The instance namespace is one of the standard model namespaces.
         /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public void Validate()
         {
+            if ((MachineVisionParts & ~MachineVisionParts.All) != 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(MachineVisionParts), "The released model selection contains unknown parts.");
+            }
             if (string.IsNullOrWhiteSpace(InstanceNamespaceUri))
             {
                 throw new ArgumentException(
@@ -101,8 +113,12 @@ namespace Opc.Ua.Vision.Server
                     "VisionServerOptions.SpecificationVersion must not be empty.",
                     nameof(SpecificationVersion));
             }
-            if (InstanceNamespaceUri == global::Opc.Ua.Namespaces.OpcUa ||
-                InstanceNamespaceUri == global::Opc.Ua.Vision.Namespaces.Vision)
+            if (InstanceNamespaceUri is Namespaces.OpcUa or
+                Perception.Namespaces.Vision or
+                MachineVisionModels.ControlNamespaceUri or
+                MachineVisionModels.AssetNamespaceUri or
+                Di.Namespaces.OpcUaDi or
+                Machinery.Namespaces.Machinery)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,

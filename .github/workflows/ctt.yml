@@ -1,0 +1,181 @@
+name: CTT regression
+
+# Runs the OPC UA Compliance Test Tool (CTT) against the reference server and reports the result here.
+# The CTT is licensed to OPC Foundation members only, so it runs in the private repository
+# OPCFoundation/UA-.NETStandard-CTT; this workflow only starts that run, waits for it and posts its public
+# summary (result counts and the test cases that changed against the baseline, never CTT scripts or logs).
+#
+# Opt-in: weekly on master, manual, and pull requests labelled 'ctt'. A maintainer adds the label after
+# reviewing the PR: the reviewed head commit is built and run next to the CTT; a later push is not run (label
+# again). The label is removed when the run finishes. It is not a required check.
+#
+# Needs Actions read/write access to the private repository through either
+#   - a GitHub App installed on OPCFoundation/UA-.NETStandard-CTT: variable CTT_APP_ID, secret CTT_APP_PRIVATE_KEY
+#   - or a fine-grained token for that repository: secret CTT_TOKEN
+# pull_request_target is required for the secret; the job never checks out or runs PR code.
+#
+# The results are a regression signal for this code base, not a certification or a statement of compliance.
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+  pull_request_target:
+    types: [labeled]
+
+permissions: {}
+
+concurrency:
+  group: ctt-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  CTT_REPO: OPCFoundation/UA-.NETStandard-CTT
+  CTT_REPO_BRANCH: main   # branch of CTT_REPO whose workflow runs
+  CTT_LABEL: ctt
+
+jobs:
+  ctt:
+    if: >-
+      github.repository == 'OPCFoundation/UA-.NETStandard' &&
+      (github.event_name != 'pull_request_target' || github.event.label.name == 'ctt')
+    name: CTT
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    permissions:
+      pull-requests: write   # summary comment, remove the label
+      statuses: write        # 'CTT' commit status on the tested commit
+    steps:
+      - name: Resolve target
+        id: target
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$PR" ]; then
+            echo "ref=refs/pull/$PR/head" >> "$GITHUB_OUTPUT"
+            echo "sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set pending status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state=pending -f context=CTT \
+            -f description='CTT regression run in progress' -f target_url="$RUN_URL" > /dev/null
+
+      - name: Run CTT
+        id: run
+        env:
+          APP_ID: ${{ vars.CTT_APP_ID }}
+          APP_KEY: ${{ secrets.CTT_APP_PRIVATE_KEY }}
+          STATIC_TOKEN: ${{ secrets.CTT_TOKEN }}
+          REF: ${{ steps.target.outputs.ref }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+          # App installation tokens expire after an hour and a run takes longer: mint a new one per call.
+          token() {
+            if [ -z "$APP_ID" ]; then printf '%s' "$STATIC_TOKEN"; return; fi
+            local now hdr payload sig jwt inst
+            now=$(date +%s)
+            hdr=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+            payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' $((now - 60)) $((now + 540)) "$APP_ID" | b64url)
+            sig=$(printf '%s.%s' "$hdr" "$payload" | openssl dgst -sha256 -sign "$key_file" -binary | b64url)
+            jwt="$hdr.$payload.$sig"
+            inst=$(curl -fsS -H "Authorization: Bearer $jwt" -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/$CTT_REPO/installation" | jq -r .id)
+            curl -fsS -X POST -H "Authorization: Bearer $jwt" -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/app/installations/$inst/access_tokens" | jq -r .token
+          }
+          if [ -z "$APP_ID" ] && [ -z "$STATIC_TOKEN" ]; then
+            echo '::error::No access to the CTT repository: set CTT_APP_ID + CTT_APP_PRIVATE_KEY or CTT_TOKEN'; exit 1
+          fi
+          key_file="$RUNNER_TEMP/ctt-app.pem"
+          if [ -n "$APP_ID" ]; then
+            (umask 077; printf '%s\n' "$APP_KEY" > "$key_file")
+            trap 'rm -f "$key_file"' EXIT
+          fi
+          # Plain REST calls on Actions endpoints only: that is all the App (or token) is granted. gh CLI
+          # commands also make GraphQL calls that need Contents access.
+          api() { curl -fsSL -H "Authorization: Bearer $(token)" -H 'Accept: application/vnd.github+json' "$@"; }
+          base="https://api.github.com/repos/$CTT_REPO/actions"
+          correlation="ua-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          jq -n --arg branch "$CTT_REPO_BRANCH" --arg repo "$GITHUB_REPOSITORY" --arg ref "$REF" --arg sha "$SHA" \
+            --arg corr "$correlation" '{ref: $branch, inputs: {ua_repository: $repo, ua_ref: $ref, expected_sha: $sha, correlation_id: $corr}}' \
+            | api -X POST "$base/workflows/ctt.yml/dispatches" --data @-
+
+          id=''
+          for i in $(seq 1 30); do
+            sleep 10
+            id=$(api "$base/workflows/ctt.yml/runs?event=workflow_dispatch&per_page=30" | jq -r --arg c " $correlation" \
+              '[.workflow_runs[] | select(.display_title | endswith($c))][0].id // empty') || id=''
+            [ -n "$id" ] && break
+          done
+          if [ -z "$id" ]; then echo '::error::The CTT run did not show up'; exit 1; fi
+          echo "CTT run $id"
+
+          # Runs queue behind each other in the CTT repository (one CTT at a time).
+          while true; do
+            run=$(api "$base/runs/$id") || { sleep 60; continue; }
+            [ "$(jq -r .status <<< "$run")" = completed ] && break
+            sleep 60
+          done
+          conclusion=$(jq -r .conclusion <<< "$run")
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+          echo "CTT run $id: $conclusion"
+
+          mkdir -p ctt-summary
+          url=$(api "$base/runs/$id/artifacts?name=ctt-public-summary" | jq -r '.artifacts[0].archive_download_url // empty') || url=''
+          if [ -n "$url" ] && api -o ctt-summary.zip "$url" && unzip -o -q ctt-summary.zip -d ctt-summary; then
+            echo 'Downloaded the public summary'
+          else
+            printf '### CTT\n\nThe CTT run ended before it produced results.\n' > ctt-summary/public-summary.md
+          fi
+          cat ctt-summary/public-summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ steps.target.outputs.sha }}
+          CONCLUSION: ${{ steps.run.outputs.conclusion }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Green only with a downloaded report that shows no regression and no failed part; a successful run
+          # without its report is an error, not a pass.
+          regressions=$(jq -r '.regressions // empty' ctt-summary/report.json 2>/dev/null || true)
+          part_failures=$(jq -r '.partFailures | length' ctt-summary/report.json 2>/dev/null || true)
+          if [ "$CONCLUSION" = success ] && [ "$regressions" = 0 ] && [ "$part_failures" = 0 ]; then
+            state=success; description='No regressions against the CTT baseline'
+          elif [ -n "$regressions" ] && [ "$regressions" != 0 ]; then
+            state=failure; description="$regressions regression(s) against the CTT baseline"
+          else
+            state=error; description='The CTT run failed'
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$state" -f context=CTT \
+            -f description="$description" -f target_url="$RUN_URL" > /dev/null
+          if [ -n "$PR" ]; then
+            {
+              echo '<!-- ctt-summary -->'
+              if [ -f ctt-summary/public-summary.md ]; then cat ctt-summary/public-summary.md; else echo "CTT: $description"; fi
+              echo
+              echo "Commit $SHA, [workflow run]($RUN_URL)."
+            } > comment.md
+            existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+              --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith("<!-- ctt-summary -->"))) | .id' | head -n 1)
+            if [ -n "$existing" ]; then
+              gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@comment.md > /dev/null
+            else
+              gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@comment.md > /dev/null
+            fi
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/issues/$PR/labels/$CTT_LABEL" > /dev/null 2>&1 || true
+          fi
+          [ "$state" = success ]

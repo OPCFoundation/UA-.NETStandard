@@ -28,12 +28,11 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.Intent.Tests.Infrastructure;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Intent.Tests
 {
@@ -152,7 +151,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 FrameId = TestVisionCell.CameraFrameId,
                 Position = s_doubleValues1.ToArrayOf(),
                 Orientation = s_doubleValues2.ToArrayOf(),
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
 
             ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
@@ -177,12 +176,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             Assert.DoesNotThrowAsync(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
-                    ArrayOf<VisionDetectionDataType>.Empty,
+                    [],
                     BuildFrameReference(),
                     ByteString.Empty,
                     sceneIsEmpty: true).ConfigureAwait(false),
                 "An empty detection set must be accepted: an emptied bin is a correct answer.");
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);
@@ -213,7 +212,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                 new[] { BuildBaseline() }.ToArrayOf(),
                 BuildFrameReference(),
                 ByteString.Empty).ConfigureAwait(false);
-            List<VisionNodeEntry> results = new();
+            List<VisionNodeEntry> results = [];
             await foreach (VisionNodeEntry entry in pipeline.EnumerateResultsAsync())
             {
                 results.Add(entry);
@@ -226,8 +225,8 @@ namespace Opc.Ua.Vision.Intent.Tests
                 async () => await feedback.SubmitCorrectionAsync(
                     published.ResultId!,
                     VisionFeedbackPurposeEnum.Reconciliation,
-                    ArrayOf<VisionDetectionDataType>.Empty,
-                    ArrayOf<VisionCharacteristicDataType>.Empty,
+                    [],
+                    [],
                     LocalizedText.From("The previously published detection was a false positive."),
                     ByteString.Empty,
                     retractAll: true).ConfigureAwait(false),
@@ -259,7 +258,7 @@ namespace Opc.Ua.Vision.Intent.Tests
                     FrameId = TestVisionCell.CameraFrameId,
                     Position = s_doubleValues1.ToArrayOf(),
                     Orientation = s_doubleValues3.ToArrayOf(),
-                    Covariance = ArrayOf<double>.Empty
+                    Covariance = []
                 },
                 TrackId = "TestCube"
             };

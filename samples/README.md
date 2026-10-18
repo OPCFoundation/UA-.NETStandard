@@ -2,6 +2,15 @@
 
 ## Additional samples
 
+- [MachineTool and wireless peripherals](MachineTool/) — independently selected
+  machine/peripheral models, per-instance simulation, typed clients, jobs/files,
+  measurements and record/configuration workflows.
+- [GMS](GMS/) — native systems, environmental warnings and result/characteristic
+  workflows with explicitly simulated providers.
+- [Cranes and Hoists](CranesHoists/) — observed crane topology and authorized
+  simulated limit requests, never physical motion commands.
+- [Combined companion suite](CompanionSuite/) — MachineTool, WMTP, GMS,
+  CranesHoists and MachineVision on one DI/Machinery owner.
 - [OPC 10000-21 onboarding registrar/client](Gds/README.md) — loads the
   generated Onboarding companion model, binds the standard registrar
   administration methods to an injected ticket store, and drives a secure

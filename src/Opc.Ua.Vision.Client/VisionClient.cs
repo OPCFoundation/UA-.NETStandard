@@ -48,7 +48,7 @@ namespace Opc.Ua.Vision.Client
     /// <c>AcmeCameraType</c>, or one of the concrete result subtypes) is discovered
     /// as an instance of the closest declared Vision base type.
     /// </remarks>
-    public sealed class VisionClient
+    public sealed partial class VisionClient
     {
         /// <summary>
         /// Creates a Vision client over a connected session.
@@ -94,7 +94,7 @@ namespace Opc.Ua.Vision.Client
                     return NodeId.Null;
                 }
                 return NodeId.Create(
-                    Objects.Vision, Namespaces.Vision, Session.NamespaceUris);
+                    Perception.Objects.Vision, Perception.Namespaces.Vision, Session.NamespaceUris);
             }
         }
 
@@ -111,7 +111,7 @@ namespace Opc.Ua.Vision.Client
                     return NodeId.Null;
                 }
                 return NodeId.Create(
-                    Objects.Vision_Sensors, Namespaces.Vision, Session.NamespaceUris);
+                    Perception.Objects.Vision_Sensors, Perception.Namespaces.Vision, Session.NamespaceUris);
             }
         }
 
@@ -134,7 +134,7 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             NodeId resolved = await ResolveOptionalRootChildAsync(
-                BrowseNames.Sensors, cancellationToken).ConfigureAwait(false);
+                Perception.BrowseNames.Sensors, cancellationToken).ConfigureAwait(false);
             return resolved.IsNull ? SensorsFolderId : resolved;
         }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             return ResolveOptionalRootChildAsync(
-                BrowseNames.Pipelines, cancellationToken);
+                Perception.BrowseNames.Pipelines, cancellationToken);
         }
 
         /// <summary>
@@ -165,7 +165,7 @@ namespace Opc.Ua.Vision.Client
             CancellationToken cancellationToken = default)
         {
             return ResolveOptionalRootChildAsync(
-                BrowseNames.Frames, cancellationToken);
+                Perception.BrowseNames.Frames, cancellationToken);
         }
 
         /// <summary>
@@ -181,11 +181,11 @@ namespace Opc.Ua.Vision.Client
             NodeId sensors = await GetSensorsFolderIdAsync(cancellationToken).ConfigureAwait(false);
             if (sensors.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
             return await Operations.DiscoverInstancesAsync(
                 sensors,
-                Operations.VisionNamespaceType(ObjectTypes.VisionSensorType),
+                Operations.VisionNamespaceType(Perception.ObjectTypes.VisionSensorType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -202,11 +202,11 @@ namespace Opc.Ua.Vision.Client
                 .ConfigureAwait(false);
             if (pipelines.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
             return await Operations.DiscoverInstancesAsync(
                 pipelines,
-                Operations.VisionNamespaceType(ObjectTypes.InferencePipelineType),
+                Operations.VisionNamespaceType(Perception.ObjectTypes.InferencePipelineType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -223,11 +223,11 @@ namespace Opc.Ua.Vision.Client
                 .ConfigureAwait(false);
             if (frames.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
             return await Operations.DiscoverInstancesAsync(
                 frames,
-                Operations.VisionNamespaceType(ObjectTypes.CoordinateFrameType),
+                Operations.VisionNamespaceType(Perception.ObjectTypes.CoordinateFrameType),
                 cancellationToken).ConfigureAwait(false);
         }
 
@@ -245,7 +245,7 @@ namespace Opc.Ua.Vision.Client
             NodeId parent = await GetSensorsFolderIdAsync(cancellationToken)
                 .ConfigureAwait(false);
             await foreach (VisionNodeEntry entry in EnumerateInstancesAsync(
-                parent, ObjectTypes.VisionSensorType, cancellationToken)
+                parent, Perception.ObjectTypes.VisionSensorType, cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return entry;
@@ -265,7 +265,7 @@ namespace Opc.Ua.Vision.Client
             NodeId parent = await GetPipelinesFolderIdAsync(cancellationToken)
                 .ConfigureAwait(false);
             await foreach (VisionNodeEntry entry in EnumerateInstancesAsync(
-                parent, ObjectTypes.InferencePipelineType, cancellationToken)
+                parent, Perception.ObjectTypes.InferencePipelineType, cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return entry;
@@ -285,7 +285,7 @@ namespace Opc.Ua.Vision.Client
             NodeId parent = await GetFramesFolderIdAsync(cancellationToken)
                 .ConfigureAwait(false);
             await foreach (VisionNodeEntry entry in EnumerateInstancesAsync(
-                parent, ObjectTypes.CoordinateFrameType, cancellationToken)
+                parent, Perception.ObjectTypes.CoordinateFrameType, cancellationToken)
                 .ConfigureAwait(false))
             {
                 yield return entry;
@@ -495,9 +495,9 @@ namespace Opc.Ua.Vision.Client
             for (int ii = 0; ii < references.Count; ii++)
             {
                 ReferenceDescription reference = references[ii];
-                NodeId typeDef = ExpandedNodeId.ToNodeId(
+                var typeDef = ExpandedNodeId.ToNodeId(
                     reference.TypeDefinition, Session.NamespaceUris);
-                NodeId nodeId = ExpandedNodeId.ToNodeId(
+                var nodeId = ExpandedNodeId.ToNodeId(
                     reference.NodeId, Session.NamespaceUris);
                 if (typeDef.IsNull || nodeId.IsNull)
                 {

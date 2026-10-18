@@ -326,6 +326,32 @@ that to the browser's own `Next()`.
 
 Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
+### Declare complete browser dependencies when requested
+
+`IBrowseContinuationDependencies` is an optional capability for consumers that
+need every target owner required by the remaining Browse pages. The standard
+`NodeBrowser` reports the targets in its stored reference snapshot without
+advancing iteration. A derived browser does not inherit a completeness promise
+for references it might produce lazily.
+
+Override `TryGetContinuationDependencies` only when every remaining target can
+be declared before saving the first page. For a complete, fixed
+`m_futureTargets` set:
+
+```csharp
+public override bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
+{
+    targetIds = [.. GetRemainingReferenceTargets(), .. m_futureTargets];
+    return true;
+}
+```
+
+Returning `true` with an empty set promises that no other target owner is needed.
+Return `false` when lazy dependencies cannot be bounded; report the complete
+remaining set rather than only currently buffered references. This metadata
+contract alone does not change pagination or retain NodeManager generations:
+continuation admission, retention and invalidation remain server responsibilities.
+
 ### NodeBrowser gains an async iteration seam
 
 `INodeBrowser` and `NodeBrowser` gain

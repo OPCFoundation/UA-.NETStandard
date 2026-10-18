@@ -35,6 +35,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -538,6 +539,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // The HTTP/2 connection outlives the refused stream, so it keeps
             // its connection slot: another connection is not admitted ...
+            // Linux can surface the transport abort directly while HttpClient
+            // reads the disconnected socket's RemoteEndPoint.
             using (HttpMessageInvoker second = AuthListener.CreateHttp2Connection())
             {
                 Assert.That(
@@ -547,7 +550,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                             .PostAsync("/read", CreateReadRequest(1), CreateAuthorizationHeader("basic-valid"), second)
                             .ConfigureAwait(false);
                     },
-                    Throws.InstanceOf<HttpRequestException>());
+                    Throws.InstanceOf<HttpRequestException>()
+                        .Or.InstanceOf<SocketException>()
+                            .With.Property(nameof(SocketException.SocketErrorCode)).EqualTo(SocketError.NotConnected));
             }
 
             // ... while the first connection keeps serving requests.

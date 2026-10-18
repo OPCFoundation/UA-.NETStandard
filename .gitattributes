@@ -55,6 +55,22 @@ src/Opc.Ua.SchemaRegistry/Model/*.csv text eol=lf
 src/Opc.Ua.EndpointRegistry/Model/*.xml text eol=lf
 src/Opc.Ua.EndpointRegistry/Model/*.csv text eol=lf
 tests/Opc.Ua.SchemaRegistry.Tests/Assets/*.ipc binary
+# Preserve the release-pinned Machine Vision inputs and their provenance hashes.
+src/Opc.Ua.Vision/Model/Opc.Ua.MachineVision*.NodeSet2.xml -text
+src/Opc.Ua.Vision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
+src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.NodeSet2.xml -text
+src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
+
+# Preserve pinned plastics/rubber inputs and the reproducibly authored common model.
+# Their upstream license banners include trailing spaces covered by the byte-level hashes.
+# TODO: revisit the whitespace exception if upstream republishes these inputs without it.
+src/Opc.Ua.PlasticsRubber/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/Basis/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeIds.csv -text whitespace=cr-at-eol
 
 # Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
 # fork messages are exact byte sequences, not documents. Line-ending translation
