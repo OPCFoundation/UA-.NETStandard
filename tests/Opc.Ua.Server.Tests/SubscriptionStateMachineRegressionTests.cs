@@ -129,6 +129,34 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A publish timer pass that runs exactly at the subscription's deadline processes
+        /// the expiry. The fixed-cadence sweep often lands on the deadline; treating it as not
+        /// yet due skipped every other cycle when the sweep alternated between 1 ms late and
+        /// on time.
+        /// </summary>
+        [Test]
+        public void SweepExactlyAtTheDeadlineProcessesTheExpiry()
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                clock,
+                maxLifetimeCount: 1000,
+                maxKeepAliveCount: 300);
+
+            // sweeps at 101, 200, 301, 400, ... ms after the creation; the deadlines are at 100,
+            // 200, 300, 400, ...
+            long[] steps = [101, 99, 101, 99, 101, 99, 101, 99];
+            foreach (long step in steps)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(step));
+                subscription.PublishTimerExpired();
+            }
+
+            // no Publish request is queued, so every processed expiry counts the lifetime up.
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo((uint)steps.Length));
+        }
+
+        /// <summary>
         /// M1-1: a client that keeps answering keep-alives never lets the lifetime expire.
         /// </summary>
         [Test]
