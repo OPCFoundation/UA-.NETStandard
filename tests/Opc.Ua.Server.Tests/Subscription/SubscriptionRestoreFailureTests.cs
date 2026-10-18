@@ -530,6 +530,40 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task EventItemWhoseSubscriptionIsRejectedIsReleasedAsync()
+        {
+            var queue = new DisposalRecordingEventQueue(1003, NUnitTelemetryContext.Create());
+            var source = new EventSourceNodeManager { RejectSubscribeOf = 1003 };
+            using var fixture = new Fixture(
+                store =>
+                {
+                    store
+                        .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
+                        .ReturnsAsync(() => new RestoreSubscriptionResult(
+                            true,
+                            [CreateStored(43, CreateStoredEventItem(1003, 43))]));
+                    store
+                        .Setup(value => value.RestoreEventMonitoredItemQueueAsync(
+                            It.IsAny<uint>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<IEventMonitoredItemQueue?>(queue));
+                    store
+                        .Setup(value => value.RestoreEventMonitoredItemQueue(It.IsAny<uint>()))
+                        .Returns(queue);
+                },
+                nodeManager: source.Object);
+
+            await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            AssertMonitoredItems(fixture, 43);
+            Assert.Multiple(() =>
+            {
+                Assert.That(fixture.Events.GetMonitoredItems(), Is.Empty, "the event item is unregistered");
+                Assert.That(queue.Disposed, Is.True, "the item that the subscription does not take is released");
+            });
+        }
+
+        [Test]
         public async Task QueueThatFailsToCommitItsRestoreDoesNotFailTheRestoreAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -911,7 +945,10 @@ namespace Opc.Ua.Server.Tests
                         CancellationToken _) =>
                         !unsubscribe && monitoredItem.Id == FailSubscribeOf
                             ? throw SubscribeFailure()
-                            : new ValueTask<ServiceResult>(ServiceResult.Good));
+                            : new ValueTask<ServiceResult>(
+                                !unsubscribe && monitoredItem.Id == RejectSubscribeOf
+                                    ? new ServiceResult(StatusCodes.BadNotSupported)
+                                    : ServiceResult.Good));
                 m_mock
                     .Setup(value => value.RestoreMonitoredItemsAsync(
                         It.IsAny<IList<IStoredMonitoredItem>>(),
@@ -931,6 +968,8 @@ namespace Opc.Ua.Server.Tests
             public IAsyncNodeManager Object => m_mock.Object;
 
             public uint FailSubscribeOf { get; set; }
+
+            public uint RejectSubscribeOf { get; set; }
 
             public Func<Exception> SubscribeFailure { get; set; } =
                 () => new InvalidOperationException("subscribe failed");
@@ -1174,6 +1213,25 @@ namespace Opc.Ua.Server.Tests
 
             private readonly InMemorySharedKeyValueStore m_store;
             private readonly SharedKeyValueMonitoredItemQueueFactory m_factory;
+        }
+
+        /// <summary>
+        /// An event queue that records whether it was disposed.
+        /// </summary>
+        private sealed class DisposalRecordingEventQueue : EventMonitoredItemQueue
+        {
+            public DisposalRecordingEventQueue(uint monitoredItemId, ITelemetryContext telemetry)
+                : base(false, monitoredItemId, telemetry)
+            {
+            }
+
+            public bool Disposed { get; private set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                Disposed = true;
+                base.Dispose(disposing);
+            }
         }
 
         /// <summary>
