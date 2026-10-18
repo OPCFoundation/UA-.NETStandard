@@ -393,8 +393,10 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             if (mechanism.Type == (ulong)CKM.CKM_ECDSA)
             {
                 Assert(target.KeyType == (ulong)CKK.CKK_EC, "an EC mechanism needs an EC key");
-                return m_eccKey.SignHash(data);
+                return (target.Signer as ECDsa ?? m_eccKey).SignHash(data);
             }
+
+            RSA rsaKey = target.Signer as RSA ?? m_rsaKey;
 
             Assert(target.KeyType == (ulong)CKK.CKK_RSA, "an RSA mechanism needs an RSA key");
 
@@ -409,7 +411,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 // have wrapped the hash in a DigestInfo. Unwrapping it here is
                 // what makes a wrong prefix visible.
                 (byte[] hash, HashAlgorithmName algorithm) = UnwrapDigestInfo(data);
-                return m_rsaKey.SignHash(hash, algorithm, RSASignaturePadding.Pkcs1);
+                return rsaKey.SignHash(hash, algorithm, RSASignaturePadding.Pkcs1);
             }
 
             if (mechanism.Type == (ulong)CKM.CKM_RSA_PKCS_PSS)
@@ -422,7 +424,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                     _ => throw new Pkcs11Exception("Sign", CKR.CKR_DATA_LEN_RANGE)
                 };
 
-                return m_rsaKey.SignHash(data, algorithm, RSASignaturePadding.Pss);
+                return rsaKey.SignHash(data, algorithm, RSASignaturePadding.Pss);
             }
 
             throw new Pkcs11Exception("Sign", CKR.CKR_MECHANISM_INVALID);
@@ -534,6 +536,9 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             public byte[]? EcPoint { get; init; }
 
             public byte[]? EcParams { get; init; }
+
+            /// <summary>The key a private key object signs with, instead of the token's key of its type.</summary>
+            public AsymmetricAlgorithm? Signer { get; init; }
 
             public Dictionary<ulong, byte[]> Extra { get; init; } = [];
         }
@@ -686,20 +691,54 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         /// <summary>
-        /// Adds an RSA private key object after the existing objects. It signs
-        /// with the token's RSA key, like every key of this module, whatever
-        /// public key it states.
+        /// Adds an RSA private key object after the existing objects.
         /// </summary>
         /// <param name="id">The CKA_ID of the object.</param>
         /// <param name="label">The CKA_LABEL of the object.</param>
         /// <param name="publicKey">The modulus and public exponent the object states.</param>
-        public void AddRsaPrivateKey(byte[] id, string label, RSAParameters publicKey)
+        /// <param name="signer">
+        /// The key the object signs with, or <c>null</c> for the token's RSA key
+        /// whatever public key the object states.
+        /// </param>
+        public void AddRsaPrivateKey(byte[] id, string label, RSAParameters publicKey, RSA? signer = null)
         {
             m_objects.Add(new FakeObject(
                 Handle(m_nextHandle++), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, id, label, [])
             {
                 Modulus = publicKey.Modulus,
-                PublicExponent = publicKey.Exponent
+                PublicExponent = publicKey.Exponent,
+                Signer = signer
+            });
+        }
+
+        /// <summary>
+        /// Adds an EC private key object that signs with the given P-256 key and
+        /// its public key object after the existing objects.
+        /// </summary>
+        /// <param name="id">The CKA_ID of both objects.</param>
+        /// <param name="label">The CKA_LABEL of both objects.</param>
+        /// <param name="signer">The P-256 key.</param>
+        public void AddEcKeyPair(byte[] id, string label, ECDsa signer)
+        {
+            ECParameters parameters = signer.ExportParameters(false);
+            byte[] point = [0x04, .. parameters.Q.X!, .. parameters.Q.Y!];
+            byte[] curve;
+            using (Certificate eccCertificate = Certificate.FromRawData(EccCertificate))
+            {
+                // The token's ECC key is P-256 too, so its certificate names the same curve.
+                curve = eccCertificate.PublicKey.EncodedParameters!.RawData;
+            }
+
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_EC, id, label, [])
+            {
+                Signer = signer
+            });
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PUBLIC_KEY, (ulong)CKK.CKK_EC, id, label, [])
+            {
+                EcPoint = [0x04, (byte)point.Length, .. point],
+                EcParams = curve
             });
         }
 

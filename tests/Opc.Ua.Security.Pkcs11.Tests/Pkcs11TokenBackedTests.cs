@@ -570,6 +570,88 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheRsaKeyOfTheInferredIdThatSignsForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using RSA peerKey = RSA.Create(2048);
+            using Certificate peer = CreatePeerCertificate("CN=SecondKeyOfTheId", peerKey);
+            // The token's own key comes first among the keys with this CKA_ID.
+            module.AddRsaPrivateKey(module.RsaId, "rsa", peerKey.ExportParameters(false), peerKey);
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            AssertAttachedKeySignsFor(loaded, peerKey);
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheEcKeyOfTheInferredIdThatSignsForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using ECDsa peerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using Certificate peer = CreatePeerCertificate("CN=SecondEcKeyOfTheId", peerKey);
+            // The token's own key comes first among the keys with this CKA_ID.
+            module.AddEcKeyPair(module.EccId, "ecc", peerKey);
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            AssertAttachedKeySignsFor(loaded, peerKey);
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheRsaKeyOfTheObjectLabelThatSignsForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "rsa";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using RSA peerKey = RSA.Create(2048);
+            using Certificate peer = CreatePeerCertificate("CN=SecondKeyOfTheLabel", peerKey);
+            // Without a CKA_ID the key is found by the label only, after the token's own key.
+            module.AddRsaPrivateKey([], "rsa", peerKey.ExportParameters(false), peerKey);
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            AssertAttachedKeySignsFor(loaded, peerKey);
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheEcKeyOfTheObjectLabelThatSignsForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectLabel = "ecc";
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using ECDsa peerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using Certificate peer = CreatePeerCertificate("CN=SecondEcKeyOfTheLabel", peerKey);
+            // Without a CKA_ID the key is found by the label only, after the token's own key.
+            module.AddEcKeyPair([], "ecc", peerKey);
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            AssertAttachedKeySignsFor(loaded, peerKey);
+        }
+
+        [Test]
         public async Task CertificateWithoutIdIsPairedByTheObjectLabelWhenItsInferredIdSelectsNoPrivateKeyAsync()
         {
             using var module = new FakePkcs11Module();
@@ -992,11 +1074,52 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         private static Certificate CreatePeerCertificate(string subject)
         {
             using var key = RSA.Create(2048);
-            var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
-                subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return CreatePeerCertificate(subject, key);
+        }
+
+        private static Certificate CreatePeerCertificate(string subject, RSA key)
+        {
+            return CreateSelfSigned(new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                subject, key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+        }
+
+        private static Certificate CreatePeerCertificate(string subject, ECDsa key)
+        {
+            return CreateSelfSigned(new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                subject, key, HashAlgorithmName.SHA256));
+        }
+
+        private static Certificate CreateSelfSigned(System.Security.Cryptography.X509Certificates.CertificateRequest request)
+        {
             using System.Security.Cryptography.X509Certificates.X509Certificate2 certificate =
                 request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(1));
             return Certificate.FromRawData(certificate.RawData);
+        }
+
+        /// <summary>
+        /// Asserts that the key attached to the loaded certificate signs for the given public key.
+        /// </summary>
+        private static void AssertAttachedKeySignsFor(Certificate? loaded, RSA expected)
+        {
+            Assert.That(loaded, Is.Not.Null);
+            using RSA attached = loaded!.GetRSAPrivateKey()!;
+            byte[] hash = Hash(HashAlgorithmName.SHA256);
+            byte[] signature = attached.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(
+                expected.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                Is.True,
+                "the attached key is the certificate's");
+        }
+
+        /// <summary>
+        /// Asserts that the key attached to the loaded certificate signs for the given public key.
+        /// </summary>
+        private static void AssertAttachedKeySignsFor(Certificate? loaded, ECDsa expected)
+        {
+            Assert.That(loaded, Is.Not.Null);
+            using ECDsa attached = loaded!.GetECDsaPrivateKey()!;
+            byte[] hash = Hash(HashAlgorithmName.SHA256);
+            Assert.That(expected.VerifyHash(hash, attached.SignHash(hash)), Is.True, "the attached key is the certificate's");
         }
 
         private static byte[] DerInteger(byte[] littleEndianSerial)
