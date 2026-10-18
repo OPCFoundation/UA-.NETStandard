@@ -76,6 +76,7 @@ to advanced and experimental features.
 
 The default-off [Recoverable Service Execution (RSE) prototype](docs/AsyncServices.md)
 implements the OPC 10000-27 draft with experimental Submit/Get/Control exchanges
+behind opted-in ordinary `ISession` calls, explicit acknowledgement scopes,
 and a two-hop certificate demonstration. Async Service API names are unchanged;
 the provisional contract is not an adopted OPC UA standard.
 

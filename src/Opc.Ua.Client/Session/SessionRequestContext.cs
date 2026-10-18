@@ -147,6 +147,11 @@ namespace Opc.Ua.Client
         internal bool AllowsSameSessionRecovery { get; }
 
         /// <summary>
+        /// Observes a decoded submission reply before generated Client code validates its outer header.
+        /// </summary>
+        internal event Action<IServiceRequest, IServiceResponse>? ResponseReceived;
+
+        /// <summary>
         /// Requests managed recovery without replaying a request or accepting a replacement Session.
         /// Fresh dispatch still verifies the recorded activation and captured encoding context.
         /// </summary>
@@ -317,7 +322,21 @@ namespace Opc.Ua.Client
 
             // A managed lease may wait, swap transports, retry, or reject an already completed
             // response on cancellation. Send once on the physical transport captured above instead.
-            return transport.SendRequestAsync(request, ct);
+            return request is SubmitServiceRequest && ResponseReceived is { } received
+                ? SendObservedAsync(transport, request, received, ct)
+                : transport.SendRequestAsync(request, ct);
+        }
+
+        /// <summary>
+        /// Reports only an actual decoded reply; a transport exception is not a pre-admission rejection.
+        /// </summary>
+        private static async ValueTask<IServiceResponse> SendObservedAsync(
+            ITransportChannel transport, IServiceRequest request,
+            Action<IServiceRequest, IServiceResponse> received, CancellationToken ct)
+        {
+            IServiceResponse response = await transport.SendRequestAsync(request, ct).ConfigureAwait(false);
+            received(request, response);
+            return response;
         }
 
         /// <summary>

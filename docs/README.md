@@ -304,8 +304,8 @@ The subscription guides assume the client path; the sizing guides assume
 - [Generation-bound session clients](SessionBindings.md) — capture dispatch,
   session identity and mapping snapshots without reconnecting to a replacement peer.
 - [Recoverable Service Execution (RSE)](AsyncServices.md) — default-off OPC 10000-27
-  draft prototype with Submit/Get/Control Services, typed acceptance and a two-hop
-  certificate demonstration.
+  draft prototype behind ordinary `ISession` calls, explicit acknowledgement
+  scopes, typed acceptance and a two-hop certificate demonstration.
 - [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 

@@ -88,7 +88,150 @@ before any item runs. Missing/True declarations still undergo normal admission
 checks. Ordinary invalid or unauthorized items remain per-item Call failures;
 wrapping is not an all-items-authorized transaction.
 
-## Create a handle before submission
+## Use ordinary ISession calls
+
+Select prefer-recoverable execution when creating a managed session. It is off
+by default and does not add required members to `ISession`:
+
+```csharp
+ISession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .PreferRecoverableExecution()
+    .ConnectAsync(ct);
+
+int value = await session.ReadValueAsync<int>(nodeId, ct);
+```
+
+The existing asynchronous Read, Write and Call methods, convenience reads and
+generated Method proxies keep their signatures and result types. The Client
+performs capability discovery and the submission/collection exchanges
+internally. A regular session uses its existing ordinary behavior.
+
+Direct construction selects the same implementation:
+
+```csharp
+ISession session = await ManagedSession.CreateAsync(
+    new ManagedSessionOptions
+    {
+        Endpoint = endpoint,
+        RecoverableExecution = new RecoverableSessionOptions()
+    },
+    configuration,
+    new DefaultSessionFactory(telemetry),
+    telemetry: telemetry,
+    ct: ct);
+```
+
+For DI, configure the session options before obtaining a session from
+`IManagedSessionFactory`:
+
+```csharp
+services.AddOpcUa().AddClient(options =>
+{
+    options.Session = options.Session with
+    {
+        RecoverableExecution = new RecoverableSessionOptions()
+    };
+});
+
+ISession session = await serviceProvider.GetRequiredService<IManagedSessionFactory>()
+    .ConnectAsync(endpoint, ct);
+```
+
+The Client uses the Server's advertised execution and retention defaults.
+Optional `ExecutionAllowance` and `ResultRetentionTime` settings select exact
+positive finite milliseconds. They are independent of the original
+`RequestHeader.TimeoutHint` and caller cancellation. Overrides are not clamped,
+and missing or invalid required defaults are errors.
+
+Ordinary fallback is allowed only when unsupported recovery and non-admission
+are established before original execution. An absent capability root or a
+decoded outer Submit rejection can establish this. Resource, lifetime,
+validation, authorization and security failures do not trigger fallback.
+Neither a timeout, lost reply, Unknown lookup, collection/control failure nor
+an embedded original failure proves non-admission. The original request is
+never replayed to resolve uncertainty.
+
+Session maintenance and capability discovery stay on the internal ordinary
+path; they do not create application receipt obligations or invoke application
+acceptance callbacks. Other Service families and obsolete sync/APM entry points
+remain ordinary. The mode is not enabled on arbitrary/custom sessions or
+silently applied to an existing connection.
+
+Generated Method proxies must use the current generator's typed completion
+integration. Older generated proxies still work on ordinary sessions, but
+cannot silently claim typed recoverable acceptance: incompatible proxy calls
+on an opted-in session fail before dispatch and require regeneration.
+
+## Coordinate acknowledgement with an external system
+
+An optional operation-local scope defers ACK while leaving the operation call
+and result unchanged:
+
+```csharp
+await using var acknowledgement = session.BeginAcknowledgementScope(
+    requireRecoverableReceipt: true);
+
+ReadResponse response = await session.ReadAsync(
+    null, 0, TimestampsToReturn.Both, nodesToRead, ct);
+
+await resultStore.SaveAsync(response, ct);
+// Or wait for the selected MQTT/RPC handoff to complete.
+await acknowledgement.AcknowledgeAsync(ct);
+```
+
+The scope is local to the current asynchronous flow and belongs to one logical
+caller operation. Independent concurrent operations use separate scopes;
+accidental reuse fails rather than mixing receipts. Nest scopes in disposal
+order. There is no session-wide "last receipt".
+
+`Receipt` is an opaque receipt bound to the original Session. It is null when
+no recoverable request was admitted, including ordinary fallback. Calling
+`AcknowledgeAsync` without a receipt fails; it is not a successful no-op.
+`requireRecoverableReceipt: true` rejects unsupported recovery or an excluded
+application Service before ordinary dispatch. A composed convenience operation
+can involve several original requests; its receipt does not make them an
+atomic transaction.
+
+An asynchronous acceptance callback may be configured in
+`RecoverableSessionOptions.AcceptAsync` or on the scope:
+
+```csharp
+await using var acknowledgement = session.BeginAcknowledgementScope(
+    requireRecoverableReceipt: true,
+    acceptAsync: async (acceptance, token) =>
+    {
+        if (!acceptance.TryGetResult<ReadResponse>(out var response))
+        {
+            throw new InvalidOperationException("Expected the ordinary Read response.");
+        }
+        await resultStore.SaveAsync(response, token);
+    });
+
+ReadResponse response = await session.ReadAsync(
+    null, 0, TimestampsToReturn.Both, nodesToRead, ct);
+await acknowledgement.AcknowledgeAsync(ct);
+```
+
+Callbacks receive the final SDK result after typed decoding. A legitimate
+failed original outcome is exposed through `Failure` instead of a fabricated
+typed result. Without an explicit scope, successful callback and caller
+completion are followed by automatic ACK. Use an explicit scope when receipt
+ownership and ACK retry must outlive the ordinary call.
+
+Callback failure/cancellation and scope disposal never acknowledge, abandon,
+resubmit or extend the remote operation. Disposal stops local waiting and
+releases local resources only. A callback cannot reenter the same session or
+acknowledge before caller acceptance. An ACK failure leaves the accepted
+original result intact; retry only the receipt's ACK.
+
+The original E/R and same-Session restrictions still apply while an external
+system processes the result. This does not provide restart durability,
+cross-system transactions or an MQTT delivery guarantee.
+
+<a id="create-a-handle-before-submission"></a>
+
+## Advanced: create a handle before submission
 
 Use a stack `ManagedSession`. A classic/custom `ISession` cannot provide the
 managed lifecycle proof and is rejected. The handle captures an explicitly
@@ -150,7 +293,9 @@ policy/mode, transport mapping or unsafe encoding/namespace mapping invalidates
 the binding. Existing strict contexts still invalidate as soon as recovery
 begins.
 
-## Use generated Method proxies
+<a id="use-generated-method-proxies"></a>
+
+## Advanced: capture generated Method proxies
 
 Construct the generated proxy with the callback's `ISessionClient`, not with
 the outer managed Session:
@@ -184,7 +329,9 @@ The overload for a generated Method with no outputs returns
 `AsyncServiceOperation<StatusCode>`. It is used for ApplyChanges in the
 certificate demonstration; ApplyChanges is never a result-polling operation.
 
-## Acceptance and acknowledged release
+<a id="acceptance-and-acknowledged-release"></a>
+
+## Advanced handle acceptance and acknowledged release
 
 Default acceptance requires decoding, response/type validation and successful
 acceptance into the handle's caller-facing `Completion`. Only then is ACK
@@ -339,11 +486,12 @@ application-certificate transaction.
 | Selection | What it exercises |
 | --- | --- |
 | `AsyncServiceContractTests` | Generated Binary/JSON codecs, ordered fields and IDs; not a network test |
+| `RecoverableManagedSessionTests` | Unchanged caller interfaces, options/builder/DI, unsupported-only fallback, exact budgets, typed acceptance, concurrent receipt scopes and local failure semantics |
 | `RecoverableSessionRequestContextTests`, `AsyncServiceClientTests` | Real managed lifecycle with scripted transport: activation proofs, no replay, payload validation and acceptance/ACK gates |
 | `AsyncServiceExecutionTests` | Generated in-process endpoint, real handlers/isolation, injected elapsed time, exact encoder boundaries and release/accounting races |
 | `AsyncServiceTransportTests` | Native free-port UA-TCP/Binary and TLS HTTPS UA JSON, observed Server encoding/protection, Read/Write/Call and physical reply loss |
 | `CertificateCycleAcrossRecoverableGateway` | Actual four-combination two-hop CSR/CA/update/apply/verification cycle |
-| `AsyncServicesAotTests` | Codec, DI, optional model and live typed Read paths; NativeAOT evidence requires publishing and executing the native binary, not merely a JIT test run |
+| `AsyncServicesAotTests` | Codec, DI, optional model, live explicit-handle and transparent `ISession` Read/receipt paths; NativeAOT evidence requires publishing and executing the native binary, not merely a JIT test run |
 
 Lost Submit/result/ACK replies are separate native test cases. Exact encoded
 thresholds and reduced Session ceilings are in-process evidence. The separate
@@ -440,7 +588,7 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
 
 dotnet test tests\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj `
     -f net10.0 -p:CustomTestTarget=net10.0 `
-    --filter "FullyQualifiedName~AsyncServiceClientTests|FullyQualifiedName~RecoverableSessionRequestContextTests"
+    --filter "FullyQualifiedName~RecoverableManagedSessionTests|FullyQualifiedName~AsyncServiceClientTests|FullyQualifiedName~RecoverableSessionRequestContextTests"
 
 dotnet test tests\Opc.Ua.Core.Encoders.Tests\Opc.Ua.Core.Encoders.Tests.csproj `
     -f net10.0 -p:CustomTestTarget=net10.0 `

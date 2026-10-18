@@ -129,7 +129,11 @@ namespace Opc.Ua.Aot.Tests
                 var endpoint = new ConfiguredEndpoint(
                     null, CoreUtils.Clone(description)!, EndpointConfiguration.Create(configuration));
                 await using ManagedSession session = await ManagedSession.CreateAsync(
-                    new ManagedSessionOptions { Endpoint = endpoint },
+                    new ManagedSessionOptions
+                    {
+                        Endpoint = endpoint,
+                        RecoverableExecution = new RecoverableSessionOptions()
+                    },
                     configuration, new DefaultSessionFactory(telemetry), telemetry: telemetry,
                     updateBeforeConnect: false, ct: timeout.Token).ConfigureAwait(false);
                 var services = new ServiceCollection();
@@ -169,6 +173,13 @@ namespace Opc.Ua.Aot.Tests
                 Node capability = await session.ReadNodeAsync(new NodeId(1200100u), timeout.Token)
                     .ConfigureAwait(false);
                 await Assert.That(capability.NodeClass).IsEqualTo(NodeClass.Object);
+                await using RecoverableAcknowledgementScope acknowledgement = session.BeginAcknowledgementScope(true);
+                DataValue current = await session.ReadValueAsync(
+                    VariableIds.Server_ServerStatus_State, timeout.Token).ConfigureAwait(false);
+                await Assert.That(current.StatusCode).IsEqualTo(StatusCodes.Good);
+                await Assert.That(acknowledgement.Receipt).IsNotNull();
+                await acknowledgement.AcknowledgeAsync(timeout.Token).ConfigureAwait(false);
+                await Assert.That(acknowledgement.Receipt!.IsAcknowledged).IsTrue();
             }
             finally
             {

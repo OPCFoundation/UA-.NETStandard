@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
                 (owner: this, allowSameSessionRecovery),
                 static (session, args, _) => new ValueTask<SessionRequestContext>(
                     session.CreateRequestContext(args.owner, args.allowSameSessionRecovery)),
-                ct);
+                ct, recoveryControl: true);
         }
 
         /// <summary>
@@ -64,7 +64,7 @@ namespace Opc.Ua.Client
             return CallServiceAsync(
                 (context, request),
                 static (session, args, token) => session.SendRequestContextAsync(args.context, args.request, token),
-                ct);
+                ct, recoveryControl: true);
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Opc.Ua.Client
             return await CallServiceAsync(
                 (context, request),
                 static (session, args, token) => session.SendRequestContextAsync(args.context, args.request, token),
-                ct).ConfigureAwait(false);
+                ct, recoveryControl: true).ConfigureAwait(false);
         }
     }
 }

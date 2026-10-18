@@ -781,11 +781,186 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         }
 
         /// <summary>
+        /// Ordinary session and generated Method signatures hide the recoverable exchanges on both real mappings.
+        /// </summary>
+        [Test]
+        public async Task PreferRecoverableSessionKeepsOrdinaryTypedCallsAndExplicitReceipts()
+        {
+            var scenario = new AsyncExecutionScenario();
+            await using WireContext wire = await WireContext.CreateAsync(
+                json, scenario, recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
+#pragma warning disable CA1859 // Exercise the unchanged interface. TODO: exclude interface-conformance tests from CA1859.
+            Client.ISession session = wire.Owner;
+#pragma warning restore CA1859
+            var counter = ExpandedNodeId.ToNodeId(Model.VariableIds.Probe_Counter, session.NamespaceUris);
+            var probe = ExpandedNodeId.ToNodeId(Model.ObjectIds.Probe, session.NamespaceUris);
+            await using (RecoverableAcknowledgementScope scope = session.BeginAcknowledgementScope(true))
+            {
+                int value = await session.ReadValueAsync<int>(counter, wire.Timeout).ConfigureAwait(false);
+                Assert.That(value, Is.EqualTo(7));
+                Assert.That(scope.Receipt, Is.Not.Null);
+                Assert.That(wire.Faults.Acknowledgements, Is.Zero);
+                await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+                Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
+            }
+            await using (RecoverableAcknowledgementScope scope = session.BeginAcknowledgementScope(true))
+            {
+                WriteResponse response = await session.WriteAsync(null,
+                    [new WriteValue { NodeId = counter, AttributeId = Attributes.Value, Value = new DataValue(40) }],
+                    wire.Timeout).ConfigureAwait(false);
+                Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+                await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+                response.Reuse();
+            }
+            await using (RecoverableAcknowledgementScope scope = session.BeginAcknowledgementScope(true))
+            {
+                int result = await new ProbeTypeClient(session, probe, wire.Telemetry)
+                    .DelayedAddAsync(2, wire.Timeout).ConfigureAwait(false);
+                Assert.That(result, Is.EqualTo(42));
+                Assert.That(scenario.Invocations, Is.EqualTo(1));
+                await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+            }
+            var variable = new ClientVariable<int>(new ProbeTypeClient(session, probe, wire.Telemetry),
+                "urn:opcfoundation:tests:async-services", "Counter", true,
+                static (value, _) => value.TryGetValue(out int number)
+                    ? number
+                    : throw new ServiceResultException(StatusCodes.BadTypeMismatch),
+                static value => Variant.From(value));
+            await using (RecoverableAcknowledgementScope scope = session.BeginAcknowledgementScope(true))
+            {
+                ClientRead<int> observation = await variable.ReadAsync(wire.Timeout).ConfigureAwait(false);
+                Assert.That(observation.HasValue, Is.True);
+                Assert.That(observation.Value, Is.EqualTo(42));
+                await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+            }
+            await using (RecoverableAcknowledgementScope scope = session.BeginAcknowledgementScope(true))
+            {
+                await variable.WriteAsync(43, wire.Timeout).ConfigureAwait(false);
+                Assert.That(scenario.Counter, Is.EqualTo(43));
+                await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+            }
+            Assert.That(wire.Faults.Submissions, Is.EqualTo(5));
+            Assert.That(wire.Faults.Acknowledgements, Is.EqualTo(5));
+            Assert.That(wire.SubmissionEncodings.ToArray(),
+                Is.All.EqualTo(json ? RequestEncoding.Json : RequestEncoding.Binary));
+            Assert.That(wire.SawTransportSecurity, Is.EqualTo(json));
+        }
+
+        /// <summary>
+        /// Unsupported recovery uses an ordinary request and cannot provide a fake receipt or satisfy a strict scope.
+        /// </summary>
+        [Test]
+        public async Task PreferRecoverableSessionFallsBackWithoutManufacturingAReceipt()
+        {
+            var scenario = new AsyncExecutionScenario { Blob = ByteString.From([1, 2, 3]) };
+            await using WireContext wire = await WireContext.CreateAsync(
+                json, scenario, recoverable: new RecoverableSessionOptions(), enabled: false).ConfigureAwait(false);
+            var blob = ExpandedNodeId.ToNodeId(Model.VariableIds.Probe_Blob, wire.Owner.NamespaceUris);
+            await using (RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope())
+            {
+                ReadResponse response = await wire.Owner.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                    [new ReadValueId { NodeId = blob, AttributeId = Attributes.Value }], wire.Timeout)
+                    .ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(scope.Receipt, Is.Null);
+                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false));
+                response.Reuse();
+            }
+            await using (RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope(true))
+            {
+                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await wire.Owner.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = blob, AttributeId = Attributes.Value }], wire.Timeout)
+                        .ConfigureAwait(false));
+                Assert.That(scope.Receipt, Is.Null);
+            }
+            Assert.That(scenario.BlobReads, Is.EqualTo(1));
+            Assert.That(wire.Faults.Submissions, Is.Zero);
+            Assert.That(wire.Faults.Acknowledgements, Is.Zero);
+        }
+
+        /// <summary>
+        /// A decoded unsupported Submit rejection allows the original Method to run ordinarily once.
+        /// </summary>
+        [Test]
+        public async Task PreferRecoverableSessionFallsBackAfterUnsupportedMethodAdmission()
+        {
+            var scenario = new AsyncExecutionScenario { RecoverableHint = false };
+            await using WireContext wire = await WireContext.CreateAsync(
+                json, scenario, recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
+            var probe = ExpandedNodeId.ToNodeId(Model.ObjectIds.Probe, wire.Owner.NamespaceUris);
+            await using RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope();
+            int result = await new ProbeTypeClient(wire.Owner, probe, wire.Telemetry)
+                .DeclaredAddAsync(2, wire.Timeout).ConfigureAwait(false);
+            Assert.That(result, Is.EqualTo(9));
+            Assert.That(scope.Receipt, Is.Null);
+            Assert.That(scenario.Invocations, Is.EqualTo(1));
+            Assert.That(wire.Faults.Acknowledgements, Is.Zero);
+        }
+
+        /// <summary>
+        /// Hidden submission/result recovery and explicit ACK retry never invoke the original Method again.
+        /// </summary>
+        [TestCase("submit")]
+        [TestCase("result")]
+        [TestCase("ack")]
+        public async Task PreferRecoverableSessionSurvivesNativeReplyLoss(string point)
+        {
+            var scenario = new AsyncExecutionScenario();
+            await using WireContext wire = await WireContext.CreateAsync(
+                json, scenario, recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
+            NodeId sessionId = wire.Owner.SessionId;
+            var probe = ExpandedNodeId.ToNodeId(Model.ObjectIds.Probe, wire.Owner.NamespaceUris);
+            await using RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope(true);
+            wire.Faults.Arm(point);
+            int result = await new ProbeTypeClient(wire.Owner, probe, wire.Telemetry)
+                .DelayedAddAsync(2, wire.Timeout).ConfigureAwait(false);
+            Assert.That(result, Is.EqualTo(9));
+            if (point == "ack")
+            {
+                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false));
+            }
+            await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+            Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
+            Assert.That(scope.Receipt.SessionId, Is.EqualTo(sessionId));
+            Assert.That(wire.Faults.Drops, Is.EqualTo(1));
+            Assert.That(wire.Faults.Submissions, Is.EqualTo(1));
+            Assert.That(scenario.Invocations, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The unchanged generated Push Method returns a real CSR and waits for an application receipt.
+        /// </summary>
+        [Test]
+        public async Task PreferRecoverableCertificateMethodReturnsCsrWithoutProtocolCalls()
+        {
+            await using WireContext wire = await WireContext.CreateAsync(
+                json, new AsyncExecutionScenario(), securityAdmin: true,
+                recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
+            await using RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope(true);
+            ByteString csr = await new ServerConfigurationTypeClient(
+                wire.Owner, ObjectIds.ServerConfiguration, wire.Telemetry).CreateSigningRequestAsync(
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, null!, true,
+                    new ByteString(Nonce.CreateRandomNonceData(32)), wire.Timeout).ConfigureAwait(false);
+            Assert.That(csr.IsEmpty, Is.False);
+            Assert.That(wire.KeyGenerator.Calls, Is.EqualTo(1));
+            Assert.That(wire.Faults.Submissions, Is.EqualTo(1));
+            Assert.That(wire.Faults.Acknowledgements, Is.Zero);
+            Assert.That(scope.Receipt, Is.Not.Null);
+            await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
+            Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
+            Assert.That(wire.Faults.Acknowledgements, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Owns synthetic PKI, free-port listeners and native managed Client connections for one test.
         /// </summary>
         private sealed class WireContext : IAsyncDisposable
         {
-            private WireContext(bool useJson, AsyncExecutionScenario scenario)
+            private WireContext(bool useJson, AsyncExecutionScenario scenario, bool enabled)
             {
                 m_scenario = scenario;
                 Telemetry = NUnitTelemetryContext.Create();
@@ -802,7 +977,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 {
                     var server = new DependencyInjectionStandardServer(m_services, telemetry, TimeProvider.System)
                     {
-                        AsyncServices = new AsyncServiceExecutionOptions { Enabled = true },
+                        AsyncServices = new AsyncServiceExecutionOptions { Enabled = enabled },
                         AsyncServiceExecutionProviderFactory =
                             new DefaultAsyncServiceExecutionProviderFactory(m_observations),
                         ResponseMutator = Faults
@@ -834,9 +1009,10 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             public CountingKeyGenerator KeyGenerator { get; } = new();
 
             public static async Task<WireContext> CreateAsync(
-                bool useJson, AsyncExecutionScenario scenario, bool securityAdmin = false, string role = "Probe")
+                bool useJson, AsyncExecutionScenario scenario, bool securityAdmin = false, string role = "Probe",
+                RecoverableSessionOptions? recoverable = null, bool enabled = true)
             {
-                var context = new WireContext(useJson, scenario);
+                var context = new WireContext(useJson, scenario, enabled);
                 try
                 {
                     await context.m_secretStore.SetAsync(
@@ -900,6 +1076,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                         new ManagedSessionOptions
                         {
                             Endpoint = endpoint,
+                            RecoverableExecution = recoverable,
                             IdentityProvider = new UserNamePasswordIdentityProvider(
                                 context.m_userName, context.m_secrets, context.m_passwordId)
                         },

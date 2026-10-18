@@ -50,6 +50,16 @@ namespace Opc.Ua.Client
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.ReadAsync(new ReadRequest
+                {
+                    RequestHeader = requestHeader!,
+                    MaxAge = maxAge,
+                    TimestampsToReturn = timestampsToReturn,
+                    NodesToRead = nodesToRead
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, maxAge, timestampsToReturn, nodesToRead),
                 static (session, a, ct) => session.ReadAsync(
@@ -89,6 +99,14 @@ namespace Opc.Ua.Client
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.WriteAsync(new WriteRequest
+                {
+                    RequestHeader = requestHeader!,
+                    NodesToWrite = nodesToWrite
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, nodesToWrite),
                 static (session, a, ct) => session.WriteAsync(
@@ -183,6 +201,14 @@ namespace Opc.Ua.Client
             ArrayOf<CallMethodRequest> methodsToCall,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.CallAsync(new CallRequest
+                {
+                    RequestHeader = requestHeader!,
+                    MethodsToCall = methodsToCall
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, methodsToCall),
                 static (session, a, ct) => session.CallAsync(
@@ -599,8 +625,13 @@ namespace Opc.Ua.Client
         private ValueTask<TResponse> CallServiceAsync<TArgs, TResponse>(
             TArgs args,
             Func<Session, TArgs, CancellationToken, ValueTask<TResponse>> call,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool recoveryControl = false)
         {
+            if (!recoveryControl && !StateMachine.IsWorkerFlow)
+            {
+                m_recoverableExecution?.ValidateOrdinaryDispatch();
+            }
             if ((StateMachine.AreServicesAvailable || StateMachine.IsWorkerFlow) &&
                 m_serviceLock.TryEnterReader())
             {

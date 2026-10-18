@@ -54,9 +54,11 @@ namespace Opc.Ua.Client
         internal AsyncServiceOperation(
             SessionRequestContext binding,
             NodeId requestType,
-            Func<ISessionClient, CancellationToken, ValueTask<TResult>> invoke)
+            Func<ISessionClient, CancellationToken, ValueTask<TResult>> invoke,
+            bool ownsBinding = true)
         {
             m_binding = binding;
+            m_ownsBinding = ownsBinding;
             m_requestType = requestType;
             m_invoke = invoke;
             ClientOperationId = Uuid.NewUuid();
@@ -70,7 +72,14 @@ namespace Opc.Ua.Client
                 DefaultTimeoutHint = binding.Session.DefaultTimeoutHint
             };
             m_client.SessionCreated(configuration.SessionId, configuration.AuthenticationToken);
+            binding.ResponseReceived += ObserveSubmissionReply;
         }
+
+        /// <summary>
+        /// Gets whether a decoded outer ServiceFault proved that Submit rejected unsupported recovery.
+        /// Transport errors and embedded original outcomes never set this flag.
+        /// </summary>
+        internal bool UnsupportedSubmissionRejected => Volatile.Read(ref m_unsupportedSubmissionRejected) != 0;
 
         /// <summary>
         /// Gets the nonzero Client ID, including before submission and after local disposal.
@@ -379,13 +388,31 @@ namespace Opc.Ua.Client
             {
                 m_client.Dispose();
                 m_captureTransport.Dispose();
-                await m_binding.DisposeAsync().ConfigureAwait(false);
+                m_binding.ResponseReceived -= ObserveSubmissionReply;
+                if (m_ownsBinding)
+                {
+                    await m_binding.DisposeAsync().ConfigureAwait(false);
+                }
             }
             finally
             {
                 m_exchanges.Release();
                 m_exchanges.Dispose();
                 m_lifetime.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Separates a decoded pre-admission refusal from failures of transport, collection or the original Service.
+        /// </summary>
+        private void ObserveSubmissionReply(IServiceRequest request, IServiceResponse response)
+        {
+            if (request is SubmitServiceRequest submit &&
+                submit.ClientOperationId == ClientOperationId &&
+                response is ServiceFault &&
+                response.ResponseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+            {
+                Volatile.Write(ref m_unsupportedSubmissionRejected, 1);
             }
         }
 
@@ -695,6 +722,22 @@ namespace Opc.Ua.Client
                 }
                 return await SendControlAsync(action, linked.Token).ConfigureAwait(false);
             }
+            catch (ServiceResultException error) when (action == ServiceOperationControlAction.Acknowledge)
+            {
+                SetAcknowledgementFailure(error.Result);
+                throw;
+            }
+            catch (OperationCanceledException) when (action == ServiceOperationControlAction.Acknowledge)
+            {
+                SetAcknowledgementFailure(new ServiceResult(StatusCodes.BadRequestCancelledByClient));
+                throw;
+            }
+            catch (Exception error) when (action == ServiceOperationControlAction.Acknowledge &&
+                error is IOException or HttpRequestException or SocketException)
+            {
+                SetAcknowledgementFailure(new ServiceResult(StatusCodes.BadCommunicationError));
+                throw;
+            }
             finally
             {
                 m_exchanges.Release();
@@ -926,6 +969,8 @@ namespace Opc.Ua.Client
 
         private Task<TResult>? m_invocation;
         private IServiceRequest? m_originalRequest;
+        private readonly bool m_ownsBinding;
+        private int m_unsupportedSubmissionRejected;
         private Func<AsyncServiceResult<TResult>, CancellationToken, ValueTask>? m_accept;
         private AsyncServiceResult<TResult>? m_candidate;
         private ByteString m_serverToken;

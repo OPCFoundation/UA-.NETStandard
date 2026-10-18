@@ -264,6 +264,7 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 channelReconnectTimeout: null,
                 rediscoveredEndpointValidator: null,
+                recoverableExecution: null,
                 ct);
         }
 
@@ -311,6 +312,7 @@ namespace Opc.Ua.Client
             {
                 throw new ArgumentNullException(nameof(sessionFactory));
             }
+            RecoverableSessionExecution.ValidateOptions(options.RecoverableExecution);
             if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(options.ChannelReconnectTimeout))
             {
                 throw new ArgumentOutOfRangeException(nameof(options), "The channel recovery timeout is invalid.");
@@ -360,9 +362,11 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 options.ChannelReconnectTimeout,
                 options.ValidateRediscoveredEndpoint,
+                options.RecoverableExecution,
                 ct).ConfigureAwait(false);
             try
             {
+                using IDisposable? initialization = session.m_recoverableExecution?.Suppress();
                 if (options.ModelChangeTracking)
                 {
                     await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
@@ -409,6 +413,7 @@ namespace Opc.Ua.Client
             bool? updateBeforeConnect,
             TimeSpan? channelReconnectTimeout,
             RediscoveredEndpointValidator? rediscoveredEndpointValidator,
+            RecoverableSessionOptions? recoverableExecution,
             CancellationToken ct)
         {
             if (sessionFactory == null)
@@ -464,6 +469,11 @@ namespace Opc.Ua.Client
                 m_channelReconnectTimeout = channelReconnectTimeout,
                 ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
             };
+            if (recoverableExecution != null)
+            {
+                managed.m_recoverableExecution = new RecoverableSessionExecution(
+                    managed, recoverableExecution, telemetry);
+            }
 
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
@@ -2499,6 +2509,7 @@ namespace Opc.Ua.Client
             Func<CancellationToken, ValueTask<ServerRedundancyInfo>> operation,
             CancellationToken ct)
         {
+            using IDisposable? maintenance = m_recoverableExecution?.Suppress();
             using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
                 m_redundancyRefreshTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);

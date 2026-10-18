@@ -107,6 +107,7 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            RequireTypedOperationContext();
             CallResponse response = await CallOnceAsync(methodId, ct, args)
                 .ConfigureAwait(false);
             return ThrowOrGetOutputArguments(response);
@@ -152,6 +153,7 @@ namespace Opc.Ua
             CancellationToken ct,
             params Variant[] args)
         {
+            RequireTypedOperationContext();
             // Reuse a previously resolved instance MethodId if we already
             // had to fall back for this method against a non-conformant
             // server; otherwise start with the type-declaration MethodId.
@@ -188,6 +190,20 @@ namespace Opc.Ua
             }
 
             return ThrowOrGetOutputArguments(response);
+        }
+
+        /// <summary>
+        /// Prevents older generated proxies from acknowledging before their uninstrumented typed decoding runs.
+        /// Ordinary sessions retain the existing proxy behavior.
+        /// </summary>
+        private void RequireTypedOperationContext()
+        {
+            if (Session is IClientOperationContext
+                { RequiresTypedOperationContext: true, HasOperationContext: false })
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "This proxy requires regeneration to participate in typed recoverable acceptance.");
+            }
         }
 
         /// <summary>
@@ -313,17 +329,17 @@ namespace Opc.Ua
         /// </summary>
         /// <param name="response">The validated Call response.</param>
         /// <exception cref="ServiceResultException"></exception>
-        private static ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
+        private ArrayOf<Variant> ThrowOrGetOutputArguments(CallResponse response)
         {
             CallMethodResult result = response.Results[0];
 
             if (StatusCode.IsBad(result.StatusCode))
             {
-                throw ServiceResultException.Create(
+                throw ClientOperationContext.OriginalFailure(Session, ServiceResultException.Create(
                     result.StatusCode,
                     0,
                     response.DiagnosticInfos,
-                    response.ResponseHeader.StringTable);
+                    response.ResponseHeader.StringTable));
             }
 
             return result.OutputArguments;

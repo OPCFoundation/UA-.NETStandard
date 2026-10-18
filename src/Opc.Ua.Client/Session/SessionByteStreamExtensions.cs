@@ -48,13 +48,23 @@ namespace Opc.Ua.Client
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         /// <exception cref="IOException"></exception>
-        public static async ValueTask<long> ReadBytesToAsync(
+        public static ValueTask<long> ReadBytesToAsync(
             this ISessionClient session,
             NodeId nodeId,
             Stream destination,
             long maxBytes,
             int chunkSize = 4096,
             CancellationToken ct = default)
+        {
+            return ClientOperationContext.ExecuteAsync(session,
+                token => ReadBytesToCoreAsync(session, nodeId, destination, maxBytes, chunkSize, token), ct);
+        }
+
+        /// <summary>
+        /// Completes validation and destination writes before accepting the complete transfer.
+        /// </summary>
+        private static async ValueTask<long> ReadBytesToCoreAsync(
+            ISessionClient session, NodeId nodeId, Stream destination, long maxBytes, int chunkSize, CancellationToken ct)
         {
             if (session is null)
             {
@@ -104,7 +114,7 @@ namespace Opc.Ua.Client
                 }
                 if (StatusCode.IsBad(value.StatusCode))
                 {
-                    throw new ServiceResultException(value.StatusCode);
+                    throw ClientOperationContext.OriginalFailure(session, new ServiceResultException(value.StatusCode));
                 }
                 if (!value.WrappedValue.TryGetValue(out ByteString chunk))
                 {

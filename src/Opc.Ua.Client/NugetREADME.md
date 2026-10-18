@@ -68,6 +68,22 @@ adopting dependency injection. The document loads on first use; set
 validate it during `StartAsync`, and read it back through the public
 `OpcUaClientOptions.ConfigurationProvider`.
 
+## Experimental recoverable execution
+
+`ManagedSessionBuilder.PreferRecoverableExecution()` or
+`ManagedSessionOptions.RecoverableExecution` selects the default-off RSE prototype
+behind the existing asynchronous `ISession` Read/Write/Call interface. Typed
+helpers and generated Method proxies retain their normal signatures.
+Unsupported recovery may fall back before original execution; uncertain
+submission never causes replay.
+
+Use `session.BeginAcknowledgementScope(requireRecoverableReceipt: true)` when
+external storage or an RPC handoff must finish before acknowledgement. An
+ordinary fallback has no receipt and cannot produce a successful no-op ACK.
+See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AsyncServices.md)
+for acceptance callbacks, exact lifetime defaults and same-Session limits.
+This is an experimental OPC 10000-27 draft, not an adopted standard.
+
 ## Reverse connect lifecycle
 
 `ReverseConnectManager` uses an asynchronous, cancellation-aware lifecycle:

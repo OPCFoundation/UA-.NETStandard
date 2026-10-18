@@ -102,6 +102,16 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Prefers recoverable execution behind ordinary asynchronous Read, Write and Call operations.
+        /// Only proven unsupported recovery permits ordinary fallback.
+        /// </summary>
+        public ManagedSessionBuilder PreferRecoverableExecution(RecoverableSessionOptions? options = null)
+        {
+            m_options = m_options with { RecoverableExecution = options ?? new RecoverableSessionOptions() };
+            return this;
+        }
+
+        /// <summary>
         /// Use a discovery endpoint URL with optional security mode/policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>

@@ -535,6 +535,14 @@ the paths above.
 
 ### Generation-bound client requests
 
+For ordinary asynchronous Read/Write/Call calls that should prefer retained-result
+recovery, select `ManagedSessionBuilder.PreferRecoverableExecution()` before
+connecting. Options and DI use `ManagedSessionOptions.RecoverableExecution`.
+Call signatures remain unchanged; unsupported-only fallback and operation-local
+acknowledgement scopes are described in
+[Recoverable Service Execution](AsyncServices.md#use-ordinary-isession-calls).
+This does not weaken the strict contexts described below.
+
 Use `SessionRequestContext` when several calls must use the **same server
 session**, such as continuing a history read, writing an open file, or acting on
 a target you have already checked. A `ManagedSession` can reconnect between
