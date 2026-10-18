@@ -399,7 +399,8 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(record.DeviceName, Is.EqualTo(AutoIdHostFixture.RfidName));
-                    Assert.That(record.Client, Is.Not.Empty);
+                    // The application name the client created its session with (OPC 30010 7.10).
+                    Assert.That(record.Client, Is.EqualTo("AutoIdE2e"));
                     Assert.That(record.AccessResult![0], Is.TypeOf<RfidAccessResult>());
                     Assert.That(record.AccessResult[0].CodeType, Is.EqualTo("EPC"));
                 });

@@ -241,7 +241,12 @@ identifier (a scan with results, and each tag command except those answering
 `NO_IDENTIFIER_8`, `MULTIPLE_IDENTIFIERS_9`, `NOT_SUPPORTED_BY_DEVICE_15`,
 `DEVICE_NOT_READY_17`, `INVALID_CONFIGURATION_18` or `DEVICE_FAULT_20`) raise
 `RfidAccessEventType` on RFID readers and `AutoIdAccessEventType` otherwise, with
-`Client`, `Command` and the access results.
+`Client`, `Command` and the access results. `Client` names the client
+application that originated the command (OPC 30010 6.1.3.3 and 7.10): the
+application name of the client description the session was created with, else
+its application URI, else `OPC UA client`. The results of an asynchronous scan
+name the client that called `ScanStart`; scans the device reports on its own name
+`AutoID device`.
 
 ## Conformance
 

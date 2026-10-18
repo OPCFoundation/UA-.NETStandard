@@ -189,6 +189,7 @@ namespace Opc.Ua.AutoID.Server
                 return (invalid, default);
             }
             NodeId owner = (context as ISessionSystemContext)?.SessionId ?? NodeId.Null;
+            string client = ClientOf(context);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
                 m_stopping.Token);
@@ -225,6 +226,7 @@ namespace Opc.Ua.AutoID.Server
                         {
                             m_activity = ScanActivity.Asynchronous;
                             m_scanOwner = owner;
+                            m_scanClient = client;
                             generation = ++m_generation;
                             UpdateStatusLocked();
                         }
@@ -401,9 +403,16 @@ namespace Opc.Ua.AutoID.Server
             }
             try
             {
+                // The results of an asynchronous scan were requested by the client that started it;
+                // anything else the device acquired on its own.
+                string client;
+                lock (m_lock)
+                {
+                    client = m_activity == ScanActivity.Asynchronous ? m_scanClient : DeviceClient;
+                }
                 PublishLastScan(validated[0]);
                 RaiseScanEvent(validated);
-                RaiseAccessEvent(DeviceClient, "Scan", AccessResultsOf(validated));
+                RaiseAccessEvent(client, "Scan", AccessResultsOf(validated));
             }
             finally
             {

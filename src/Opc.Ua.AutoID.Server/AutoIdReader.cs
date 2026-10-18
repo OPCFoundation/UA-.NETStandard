@@ -386,6 +386,7 @@ namespace Opc.Ua.AutoID.Server
         private ScanActivity m_activity;
         private DeviceStatusEnumeration m_status;
         private NodeId m_scanOwner = NodeId.Null;
+        private string m_scanClient = DeviceClient;
         private long m_generation;
         private bool m_faulted;
         private bool m_disposed;

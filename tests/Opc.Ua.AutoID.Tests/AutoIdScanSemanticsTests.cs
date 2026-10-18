@@ -32,8 +32,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.AutoID.Server;
+using OperationContext = Opc.Ua.Server.OperationContext;
+using ServerSession = Opc.Ua.Server.ISession;
+using ServerSystemContext = Opc.Ua.Server.ServerSystemContext;
 
 namespace Opc.Ua.AutoID.Tests
 {
@@ -554,6 +558,55 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public async Task AccessEventsNameTheClientApplicationOfTheSessionAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            RfidScanResult result = AutoIdTestData.RfidResult(AutoIdTestData.Bytes(0x31, 0x32));
+            provider.OnScan = (settings, ct) => new ValueTask<AutoIdScanOutcome>(
+                new AutoIdScanOutcome(
+                    new ScanResult[] { result }.ToArrayOf(),
+                    AutoIdOperationStatusEnumeration.SUCCESS));
+            var events = new EventCapture(device);
+            ScanSettings settings = AutoIdTestData.Settings(cycles: 1);
+
+            await ScanAsync(device, settings, SessionContext("Dock client", "urn:dock:client")).ConfigureAwait(false);
+            await ScanAsync(device, settings, SessionContext(null, "urn:dock:client")).ConfigureAwait(false);
+            await ScanAsync(device, settings, SessionContext(null, null)).ConfigureAwait(false);
+            await ScanAsync(device, settings).ConfigureAwait(false);
+
+            Assert.That(
+                events.Of<RfidAccessEventState>().Select(e => e.Client!.Value).ToArray(),
+                Is.EqualTo(s_sessionClients));
+        }
+
+        [Test]
+        public async Task ScansOfAnAsynchronousScanNameTheClientThatStartedItAsync()
+        {
+            (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
+            var events = new EventCapture(device);
+            ArrayOf<ScanResult> results = new ScanResult[]
+            {
+                AutoIdTestData.RfidResult(AutoIdTestData.Bytes(0x41, 0x42))
+            }.ToArrayOf();
+
+            await provider.Sink!.ReportScanAsync(results).ConfigureAwait(false);
+            ScanStartMethodStateResult start = await StartAsync(
+                device, AutoIdTestData.Settings(), SessionContext("Dock client", null)).ConfigureAwait(false);
+            await provider.Sink.ReportScanAsync(results).ConfigureAwait(false);
+            ServiceResult stop = await StopAsync(device).ConfigureAwait(false);
+            await provider.Sink.ReportScanAsync(results).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(start.Status, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
+                Assert.That(ServiceResult.IsGood(stop), Is.True);
+                Assert.That(
+                    events.Of<RfidAccessEventState>().Select(e => e.Client!.Value).ToArray(),
+                    Is.EqualTo(s_scanClients));
+            });
+        }
+
+        [Test]
         public async Task EveryReaderKindRaisesItsOwnScanEventTypeAsync()
         {
             AutoIdRuntime runtime = m_fixture!.Runtime;
@@ -695,6 +748,28 @@ namespace Opc.Ua.AutoID.Tests
             return ((RfidReaderDeviceState)reader.Device, provider);
         }
 
+        /// <summary>
+        /// A request context of a session whose client describes itself with the given name and URI.
+        /// </summary>
+        private ServerSystemContext SessionContext(string? applicationName, string? applicationUri)
+        {
+            var diagnostics = new SessionDiagnosticsDataType
+            {
+                ClientDescription = new ApplicationDescription
+                {
+                    ApplicationName = applicationName == null ? default : new LocalizedText(applicationName),
+                    ApplicationUri = applicationUri
+                }
+            };
+            var session = new Mock<ServerSession>();
+            session.Setup(s => s.Id).Returns(new NodeId(Guid.NewGuid()));
+            session.Setup(s => s.ClientApplicationUri).Returns(applicationUri);
+            session.Setup(s => s.ReadDiagnostics(It.IsAny<Func<SessionDiagnosticsDataType, string?>>()))
+                .Returns((Func<SessionDiagnosticsDataType, string?> read) => read(diagnostics));
+            return ((ServerSystemContext)m_fixture!.Context).Copy(
+                new OperationContext(session.Object, DiagnosticsMasks.None));
+        }
+
         private AutoIdReader ReaderOf(RfidReaderDeviceState device)
         {
             return m_fixture!.Runtime.Readers.ToArray()!.Single(reader => reader.Device == device);
@@ -734,6 +809,10 @@ namespace Opc.Ua.AutoID.Tests
             return epc!;
         }
 
+        private static readonly string[] s_sessionClients =
+            ["Dock client", "urn:dock:client", "OPC UA client", "OPC UA client"];
+
+        private static readonly string[] s_scanClients = ["AutoID device", "Dock client", "AutoID device"];
         private static int s_counter;
         private AutoIdManagerFixture? m_fixture;
     }

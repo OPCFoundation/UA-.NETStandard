@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.AutoID.Server
 {
@@ -39,6 +40,11 @@ namespace Opc.Ua.AutoID.Server
         /// The client name of a command the device executed on its own.
         /// </summary>
         private const string DeviceClient = "AutoID device";
+
+        /// <summary>
+        /// The client name of a call whose session does not describe the client application.
+        /// </summary>
+        private const string UnnamedClient = "OPC UA client";
 
         /// <inheritdoc/>
         public async ValueTask ReportPresenceAsync(ushort presence, CancellationToken cancellationToken = default)
@@ -121,6 +127,31 @@ namespace Opc.Ua.AutoID.Server
                 m_operations.Exit();
             }
             return default;
+        }
+
+        /// <summary>
+        /// Gets the name of the client application that originated a call (the <c>Client</c> of
+        /// OPC 30010 6.1.3.3 and 7.10): the application name of the client description the session
+        /// was created with, its application URI, or a generic name. The user of the session is not
+        /// the client application.
+        /// </summary>
+        internal static string ClientOf(ISystemContext? context)
+        {
+            if ((context as ServerSystemContext)?.OperationContext?.Session is { } session)
+            {
+                string? name = session.ReadDiagnostics(
+                    diagnostics => diagnostics.ClientDescription?.ApplicationName.Text);
+                if (!string.IsNullOrEmpty(name))
+                {
+                    return name!;
+                }
+                string? uri = session.ClientApplicationUri;
+                if (!string.IsNullOrEmpty(uri))
+                {
+                    return uri!;
+                }
+            }
+            return UnnamedClient;
         }
 
         /// <summary>
@@ -289,15 +320,6 @@ namespace Opc.Ua.AutoID.Server
         private string DeviceNameOf()
         {
             return Device.DeviceName?.Value ?? Name.Name ?? string.Empty;
-        }
-
-        /// <summary>
-        /// Gets the name of the client of a call: the session's user, or a generic name.
-        /// </summary>
-        private static string ClientOf(ISystemContext? context)
-        {
-            string? name = (context as ISessionSystemContext)?.UserIdentity?.DisplayName;
-            return string.IsNullOrEmpty(name) ? "OPC UA client" : name!;
         }
     }
 }
