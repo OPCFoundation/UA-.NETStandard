@@ -28,14 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
-using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Hosting;
@@ -68,7 +66,7 @@ namespace Opc.Ua.Vision.Tests
                 .AddVision();
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var modelProviders = provider.GetServices<IVisionModelProvider>();
+            IEnumerable<IVisionModelProvider> modelProviders = provider.GetServices<IVisionModelProvider>();
             IVisionPostSetupRunner runner =
                 provider.GetRequiredService<IVisionPostSetupRunner>();
 
@@ -95,7 +93,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void AddVisionMediaProviderThrowsOnNullBuilder()
         {
-            var provider = new Mock<IVisionMediaProvider>().Object;
+            IVisionMediaProvider provider = new Mock<IVisionMediaProvider>().Object;
 
             Assert.Throws<ArgumentNullException>(() =>
                 OpcUaServerVisionBuilderExtensions.AddVisionMediaProvider(
@@ -108,7 +106,7 @@ namespace Opc.Ua.Vision.Tests
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test");
-            var provider = new Mock<IVisionMediaProvider>().Object;
+            IVisionMediaProvider provider = new Mock<IVisionMediaProvider>().Object;
 
             Assert.Throws<ArgumentException>(() =>
                 builder.AddVisionMediaProvider(string.Empty, provider));
@@ -122,21 +120,21 @@ namespace Opc.Ua.Vision.Tests
                 .AddServer(o => o.ApplicationName = "test");
 
             Assert.Throws<ArgumentNullException>(() =>
-                builder.AddVisionMediaProvider("Sensor1", (IVisionMediaProvider)null!));
+                builder.AddVisionMediaProvider("Sensor1", null!));
         }
 
         [Test]
         public void AddVisionMediaProviderInstanceRegistersRegistration()
         {
             IServiceCollection services = new ServiceCollection();
-            var mediaProvider = new Mock<IVisionMediaProvider>().Object;
+            IVisionMediaProvider mediaProvider = new Mock<IVisionMediaProvider>().Object;
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
                 .AddVision()
                 .AddVisionMediaProvider("Sensor1", mediaProvider);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionMediaProviderRegistration? registration = provider
                 .GetServices<VisionMediaProviderRegistration>().FirstOrDefault();
 
             Assert.That(registration, Is.Not.Null);
@@ -147,7 +145,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void AddVisionInferenceProviderThrowsOnNullBuilder()
         {
-            var provider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionInferenceProvider provider = new Mock<IVisionInferenceProvider>().Object;
 
             Assert.Throws<ArgumentNullException>(() =>
                 OpcUaServerVisionBuilderExtensions.AddVisionInferenceProvider(
@@ -160,7 +158,7 @@ namespace Opc.Ua.Vision.Tests
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test");
-            var provider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionInferenceProvider provider = new Mock<IVisionInferenceProvider>().Object;
 
             Assert.Throws<ArgumentException>(() =>
                 builder.AddVisionInferenceProvider(string.Empty, provider));
@@ -175,21 +173,21 @@ namespace Opc.Ua.Vision.Tests
 
             Assert.Throws<ArgumentNullException>(() =>
                 builder.AddVisionInferenceProvider(
-                    "Pipeline1", (IVisionInferenceProvider)null!));
+                    "Pipeline1", null!));
         }
 
         [Test]
         public void AddVisionInferenceProviderInstanceRegistersRegistration()
         {
             IServiceCollection services = new ServiceCollection();
-            var inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
                 .AddVision()
                 .AddVisionInferenceProvider("Pipeline1", inferenceProvider);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionInferenceProviderRegistration? registration = provider
                 .GetServices<VisionInferenceProviderRegistration>().FirstOrDefault();
 
             Assert.That(registration, Is.Not.Null);
@@ -202,7 +200,7 @@ namespace Opc.Ua.Vision.Tests
         public void AddVisionInferenceProviderRegistersOffServerWhenFlagFalse()
         {
             IServiceCollection services = new ServiceCollection();
-            var inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
+            IVisionInferenceProvider inferenceProvider = new Mock<IVisionInferenceProvider>().Object;
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
                 .AddVision()
@@ -210,7 +208,7 @@ namespace Opc.Ua.Vision.Tests
                     onServer: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionInferenceProviderRegistration registration = provider
                 .GetServices<VisionInferenceProviderRegistration>().First();
 
             Assert.That(registration.OnServer, Is.False);
@@ -219,7 +217,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void AddVisionFeedbackSinkThrowsOnNullBuilder()
         {
-            var sink = new Mock<IVisionFeedbackSink>().Object;
+            IVisionFeedbackSink sink = new Mock<IVisionFeedbackSink>().Object;
 
             Assert.Throws<ArgumentNullException>(() =>
                 OpcUaServerVisionBuilderExtensions.AddVisionFeedbackSink(
@@ -232,7 +230,7 @@ namespace Opc.Ua.Vision.Tests
             IServiceCollection services = new ServiceCollection();
             IOpcUaServerBuilder builder = services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test");
-            var sink = new Mock<IVisionFeedbackSink>().Object;
+            IVisionFeedbackSink sink = new Mock<IVisionFeedbackSink>().Object;
 
             Assert.Throws<ArgumentException>(() =>
                 builder.AddVisionFeedbackSink(string.Empty, sink));
@@ -246,21 +244,21 @@ namespace Opc.Ua.Vision.Tests
                 .AddServer(o => o.ApplicationName = "test");
 
             Assert.Throws<ArgumentNullException>(() =>
-                builder.AddVisionFeedbackSink("Pipeline1", (IVisionFeedbackSink)null!));
+                builder.AddVisionFeedbackSink("Pipeline1", null!));
         }
 
         [Test]
         public void AddVisionFeedbackSinkInstanceRegistersRegistration()
         {
             IServiceCollection services = new ServiceCollection();
-            var feedbackSink = new Mock<IVisionFeedbackSink>().Object;
+            IVisionFeedbackSink feedbackSink = new Mock<IVisionFeedbackSink>().Object;
             services.AddOpcUa()
                 .AddServer(o => o.ApplicationName = "test")
                 .AddVision()
                 .AddVisionFeedbackSink("Pipeline1", feedbackSink);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionFeedbackSinkRegistration? registration = provider
                 .GetServices<VisionFeedbackSinkRegistration>().FirstOrDefault();
 
             Assert.That(registration, Is.Not.Null);
@@ -289,7 +287,8 @@ namespace Opc.Ua.Vision.Tests
                 .ConfigureVision(_ => { });
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var configurators = provider.GetServices<IVisionPostSetupConfigurator>();
+            IEnumerable<IVisionPostSetupConfigurator> configurators =
+                provider.GetServices<IVisionPostSetupConfigurator>();
 
             Assert.That(configurators, Is.Not.Empty);
         }
@@ -304,7 +303,8 @@ namespace Opc.Ua.Vision.Tests
                 .ConfigureVision((_, _) => default);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var configurators = provider.GetServices<IVisionPostSetupConfigurator>();
+            IEnumerable<IVisionPostSetupConfigurator> configurators =
+                provider.GetServices<IVisionPostSetupConfigurator>();
 
             Assert.That(configurators, Is.Not.Empty);
         }
@@ -350,7 +350,7 @@ namespace Opc.Ua.Vision.Tests
             bool containsVision = false;
             for (int ii = 0; ii < namespaces.Count; ii++)
             {
-                if (namespaces[ii] == global::Opc.Ua.Vision.Namespaces.Vision)
+                if (namespaces[ii] == Perception.Namespaces.Vision)
                 {
                     containsVision = true;
                     break;
@@ -366,7 +366,7 @@ namespace Opc.Ua.Vision.Tests
             {
                 InstanceNamespaceUri = "urn:test:vision:instance"
             };
-            var providers = new IVisionModelProvider[] { new VisionModelProvider() }
+            ArrayOf<IVisionModelProvider> providers = new IVisionModelProvider[] { new VisionModelProvider() }
                 .ToArrayOf();
             var factory = new VisionNodeManagerFactory(providers, options);
 

@@ -71,6 +71,12 @@ namespace Opc.Ua.AMB.Client
 
         /// <summary>Gets the revision counter (§10.2).</summary>
         public int? RevisionCounter { get; init; }
+
+        /// <summary>
+        /// Gets original identification reads, including absent optional paths,
+        /// when the client uses AmbClientOptions; empty for legacy construction.
+        /// </summary>
+        public ArrayOf<AssetReadValue> Values { get; init; }
     }
 
     /// <summary>
@@ -136,6 +142,12 @@ namespace Opc.Ua.AMB.Client
         /// cause is unknown, and null when the alarm publishes none.
         /// </summary>
         public ArrayOf<RootCauseDataType> PotentialRootCauses { get; init; }
+
+        /// <summary>
+        /// Gets original address-space field reads in strict mode. Event
+        /// records and legacy reads do not have per-field DataValues.
+        /// </summary>
+        public ArrayOf<AssetReadValue> Values { get; init; }
     }
 
     /// <summary>
@@ -212,6 +224,12 @@ namespace Opc.Ua.AMB.Client
 
         /// <summary>Gets whether the configuration is to be, or was, changed.</summary>
         public bool? ConfigurationChanged { get; init; }
+
+        /// <summary>
+        /// Gets original address-space field reads in strict mode. These are
+        /// current or future activities, not historical maintenance records.
+        /// </summary>
+        public ArrayOf<AssetReadValue> Values { get; init; }
     }
 
     /// <summary>
@@ -241,6 +259,12 @@ namespace Opc.Ua.AMB.Client
         /// does not.
         /// </remarks>
         public bool IsUserLink { get; init; }
+
+        /// <summary>
+        /// Gets original URI, UserAccessLevel and optional user-link marker
+        /// reads in strict mode. No URI is fetched by the client.
+        /// </summary>
+        public ArrayOf<AssetReadValue> Values { get; init; }
     }
 
     /// <summary>
@@ -277,6 +301,11 @@ namespace Opc.Ua.AMB.Client
 
         /// <summary>Gets the dictionary entries that classify the asset.</summary>
         public ArrayOf<ExpandedNodeId> Classifications { get; init; }
+
+        /// <summary>
+        /// Gets original location property and local-time reads in strict mode.
+        /// </summary>
+        public ArrayOf<AssetReadValue> Values { get; init; }
     }
 
     /// <summary>
@@ -289,7 +318,13 @@ namespace Opc.Ua.AMB.Client
     public sealed record AssetEntryRecord(
         QualifiedName BrowseName,
         Variant Value,
-        ArrayOf<ExpandedNodeId> DictionaryEntries);
+        ArrayOf<ExpandedNodeId> DictionaryEntries)
+    {
+        /// <summary>
+        /// Gets the original entry read in strict mode; null for legacy reads.
+        /// </summary>
+        public AssetReadValue? ReadValue { get; init; }
+    }
 
     /// <summary>
     /// The folders OPC 10000-110 §10.6 and §10.7 define.
@@ -325,6 +360,12 @@ namespace Opc.Ua.AMB.Client
 
         /// <summary>Gets the <c>DeviceHealth</c>, or null when the asset publishes none.</summary>
         public DeviceHealthEnumeration? DeviceHealth { get; init; }
+
+        /// <summary>
+        /// Gets the original DeviceHealth read in strict mode, including its
+        /// source and timestamps; null for legacy construction.
+        /// </summary>
+        public AssetReadValue? DeviceHealthValue { get; init; }
 
         /// <summary>Gets the health alarms.</summary>
         public ArrayOf<AssetAlarmRecord> HealthAlarms { get; init; }

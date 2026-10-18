@@ -48,6 +48,13 @@ Minimal Client together.
 
 ## Companion-model samples
 
+- [Generic recycling simulation](../samples/Recycling/README.md) — one durable causal coordinator
+  and ten process views with typed OPC UA coordination, native companion equipment,
+  material genealogy and read-only committed measurements. Its optional
+  [operator console walkthrough](../samples/Recycling/README.md#operator-console-walkthrough)
+  covers browser inspection and role-limited controls with screenshots and an animated tour.
+  The guide distinguishes synthetic simulation from calibration, original-source parity
+  and formal companion certification.
 - [Pump Device Integration Server](../samples/DI/PumpDeviceIntegrationServer/README.md) —
   Device Integration Part 100 server using `Opc.Ua.Di.Server`'s fluent
   builder.
@@ -87,6 +94,19 @@ Minimal Client together.
   `ModelManagementServer` publishes the draft AI Model Management catalogue
   and routes inference; `ModelManagementClient` discovers deployments and
   exercises the Methods.
+- [Machine Vision server](../samples/Vision/MachineVisionServer/README.md) and
+  [client](../samples/Vision/MachineVisionClient/README.md) — released OPC 40100-1/-2
+  in Machinery, with recipe/file workflows and a shared draft/native inspection engine.
+- [MachineTool and WMTP](../samples/MachineTool/) — separate or combined
+  MachineTool/peripheral hosting, independent simulated instances, retained and
+  modern production, remote files, measurement configuration and record workflows.
+- [GMS server and client](../samples/GMS/) — native systems, qualification,
+  environmental conditions and typed result/characteristic/correction workflows.
+- [Cranes and Hoists](../samples/CranesHoists/) — Robotics-derived topology,
+  acquisition quality and authorized simulated limit requests.
+- [Combined companion suite](../samples/CompanionSuite/) — MachineTool, WMTP,
+  GMS, CranesHoists and MachineVision on one DI/Machinery owner, with isolated
+  instances and a bounded real-session self-check.
 - [Minimal ISA-95 Server](../samples/Isa95/MinimalIsa95Server/README.md) —
   hosts the OPC-10030 ISA-95 Common Model with OPC-10031-4 Job Control V1 and
   V2, using the typed common-model builder and in-memory Job Control provider.

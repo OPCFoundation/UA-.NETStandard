@@ -209,8 +209,8 @@ namespace Opc.Ua.Vision.Tests
             ConstructorInfo? ctor = typeof(SilkFrameCaptureResult).GetConstructor(
                 BindingFlags.NonPublic | BindingFlags.Instance,
                 binder: null,
-                types: new[]
-                {
+                types:
+                [
                     typeof(int),
                     typeof(int),
                     typeof(byte[]),
@@ -218,12 +218,12 @@ namespace Opc.Ua.Vision.Tests
                     typeof(ulong),
                     typeof(uint),
                     typeof(RenderDiagnosticsState)
-                },
+                ],
                 modifiers: null);
             Assert.That(ctor, Is.Not.Null,
                 "SilkFrameCaptureResult's internal capture constructor must exist for BlankFrameGuard tests to construct fixtures.");
             return (SilkFrameCaptureResult)ctor!.Invoke(
-                new object[] { width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty });
+                [width, height, rgba, render, 0UL, 0U, RenderDiagnosticsState.Empty]);
         }
     }
 }

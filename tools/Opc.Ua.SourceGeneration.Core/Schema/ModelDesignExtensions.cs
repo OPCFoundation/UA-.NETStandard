@@ -485,6 +485,28 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format("global::{0}.Namespaces.{1}", ns.Prefix, ns.Name);
         }
 
+        /// <summary>
+        /// Returns the expression for a namespace URI in generated code: the
+        /// model's namespace constant when the model declares the namespace,
+        /// otherwise the URI as an escaped string literal.
+        /// </summary>
+        /// <remarks>
+        /// A namespace the model does not declare can still appear in
+        /// generated code: an inherited child keeps the browse namespace of
+        /// the model that declared it (DI below a Robotics subtype), and a
+        /// reference can target a node of a namespace the NodeSet lists only
+        /// in its NamespaceUris.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public static string GetNamespaceUriAsCode(
+            this Namespace[] namespaces,
+            string namespaceUri)
+        {
+            return namespaces.GetConstantSymbolForNamespace(namespaceUri)
+                ?? namespaceUri.AsStringLiteral();
+        }
+
         public static bool IsOverriddenWithSameClass(
             this InstanceDesign instance,
             string targetNamespace,
@@ -3635,7 +3657,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "global::Opc.Ua.NodeId.Create({0}, {1}, {2})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace),
                 namespaceTableVariable);
         }
@@ -3680,7 +3702,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "new global::Opc.Ua.ExpandedNodeId({0}, {1})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace));
         }
 

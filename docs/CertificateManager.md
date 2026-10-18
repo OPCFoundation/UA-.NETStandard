@@ -117,9 +117,25 @@ and thumbprint/subject/application-URI rotation fallbacks of `LoadPrivateKeyAsyn
 
 Configuration validation, manager startup loading, the certificate-provider cache cold path and
 `ApplicationInstance` provisioning/reload/deletion use this capability when available. The existing-key
-GDS signing-request path and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
+GDS signing-request path, certificate push staging/commit/rollback, issuer import/compensation,
+rejected-store access and server-hosted `TrustList` access use it as well. Direct `TrustList` hosts
 can use the overload accepting `ICertificateStoreResolver`; existing constructors retain their behavior.
 Provider routing does not change trust acceptance, GDS access controls or transaction semantics.
+
+Application-certificate push validation uses the configured manager and the group's registered
+trust scope (the default application group uses `Peers`), including instance-scoped store providers.
+Per [OPC 10000-12, 7.10.5](https://reference.opcfoundation.org/specs/OPC-10000-12/7.10.5),
+the group's TrustList must already contain the issuers; the `IssuerCertificates` method argument
+is ignored for application-certificate groups. Suppressible errors are accepted for this operation
+only. A per-call `AcceptError` callback uses an isolated validation core, so it neither reuses nor
+populates the acceptance cache used for normal connection validation. Missing issuers and other
+non-suppressible errors still fail.
+
+Custom stores also need a durable `IPeekablePendingCertificateKeyStore` when regenerating CSR keys.
+Scoped store resolution alone does not make the default directory-backed pending-key store support
+arbitrary storage backends. Pending keys must survive until the matching certificate is uploaded,
+including from a different session, as required by
+[OPC 10000-12, 7.10.10](https://reference.opcfoundation.org/specs/OPC-10000-12/7.10.10).
 
 ### Validating Certificates
 
@@ -859,6 +875,28 @@ write. A later backing-store failure can still leave partial writes; affected
 validation caches are invalidated in that case.
 
 > **Note:** `ITrustListTransaction`/`BeginUpdateAsync` above is a local, in-process staging API on `CertificateManager`. It is unrelated to the OPC UA PushManagement transaction model (`ApplyChanges`/`CancelChanges`, see *PushManagement Transactions* above), which is driven remotely by a Client over the `ServerConfiguration` address space and governs `TrustList`/`ServerConfiguration` Methods called through `ConfigurationNodeManager`.
+
+An application that applies a TrustList it received by other means (for
+example a GDS push delivered through its own channel) can run the same
+pre-commit check that `TrustList.CloseAndUpdate` applies before it writes the
+stores. A null `ArrayOf` keeps the current store contents, an empty one
+replaces them with nothing. Every certificate of the resulting TrustList is
+validated, including the certificates retained from a store that is not
+replaced, and every certificate passed as `issuerCertificates` must be a CA:
+
+```csharp
+ServiceResult check = await trustList.ValidateNewTrustListAsync(
+    issuerCertificates: newIssuers,          // ArrayOf<Certificate>
+    trustedCertificates: newTrusted,         // ArrayOf<Certificate>
+    issuerCrls: ArrayOf<X509CRL>.Null,       // keep the current issuer CRLs
+    trustedCrls: ArrayOf<X509CRL>.Null,      // keep the current trusted CRLs
+    securityConfiguration,
+    ct);
+if (ServiceResult.IsBad(check))
+{
+    // Do not apply: check.StatusCode is BadCertificateInvalid with the reason.
+}
+```
 
 ## Interfaces Reference
 

@@ -1,0 +1,1504 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!--
+ * Copyright (c) 2005-2022 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+-->
+
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" LastModified="2023-02-24T15:52:14Z" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://opcfoundation.org/UA/DI/</Uri>
+    <Uri>http://opcfoundation.org/UA/Machinery/</Uri>
+    <Uri>http://opcfoundation.org/UA/Robotics/</Uri>
+    <Uri>http://opcfoundation.org/UA/CranesHoists/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/CranesHoists/" Version="1.00" PublicationDate="2023-09-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.01" PublicationDate="2022-02-24T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/DI/" Version="1.03.1" PublicationDate="2021-09-07T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/Machinery/" Version="1.02.0" PublicationDate="2022-05-01T00:00:00Z" />
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/Robotics/" Version="1.0.0" PublicationDate="2019-05-06T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt16">i=5</Alias>
+    <Alias Alias="Double">i=11</Alias>
+    <Alias Alias="DateTime">i=13</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasAddIn">i=17604</Alias>
+    <Alias Alias="IdType">i=256</Alias>
+    <Alias Alias="NumericRange">i=291</Alias>
+    <Alias Alias="HasPhysicalComponent">i=25262</Alias>
+  </Aliases>
+  <Extensions>
+    <Extension>
+      <si:Generator Product="SiOME" Edition="Standard" Version="2.5.12" xmlns:si="http://www.siemens.com/OPCUA/2017/SimaticNodeSetExtensions" />
+    </Extension>
+    <Extension>
+      <si:GeneratorExtension Hash="ab253d11062dfe0c3a9d5550ac5d31b1" xmlns:si="http://www.siemens.com/OPCUA/2017/SimaticNodeSetExtensions" />
+    </Extension>
+  </Extensions>
+  <UAObject NodeId="ns=4;i=1000" BrowseName="4:http://opcfoundation.org/UA/CranesHoists/" SymbolicName="http___opcfoundation_org_UA_CranesHoists" ParentNodeId="i=11715">
+    <DisplayName>http://opcfoundation.org/UA/CranesHoists/</DisplayName>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/11.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=4;i=1001" BrowseName="IsNamespaceSubset" ParentNodeId="ns=4;i=1000" DataType="Boolean">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <Boolean xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">false</Boolean>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1002" BrowseName="NamespacePublicationDate" ParentNodeId="ns=4;i=1000" DataType="DateTime">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:DateTime xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">2023-05-01T00:00:00Z</uax:DateTime>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1003" BrowseName="NamespaceUri" ParentNodeId="ns=4;i=1000" DataType="String">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/CranesHoists/</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1004" BrowseName="NamespaceVersion" ParentNodeId="ns=4;i=1000" DataType="String">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:String xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">1.00</uax:String>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1005" BrowseName="StaticNodeIdTypes" ParentNodeId="ns=4;i=1000" DataType="IdType" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <ListOfInt32 xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd">
+				<Int32>0</Int32>
+			</ListOfInt32>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1006" BrowseName="StaticNumericNodeIdRange" ParentNodeId="ns=4;i=1000" DataType="NumericRange" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfString xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:String>1:65535</uax:String>
+            </uax:ListOfString>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1007" BrowseName="StaticStringNodeIdPattern" ParentNodeId="ns=4;i=1000" DataType="String">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1008" BrowseName="DefaultRolePermissions" ParentNodeId="ns=4;i=1000" DataType="i=96" ValueRank="1">
+    <DisplayName>DefaultRolePermissions</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=4;i=1556" BrowseName="4:BrakeType">
+    <DisplayName>BrakeType</DisplayName>
+    <Category>Cranes Base Info BrakeType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15063</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=4;i=1369" BrowseName="4:CraneAxisType">
+    <DisplayName>CraneAxisType</DisplayName>
+    <Category>Cranes Base Info CraneAxisType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.3.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=3;i=16601</Reference>
+    </References>
+  </UAObjectType>
+  <UAObjectType NodeId="ns=4;i=1392" BrowseName="4:CraneMotionDeviceType">
+    <DisplayName>CraneMotionDeviceType</DisplayName>
+    <Category>Cranes Base Info CraneMotionDeviceType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.2.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=3;i=1004</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=4;i=2093" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=1369">
+    <DisplayName>ParameterSet</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1369</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=4;i=2096" BrowseName="4:ActualPositionCapability" ParentNodeId="ns=4;i=2093" DataType="Boolean">
+    <DisplayName>ActualPositionCapability</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=4;i=2112" BrowseName="4:CraneMotionDeviceSystemType">
+    <DisplayName>CraneMotionDeviceSystemType</DisplayName>
+    <Category>Cranes Base Info CraneMotionDeviceSystemType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=3;i=1002</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=4;i=2113" BrowseName="4:ProtectiveFunctions" ParentNodeId="ns=4;i=2112">
+    <DisplayName>ProtectiveFunctions</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=2114" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=2112">
+    <DisplayName>ParameterSet</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=1373" BrowseName="4:&lt;BackupBrakeIdentifier&gt;" SymbolicName="S_BackupBrakeIdentifier_" ParentNodeId="ns=4;i=1369">
+    <DisplayName>&lt;BackupBrakeIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1369</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1556</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=1378" BrowseName="4:ActualLoad" ParentNodeId="ns=4;i=1369">
+    <DisplayName>ActualLoad</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1369</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=3;i=1018</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=4;i=1262" BrowseName="4:CraneMotorType">
+    <DisplayName>CraneMotorType</DisplayName>
+    <Category>Cranes Base Info CraneMotorType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.5</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=3;i=1019</Reference>
+      <Reference ReferenceType="ns=3;i=18181">ns=3;i=16041</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=4;i=1263" BrowseName="4:&lt;CraneMotionDeviceIdentifier&gt;" SymbolicName="S_CraneMotionDeviceIdentifier_" ParentNodeId="ns=4;i=1392">
+    <DisplayName>&lt;CraneMotionDeviceIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="i=25262" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=4;i=1462" BrowseName="4:ProtectiveFunctionType">
+    <DisplayName>ProtectiveFunctionType</DisplayName>
+    <Category>Cranes Base Info ProtectiveFunctionType</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/7.6.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=4;i=1463" BrowseName="4:Active" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>Active</DisplayName>
+    <Description>The Active variable is TRUE if this particular protective function is active, i.e. that a stop or slowdown is initiated, FALSE otherwise. If Enabled is FALSE then Active shall be FALSE.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1478" BrowseName="4:Enabled" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>Enabled</DisplayName>
+    <Description>The Enabled variable is TRUE if this protective function is currently supervising the system, FALSE otherwise. A protective function may or may not be enabled at all times, e.g. the protective stop function of the safety doors are typically enabled in automatic operational mode and disabled in manual mode.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1479" BrowseName="4:Name" ParentNodeId="ns=4;i=1462" DataType="String">
+    <DisplayName>Name</DisplayName>
+    <Description>The Name of the ProtectiveStopFunctionType provides a manufacturer-specific protective function identifier within the safety system.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1860" BrowseName="4:DirPlusStop" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>DirPlusStop</DisplayName>
+    <Description>Stop enabled for direction where position value increases (plus).</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1861" BrowseName="4:DirMinusStop" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>DirMinusStop</DisplayName>
+    <Description>Stop enabled for direction where position value decreases (minus).</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1864" BrowseName="4:ProtectiveFunctionMode" ParentNodeId="ns=4;i=1462" DataType="ns=4;i=3002">
+    <DisplayName>ProtectiveFunctionMode</DisplayName>
+    <Description>This property describes which is the mode of operation for this protective function, for example force limiter for overload protection devices or motion limiter for limit switches etc.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1485" BrowseName="4:SpeedLimitDirPlusSetpoint" ParentNodeId="ns=4;i=2093" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>SpeedLimitDirPlusSetpoint</DisplayName>
+    <Description>Speed limitation request written from client, in direction where position value increases, in percentage of rated speed, range [0%..100%]</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5007</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1486" BrowseName="4:SpeedLimitDirMinusSetpoint" ParentNodeId="ns=4;i=2093" DataType="Double" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>SpeedLimitDirMinusSetpoint</DisplayName>
+    <Description>Speed limitation request written from client, in direction where position value decreases, in percentage of rated speed, range [0%..100%]</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5007</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1511" BrowseName="4:SpeedLimitEnabledDirPlus" ParentNodeId="ns=4;i=2093" DataType="Boolean" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>SpeedLimitEnabledDirPlus</DisplayName>
+    <Description>Speed limitation request active, written from client, in direction where position value increases. True if a client requests the speed to be limited in this direction, false if speed doesn't need to be limited.</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5007</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1845" BrowseName="4:SpeedLimitEnabledDirMinus" ParentNodeId="ns=4;i=2093" DataType="Boolean" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>SpeedLimitEnabledDirMinus</DisplayName>
+    <Description>Speed limitation request active, written from client, in direction where position value decreases. True if a client requests the speed to be limited in this direction, false if speed doesn't need to be limited.</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5007</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1852" BrowseName="4:RatedSpeed" ParentNodeId="ns=4;i=2093" DataType="Double">
+    <DisplayName>RatedSpeed</DisplayName>
+    <Description>Rated speed of this Axis.</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1950" BrowseName="4:SpeedLimitDirPlus" ParentNodeId="ns=4;i=2093" DataType="Double">
+    <DisplayName>SpeedLimitDirPlus</DisplayName>
+    <Description>Speed limitation value active on the control system, in direction where position value increases, in percentage of rated speed, range [0%..100%]</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2031" BrowseName="4:SpeedLimitDirMinus" ParentNodeId="ns=4;i=2093" DataType="Double">
+    <DisplayName>SpeedLimitDirMinus</DisplayName>
+    <Description>Speed limitation value active on the control system, in direction where position value decreases, in percentage of rated speed, range [0%..100%]</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2037" BrowseName="4:IsMoving" ParentNodeId="ns=4;i=2093" DataType="Boolean">
+    <DisplayName>IsMoving</DisplayName>
+    <Description>True when the Axis is moving, false if not.</Description>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2347" BrowseName="4:SystemOn" ParentNodeId="ns=4;i=2114" DataType="Boolean">
+    <DisplayName>SystemOn</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5012</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2114</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2348" BrowseName="4:CraneOperationalMode" ParentNodeId="ns=4;i=2114" DataType="ns=4;i=3000">
+    <DisplayName>CraneOperationalMode</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5012</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2114</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2369" BrowseName="4:ExternalControlRequest" ParentNodeId="ns=4;i=2114" DataType="ns=4;i=3001">
+    <DisplayName>ExternalControlRequest</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5012</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2114</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2381" BrowseName="4:SpeedLimitGlobalEnabled" ParentNodeId="ns=4;i=2114" DataType="Boolean" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>SpeedLimitGlobalEnabled</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5011</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2114</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=1472" BrowseName="4:RampDown" ParentNodeId="ns=4;i=1462" DataType="Boolean">
+    <DisplayName>RampDown</DisplayName>
+    <Description>Indicates if the motion is slowed down or stopped gracefully with ramping down instead of with brakes.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2375" BrowseName="4:DirMinusSlowdown" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>DirMinusSlowdown</DisplayName>
+    <Description>Stop enabled for direction where position value decreases (minus).</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2379" BrowseName="4:DirPlusSlowdown" ParentNodeId="ns=4;i=5004" DataType="Boolean">
+    <DisplayName>DirPlusSlowdown</DisplayName>
+    <Description>Stop enabled for direction where position value increases (plus).</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5004</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5013</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=2416" BrowseName="4:CraneAxisFunction" ParentNodeId="ns=4;i=2093" DataType="UInt16" ValueRank="1">
+    <DisplayName>CraneAxisFunction</DisplayName>
+    <References>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5003</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2093</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=11238</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=4;i=5004" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=1462">
+    <DisplayName>ParameterSet</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5000" BrowseName="1:Identification" ParentNodeId="ns=4;i=2112">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1012</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5005" BrowseName="1:Identification" ParentNodeId="ns=4;i=1392">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1012</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5006" BrowseName="2:Components" ParentNodeId="ns=4;i=2112">
+    <DisplayName>Components</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1006</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5008" BrowseName="4:&lt;CraneMotionDeviceIdentifier&gt;" SymbolicName="S_CraneMotionDeviceIdentifier_" ParentNodeId="ns=4;i=5006">
+    <DisplayName>&lt;CraneMotionDeviceIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5006</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5003" BrowseName="1:Operational" ParentNodeId="ns=4;i=1369">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1369</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5007" BrowseName="1:Configuration" ParentNodeId="ns=4;i=1369">
+    <DisplayName>Configuration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1369</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5009" BrowseName="1:Operational" ParentNodeId="ns=4;i=1556">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1556</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5011" BrowseName="1:Configuration" ParentNodeId="ns=4;i=2112">
+    <DisplayName>Configuration</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5012" BrowseName="1:Operational" ParentNodeId="ns=4;i=2112">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5013" BrowseName="1:Operational" ParentNodeId="ns=4;i=1462">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5014" BrowseName="1:Operational" ParentNodeId="ns=4;i=1392">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5019" BrowseName="1:Operational" ParentNodeId="ns=4;i=1262">
+    <DisplayName>Operational</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1262</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAReferenceType NodeId="ns=4;i=4001" BrowseName="4:ProtectsAxis">
+    <DisplayName>ProtectsAxis</DisplayName>
+    <Category>Crane Base Info ProtectsAxis</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/9.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=32</Reference>
+    </References>
+    <InverseName>AxisProtectedBy</InverseName>
+  </UAReferenceType>
+  <UAObject NodeId="ns=4;i=5018" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=1262">
+    <DisplayName>ParameterSet</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1262</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=4;i=6000" BrowseName="4:Overheated" ParentNodeId="ns=4;i=5018" DataType="Boolean">
+    <DisplayName>Overheated</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5018</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5019</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=4;i=5020" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=1556">
+    <DisplayName>ParameterSet</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1556</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=4;i=6005" BrowseName="4:BrakeReleased" ParentNodeId="ns=4;i=5020" DataType="Boolean">
+    <DisplayName>BrakeReleased</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5020</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5009</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6007" BrowseName="1:Manufacturer" ParentNodeId="ns=4;i=2112" DataType="LocalizedText">
+    <DisplayName>Manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6008" BrowseName="1:SerialNumber" ParentNodeId="ns=4;i=2112" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6009" BrowseName="1:Manufacturer" ParentNodeId="ns=4;i=1392" DataType="LocalizedText">
+    <DisplayName>Manufacturer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5005</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5015</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6010" BrowseName="1:SerialNumber" ParentNodeId="ns=4;i=1392" DataType="String">
+    <DisplayName>SerialNumber</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5005</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5015</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6011" BrowseName="1:ProductInstanceUri" ParentNodeId="ns=4;i=2112" DataType="String">
+    <DisplayName>ProductInstanceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=2112</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6012" BrowseName="1:ProductInstanceUri" ParentNodeId="ns=4;i=1392" DataType="String">
+    <DisplayName>ProductInstanceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5005</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=5015</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=4;i=5015" BrowseName="2:Identification" ParentNodeId="ns=4;i=1262">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=1262</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5016" BrowseName="2:Components" ParentNodeId="ns=4;i=1392">
+    <DisplayName>Components</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1006</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5022" BrowseName="4:&lt;CraneMotorIdentifier&gt;" SymbolicName="S_CraneMotorIdentifier_" ParentNodeId="ns=4;i=5016">
+    <DisplayName>&lt;CraneMotorIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5016</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1262</Reference>
+      <Reference ReferenceType="ns=3;i=18181">ns=3;i=16041</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=4;i=3000" BrowseName="4:CraneOperationalModeEnum" SymbolicName="CraneOperationalModeEnumeration">
+    <DisplayName>CraneOperationalModeEnum</DisplayName>
+    <Category>Crane Base Info CraneOperationalModeEnum</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/8.1</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="4:CraneOperationalModeEnum">
+      <Field Name="OTHER" Value="0">
+        <Description>Use if vendor specific</Description>
+      </Field>
+      <Field Name="MANUAL" Value="1">
+        <Description>Crane is operated manually by a human operator</Description>
+      </Field>
+      <Field Name="SEMIAUTOMATIC" Value="2">
+        <Description>Some or all of crane motions are automated, but a human operator is required in the loop.</Description>
+      </Field>
+      <Field Name="FULLAUTOMATIC" Value="3">
+        <Description>All of the crane motions are automated. No human intervention is required.</Description>
+      </Field>
+      <Field Name="BYPASS_ON" Value="4">
+        <Description>A function, such as an assistive feature, is bypassed on the crane, e. g. to continue productive work in case a non-critical function suffers a fault.</Description>
+      </Field>
+      <Field Name="MAINTENANCE" Value="5">
+        <Description>Crane is in maintenance mode, typically operating at reduced speed and possibly with some protective functions disabled so they will not hinder or prohibit service activities.</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=4;i=6001" BrowseName="EnumValues" ParentNodeId="ns=4;i=3000" DataType="i=7594" ValueRank="1" ArrayDimensions="6" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=3000</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>OTHER</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Use if vendor specific</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>MANUAL</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Crane is operated manually by a human operator</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>SEMIAUTOMATIC</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Some or all of crane motions are automated, but a human operator is required in the loop.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>FULLAUTOMATIC</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>All of the crane motions are automated. No human intervention is required.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>BYPASS_ON</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>A function, such as an assistive feature, is bypassed on the crane, e. g. to continue productive work in case a non-critical function suffers a fault.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>5</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>MAINTENANCE</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Crane is in maintenance mode, typically operating at reduced speed and possibly with some protective functions disabled so they will not hinder or prohibit service activities.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=4;i=3001" BrowseName="4:ExternalControlRequestEnum" SymbolicName="ExternalControlRequestEnumeration">
+    <DisplayName>ExternalControlRequestEnum</DisplayName>
+    <Category>Crane Base Info ExternalControlRequestEnum</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/8.2</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="4:ExternalControlRequestEnum">
+      <Field Name="NOT_REQUESTED" Value="0">
+        <Description>No control request inputs have been received from any client</Description>
+      </Field>
+      <Field Name="REQUESTED_AND_CONTROL_ACTIVE" Value="1">
+        <Description>Control request input has been received from a client and the request is being applied to the control</Description>
+      </Field>
+      <Field Name="REQUESTED_AND_CONTROL_INACTIVE" Value="2">
+        <Description>Control request input has been received from a client but the request is not currently being applied to the control</Description>
+      </Field>
+      <Field Name="REQUESTED_AND_CONTROL_BYPASSED" Value="3">
+        <Description>Control request input has been received from a client but the request is not currently being applied to the control because it has been bypassed in the control system</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=4;i=6013" BrowseName="EnumValues" ParentNodeId="ns=4;i=3001" DataType="i=7594" ValueRank="1" ArrayDimensions="4" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=3001</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>NOT_REQUESTED</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>No control request inputs have been received from any client</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>REQUESTED_AND_CONTROL_ACTIVE</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Control request input has been received from a client and the request is being applied to the control</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>REQUESTED_AND_CONTROL_INACTIVE</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Control request input has been received from a client but the request is not currently being applied to the control</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>REQUESTED_AND_CONTROL_BYPASSED</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Control request input has been received from a client but the request is not currently being applied to the control because it has been bypassed in the control system</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UADataType NodeId="ns=4;i=3002" BrowseName="4:ProtectiveFunctionEnum" SymbolicName="ProtectiveFunctionEnumeration">
+    <DisplayName>ProtectiveFunctionEnum</DisplayName>
+    <Category>Crane Base Info ProtectiveFunctionEnum</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/8.4</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="4:ProtectiveFunctionEnum">
+      <Field Name="OTHER" Value="0">
+        <Description>Use if vendor specific</Description>
+      </Field>
+      <Field Name="FORCE_LIMITER" Value="1">
+        <Description>Limiting the transmitted force</Description>
+      </Field>
+      <Field Name="OVERSPEED_CONTROL" Value="2">
+        <Description>Limiting the speed during operation</Description>
+      </Field>
+      <Field Name="MOTION_LIMITER" Value="3">
+        <Description>Limiting by stopping motion</Description>
+      </Field>
+      <Field Name="ANTICOLLISION" Value="4">
+        <Description>Device with the ability to bring the moving crane or trolley(s) to a stop before a collision occurs</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=4;i=6014" BrowseName="EnumValues" ParentNodeId="ns=4;i=3002" DataType="i=7594" ValueRank="1" ArrayDimensions="5" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=3002</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>OTHER</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Use if vendor specific</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>FORCE_LIMITER</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Limiting the transmitted force</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>OVERSPEED_CONTROL</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Limiting the speed during operation</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>MOTION_LIMITER</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Limiting by stopping motion</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>ANTICOLLISION</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Device with the ability to bring the moving crane or trolley(s) to a stop before a collision occurs</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6002" BrowseName="4:DesignedWorkingPeriod" ParentNodeId="ns=4;i=5014" DataType="Double">
+    <DisplayName>DesignedWorkingPeriod</DisplayName>
+    <Description>The lowest ISO 12482 designed working period (DWP) of this component. Percentage, initial value: 100.0%</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5017</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=4;i=5014</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=17497</Reference>
+    </References>
+  </UAVariable>
+  <UAObject NodeId="ns=4;i=5010" BrowseName="3:Axes" ParentNodeId="ns=4;i=1392">
+    <DisplayName>Axes</DisplayName>
+    <Description>Axes is a container for one or more instances of the AxisType.</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5017" BrowseName="1:ParameterSet" ParentNodeId="ns=4;i=1392">
+    <DisplayName>ParameterSet</DisplayName>
+    <Description>Flat list of Parameters</Description>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5001" BrowseName="3:&lt;AxisIdentifier&gt;" SymbolicName="S_AxisIdentifier_" ParentNodeId="ns=4;i=5010">
+    <DisplayName>&lt;AxisIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=5010</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=3;i=16601</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5025" BrowseName="4:&lt;ProtectiveFunctionIdentifier&gt;" SymbolicName="S_ProtectiveFunctionIdentifier_" ParentNodeId="ns=4;i=2113">
+    <DisplayName>&lt;ProtectiveFunctionIdentifier&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=4;i=2113</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=4;i=1462</Reference>
+      <Reference ReferenceType="ns=4;i=4001">ns=3;i=15743</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5002" BrowseName="2:Identification" ParentNodeId="ns=4;i=1556">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=1556</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=4;i=5024" BrowseName="2:Identification" ParentNodeId="ns=4;i=1462">
+    <DisplayName>Identification</DisplayName>
+    <References>
+      <Reference ReferenceType="HasAddIn" IsForward="false">ns=4;i=1462</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1005</Reference>
+      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=4;i=3003" BrowseName="4:CraneMotionDeviceCategoryEnum">
+    <DisplayName>CraneMotionDeviceCategoryEnum</DisplayName>
+    <Category>Crane Base Info CraneMotionDeviceCategoryEnum</Category>
+    <Documentation>https://reference.opcfoundation.org/CranesHoists/v100/docs/8.3</Documentation>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+    </References>
+    <Definition Name="4:CraneMotionDeviceCategoryEnum">
+      <Field Name="HOIST" Value="0">
+        <Description>Hoisting machinery</Description>
+      </Field>
+      <Field Name="TROLLEY_TRAVERSE" Value="1">
+        <Description>Trolley traverse or cross travel machinery</Description>
+      </Field>
+      <Field Name="BRIDGE_OR_GANTRY_TRAVEL" Value="2">
+        <Description>Bridge or gantry travel, long travel machinery</Description>
+      </Field>
+      <Field Name="LOAD_LIFTING_ATTACHMENT" Value="3">
+        <Description>Load lifting attachment</Description>
+      </Field>
+      <Field Name="ROTATING_OR_SLEWING" Value="4">
+        <Description>Rotating or slewing machinery</Description>
+      </Field>
+      <Field Name="LUFFING" Value="5">
+        <Description>Luffing machinery</Description>
+      </Field>
+      <Field Name="POWER_SUPPLY_MACHINERY" Value="6">
+        <Description>Power supply or power delivery</Description>
+      </Field>
+      <Field Name="OTHER" Value="7">
+        <Description>Other</Description>
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=4;i=6003" BrowseName="EnumValues" ParentNodeId="ns=4;i=3003" DataType="i=7594" ValueRank="1" ArrayDimensions="8" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=3003</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>HOIST</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Hoisting machinery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>TROLLEY_TRAVERSE</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Trolley traverse or cross travel machinery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>BRIDGE_OR_GANTRY_TRAVEL</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Bridge or gantry travel, long travel machinery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>LOAD_LIFTING_ATTACHMENT</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Load lifting attachment</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>ROTATING_OR_SLEWING</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Rotating or slewing machinery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>5</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>LUFFING</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Luffing machinery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>6</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>POWER_SUPPLY_MACHINERY</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Power supply or power delivery</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>7</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Text>OTHER</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Text>Other</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6004" BrowseName="4:CraneMotionDeviceCategory" ParentNodeId="ns=4;i=1392" DataType="ns=4;i=3003">
+    <DisplayName>CraneMotionDeviceCategory</DisplayName>
+    <Description>This property describes which category this motion device belongs to. Different categories include hoists, trolley traversing machineries, bridge or gantry travelling machineries, load lifting attachments etc.</Description>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=1392</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6016" BrowseName="EnumValues" ParentNodeId="ns=4;i=2416" DataType="i=7594" ValueRank="1" ArrayDimensions="9">
+    <DisplayName>EnumValues</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=2416</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd">
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>0</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>RATED_SPEED</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>The axis moves at rated speed.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>1</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>EXTENDED_SPEED</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>The axis moves above the rated speed when load is under certain percentage of rated load. This function reduces the load cycle time and can be used for hoisting.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>2</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>MICROSPEED</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Microspeed turns large joystick movements on the operator interface into slow and exact load movements. This function assists in very accurate and precise load handling and reduces the risk of collision and can be used for hoisting and travelling.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>3</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>INCHING</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Inching is designed to ensure accurate final load positioning by allowing the crane operator to move the load in small increments. This function assists in very accurate and precise load handling and reduces the risk of collision and can be used for hoisting and travelling.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>4</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>ANTISWAY</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>This function limits load swing by controlling the bridge and trolley acceleration and deceleration. Antisway allows faster load handling and more precise positioning. This feature also reduces the risk of damage to the load, crane and surrounding area.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>5</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>TANDEM_HOIST</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Two or more hoists are operated from a single control station for handling of a single load. Two or more load lifting attachments’/hooks’ positions are synchronized. This function gives more accuracy when two or more hoists are used at the same time. Hoisting speeds are the same within the tolerances required for the particular application.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>6</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>TANDEM_TROLLEY</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>Two or more trolleys are operated from a single control station for handling of a single load. Horizontal speeds are the same within the tolerances required for the particular application.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>7</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>TANDEM_CRANE</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>This function allows the operator to control two cranes at the same time from one control station. The operator controls two cranes as one. This feature is useful when the operator needs to handle a single load with two cranes.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+                <uax:ExtensionObject>
+                    <uax:TypeId>
+                        <uax:Identifier>i=7616</uax:Identifier>
+                    </uax:TypeId>
+                    <uax:Body>
+                        <uax:EnumValueType>
+                            <uax:Value>8</uax:Value>
+                            <uax:DisplayName>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>PRESET_DESTINATION</uax:Text>
+                            </uax:DisplayName>
+                            <uax:Description>
+                                <uax:Locale>en</uax:Locale>
+                                <uax:Text>This function allows the operator to move the crane to a predefined position without effort. With a single operator input, the crane carries out the sequence to reach the selected destination.</uax:Text>
+                            </uax:Description>
+                        </uax:EnumValueType>
+                    </uax:Body>
+                </uax:ExtensionObject>
+            </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=4;i=6017" BrowseName="ValueAsText" ParentNodeId="ns=4;i=2416" DataType="LocalizedText" ValueRank="-2">
+    <DisplayName>ValueAsText</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=4;i=2416</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+    </References>
+  </UAVariable>
+</UANodeSet>

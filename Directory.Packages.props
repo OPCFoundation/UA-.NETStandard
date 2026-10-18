@@ -66,6 +66,7 @@
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.Core" Version="2.2.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.63.0" />
     <PackageVersion Include="Microsoft.SourceLink.AzureRepos.Git" Version="10.0.401" />
     <!-- AI Model Management. Microsoft.Extensions.AI is the inference
          abstraction: IChatClient is the contract that reaches a hosted service

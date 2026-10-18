@@ -32,8 +32,8 @@ using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Server;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Mcp.Tools
 {
@@ -164,10 +164,10 @@ namespace Opc.Ua.Mcp.Tools
             }
             ArrayOf<VisionDetectionDataType> detections = hasDetections
                 ? VisionJson.BuildDetections(correctedDetectionsJson!)
-                : ArrayOf<VisionDetectionDataType>.Empty;
+                : [];
             ArrayOf<VisionCharacteristicDataType> characteristics = hasCharacteristics
                 ? VisionJson.BuildCharacteristics(correctedCharacteristicsJson!)
-                : ArrayOf<VisionCharacteristicDataType>.Empty;
+                : [];
             LocalizedText localizedReason = string.IsNullOrEmpty(reason)
                 ? LocalizedText.Null
                 : new LocalizedText(reason);

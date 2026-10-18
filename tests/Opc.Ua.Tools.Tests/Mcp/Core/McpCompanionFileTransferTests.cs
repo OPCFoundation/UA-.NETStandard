@@ -1,0 +1,609 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
+#if NET10_0
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using ModelContextProtocol.Protocol;
+using NUnit.Framework;
+using Opc.Ua.Mcp;
+
+namespace Opc.Ua.Tools.Tests.McpCompanion
+{
+    /// <summary>
+    /// Proves file confinement, byte-limit boundaries, no-overwrite and cleanup through the public stream seam.
+    /// </summary>
+    [TestFixture]
+    [Category("Mcp")]
+    public sealed class McpCompanionFileTransferTests
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            // macOS resolves its temporary directory through /var, which is a symbolic link.
+            // Keep the fixture under the test workspace so it exercises the intended transfer policy.
+            m_root = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"companion-transfer-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(m_root);
+            m_options = new OpcUaMcpOptions { TransferRoot = m_root, MaxTransferBytes = 4 };
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            Directory.Delete(m_root, recursive: true);
+        }
+
+        /// <summary>
+        /// Upload returns actual bytes at empty, interior and exact-limit boundaries.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public async Task UploadPreservesBytesAtBoundariesAsync(int length)
+        {
+            byte[] expected = [.. Enumerable.Range(0, length).Select(value => (byte)(value + 1))];
+            await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), expected).ConfigureAwait(false);
+            using var received = new MemoryStream();
+            var transfers = new McpFileTransfers(m_options);
+
+            JsonObject result = await transfers.UploadAsync("source.bin", async (source, ct) =>
+            {
+                await source.CopyToAsync(received, ct).ConfigureAwait(false);
+                return received.Length;
+            }).ConfigureAwait(false);
+
+            Assert.That(received.ToArray(), Is.EqualTo(expected));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(length));
+            Assert.That(result["filePath"]!.GetValue<string>(), Is.EqualTo("source.bin"));
+        }
+
+        /// <summary>
+        /// A completed upload remains successful when cancellation arrives after its remote commit.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UploadPreservesCommittedResultAfterCancellationAsync(bool throughTool)
+        {
+            byte[] expected = [1, 2, 3, 4];
+            string path = Path.Combine(m_root, "source.bin");
+            await File.WriteAllBytesAsync(path, expected).ConfigureAwait(false);
+            using var received = new MemoryStream();
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            int commits = 0;
+
+            ValueTask<JsonObject> UploadAsync(CancellationToken token)
+            {
+                return transfers.UploadAsync("source.bin", async (source, ct) =>
+                {
+                    Assert.That(ct, Is.EqualTo(cancellation.Token));
+                    await source.CopyToAsync(received, ct).ConfigureAwait(false);
+                    commits++;
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                    return received.Length;
+                }, token);
+            }
+
+            JsonObject result;
+            if (throughTool)
+            {
+                CallToolResult toolResult = await McpCompanionTools.ExecuteAsync(
+                    async token => await UploadAsync(token).ConfigureAwait(false), cancellation.Token)
+                    .ConfigureAwait(false);
+                Assert.That(toolResult.IsError, Is.False);
+                result = JsonNode.Parse(toolResult.StructuredContent!.Value.GetRawText())!.AsObject();
+            }
+            else
+            {
+                result = await UploadAsync(cancellation.Token).ConfigureAwait(false);
+            }
+
+            Assert.That(commits, Is.EqualTo(1));
+            Assert.That(cancellation.IsCancellationRequested, Is.True);
+            Assert.That(received.ToArray(), Is.EqualTo(expected));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(expected.Length));
+            Assert.That(result["filePath"]!.GetValue<string>(), Is.EqualTo("source.bin"));
+            using FileStream probe = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.That(probe.Length, Is.EqualTo(expected.Length));
+        }
+
+        /// <summary>
+        /// Cancellation during a stream read stops the upload before commit and releases the source file.
+        /// </summary>
+        [Test]
+        public async Task UploadPropagatesReadCancellationBeforeCommitAsync()
+        {
+            string path = Path.Combine(m_root, "source.bin");
+            await File.WriteAllBytesAsync(path, [1, 2, 3, 4]).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            int calls = 0;
+            bool committed = false;
+
+            Assert.That(async () => await transfers.UploadAsync("source.bin", async (source, ct) =>
+            {
+                calls++;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                int read = await source.ReadAsync(new byte[4], ct).ConfigureAwait(false);
+                committed = true;
+                return read;
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>()
+                .With.Property(nameof(OperationCanceledException.CancellationToken)).EqualTo(cancellation.Token));
+
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(committed, Is.False);
+            using FileStream probe = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.That(probe.Length, Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Download publishes only the exact completed payload.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public async Task DownloadPublishesBytesAtBoundariesAsync(int length)
+        {
+            byte[] expected = [.. Enumerable.Range(0, length).Select(value => (byte)(value + 1))];
+            var transfers = new McpFileTransfers(m_options);
+
+            JsonObject result = await transfers.DownloadAsync("result.bin",
+                async (target, ct) => await target.WriteAsync(expected, ct).ConfigureAwait(false))
+                .ConfigureAwait(false);
+
+            Assert.That(await File.ReadAllBytesAsync(Path.Combine(m_root, "result.bin")).ConfigureAwait(false),
+                Is.EqualTo(expected));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(length));
+            Assert.That(Directory.GetFiles(m_root), Has.Length.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A known oversize source cannot invoke a remote upload.
+        /// </summary>
+        [Test]
+        public async Task UploadRejectsOversizeBeforeCallbackAsync()
+        {
+            await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), [1, 2, 3, 4, 5]).ConfigureAwait(false);
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+
+            Assert.That(async () => await transfers.UploadAsync("source.bin", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.FromResult(5L);
+            }).ConfigureAwait(false), Throws.TypeOf<IOException>().With.Message.Contains("limit"));
+            Assert.That(invoked, Is.False);
+        }
+
+        /// <summary>
+        /// Crossing the limit by one byte leaves neither destination nor partial file.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DownloadRejectsOversizeAndCleansPartialFile(bool synchronous)
+        {
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync("result.bin", async (target, ct) =>
+            {
+                await target.WriteAsync(new byte[] { 1, 2, 3, 4 }, ct).ConfigureAwait(false);
+                if (synchronous)
+                {
+                    target.WriteByte(5);
+                }
+                else
+                {
+                    await target.WriteAsync(new byte[] { 5 }, ct).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false), Throws.TypeOf<IOException>().With.Message.Contains("limit"));
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// Missing host policy cannot expose local files through the callback.
+        /// </summary>
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase(" ")]
+        public void TransfersRequireExplicitRoot(string? root)
+        {
+            m_options.TransferRoot = root;
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync("x", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.InvalidOperationException.With.Message.Contains("disabled"));
+            Assert.That(invoked, Is.False);
+        }
+
+        /// <summary>
+        /// Invalid byte limits fail before any file is opened.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void TransfersRejectInvalidBytePolicy(long limit)
+        {
+            m_options.MaxTransferBytes = limit;
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync("x", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.InvalidOperationException.With.Message.Contains("MaxTransferBytes"));
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// Relative and absolute escapes are rejected for both directions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TransfersRejectEscapingPaths(bool absolute)
+        {
+            string escape = absolute
+                ? Path.Combine(Path.GetDirectoryName(m_root)!, "outside.bin")
+                : Path.Combine("..", "outside.bin");
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.UploadAsync(escape, (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.FromResult(0L);
+            }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("TransferRoot"));
+            Assert.That(async () => await transfers.DownloadAsync(escape, (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("TransferRoot"));
+            Assert.That(invoked, Is.False);
+        }
+
+        /// <summary>
+        /// Windows alternate data streams cannot bypass the regular-file transfer policy.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        public void TransfersRejectWindowsAlternateDataStreams()
+        {
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.UploadAsync("file.bin:stream", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.FromResult(0L);
+            }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("TransferRoot"));
+            Assert.That(async () => await transfers.DownloadAsync("file.bin:stream", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("TransferRoot"));
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// Links and Windows junctions are rejected both as the configured root and inside it.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The test junction process cannot be started.</exception>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransfersRejectLinkedRootOrPathAsync(bool rootIsLink)
+        {
+            string target = Path.Combine(m_root, "target");
+            string link = Path.Combine(m_root, "link");
+            Directory.CreateDirectory(target);
+            if (OperatingSystem.IsWindows())
+            {
+                var start = new ProcessStartInfo("cmd.exe")
+                {
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                start.ArgumentList.Add("/c");
+                start.ArgumentList.Add("mklink");
+                start.ArgumentList.Add("/J");
+                start.ArgumentList.Add(link);
+                start.ArgumentList.Add(target);
+                using Process process = Process.Start(start) ??
+                    throw new InvalidOperationException("Unable to create the test junction.");
+                Task<string> output = process.StandardOutput.ReadToEndAsync();
+                Task<string> error = process.StandardError.ReadToEndAsync();
+                await process.WaitForExitAsync().ConfigureAwait(false);
+                string details = await output.ConfigureAwait(false) + await error.ConfigureAwait(false);
+                Assert.That(process.ExitCode, Is.Zero, details);
+            }
+            else
+            {
+                Directory.CreateSymbolicLink(link, target);
+            }
+            try
+            {
+                m_options.TransferRoot = rootIsLink ? link : m_root;
+                string path = rootIsLink ? "data.bin" : Path.Combine("link", "data.bin");
+                bool invoked = false;
+                var transfers = new McpFileTransfers(m_options);
+                Assert.That(async () => await transfers.DownloadAsync(path, (_, _) =>
+                {
+                    invoked = true;
+                    return ValueTask.CompletedTask;
+                }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("links"));
+                Assert.That(async () => await transfers.UploadAsync(path, (_, _) =>
+                {
+                    invoked = true;
+                    return ValueTask.FromResult(0L);
+                }).ConfigureAwait(false), Throws.ArgumentException.With.Message.Contains("links"));
+                Assert.That(invoked, Is.False);
+                Assert.That(Directory.GetFiles(target), Is.Empty);
+            }
+            finally
+            {
+                Directory.Delete(link);
+            }
+        }
+
+        /// <summary>
+        /// Existing content is never overwritten by a download, even after a race at publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DownloadsNeverOverwriteAsync(bool createdDuringDownload)
+        {
+            string destination = Path.Combine(m_root, "existing.bin");
+            if (!createdDuringDownload)
+            {
+                await File.WriteAllBytesAsync(destination, [9]).ConfigureAwait(false);
+            }
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync("existing.bin", async (target, ct) =>
+            {
+                invoked = true;
+                await target.WriteAsync(new byte[] { 1 }, ct).ConfigureAwait(false);
+                await File.WriteAllBytesAsync(destination, [9], ct).ConfigureAwait(false);
+            }).ConfigureAwait(false), Throws.TypeOf<IOException>());
+
+            Assert.That(invoked, Is.EqualTo(createdDuringDownload));
+            Assert.That(await File.ReadAllBytesAsync(destination).ConfigureAwait(false), Is.EqualTo("\t"u8.ToArray()));
+            Assert.That(Directory.GetFiles(m_root), Has.Length.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Cancellation and callback failures remove the temporary result and propagate the failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DownloadFailuresRemoveTemporaryFiles(bool cancellation)
+        {
+            var transfers = new McpFileTransfers(m_options);
+            using var cancelled = new CancellationTokenSource();
+            async Task download() => await transfers.DownloadAsync("result.bin", async (target, ct) =>
+            {
+                await target.WriteAsync(new byte[] { 1 }, ct).ConfigureAwait(false);
+                if (cancellation)
+                {
+                    await cancelled.CancelAsync().ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                }
+                throw new InvalidOperationException("remote refused download");
+            }, cancelled.Token).ConfigureAwait(false);
+            if (cancellation)
+            {
+                Assert.That(download, Throws.InstanceOf<OperationCanceledException>());
+            }
+            else
+            {
+                Assert.That(download, Throws.InvalidOperationException.With.Message.EqualTo("remote refused download"));
+            }
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// A download can still be cancelled after its callback because its local file has not been published.
+        /// </summary>
+        [Test]
+        public void DownloadCancellationAfterCallbackPreventsPublication()
+        {
+            using var cancellation = new CancellationTokenSource();
+            var transfers = new McpFileTransfers(m_options);
+            bool callbackCompleted = false;
+
+            Assert.That(async () => await transfers.DownloadAsync("result.bin", async (target, ct) =>
+            {
+                await target.WriteAsync(new byte[] { 1, 2, 3, 4 }, ct).ConfigureAwait(false);
+                callbackCompleted = true;
+                await cancellation.CancelAsync().ConfigureAwait(false);
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(callbackCompleted, Is.True);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// An upload must consume the complete source and accurately report its consumption.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(4)]
+        public async Task UploadRejectsIncompleteOrMisreportedConsumptionAsync(long reported)
+        {
+            await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), [1, 2, 3, 4]).ConfigureAwait(false);
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.UploadAsync("source.bin", async (source, ct) =>
+            {
+                _ = await source.ReadAsync(new byte[1], ct).ConfigureAwait(false);
+                return reported;
+            }).ConfigureAwait(false), Throws.TypeOf<IOException>().With.Message.Contains("complete source"));
+            using FileStream probe = File.Open(Path.Combine(m_root, "source.bin"),
+                FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            Assert.That(probe.Length, Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Every upload stream read overload observes the same byte budget and sequential position.
+        /// </summary>
+        [Test]
+        public async Task UploadReadOverloadsShareOneSequentialBudgetAsync()
+        {
+            await File.WriteAllBytesAsync(Path.Combine(m_root, "source.bin"), [1, 2, 3, 4]).ConfigureAwait(false);
+            var transfers = new McpFileTransfers(m_options);
+            byte[] bytes = new byte[5];
+
+            JsonObject result = await transfers.UploadAsync("source.bin", async (stream, ct) =>
+            {
+                Assert.That(stream.CanRead, Is.True);
+                Assert.That(stream.CanWrite, Is.False);
+                Assert.That(stream.CanSeek, Is.False);
+                Assert.That(stream.Length, Is.EqualTo(4));
+                // Bind the exact synchronous overloads under test, rather than their async alternatives.
+                Func<byte[], int, int, int> read = stream.Read;
+                Action flush = stream.Flush;
+                Assert.That(read(bytes, 1, 1), Is.EqualTo(1));
+                Assert.That(stream.Read(bytes.AsSpan(2, 1)), Is.EqualTo(1));
+                Func<byte[], int, int, CancellationToken, Task<int>> readArray = stream.ReadAsync;
+                Assert.That(await readArray(bytes, 3, 1, ct).ConfigureAwait(false), Is.EqualTo(1));
+                Assert.That(await stream.ReadAsync(bytes.AsMemory(4, 1), ct).ConfigureAwait(false), Is.EqualTo(1));
+                Assert.That(stream.Position, Is.EqualTo(4));
+                Assert.That(stream.ReadByte(), Is.EqualTo(-1));
+                Assert.That(() => stream.Seek(0, SeekOrigin.Begin), Throws.TypeOf<NotSupportedException>());
+                Assert.That(() => stream.Position = 0, Throws.TypeOf<NotSupportedException>());
+                Assert.That(() => stream.SetLength(1), Throws.TypeOf<NotSupportedException>());
+                flush();
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+                return stream.Position;
+            }).ConfigureAwait(false);
+
+            Assert.That(bytes, Is.EqualTo(new byte[] { 0, 1, 2, 3, 4 }));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Array and span destination writes share the same cumulative limit.
+        /// </summary>
+        [Test]
+        public async Task DownloadWriteOverloadsShareOneSequentialBudgetAsync()
+        {
+            var transfers = new McpFileTransfers(m_options);
+            byte[] bytes = [1, 2, 3, 4];
+            JsonObject result = await transfers.DownloadAsync("result.bin", async (stream, ct) =>
+            {
+                Assert.That(stream.CanRead, Is.False);
+                Assert.That(stream.CanWrite, Is.True);
+                Assert.That(stream.CanSeek, Is.False);
+                // Bind the exact synchronous overloads under test, rather than their async alternatives.
+                Action<byte[], int, int> write = stream.Write;
+                Action flush = stream.Flush;
+                write(bytes, 0, 1);
+                stream.Write(bytes.AsSpan(1, 1));
+                Func<byte[], int, int, CancellationToken, Task> writeArray = stream.WriteAsync;
+                await writeArray(bytes, 2, 2, ct).ConfigureAwait(false);
+                Assert.That(stream.Position, Is.EqualTo(4));
+                flush();
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(await File.ReadAllBytesAsync(Path.Combine(m_root, "result.bin")).ConfigureAwait(false),
+                Is.EqualTo(bytes));
+            Assert.That(result["bytesTransferred"]!.GetValue<long>(), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// A missing host root or destination parent cannot cause a remote download.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void MissingTransferDirectoryRejectsBeforeRemoteCall(bool missingRoot)
+        {
+            if (missingRoot)
+            {
+                m_options.TransferRoot = Path.Combine(m_root, "missing");
+            }
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync(Path.Combine("missing", "file.bin"), (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }).ConfigureAwait(false), Throws.TypeOf<DirectoryNotFoundException>());
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// External cancellation before entry cannot create a temporary artifact.
+        /// </summary>
+        [Test]
+        public void PreCancelledDownloadDoesNotInvokeCallback()
+        {
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+            Assert.That(async () => await transfers.DownloadAsync("x", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.CompletedTask;
+            }, cancelled.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        /// <summary>
+        /// Cancellation before an upload cannot open the source or invoke a remote operation.
+        /// </summary>
+        [Test]
+        public void PreCancelledUploadDoesNotInvokeCallback()
+        {
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            bool invoked = false;
+            var transfers = new McpFileTransfers(m_options);
+
+            Assert.That(async () => await transfers.UploadAsync("missing.bin", (_, _) =>
+            {
+                invoked = true;
+                return ValueTask.FromResult(0L);
+            }, cancellation.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(invoked, Is.False);
+            Assert.That(Directory.GetFiles(m_root), Is.Empty);
+        }
+
+        private string m_root = null!;
+        private OpcUaMcpOptions m_options = null!;
+    }
+}
+#endif

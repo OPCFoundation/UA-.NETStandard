@@ -619,6 +619,14 @@ wired at startup. The server merges these contributions into
 `Server/ServerCapabilities/ConformanceUnits` alongside the base server
 profiles.
 
+Companions composed into the same manager can call
+`RegisterConformanceContributor(IConformanceContributor)` instead of creating
+a subclass solely to append units. The registration is idempotent by contributor
+instance, preserves the DI units, and reevaluates the contributor on each publication.
+Contributors must not refer back to their owning manager. The
+[Machine Vision integration](Vision.md) uses this path for Machinery-hosted
+released models; it does not invent profile URIs.
+
 The conformance units follow what is built:
 
 | Runtime condition | Conformance units |

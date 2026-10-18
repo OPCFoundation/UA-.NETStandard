@@ -78,6 +78,7 @@ Notes:
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
 - **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Client member extensions are opt-in.** A client library can set `ModelSourceGeneratorClientAccessorsOnly` to generate typed variable accessors and placeholder enumerators over a referenced model, without checking in generated C# or duplicating model types. See [optional client member accessors](../tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors) for the inputs and configuration.
 - **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
@@ -100,7 +101,8 @@ Conventions and requirements:
   their allocation stacks, and the NUnit fixture where available. Tracking is enabled by default
   in Debug builds and opt-in in Release because stack capture adds per-certificate overhead. The
   equivalent AppContext switch is `Opc.Ua.Security.Certificates.CertificateLeakTracking`; set it
-  before the first `Certificate` is created. For example, in PowerShell:
+  before the first `Certificate` is created. A leak fails the assembly's `[OneTimeTearDown]`,
+  which fails the CI run. For example, in PowerShell:
 
   ```powershell
   $env:OPCUA_CERTIFICATE_LEAK_TRACKING = '1'
@@ -315,6 +317,9 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 - **Add a new feature** — implement it in the right library, add unit and (for client/server/pubsub) integration tests, update or add a doc under `docs/`, and keep backward compatibility (see [Coding standards](#coding-standards-dos-and-donts)).
 - **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
+  Describe the repository's current interfaces and behavior, not the implementation
+  history or whether a feature was already present. Version-to-version changes
+  belong in the migration guides and changelogs.
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
@@ -379,15 +384,22 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 
 Stable (public-release) versions are produced **only** from a canonical `release/<major>.<minor>` branch (e.g. `release/2.0`, `release/2.1`) — never from `master`, a tag, or any other branch — and only at the exact commit whose `version.json` carries the plain `<major>.<minor>.<patch>` version with no prerelease label (e.g. `2.0.0`). Patch numbers increase by exactly one per release on their line (`2.0.0` → `2.0.1` → `2.0.2`); a new minor line resets the patch to zero (`2.1.0`). See **[Release process](ReleaseProcess.md)** for the full branch/version model and the step-by-step procedure for cutting a release, shipping a patch or minor version, backporting a fix, and promoting a stable candidate.
 
-The XRegistry, WoT Connectivity, Vision, Robotics, Redundancy, Positioning,
+The XRegistry, WoT Connectivity, Robotics, CranesHoists, Redundancy, Positioning,
 OpenUSD, and AI package families remain preview packages even when
 the root version is stable. Their numeric version follows the root version:
 for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
 families (`N` a committed, manually curated number in `preview-version.props`
 that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
-same policy applies to the Robotics and Vision MCP extensions and the
-OpenUSD connector tools. The package validation manifest
+same policy applies to the Robotics MCP extension, the Vision.OpenUsd renderer,
+and the OpenUSD connector tools. All CranesHoists model/server/client/MCP
+packages and their Debug variants use that preview policy. The Vision,
+MachineVision, MachineTool (including bundled WMTP), and GMS model/client/server
+packages and their MCP packages follow the root version without a
+forced-preview override. The industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, Device Integration, ISA-95 and Positioning), plus the WoT and
+xRegistry MCP extensions, also follow the root release channel. Development
+versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.
@@ -425,11 +437,11 @@ gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
 
 GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
 
-The executor fails a project when its build fails, when the TRX counters report any failure, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
+The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 
-The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A non-zero exit is tolerated when, and only when, the results record at least one **passing** test and no failure, error, timeout, abort or `passedButRunAborted`. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
+The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 
 #### Why a project can be skipped
 

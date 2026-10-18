@@ -140,7 +140,7 @@ namespace Opc.Ua.Server
                 }
 
                 // delete the reference.
-                await nodeManager!.DeleteReferenceAsync(
+                ServiceResult result = await nodeManager!.DeleteReferenceAsync(
                         sourceHandle,
                         reference.ReferenceTypeId,
                         reference.IsInverse,
@@ -148,6 +148,10 @@ namespace Opc.Ua.Server
                         false,
                         cancellationToken)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
             }
         }
 

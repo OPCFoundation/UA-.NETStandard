@@ -1003,8 +1003,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
         }
 
-        [Test]
-        public async Task CreateSigningRequestUsesScopedOwnStoreProviderAsync()
+        /// <summary>
+        /// Existing-key CSR creation and certificate staging resolve the application's scoped own store.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("PEM")]
+        public async Task CertificatePushUsesScopedOwnStoreProviderAsync(string privateKeyFormat)
         {
             ApplicationConfiguration configuration = m_fixture.Config;
             CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates
@@ -1037,6 +1041,25 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
                 Assert.That(result.CertificateRequest[0], Is.EqualTo(0x30));
                 provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.Once);
+
+                using CertificateEntry current = manager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+                using Certificate replacement = privateKeyFormat.Length == 0
+                    ? current.Certificate.AddRef()
+                    : DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                        configuration.ApplicationUri!, configuration.ApplicationName!, current.Certificate.Subject,
+                        X509Utils.GetDomainsFromCertificate(current.Certificate).ToArray()).CreateForRSA();
+                ByteString privateKey = privateKeyFormat.Length == 0
+                    ? ByteString.Empty
+                    : PEMWriter.ExportPrivateKeyAsPEM(replacement).ToByteString();
+                UpdateCertificateMethodStateResult update = await m_configNode.UpdateCertificate!.OnCallAsync!(
+                    CreateAdminContext(), m_configNode.UpdateCertificate, m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, replacement.RawData.ToByteString(),
+                    [], privateKeyFormat, privateKey, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(update.ServiceResult), Is.True);
+                Assert.That(update.ApplyChangesRequired, Is.True);
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.Exactly(2));
             }
             finally
             {
@@ -3050,8 +3073,11 @@ namespace Opc.Ua.Server.Tests
                 ])!;
         }
 
-        [Test]
-        public async Task ApplyCertificateSlotChangeSelfCompensatesWhenIssuerImportFailsAfterAppCertSwapAsync()
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ApplyCertificateSlotChangeSelfCompensatesWhenIssuerImportFailsAfterAppCertSwapAsync(
+            bool useScopedStores, bool failOpeningIssuerStore)
         {
             // Issue: once ApplyCertificateSlotChangeAsync has fully
             // swapped the application-certificate slot (the previous
@@ -3069,15 +3095,35 @@ namespace Opc.Ua.Server.Tests
             // not the ArgumentException the loop already tolerates for a
             // duplicate thumbprint.
             string tempAppPki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "cnm-selfcompensate-issuer-app",
                 Guid.NewGuid().ToString("N")[..8]);
             string tempIssuerPki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "cnm-selfcompensate-issuer-store",
                 Guid.NewGuid().ToString("N")[..8]);
+            ICertificateManager originalManager = m_fixture.Config.CertificateManager;
+            const string ownStoreType = "ScopedCompensationOwn";
+            const string issuerStoreType = "ScopedCompensationIssuer";
+            var ownProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            ownProvider.SetupGet(provider => provider.StoreTypeName).Returns(ownStoreType);
+            ownProvider.Setup(provider => provider.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            ownProvider.Setup(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(false, telemetry));
+            var issuerProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            issuerProvider.SetupGet(provider => provider.StoreTypeName).Returns(issuerStoreType);
+            issuerProvider.Setup(provider => provider.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            issuerProvider.Setup(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => failOpeningIssuerStore
+                    ? throw new UnauthorizedAccessException("Issuer store is unavailable.")
+                    : new DirectoryCertificateStore(false, telemetry));
+            using var scopedManager = new CertificateManager(s_telemetry, [ownProvider.Object, issuerProvider.Object]);
             try
             {
+                if (useScopedStores)
+                {
+                    m_fixture.Config.CertificateManager = scopedManager;
+                }
                 var appStoreIdentifier = new CertificateStoreIdentifier(
                     tempAppPki,
                     CertificateStoreType.Directory,
@@ -3099,7 +3145,7 @@ namespace Opc.Ua.Server.Tests
                 var existingCertIdentifier = new CertificateIdentifier
                 {
                     StorePath = tempAppPki,
-                    StoreType = CertificateStoreType.Directory,
+                    StoreType = useScopedStores ? ownStoreType : CertificateStoreType.Directory,
                     CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     Thumbprint = oldCertificate.Thumbprint
                 };
@@ -3157,6 +3203,10 @@ namespace Opc.Ua.Server.Tests
                 PropertyInfo issuerStoreProperty = certificateGroup.GetType().GetProperty("IssuerStore")
                     ?? throw new InvalidOperationException("Property IssuerStore not found.");
                 object originalIssuerStore = issuerStoreProperty.GetValue(certificateGroup)!;
+                if (useScopedStores)
+                {
+                    issuerStoreIdentifier.StoreType = issuerStoreType;
+                }
                 issuerStoreProperty.SetValue(certificateGroup, issuerStoreIdentifier);
 
                 try
@@ -3200,7 +3250,16 @@ namespace Opc.Ua.Server.Tests
                         "self-compensation must remove the new application certificate already " +
                         "swapped in before the issuer import failed");
 
-                    using ICertificateStore verifyIssuerStore = issuerStoreIdentifier.OpenStore(s_telemetry);
+                    if (useScopedStores)
+                    {
+                        ownProvider.Verify(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()),
+                            Times.Exactly(2));
+                        issuerProvider.Verify(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()),
+                            failOpeningIssuerStore ? Times.Once() : Times.Exactly(2));
+                    }
+
+                    using ICertificateStore verifyIssuerStore =
+                        new CertificateStoreIdentifier(tempIssuerPki).OpenStore(s_telemetry);
                     using CertificateCollection preExistingAfter = await verifyIssuerStore
                         .FindByThumbprintAsync(preExistingIssuer.Thumbprint)
                         .ConfigureAwait(false);
@@ -3233,6 +3292,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                m_fixture.Config.CertificateManager = originalManager;
                 if (Directory.Exists(tempAppPki))
                 {
                     Directory.Delete(tempAppPki, true);

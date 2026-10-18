@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = InternalClose(timeout);
 
             // wait for the close to succeed.
@@ -365,9 +365,13 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
-            using (Gate.Enter())
+
+            // a request that waits for the gate (another request or a response is being
+            // processed) must not block its thread: a blocking wait spins first, and with
+            // many concurrent requests on one channel the spinning took a fifth of the CPU.
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)
@@ -398,7 +402,7 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.WaitForCompletionAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -951,9 +955,11 @@ namespace Opc.Ua.Bindings
             int bytesWritten,
             ServiceResult result)
         {
-            using (Gate.Enter())
+            // Only a failed write needs the gate. Successful writes are reported
+            // inline by the writer and must not wait for it.
+            if (state is WriteOperation operation && ServiceResult.IsBad(result))
             {
-                if (state is WriteOperation operation && ServiceResult.IsBad(result))
+                using (Gate.Enter())
                 {
                     operation.Fault(result);
                     ForceReconnectCore(result);
@@ -1410,10 +1416,21 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            using var responseStream = new ArraySegmentStream(chunksToProcess);
-            return BinaryDecoder.DecodeMessage<IServiceResponse>(
-                responseStream,
-                Quotas.MessageContext) ??
+            IServiceResponse? response;
+            if (chunksToProcess.Count == 1)
+            {
+                // a response in one chunk, which most are, is decoded from that chunk's
+                // buffer without a stream over the chunk list, as the server decodes requests.
+                response = DecodeMessage<IServiceResponse>(chunksToProcess[0], Quotas.MessageContext);
+            }
+            else
+            {
+                using var responseStream = new ArraySegmentStream(chunksToProcess);
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    responseStream,
+                    Quotas.MessageContext);
+            }
+            return response ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
@@ -1992,6 +2009,15 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The activity source for service calls, resolved once: the
+        /// GetActivitySource extension walks the stack to find the calling
+        /// assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource => m_activitySource ??= m_telemetry.GetActivitySource();
+
+        private ActivitySource? m_activitySource;
         private readonly ITelemetryContext m_telemetry;
         private byte[]? m_oscRequestSignature;
         private readonly MessageSecurityMode m_requestedSecurityMode;

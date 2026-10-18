@@ -361,7 +361,7 @@ namespace Opc.Ua
                 // recursively append the inner diagnostics.
                 if ((DiagnosticsMasks.ServiceInnerDiagnostics & diagnosticsMask) != 0)
                 {
-                    if (depth < MaxInnerDepth)
+                    if (depth + 1 < MaxInnerDepth)
                     {
                         InnerDiagnosticInfo = new DiagnosticInfo(
                             result.InnerResult,

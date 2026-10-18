@@ -560,6 +560,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(snapshot, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Per-call acceptance neither reuses nor changes globally cached trust decisions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PerCallValidationCallbackDoesNotShareCachedDecisionsAsync(bool acceptGlobally)
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                UseValidatedCertificates = true,
+                AutoAcceptUntrustedCertificates = acceptGlobally
+            });
+            using Certificate certificate = CertificateBuilder.Create("CN=Per-call validation").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+
+            CertificateValidationResult before = await manager.ValidateAsync(chain).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.EqualTo(acceptGlobally));
+
+            var options = new Opc.Ua.Security.Certificates.CertificateValidationOptions
+            {
+                AcceptError = (_, _) => !acceptGlobally
+            };
+            CertificateValidationResult overridden = await manager.ValidateAsync(
+                chain, options: options).ConfigureAwait(false);
+            Assert.That(overridden.IsValid, Is.EqualTo(!acceptGlobally));
+
+            CertificateValidationResult after = await manager.ValidateAsync(chain).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.EqualTo(acceptGlobally));
+        }
+
         [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
         {

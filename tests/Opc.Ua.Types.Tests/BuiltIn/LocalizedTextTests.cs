@@ -1,5 +1,35 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System.Collections.Generic;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.BuiltIn
 {
@@ -248,6 +278,150 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 deepCopy.Translations["fr-FR"],
                 Is.EqualTo(localizedText.Translations["fr-FR"]),
                 "French translation should be the same");
+        }
+
+        [TestCase(null, null)]
+        [TestCase("", null)]
+        [TestCase(null, "")]
+        [TestCase("", "")]
+        public void EmptyFieldsConstructTheNullValue(string? locale, string? text)
+        {
+            var value = new LocalizedText(locale, text);
+            Assert.That(value.Locale, Is.Null);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.IsNull, Is.True);
+            Assert.That(value, Is.EqualTo(LocalizedText.Null));
+            Assert.That(value.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+            Assert.That(Variant.From(value), Is.EqualTo(Variant.From(LocalizedText.Null)));
+        }
+
+        [Test]
+        public void TextOnlyEmptyInputConstructsTheNullValue()
+        {
+            var value = new LocalizedText(string.Empty);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.IsNull, Is.True);
+            Assert.That(value, Is.EqualTo(LocalizedText.Null));
+        }
+
+        [Test]
+        public void WhitespaceFieldsArePreserved()
+        {
+            var value = new LocalizedText(" ", " ");
+            Assert.That(value.Locale, Is.EqualTo(" "));
+            Assert.That(value.Text, Is.EqualTo(" "));
+            Assert.That(value.IsNull, Is.False);
+        }
+
+        [Test]
+        public void TranslationConstructionNormalizesFieldsWithoutDiscardingMetadata()
+        {
+            var info = new TranslationInfo("Key", string.Empty, string.Empty);
+            LocalizedText[] values =
+            [
+                new LocalizedText("Key", string.Empty, string.Empty),
+                new LocalizedText("Key", string.Empty, string.Empty, 7),
+                new LocalizedText(info),
+                new LocalizedText(string.Empty, string.Empty, info),
+                new LocalizedText(new Dictionary<string, string> { [string.Empty] = string.Empty }),
+                new LocalizedText("Key", new Dictionary<string, string> { [string.Empty] = string.Empty })
+            ];
+            foreach (LocalizedText value in values)
+            {
+                Assert.That(value.Locale, Is.Null);
+                Assert.That(value.Text, Is.Null);
+                Assert.That(value.IsNull, Is.False);
+                Assert.That(value, Is.EqualTo(LocalizedText.Null));
+                Assert.That(value.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+            }
+            Assert.That(values[0].TranslationInfo.Key, Is.EqualTo("Key"));
+            Assert.That(values[1].TranslationInfo.Args, Is.EqualTo(new object[] { 7 }));
+            Assert.That(values[2].TranslationInfo, Is.EqualTo(info));
+            Assert.That(values[4].Translations, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void FormattedEmptyTextIsNormalizedWithoutDiscardingTemplate()
+        {
+            var value = new LocalizedText("Key", "en-US", "{0}", string.Empty);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.TranslationInfo.Text, Is.EqualTo("{0}"));
+            Assert.That(value.TranslationInfo.Args, Is.EqualTo(new object[] { string.Empty }));
+        }
+
+        /// <summary>
+        /// Binary encoding preserves the canonical field values and ordinary value equality.
+        /// </summary>
+        [TestCase(null, null, 0x00)]
+        [TestCase("", "", 0x00)]
+        [TestCase("", null, 0x00)]
+        [TestCase(null, "", 0x00)]
+        [TestCase("en-US", null, 0x01)]
+        [TestCase("en-US", "", 0x01)]
+        [TestCase(null, "Text", 0x02)]
+        [TestCase("", "Text", 0x02)]
+        [TestCase("en-US", "Text", 0x03)]
+        [TestCase(" ", " ", 0x03)]
+        public void BinaryEncodingOmitsNullOrEmptyFields(
+            string? locale,
+            string? text,
+            byte expectedEncodingMask)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer;
+            var value = new LocalizedText(locale, text);
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                encoder.WriteLocalizedText(null, value);
+                buffer = encoder.CloseAndReturnBuffer() ??
+                    throw new AssertionException("The encoder returned no buffer.");
+            }
+
+            Assert.That(buffer[0], Is.EqualTo(expectedEncodingMask));
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            LocalizedText decoded = decoder.ReadLocalizedText(null);
+            Assert.That(decoded.Locale, Is.EqualTo(value.Locale));
+            Assert.That(decoded.Text, Is.EqualTo(value.Text));
+            Assert.That(decoded, Is.EqualTo(value));
+        }
+
+        /// <summary>
+        /// Translation-backed and formatted values expose canonical fields before binary encoding.
+        /// </summary>
+        [TestCase("", "Text", false, 0x02)]
+        [TestCase("en-US", "", false, 0x01)]
+        [TestCase("", "", false, 0x00)]
+        [TestCase("en-US", "", true, 0x01)]
+        [TestCase("", "", true, 0x00)]
+        [TestCase("en-US", "Text", true, 0x03)]
+        [TestCase(" ", " ", false, 0x03)]
+        public void TranslationBackedFieldsUseCanonicalBinaryEncoding(
+            string locale,
+            string text,
+            bool formatText,
+            byte expectedEncodingMask)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            LocalizedText value = formatText
+                ? new LocalizedText("Key", locale, "{0}", text)
+                : new LocalizedText("Key", locale, text);
+            byte[] buffer;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                encoder.WriteLocalizedText(null, value);
+                buffer = encoder.CloseAndReturnBuffer() ??
+                    throw new AssertionException("The encoder returned no buffer.");
+            }
+
+            Assert.That(value.TranslationInfo.Key, Is.EqualTo("Key"));
+            Assert.That(buffer[0], Is.EqualTo(expectedEncodingMask));
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+            LocalizedText decoded = decoder.ReadLocalizedText(null);
+            Assert.That(decoded.Locale, Is.EqualTo(value.Locale));
+            Assert.That(decoded.Text, Is.EqualTo(value.Text));
+            Assert.That(decoded, Is.EqualTo(value));
         }
     }
 }

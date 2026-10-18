@@ -32,7 +32,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using NUnit.Framework;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 
 namespace Opc.Ua.Vision.Tests
@@ -280,7 +280,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void ComputeProfilesReturnsEmptyForEmptyFacetInput()
         {
-            ArrayOf<string> profiles = VisionFacetCalculator.ComputeProfiles(ArrayOf<string>.Empty);
+            ArrayOf<string> profiles = VisionFacetCalculator.ComputeProfiles([]);
 
             Assert.That(profiles.Count, Is.EqualTo(0));
         }

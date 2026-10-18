@@ -425,9 +425,17 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            await DisposeAsyncCore().ConfigureAwait(false);
-            Dispose(true);
-            GC.SuppressFinalize(this);
+            try
+            {
+                await DisposeAsyncCore().ConfigureAwait(false);
+            }
+            finally
+            {
+                // Release the pinned TLS certificate even when shutting
+                // down the host or the shared-host lease failed.
+                Dispose(true);
+                GC.SuppressFinalize(this);
+            }
         }
 
         /// <summary>
@@ -615,7 +623,36 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Starts listening at the specified port.
         /// </summary>
+        /// <remarks>
+        /// A start that fails, for example because another process holds the
+        /// port, stops the listener again: it releases the pinned TLS
+        /// certificate and the host it built, so a caller that drops a
+        /// listener which failed to open leaks nothing.
+        /// </remarks>
         public async ValueTask StartAsync(CancellationToken ct = default)
+        {
+            try
+            {
+                await StartCoreAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception startError)
+            {
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupError)
+                {
+                    throw new AggregateException(
+                        "Starting the HTTPS listener and the cleanup after the failed start both failed.",
+                        startError,
+                        cleanupError);
+                }
+                throw;
+            }
+        }
+
+        private async ValueTask StartCoreAsync(CancellationToken ct)
         {
             Volatile.Write(ref m_admissionStopped, 0);
             m_admission?.Start();
@@ -1851,6 +1888,9 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+
+            // encoded: the response is no longer read (releases pooled and leased payloads).
+            (response as IPooledEncodeable)?.Reuse();
             context.Response.ContentLength = payload.Length;
             context.Response.ContentType = Profiles.OpcUaJsonContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -2208,7 +2248,11 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
 
-                await serverChannel.SendResponseAsync(requestId, response).ConfigureAwait(false);
+                if (!await serverChannel.SendResponseAsync(requestId, response).ConfigureAwait(false))
+                {
+                    // encoded and not retained for a reconnect: the response is no longer read.
+                    (response as IPooledEncodeable)?.Reuse();
+                }
             }
             catch (Exception ex)
             {
@@ -2445,6 +2489,9 @@ namespace Opc.Ua.Bindings
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(
                         responseToSend,
                         m_quotas.MessageContext);
+
+                    // encoded: the response is no longer read (releases pooled and leased payloads).
+                    (responseToSend as IPooledEncodeable)?.Reuse();
 #if NET5_0_OR_GREATER
                     await ws.SendAsync(
                         new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
@@ -3036,6 +3083,9 @@ namespace Opc.Ua.Bindings
             }
             ct.ThrowIfCancellationRequested();
             byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+
+            // encoded: the response is no longer read (releases pooled and leased payloads).
+            (response as IPooledEncodeable)?.Reuse();
             await sendGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -3063,6 +3113,9 @@ namespace Opc.Ua.Bindings
             CancellationToken ct)
         {
             byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
+
+            // encoded: the response is no longer read (releases pooled and leased payloads).
+            (response as IPooledEncodeable)?.Reuse();
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;

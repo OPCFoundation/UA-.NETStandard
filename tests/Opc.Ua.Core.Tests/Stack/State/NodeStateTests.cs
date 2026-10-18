@@ -66,6 +66,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             nameSpaceUris.GetIndexOrAppend(ApplicationUri);
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             nameSpaceUris.GetIndexOrAppend(OpcUaOnboarding);
+            nameSpaceUris.GetIndexOrAppend(global::Opc.Ua.Programs.Namespaces.OpcUaPrograms);
         }
 
         [OneTimeTearDown]
@@ -150,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         /// Instantiate NodeState types across Opc.Ua assemblies and fail on placeholder children.
         /// </summary>
         [Test]
-        public void NodeStateTypesAcrossOpcUaAssemblies_ShouldNotInstantiatePlaceholderChildren()
+        public void NodeStateTypesAcrossOpcUaAssembliesShouldNotInstantiatePlaceholderChildren()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = new SystemContext(telemetry) { NamespaceUris = Context.NamespaceUris };
@@ -163,7 +164,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
                     continue;
                 }
 
-                testObject.Create(context, new NodeId(nodeId++), QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
+                testObject.Create(context, new NodeId(nodeId++),
+                    QualifiedName.From("Name"), LocalizedText.From("DisplayName"), true);
                 CollectInstantiatedPlaceholders(
                     context,
                     testObject,
@@ -175,7 +177,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(
                 placeholders,
                 Is.Empty,
-                "Instantiated placeholder children were found:" + Environment.NewLine + string.Join(Environment.NewLine, placeholders));
+                "Instantiated placeholder children were found:" +
+                    Environment.NewLine + string.Join(Environment.NewLine, placeholders));
         }
 
         /// <summary>

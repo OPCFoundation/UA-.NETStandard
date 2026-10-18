@@ -1,0 +1,162 @@
+{
+  "@id": "http://opcfoundation.org/UA/WoT-Binding/v1.1/opc-ua-wot-binding.context.jsonld",
+  "@context": {
+    "@version": 1.1,
+    "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+    "ua": "http://opcfoundation.org/UA/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "di": "http://opcfoundation.org/UA/DI/",
+    "qudt": "http://qudt.org/schema/qudt/",
+    "qudt-quantitykind": "http://qudt.org/vocab/quantitykind/",
+
+    "uav:id": { "@id": "uav:id", "@type": "xsd:string" },
+    "uav:bindingVersion": { "@id": "uav:bindingVersion", "@type": "xsd:string" },
+    "uav:profile": { "@id": "uav:profile", "@type": "xsd:string", "@container": "@set" },
+    "uav:browsePath": { "@id": "uav:browsePath", "@type": "xsd:string" },
+    "uav:browsePathAnchor": { "@id": "uav:browsePathAnchor", "@type": "xsd:string" },
+    "uav:browseName": { "@id": "uav:browseName", "@type": "xsd:string" },
+    "uav:object": { "@id": "uav:object" },
+    "uav:objectType": { "@id": "uav:objectType" },
+    "uav:variable": { "@id": "uav:variable" },
+    "uav:variableType": { "@id": "uav:variableType" },
+    "uav:method": { "@id": "uav:method" },
+    "uav:eventType": { "@id": "uav:eventType" },
+    "uav:referenceType": { "@id": "uav:referenceType" },
+    "uav:dataType": { "@id": "uav:dataType" },
+    "uav:inverseName": { "@id": "uav:inverseName" },
+    "uav:symmetric": { "@id": "uav:symmetric" },
+    "uav:hasComponent": { "@id": "uav:hasComponent", "@type": "xsd:string", "@container": "@set" },
+    "uav:componentOf": { "@id": "uav:componentOf", "@type": "xsd:string", "@container": "@set" },
+    "uav:mapToNodeId": { "@id": "uav:mapToNodeId", "@type": "xsd:string" },
+    "uav:mapToType": { "@id": "uav:mapToType", "@type": "xsd:string" },
+    "uav:mapToTypeName": { "@id": "uav:mapToTypeName", "@type": "xsd:string" },
+    "uav:mapByFieldPath": { "@id": "uav:mapByFieldPath", "@type": "xsd:string" },
+    "uav:callObjectId": { "@id": "uav:callObjectId", "@type": "xsd:string" },
+    "uav:argumentLayout": { "@id": "uav:argumentLayout", "@type": "xsd:string" },
+
+    "uav:dataTypeDefinitions": { "@id": "uav:dataTypeDefinitions", "@container": "@set" },
+    "uav:dataTypeDefinition": { "@id": "uav:dataTypeDefinition" },
+    "uav:dataTypeName": { "@id": "uav:dataTypeName", "@type": "xsd:string" },
+    "uav:dataTypeId": { "@id": "uav:dataTypeId", "@type": "xsd:string" },
+    "uav:dataTypeSubtypeOf": { "@id": "uav:dataTypeSubtypeOf" },
+    "uav:isAbstract": { "@id": "uav:isAbstract" },
+    "uav:StructureDefinition": { "@id": "uav:StructureDefinition" },
+    "uav:EnumDefinition": { "@id": "uav:EnumDefinition" },
+    "uav:SimpleDataType": { "@id": "uav:SimpleDataType" },
+    "uav:StructureField": { "@id": "uav:StructureField" },
+    "uav:EnumField": { "@id": "uav:EnumField" },
+    "uav:structureType": { "@id": "uav:structureType", "@type": "xsd:string" },
+    "uav:fields": { "@id": "uav:fields", "@container": "@list" },
+    "uav:fieldOrder": { "@id": "uav:fieldOrder", "@type": "xsd:string", "@container": "@list" },
+    "uav:fieldName": { "@id": "uav:fieldName", "@type": "xsd:string" },
+    "uav:fieldDataTypeDefinition": { "@id": "uav:fieldDataTypeDefinition" },
+    "uav:fieldDataTypeName": { "@id": "uav:fieldDataTypeName", "@type": "xsd:string" },
+    "uav:fieldDataTypeId": { "@id": "uav:fieldDataTypeId", "@type": "xsd:string" },
+    "uav:valueRank": { "@id": "uav:valueRank" },
+    "uav:arrayDimensions": { "@id": "uav:arrayDimensions", "@container": "@list" },
+    "uav:maxStringLength": { "@id": "uav:maxStringLength" },
+    "uav:isOptional": { "@id": "uav:isOptional" },
+    "uav:allowSubtypes": { "@id": "uav:allowSubtypes" },
+    "uav:enumFields": { "@id": "uav:enumFields", "@container": "@list" },
+    "uav:enumName": { "@id": "uav:enumName", "@type": "xsd:string" },
+    "uav:enumValue": { "@id": "uav:enumValue" },
+    "uav:isOptionSet": { "@id": "uav:isOptionSet" },
+    "uav:hasDefaultEncoding": { "@id": "uav:hasDefaultEncoding" },
+    "uav:defaultEncodings": { "@id": "uav:defaultEncodings", "@type": "xsd:string", "@container": "@set" },
+    "uav:defaultEncodingId": { "@id": "uav:defaultEncodingId", "@type": "xsd:string" },
+    "uav:binaryEncodingId": { "@id": "uav:binaryEncodingId", "@type": "xsd:string" },
+    "uav:xmlEncodingId": { "@id": "uav:xmlEncodingId", "@type": "xsd:string" },
+    "uav:jsonEncodingId": { "@id": "uav:jsonEncodingId", "@type": "xsd:string" },
+
+    "uav:channelsec": { "@id": "uav:channelsec" },
+    "uav:authentication": { "@id": "uav:authentication" },
+    "uav:securityMode": { "@id": "uav:securityMode", "@type": "xsd:string" },
+    "uav:securityPolicy": { "@id": "uav:securityPolicy", "@type": "xsd:string" },
+    "uav:userIdentityToken": { "@id": "uav:userIdentityToken", "@type": "xsd:string" },
+    "uav:issueToken": { "@id": "uav:issueToken", "@type": "xsd:string" },
+    "uav:minimumSecurity": { "@id": "uav:minimumSecurity" },
+
+    "uav:isComposite": { "@id": "uav:isComposite" },
+    "uav:eventSelectClauses": { "@id": "uav:eventSelectClauses", "@container": "@list" },
+    "uav:eventIdentityMode": { "@id": "uav:eventIdentityMode", "@type": "xsd:string" },
+    "uav:conditionType": { "@id": "uav:conditionType", "@type": "xsd:string" },
+    "uav:conditionTypeId": { "@id": "uav:conditionTypeId", "@type": "xsd:string" },
+    "uav:conditionAction": { "@id": "uav:conditionAction", "@type": "xsd:string" },
+    "uav:actsOn": { "@id": "uav:actsOn", "@type": "xsd:string" },
+    "uav:refName": { "@id": "uav:refName", "@type": "xsd:string" },
+    "uav:refId": { "@id": "uav:refId", "@type": "xsd:string" },
+    "uav:declaration": { "@id": "uav:declaration" },
+
+    "uav:contains": { "@id": "uav:contains", "@type": "xsd:string", "@container": "@set" },
+    "uav:containedIn": { "@id": "uav:containedIn", "@type": "xsd:string" },
+
+    "uav:scaleFactor": { "@id": "uav:scaleFactor" },
+    "uav:decimalPlaces": { "@id": "uav:decimalPlaces" },
+
+    "uav:unitProperty": { "@id": "uav:unitProperty", "@type": "xsd:string" },
+    "uav:engineeringUnits": {
+      "@id": "uav:engineeringUnits",
+      "@context": {
+        "@version": 1.1,
+        "namespaceUri": { "@id": "uav:unitNamespaceUri", "@type": "@id" },
+        "unitId": "uav:unitId",
+        "displayName": "uav:unitDisplayName",
+        "displayNames": { "@id": "uav:unitDisplayNames", "@container": "@language" },
+        "description": "uav:unitDescription",
+        "descriptions": { "@id": "uav:unitDescriptions", "@container": "@language" }
+      }
+    },
+    "uav:instrumentRange": {
+      "@id": "uav:instrumentRange",
+      "@context": {
+        "@version": 1.1,
+        "minimum": "uav:rangeLow",
+        "maximum": "uav:rangeHigh"
+      }
+    },
+
+    "uav:projection": { "@id": "uav:projection" },
+    "uav:projectionKind": { "@id": "uav:projectionKind", "@type": "xsd:string" },
+    "uav:scenario": { "@id": "uav:scenario", "@type": "@id" },
+    "uav:projects": { "@id": "uav:projects", "@container": "@list" },
+    "uav:sourceName": { "@id": "uav:sourceName", "@type": "xsd:string" },
+    "uav:routing": { "@id": "uav:routing", "@type": "xsd:string" },
+    "uav:sourceDigest": { "@id": "uav:sourceDigest", "@type": "xsd:string" },
+    "uav:namePrefix": { "@id": "uav:namePrefix", "@type": "xsd:string" },
+    "uav:selectAll": { "@id": "uav:selectAll" },
+    "uav:select": { "@id": "uav:select", "@container": "@set" },
+    "uav:affordanceKind": { "@id": "uav:affordanceKind", "@type": "xsd:string" },
+    "uav:resolvedFrom": { "@id": "uav:resolvedFrom", "@type": "xsd:string" },
+
+    "uav:metadata": { "@id": "uav:metadata", "@type": "@json" },
+    "uav:semanticId": { "@id": "uav:semanticId", "@type": "@id" },
+
+    "uav:actionConfiguration": { "@id": "uav:actionConfiguration", "@type": "@json" },
+    "uav:propertyConfiguration": { "@id": "uav:propertyConfiguration", "@type": "@json" },
+    "uav:eventConfiguration": { "@id": "uav:eventConfiguration", "@type": "@json" },
+
+    "uav:includeInherited": { "@id": "uav:includeInherited" },
+
+    "uav:additionalProperties": { "@id": "uav:additionalProperties" },
+    "uav:externalSchema": { "@id": "uav:externalSchema", "@type": "@id" },
+    "uav:modellingRule": { "@id": "uav:modellingRule", "@type": "xsd:string" },
+
+    "uav:NodeModel": { "@id": "uav:NodeModel" },
+    "uav:nodes": {
+      "@id": "uav:nodes",
+      "@type": "@json"
+    },
+
+    "uav:nodeSet": {
+      "@id": "uav:nodeSet",
+      "@context": {
+        "@version": 1.1,
+        "contentType": { "@id": "uav:contentType", "@type": "xsd:string" },
+        "encoding": { "@id": "uav:encoding", "@type": "xsd:string" },
+        "sha256": { "@id": "uav:sha256", "@type": "xsd:string" },
+        "data": { "@id": "uav:data", "@type": "xsd:string" },
+        "profileVersion": { "@id": "uav:profileVersion", "@type": "xsd:string" }
+      }
+    }
+  }
+}

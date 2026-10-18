@@ -66,7 +66,9 @@ namespace Opc.Ua.Aot.Tests
             try
             {
                 await fixture.LoadConfigurationAsync(Path.Combine(root, "server")).ConfigureAwait(false);
-                fixture.Config.ServerConfiguration.UserTokenPolicies =
+                var serverConfiguration = fixture.Config?.ServerConfiguration
+                    ?? throw new InvalidOperationException("The reference server configuration was not loaded.");
+                serverConfiguration.UserTokenPolicies =
                 [
                     new UserTokenPolicy
                     {
@@ -78,7 +80,9 @@ namespace Opc.Ua.Aot.Tests
                 ReferenceServer server = await fixture.StartAsync().ConfigureAwait(false);
                 string userName = "xregistry-aot-" + Guid.NewGuid().ToString("N");
                 byte[] password = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
-                await Assert.That(server.UserDatabase.CreateUser(userName, password, [Role.Operator])).IsTrue();
+                var userDatabase = server.UserDatabase
+                    ?? throw new InvalidOperationException("The reference server has no user database.");
+                await Assert.That(userDatabase.CreateUser(userName, password, [Role.Operator])).IsTrue();
                 var writer = new XRegistryCallContext(userName)
                 {
                     IsAuthenticated = true,
@@ -150,7 +154,9 @@ namespace Opc.Ua.Aot.Tests
                 EndpointDescription encrypted = endpoints.ToList().Single(endpoint =>
                     endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt &&
                     endpoint.SecurityPolicyUri == SecurityPolicies.Basic256Sha256);
-                encrypted.EndpointUrl = new UriBuilder(encrypted.EndpointUrl) { Host = "localhost" }.Uri.AbsoluteUri;
+                string endpointUrl = encrypted.EndpointUrl
+                    ?? throw new InvalidOperationException("The selected endpoint has no URL.");
+                encrypted.EndpointUrl = new UriBuilder(endpointUrl) { Host = "localhost" }.Uri.AbsoluteUri;
                 await using ManagedSession session = await ManagedSession.CreateAsync(
                     configuration, new ConfiguredEndpoint(null, encrypted, EndpointConfiguration.Create(configuration)),
                     new DefaultSessionFactory(telemetry), new UserIdentity(userName, password),

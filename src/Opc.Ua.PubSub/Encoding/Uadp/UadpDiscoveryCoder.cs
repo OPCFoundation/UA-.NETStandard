@@ -120,6 +120,31 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             PubSubNetworkMessage message,
             PubSubNetworkMessageContext context)
         {
+            return Encode(message, context, securityEnabled: false, out _);
+        }
+
+        /// <summary>
+        /// Encodes a discovery NetworkMessage and reports the byte offset
+        /// at which the security wrapper inserts the SecurityHeader: the
+        /// discovery header and payload that follow the PublisherId are
+        /// signed and encrypted (Part 14 §7.2.4.6.3).
+        /// </summary>
+        /// <param name="message">Source message; must be a
+        /// <see cref="UadpDiscoveryRequestMessage"/> or
+        /// <see cref="UadpDiscoveryResponseMessage"/>.</param>
+        /// <param name="context">Network message context.</param>
+        /// <param name="securityEnabled">Sets the SecurityHeader bit in
+        /// ExtendedFlags1.</param>
+        /// <param name="payloadOffset">Boundary between the outer prefix
+        /// and the inner payload.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal static byte[] Encode(
+            PubSubNetworkMessage message,
+            PubSubNetworkMessageContext context,
+            bool securityEnabled,
+            out int payloadOffset)
+        {
             if (message is null)
             {
                 throw new ArgumentNullException(nameof(message));
@@ -131,9 +156,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return message switch
             {
                 UadpDiscoveryRequestMessage request =>
-                    EncodeRequest(request, context),
+                    EncodeRequest(request, context, securityEnabled, out payloadOffset),
                 UadpDiscoveryResponseMessage response =>
-                    EncodeResponse(response, context),
+                    EncodeResponse(response, context, securityEnabled, out payloadOffset),
                 _ => throw new InvalidOperationException(
                     "Discovery encoding requires a UadpDiscoveryRequestMessage " +
                     "or UadpDiscoveryResponseMessage instance.")
@@ -177,13 +202,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static byte[] EncodeRequest(
             UadpDiscoveryRequestMessage message,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            bool securityEnabled,
+            out int payloadOffset)
         {
             byte[] buffer = new byte[1024];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             UadpDiscoveryWire.WriteCommonHeader(
                 ref writer, message,
-                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest);
+                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryRequest,
+                securityEnabled);
+            payloadOffset = writer.Position;
 
             writer.WriteByte((byte)message.DiscoveryType);
             writer.WriteUInt32Le((uint)message.DataSetWriterIds.Count);
@@ -201,13 +230,17 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         private static byte[] EncodeResponse(
             UadpDiscoveryResponseMessage message,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            bool securityEnabled,
+            out int payloadOffset)
         {
             byte[] buffer = new byte[8192];
             var writer = new UadpBinaryWriter(buffer, 0, buffer.Length);
             UadpDiscoveryWire.WriteCommonHeader(
                 ref writer, message,
-                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse);
+                ExtendedFlags2EncodingMask.NetworkMessageWithDiscoveryResponse,
+                securityEnabled);
+            payloadOffset = writer.Position;
 
             writer.WriteByte((byte)message.DiscoveryType);
             writer.WriteUInt16Le(message.SequenceNumber);
@@ -790,21 +823,25 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public static void WriteCommonHeader(
             ref UadpBinaryWriter writer,
             UadpDiscoveryRequestMessage message,
-            ExtendedFlags2EncodingMask discoveryBit)
+            ExtendedFlags2EncodingMask discoveryBit,
+            bool securityEnabled)
         {
             WriteCommonHeader(
                 ref writer, message.UadpVersion, message.PublisherId,
-                message.DataSetClassId, discoveryBit);
+                message.DataSetClassId, discoveryBit, securityEnabled,
+                payloadHeaderEnabled: false, writerGroupId: null);
         }
 
         public static void WriteCommonHeader(
             ref UadpBinaryWriter writer,
             UadpDiscoveryResponseMessage message,
-            ExtendedFlags2EncodingMask discoveryBit)
+            ExtendedFlags2EncodingMask discoveryBit,
+            bool securityEnabled)
         {
             WriteCommonHeader(
                 ref writer, message.UadpVersion, message.PublisherId,
-                message.DataSetClassId, discoveryBit);
+                message.DataSetClassId, discoveryBit, securityEnabled,
+                payloadHeaderEnabled: false, writerGroupId: null);
         }
 
         public static void WriteCommonHeader(
@@ -820,18 +857,6 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             WriteCommonHeaderCore(
                 ref writer, uadpVersion, publisherId, dataSetClassId, extendedFlags2,
                 securityEnabled, payloadHeaderEnabled, writerGroupId);
-        }
-
-        private static void WriteCommonHeader(
-            ref UadpBinaryWriter writer,
-            byte uadpVersion,
-            PublisherId publisherId,
-            Uuid dataSetClassId,
-            ExtendedFlags2EncodingMask discoveryBit)
-        {
-            WriteCommonHeaderCore(
-                ref writer, uadpVersion, publisherId, dataSetClassId, discoveryBit,
-                securityEnabled: false, payloadHeaderEnabled: false, writerGroupId: null);
         }
 
         private static void WriteCommonHeaderCore(

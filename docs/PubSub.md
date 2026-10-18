@@ -95,17 +95,13 @@ DataSet #1 received (3 fields): BoolToggle=False, Int32=1, DateTime=09/28/2026 1
 DataSet #2 received (3 fields): BoolToggle=True, Int32=2, DateTime=09/28/2026 12:18:51
 ```
 
-The `udp-uadp` profile signs and encrypts the UADP messages with demo keys
-that are built into the sample. A production deployment obtains its keys from
-a [Security Key Service](#security-key-service-sks). Two warnings are expected:
-
-- `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)`
-  appears when no matching message arrives for five seconds, for example
-  before the publisher starts. The reader resumes when messages arrive.
-- `Dropping unsecured inbound frame ... requiring SignAndEncrypt` appears once.
-  The publisher announces its DataSet metadata without message security, and
-  the secured subscriber discards the announcement. It decodes the DataSets
-  with the metadata configured on its DataSetReader instead.
+The `udp-uadp` profile signs and encrypts the UADP messages, including the
+DataSet metadata announcement, with demo keys that are built into the sample.
+A production deployment obtains its keys from a
+[Security Key Service](#security-key-service-sks).
+`DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
+appear when no matching message arrives for five seconds, for example before
+the publisher starts. The reader resumes when messages arrive.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
 address. On one computer, the subscriber can miss multicast messages because
@@ -287,7 +283,11 @@ The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundat
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
-KeyFrame arrives.
+KeyFrame arrives. A connection configured for message security applies its
+SecurityMode to the UADP announcement, with the same keys as its
+DataSetMessages: `Sign` lets subscribers verify the announcement, and
+`SignAndEncrypt` also hides the DataSet layout from applications that do not
+hold the keys.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
@@ -316,6 +316,27 @@ per-`SecurityGroupId` source of `PubSubSecurityKey`s the wrapper
 uses; `StaticSecurityKeyProvider` keeps a fixed ring,
 `PullSecurityKeyProvider` calls an SKS endpoint
 ([§8.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.4)).
+
+Out-of-band key providers do not need a fictitious SKS URL in a secured
+configuration. `PubSubSecurityWrapperResolver` exposes its non-secret registered
+group IDs through `IPubSubSecurityKeyProviderCatalog`; application construction
+and configuration rebuilds pass that evidence to
+`PubSubConfigurationValidator.RegisteredSecurityGroupIds`. Only an exact registered
+group can omit SKS endpoints. Standalone validation without registration evidence
+still rejects a secured group with neither a key provider nor SKS endpoint, and
+runtime wrapper/key resolution remains fail-closed.
+
+Resolver construction does not perform a key lookup or subscribe to rotation
+events. On receive, a token returned by the configured provider must match the
+message's token ID, and its signature, security mode and decryption must succeed
+before it enters the resolver-owned replay window. Registration preserves
+existing nonce and sequence history. This also permits provider-retained next
+keys before local promotion, as required for the overlap described in
+[Part 14 §8.3.2](https://reference.opcfoundation.org/specs/OPC-10000-14/8.3.2).
+Asynchronous and canceled key lookups are awaited by the operation using them;
+they are not abandoned by synchronous context construction. Callers supplying
+their own replay window directly to `UadpSecurityWrapper` retain explicit token
+registration and retirement control.
 
 ### `IPubSubKeyServiceServer`
 
@@ -916,8 +937,17 @@ in full:
 - **RawData padding**
   ([§7.2.4.5.11](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.5.11))
   pads strings, byte-strings, XML elements and arrays to the
-  declared `MaxStringLength` / `ArrayDimensions`; the on-wire length
-  prefix is suppressed; decoders trim the trailing NUL fill on read.
+  declared `MaxStringLength` / `ArrayDimensions`. The Part 6 length
+  prefix remains; decoders skip padding after the actual value rather
+  than trimming meaningful trailing zero bytes.
+  Matrices carry their actual dimensions followed by elements, without
+  an extra element count or Variant envelope. Their shape survives
+  decoding even when the declared maxima require additional padding.
+  Null String elements remain distinct from empty strings in both padded
+  and unpadded matrices, including their Part 6 length prefixes.
+  Supply a typed `MatrixOf<T>` for a multi-dimensional field; a flattened
+  array cannot supply the missing shape. Typed nonnumeric one-dimensional
+  arrays likewise retain their Part 6 length-prefixed representation.
 
 ### JSON — `Opc.Ua.PubSub.Encoding.Json`
 
@@ -1225,6 +1255,12 @@ subscribers that need to find publishers and bind to metadata at runtime.
   duplicate probes are suppressed, and identical responses are throttled.
 - MQTT publishes retained discovery messages on the standard status, connection,
   application, endpoint, and metadata topics.
+- A UADP connection configured for message security applies its SecurityMode
+  to its discovery requests, responses, and announcements, with the keys of
+  its SecurityGroup: they are signed, and with `SignAndEncrypt` also
+  encrypted. A secured connection therefore discovers only applications that
+  hold the same keys. The MQTT last-will status message is the exception: the
+  broker publishes it later, so it is sent unsecured.
 
 ```csharp
 PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
@@ -1434,6 +1470,8 @@ What the server side adds:
      `PubSubKeyPushTargetFolder`.
    - One Object per `PubSubConnection`, `WriterGroup`, `ReaderGroup`,
      `DataSetWriter`, `DataSetReader`, `PublishedDataSet`, and DataSet folder.
+     PublishedDataSets and DataSet folders are organized below the standard
+     `PublishSubscribe.PublishedDataSets` folder (`i=17371`).
    - Per-instance `Status` / `State` and `ConfigurationVersion` Variables so a
      client can observe the same runtime state the scheduler uses.
 2. Method bindings ([§9.1.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/9.1.5)):
@@ -1441,7 +1479,9 @@ What the server side adds:
    `AddReaderGroup`, `AddDataSetWriter`, `AddDataSetReader`, `Remove*`,
    `Enable`, and `Disable`, plus `AddPublishedDataItems`,
    `AddPublishedEvents`, `AddPublishedDataItemsTemplate`, `AddVariables`,
-   `RemoveVariables`, `AddDataSetFolder`, and `RemoveDataSetFolder`.
+   `RemoveVariables`, `AddDataSetFolder`, and `RemoveDataSetFolder`. The
+   folder methods are bound on the `PublishSubscribe.PublishedDataSets`
+   instance and on every DataSet folder created through `AddDataSetFolder`.
 3. `PubSubConfigurationType` File import/export: clients can open/read the
    current `PubSubConfigurationDataType` file or write a replacement file; the
    server applies it through `ReplaceConfigurationAsync` and returns per-item

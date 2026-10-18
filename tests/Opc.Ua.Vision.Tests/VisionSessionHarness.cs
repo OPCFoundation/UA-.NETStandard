@@ -29,12 +29,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using Opc.Ua.Client;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
 
 namespace Opc.Ua.Vision.Tests
@@ -54,16 +52,22 @@ namespace Opc.Ua.Vision.Tests
         private readonly Dictionary<NodeId, Variant> m_values = [];
         private readonly Dictionary<NodeId, StatusCode> m_valueStatus = [];
         private StatusCode m_callStatus = StatusCodes.Good;
-        private ArrayOf<Variant> m_callOutput = ArrayOf<Variant>.Empty;
+        private ArrayOf<Variant> m_callOutput = [];
 
-        public VisionSessionHarness()
+        public VisionSessionHarness(bool includeDraftNamespace = true)
         {
             Telemetry = new Mock<ITelemetryContext>().Object;
-            NamespaceUris.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
-            NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            NamespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
+            if (includeDraftNamespace)
+            {
+                NamespaceUris.GetIndexOrAppend(Perception.Namespaces.Vision);
+            }
             MessageContext = ServiceMessageContext.Create(Telemetry);
-            MessageContext.NamespaceUris.GetIndexOrAppend(Opc.Ua.Namespaces.OpcUa);
-            MessageContext.NamespaceUris.GetIndexOrAppend(global::Opc.Ua.Vision.Namespaces.Vision);
+            MessageContext.NamespaceUris.GetIndexOrAppend(Namespaces.OpcUa);
+            if (includeDraftNamespace)
+            {
+                MessageContext.NamespaceUris.GetIndexOrAppend(Perception.Namespaces.Vision);
+            }
             Session.SetupGet(s => s.NamespaceUris).Returns(NamespaceUris);
             Session.SetupGet(s => s.MessageContext).Returns(MessageContext);
             Session.SetupGet(s => s.Factory).Returns(MessageContext.Factory);
@@ -95,13 +99,13 @@ namespace Opc.Ua.Vision.Tests
         public VisionClient Client { get; }
 
         public ushort VisionNamespaceIndex =>
-            (ushort)NamespaceUris.GetIndex(global::Opc.Ua.Vision.Namespaces.Vision);
+            (ushort)NamespaceUris.GetIndex(Perception.Namespaces.Vision);
 
         public NodeId VisionRootId => NodeId.Create(
-            Objects.Vision, global::Opc.Ua.Vision.Namespaces.Vision, NamespaceUris);
+            Perception.Objects.Vision, Perception.Namespaces.Vision, NamespaceUris);
 
         public NodeId SensorsFolderId => NodeId.Create(
-            Objects.Vision_Sensors, global::Opc.Ua.Vision.Namespaces.Vision, NamespaceUris);
+            Perception.Objects.Vision_Sensors, Perception.Namespaces.Vision, NamespaceUris);
 
         public NodeId PipelinesFolderId { get; } = new(1001u, 3);
 
@@ -148,8 +152,8 @@ namespace Opc.Ua.Vision.Tests
         /// </summary>
         public void ConfigureVisionFolders()
         {
-            AddChild(VisionRootId, BrowseNames.Pipelines, PipelinesFolderId);
-            AddChild(VisionRootId, BrowseNames.Frames, FramesFolderId);
+            AddChild(VisionRootId, Perception.BrowseNames.Pipelines, PipelinesFolderId);
+            AddChild(VisionRootId, Perception.BrowseNames.Frames, FramesFolderId);
         }
 
         /// <summary>
@@ -170,7 +174,7 @@ namespace Opc.Ua.Vision.Tests
         public NodeId AddPipeline(string browseName = "Pipeline1")
         {
             AddBrowse(PipelinesFolderId,
-                [Ref(PipelineNodeId, browseName, ObjectTypes.InferencePipelineType)]);
+                [Ref(PipelineNodeId, browseName, Perception.ObjectTypes.InferencePipelineType)]);
             return PipelineNodeId;
         }
 
@@ -180,14 +184,14 @@ namespace Opc.Ua.Vision.Tests
         public NodeId AddFrame(string browseName = "Frame1")
         {
             AddBrowse(FramesFolderId,
-                [Ref(FrameNodeId, browseName, ObjectTypes.CoordinateFrameType)]);
+                [Ref(FrameNodeId, browseName, Perception.ObjectTypes.CoordinateFrameType)]);
             return FrameNodeId;
         }
 
         public void ConfigureCall(StatusCode status, params Variant[] outputs)
         {
             m_callStatus = status;
-            m_callOutput = outputs?.ToArrayOf() ?? ArrayOf<Variant>.Empty;
+            m_callOutput = outputs?.ToArrayOf() ?? [];
         }
 
         public ReferenceDescription Ref(NodeId nodeId, string browseName, uint typeId)
@@ -200,7 +204,7 @@ namespace Opc.Ua.Vision.Tests
                 NodeClass = NodeClass.Object,
                 TypeDefinition = new ExpandedNodeId(
                     new NodeId(typeId, VisionNamespaceIndex)),
-                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IsForward = true
             };
         }
@@ -398,7 +402,11 @@ namespace Opc.Ua.Vision.Tests
             return new BrowsePathResult
             {
                 StatusCode = StatusCodes.Good,
-                Targets = [new BrowsePathTarget { TargetId = new ExpandedNodeId(nodeId) }]
+                Targets = [new BrowsePathTarget
+                {
+                    TargetId = new ExpandedNodeId(nodeId),
+                    RemainingPathIndex = uint.MaxValue
+                }]
             };
         }
 

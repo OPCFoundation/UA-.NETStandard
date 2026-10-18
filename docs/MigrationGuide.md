@@ -8,6 +8,8 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
+- [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
+- [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
   - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
@@ -41,6 +43,39 @@ covers cross-cutting changes.
   - [Observability](#observability)
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
+
+## Program state numbers and managed execution
+
+`ProgramStateMachineState.CurrentState.Number` now agrees with the standard
+model: Halted=11, Ready=12, Running=13 and Suspended=14. Earlier runtime values
+were 4, 1, 2 and 3 respectively. Compare using `Opc.Ua.Programs.ProgramState`
+or the standard state NodeIds instead of the old numeric values. State and
+transition declarations in namespace zero are unchanged. Generated Program
+subtypes now reference those inherited declarations in namespace zero instead
+of incorrectly qualifying their numeric identifiers with the subtype namespace.
+
+The opt-in [Program runtime](Programs.md) owns provider execution, lifecycle,
+results and diagnostics. Its Reset follows the explicit Part 10 definition
+(Halted-to-Ready); the existing low-level Reset-from-Suspended behavior remains.
+Do not drive the same node through both an attached runtime and independent
+legacy FSM callbacks. Existing synchronous methods are not sync-over-async
+wrappers around the new runtime.
+
+## Empty LocalizedText fields in 2.0
+
+`LocalizedText.Locale` and `LocalizedText.Text` now expose empty strings as
+`null`, matching the absent-field representation in OPC 10000-6, Table 24.
+Plain values constructed with both fields null or empty are the null value,
+including `new LocalizedText(string.Empty)`. Whitespace is not normalized.
+Use null-aware checks rather than relying on `Text == string.Empty`.
+
+Equality and hashing use these canonical fields, so empty inputs compare and
+hash like null inputs before and after encoding. Translation keys, templates,
+arguments, dictionaries and fallback metadata are retained. An explicitly
+empty selected translation remains absent text rather than selecting fallback
+text; its `Text` property returns `null`. Translation-backed values retain
+their metadata and are not necessarily `IsNull`, even when both exposed fields
+are null.
 
 ## General principles
 
@@ -799,6 +834,14 @@ this reassembly budget. Once a complete request has been decoded, separate
 limits control how many requests may wait, execute, or remain parked, and how
 much request data they may retain. A request refused at that stage receives
 `BadServerTooBusy`, even if it fitted in a single transport chunk.
+
+`MaxQueuedRequestCount` keeps its 1.5.x meaning: established Sessions can have
+that many decoded requests waiting. Balanced and TrustedReservations add their
+reserved queue entries on top of it. Earlier 2.0 previews carved them out of it,
+so a client that kept exactly `MaxQueuedRequestCount` requests outstanding could
+receive `BadServerTooBusy`. A server that relied on the smaller queue should
+lower `MaxQueuedRequestCount` or set `ResourceIsolationStageOptions.Capacity` for
+the RequestQueue stage. See [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits).
 
 For workloads with many simultaneous large requests, set
 `WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign

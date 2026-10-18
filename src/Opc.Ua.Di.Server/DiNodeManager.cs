@@ -294,11 +294,35 @@ namespace Opc.Ua.Di.Server
         public virtual ArrayOf<string> ServerProfiles => BuildServerProfiles();
 
         /// <summary>
+        /// Adds the conformance contribution of a companion composed into this manager.
+        /// Duplicate registrations of the same instance have no effect. Contributions are
+        /// read afresh when capabilities are published and must not refer back to this manager.
+        /// </summary>
+        public void RegisterConformanceContributor(IConformanceContributor contributor)
+        {
+            if (contributor == null)
+            {
+                throw new ArgumentNullException(nameof(contributor));
+            }
+            if (ReferenceEquals(contributor, this))
+            {
+                throw new ArgumentException("A manager cannot contribute to itself.", nameof(contributor));
+            }
+            lock (m_conformanceGate)
+            {
+                if (!m_conformanceContributors.Exists(registered => ReferenceEquals(registered, contributor)))
+                {
+                    m_conformanceContributors.Add(contributor);
+                }
+            }
+        }
+
+        /// <summary>
         /// References an instance node from the Machinery <c>Machines</c> folder
         /// if it is present in the address space. Returns <see langword="true"/>
         /// when the folder was found and the reference was added.
         /// </summary>
-        protected bool TryAddToMachinesFolder(BaseInstanceState instance)
+        protected internal bool TryAddToMachinesFolder(BaseInstanceState instance)
         {
             // The well-known Machines folder BrowseName defined by the
             // Machinery companion specification (OPC 40001).
@@ -882,6 +906,18 @@ namespace Opc.Ua.Di.Server
         }
 
         /// <summary>
+        /// Registers a composed runtime's root notifier and attaches existing event subscriptions.
+        /// </summary>
+        /// <param name="notifier">The event source owned by this node manager.</param>
+        /// <param name="cancellationToken">Cancels notifier registration.</param>
+        internal ValueTask RegisterRootNotifierAsync(
+            NodeState notifier,
+            CancellationToken cancellationToken = default)
+        {
+            return AddRootNotifierAsync(notifier, cancellationToken);
+        }
+
+        /// <summary>
         /// Synchronously indexes a plain builder-created node subtree.
         /// </summary>
         /// <remarks>
@@ -988,6 +1024,16 @@ namespace Opc.Ua.Di.Server
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateCachedLoading));
             }
+            foreach (IConformanceContributor contributor in GetConformanceContributors())
+            {
+                foreach (QualifiedName unit in contributor.ConformanceUnits)
+                {
+                    if (!units.Contains(unit))
+                    {
+                        units.Add(unit);
+                    }
+                }
+            }
             return units.ToArrayOf();
         }
 
@@ -1014,8 +1060,29 @@ namespace Opc.Ua.Di.Server
                     profiles.Add(facet.Profile);
                 }
             }
+            foreach (IConformanceContributor contributor in GetConformanceContributors())
+            {
+                foreach (string profile in contributor.ServerProfiles)
+                {
+                    if (!profiles.Contains(profile))
+                    {
+                        profiles.Add(profile);
+                    }
+                }
+            }
             return profiles.ToArrayOf();
         }
+
+        private IConformanceContributor[] GetConformanceContributors()
+        {
+            lock (m_conformanceGate)
+            {
+                return [.. m_conformanceContributors];
+            }
+        }
+
+        private readonly Lock m_conformanceGate = new();
+        private readonly List<IConformanceContributor> m_conformanceContributors = [];
 
         private bool HasDeviceSet()
         {

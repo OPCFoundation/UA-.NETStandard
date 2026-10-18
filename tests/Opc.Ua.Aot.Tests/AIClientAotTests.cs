@@ -48,33 +48,41 @@ namespace Opc.Ua.Aot.Tests
             var specializedModelId = new NodeId("model.specialized", kInstanceNamespaceIndex);
             var specializedTypeId = new NodeId("ModelSubtype", kInstanceNamespaceIndex);
             ReferenceDescription specialized = Reference(
-                specializedModelId, "Specialized model", Ai.ObjectTypes.ModelType);
+                specializedModelId,
+                "Specialized model",
+                Ai.ObjectTypes.ModelType);
             specialized.TypeDefinition = new ExpandedNodeId(specializedTypeId);
-            harness.Channel.AddBrowse(specializedTypeId, NodeId.Null,
-            [
-                new ReferenceDescription
-                {
-                    NodeId = new ExpandedNodeId(Ai.ObjectTypes.ModelType, kAiNamespace),
-                    ReferenceTypeId = ReferenceTypeIds.HasSubtype,
-                    IsForward = false,
-                    NodeClass = NodeClass.ObjectType
-                }
-            ]);
-            harness.Channel.AddBrowse(s_modelsFolderId, ReferenceTypeIds.HierarchicalReferences,
-            [
-                Reference(s_modelId, "Inspection model", Ai.ObjectTypes.ModelType),
-                new ReferenceDescription
-                {
-                    NodeId = new ExpandedNodeId(new NodeId("untyped", kInstanceNamespaceIndex))
-                },
-                new ReferenceDescription
-                {
-                    TypeDefinition = new ExpandedNodeId(Ai.ObjectTypes.ModelType, kAiNamespace)
-                },
-                Reference(s_deploymentId, "Not a model", Ai.ObjectTypes.DeploymentType),
-                specialized
-            ]);
-            harness.Channel.AddBrowse(s_deploymentsFolderId, ReferenceTypeIds.HierarchicalReferences,
+            harness.Channel.AddBrowse(
+                specializedTypeId,
+                NodeId.Null,
+                [
+                    new ReferenceDescription
+                    {
+                        NodeId = new ExpandedNodeId(Ai.ObjectTypes.ModelType, kAiNamespace),
+                        ReferenceTypeId = ReferenceTypeIds.HasSubtype,
+                        IsForward = false,
+                        NodeClass = NodeClass.ObjectType
+                    }
+                ]);
+            harness.Channel.AddBrowse(
+                s_modelsFolderId,
+                ReferenceTypeIds.HierarchicalReferences,
+                [
+                    Reference(s_modelId, "Inspection model", Ai.ObjectTypes.ModelType),
+                    new ReferenceDescription
+                    {
+                        NodeId = new ExpandedNodeId(new NodeId("untyped", kInstanceNamespaceIndex))
+                    },
+                    new ReferenceDescription
+                    {
+                        TypeDefinition = new ExpandedNodeId(Ai.ObjectTypes.ModelType, kAiNamespace)
+                    },
+                    Reference(s_deploymentId, "Not a model", Ai.ObjectTypes.DeploymentType),
+                    specialized
+                ]);
+            harness.Channel.AddBrowse(
+                s_deploymentsFolderId,
+                ReferenceTypeIds.HierarchicalReferences,
                 [Reference(s_deploymentId, "Local deployment", Ai.ObjectTypes.DeploymentType)]);
 
             ArrayOf<NodeId> models = await client.DiscoverModelsAsync().ConfigureAwait(false);
@@ -97,9 +105,15 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(client.Model(models[0]).ModelNodeId).IsEqualTo(s_modelId);
             await Assert.That(client.Deployment(deployments[0]).DeploymentNodeId).IsEqualTo(s_deploymentId);
             await Assert.That(harness.Channel.Paths.Count).IsEqualTo(2);
-            await AssertPathAsync(harness.Channel.Paths[0], s_rootId, Ai.BrowseNames.Models,
+            await AssertPathAsync(
+                harness.Channel.Paths[0],
+                s_rootId,
+                Ai.BrowseNames.Models,
                 ReferenceTypeIds.HierarchicalReferences).ConfigureAwait(false);
-            await AssertPathAsync(harness.Channel.Paths[1], s_rootId, Ai.BrowseNames.Deployments,
+            await AssertPathAsync(
+                harness.Channel.Paths[1],
+                s_rootId,
+                Ai.BrowseNames.Deployments,
                 ReferenceTypeIds.HierarchicalReferences).ConfigureAwait(false);
             ArrayOf<BrowseDescription> browses = harness.Channel.Browses.Filter(
                 browse => browse.NodeId == s_modelsFolderId || browse.NodeId == s_deploymentsFolderId);
@@ -142,7 +156,9 @@ namespace Opc.Ua.Aot.Tests
         {
             using var harness = new AIClientHarness();
             harness.Channel.RemoveChild(s_rootId, Ai.BrowseNames.Models);
-            harness.Channel.AddBrowse(s_deploymentsFolderId, ReferenceTypeIds.HierarchicalReferences,
+            harness.Channel.AddBrowse(
+                s_deploymentsFolderId,
+                ReferenceTypeIds.HierarchicalReferences,
                 [Reference(s_deploymentId, "Must not escape bad status", Ai.ObjectTypes.DeploymentType)],
                 StatusCodes.BadUserAccessDenied);
 
@@ -174,11 +190,15 @@ namespace Opc.Ua.Aot.Tests
             harness.Channel.AddValue(s_modelId, Ai.BrowseNames.LastModifiedAt, new DateTimeUtc(2026, 2, 3));
             harness.Channel.AddValue(s_modelId, Ai.BrowseNames.Publisher, publisherId);
             harness.Channel.AddChild(s_modelId, Ai.BrowseNames.Card, cardId, ReferenceTypeIds.HasComponent);
-            harness.Channel.AddBrowse(s_modelId, new NodeId(Ai.ReferenceTypes.ImportedFrom, kAiNamespaceIndex),
+            harness.Channel.AddBrowse(
+                s_modelId,
+                new NodeId(Ai.ReferenceTypes.ImportedFrom, kAiNamespaceIndex),
                 [Reference(sourceId, "Source", Ai.ObjectTypes.ModelSourceType)]);
             harness.Channel.AddValue(cardId, Ai.BrowseNames.IntendedUse, "Visual inspection");
             harness.Channel.AddValue(cardId, Ai.BrowseNames.DataJurisdiction, "EU");
-            harness.Channel.AddValue(cardId, Ai.BrowseNames.SafetyAssessment,
+            harness.Channel.AddValue(
+                cardId,
+                Ai.BrowseNames.SafetyAssessment,
                 Variant.From(ArrayOf.Wrapped([SafetyAssessment()])));
             AIModelClient model = harness.Client.Model(s_modelId);
 
@@ -205,17 +225,24 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(card.DataJurisdiction).IsEqualTo("EU");
             await AssertSafetyAsync(card.SafetyAssessment).ConfigureAwait(false);
             await Assert.That(harness.Channel.Reads.Count).IsEqualTo(2);
-            await AssertReadAsync(harness.Channel.Reads[0], s_modelId,
-            [
-                Ai.BrowseNames.ModelId, Ai.BrowseNames.Name, Ai.BrowseNames.Format,
-                Ai.BrowseNames.Digest, Ai.BrowseNames.DigestAlgorithm, Ai.BrowseNames.CreatedAt,
-                Ai.BrowseNames.LastModifiedAt, Ai.BrowseNames.Publisher
-            ]).ConfigureAwait(false);
-            await AssertReadAsync(harness.Channel.Reads[1], cardId,
-            [
-                Ai.BrowseNames.IntendedUse, Ai.BrowseNames.DataJurisdiction, Ai.BrowseNames.SafetyAssessment
-            ]).ConfigureAwait(false);
-            await AssertPathAsync(harness.Channel.Paths[11], s_modelId, Ai.BrowseNames.Card,
+            await AssertReadAsync(
+                harness.Channel.Reads[0],
+                s_modelId,
+                [
+                    Ai.BrowseNames.ModelId, Ai.BrowseNames.Name, Ai.BrowseNames.Format,
+                    Ai.BrowseNames.Digest, Ai.BrowseNames.DigestAlgorithm, Ai.BrowseNames.CreatedAt,
+                    Ai.BrowseNames.LastModifiedAt, Ai.BrowseNames.Publisher
+                ]).ConfigureAwait(false);
+            await AssertReadAsync(
+                harness.Channel.Reads[1],
+                cardId,
+                [
+                    Ai.BrowseNames.IntendedUse, Ai.BrowseNames.DataJurisdiction, Ai.BrowseNames.SafetyAssessment
+                ]).ConfigureAwait(false);
+            await AssertPathAsync(
+                harness.Channel.Paths[11],
+                s_modelId,
+                Ai.BrowseNames.Card,
                 ReferenceTypeIds.HasComponent).ConfigureAwait(false);
             await Assert.That(harness.Channel.Browses.Count).IsEqualTo(1);
             await Assert.That(harness.Channel.Browses[0].ReferenceTypeId)
@@ -233,7 +260,10 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(card.IntendedUse).IsNull();
             await Assert.That(card.SafetyAssessment.Count).IsEqualTo(0);
             await Assert.That(harness.Channel.Paths.Count).IsEqualTo(1);
-            await AssertPathAsync(harness.Channel.Paths[0], s_modelId, Ai.BrowseNames.Card,
+            await AssertPathAsync(
+                harness.Channel.Paths[0],
+                s_modelId,
+                Ai.BrowseNames.Card,
                 ReferenceTypeIds.HasComponent).ConfigureAwait(false);
             await Assert.That(harness.Channel.Reads.Count).IsEqualTo(0);
             await Assert.That(harness.Channel.RequestCount).IsEqualTo(1);
@@ -247,17 +277,25 @@ namespace Opc.Ua.Aot.Tests
             using var harness = new AIClientHarness();
             var fallbackId = new NodeId("deployment.fallback", kInstanceNamespaceIndex);
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.DeploymentId, "local-inspection");
-            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.InferenceLocation,
+            harness.Channel.AddValue(
+                s_deploymentId,
+                Ai.BrowseNames.InferenceLocation,
                 unsignedEnums ? Variant.From(3u) : Variant.From(3));
-            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.State,
+            harness.Channel.AddValue(
+                s_deploymentId,
+                Ai.BrowseNames.State,
                 unsignedEnums ? Variant.From(4u) : Variant.From(4));
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.DataJurisdiction, "EU");
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.EgressPermitted, unsignedEnums);
-            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.MaxInlinePayloadSize, 8192UL);
+            harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.MaxInlinePayloadSize, 8192u);
             harness.Channel.AddValue(s_deploymentId, Ai.BrowseNames.EndpointUri, "urn:ai-aot:in-process");
-            harness.Channel.AddBrowse(s_deploymentId, new NodeId(Ai.ReferenceTypes.UsesModel, kAiNamespaceIndex),
+            harness.Channel.AddBrowse(
+                s_deploymentId,
+                new NodeId(Ai.ReferenceTypes.UsesModel, kAiNamespaceIndex),
                 [Reference(s_modelId, "Inspection model", Ai.ObjectTypes.ModelType)]);
-            harness.Channel.AddBrowse(s_deploymentId, new NodeId(Ai.ReferenceTypes.FallsBackTo, kAiNamespaceIndex),
+            harness.Channel.AddBrowse(
+                s_deploymentId,
+                new NodeId(Ai.ReferenceTypes.FallsBackTo, kAiNamespaceIndex),
                 [Reference(fallbackId, "Fallback", Ai.ObjectTypes.DeploymentType)]);
 
             AIDeploymentSnapshot snapshot = await harness.Client.Deployment(s_deploymentId)
@@ -274,12 +312,14 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(snapshot.ModelId).IsEqualTo(s_modelId);
             await Assert.That(snapshot.FallbackDeploymentId).IsEqualTo(fallbackId);
             await Assert.That(harness.Channel.Reads.Count).IsEqualTo(1);
-            await AssertReadAsync(harness.Channel.Reads[0], s_deploymentId,
-            [
-                Ai.BrowseNames.DeploymentId, Ai.BrowseNames.InferenceLocation, Ai.BrowseNames.State,
-                Ai.BrowseNames.DataJurisdiction, Ai.BrowseNames.EgressPermitted,
-                Ai.BrowseNames.MaxInlinePayloadSize, Ai.BrowseNames.EndpointUri
-            ]).ConfigureAwait(false);
+            await AssertReadAsync(
+                harness.Channel.Reads[0],
+                s_deploymentId,
+                [
+                    Ai.BrowseNames.DeploymentId, Ai.BrowseNames.InferenceLocation, Ai.BrowseNames.State,
+                    Ai.BrowseNames.DataJurisdiction, Ai.BrowseNames.EgressPermitted,
+                    Ai.BrowseNames.MaxInlinePayloadSize, Ai.BrowseNames.EndpointUri
+                ]).ConfigureAwait(false);
             await Assert.That(harness.Channel.Browses.Count).IsEqualTo(2);
             await Assert.That(harness.Channel.Browses[0].ReferenceTypeId)
                 .IsEqualTo(new NodeId(Ai.ReferenceTypes.UsesModel, kAiNamespaceIndex));
@@ -340,20 +380,22 @@ namespace Opc.Ua.Aot.Tests
 
             AIInvokeResult result = await harness.Client.Deployment(s_deploymentId).InvokeAsync(
                 ByteString.From([0x10, 0x20]),
-                instanceFallback ? null : "application/json",
+                instanceFallback ? null! : "application/json",
                 parameters,
                 12.5,
-                instanceFallback ? null : "urn:ai-aot:request",
+                instanceFallback ? null! : "urn:ai-aot:request",
                 cancellation.Token).ConfigureAwait(false);
 
             await Assert.That(result.ResponsePayload).IsEqualTo(ByteString.From([0x7B, 0x7D]));
             await Assert.That(result.ResponseContentType).IsEqualTo("application/json");
             await Assert.That(result.ModelUsed).IsEqualTo(s_modelId);
-            await Assert.That(result.Usage.UnitKind).IsEqualTo("tokens");
-            await Assert.That(result.Usage.InputUnits).IsEqualTo(11UL);
-            await Assert.That(result.Usage.OutputUnits).IsEqualTo(7UL);
+            Ai.UsageDataType usage = result.Usage ??
+                throw new InvalidOperationException("The invocation did not return its scripted usage.");
+            await Assert.That(usage.UnitKind).IsEqualTo("tokens");
+            await Assert.That(usage.InputUnits).IsEqualTo(11UL);
+            await Assert.That(usage.OutputUnits).IsEqualTo(7UL);
             // Metered total is intentionally not InputUnits + OutputUnits.
-            await Assert.That(result.Usage.TotalUnits).IsEqualTo(15UL);
+            await Assert.That(usage.TotalUnits).IsEqualTo(15UL);
             await Assert.That(result.FinishReason).IsEqualTo(Ai.FinishReasonEnum.Filtered);
             await AssertSafetyAsync(result.SafetyAssessment).ConfigureAwait(false);
             await Assert.That(result.RetryAfter).IsEqualTo(0.75);
@@ -373,9 +415,15 @@ namespace Opc.Ua.Aot.Tests
             if (instanceFallback)
             {
                 await Assert.That(calls[1].MethodId).IsEqualTo(instanceMethodId);
-                await AssertPathAsync(harness.Channel.Paths[0], s_deploymentId, Ai.BrowseNames.Invoke,
+                await AssertPathAsync(
+                    harness.Channel.Paths[0],
+                    s_deploymentId,
+                    Ai.BrowseNames.Invoke,
                     ReferenceTypeIds.HasComponent).ConfigureAwait(false);
-                await AssertPathAsync(harness.Channel.Paths[1], s_deploymentId, Ai.BrowseNames.Invoke,
+                await AssertPathAsync(
+                    harness.Channel.Paths[1],
+                    s_deploymentId,
+                    Ai.BrowseNames.Invoke,
                     ReferenceTypeIds.HierarchicalReferences).ConfigureAwait(false);
             }
         }
@@ -386,11 +434,16 @@ namespace Opc.Ua.Aot.Tests
             using var harness = new AIClientHarness();
             harness.Channel.EnqueueCall(StatusCodes.BadUserAccessDenied, InvokeOutputs());
 
-            ServiceResultException exception = await Assert.That(async () =>
-            {
-                await harness.Client.Deployment(s_deploymentId).InvokeAsync(
-                    ByteString.Empty, "application/json", [], 1).ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+            ServiceResultException exception = await Assert.That(
+                async () =>
+                {
+                    await harness.Client.Deployment(s_deploymentId).InvokeAsync(
+                        ByteString.Empty,
+                        "application/json",
+                        [],
+                        1).ConfigureAwait(false);
+                }).Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadUserAccessDenied);
             await Assert.That(harness.Channel.Calls.Count).IsEqualTo(1);
@@ -406,19 +459,30 @@ namespace Opc.Ua.Aot.Tests
             using var harness = new AIClientHarness();
             harness.Channel.EnqueueCall(StatusCodes.BadMethodInvalid, []);
 
-            ServiceResultException exception = await Assert.That(async () =>
-            {
-                await harness.Client.Deployment(s_deploymentId).InvokeAsync(
-                    ByteString.Empty, "application/json", [], 1).ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+            ServiceResultException exception = await Assert.That(
+                async () =>
+                {
+                    await harness.Client.Deployment(s_deploymentId).InvokeAsync(
+                        ByteString.Empty,
+                        "application/json",
+                        [],
+                        1).ConfigureAwait(false);
+                }).Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadMethodInvalid);
             await Assert.That(harness.Channel.Calls.Count).IsEqualTo(1);
             await Assert.That(harness.Channel.Calls[0].ObjectId).IsEqualTo(s_deploymentId);
             await Assert.That(harness.Channel.Paths.Count).IsEqualTo(2);
-            await AssertPathAsync(harness.Channel.Paths[0], s_deploymentId, Ai.BrowseNames.Invoke,
+            await AssertPathAsync(
+                harness.Channel.Paths[0],
+                s_deploymentId,
+                Ai.BrowseNames.Invoke,
                 ReferenceTypeIds.HasComponent).ConfigureAwait(false);
-            await AssertPathAsync(harness.Channel.Paths[1], s_deploymentId, Ai.BrowseNames.Invoke,
+            await AssertPathAsync(
+                harness.Channel.Paths[1],
+                s_deploymentId,
+                Ai.BrowseNames.Invoke,
                 ReferenceTypeIds.HierarchicalReferences).ConfigureAwait(false);
         }
 
@@ -429,10 +493,11 @@ namespace Opc.Ua.Aot.Tests
             harness.Channel.AddValue(s_modelId, Ai.BrowseNames.ModelId, "must-not-be-returned");
             harness.Channel.ReadServiceStatus = StatusCodes.BadSessionClosed;
 
-            ServiceResultException exception = await Assert.That(async () =>
-            {
-                await harness.Client.Model(s_modelId).ReadAsync().ConfigureAwait(false);
-            }).Throws<ServiceResultException>();
+            ServiceResultException exception = await Assert.That(
+                async () =>
+                    await harness.Client.Model(s_modelId).ReadAsync().ConfigureAwait(false))
+                .Throws<ServiceResultException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.StatusCode).IsEqualTo(StatusCodes.BadSessionClosed);
             await Assert.That(harness.Channel.Reads.Count).IsEqualTo(1);
@@ -449,10 +514,11 @@ namespace Opc.Ua.Aot.Tests
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            OperationCanceledException exception = await Assert.That(async () =>
-            {
-                await harness.Client.DiscoverModelsAsync(cancellation.Token).ConfigureAwait(false);
-            }).Throws<OperationCanceledException>();
+            OperationCanceledException exception = await Assert.That(
+                async () =>
+                    await harness.Client.DiscoverModelsAsync(cancellation.Token).ConfigureAwait(false))
+                .Throws<OperationCanceledException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.CancellationToken).IsEqualTo(cancellation.Token);
             await Assert.That(harness.Channel.Browses.Count).IsEqualTo(0);
@@ -467,12 +533,17 @@ namespace Opc.Ua.Aot.Tests
             using var cancellation = new CancellationTokenSource();
             harness.Channel.CancelOnCall = cancellation;
 
-            OperationCanceledException exception = await Assert.That(async () =>
-            {
-                await harness.Client.Deployment(s_deploymentId).InvokeAsync(
-                    ByteString.From([0x42]), "application/json", [], 5,
-                    cancellationToken: cancellation.Token).ConfigureAwait(false);
-            }).Throws<OperationCanceledException>();
+            OperationCanceledException exception = await Assert.That(
+                async () =>
+                {
+                    await harness.Client.Deployment(s_deploymentId).InvokeAsync(
+                        ByteString.From([0x42]),
+                        "application/json",
+                        [],
+                        5,
+                        cancellationToken: cancellation.Token).ConfigureAwait(false);
+                }).Throws<OperationCanceledException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(exception.CancellationToken).IsEqualTo(cancellation.Token);
             await Assert.That(cancellation.IsCancellationRequested).IsTrue();
@@ -491,13 +562,17 @@ namespace Opc.Ua.Aot.Tests
             using var harness = new AIClientHarness();
 
             ArgumentNullException sessionError = await Assert.That(
-                () => new AIClient(null, harness.Client.Telemetry)).Throws<ArgumentNullException>();
+                () => new AIClient(null!, harness.Client.Telemetry)).Throws<ArgumentNullException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentNullException telemetryError = await Assert.That(
-                () => new AIClient(harness.Session, null)).Throws<ArgumentNullException>();
+                () => new AIClient(harness.Session, null!)).Throws<ArgumentNullException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentException modelError = await Assert.That(
-                () => harness.Client.Model(NodeId.Null)).Throws<ArgumentException>();
+                () => harness.Client.Model(NodeId.Null)).Throws<ArgumentException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
             ArgumentException deploymentError = await Assert.That(
-                () => harness.Client.Deployment(NodeId.Null)).Throws<ArgumentException>();
+                () => harness.Client.Deployment(NodeId.Null)).Throws<ArgumentException>() ??
+                throw new InvalidOperationException("The exception assertion returned no exception.");
 
             await Assert.That(sessionError.ParamName).IsEqualTo("session");
             await Assert.That(telemetryError.ParamName).IsEqualTo("telemetry");
@@ -541,8 +616,10 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(uri).IsEqualTo(normalizedStrings ? string.Empty : "urn:ai-aot:request");
             await Assert.That(call.InputArguments[2].TryGetValue(out string contentType)).IsTrue();
             await Assert.That(contentType).IsEqualTo(normalizedStrings ? string.Empty : "application/json");
-            await Assert.That(call.InputArguments[3].TryGetValue(
-                out ArrayOf<KeyValuePair> parameters, messageContext)).IsTrue();
+            await Assert.That(
+                call.InputArguments[3].TryGetValue(
+                    out ArrayOf<KeyValuePair> parameters,
+                    messageContext)).IsTrue();
             await Assert.That(parameters.Count).IsEqualTo(1);
             await Assert.That(parameters[0].Key).IsEqualTo(new QualifiedName("temperature"));
             await Assert.That(parameters[0].Value.TryGetValue(out double temperature)).IsTrue();
@@ -558,8 +635,10 @@ namespace Opc.Ua.Aot.Tests
                 Variant.From(ByteString.From([0x7B, 0x7D])),
                 Variant.From("application/json"),
                 Variant.From(s_modelId),
-                Variant.From(BinaryStructure(5003,
-                    "06000000746F6B656E730B0000000000000007000000000000000F00000000000000")),
+                Variant.From(
+                    BinaryStructure(
+                        5003,
+                        "06000000746F6B656E730B0000000000000007000000000000000F00000000000000")),
                 unsignedFinishReason ? Variant.From(3u) : Variant.From(3),
                 Variant.From(ArrayOf.Wrapped([SafetyAssessment()])),
                 Variant.From(0.75),
@@ -576,7 +655,8 @@ namespace Opc.Ua.Aot.Tests
         private static ExtensionObject BinaryStructure(uint encodingId, string body)
         {
             return new ExtensionObject(
-                new ExpandedNodeId(encodingId, kAiNamespace), ByteString.From(Convert.FromHexString(body)));
+                new ExpandedNodeId(encodingId, kAiNamespace),
+                ByteString.From(Convert.FromHexString(body)));
         }
 
         private static NodeId ValueNodeId(NodeId parent, string name)
@@ -644,7 +724,8 @@ namespace Opc.Ua.Aot.Tests
                     },
                     new ConfiguredEndpoint(null, Channel.EndpointDescription, Channel.EndpointConfiguration));
                 HadAiTypesBeforeConstruction = Session.Factory.TryGetEncodeableType(
-                    new ExpandedNodeId(5004, kAiNamespace), out _);
+                    new ExpandedNodeId(5004, kAiNamespace),
+                    out _);
                 Client = new AIClient(Session, telemetry);
                 Channel.AddChild(s_rootId, Ai.BrowseNames.Models, s_modelsFolderId);
                 Channel.AddChild(s_rootId, Ai.BrowseNames.Deployments, s_deploymentsFolderId);
@@ -706,18 +787,24 @@ namespace Opc.Ua.Aot.Tests
 
             public CancellationToken LastCancellationToken { get; private set; }
 
-            public CancellationTokenSource CancelOnCall { get; set; }
+            public CancellationTokenSource? CancelOnCall { get; set; }
 
             public void AddChild(NodeId parent, string browseName, NodeId child, NodeId referenceType = default)
             {
-                m_children[(parent, new QualifiedName(browseName, kAiNamespaceIndex),
-                    referenceType.IsNull ? ReferenceTypeIds.HierarchicalReferences : referenceType)] = child;
+                m_children[
+                    (
+                        parent,
+                        new QualifiedName(browseName, kAiNamespaceIndex),
+                        referenceType.IsNull ? ReferenceTypeIds.HierarchicalReferences : referenceType)] = child;
             }
 
             public void RemoveChild(NodeId parent, string browseName)
             {
-                m_children.Remove((parent, new QualifiedName(browseName, kAiNamespaceIndex),
-                    ReferenceTypeIds.HierarchicalReferences));
+                m_children.Remove(
+                    (
+                        parent,
+                        new QualifiedName(browseName, kAiNamespaceIndex),
+                        ReferenceTypeIds.HierarchicalReferences));
             }
 
             public void AddBrowse(
@@ -742,11 +829,12 @@ namespace Opc.Ua.Aot.Tests
 
             public void EnqueueCall(StatusCode status, ArrayOf<Variant> outputs)
             {
-                m_callResults.Enqueue(new CallMethodResult
-                {
-                    StatusCode = status,
-                    OutputArguments = outputs
-                });
+                m_callResults.Enqueue(
+                    new CallMethodResult
+                    {
+                        StatusCode = status,
+                        OutputArguments = outputs
+                    });
             }
 
             public ValueTask<IServiceResponse> SendRequestAsync(
@@ -770,7 +858,7 @@ namespace Opc.Ua.Aot.Tests
             }
 
             public ValueTask ReconnectAsync(
-                ITransportWaitingConnection connection = null,
+                ITransportWaitingConnection? connection = null,
                 CancellationToken ct = default)
             {
                 throw new NotSupportedException("AI AOT tests never connect to a network.");
@@ -795,15 +883,17 @@ namespace Opc.Ua.Aot.Tests
                     m_paths.Add(path);
                     RelativePathElement element = path.RelativePath.Elements[0];
                     bool found = m_children.TryGetValue(
-                        (path.StartingNode, element.TargetName, element.ReferenceTypeId), out NodeId child);
-                    results.Add(new BrowsePathResult
-                    {
-                        StatusCode = found ? StatusCodes.Good : StatusCodes.BadNoMatch,
-                        Targets = found
-                            ? [new BrowsePathTarget { TargetId = new ExpandedNodeId(child),
-                                RemainingPathIndex = uint.MaxValue }]
-                            : []
-                    });
+                        (path.StartingNode, element.TargetName, element.ReferenceTypeId),
+                        out NodeId child);
+                    results.Add(
+                        new BrowsePathResult
+                        {
+                            StatusCode = found ? StatusCodes.Good : StatusCodes.BadNoMatch,
+                            Targets = found
+                                ? [new BrowsePathTarget { TargetId = new ExpandedNodeId(child),
+                                    RemainingPathIndex = uint.MaxValue }]
+                                : []
+                        });
                 }
                 return new TranslateBrowsePathsToNodeIdsResponse
                 {
@@ -818,10 +908,12 @@ namespace Opc.Ua.Aot.Tests
                 foreach (BrowseDescription browse in request.NodesToBrowse)
                 {
                     m_browses.Add(browse);
-                    results.Add(m_references.TryGetValue(
-                        (browse.NodeId, browse.ReferenceTypeId), out BrowseResult result)
-                        ? result
-                        : new BrowseResult { StatusCode = StatusCodes.Good, References = [] });
+                    results.Add(
+                        m_references.TryGetValue(
+                            (browse.NodeId, browse.ReferenceTypeId),
+                            out BrowseResult? result)
+                            ? result
+                            : new BrowseResult { StatusCode = StatusCodes.Good, References = [] });
                 }
                 return new BrowseResponse
                 {
@@ -836,9 +928,10 @@ namespace Opc.Ua.Aot.Tests
                 var results = new List<DataValue>();
                 foreach (ReadValueId read in request.NodesToRead)
                 {
-                    results.Add(m_values.TryGetValue(read.NodeId, out DataValue value)
-                        ? value
-                        : new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown));
+                    results.Add(
+                        m_values.TryGetValue(read.NodeId, out DataValue value)
+                            ? value
+                            : new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown));
                 }
                 return new ReadResponse
                 {
@@ -866,6 +959,7 @@ namespace Opc.Ua.Aot.Tests
 
             private readonly Dictionary<(NodeId Parent, QualifiedName Name, NodeId ReferenceType), NodeId>
                 m_children = [];
+
             private readonly Dictionary<(NodeId Parent, NodeId ReferenceType), BrowseResult> m_references = [];
             private readonly List<BrowsePath> m_paths = [];
             private readonly List<BrowseDescription> m_browses = [];

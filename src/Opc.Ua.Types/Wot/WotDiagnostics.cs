@@ -40,13 +40,19 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotDiagnosticSeverity
     {
-        /// <summary>An informational note; conversion succeeded.</summary>
+        /// <summary>
+        /// An informational note; conversion succeeded.
+        /// </summary>
         Info,
 
-        /// <summary>A recoverable concern; conversion succeeded with caveats.</summary>
+        /// <summary>
+        /// A recoverable concern; conversion succeeded with caveats.
+        /// </summary>
         Warning,
 
-        /// <summary>A fatal problem; the associated conversion did not succeed.</summary>
+        /// <summary>
+        /// A fatal problem; the associated conversion did not succeed.
+        /// </summary>
         Error
     }
 
@@ -55,58 +61,94 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotDiagnosticCode
     {
-        /// <summary>No specific code.</summary>
+        /// <summary>
+        /// No specific code.
+        /// </summary>
         None = 0,
 
-        /// <summary>The JSON document exceeded the configured byte limit.</summary>
+        /// <summary>
+        /// The JSON document exceeded the configured byte limit.
+        /// </summary>
         JsonDocumentTooLarge = 1000,
 
-        /// <summary>The NodeSet2 payload exceeded the configured byte limit.</summary>
+        /// <summary>
+        /// The NodeSet2 payload exceeded the configured byte limit.
+        /// </summary>
         NodeSetTooLarge = 1001,
 
-        /// <summary>A nesting depth limit was exceeded.</summary>
+        /// <summary>
+        /// A nesting depth limit was exceeded.
+        /// </summary>
         DepthExceeded = 1002,
 
-        /// <summary>The node count limit was exceeded.</summary>
+        /// <summary>
+        /// The node count limit was exceeded.
+        /// </summary>
         NodeCountExceeded = 1003,
 
-        /// <summary>The affordance count limit was exceeded.</summary>
+        /// <summary>
+        /// The affordance count limit was exceeded.
+        /// </summary>
         AffordanceCountExceeded = 1004,
 
-        /// <summary>The JSON document was malformed.</summary>
+        /// <summary>
+        /// The JSON document was malformed.
+        /// </summary>
         MalformedJson = 1005,
 
-        /// <summary>The NodeSet2 XML was malformed.</summary>
+        /// <summary>
+        /// The NodeSet2 XML was malformed.
+        /// </summary>
         MalformedNodeSet = 1006,
 
-        /// <summary>The preservation envelope is missing.</summary>
+        /// <summary>
+        /// The preservation envelope is missing.
+        /// </summary>
         EnvelopeMissing = 2000,
 
-        /// <summary>The preservation envelope is structurally invalid.</summary>
+        /// <summary>
+        /// The preservation envelope is structurally invalid.
+        /// </summary>
         EnvelopeInvalid = 2001,
 
-        /// <summary>The envelope content type is not supported.</summary>
+        /// <summary>
+        /// The envelope content type is not supported.
+        /// </summary>
         UnsupportedContentType = 2002,
 
-        /// <summary>The envelope encoding is not supported.</summary>
+        /// <summary>
+        /// The envelope encoding is not supported.
+        /// </summary>
         UnsupportedEncoding = 2003,
 
-        /// <summary>The envelope data was not valid base64.</summary>
+        /// <summary>
+        /// The envelope data was not valid base64.
+        /// </summary>
         InvalidBase64 = 2004,
 
-        /// <summary>The envelope digest was not a valid SHA-256 value.</summary>
+        /// <summary>
+        /// The envelope digest was not a valid SHA-256 value.
+        /// </summary>
         InvalidDigest = 2005,
 
-        /// <summary>The envelope digest did not match the decoded payload.</summary>
+        /// <summary>
+        /// The envelope digest did not match the decoded payload.
+        /// </summary>
         DigestMismatch = 2006,
 
-        /// <summary>A native member restated a baseline fact inconsistently.</summary>
+        /// <summary>
+        /// A native member restated a baseline fact inconsistently.
+        /// </summary>
         NativeProjectionConflict = 3000,
 
-        /// <summary>Neither an envelope nor a native projection was present.</summary>
+        /// <summary>
+        /// Neither an envelope nor a native projection was present.
+        /// </summary>
         NoConvertibleContent = 3001,
 
-        /// <summary>A native projection record was structurally invalid.</summary>
+        /// <summary>
+        /// A native projection record was structurally invalid.
+        /// </summary>
         NativeProjectionInvalid = 3002,
 
         /// <summary>
@@ -137,34 +179,64 @@ namespace Opc.Ua.Wot
         /// </summary>
         DataTypeDefinitionInvalid = 3007,
 
-        /// <summary>A referenced target could not be resolved to a NodeId.</summary>
+        /// <summary>
+        /// A value or identity cannot be safely translated to the namespace union.
+        /// </summary>
+        NamespaceRebaseUnsupported = 3008,
+
+        /// <summary>
+        /// A referenced target could not be resolved to a NodeId.
+        /// </summary>
         UnresolvedReference = 4000,
 
-        /// <summary>A NodeId was generated deterministically because none was supplied.</summary>
+        /// <summary>
+        /// A NodeId was generated deterministically because none was supplied.
+        /// </summary>
         GeneratedNodeId = 4001,
 
-        /// <summary>A WoT construct had no faithful NodeSet2 representation.</summary>
+        /// <summary>
+        /// A WoT construct had no faithful NodeSet2 representation.
+        /// </summary>
         LossySynthesis = 4002,
 
-        /// <summary>A required BrowseName or title was missing.</summary>
+        /// <summary>
+        /// A required BrowseName or title was missing.
+        /// </summary>
         MissingBrowseName = 4003,
 
-        /// <summary>A DataSchema could not be mapped to an OPC UA DataType.</summary>
+        /// <summary>
+        /// A DataSchema could not be mapped to an OPC UA DataType.
+        /// </summary>
         UnsupportedSchema = 4004,
 
-        /// <summary>External resolution detected a cycle.</summary>
+        /// <summary>
+        /// The explicitly selected document-set processing algorithm.
+        /// </summary>
+        DocumentSetModeSelected = 4005,
+
+        /// <summary>
+        /// External resolution detected a cycle.
+        /// </summary>
         ResolverCycle = 5000,
 
-        /// <summary>External resolution exceeded the configured depth.</summary>
+        /// <summary>
+        /// External resolution exceeded the configured depth.
+        /// </summary>
         ResolverDepthExceeded = 5001,
 
-        /// <summary>External resolution exceeded a configured resource limit.</summary>
+        /// <summary>
+        /// External resolution exceeded a configured resource limit.
+        /// </summary>
         ResolverLimitExceeded = 5002,
 
-        /// <summary>An external document could not be resolved.</summary>
+        /// <summary>
+        /// An external document could not be resolved.
+        /// </summary>
         ResolverNotFound = 5003,
 
-        /// <summary>A document validation rule was violated.</summary>
+        /// <summary>
+        /// A document validation rule was violated.
+        /// </summary>
         ValidationError = 6000,
 
         /// <summary>
@@ -749,19 +821,29 @@ namespace Opc.Ua.Wot
             Reference = reference;
         }
 
-        /// <summary>Gets the RFC 6901 JSON Pointer of the location, if any.</summary>
+        /// <summary>
+        /// Gets the RFC 6901 JSON Pointer of the location, if any.
+        /// </summary>
         public string? JsonPointer { get; }
 
-        /// <summary>Gets the OPC UA NodeId of the location, if any.</summary>
+        /// <summary>
+        /// Gets the OPC UA NodeId of the location, if any.
+        /// </summary>
         public string? NodeId { get; }
 
-        /// <summary>Gets the OPC UA attribute name of the location, if any.</summary>
+        /// <summary>
+        /// Gets the OPC UA attribute name of the location, if any.
+        /// </summary>
         public string? Attribute { get; }
 
-        /// <summary>Gets the reference descriptor of the location, if any.</summary>
+        /// <summary>
+        /// Gets the reference descriptor of the location, if any.
+        /// </summary>
         public string? Reference { get; }
 
-        /// <summary>Creates a location from a JSON Pointer.</summary>
+        /// <summary>
+        /// Creates a location from a JSON Pointer.
+        /// </summary>
         public static WotLocation FromPointer(string jsonPointer)
         {
             return new WotLocation(jsonPointer: jsonPointer);
@@ -835,16 +917,24 @@ namespace Opc.Ua.Wot
             Location = location;
         }
 
-        /// <summary>Gets the severity of the diagnostic.</summary>
+        /// <summary>
+        /// Gets the severity of the diagnostic.
+        /// </summary>
         public WotDiagnosticSeverity Severity { get; }
 
-        /// <summary>Gets the stable diagnostic code.</summary>
+        /// <summary>
+        /// Gets the stable diagnostic code.
+        /// </summary>
         public WotDiagnosticCode Code { get; }
 
-        /// <summary>Gets the human-readable message.</summary>
+        /// <summary>
+        /// Gets the human-readable message.
+        /// </summary>
         public string Message { get; }
 
-        /// <summary>Gets the optional location of the diagnostic.</summary>
+        /// <summary>
+        /// Gets the optional location of the diagnostic.
+        /// </summary>
         public WotLocation? Location { get; }
 
         /// <inheritdoc/>
@@ -879,13 +969,19 @@ namespace Opc.Ua.Wot
             Diagnostics = diagnostics ?? throw new ArgumentNullException(nameof(diagnostics));
         }
 
-        /// <summary>Gets the produced value, or <c>null</c> when conversion failed.</summary>
+        /// <summary>
+        /// Gets the produced value, or <c>null</c> when conversion failed.
+        /// </summary>
         public T? Value { get; }
 
-        /// <summary>Gets the diagnostics produced during conversion.</summary>
+        /// <summary>
+        /// Gets the diagnostics produced during conversion.
+        /// </summary>
         public IReadOnlyList<WotDiagnostic> Diagnostics { get; }
 
-        /// <summary>Gets a value indicating whether any error diagnostic was produced.</summary>
+        /// <summary>
+        /// Gets a value indicating whether any error diagnostic was produced.
+        /// </summary>
         public bool HasErrors
         {
             get

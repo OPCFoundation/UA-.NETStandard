@@ -100,15 +100,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = m_nodeManagers[1].SyncNodeManager.GetManagerHandle(nodeId);
+                // Routing is withdrawn before disposal callbacks release their remaining node references.
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return null;
+                }
+                INodeManager core = routing.NodeManagers[1].SyncNodeManager;
+                handle = core.GetManagerHandle(nodeId);
 
                 if (handle != null)
                 {
-                    nodeManager = m_nodeManagers[1].SyncNodeManager;
+                    nodeManager = core;
                     return handle;
                 }
                 return null;
@@ -145,16 +152,22 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
+            var routing = m_nodeManagers.GetDispatchView();
 
             // check if node managers are registered - use the core node manager if unknown.
-            if (!NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
+            if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
             {
-                handle = await m_nodeManagers[1].GetManagerHandleAsync(nodeId, cancellationToken)
+                if (routing.NodeManagers.Length < 2)
+                {
+                    return (null, null);
+                }
+                IAsyncNodeManager core = routing.NodeManagers[1];
+                handle = await core.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (handle != null)
                 {
-                    return (handle, m_nodeManagers[1]);
+                    return (handle, core);
                 }
                 return (null, null);
             }
@@ -264,10 +277,43 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears the diagnostics result when no reportable operation diagnostics remain.
         /// </summary>
+        /// <param name="context">The receiving operation's string table.</param>
+        /// <param name="diagnosticsExist">Whether a requested diagnostic was generated.</param>
+        /// <param name="diagnosticInfos">The ordered operation diagnostics retained in the response.</param>
         internal void UpdateDiagnostics(
             OperationContext context,
             bool diagnosticsExist,
             ref List<DiagnosticInfo> diagnosticInfos)
+        {
+            if (!HasReportableDiagnostics(context, diagnosticsExist, diagnosticInfos))
+            {
+                diagnosticInfos = null!;
+            }
+        }
+
+        /// <summary>
+        /// Clears the diagnostics result when no reportable operation diagnostics remain.
+        /// </summary>
+        /// <param name="context">The receiving operation's string table.</param>
+        /// <param name="diagnosticsExist">Whether a requested diagnostic was generated.</param>
+        /// <param name="diagnosticInfos">The ordered operation diagnostics retained in the response,
+        /// <c>null</c> if no diagnostic was generated.</param>
+        private static void UpdateDiagnostics(
+            OperationContext context,
+            bool diagnosticsExist,
+            ref DiagnosticInfo[]? diagnosticInfos)
+        {
+            if (diagnosticInfos == null ||
+                !HasReportableDiagnostics(context, diagnosticsExist, diagnosticInfos))
+            {
+                diagnosticInfos = null;
+            }
+        }
+
+        private static bool HasReportableDiagnostics(
+            OperationContext context,
+            bool diagnosticsExist,
+            IList<DiagnosticInfo> diagnosticInfos)
         {
             if (diagnosticsExist && context.StringTable.Count == 0)
             {
@@ -280,7 +326,8 @@ namespace Opc.Ua.Server
                     int depth = 0;
                     while (diagnosticInfo != null && depth++ < DiagnosticInfo.MaxInnerDepth)
                     {
-                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo))
+                        if (!string.IsNullOrEmpty(diagnosticInfo.AdditionalInfo) ||
+                            !diagnosticInfo.InnerStatusCode.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
                         {
                             diagnosticsExist = true;
                             break;
@@ -291,10 +338,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            if (!diagnosticsExist)
-            {
-                diagnosticInfos = null!;
-            }
+            return diagnosticsExist;
         }
 
         /// <summary>
@@ -701,6 +745,26 @@ namespace Opc.Ua.Server
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
+        }
+
+        /// <summary>
+        /// Creates the attribute cache for a request with more than one node, and returns
+        /// <c>null</c> for a request with one node: its permission attributes are read once
+        /// either way, so the caller validates with <c>permissionsOnly</c> instead of
+        /// allocating a cache it never hits.
+        /// </summary>
+        /// <typeparam name="T">One of the types used in the service calls (ReadValueId, WriteValue).</typeparam>
+        /// <param name="nodesList">The collection of nodes on which the service operates upon</param>
+        /// <returns>The cache, or <c>null</c> for a request with at most one node.</returns>
+        private static Dictionary<NodeId, Variant[]>? PrepareValidationCacheForMany<T>(ArrayOf<T> nodesList)
+        {
+            if (nodesList.Count <= 1)
+            {
+                return null;
+            }
+
+            PrepareValidationCache(nodesList, out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes);
+            return uniqueNodesServiceAttributes;
         }
 
         /// <summary>
@@ -1215,39 +1279,34 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadTimestampsToReturnInvalid);
             }
 
+            // The node managers fill the results by index, so arrays serve as the result
+            // lists and become the response arrays without a copy. The diagnostics array is
+            // only allocated for the first operation diagnostic.
             bool diagnosticsExist = false;
-            var values = new List<DataValue>(nodesToRead.Count);
-            var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
+            var values = new DataValue[nodesToRead.Count];
+            DiagnosticInfo[]? diagnosticInfos = null;
+            var errors = new ServiceResult[nodesToRead.Count];
 
-            // create empty list of errors.
-            var errors = new List<ServiceResult>(nodesToRead.Count);
-            for (int ii = 0; ii < nodesToRead.Count; ii++)
-            {
-                errors.Add(null!);
-            }
-
-            // add placeholder for each result.
             bool validItems = false;
 
             m_logger.MasterNodeManagerReadCountCount(nodesToRead.Count);
 
-            PrepareValidationCache(
-                nodesToRead,
-                out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToRead);
+
+            (IAsyncNodeManager[] dispatchOrder,
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
+                m_nodeManagers.GetDispatchView();
+            var routes = new NamespaceRoutes();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
-                // add default value to values collection
-                values.Add(default);
-                // add placeholder for diagnostics
-                diagnosticInfos.Add(null!);
-
                 // pre-validate and pre-parse parameter.
                 errors[ii] = (await ValidateReadRequestAsync(
                     context,
                     nodesToRead[ii],
                     uniqueNodesReadAttributes,
-                    false,
+                    permissionsOnly: uniqueNodesReadAttributes == null,
+                    routeHandle: true,
                     cancellationToken)
                     .ConfigureAwait(false))!;
 
@@ -1261,14 +1320,20 @@ namespace Opc.Ua.Server
                 {
                     nodesToRead[ii].Processed = false;
                     validItems = true;
+                    routes.Include(namespaceManagers, nodesToRead[ii].NodeId);
                 }
             }
 
-            // call each node manager.
+            // call each node manager that serves the namespace of a valid item.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
+                    if (!routes.Includes(nodeManager))
+                    {
+                        continue;
+                    }
+
                     await nodeManager.ReadAsync(
                         context,
                         maxAge,
@@ -1305,11 +1370,12 @@ namespace Opc.Ua.Server
 
                     if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                     {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            errors[ii],
-                            m_logger)!;
+                        (diagnosticInfos ??= new DiagnosticInfo[nodesToRead.Count])[ii] =
+                            ServerUtils.CreateDiagnosticInfo(
+                                Server,
+                                context,
+                                errors[ii],
+                                m_logger)!;
                         diagnosticsExist = true;
                     }
                 }
@@ -1333,7 +1399,13 @@ namespace Opc.Ua.Server
             // clear the diagnostics array if no diagnostics requested or no errors occurred.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
-            return (values, diagnosticInfos);
+            ArrayOf<DiagnosticInfo> diagnostics = default;
+            if (diagnosticInfos != null)
+            {
+                diagnostics = diagnosticInfos;
+            }
+
+            return (values, diagnostics);
         }
 
         /// <summary>
@@ -1562,9 +1634,12 @@ namespace Opc.Ua.Server
             var results = new List<StatusCode>(count);
             var diagnosticInfos = new List<DiagnosticInfo>(count);
 
-            PrepareValidationCache(
-                nodesToWrite,
-                out Dictionary<NodeId, Variant[]> uniqueNodesReadAttributes);
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = PrepareValidationCacheForMany(nodesToWrite);
+
+            (IAsyncNodeManager[] dispatchOrder,
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
+                m_nodeManagers.GetDispatchView();
+            var routes = new NamespaceRoutes();
 
             // add placeholder for each result.
             bool validItems = false;
@@ -1579,7 +1654,7 @@ namespace Opc.Ua.Server
                     context,
                     nodesToWrite[ii],
                     uniqueNodesReadAttributes,
-                    false,
+                    permissionsOnly: uniqueNodesReadAttributes == null,
                     cancellationToken)
                     .ConfigureAwait(false);
 
@@ -1601,6 +1676,7 @@ namespace Opc.Ua.Server
                 {
                     nodesToWrite[ii].Processed = false;
                     validItems = true;
+                    routes.Include(namespaceManagers, nodesToWrite[ii].NodeId);
                 }
 
                 results.Add(result);
@@ -1613,8 +1689,13 @@ namespace Opc.Ua.Server
                 var errors = new List<ServiceResult>(count);
                 errors.AddRange(new ServiceResult[count]);
 
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in dispatchOrder)
                 {
+                    if (!routes.Includes(nodeManager))
+                    {
+                        continue;
+                    }
+
                     await nodeManager.WriteAsync(
                         context,
                         nodesToWrite,
@@ -1814,6 +1895,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates method call requests and dispatches them to node managers, collecting results and diagnostics.
         /// </summary>
+        /// <param name="context">The receiving operation's context.</param>
+        /// <param name="methodsToCall">The ordered method invocation requests.</param>
+        /// <param name="cancellationToken">The caller's cancellation token.</param>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         internal async ValueTask<(ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos)>
             CallAsync(
@@ -1905,7 +1989,7 @@ namespace Opc.Ua.Server
                 }
 
                 // update the diagnostic info and ensure the status code in the result is the same as the error code.
-                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                if (errors[ii] != null && errors[ii].Code != StatusCodes.Good.Code)
                 {
                     if (results[ii] == null)
                     {
@@ -1913,21 +1997,20 @@ namespace Opc.Ua.Server
                     }
 
                     results[ii].StatusCode = errors[ii].Code;
-
-                    // add diagnostics if requested.
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
-                            Server,
-                            context,
-                            errors[ii],
-                            m_logger)!;
-                        diagnosticsExist = true;
-                    }
+                }
+                if (MethodCallResultBuilder.HasDiagnosticDetails(errors[ii]) &&
+                    (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                {
+                    diagnosticInfos[ii] = ServerUtils.CreateDiagnosticInfo(
+                        Server,
+                        context,
+                        errors[ii],
+                        m_logger)!;
+                    diagnosticsExist = true;
                 }
             }
 
-            // clear the diagnostics array if no diagnostics requested or no errors occurred.
+            // Clear the array only when no requested diagnostic information remains.
             UpdateDiagnostics(context, diagnosticsExist, ref diagnosticInfos);
 
             return (results, diagnosticInfos);
@@ -2476,6 +2559,10 @@ namespace Opc.Ua.Server
                         handle,
                         item);
 
+                    // The result list owns the item from here on, so that a restore that
+                    // fails or is cancelled while subscribing releases it.
+                    monitoredItems[ii] = monitoredItem;
+
                     // subscribe to all node managers.
                     if (item.NodeId == Objects.Server)
                     {
@@ -2513,12 +2600,14 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(error))
                         {
+                            // The subscription does not take the item, so nothing
+                            // else releases it and its queues.
+                            monitoredItems[ii] = null!;
                             Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            monitoredItem.Dispose();
                             continue;
                         }
                     }
-
-                    monitoredItems[ii] = monitoredItem;
                 }
             }
         }
@@ -3648,12 +3737,34 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates an attribute read and the permissions required by its requested attribute.
         /// </summary>
-        internal async ValueTask<ServiceResult?> ValidateReadRequestAsync(
+        internal ValueTask<ServiceResult?> ValidateReadRequestAsync(
             OperationContext operationContext,
             ReadValueId readValueId,
             Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes = null,
             bool permissionsOnly = false,
             CancellationToken cancellationToken = default)
+        {
+            return ValidateReadRequestAsync(
+                operationContext,
+                readValueId,
+                uniqueNodesReadAttributes,
+                permissionsOnly,
+                routeHandle: false,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates an attribute read and the permissions required by its requested attribute,
+        /// and with <paramref name="routeHandle"/> keeps the handle of the node for the read
+        /// (see <see cref="ValidateReadPermissionsAndRouteHandleAsync"/>).
+        /// </summary>
+        private async ValueTask<ServiceResult?> ValidateReadRequestAsync(
+            OperationContext operationContext,
+            ReadValueId readValueId,
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes,
+            bool permissionsOnly,
+            bool routeHandle,
+            CancellationToken cancellationToken)
         {
             ServiceResult? serviceResult = ReadValueId.Validate(readValueId);
 
@@ -3670,6 +3781,18 @@ namespace Opc.Ua.Server
                     requestedPermission = PermissionType.Read;
                 }
 
+                if (routeHandle)
+                {
+                    return await ValidateReadPermissionsAndRouteHandleAsync(
+                            operationContext,
+                            readValueId,
+                            requestedPermission,
+                            uniqueNodesReadAttributes,
+                            permissionsOnly,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                }
+
                 // check access rights and role permissions
                 serviceResult = await ValidatePermissionsAsync(
                         operationContext,
@@ -3681,6 +3804,61 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
             }
             return serviceResult;
+        }
+
+        /// <summary>
+        /// Validates the permissions of a read like
+        /// <see cref="ValidatePermissionsAsync(OperationContext, NodeId, PermissionType, Dictionary{NodeId, Variant[]}?, bool, CancellationToken)"/>
+        /// and keeps the handle of an in-memory node of an <see cref="AsyncCustomNodeManager"/>
+        /// in <see cref="ReadValueId.Handle"/>, so the node manager reads through it (see
+        /// <see cref="AsyncCustomNodeManager.GetRoutedHandle"/>).
+        /// </summary>
+        /// <remarks>
+        /// Only a handle the node manager returned already resolved and validated is routed:
+        /// the permission check may validate a handle of a node that is not in memory, which
+        /// the read must still validate itself.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateReadPermissionsAndRouteHandleAsync(
+            OperationContext context,
+            ReadValueId readValueId,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesReadAttributes,
+            bool permissionsOnly,
+            CancellationToken cancellationToken)
+        {
+            // a handle routed for an earlier read of the same instance is stale.
+            if (readValueId.Handle is NodeHandle { RoutedBy: not null })
+            {
+                readValueId.Handle = null!;
+            }
+
+            if (context.Session == null && context.UserIdentity == null && context.ChannelContext == null)
+            {
+                return StatusCodes.Good;
+            }
+
+            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
+                    readValueId.NodeId,
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (nodeManager is AsyncCustomNodeManager owner &&
+                nodeHandle is NodeHandle { Validated: true, Node: not null } resolved &&
+                readValueId.Handle == null)
+            {
+                resolved.RoutedBy = owner;
+                readValueId.Handle = resolved;
+            }
+
+            return await ValidatePermissionsAsync(
+                    context,
+                    nodeManager,
+                    nodeHandle,
+                    requestedPermission,
+                    uniqueNodesReadAttributes,
+                    permissionsOnly,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -4035,6 +4213,97 @@ namespace Opc.Ua.Server
         private readonly MasterNodeManager m_owner;
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The namespace routes of the valid operations of one service call, so that the call
+        /// skips node managers that cannot own any of its nodes.
+        /// </summary>
+        /// <remarks>
+        /// Every node manager registered for a requested namespace is still called in dispatch
+        /// order, so a node claimed by several node managers of one namespace is processed by
+        /// the same node manager as before. A namespace without a route calls every node manager.
+        /// </remarks>
+        private struct NamespaceRoutes
+        {
+            /// <summary>
+            /// Adds the route of the namespace of a node.
+            /// </summary>
+            public void Include(
+                IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers,
+                NodeId nodeId)
+            {
+                if (m_all)
+                {
+                    return;
+                }
+                if (!namespaceManagers.TryGetValue(nodeId.NamespaceIndex,
+                    out IReadOnlyList<IAsyncNodeManager>? route))
+                {
+                    m_all = true;
+                    return;
+                }
+                if (m_first == null)
+                {
+                    m_first = route;
+                    return;
+                }
+                if (ReferenceEquals(m_first, route))
+                {
+                    return;
+                }
+                m_more ??= [];
+                for (int ii = 0; ii < m_more.Count; ii++)
+                {
+                    if (ReferenceEquals(m_more[ii], route))
+                    {
+                        return;
+                    }
+                }
+                m_more.Add(route);
+            }
+
+            /// <summary>
+            /// Returns true if the node manager serves one of the included namespaces.
+            /// </summary>
+            public readonly bool Includes(IAsyncNodeManager nodeManager)
+            {
+                if (m_all)
+                {
+                    return true;
+                }
+                if (m_first != null && Contains(m_first, nodeManager))
+                {
+                    return true;
+                }
+                if (m_more != null)
+                {
+                    for (int ii = 0; ii < m_more.Count; ii++)
+                    {
+                        if (Contains(m_more[ii], nodeManager))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            private static bool Contains(IReadOnlyList<IAsyncNodeManager> route, IAsyncNodeManager nodeManager)
+            {
+                for (int ii = 0; ii < route.Count; ii++)
+                {
+                    if (NodeManagerRoutingTable.AreSameManager(route[ii], nodeManager))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private bool m_all;
+            private IReadOnlyList<IAsyncNodeManager>? m_first;
+            private List<IReadOnlyList<IAsyncNodeManager>>? m_more;
+        }
     }
 
     internal static partial class NodeManagerServiceDispatcherLog

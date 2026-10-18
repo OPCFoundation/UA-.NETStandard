@@ -82,7 +82,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
         /// Resolves the Vision/Sensors folder NodeId by browse from the
         /// Vision root. The generated <see cref="VisionClient.SensorsFolderId"/>
         /// returns the well-known type-level NodeId
-        /// <c>Objects.Vision_Sensors</c>, but the Server's NodeIdFactory
+        /// <c>Perception.Objects.Vision_Sensors</c>, but the Server's NodeIdFactory
         /// rebases the Mandatory Sensors child of the Vision root onto a
         /// per-instance NodeId — so the well-known ID resolves to an orphan
         /// node with no children in every hosted deployment. Resolving by
@@ -108,14 +108,14 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 .ConfigureAwait(false);
             if (sensorsFolder.IsNull)
             {
-                return ArrayOf<NodeId>.Empty;
+                return [];
             }
-            List<NodeId> sensors = new();
+            List<NodeId> sensors = [];
             ArrayOf<ReferenceDescription> refs = await BrowseHierarchicalObjectsAsync(
                 sensorsFolder, cancellationToken).ConfigureAwait(false);
             for (int ii = 0; ii < refs.Count; ii++)
             {
-                NodeId child = ExpandedNodeId.ToNodeId(refs[ii].NodeId, Session.NamespaceUris);
+                var child = ExpandedNodeId.ToNodeId(refs[ii].NodeId, Session.NamespaceUris);
                 if (!child.IsNull)
                 {
                     sensors.Add(child);
@@ -150,7 +150,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
             {
                 NodeId = parent,
                 BrowseDirection = BrowseDirection.Forward,
-                ReferenceTypeId = global::Opc.Ua.ReferenceTypeIds.HierarchicalReferences,
+                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
                 IncludeSubtypes = true,
                 NodeClassMask = (uint)NodeClass.Object,
                 ResultMask = (uint)BrowseResultMask.All
@@ -160,7 +160,7 @@ namespace Opc.Ua.Vision.Intent.Tests.Infrastructure
                 .ConfigureAwait(false);
             if (response.Results.Count == 0)
             {
-                return ArrayOf<ReferenceDescription>.Empty;
+                return [];
             }
             return response.Results[0].References;
         }

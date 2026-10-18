@@ -21,6 +21,10 @@ This package contains:
 - `Protocol.IXRegistryEndpoint` — lossless, caller-contextual registry requests and outcomes,
   collection-aware escaped addressing, and bounded reflection-free envelopes for bridge
   transactions and state. The envelopes are not the xRegistry HTTP wire format.
+- `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
+  Resource binding and optional verification seam, independent of content lookup. The binding
+  pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not
+  establish identity or trust.
 
 It has no dependency on the OPC UA server or client SDKs; the generic client and server
 pieces live in `Opc.Ua.XRegistry.Client` and `Opc.Ua.XRegistry.Server`.

@@ -81,6 +81,42 @@ namespace Opc.Ua.Machinery.Tests.Integration
     {
         private const string kNotificationMessage = "E2E notification.";
 
+        /// <summary>
+        /// A real client observes the original sample type, quality and acquisition timestamp.
+        /// </summary>
+        [Test]
+        public Task ProcessValueSamplesPreserveQualityAndAcquisitionTimeOverTcpAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, configurator, _, session, ct) =>
+            {
+                DateTimeUtc acquired = new DateTime(2025, 2, 3, 4, 5, 6, DateTimeKind.Utc);
+                var reading = new DataValue(Variant.From(57f), StatusCodes.UncertainLastUsableValue, acquired);
+                IProcessValueHandle handle = configurator.OilTemperature!;
+                await handle.SetValueAsync(reading, ct).ConfigureAwait(false);
+
+                DataValue observed = await session.ReadValueAsync(handle.Signal.NodeId, ct).ConfigureAwait(false);
+                Assert.That(observed.WrappedValue.TryGetValue(out float value), Is.True);
+                Assert.That(value, Is.EqualTo(57f));
+                Assert.That(observed.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(observed.SourceTimestamp, Is.EqualTo(acquired));
+                DataValue percentage = await session.ReadValueAsync(handle.Signal.PercentageValue!.NodeId, ct)
+                    .ConfigureAwait(false);
+                Assert.That(percentage.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(percentage.SourceTimestamp, Is.EqualTo(acquired));
+                Assert.That(percentage.WrappedValue.TryGetValue(out double percent), Is.True);
+                Assert.That(percent, Is.EqualTo(55.0).Within(0.001));
+
+                MachineryProcessValue? snapshot = await machinery.ReadProcessValueAsync(handle.NodeId, ct)
+                    .ConfigureAwait(false);
+                Assert.That(snapshot, Is.Not.Null);
+                Assert.That(snapshot!.Sample.IsNull, Is.False);
+                Assert.That(snapshot.Sample.WrappedValue.TryGetValue(out float sampledValue), Is.True);
+                Assert.That(sampledValue, Is.EqualTo(57f));
+                Assert.That(snapshot.Sample.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
+                Assert.That(snapshot.Sample.SourceTimestamp, Is.EqualTo(acquired));
+            });
+        }
+
         [Test]
         public Task TheClientDrivesEveryPartOverTheWireAsync()
         {
@@ -115,6 +151,62 @@ namespace Opc.Ua.Machinery.Tests.Integration
                     machinery, machine, configurator, session, ct)
                     .ConfigureAwait(false);
                 await AssertConformanceAsync(session, ct).ConfigureAwait(false);
+            });
+        }
+
+        /// <summary>
+        /// Verifies bounded streaming and exact temporary-file cleanup over the
+        /// real transport, alongside the compatible buffered download.
+        /// </summary>
+        [Test]
+        public Task BoundedResultDownloadsCloseAfterSuccessAndByteLimitFailureAsync()
+        {
+            return RunAgainstPressAsync(async (machinery, configurator, _, session, ct) =>
+            {
+                NodeId machine = configurator.Machine!.NodeId;
+                var payload = new byte[65537];
+                for (int ii = 0; ii < payload.Length; ii++)
+                {
+                    payload[ii] = (byte)(ii % 251);
+                }
+                await configurator.Machine.Results!.PublishAsync(
+                    new MachineryResult(
+                        new ResultDataType
+                        {
+                            ResultMetaData = new ResultMetaDataType { ResultId = "bounded-selected" }
+                        },
+                        new ByteString(payload)),
+                    ct).ConfigureAwait(false);
+                NodeId management = await machinery.ResolveResultManagementAsync(machine, ct).ConfigureAwait(false);
+                ushort resultNamespace = (ushort)session.NamespaceUris.GetIndex(
+                    Opc.Ua.Machinery.Result.Namespaces.MachineryResult);
+                NodeId transfer = await machinery.ResolveChildAsync(
+                    management,
+                    new QualifiedName("ResultTransfer", resultNamespace),
+                    ct).ConfigureAwait(false);
+
+                using var destination = new MemoryStream();
+                long copied = await machinery.DownloadResultAsync(
+                    machine, "bounded-selected", destination, payload.Length, ct).ConfigureAwait(false);
+                Assert.That(copied, Is.EqualTo(payload.Length));
+                Assert.That(destination.ToArray(), Is.EqualTo(payload));
+                Assert.That(destination.CanWrite, Is.True);
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+
+                using var oversizedDestination = new MemoryStream();
+                ServiceResultException overflow = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await machinery.DownloadResultAsync(
+                        machine, "bounded-selected", oversizedDestination, payload.Length - 1, ct)
+                        .ConfigureAwait(false))!;
+                Assert.That(overflow.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                Assert.That(oversizedDestination.Length, Is.EqualTo(payload.Length - 1));
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+
+                ByteString legacy = await machinery.DownloadResultAsync(machine, "bounded-selected", ct)
+                    .ConfigureAwait(false);
+                Assert.That(legacy.ToArray(), Is.EqualTo(payload));
+                await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
+                Assert.That(session.Connected, Is.True, "Downloads must not close the borrowed session.");
             });
         }
 
@@ -1537,6 +1629,36 @@ namespace Opc.Ua.Machinery.Tests.Integration
 
         private static readonly string[] s_expectedJobAResults = ["E2E-Q1", "E2E-Q3"];
         private static readonly string[] s_expectedFirstJobAResult = ["E2E-Q1"];
+
+        private static async ValueTask AssertNoResultFilesAsync(
+            ClientSession session,
+            NodeId transfer,
+            CancellationToken ct)
+        {
+            BrowseResponse response = await session.BrowseAsync(
+                null,
+                null,
+                0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = transfer,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Object,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ],
+                ct).ConfigureAwait(false);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                response.Results[0].References,
+                Is.Empty,
+                "Every transient result file must be removed by Close.");
+            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
+        }
 
         private static async Task AssertResultsAsync(
             MachineryClient machinery,

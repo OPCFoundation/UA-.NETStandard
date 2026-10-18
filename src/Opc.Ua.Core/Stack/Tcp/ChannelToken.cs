@@ -64,6 +64,9 @@ namespace Opc.Ua.Bindings
                 ClientHmac?.Dispose();
                 ClientHmac = null;
 
+                ServerCiphers.Dispose();
+                ClientCiphers.Dispose();
+
                 m_localNonce?.Dispose();
                 m_localNonce = null;
                 m_remoteNonce?.Dispose();
@@ -211,6 +214,18 @@ namespace Opc.Ua.Bindings
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
         internal HMAC? ClientHmac { get; set; }
+
+        /// <summary>
+        /// The keyed ciphers for <see cref="ServerEncryptingKey"/> and
+        /// <see cref="ServerInitializationVector"/>.
+        /// </summary>
+        internal SymmetricCipherCache ServerCiphers { get; } = new();
+
+        /// <summary>
+        /// The keyed ciphers for <see cref="ClientEncryptingKey"/> and
+        /// <see cref="ClientInitializationVector"/>.
+        /// </summary>
+        internal SymmetricCipherCache ClientCiphers { get; } = new();
 
         /// <summary>
         /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.

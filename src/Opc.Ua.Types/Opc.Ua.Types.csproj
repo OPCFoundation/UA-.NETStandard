@@ -15,8 +15,11 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Types" />
+    <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Types.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.SourceGeneration.Core.Tests" />
@@ -29,6 +32,10 @@
     <PackageReference Include="Microsoft.Bcl.HashCode" />
     <PackageReference Include="System.Threading.Tasks.Extensions" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+    <!-- Buffer-position identity hashing uses JsonMarshal, added after the .NET 8 inbox JSON API. -->
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
   <!-- Polyfills for .NET Standard 2.0 and .net 4.8 -->

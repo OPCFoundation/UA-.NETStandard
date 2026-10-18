@@ -34,6 +34,18 @@
     <PackageReference Include="TUnit" />
   </ItemGroup>
   <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.Server.Tests\Programs\Assets\DomainDownloadModel.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation:tests:programs</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>DomainDownloadModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.TestModels.DomainDownload</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\Opc.Ua.Server.Tests\Programs\Assets\DomainDownloadModel.csv" />
+    <Compile Include="..\Opc.Ua.Server.Tests\Programs\DomainDownloadState.cs" Link="Programs\DomainDownloadState.cs" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <ItemGroup>
     <!-- These unchanged tests run in the always-enabled MCP NativeAOT companion. -->
     <Compile Remove="McpAotTests.cs" />
   </ItemGroup>
@@ -53,6 +65,10 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Bridge\Opc.Ua.XRegistry.Bridge.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Client\Opc.Ua.Vision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Vision.Server\Opc.Ua.Vision.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineVision.Server\Opc.Ua.MachineVision.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Kubernetes\Opc.Ua.Redundancy.Kubernetes.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Security.Pkcs11\Opc.Ua.Security.Pkcs11.csproj" />

@@ -49,6 +49,16 @@ namespace Opc.Ua
         public const int ResourceIsolation = 700;
 
         /// <summary>
+        /// Event identifier offset for managed Program execution.
+        /// </summary>
+        public const int ProgramRuntime = 710;
+
+        /// <summary>
+        /// Event identifier offset for Program lifecycle hosting.
+        /// </summary>
+        public const int ProgramNodeManager = 730;
+
+        /// <summary>
         /// Event identifier offset for aggregate calculation messages.
         /// </summary>
         public const int AggregateCalculator = 0;

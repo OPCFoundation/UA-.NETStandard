@@ -53,6 +53,13 @@ An `.xml` `AdditionalFiles` item whose root element is neither a `ModelDesign`
 (`http://opcfoundation.org/UA/2011/03/UANodeSet.xsd`) is not a model input and is skipped,
 so XML files meant for other analyzers or tools can share the `AdditionalFiles` item group.
 
+A Variable or VariableType that a `NodeSet2` declares without a `<Value>` element has a null
+Value (OPC 10000-6 F.5): the generated node, its `CreateInstanceOf*` factory and every instance
+that inherits it start with `Variant.Null`, also when the model is consumed from a referenced
+assembly. A `ModelDesign` declaration without a `DefaultValue` keeps the default value of its
+DataType. A server that wants such a variable to hold a value before it has one to publish sets
+it when it creates the node, for example an empty structure for a structured DataType.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |
@@ -220,6 +227,7 @@ the consuming project:
 | `ModelSourceGeneratorOmitObjectTypeProxies` | Set to `true` to suppress emission of `*TypeClient` proxies. By default proxies are emitted for every `ObjectType` in the model alongside the standard model output (constants, NodeIds, NodeStates, DataTypes, schemas). |
 | `ModelSourceGeneratorObjectTypeProxyNamespace` | Optional. Overrides the C# namespace used for the emitted proxy classes. Defaults to the model's own namespace. |
 | `ModelSourceGeneratorUseTypeDefinitionModellingRules` | Set to `true` to make instance code generation use the modelling rules from the referenced type definition unconditionally, rather than the overridden rules on the instance. Off by default; enabled by default for stack generation. **Note:** regardless of this setting, the generator always enforces OPC UA modelling rule promotion semantics — instances may only *promote* the type definition's rule (`Optional→Mandatory`, `OptionalPlaceholder→Mandatory\|MandatoryPlaceholder`, `MandatoryPlaceholder→Mandatory`); demotions are silently rejected. |
+| `ModelSourceGeneratorEmitNodeSetNodesOnly` | Set to `true` to make the predefined nodes generated for a NodeSet2 input exactly the nodes of the NodeSet2. A subtype then does not get copies of the Mandatory InstanceDeclarations of its supertypes (with NodeIds the NodeSet2 never assigned), and an instance does not get children its NodeSet2 does not declare, or references to them. Typed state classes and the `CreateInstanceOf*` factories are not affected: an instance created at run time still gets every Mandatory descendant of its type. Off by default; ModelDesign inputs are not affected. |
 
 Example (suppress proxy emission for a model that does not need them):
 
@@ -228,6 +236,46 @@ Example (suppress proxy emission for a model that does not need them):
   <ModelSourceGeneratorOmitObjectTypeProxies>true</ModelSourceGeneratorOmitObjectTypeProxies>
 </PropertyGroup>
 ```
+
+### Optional client member accessors
+
+Client variable accessors and placeholder enumerators are **off by default**.
+A client library can opt in over a referenced model assembly that already supplies
+the matching model URI, C# prefix and generated ObjectType proxies:
+
+```xml
+<PropertyGroup>
+  <ModelSourceGeneratorClientAccessorsOnly>true</ModelSourceGeneratorClientAccessorsOnly>
+  <ModelSourceGeneratorClientAccessorNamespace>Example.Client</ModelSourceGeneratorClientAccessorNamespace>
+  <ModelSourceGeneratorClientAccessorClassName>ExampleClientMembers</ModelSourceGeneratorClientAccessorClassName>
+</PropertyGroup>
+```
+
+Reference `Opc.Ua.Client`, the model assembly and the source generator, and supply
+the same NodeSet2 or ModelDesign input as an `AdditionalFile`, with its original
+model URI and prefix metadata. Include any required identifier sidecars.
+Import `OPCFoundation.Opc.Ua.SourceGeneration.props` as for normal model generation.
+
+Only client extensions are emitted: no duplicate states, data types, proxies,
+schemas, or model-dependency metadata. The existing model and dependency readers
+resolve types and codecs; the checked-in XML remains the source of truth.
+This mode cannot be combined with fluent-accessor-only or NodeManager generation.
+A missing or differently prefixed model producer is a generation error.
+
+| Property | Default | Purpose |
+| --- | --- | --- |
+| `ModelSourceGeneratorClientAccessorsOnly` | `false` | Emit client extensions over a referenced model. |
+| `ModelSourceGeneratorClientAccessorNamespace` | Model prefix plus `.Client` | Namespace for the extensions. |
+| `ModelSourceGeneratorClientAccessorClassName` | Model name plus `ClientMembers` | Partial extension class name. |
+
+Each fixed-name declared variable gets a `<Name>Variable()` extension returning
+`ClientVariable<T>`, with exact generated/native codecs and the declared write
+permission. Reads preserve the original `DataValue`, quality and timestamps in
+`ClientRead<T>`; writes still require server authorization. Observations use the
+existing streaming subscription. Repeated Object placeholders get typed
+`Enumerate<Name>Async()` extensions, including conforming vendor subtypes.
+The helpers use the proxy's existing `ISession` or `ManagedSession`, not a second
+connection owner. Unavailable optional variables are not fabricated as defaults.
 
 ## Implementation details
 

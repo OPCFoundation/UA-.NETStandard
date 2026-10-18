@@ -494,7 +494,7 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Calculates the read payload limit after accounting for ByteString limits and response overhead.
         /// </summary>
-        private static int GetServerReadLimit(ISystemContext context)
+        internal static int GetServerReadLimit(ISystemContext context)
         {
             IServiceMessageContext? messageContext = (context as ServerSystemContext)?.Server.MessageContext;
             int limit = messageContext?.MaxByteStringLength ?? DefaultEncodingLimits.MaxByteStringLength;

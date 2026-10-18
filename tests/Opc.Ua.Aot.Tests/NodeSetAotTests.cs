@@ -70,7 +70,8 @@ namespace Opc.Ua.Aot.Tests
                   <Reference ReferenceType='HasTypeDefinition'>ns=1;i=1000</Reference>
                 </References>
               </UAObject>
-              <UAVariable DataType='i=11' ParentNodeId='ns=1;i=2000' NodeId='ns=1;i=2001' BrowseName='1:TestVariable' ValueRank='-1'>
+              <UAVariable DataType='i=11' ParentNodeId='ns=1;i=2000' NodeId='ns=1;i=2001'
+                          BrowseName='1:TestVariable' ValueRank='-1'>
                 <DisplayName>TestVariable</DisplayName>
                 <References>
                   <Reference ReferenceType='HasTypeDefinition'>i=63</Reference>
@@ -98,11 +99,15 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that UANodeSet.Read can parse a NodeSet2 XML
         /// document under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ReadNodeSetFromXmlAsync()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             await Assert.That(nodeSet).IsNotNull();
             await Assert.That(nodeSet.NamespaceUris).IsNotNull();
@@ -117,11 +122,16 @@ namespace Opc.Ua.Aot.Tests
         /// polymorphic node types (UAObjectType, UAObject, UAVariable,
         /// UADataType) under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ReadNodeSetPolymorphicTypesAsync()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
+            ArgumentNullException.ThrowIfNull(nodeSet.Items);
 
             await Assert.That(nodeSet.Items[0]).IsTypeOf<UAObjectType>();
             await Assert.That(nodeSet.Items[1]).IsTypeOf<UAObject>();
@@ -131,7 +141,8 @@ namespace Opc.Ua.Aot.Tests
             // Verify data type definition fields
             var dataType = (UADataType)nodeSet.Items[3];
             await Assert.That(dataType.Definition).IsNotNull();
-            await Assert.That(dataType.Definition.Field.Length).IsEqualTo(3);
+            ArgumentNullException.ThrowIfNull(dataType.Definition!.Field);
+            await Assert.That(dataType.Definition!.Field.Length).IsEqualTo(3);
             await Assert.That(dataType.Definition.Field[0].Name).IsEqualTo("Name");
         }
 
@@ -139,11 +150,15 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that UANodeSet.Import converts UANode items
         /// into NodeState instances under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ImportNodeSetToNodeStatesAsync()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             var nodes = new NodeStateCollection();
             var context = new SystemContext(fixture.Telemetry)
@@ -151,7 +166,8 @@ namespace Opc.Ua.Aot.Tests
                 NamespaceUris = new NamespaceTable()
             };
 
-            foreach (string ns in nodeSet.NamespaceUris)
+            foreach (string ns in nodeSet.NamespaceUris ??
+                throw new InvalidDataException("The fixture namespaces are missing."))
             {
                 context.NamespaceUris.Append(ns);
             }
@@ -161,13 +177,13 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That(nodes.Count).IsEqualTo(4);
 
             // Find nodes by browse name
-            NodeState objectTypeNode = nodes.Find(
+            NodeState? objectTypeNode = nodes.Find(
                 n => n.BrowseName.Name == "TestObjectType");
-            NodeState objectNode = nodes.Find(
+            NodeState? objectNode = nodes.Find(
                 n => n.BrowseName.Name == "TestObject");
-            NodeState variableNode = nodes.Find(
+            NodeState? variableNode = nodes.Find(
                 n => n.BrowseName.Name == "TestVariable");
-            NodeState dataTypeNode = nodes.Find(
+            NodeState? dataTypeNode = nodes.Find(
                 n => n.BrowseName.Name == "TestDataType");
 
             await Assert.That(objectTypeNode).IsNotNull();
@@ -184,13 +200,17 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that a NodeSet can be written to XML and read back
         /// (round-trip) under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task WriteAndReadNodeSetRoundTripAsync()
         {
             // Read initial nodeset
             using var readStream = new MemoryStream(
                 Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var original = UANodeSet.Read(readStream);
+            UANodeSet original = UANodeSet.Read(readStream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             // Import to NodeStates
             var nodes = new NodeStateCollection();
@@ -198,7 +218,8 @@ namespace Opc.Ua.Aot.Tests
             {
                 NamespaceUris = new NamespaceTable()
             };
-            foreach (string ns in original.NamespaceUris)
+            foreach (string ns in original.NamespaceUris ??
+                throw new InvalidDataException("The fixture namespaces are missing."))
             {
                 context.NamespaceUris.Append(ns);
             }
@@ -210,18 +231,20 @@ namespace Opc.Ua.Aot.Tests
 
             // Read back the exported XML
             writeStream.Position = 0;
-            var roundTripped = UANodeSet.Read(writeStream);
+            UANodeSet roundTripped = UANodeSet.Read(writeStream) ??
+                throw new InvalidDataException("The exported NodeSet is missing.");
 
             await Assert.That(roundTripped).IsNotNull();
             await Assert.That(roundTripped.Items).IsNotNull();
             await Assert.That(roundTripped.Items.Length).IsEqualTo(4);
 
             // Verify the data type definition survived the round-trip
-            UADataType roundTrippedDataType = null;
-            foreach (UANode item in roundTripped.Items)
+            UADataType? roundTrippedDataType = null;
+            foreach (UANode item in roundTripped.Items ??
+                throw new InvalidDataException("The exported nodes are missing."))
             {
                 if (item is UADataType dt &&
-                    dt.BrowseName.Contains("TestDataType", StringComparison.Ordinal))
+                    dt.BrowseName?.Contains("TestDataType", StringComparison.Ordinal) == true)
                 {
                     roundTrippedDataType = dt;
                     break;
@@ -229,8 +252,9 @@ namespace Opc.Ua.Aot.Tests
             }
 
             await Assert.That(roundTrippedDataType).IsNotNull();
-            await Assert.That(roundTrippedDataType.Definition).IsNotNull();
-            await Assert.That(roundTrippedDataType.Definition.Field.Length)
+            await Assert.That(roundTrippedDataType!.Definition).IsNotNull();
+            ArgumentNullException.ThrowIfNull(roundTrippedDataType.Definition!.Field);
+            await Assert.That(roundTrippedDataType.Definition!.Field.Length)
                 .IsEqualTo(3);
         }
 
@@ -238,6 +262,9 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that UANodeSet.Write produces valid XML that
         /// can be read back under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task WriteNodeSetDirectlyAsync()
         {
@@ -280,7 +307,9 @@ namespace Opc.Ua.Aot.Tests
 
             // Read back
             stream.Position = 0;
-            var readBack = UANodeSet.Read(stream);
+            UANodeSet readBack = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The exported NodeSet is missing.");
+            ArgumentNullException.ThrowIfNull(readBack.Items);
 
             await Assert.That(readBack).IsNotNull();
             await Assert.That(readBack.Items.Length).IsEqualTo(2);
@@ -292,19 +321,24 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that parent-child relationships are correctly
         /// established during import with linkParentChild under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ImportWithParentChildLinkingAsync()
         {
             using var stream = new MemoryStream(
                 Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             var nodes = new NodeStateCollection();
             var context = new SystemContext(fixture.Telemetry)
             {
                 NamespaceUris = new NamespaceTable()
             };
-            foreach (string ns in nodeSet.NamespaceUris)
+            foreach (string ns in nodeSet.NamespaceUris ??
+                throw new InvalidDataException("The fixture namespaces are missing."))
             {
                 context.NamespaceUris.Append(ns);
             }
@@ -329,6 +363,9 @@ namespace Opc.Ua.Aot.Tests
         /// Exports nodes from the running reference server to NodeSet2 XML
         /// and reads them back under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ExportServerNodesToNodeSetAsync()
         {
@@ -348,7 +385,7 @@ namespace Opc.Ua.Aot.Tests
             var allNodes = new List<INode>();
             foreach (ReferenceDescription r in refs.ToList())
             {
-                INode node = await fixture.Session.NodeCache
+                INode? node = await fixture.Session.NodeCache
                     .FindAsync(r.NodeId, CancellationToken.None)
                     .ConfigureAwait(false);
                 if (node != null)
@@ -374,7 +411,8 @@ namespace Opc.Ua.Aot.Tests
 
             // Read back and verify
             writeStream.Position = 0;
-            var nodeSet = UANodeSet.Read(writeStream);
+            UANodeSet nodeSet = UANodeSet.Read(writeStream) ??
+                throw new InvalidDataException("The exported NodeSet is missing.");
 
             await Assert.That(nodeSet).IsNotNull();
             await Assert.That(nodeSet.Items).IsNotNull();
@@ -385,6 +423,9 @@ namespace Opc.Ua.Aot.Tests
         /// Exports server nodes, re-imports them into NodeState objects,
         /// and verifies the full round-trip under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ExportAndReimportServerNodesAsync()
         {
@@ -404,7 +445,7 @@ namespace Opc.Ua.Aot.Tests
             var allNodes = new List<INode>();
             foreach (ReferenceDescription r in refs.ToList().Take(5))
             {
-                INode node = await fixture.Session.NodeCache
+                INode? node = await fixture.Session.NodeCache
                     .FindAsync(r.NodeId, CancellationToken.None)
                     .ConfigureAwait(false);
                 if (node != null)
@@ -428,7 +469,8 @@ namespace Opc.Ua.Aot.Tests
 
             // Re-import
             stream.Position = 0;
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The exported NodeSet is missing.");
 
             var importedNodes = new NodeStateCollection();
             var importContext = new SystemContext(fixture.Telemetry)
@@ -459,12 +501,16 @@ namespace Opc.Ua.Aot.Tests
         /// Verifies that UANodeSet aliases are preserved through
         /// a write/read round-trip under NativeAOT.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task AliasesPreservedInRoundTripAsync()
         {
             using var stream = new MemoryStream(
                 Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            var nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             await Assert.That(nodeSet.Aliases).IsNotNull();
             await Assert.That(nodeSet.Aliases.Length).IsGreaterThan(0);
@@ -474,7 +520,8 @@ namespace Opc.Ua.Aot.Tests
             nodeSet.Write(writeStream);
 
             writeStream.Position = 0;
-            var roundTripped = UANodeSet.Read(writeStream);
+            UANodeSet roundTripped = UANodeSet.Read(writeStream) ??
+                throw new InvalidDataException("The exported NodeSet is missing.");
 
             await Assert.That(roundTripped.Aliases).IsNotNull();
             await Assert.That(roundTripped.Aliases.Length)
@@ -534,8 +581,8 @@ namespace Opc.Ua.Aot.Tests
             node.DesignToolOnly = false;
             await AssertDefaultDesignMetadataAsync(node).ConfigureAwait(false);
 
-            await Assert.That(copy.Extensions[0]).IsEqualTo(extension);
-            await Assert.That(copy.Categories[0]).IsEqualTo("AotCategory");
+            await Assert.That(copy.Extensions![0]).IsEqualTo(extension);
+            await Assert.That(copy.Categories![0]).IsEqualTo("AotCategory");
             await Assert.That(copy.ReleaseStatus).IsEqualTo(ReleaseStatus.Draft);
             await Assert.That(copy.Specification).IsEqualTo("AotSpecification");
             await Assert.That(copy.NodeSetDocumentation).IsEqualTo("AotDocumentation");
@@ -547,17 +594,22 @@ namespace Opc.Ua.Aot.Tests
         /// NativeAOT. The factory calls a concrete constructor, so no runtime
         /// type lookup is involved.
         /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Required NodeSet content is missing.
+        /// </exception>
         [Test]
         public async Task ImportNodeSetWithTypedStateFactoryAsync()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(SimpleNodeSetXml));
-            UANodeSet nodeSet = UANodeSet.Read(stream);
+            UANodeSet nodeSet = UANodeSet.Read(stream) ??
+                throw new InvalidDataException("The fixture NodeSet is missing.");
 
             var context = new SystemContext(fixture.Telemetry)
             {
                 NamespaceUris = new NamespaceTable()
             };
-            foreach (string ns in nodeSet.NamespaceUris)
+            foreach (string ns in nodeSet.NamespaceUris ??
+                throw new InvalidDataException("The fixture namespaces are missing."))
             {
                 context.NamespaceUris.Append(ns);
             }
@@ -575,13 +627,13 @@ namespace Opc.Ua.Aot.Tests
                         : null,
                 linkParentChild: true);
 
-            NodeState typedNode = nodes.Find(
+            NodeState? typedNode = nodes.Find(
                 node => node.BrowseName.Name == "TestObject");
-            NodeState untypedNode = nodes.Find(
+            NodeState? untypedNode = nodes.Find(
                 node => node.BrowseName.Name == "TestVariable");
 
             await Assert.That(typedNode).IsTypeOf<AotTypedObjectState>();
-            await Assert.That(((BaseObjectState)typedNode).TypeDefinitionId)
+            await Assert.That(((BaseObjectState)typedNode!).TypeDefinitionId)
                 .IsEqualTo(typeDefinitionId);
             await Assert.That(untypedNode).IsTypeOf<BaseDataVariableState>();
         }
@@ -599,7 +651,7 @@ namespace Opc.Ua.Aot.Tests
 
         private sealed class AotTypedObjectState : BaseObjectState
         {
-            public AotTypedObjectState(NodeState parent)
+            public AotTypedObjectState(NodeState? parent)
                 : base(parent)
             {
             }

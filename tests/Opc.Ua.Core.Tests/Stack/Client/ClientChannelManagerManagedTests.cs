@@ -906,6 +906,266 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         /// <summary>
+        /// The caller that creates a shared entry holds no lease while it opens
+        /// the transport. A participant that attached meanwhile and released its
+        /// lease closed the entry under that open, which failed the creator with
+        /// BadSecureChannelClosed instead of retrying on a fresh entry.
+        /// </summary>
+        [Test]
+        public async Task CreatorRetriesWhenLeaseReleasedDuringInitialOpenAsync()
+        {
+            var initialOpenStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseInitialOpen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialChannel = new Mock<IChannel>();
+            var retryChannel = new Mock<IChannel>();
+            initialChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => initialOpenStarted.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseInitialOpen.Task));
+            retryChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+            initialChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+            retryChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+
+            int createCount = 0;
+            var bindings = new Mock<ITransportChannelBindings>();
+            bindings
+                .Setup(factory => factory.Create(
+                    It.IsAny<string>(),
+                    It.IsAny<ITelemetryContext>()))
+                .Returns(() => Interlocked.Increment(ref createCount) == 1
+                    ? initialChannel.Object
+                    : retryChannel.Object);
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using var manager = new ClientChannelManager(
+                configuration,
+                telemetry,
+                bindings.Object);
+            ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
+                new EndpointConfiguration { OperationTimeout = 6000 });
+            using var timeout = new CancellationTokenSource(s_completionTimeout);
+
+            try
+            {
+                ValueTask<IManagedTransportChannel> creating = manager.GetAsync(
+                    new TestParticipant("creator", endpoint), timeout.Token);
+                await initialOpenStarted.Task.WaitAsync(s_completionTimeout)
+                    .ConfigureAwait(false);
+
+                IManagedTransportChannel attached = await manager.GetAsync(
+                    new TestParticipant("attached", endpoint), timeout.Token).ConfigureAwait(false);
+                object openingEntry = GetLeaseEntry(attached);
+                await attached.CloseAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(GetInternalPropertyValue(openingEntry, "IsClosing"), Is.True);
+
+                releaseInitialOpen.TrySetResult(true);
+                using IManagedTransportChannel lease = await creating.AsTask()
+                    .WaitAsync(s_completionTimeout).ConfigureAwait(false);
+
+                Assert.That(GetLeaseEntry(lease), Is.Not.SameAs(openingEntry));
+                Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                Assert.That(createCount, Is.EqualTo(2));
+                initialChannel.Verify(
+                    channel => channel.CloseAsync(It.IsAny<CancellationToken>()),
+                    Times.Once);
+            }
+            finally
+            {
+                releaseInitialOpen.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// A reconnect that starts while the initial open is in flight moves the
+        /// entry out of its initial states before any transport is installed. A
+        /// participant waiting for the transport must keep waiting until the
+        /// reconnect installs one, not read the entry while it has none.
+        /// </summary>
+        [Test]
+        public async Task WaitForTransportWaitsForReconnectStartedDuringInitialOpenAsync()
+        {
+            var releaseInitialOpen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialOpenStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var reconnectOpenStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseReconnectOpen = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var initialChannel = new Mock<IChannel>();
+            var reconnectChannel = new Mock<IChannel>();
+            initialChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => initialOpenStarted.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseInitialOpen.Task));
+            reconnectChannel
+                .Setup(channel => channel.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => reconnectOpenStarted.TrySetResult(true))
+                .Returns(() => new ValueTask(releaseReconnectOpen.Task));
+            initialChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+            reconnectChannel
+                .Setup(channel => channel.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+
+            int createCount = 0;
+            var bindings = new Mock<ITransportChannelBindings>();
+            bindings
+                .Setup(factory => factory.Create(
+                    It.IsAny<string>(),
+                    It.IsAny<ITelemetryContext>()))
+                .Returns(() => Interlocked.Increment(ref createCount) == 1
+                    ? initialChannel.Object
+                    : reconnectChannel.Object);
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using var manager = new ClientChannelManager(
+                configuration,
+                telemetry,
+                bindings.Object);
+            ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
+                new EndpointConfiguration { OperationTimeout = 6000 });
+            var entry = new ChannelEntry(
+                manager,
+                ManagedChannelKey.FromEndpoint(endpoint),
+                endpoint,
+                reverseConnection: null);
+            ManagedTransportChannelLease? lease = null;
+
+            try
+            {
+                Task initialOpen = entry.OpenInitialAsync(
+                    clientCertificate: null,
+                    clientCertificateChain: null,
+                    clientCertificateVersion: 0,
+                    default);
+                await initialOpenStarted.Task.WaitAsync(s_completionTimeout)
+                    .ConfigureAwait(false);
+                lease = entry.AcquireLease(new TestParticipant("p1", endpoint));
+                Task<bool> reconnect = entry.RequestReconnectAsync(default);
+                await reconnectOpenStarted.Task.WaitAsync(s_completionTimeout)
+                    .ConfigureAwait(false);
+
+                Assert.That(entry.State, Is.EqualTo(ChannelState.TransportReconnecting));
+                Assert.That(entry.Underlying, Is.Null);
+                Task waiting = entry.WaitForTransportAsync(default);
+                Assert.That(waiting.IsCompleted, Is.False);
+
+                releaseReconnectOpen.TrySetResult(true);
+                await waiting.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+                Assert.That(entry.Underlying, Is.SameAs(reconnectChannel.Object));
+                Assert.That(
+                    await reconnect.WaitAsync(s_completionTimeout).ConfigureAwait(false),
+                    Is.True);
+
+                releaseInitialOpen.TrySetResult(true);
+                await initialOpen.WaitAsync(s_completionTimeout).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseInitialOpen.TrySetResult(true);
+                releaseReconnectOpen.TrySetResult(true);
+                if (lease != null)
+                {
+                    await lease.CloseAsync(default).ConfigureAwait(false);
+                }
+                await entry.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// An initial open that fails on its own fails the creator, even after
+        /// the entry it faulted moved on to Closed; only a teardown that closed
+        /// the entry under the open lets the creator retry.
+        /// </summary>
+        [Test]
+        public async Task CreatorDoesNotRetryInitialOpenThatFaultedAsync()
+        {
+            var channel = new Mock<IChannel>();
+            channel
+                .Setup(c => c.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportChannelSettings>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadSecureChannelClosed))));
+            channel
+                .Setup(c => c.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask());
+
+            int createCount = 0;
+            var bindings = new Mock<ITransportChannelBindings>();
+            bindings
+                .Setup(factory => factory.Create(
+                    It.IsAny<string>(),
+                    It.IsAny<ITelemetryContext>()))
+                .Returns(() =>
+                {
+                    Interlocked.Increment(ref createCount);
+                    return channel.Object;
+                });
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var configuration = new ApplicationConfiguration(telemetry);
+            await using var manager = new ClientChannelManager(
+                configuration,
+                telemetry,
+                bindings.Object);
+            ConfiguredEndpoint endpoint = GetNoneSecurityEndpoint(
+                new EndpointConfiguration { OperationTimeout = 6000 });
+            var entry = new ChannelEntry(
+                manager,
+                ManagedChannelKey.FromEndpoint(endpoint),
+                endpoint,
+                reverseConnection: null);
+
+            Assert.That(
+                async () => await entry.OpenInitialAsync(null, null, 0, default).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>());
+            await entry.DisposeAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(entry.State, Is.EqualTo(ChannelState.Closed));
+                Assert.That(entry.InitialOpenFaulted, Is.True);
+                Assert.That(
+                    async () => await entry.WaitForTransportAsync(default).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadSecureChannelClosed));
+            });
+
+            createCount = 0;
+            ServiceResultException? sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.GetAsync(
+                    new TestParticipant("creator", endpoint), default).ConfigureAwait(false));
+            Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
+            Assert.That(createCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Fatal participant verdicts fault the channel without starting another cycle for a bounded caller.
         /// </summary>
         [TestCase(false)]

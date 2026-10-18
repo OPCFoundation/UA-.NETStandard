@@ -206,6 +206,12 @@ namespace Quickstarts.ReferenceServer
                     // Create and add the node managers
                     server.Create(Servers.Utils.NodeManagerFactories);
 
+                    // CTT mode runs the alarm simulation faster (shorter alarm cycles)
+                    if (cttMode)
+                    {
+                        Servers.Utils.ConfigureCttModeNodeManagers();
+                    }
+
                     // Add async node managers
                     foreach (IAsyncNodeManagerFactory asyncFactory in Servers.Utils.AsyncNodeManagerFactories)
                     {

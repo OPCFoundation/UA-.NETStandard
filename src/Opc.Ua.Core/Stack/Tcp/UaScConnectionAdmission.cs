@@ -249,7 +249,11 @@ namespace Opc.Ua.Bindings
         /// Follows a transport through reverse-connect handoff. Only physical close releases capacity.
         /// </summary>
         internal sealed class Lease :
-            IUaSCByteTransport, IUaSCByteTransportLimits, IUaSCHandshakeCompletionSource, IDisposable
+            IUaSCByteTransport,
+            IUaSCByteTransportLimits,
+            IUaSCChunkCoalescing,
+            IUaSCHandshakeCompletionSource,
+            IDisposable
         {
             /// <summary>
             /// Takes ownership of the acquired reservations and the original handshake start timestamp.
@@ -484,6 +488,12 @@ namespace Opc.Ua.Bindings
                     limits.SetReceiveBufferSize(receiveBufferSize);
                 }
             }
+
+            /// <summary>
+            /// Whether the attached transport accepts several chunks in one send.
+            /// </summary>
+            bool IUaSCChunkCoalescing.CanCoalesceChunks =>
+                m_transport is IUaSCChunkCoalescing coalescing && coalescing.CanCoalesceChunks;
 
             /// <summary>
             /// Claims expiry against handshake completion using the original, non-renewable deadline.

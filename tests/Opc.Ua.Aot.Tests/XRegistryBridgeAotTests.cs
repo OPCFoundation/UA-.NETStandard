@@ -200,7 +200,7 @@ namespace Opc.Ua.Aot.Tests
             using var value = JsonDocument.Parse("""{"score":17,"tags":["null","last"]}""");
             Variant encoded = XRegistryNativeAttributeCodec.Encode(value.RootElement, definition.RootElement, mapping);
             await Assert.That(encoded.TryGetValue(out ExtensionObject extension)).IsTrue();
-            await Assert.That(extension.TryGetValue(out IEncodeable body)).IsTrue();
+            await Assert.That(extension.TryGetValue(out IEncodeable? body)).IsTrue();
             IStructure fields = body as IStructure
                 ?? throw new InvalidOperationException("The registered native value has no typed field access.");
             await Assert.That(fields["score"].TryGetValue(out int score)).IsTrue();

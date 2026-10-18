@@ -28,9 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
@@ -199,18 +201,27 @@ namespace Opc.Ua.Bindings
             }
             m_renewedTokenWithKeys = null;
 
-            // a pending renewal superseded by another token (reconnect) is dropped.
-            if (RenewedToken != null && !ReferenceEquals(RenewedToken, token))
+            ChannelToken? previousToken;
+
+            // the writer secures messages with the current token under the send
+            // order lock; swapping it there keeps a token from being disposed while
+            // a chunk is secured with it.
+            using (SendOrder.Enter())
             {
-                RenewedToken.Dispose();
+                // a pending renewal superseded by another token (reconnect) is dropped.
+                if (RenewedToken != null && !ReferenceEquals(RenewedToken, token))
+                {
+                    RenewedToken.Dispose();
+                }
+
+                PreviousToken?.Dispose();
+                PreviousToken = CurrentToken;
+                CurrentToken = token;
+                RenewedToken = null;
+                previousToken = PreviousToken;
             }
 
-            PreviousToken?.Dispose();
-            PreviousToken = CurrentToken;
-            CurrentToken = token;
-            RenewedToken = null;
-
-            TokenActivatedCallback?.Invoke(token, PreviousToken);
+            TokenActivatedCallback?.Invoke(token, previousToken);
 
             if (m_logger.IsEnabled(LogLevel.Information))
             {
@@ -278,16 +289,33 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether <see cref="ActivateRenewedTokenIfDue"/> would activate a token.
+        /// </summary>
+        /// <remarks>
+        /// Read without the gate by a sender deciding whether it may skip it. The
+        /// answer can be stale by the time the message is sealed, which only moves
+        /// the activation to the next message or the next received chunk.
+        /// </remarks>
+        private protected bool IsRenewedTokenActivationDue =>
+            RenewedToken != null &&
+            CurrentToken is ChannelToken currentToken &&
+            currentToken.IsActivationRequired(TimeProvider);
+
+        /// <summary>
         /// Discards the tokens.
         /// </summary>
         protected void DiscardTokens()
         {
-            PreviousToken?.Dispose();
-            PreviousToken = null;
-            CurrentToken?.Dispose();
-            CurrentToken = null;
-            RenewedToken?.Dispose();
-            RenewedToken = null;
+            // see ActivateToken.
+            using (SendOrder.Enter())
+            {
+                PreviousToken?.Dispose();
+                PreviousToken = null;
+                CurrentToken?.Dispose();
+                CurrentToken = null;
+                RenewedToken?.Dispose();
+                RenewedToken = null;
+            }
 
             TokenActivatedCallback?.Invoke(null, null);
         }
@@ -535,10 +563,100 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Secures the message using the security token.
         /// </summary>
+        /// <remarks>
+        /// Encodes and seals in one step. The sequence numbers are taken under
+        /// <see cref="SendOrder"/>, but the caller queues the chunks after it is
+        /// released, so this is only correct on a channel that queues no unsealed
+        /// messages (<see cref="BeginWriteSymmetricMessage"/>) and serialises its
+        /// numbered writes otherwise, as the client channel does under its gate.
+        /// </remarks>
         protected BufferCollection WriteSymmetricMessage(
             uint messageType,
             uint requestId,
             ChannelToken token,
+            object messageBody,
+            bool isRequest,
+            out bool limitsExceeded)
+        {
+            EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
+                messageType,
+                requestId,
+                messageBody,
+                isRequest,
+                out limitsExceeded);
+
+            using (SendOrder.Enter())
+            {
+                return SealSymmetricMessage(encoded, token);
+            }
+        }
+
+        /// <summary>
+        /// A symmetric message encoded into chunks whose headers, sequence numbers
+        /// and security are not written yet.
+        /// </summary>
+        /// <remarks>
+        /// Encoding needs nothing that is ordered per channel, so any thread can do
+        /// it without the gate. Sealing takes the token and the sequence numbers and
+        /// is done by the writer, in queue order (see <see cref="SendOrder"/>).
+        /// </remarks>
+        private protected readonly struct EncodedSymmetricMessage
+        {
+            public EncodedSymmetricMessage(
+                uint messageType,
+                uint requestId,
+                bool isRequest,
+                bool aborted,
+                BufferCollection chunks)
+            {
+                MessageType = messageType;
+                RequestId = requestId;
+                IsRequest = isRequest;
+                Aborted = aborted;
+                Chunks = chunks;
+            }
+
+            /// <summary>
+            /// The message type without the chunk type.
+            /// </summary>
+            public uint MessageType { get; }
+
+            /// <summary>
+            /// The request the message belongs to.
+            /// </summary>
+            public uint RequestId { get; }
+
+            /// <summary>
+            /// Whether the message is a request (client keys secure it).
+            /// </summary>
+            public bool IsRequest { get; }
+
+            /// <summary>
+            /// Whether the last chunk is an abort chunk replacing the rest of the
+            /// message because it exceeded the limits.
+            /// </summary>
+            public bool Aborted { get; }
+
+            /// <summary>
+            /// The chunks, each holding its body after the reserved header space.
+            /// Owned by the message until sealed.
+            /// </summary>
+            public BufferCollection Chunks { get; }
+        }
+
+        /// <summary>
+        /// Encodes a message into chunks without securing them.
+        /// </summary>
+        /// <param name="messageType">The message type without the chunk type.</param>
+        /// <param name="requestId">The request the message belongs to.</param>
+        /// <param name="messageBody">An encodeable, or the raw bytes to send.</param>
+        /// <param name="isRequest">Whether the message is a request.</param>
+        /// <param name="limitsExceeded">Set when the message was cut off with an
+        /// abort chunk because it exceeds the negotiated limits.</param>
+        /// <returns>The encoded message. The caller owns its chunks.</returns>
+        private protected EncodedSymmetricMessage EncodeSymmetricMessage(
+            uint messageType,
+            uint requestId,
             object messageBody,
             bool isRequest,
             out bool limitsExceeded)
@@ -558,11 +676,7 @@ namespace Opc.Ua.Bindings
                 int maxPlainTextSize = maxCipherBlocks * EncryptionBlockSize;
 
                 int signatureSize = SymmetricSignatureSize;
-                // token.SecurityPolicy is set in ComputeKeys before the channel sends messages.
-                int paddingCountSize =
-                    SecurityMode != MessageSecurityMode.SignAndEncrypt || token.SecurityPolicy!.NoSymmetricEncryptionPadding
-                    ? 0
-                    : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
+                int paddingCountSize = GetPaddingCountSize();
 
                 int maxPayloadSize =
                     maxPlainTextSize -
@@ -573,39 +687,8 @@ namespace Opc.Ua.Bindings
                 const int headerSize = TcpMessageLimits.SymmetricHeaderSize +
                     TcpMessageLimits.SequenceHeaderSize;
 
-                // write the body to stream.
-                using var ostrm = new ArraySegmentStream(
-                    BufferManager,
-                    sendBufferSize,
-                    headerSize,
-                    maxPayloadSize);
-
-                // check for encodeable body.
-                if (messageBody is IEncodeable encodeable)
-                {
-                    // debug code used to verify that message aborts are handled correctly.
-                    // int maxMessageSize = Quotas.MessageContext.MaxMessageSize;
-                    // Quotas.MessageContext.MaxMessageSize = Int32.MaxValue;
-
-                    BinaryEncoder.EncodeMessage(encodeable, ostrm, Quotas.MessageContext, true);
-
-                    // Quotas.MessageContext.MaxMessageSize = maxMessageSize;
-                }
-
-                // check for raw bytes.
-                var rawBytes = messageBody as ArraySegment<byte>?;
-
-                if (rawBytes != null)
-                {
-                    using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
-                    // BufferManager-backed ArraySegment is always created with a non-null backing array.
-                    encoder.WriteRawBytes(
-                        rawBytes.Value.GetArray(),
-                        rawBytes.Value.Offset,
-                        rawBytes.Value.Count);
-                }
-
-                chunksToProcess = ostrm.GetBuffers("WriteSymmetricMessage");
+                // write the body to chunks.
+                chunksToProcess = EncodeMessageBody(messageBody, sendBufferSize, headerSize, maxPayloadSize);
 
                 // ensure there is at least one chunk.
                 if (chunksToProcess.Count == 0)
@@ -617,9 +700,8 @@ namespace Opc.Ua.Bindings
                     chunksToProcess.Add(new ArraySegment<byte>(buffer, headerSize, 0));
                 }
 
-                var chunksToSend = new BufferCollection(chunksToProcess.Capacity);
-
                 int messageSize = 0;
+                int keptCount = chunksToProcess.Count;
 
                 for (int ii = 0; ii < chunksToProcess.Count; ii++)
                 {
@@ -634,11 +716,6 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-#pragma warning disable CA2000 // Stream is disposed by the BinaryEncoder (leaveOpen: false)
-                    var strm = new MemoryStream(chunkArray, 0, sendBufferSize);
-                    using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
-#pragma warning restore CA2000
-
                     // check if the message needs to be aborted. The segment holds
                     // only the body (it starts after the headers), which is what
                     // the receiver counts against MaxMessageSize.
@@ -647,8 +724,6 @@ namespace Opc.Ua.Bindings
                         messageSize + chunkToProcess.Count,
                         ii + 1))
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
-
                         // Replace the body in the chunk with an error message.
                         // The encoder is bounded by the room the chunk has for a
                         // body, not by what the chunk currently holds: an error
@@ -667,24 +742,226 @@ namespace Opc.Ua.Bindings
                                     ? StatusCodes.BadRequestTooLarge
                                     : StatusCodes.BadResponseTooLarge);
                             int size = errorEncoder.Close();
-                            chunkToProcess = new ArraySegment<byte>(
+                            chunksToProcess[ii] = new ArraySegment<byte>(
                                 chunkArray,
                                 chunkToProcess.Offset,
                                 size);
                         }
 
                         limitsExceeded = true;
+                        keptCount = ii + 1;
                     }
 
-                    // check if the message is complete.
-                    else if (ii == chunksToProcess.Count - 1)
+                    // update message size count.
+                    messageSize += chunksToProcess[ii].Count;
+                }
+
+                // the chunks after an abort chunk were returned above.
+                if (keptCount < chunksToProcess.Count)
+                {
+                    chunksToProcess.RemoveRange(keptCount, chunksToProcess.Count - keptCount);
+                }
+
+                // A small message that will wait in the write queue (writes are already
+                // queued) moves to a buffer of its own size: a deep pipeline of
+                // responses that each hold a send-buffer-sized array exhausts the
+                // buffer pool. A message that is sent right away skips the copy. The
+                // room after the body covers the padding count, the padding and the
+                // signature that sealing adds.
+                if (chunksToProcess.Count == 1 && Volatile.Read(ref m_activeWriteRequests) > 0)
+                {
+                    ArraySegment<byte> body = chunksToProcess[0];
+                    int required = headerSize + body.Count + paddingCountSize +
+                        signatureSize + (2 * EncryptionBlockSize);
+                    if (required <= sendBufferSize / kSmallMessageFraction)
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
+                        byte[] large = body.GetArray();
+                        byte[] small = BufferManager.TakeBuffer(required, "WriteSymmetricMessage");
+                        Buffer.BlockCopy(large, body.Offset, small, headerSize, body.Count);
+                        chunksToProcess[0] = new ArraySegment<byte>(small, headerSize, body.Count);
+                        BufferManager.ReturnBuffer(large, "WriteSymmetricMessage");
                     }
-                    // more chunks to follow.
+                }
+
+                var encoded = new EncodedSymmetricMessage(
+                    messageType,
+                    requestId,
+                    isRequest,
+                    limitsExceeded,
+                    chunksToProcess);
+
+                // ensure the buffers don't get cleaned up on exit.
+                success = true;
+                return encoded;
+            }
+            finally
+            {
+                if (!success)
+                {
+                    chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Encodes the body of a symmetric message to the message stream of the thread.
+        /// </summary>
+        /// <returns>The chunks holding the body. The caller owns them.</returns>
+        private BufferCollection EncodeMessageBody(
+            object messageBody,
+            int sendBufferSize,
+            int headerSize,
+            int maxPayloadSize)
+        {
+            var messageStream = MessageStream.Rent(
+                BufferManager,
+                sendBufferSize,
+                headerSize,
+                maxPayloadSize);
+            ArraySegmentStream ostrm = messageStream.Stream;
+            BufferCollection chunks;
+            try
+            {
+                // check for encodeable body.
+                if (messageBody is IEncodeable encodeable)
+                {
+                    using var encoder = new BinaryEncoder(messageStream.Writer, Quotas.MessageContext);
+                    encoder.EncodeMessage(encodeable, encodeable.TypeId);
+                }
+
+                // check for raw bytes.
+                var rawBytes = messageBody as ArraySegment<byte>?;
+
+                if (rawBytes != null)
+                {
+                    using var encoder = new BinaryEncoder(ostrm, Quotas.MessageContext, true);
+                    // BufferManager-backed ArraySegment is always created with a non-null backing array.
+                    encoder.WriteRawBytes(
+                        rawBytes.Value.GetArray(),
+                        rawBytes.Value.Offset,
+                        rawBytes.Value.Count);
+                }
+
+                chunks = ostrm.GetBuffers("WriteSymmetricMessage");
+            }
+            catch
+            {
+                // a body that failed to encode returns the buffers the stream holds, and the
+                // stream is not used again.
+                ostrm.ReleaseBuffers();
+                throw;
+            }
+
+            // the stream is empty again: the next message of the thread can use it.
+            messageStream.Return();
+            return chunks;
+        }
+
+        /// <summary>
+        /// The stream, and the writer over it, a thread encodes the bodies of symmetric
+        /// messages to; every message gets an encoder of its own that borrows the writer.
+        /// </summary>
+        /// <remarks>
+        /// Encoding is synchronous, so a thread encodes one message at a time; it takes the
+        /// stream for a message and gives it back once the stream handed its buffers over
+        /// (<see cref="ArraySegmentStream.GetBuffers"/>), so the encoded message references
+        /// neither. A message encoded while the thread's stream is taken gets a new one.
+        /// </remarks>
+        private sealed class MessageStream
+        {
+            private MessageStream(BufferManager bufferManager, int bufferSize, int start, int count)
+            {
+                Stream = new ArraySegmentStream(bufferManager, bufferSize, start, count);
+                Writer = new BinaryWriter(Stream, Encoding.UTF8, true);
+            }
+
+            public ArraySegmentStream Stream { get; }
+
+            public BinaryWriter Writer { get; }
+
+            public static MessageStream Rent(BufferManager bufferManager, int bufferSize, int start, int count)
+            {
+                MessageStream? stream = t_messageStream;
+                if (stream == null)
+                {
+                    return new MessageStream(bufferManager, bufferSize, start, count);
+                }
+                t_messageStream = null;
+                stream.Stream.Reset(bufferManager, bufferSize, start, count);
+                return stream;
+            }
+
+            public void Return()
+            {
+                t_messageStream = this;
+            }
+
+            [ThreadStatic]
+            private static MessageStream? t_messageStream;
+        }
+
+        /// <summary>
+        /// Decodes a message in one buffer, without a stream over it.
+        /// </summary>
+        /// <typeparam name="T">The type of the message.</typeparam>
+        private protected static T DecodeMessage<T>(ArraySegment<byte> buffer, IServiceMessageContext context)
+            where T : IEncodeable
+        {
+            using var decoder = new BinaryDecoder(buffer, context);
+            return decoder.DecodeMessage<T>();
+        }
+
+        /// <summary>
+        /// Writes the headers and sequence numbers of an encoded message and
+        /// secures its chunks with the token.
+        /// </summary>
+        /// <param name="encoded">The message. Its chunks are consumed: returned
+        /// as the result, or released when sealing fails.</param>
+        /// <param name="token">The token that secures the message.</param>
+        /// <returns>The chunks to send.</returns>
+        /// <remarks>
+        /// The caller holds <see cref="SendOrder"/>, which is what keeps the
+        /// sequence numbers in the order the chunks reach the wire and keeps the
+        /// token from being disposed while it is in use.
+        /// </remarks>
+        private protected BufferCollection SealSymmetricMessage(
+            EncodedSymmetricMessage encoded,
+            ChannelToken token)
+        {
+            BufferCollection chunksToProcess = encoded.Chunks;
+            bool success = false;
+
+            try
+            {
+                int signatureSize = SymmetricSignatureSize;
+                int paddingCountSize = GetPaddingCountSize();
+
+                const int headerSize = TcpMessageLimits.SymmetricHeaderSize +
+                    TcpMessageLimits.SequenceHeaderSize;
+
+                var chunksToSend = new BufferCollection(chunksToProcess.Count);
+                int lastChunk = chunksToProcess.Count - 1;
+
+                for (int ii = 0; ii < chunksToProcess.Count; ii++)
+                {
+                    ArraySegment<byte> chunkToProcess = chunksToProcess[ii];
+                    // BufferManager-backed segment always has a non-null backing array.
+                    byte[] chunkArray = chunkToProcess.GetArray();
+
+                    // The headers are fixed-size little-endian fields in front of the
+                    // body, written directly rather than through an encoder per chunk.
+                    uint chunkType;
+                    if (ii < lastChunk)
+                    {
+                        chunkType = encoded.MessageType | TcpMessageType.Intermediate;
+                    }
+                    else if (encoded.Aborted)
+                    {
+                        chunkType = encoded.MessageType | TcpMessageType.Abort;
+                    }
                     else
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
+                        chunkType = encoded.MessageType | TcpMessageType.Final;
                     }
 
                     int count = 0;
@@ -713,19 +990,18 @@ namespace Opc.Ua.Bindings
 
                     count += TcpMessageLimits.SymmetricHeaderSize;
 
-                    encoder.WriteUInt32(null, (uint)count);
-                    encoder.WriteUInt32(null, ChannelId);
-                    encoder.WriteUInt32(null, token.TokenId);
+                    Span<byte> header = chunkArray.AsSpan(0, headerSize);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header, chunkType);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[4..], (uint)count);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[8..], ChannelId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[12..], token.TokenId);
 
                     uint sequenceNumber = GetNewSequenceNumber();
-                    encoder.WriteUInt32(null, sequenceNumber);
-                    encoder.WriteUInt32(null, requestId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[16..], sequenceNumber);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[20..], encoded.RequestId);
 
-                    // skip body.
-                    strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
-
-                    // update message size count.
-                    messageSize += chunkToProcess.Count;
+                    // the headers are followed by the body.
+                    int position = headerSize + chunkToProcess.Count;
 
                     ArraySegment<byte> dataToSend;
 
@@ -734,16 +1010,22 @@ namespace Opc.Ua.Bindings
                         dataToSend = new ArraySegment<byte>(
                             chunkArray,
                             TcpMessageLimits.SymmetricHeaderSize,
-                            encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
+                            position - TcpMessageLimits.SymmetricHeaderSize);
 
-                        dataToSend = EncryptAndSign(token, dataToSend, isRequest);
+                        // the number was taken above under the same lock, so the
+                        // last one sent is the one before this chunk's.
+                        dataToSend = EncryptAndSign(
+                            token,
+                            dataToSend,
+                            encoded.IsRequest,
+                            LastSentSequenceNumber);
                     }
                     else
                     {
                         dataToSend = new ArraySegment<byte>(
                             chunkArray,
                             0,
-                            encoder.Position);
+                            position);
                     }
 
                     // add the header into chunk.
@@ -758,15 +1040,27 @@ namespace Opc.Ua.Bindings
             {
                 if (!success)
                 {
-                    chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
+                    chunksToProcess.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }
+        }
+
+        /// <summary>
+        /// The size of the padding count field of an encrypted chunk.
+        /// </summary>
+        private int GetPaddingCountSize()
+        {
+            return SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                SecurityPolicy!.NoSymmetricEncryptionPadding
+                ? 0
+                : (EncryptionBlockSize > byte.MaxValue ? 2 : 1);
         }
 
         private ArraySegment<byte> EncryptAndSign(
             ChannelToken token,
             ArraySegment<byte> dataToEncrypt,
-            bool useClientKeys)
+            bool useClientKeys,
+            uint lastSequenceNumber)
         {
             // The keys and security policy are populated in ComputeKeys before send/receive.
             return CryptoUtils.SymmetricEncryptAndSign(
@@ -778,8 +1072,9 @@ namespace Opc.Ua.Bindings
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
-                LastSentSequenceNumber, // already incremented to create this message. need the last one sent.
-                m_symmetricProvider);
+                lastSequenceNumber,
+                m_symmetricProvider,
+                useClientKeys ? token.ClientCiphers : token.ServerCiphers);
         }
 
         /// <summary>
@@ -793,11 +1088,12 @@ namespace Opc.Ua.Bindings
             out uint requestId,
             out uint sequenceNumber)
         {
-            using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
-            uint messageType = decoder.ReadUInt32(null);
-            uint messageSize = decoder.ReadUInt32(null);
-            uint channelId = decoder.ReadUInt32(null);
-            uint tokenId = decoder.ReadUInt32(null);
+            // The headers are fixed-size little-endian fields, read directly
+            // rather than through a decoder per chunk.
+            _ = ReadHeaderField(buffer, 0); // message type
+            _ = ReadHeaderField(buffer, 4); // message size
+            uint channelId = ReadHeaderField(buffer, 8);
+            uint tokenId = ReadHeaderField(buffer, 12);
 
             // ensure the channel is valid.
             if (channelId != ChannelId)
@@ -882,7 +1178,7 @@ namespace Opc.Ua.Bindings
                     token.CreatedAtTimestamp);
             }
 
-            int headerSize = decoder.Position;
+            int headerSize = TcpMessageLimits.SymmetricHeaderSize;
 
             // ArraySegment.Array is non-null because the buffer comes from BufferManager.
             byte[] bufferArray = buffer.GetArray();
@@ -911,8 +1207,8 @@ namespace Opc.Ua.Bindings
             }
 
             // extract request id and sequence number.
-            sequenceNumber = decoder.ReadUInt32(null);
-            requestId = decoder.ReadUInt32(null);
+            sequenceNumber = ReadHeaderField(buffer, headerSize);
+            requestId = ReadHeaderField(buffer, headerSize + 4);
 
             headerSize += TcpMessageLimits.SequenceHeaderSize;
 
@@ -921,6 +1217,29 @@ namespace Opc.Ua.Bindings
                 dataToProcess.GetArray(),
                 dataToProcess.Offset + headerSize,
                 dataToProcess.Count - headerSize);
+        }
+
+        /// <summary>
+        /// Reads a 32-bit header field of a message chunk.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The chunk ends before the
+        /// field, with the decoding error a decoder reports.</exception>
+        private uint ReadHeaderField(ArraySegment<byte> buffer, int offset)
+        {
+            if (buffer.Count - offset >= sizeof(uint))
+            {
+                return BinaryPrimitives.ReadUInt32LittleEndian(
+                    buffer.AsSpan(offset, sizeof(uint)));
+            }
+
+            // Too short: the decoder raises the same error as when it read the
+            // whole header.
+            using var decoder = new BinaryDecoder(
+                buffer.GetArray(),
+                buffer.Offset + Math.Min(offset, buffer.Count),
+                Math.Max(buffer.Count - offset, 0),
+                Quotas.MessageContext);
+            return decoder.ReadUInt32(null);
         }
 
         private ArraySegment<byte> DecryptAndVerify(
@@ -939,7 +1258,8 @@ namespace Opc.Ua.Bindings
                 token.TokenId,
                 m_remoteSequenceNumber,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
-                m_symmetricProvider);
+                m_symmetricProvider,
+                useClientKeys ? token.ClientCiphers : token.ServerCiphers);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
@@ -950,6 +1270,12 @@ namespace Opc.Ua.Bindings
         /// was activated.
         /// </summary>
         private ChannelToken? m_renewedTokenWithKeys;
+
+        /// <summary>
+        /// A single-chunk message that needs at most this fraction of the send buffer
+        /// is moved to a buffer of its own size (see <see cref="EncodeSymmetricMessage"/>).
+        /// </summary>
+        private const int kSmallMessageFraction = 8;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private ISymmetricCryptoProvider? m_symmetricProvider;

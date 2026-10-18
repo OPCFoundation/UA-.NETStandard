@@ -44,6 +44,89 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class MonitoredNodeUserAccessRegressionTests
     {
         /// <summary>
+        /// A new subscriber must not inherit a reporter's denied value captured before that subscriber existed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateSubscriberDoesNotReceiveReportersDeniedHistoricalSnapshotAsync(bool attachesAfterCapture)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("lateSubscriber", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 42,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+                node.OnReadUserAccessLevel = (ISystemContext context, NodeState _, ref byte value) =>
+                {
+                    value = context is ISessionSystemContext caller &&
+                        !caller.SessionId.GetValueOrDefault().IsNull
+                        ? AccessLevels.CurrentRead : AccessLevels.None;
+                    return ServiceResult.Good;
+                };
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(async () =>
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
+                var identity = new Mock<IUserIdentity>();
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId("authenticated", 1));
+                session.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+                Mock<IDataChangeMonitoredItem2> first = CreateItem(1, session.Object, identity.Object);
+                Mock<IDataChangeMonitoredItem2> late = CreateItem(2, session.Object, identity.Object);
+                bool attached = !attachesAfterCapture;
+                late.SetupGet(value => value.Session).Returns(() => attached ? session.Object : null!);
+                var monitored = new MonitoredNode2(manager.Object, server.Object, node);
+                monitored.Add(first.Object);
+                try
+                {
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                    await entered.Task.WaitAsync(System.TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    monitored.Add(late.Object);
+                    node.Value = 43;
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                    if (attachesAfterCapture)
+                    {
+                        attached = true;
+                        node.Value = 44;
+                        await monitored.OnMonitoredNodeChangedAsync(
+                            server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await monitored.DisposeAsync().ConfigureAwait(false);
+                }
+                var delivered = late.Invocations.Where(value =>
+                    value.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue)).ToArray();
+                Assert.That(delivered, Has.Length.EqualTo(1),
+                    "Only the change captured after this subscriber joined belongs to this subscriber.");
+                Assert.That(delivered[0].Arguments[0], Is.TypeOf<DataValue>());
+                if (delivered[0].Arguments[0] is DataValue observation)
+                {
+                    Assert.That(observation.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(observation.WrappedValue.TryGetValue(out int actual), Is.True);
+                    Assert.That(actual, Is.EqualTo(attachesAfterCapture ? 44 : 43));
+                }
+            }
+        }
+
+        /// <summary>
         /// A subscriber without CurrentRead receives Bad_UserAccessDenied although the writer could read.
         /// </summary>
         [Test]
@@ -103,6 +186,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(value.WrappedValue.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Creates one authenticated data-change subscriber with stable session attribution.
+        /// </summary>
+        private static Mock<IDataChangeMonitoredItem2> CreateItem(
+            uint id, ISession session, IUserIdentity identity)
+        {
+            var item = new Mock<IDataChangeMonitoredItem2>();
+            item.SetupGet(value => value.Id).Returns(id);
+            item.SetupGet(value => value.AttributeId).Returns(Attributes.Value);
+            item.SetupGet(value => value.IndexRange).Returns(NumericRange.Null);
+            item.SetupGet(value => value.DataEncoding).Returns(QualifiedName.Null);
+            item.SetupGet(value => value.Session).Returns(session);
+            item.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            return item;
         }
 
         private static async Task<(DataValue, ServiceResult)> ReportChangeAsync(

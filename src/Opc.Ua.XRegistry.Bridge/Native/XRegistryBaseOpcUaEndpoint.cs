@@ -188,6 +188,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 collections.Add(XRegistryPath.FromSegments([definition.Name]));
             }
             bool legacy = false;
+            var visitedGroups = new HashSet<NodeId>();
             foreach (ReferenceDescription group in rootChildren.ToArray() ?? [])
             {
                 if (!await IsTypeAsync(group, ObjectTypeIds.GroupType, ct).ConfigureAwait(false))
@@ -195,6 +196,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     continue;
                 }
                 NodeId groupNode = Local(group);
+                if (!visitedGroups.Add(groupNode))
+                {
+                    continue;
+                }
                 ArrayOf<ReferenceDescription> groupChildren = await ChildrenAsync(groupNode, ct).ConfigureAwait(false);
                 JsonObject metadata = await MetadataAsync(groupChildren, EntityKind.Group, ct).ConfigureAwait(false);
                 string id = Required(metadata, "groupid");
@@ -214,6 +219,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 {
                     collections.Add(groupPath + XRegistryPath.FromSegments([resourceDefinition.Name]));
                 }
+                var visitedResources = new HashSet<NodeId>();
                 foreach (ReferenceDescription resource in groupChildren.ToArray() ?? [])
                 {
                     if (!await IsTypeAsync(resource, ObjectTypeIds.ResourceType, ct).ConfigureAwait(false))
@@ -221,6 +227,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         continue;
                     }
                     NodeId resourceNode = Local(resource);
+                    if (!visitedResources.Add(resourceNode))
+                    {
+                        continue;
+                    }
                     ArrayOf<ReferenceDescription> children = await ChildrenAsync(resourceNode, ct)
                         .ConfigureAwait(false);
                     JsonObject resourceMetadata = await MetadataAsync(children, EntityKind.Resource, ct)
@@ -269,6 +279,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     entries.Add(resourcePath + "/meta", new Entry(XRegistryNativeJson.Element(meta), NodeId.Null));
                     ArrayOf<ReferenceDescription> versionChildren = await ChildrenAsync(Local(versions), ct)
                         .ConfigureAwait(false);
+                    var visitedVersions = new HashSet<NodeId>();
                     foreach (ReferenceDescription versionNode in versionChildren.ToArray() ?? [])
                     {
                         if (!await IsTypeAsync(versionNode, ObjectTypeIds.ResourceType, ct)
@@ -276,7 +287,12 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         {
                             continue;
                         }
-                        ArrayOf<ReferenceDescription> versionProperties = await ChildrenAsync(Local(versionNode), ct)
+                        NodeId versionNodeId = Local(versionNode);
+                        if (!visitedVersions.Add(versionNodeId))
+                        {
+                            continue;
+                        }
+                        ArrayOf<ReferenceDescription> versionProperties = await ChildrenAsync(versionNodeId, ct)
                             .ConfigureAwait(false);
                         JsonObject versionMetadata = await MetadataAsync(versionProperties, EntityKind.Resource, ct)
                             .ConfigureAwait(false);
@@ -292,10 +308,10 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                         versionMetadata["xid"] = versionPath;
                         ValidateAttributeMapping(resourceDefinition, versionPath);
                         await ReadMappedAttributesAsync(
-                            Local(versionNode), versionProperties, EntityKind.Resource,
+                            versionNodeId, versionProperties, EntityKind.Resource,
                             versionMetadata, resourceDefinition, versionPath, ct)
                             .ConfigureAwait(false);
-                        AddVersion(entries, versionPath, versionMetadata, Local(versionNode), resourceDefinition);
+                        AddVersion(entries, versionPath, versionMetadata, versionNodeId, resourceDefinition);
                     }
                     string defaultPath = resourcePath + "/versions" + XRegistryPath.FromSegments([defaultVersion]);
                     if (!entries.TryGetValue(defaultPath, out Entry? selected))

@@ -959,6 +959,32 @@ namespace Opc.Ua.Server
         public bool DeleteNode(ServerSystemContext context, NodeId nodeId)
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
+            var changes = new NodeDeletionModelChanges(
+                SystemContext.Copy(context), nodeId, PredefinedNodes,
+                ModelChangeEmissionEnabled, RequireNodeVersionForModelChange);
+            bool result = false;
+            Exception? failure = null;
+            try
+            {
+                result = DeleteNodeCore(context, nodeId);
+            }
+            catch (Exception deletionFailure) when (deletionFailure is not OutOfMemoryException)
+            {
+                failure = deletionFailure;
+            }
+            changes.Complete(failure, deleteTargetReferences: true, committed =>
+            {
+                foreach (ModelChangeStructureDataType change in committed)
+                {
+                    ModelChangeAggregator.Add(change);
+                }
+                EmitModelChange(SystemContext.Copy(context));
+            });
+            return result;
+        }
+
+        private bool DeleteNodeCore(ServerSystemContext context, NodeId nodeId)
+        {
             ServerSystemContext contextToUse = SystemContext.Copy(context);
 
             var referencesToRemove = new List<LocalReference>();
@@ -968,13 +994,9 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             IReadOnlyList<IMonitoredItem> monitoredItems =
                 GetMonitoredItemsForNodeSubtree(contextToUse, node);
             var detachedItems = new List<IMonitoredItem>(monitoredItems.Count);
-            bool addressSpaceRemovalStarted = false;
-            bool addressSpaceRemovalCompleted = false;
-
             try
             {
                 foreach (IMonitoredItem monitoredItem in monitoredItems)
@@ -988,9 +1010,7 @@ namespace Opc.Ua.Server
                     detachedItems.Add(monitoredItem);
                 }
 
-                addressSpaceRemovalStarted = true;
                 RemovePredefinedNode(contextToUse, node!, referencesToRemove);
-                addressSpaceRemovalCompleted = true;
                 RemoveRootNotifier(node!);
 
                 if (referencesToRemove.Count > 0)
@@ -1000,33 +1020,15 @@ namespace Opc.Ua.Server
 #pragma warning restore CS0618
                 }
             }
-            catch
+            catch (Exception failure)
             {
-                bool nodeStillExists = PredefinedNodes.ContainsKey(node.NodeId);
-                if (!addressSpaceRemovalStarted ||
-                    (!addressSpaceRemovalCompleted && nodeStillExists))
-                {
-                    RestoreDetachedMonitoredItems(detachedItems);
-                }
-                else
-                {
-                    foreach (IMonitoredItem monitoredItem in detachedItems)
-                    {
-                        ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-                    }
-                }
+                RestoreSurvivingMonitoredItems(detachedItems, failure);
                 throw;
             }
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
                 ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
-            }
-
-            if (ModelChangeEmissionEnabled)
-            {
-                ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
-                EmitModelChange(contextToUse);
             }
 
             return true;
@@ -1059,16 +1061,55 @@ namespace Opc.Ua.Server
             return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
         }
 
+        private void RestoreSurvivingMonitoredItems(
+            List<IMonitoredItem> monitoredItems,
+            Exception deletionFailure)
+        {
+            var survivingItems = new List<IMonitoredItem>(monitoredItems.Count);
+            foreach (IMonitoredItem monitoredItem in monitoredItems)
+            {
+                if (PredefinedNodes.ContainsKey(monitoredItem.NodeId))
+                {
+                    survivingItems.Add(monitoredItem);
+                }
+                else
+                {
+                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                }
+            }
+            try
+            {
+                RestoreDetachedMonitoredItems(survivingItems);
+            }
+            catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+            {
+                throw new AggregateException(
+                    "Node deletion and monitored-item restoration failed.", deletionFailure, restorationFailure);
+            }
+        }
+
         private void RestoreDetachedMonitoredItems(
             List<IMonitoredItem> monitoredItems)
         {
+            List<Exception>? failures = null;
             for (int ii = monitoredItems.Count - 1; ii >= 0; ii--)
             {
-                ServiceResult result = AttachMonitoredItemForLifecycle(monitoredItems[ii]);
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    throw new ServiceResultException(result);
+                    ServiceResult result = AttachMonitoredItemForLifecycle(monitoredItems[ii]);
+                    if (ServiceResult.IsBad(result))
+                    {
+                        throw new ServiceResultException(result);
+                    }
                 }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    (failures ??= []).Add(failure);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException("Monitored-item restoration failed.", failures);
             }
         }
 
@@ -5072,7 +5113,28 @@ namespace Opc.Ua.Server
 
             if (success)
             {
-                OnMonitoredItemCreated(context, handle, restoredItem);
+                bool created = false;
+                try
+                {
+                    OnMonitoredItemCreated(context, handle, restoredItem);
+                    created = true;
+                }
+                finally
+                {
+                    if (!created)
+                    {
+                        // release the item so that a retry of the restore can recreate it.
+                        StatusCode statusCode = m_monitoredItemManager.DeleteMonitoredItem(
+                            context, restoredItem, handle);
+                        if (StatusCode.IsGood(statusCode) &&
+                            m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(context, handle);
+                        }
+                        restoredItem.Dispose();
+                        monitoredItem = null;
+                    }
+                }
             }
 
             return success;
@@ -6329,6 +6391,37 @@ namespace Opc.Ua.Server
         /// Set the metadata default permission values for DefaultAccessRestrictions, DefaultRolePermissions and DefaultUserRolePermissions
         /// </summary>
         private void SetDefaultPermissions(
+            ServerSystemContext systemContext,
+            NodeState target,
+            NodeMetadata metadata)
+        {
+            // the defaults are read once per namespace and service request, like
+            // AsyncCustomNodeManager does: every read takes two server-wide locks and
+            // copies the role permission array.
+            ushort namespaceIndex = target.NodeId.NamespaceIndex;
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext != null &&
+                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            {
+                metadata.DefaultAccessRestrictions = cached.DefaultAccessRestrictions;
+                metadata.DefaultRolePermissions = cached.DefaultRolePermissions;
+                metadata.DefaultUserRolePermissions = cached.DefaultUserRolePermissions;
+                return;
+            }
+
+            ReadDefaultPermissions(systemContext, target, metadata);
+
+            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
+                namespaceIndex,
+                metadata.DefaultAccessRestrictions,
+                metadata.DefaultRolePermissions,
+                metadata.DefaultUserRolePermissions));
+        }
+
+        /// <summary>
+        /// Reads the namespace default permissions of the node's namespace into the metadata.
+        /// </summary>
+        private void ReadDefaultPermissions(
             ServerSystemContext systemContext,
             NodeState target,
             NodeMetadata metadata)

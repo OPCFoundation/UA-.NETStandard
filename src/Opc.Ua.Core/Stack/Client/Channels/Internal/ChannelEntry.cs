@@ -58,6 +58,8 @@ namespace Opc.Ua
             m_lastStateChange = host.TimeProvider.GetUtcNow();
             m_readyGate = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            m_transportInstalled = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         public ManagedChannelKey Key { get; }
@@ -202,6 +204,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Reports whether the installed transport still carries the manager's current client certificate material.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool HasCurrentClientCertificate()
+        {
+            using ClientChannelCertificateSnapshot installed = SnapshotClientCertificate();
+            using ClientChannelCertificateSnapshot current = OwnerManager.SnapshotClientCertificate(installed);
+            return ClientChannelCertificateSnapshot.HaveSameMaterial(
+                installed.Certificate, installed.Chain, current.Certificate, current.Chain);
+        }
+
+        /// <summary>
         /// Open the initial transport channel. Called once per
         /// entry before any lease is handed out.
         /// </summary>
@@ -230,6 +244,7 @@ namespace Opc.Ua
                     {
                         m_underlying = channel;
                         m_clientCertificateVersion = clientCertificateVersion;
+                        m_transportInstalled.TrySetResult(true);
                     }
 
                     recordActiveMetric = !entryClosed && !m_activeMetricRecorded;
@@ -269,14 +284,22 @@ namespace Opc.Ua
             }
             catch (Exception ex)
             {
+                lock (m_lock)
+                {
+                    // Only a failure of the open itself, not a teardown that
+                    // closed the entry under the open, counts as a fault.
+                    m_initialOpenFaulted = !IsClosingLocked;
+                }
                 TransitionTo(
                     ChannelState.Faulted,
                     new ServiceResult(ex),
                     attempt: 0);
-                FailReady(ServiceResultException.Create(
+                ServiceResultException failure = ServiceResultException.Create(
                     StatusCodes.BadSecureChannelClosed,
                     ex,
-                    "The shared channel failed during initial opening."));
+                    "The shared channel failed during initial opening.");
+                FailReady(failure);
+                FailTransportInstalled(failure);
                 throw;
             }
         }
@@ -757,6 +780,50 @@ namespace Opc.Ua
             return WaitForReadyCoreAsync(gate.Task, ct);
         }
 
+        /// <summary>
+        /// Whether the initial open failed on its own, as opposed to a teardown
+        /// that closed the entry while the open was in flight. Set once when
+        /// the open fails, so a later lifecycle change does not alter it.
+        /// </summary>
+        internal bool InitialOpenFaulted
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_initialOpenFaulted;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Wait until a transport is installed, by the initial open or by a
+        /// reconnect that started while the initial open was in flight. Unlike
+        /// <see cref="WaitForReadyAsync"/> this does not wait for participants
+        /// to reactivate, so a participant can call it from inside a reconnect
+        /// cycle.
+        /// </summary>
+        internal Task WaitForTransportAsync(CancellationToken ct)
+        {
+            Task installed;
+            lock (m_lock)
+            {
+                if (m_underlying != null)
+                {
+                    return Task.CompletedTask;
+                }
+                if (IsClosingLocked)
+                {
+                    return Task.FromException(
+                        ServiceResultException.Create(
+                            StatusCodes.BadSecureChannelClosed,
+                            "Channel is {0}.", m_state));
+                }
+                installed = m_transportInstalled.Task;
+            }
+            return installed.WaitAsync(ct);
+        }
+
         public ValueTask DisposeAsync()
         {
             return DisposeAsync(ChannelCloseReason.Faulted);
@@ -891,6 +958,9 @@ namespace Opc.Ua
 
             TransitionTo(ChannelState.Closed, error: null, attempt: 0);
             FailReady(new ServiceResultException(
+                StatusCodes.BadSecureChannelClosed,
+                "Channel closed."));
+            FailTransportInstalled(new ServiceResultException(
                 StatusCodes.BadSecureChannelClosed,
                 "Channel closed."));
 
@@ -1106,6 +1176,15 @@ namespace Opc.Ua
                     }
 
                     deadline.ThrowIfCancellationRequested();
+
+                    // A rotation that landed while the transport was reconnecting
+                    // supersedes it: replace the transport before participants
+                    // reactivate their sessions on a channel about to be discarded.
+                    if (!HasCurrentClientCertificate())
+                    {
+                        continue;
+                    }
+
                     TransitionTo(
                         ChannelState.TransportConnectedSessionReactivating,
                         error: null,
@@ -1156,15 +1235,9 @@ namespace Opc.Ua
                         continue;
                     }
 
-                    using (ClientChannelCertificateSnapshot installed = SnapshotClientCertificate())
-                    using (ClientChannelCertificateSnapshot current =
-                        OwnerManager.SnapshotClientCertificate(installed))
+                    if (!HasCurrentClientCertificate())
                     {
-                        if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
-                            installed.Certificate, installed.Chain, current.Certificate, current.Chain))
-                        {
-                            continue;
-                        }
+                        continue;
                     }
 
                     deadline.ThrowIfCancellationRequested();
@@ -1342,6 +1415,7 @@ namespace Opc.Ua
                         old = m_underlying;
                         m_underlying = fresh;
                         m_clientCertificateVersion = certificates.Version;
+                        m_transportInstalled.TrySetResult(true);
                     }
                 }
                 if (entryClosed)
@@ -1913,6 +1987,17 @@ namespace Opc.Ua
             }
         }
 
+        private void FailTransportInstalled(Exception ex)
+        {
+            lock (m_lock)
+            {
+                if (m_transportInstalled.TrySetException(ex))
+                {
+                    ObserveRecoveryTask(m_transportInstalled.Task);
+                }
+            }
+        }
+
         private void ResetReadyGate()
         {
             lock (m_lock)
@@ -1976,6 +2061,8 @@ namespace Opc.Ua
         private long m_reconnectGeneration;
         private long m_clientCertificateVersion;
         private TaskCompletionSource<bool> m_readyGate;
+        private readonly TaskCompletionSource<bool> m_transportInstalled;
+        private bool m_initialOpenFaulted;
         private TaskCompletionSource<bool>? m_reconnectCoalescer;
         private int m_reconnectStoppedIntentionally;
         private IRetryBudget? m_effectiveBudget;

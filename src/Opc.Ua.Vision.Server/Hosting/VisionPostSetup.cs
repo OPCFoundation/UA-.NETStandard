@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server.Hosting
 {

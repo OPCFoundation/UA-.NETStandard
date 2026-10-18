@@ -147,12 +147,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
-        /// Encodes a UADP data or action NetworkMessage with the
+        /// Encodes a UADP data, action or discovery NetworkMessage with the
         /// <c>ExtendedFlags1.SecurityEnabled</c> bit set and reports the
         /// byte offset at which the security wrapper must insert the
         /// SecurityHeader.
         /// </summary>
-        /// <param name="networkMessage">UADP data or action message.</param>
+        /// <param name="networkMessage">UADP data, action or discovery message.</param>
         /// <param name="context">Network message context.</param>
         /// <param name="payloadOffset">Boundary between outer prefix and inner payload.</param>
         /// <exception cref="ArgumentException"></exception>
@@ -171,8 +171,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return UadpActionCoder.Encode(
                     networkMessage, context, securityEnabled: true, out payloadOffset);
             }
+            if (networkMessage is UadpDiscoveryRequestMessage
+                or UadpDiscoveryResponseMessage)
+            {
+                return UadpDiscoveryCoder.Encode(
+                    networkMessage, context, securityEnabled: true, out payloadOffset);
+            }
             throw new ArgumentException(
-                "Security wrapping is supported for UADP data and action messages.",
+                "Security wrapping is supported for UADP data, action and discovery messages.",
                 nameof(networkMessage));
         }
 

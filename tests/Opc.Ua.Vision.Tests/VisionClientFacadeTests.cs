@@ -29,13 +29,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -161,7 +160,7 @@ namespace Opc.Ua.Vision.Tests
         public void SessionAndTelemetryPropertiesReturnConstructorArguments()
         {
             Mock<ISession> session = NewSessionMock();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
 
             var client = new VisionClient(session.Object, telemetry);
 
@@ -270,7 +269,7 @@ namespace Opc.Ua.Vision.Tests
                 FrameId = "a",
                 Position = new double[] { 0, 0, 0 },
                 Orientation = new double[] { 0, 0, 0, 1 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
 
             Assert.That(
@@ -288,7 +287,7 @@ namespace Opc.Ua.Vision.Tests
                 FrameId = "a",
                 Position = new double[] { 0, 0, 0 },
                 Orientation = new double[] { 0, 0, 0, 1 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
 
             Assert.That(
@@ -327,11 +326,11 @@ namespace Opc.Ua.Vision.Tests
         public async Task VisionClientRegistersVisionEncodeableTypesOnConstruction()
         {
             Mock<ISession> session = NewSessionMock();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
 
             _ = new VisionClient(session.Object, telemetry);
 
-            var factory = session.Object.Factory;
+            IEncodeableFactory factory = session.Object.Factory;
             var probe = new VisionPose3DDataType();
             Assert.That(factory.TryGetEncodeableType(probe.BinaryEncodingId, out _), Is.True,
                 "VisionClient must register the Vision encodeable types with the session so it can decode Vision structures.");
@@ -341,14 +340,14 @@ namespace Opc.Ua.Vision.Tests
         private static VisionClient BuildClientWithoutVisionNamespace()
         {
             Mock<ISession> session = NewSessionMock();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             return new VisionClient(session.Object, telemetry);
         }
 
         private static Mock<ISession> NewSessionMock()
         {
             var session = new Mock<ISession>();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             var messageContext = ServiceMessageContext.Create(telemetry);
             session.SetupGet(s => s.NamespaceUris).Returns(new NamespaceTable());
             session.SetupGet(s => s.MessageContext).Returns(messageContext);

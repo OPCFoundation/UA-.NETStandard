@@ -34,12 +34,34 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// An incoming request whose <see cref="IEndpointIncomingRequest.CallAsync"/> links the
+    /// cancellation token it was scheduled with into its request lifetime, so the request queue
+    /// need not link that token again.
+    /// </summary>
+    internal interface ILinksScheduledCancellation
+    {
+        /// <summary>
+        /// The token the request was scheduled with.
+        /// </summary>
+        CancellationToken ScheduledCancellationToken { get; }
+    }
+
     public abstract partial class EndpointBase
     {
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
+        /// <remarks>
+        /// A class: the request is scheduled as an <see cref="IEndpointIncomingRequest"/> and
+        /// <see cref="CallAsync"/> keeps it across awaits, so as a struct it was boxed and
+        /// then copied, with write barriers, into the box and into the state machine of
+        /// every request.
+        /// </remarks>
+        protected sealed class EndpointIncomingRequest :
+            IParkableIncomingRequest,
+            IEquatable<EndpointIncomingRequest>,
+            ILinksScheduledCancellation
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -56,6 +78,7 @@ namespace Opc.Ua
                     ? new RequestParkSink()
                     : null;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
+                m_lease = m_vts.Lease;
                 m_transportCancellationToken = default;
             }
 
@@ -66,7 +89,7 @@ namespace Opc.Ua
             public IServiceRequest Request { get; }
 
             /// <inheritdoc/>
-            readonly RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
+            RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -81,23 +104,21 @@ namespace Opc.Ua
                 }
                 catch (Exception e)
                 {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, e));
                 }
 
                 return m_vts.Task;
             }
 
             /// <inheritdoc/>
-            public readonly async ValueTask CallAsync(CancellationToken cancellationToken = default)
+            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
-                using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
-                    TimeProvider.System.CreateCancellationTokenSource(
-                        TimeSpan.FromMilliseconds((int)Request.RequestHeader.TimeoutHint)) : null;
-
+                // one token source per request for the caller, the transport and the timeout hint
+                int timeoutHint = (int)Request.RequestHeader.TimeoutHint;
                 using var requestLifetime = new RequestLifetime(
-                    timeoutHintCts != null ?
-                    [cancellationToken, m_transportCancellationToken, timeoutHintCts.Token] :
-                    [cancellationToken, m_transportCancellationToken]);
+                    timeoutHint > 0 ? TimeSpan.FromMilliseconds(timeoutHint) : TimeSpan.Zero,
+                    cancellationToken,
+                    m_transportCancellationToken);
 
                 // Flow the park sink so a handler that parks (e.g. a held Publish
                 // waiting for notifications) can release the processing worker.
@@ -144,7 +165,7 @@ namespace Opc.Ua
                                 .ConfigureAwait(false);
                         }
 
-                        m_vts.SetResult(response);
+                        m_vts.TrySetResult(m_lease, response);
                     }
                 }
                 catch (Exception e)
@@ -154,59 +175,66 @@ namespace Opc.Ua
                         e = new ServiceResultException(
                             requestLifetime.StatusCode == StatusCodes.Good ? StatusCodes.BadTimeout : requestLifetime.StatusCode);
                     }
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, e));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, e));
                 }
             }
 
             /// <inheritdoc/>
-            public readonly void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 if (ServiceResult.IsBad(error))
                 {
-                    m_vts.SetResult(m_endpoint.CreateFault(Request, new ServiceResultException(error)));
+                    m_vts.TrySetResult(m_lease, m_endpoint.CreateFault(Request, new ServiceResultException(error)));
                 }
                 else
                 {
-                    m_vts.SetResult(response!);
+                    m_vts.TrySetResult(m_lease, response!);
                 }
             }
 
             /// <inheritdoc/>
-            public override readonly bool Equals(object? obj)
+            public override bool Equals(object? obj)
             {
-                if (obj is EndpointIncomingRequest other)
-                {
-                    return Request.RequestHeader.Equals(other.Request.RequestHeader);
-                }
-                return false;
+                return Equals(obj as EndpointIncomingRequest);
             }
 
             /// <inheritdoc/>
-            public override readonly int GetHashCode()
+            public override int GetHashCode()
             {
                 return Request.RequestHeader.GetHashCode();
             }
 
             /// <inheritdoc/>
-            public static bool operator ==(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            public static bool operator ==(EndpointIncomingRequest? left, EndpointIncomingRequest? right)
             {
-                return left.Equals(right);
+                return left is null ? right is null : left.Equals(right);
             }
 
             /// <inheritdoc/>
-            public static bool operator !=(EndpointIncomingRequest left, EndpointIncomingRequest right)
+            public static bool operator !=(EndpointIncomingRequest? left, EndpointIncomingRequest? right)
             {
                 return !(left == right);
             }
 
             /// <inheritdoc/>
-            public readonly bool Equals(EndpointIncomingRequest other)
+            public bool Equals(EndpointIncomingRequest? other)
             {
-                return Request.RequestHeader.Equals(other.Request.RequestHeader);
+                return other is not null &&
+                    Request.RequestHeader.Equals(other.Request.RequestHeader);
             }
+
+            /// <inheritdoc/>
+            CancellationToken ILinksScheduledCancellation.ScheduledCancellationToken =>
+                m_transportCancellationToken;
 
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
+
+            /// <summary>
+            /// The rental of <see cref="m_vts"/> owned by this request. Completions
+            /// are accepted once and never reach a later owner of the pooled source.
+            /// </summary>
+            private readonly int m_lease;
             private readonly RequestParkSink? m_parkSink;
             private CancellationToken m_transportCancellationToken;
         }

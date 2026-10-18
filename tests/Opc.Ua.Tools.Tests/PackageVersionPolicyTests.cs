@@ -53,6 +53,34 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed partial class PackageVersionPolicyTests
     {
+        /// <summary>
+        /// Classifies Debug package identities with an optional platform payload suffix.
+        /// </summary>
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.win-x64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.linux-x64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.osx-arm64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.linux-musl-arm64", true)]
+        [TestCase("opcfoundation.netstandard.opc.ua.lens.debug.WIN-X64", true)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Core", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.win-x64", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debugger.win-x64", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.Helpers", false)]
+        [TestCase("OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.win-x64.Helpers", false)]
+        public async Task DebugPackageClassificationRecognizesConfigurationAndRuntimeSuffixAsync(
+            string packageId,
+            bool expected)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{ isDebug = (Test-DebugPackageId -PackageId '{{packageId}}') } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.That(result.GetProperty("isDebug").GetBoolean(), Is.EqualTo(expected));
+        }
+
         [Test]
         public async Task TestPreviewPackageIdClassifiesEveryFamilyAndControlIdAsync()
         {
@@ -75,7 +103,7 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer.Debug", true),
@@ -86,7 +114,7 @@ namespace Opc.Ua.Tools.Tests
                 // the stable version and the release validator would reject
                 // the whole set.
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Debug", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Core", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", false),
@@ -102,10 +130,28 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Core", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Di.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry.Debug", false),
                 // A package that merely starts with the same prefix text
                 // must not be matched (family boundary is a dot, not a
                 // substring).
-                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false)
             ];
 
             JsonElement result = await RunPolicyScriptAsync(
@@ -118,21 +164,38 @@ namespace Opc.Ua.Tools.Tests
                 $results | ConvertTo-Json -Depth 3 -AsArray
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetArrayLength(), Is.EqualTo(cases.Length));
-                for (int i = 0; i < cases.Length; i++)
+            Assert.Multiple(
+                () =>
                 {
-                    JsonElement entry = result[i];
-                    Assert.That(
-                        entry.GetProperty("id").GetString(),
-                        Is.EqualTo(cases[i].Id));
-                    Assert.That(
-                        entry.GetProperty("isPreview").GetBoolean(),
-                        Is.EqualTo(cases[i].ExpectedPreview),
-                        $"Package id '{cases[i].Id}' classified incorrectly.");
-                }
-            });
+                    Assert.That(result.GetArrayLength(), Is.EqualTo(cases.Length));
+                    for (int i = 0; i < cases.Length; i++)
+                    {
+                        JsonElement entry = result[i];
+                        Assert.That(
+                            entry.GetProperty("id").GetString(),
+                            Is.EqualTo(cases[i].Id));
+                        Assert.That(
+                            entry.GetProperty("isPreview").GetBoolean(),
+                            Is.EqualTo(cases[i].ExpectedPreview),
+                            $"Package id '{cases[i].Id}' classified incorrectly.");
+                    }
+                });
+        }
+
+        /// <summary>
+        /// Every intentionally shipped industrial MCP module belongs in the release package allowlist.
+        /// </summary>
+        [Test]
+        public void IndustrialMcpPackagesAreExpectedReleaseArtifacts()
+        {
+            string[] packages = File.ReadAllLines(
+                Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt"));
+            string[] families = ["AMB", "Machinery", "Scales", "Pumps", "Di", "ISA95", "Positioning"];
+            foreach (string family in families)
+            {
+                string id = $"OPCFoundation.NetStandard.Opc.Ua.Mcp.{family}";
+                Assert.That(packages.Count(value => value == id), Is.EqualTo(1), id);
+            }
         }
 
         [TestCase("2.0.0-preview.6", "2.0.0-preview.6", Description = "Already preview: unchanged")]
@@ -190,7 +253,7 @@ namespace Opc.Ua.Tools.Tests
                 ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
                 ("2.0.0-gamma.1", "2.0.0-preview.gamma.1"),
                 ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295"),
-                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5"),
+                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5")
             ];
 
             string fixtureDirectory = Path.Combine(
@@ -254,7 +317,7 @@ namespace Opc.Ua.Tools.Tests
                 string error = await standardError.ConfigureAwait(false);
                 Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
 
-                Dictionary<string, string> actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
+                var actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
                     .Select(line => line.Split('=', 2))
                     .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
 
@@ -268,16 +331,17 @@ namespace Opc.Ua.Tools.Tests
                     $results | ConvertTo-Json -AsArray
                     """).ConfigureAwait(false);
 
-                Assert.Multiple(() =>
-                {
-                    for (int i = 0; i < cases.Length; i++)
+                Assert.Multiple(
+                    () =>
                     {
-                        (string input, string expected) = cases[i];
-                        Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
-                        Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
-                        Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
-                    }
-                });
+                        for (int i = 0; i < cases.Length; i++)
+                        {
+                            (string input, string expected) = cases[i];
+                            Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
+                            Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
+                            Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
+                        }
+                    });
             }
             finally
             {
@@ -300,25 +364,27 @@ namespace Opc.Ua.Tools.Tests
                 """).ConfigureAwait(false);
 
             string previewBuildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    result.GetProperty("preview").GetString(),
-                    Is.EqualTo($"2.0.0-preview.{previewBuildNumber}"),
-                    "A selected family with a stable base version must get the committed numbered preview suffix.");
-                Assert.That(
-                    result.GetProperty("core").GetString(),
-                    Is.EqualTo("2.0.0"),
-                    "An unaffected package must keep the exact stable base version.");
-                Assert.That(
-                    result.GetProperty("previewDev").GetString(),
-                    Is.EqualTo("2.0.0-preview.9"),
-                    "A selected family with an already-preview base version reuses it unchanged.");
-                Assert.That(
-                    result.GetProperty("coreDev").GetString(),
-                    Is.EqualTo("2.0.0-preview.9"),
-                    "An unaffected package with a preview base version also reuses it unchanged (everyone shares the root version while it is prerelease).");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("preview").GetString(),
+                        Is.EqualTo($"2.0.0-preview.{previewBuildNumber}"),
+                        "A selected family with a stable base version must get the committed numbered preview suffix.");
+                    Assert.That(
+                        result.GetProperty("core").GetString(),
+                        Is.EqualTo("2.0.0"),
+                        "An unaffected package must keep the exact stable base version.");
+                    Assert.That(
+                        result.GetProperty("previewDev").GetString(),
+                        Is.EqualTo("2.0.0-preview.9"),
+                        "A selected family with an already-preview base version reuses it unchanged.");
+                    Assert.That(
+                        result.GetProperty("coreDev").GetString(),
+                        Is.EqualTo("2.0.0-preview.9"),
+                        "An unaffected package with a preview base version also reuses it unchanged " +
+                        "(everyone shares the root version while it is prerelease).");
+                });
         }
 
         [TestCase("2.0.0", true)]
@@ -442,14 +508,15 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
-                Assert.That(
-                    result.GetProperty("stableOnly").GetBoolean(),
-                    Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
-                    "Without -AllowPreview the stable gate must keep rejecting every preview.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
+                    Assert.That(
+                        result.GetProperty("stableOnly").GetBoolean(),
+                        Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
+                        "Without -AllowPreview the stable gate must keep rejecting every preview.");
+                });
         }
 
         [Test]
@@ -461,29 +528,30 @@ namespace Opc.Ua.Tools.Tests
             // for one, and require the candidate's recorded channel to agree.
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflow,
-                    Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
-                    "The channel input must default to 'stable'.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
-                    "Only a preview dispatch may relax the release-branch version gate.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
-                    "A preview dispatch must require a public release-line preview version.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$manifest.channel -cne $channel"),
-                    "The candidate's recorded channel must match the dispatched channel.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
-                    "A preview must come from a manifest that records its channel.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflow,
+                        Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
+                        "The channel input must default to 'stable'.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
+                        "Only a preview dispatch may relax the release-branch version gate.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
+                        "A preview dispatch must require a public release-line preview version.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$manifest.channel -cne $channel"),
+                        "The candidate's recorded channel must match the dispatched channel.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
+                        "A preview must come from a manifest that records its channel.");
+                });
         }
 
         [Test]
@@ -493,39 +561,40 @@ namespace Opc.Ua.Tools.Tests
             int tagStep = workflow.IndexOf("- name: Tag published package candidate", StringComparison.Ordinal);
             int lastPostCheck = workflow.LastIndexOf("-RequirePresent", StringComparison.Ordinal);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
-                Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
-                Assert.That(
-                    workflow,
-                    Does.Contain("$releaseObject.draft"),
-                    "A recovered draft release must not be accepted as published.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
-                    "Preview promotions must produce a prerelease GitHub Release.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("contents: write"),
-                    "The promotion workflow needs permission to create the immutable release tag.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("- name: Tag published package candidate"),
-                    "Every published candidate must be tagged after both feeds have accepted its packages.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
-                    "The package version must create a Git tag through the GitHub API.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("Existing tag '$tag' does not point to candidate commit"),
-                    "A retry must reject a tag that points away from the candidate.");
-                Assert.That(
-                    workflow,
-                    Does.Contain("gh @arguments"),
-                    "The package version must also get a corresponding GitHub Release.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
+                    Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$releaseObject.draft"),
+                        "A recovered draft release must not be accepted as published.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
+                        "Preview promotions must produce a prerelease GitHub Release.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("contents: write"),
+                        "The promotion workflow needs permission to create the immutable release tag.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("- name: Tag published package candidate"),
+                        "Every published candidate must be tagged after both feeds have accepted its packages.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
+                        "The package version must create a Git tag through the GitHub API.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("Existing tag '$tag' does not point to candidate commit"),
+                        "A retry must reject a tag that points away from the candidate.");
+                    Assert.That(
+                        workflow,
+                        Does.Contain("gh @arguments"),
+                        "The package version must also get a corresponding GitHub Release.");
+                });
         }
 
         [Test]
@@ -574,38 +643,40 @@ namespace Opc.Ua.Tools.Tests
             [
                 "Opc.Ua.XRegistry",
                 "Opc.Ua.WotCon",
-                "Opc.Ua.Vision",
+                "Opc.Ua.Vision.OpenUsd",
+                "Opc.Ua.CranesHoists",
                 "Opc.Ua.Robotics",
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
                 "Opc.Ua.AI",
                 "Opc.Ua.Mcp.Robotics",
-                "Opc.Ua.Mcp.Vision",
+                "Opc.Ua.Mcp.CranesHoists",
                 "Opc.Ua.OpenUsd.Connector",
-                "Opc.Ua.OpenUsd.Connector.Viewer",
+                "Opc.Ua.OpenUsd.Connector.Viewer"
             ];
 
             // Match the complete quoted literal version.targets compares
             // against, not a bare substring: "Opc.Ua.AI" also occurs inside
             // "Opc.Ua.AI." and would keep passing long after the condition
             // this is meant to pin had been deleted.
-            Assert.Multiple(() =>
-            {
-                foreach (string token in expectedFamilyTokens)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        versionTargets.Contains($"'$(PackagePrefix).{token}'", StringComparison.Ordinal),
-                        Is.True,
-                        $"version.targets no longer pins '{token}'; keep it and package-version-policy.ps1's " +
-                        "Test-PreviewPackageId in sync (see docs/ReleaseProcess.md).");
-                }
-            });
+                    foreach (string token in expectedFamilyTokens)
+                    {
+                        Assert.That(
+                            versionTargets.Contains($"'$(PackagePrefix).{token}'", StringComparison.Ordinal),
+                            Is.True,
+                            $"version.targets no longer pins '{token}'; keep it and package-version-policy.ps1's " +
+                            "Test-PreviewPackageId in sync (see docs/ReleaseProcess.md).");
+                    }
+                });
 
             string[] probeIds =
             [
                 .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}"),
-                .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}.Debug"),
+                .. expectedFamilyTokens.Select(t => $"OPCFoundation.NetStandard.{t}.Debug")
             ];
 
             JsonElement result = await RunPolicyScriptAsync(
@@ -618,18 +689,19 @@ namespace Opc.Ua.Tools.Tests
                 $results | ConvertTo-Json -Depth 3 -AsArray
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetArrayLength(), Is.EqualTo(probeIds.Length));
-                for (int i = 0; i < probeIds.Length; i++)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        result[i].GetProperty("isPreview").GetBoolean(),
-                        Is.True,
-                        $"package-version-policy.ps1 does not classify '{probeIds[i]}' as a preview " +
-                        "package, but version.targets pins it; the two classifiers must agree.");
-                }
-            });
+                    Assert.That(result.GetArrayLength(), Is.EqualTo(probeIds.Length));
+                    for (int i = 0; i < probeIds.Length; i++)
+                    {
+                        Assert.That(
+                            result[i].GetProperty("isPreview").GetBoolean(),
+                            Is.True,
+                            $"package-version-policy.ps1 does not classify '{probeIds[i]}' as a preview " +
+                            "package, but version.targets pins it; the two classifiers must agree.");
+                    }
+                });
         }
 
         [Test]
@@ -649,7 +721,7 @@ namespace Opc.Ua.Tools.Tests
                     // Unrelated bases must be ignored entirely.
                     "2.0.1-preview.400",
                     "2.0.10-preview.400",
-                    "1.5.378",
+                    "1.5.378"
                 ]).ConfigureAwait(false);
 
             Assert.That(result.GetArrayLength(), Is.Zero, result.ToString());
@@ -672,7 +744,7 @@ namespace Opc.Ua.Tools.Tests
                     "2.0.0-preview.6-rc",
                     // The development series has outgrown the committed
                     // number - the case this guard exists for.
-                    "2.0.0-preview.10.gabc123def0",
+                    "2.0.0-preview.10.gabc123def0"
                 ]).ConfigureAwait(false);
 
             string[] blocking = [.. result.EnumerateArray().Select(e => e.GetString()!)];
@@ -680,7 +752,7 @@ namespace Opc.Ua.Tools.Tests
             [
                 "2.0.0-preview.6.gabc123def0",
                 "2.0.0-preview.6-rc",
-                "2.0.0-preview.10.gabc123def0",
+                "2.0.0-preview.10.gabc123def0"
             ];
             Assert.That(blocking, Is.EquivalentTo(expected));
         }
@@ -704,7 +776,7 @@ namespace Opc.Ua.Tools.Tests
                     "2.0.0-preview.6",
                     // Build metadata is ignored for precedence by both
                     // SemVer 2 and NuGet, so this is the same identity.
-                    "2.0.0-preview.6+abc1234",
+                    "2.0.0-preview.6+abc1234"
                 ]).ConfigureAwait(false);
 
             Assert.That(result.GetArrayLength(), Is.Zero, result.ToString());
@@ -826,23 +898,24 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    result.GetProperty("pagedCount").GetInt32(),
-                    Is.EqualTo(101),
-                    "Every page must be collected, not just the first.");
-                Assert.That(result.GetProperty("pagedLast").GetString(), Is.EqualTo("2.0.0-preview.101"));
-                Assert.That(
-                    result.GetProperty("missingCount").GetInt32(),
-                    Is.Zero,
-                    "A 404 means the package was never published, which blocks nothing.");
-                Assert.That(
-                    result.GetProperty("forbiddenThrew").GetBoolean(),
-                    Is.True,
-                    "A 403 must fail the release rather than being read as 'nothing published'.");
-                Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("pagedCount").GetInt32(),
+                        Is.EqualTo(101),
+                        "Every page must be collected, not just the first.");
+                    Assert.That(result.GetProperty("pagedLast").GetString(), Is.EqualTo("2.0.0-preview.101"));
+                    Assert.That(
+                        result.GetProperty("missingCount").GetInt32(),
+                        Is.Zero,
+                        "A 404 means the package was never published, which blocks nothing.");
+                    Assert.That(
+                        result.GetProperty("forbiddenThrew").GetBoolean(),
+                        Is.True,
+                        "A 403 must fail the release rather than being read as 'nothing published'.");
+                    Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
+                });
         }
 
         [TestCase(200, 1, Description = "Success is returned at once")]
@@ -872,11 +945,12 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
-                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
+                    Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
+                });
         }
 
         [Test]
@@ -897,11 +971,12 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
-                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                    Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
+                });
         }
 
         [Test]
@@ -929,12 +1004,13 @@ namespace Opc.Ua.Tools.Tests
                 @{ requests = $script:requests; threw = $threw; message = $message } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
-                Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
-                Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                    Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
+                    Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
+                });
         }
 
         [Test]
@@ -952,14 +1028,15 @@ namespace Opc.Ua.Tools.Tests
                 @{ outFile = $response.OutFile; passThru = $response.PassThru } | ConvertTo-Json
                 """).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
-                Assert.That(
-                    result.GetProperty("passThru").GetBoolean(),
-                    Is.True,
-                    "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
+                    Assert.That(
+                        result.GetProperty("passThru").GetBoolean(),
+                        Is.True,
+                        "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
+                });
         }
 
         [TestCase("2.0.0", "2.0.0-preview.10", Description = "Stable follows its greatest preview, not preview.2")]
@@ -1001,7 +1078,7 @@ namespace Opc.Ua.Tools.Tests
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
                     ["Opc.Ua.nuspec"] = "<package />",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
             string signedB = CreateTestPackage(
                 "published.nupkg",
@@ -1011,7 +1088,7 @@ namespace Opc.Ua.Tools.Tests
                     // is canonicalized, so ordering must not matter either.
                     ["Opc.Ua.nuspec"] = "<package />",
                     [".signature.p7s"] = "author-signature-plus-repository-countersignature",
-                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
+                    ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes"
                 });
 
             JsonElement result = await RunContentDigestsAsync(signedA, signedB).ConfigureAwait(false);
@@ -1031,14 +1108,14 @@ namespace Opc.Ua.Tools.Tests
                 new Dictionary<string, string>
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "assembly-bytes",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
             string foreign = CreateTestPackage(
                 "theirs.nupkg",
                 new Dictionary<string, string>
                 {
                     ["lib/net10.0/Opc.Ua.dll"] = "someone-elses-assembly-bytes",
-                    [".signature.p7s"] = "author-signature",
+                    [".signature.p7s"] = "author-signature"
                 });
 
             JsonElement result = await RunContentDigestsAsync(candidate, foreign).ConfigureAwait(false);
@@ -1065,7 +1142,7 @@ namespace Opc.Ua.Tools.Tests
 
             using FileStream stream = File.OpenRead(
                 Path.Combine(FindRepositoryRoot(), "version.json"));
-            using JsonDocument document = JsonDocument.Parse(stream);
+            using var document = JsonDocument.Parse(stream);
 
             string[] refSpecs =
             [
@@ -1077,7 +1154,7 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(
                 refSpecs,
-                Is.EqualTo(new[] { expression }),
+                Is.EqualTo([expression]),
                 "version.json's publicReleaseRefSpec must be exactly the expression " +
                 "Test-CanonicalReleaseBranchRef applies.");
         }
@@ -1093,19 +1170,23 @@ namespace Opc.Ua.Tools.Tests
             // it exists so a version.json change cannot break every build.
             string workflow = File.ReadAllText(
                 Path.Combine(
-                    FindRepositoryRoot(), ".github", "workflows", "docker-image.yml"));
+                    FindRepositoryRoot(),
+                    ".github",
+                    "workflows",
+                    "docker-image.yml"));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflow,
-                    Does.Contain("${NBGV_NuGetPackageVersion%%+*}"),
-                    "docker-image.yml must strip SemVer build metadata from the image version.");
-                Assert.That(
-                    workflow,
-                    Does.Not.Contain("IMAGE_VERSION=${NBGV_NuGetPackageVersion}"),
-                    "The raw NuGet package version must not be used as a Docker tag.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflow,
+                        Does.Contain("${NBGV_NuGetPackageVersion%%+*}"),
+                        "docker-image.yml must strip SemVer build metadata from the image version.");
+                    Assert.That(
+                        workflow,
+                        Does.Not.Contain("IMAGE_VERSION=${NBGV_NuGetPackageVersion}"),
+                        "The raw NuGet package version must not be used as a Docker tag.");
+                });
         }
 
         /// <summary>
@@ -1156,18 +1237,19 @@ namespace Opc.Ua.Tools.Tests
                     .Select(m => m.Groups[1].Value)
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    workflowMatches,
-                    Has.Length.EqualTo(1),
-                    "release.yml must inline exactly one canonical release-branch expression.");
-                Assert.That(
-                    workflowMatches,
-                    Is.EqualTo(new[] { expression }),
-                    "The inlined bootstrap check in release.yml and " +
-                    "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        workflowMatches,
+                        Has.Length.EqualTo(1),
+                        "release.yml must inline exactly one canonical release-branch expression.");
+                    Assert.That(
+                        workflowMatches,
+                        Is.EqualTo([expression]),
+                        "The inlined bootstrap check in release.yml and " +
+                        "Test-CanonicalReleaseBranchRef must accept exactly the same refs.");
+                });
 
             // PowerShell's -match is .NET regex, so the inlined expression can
             // be exercised directly against the same refs that
@@ -1187,22 +1269,23 @@ namespace Opc.Ua.Tools.Tests
                 ("refs/heads/RELEASE/2.0", false),
                 ("refs/heads/release/02.0", false),
                 ("refs/heads/release/2.00", false),
-                ("refs/heads/release/00.0", false),
+                ("refs/heads/release/00.0", false)
             ];
-            Assert.Multiple(() =>
-            {
-                foreach ((string reference, bool canonical) in cases)
+            Assert.Multiple(
+                () =>
                 {
-                    Assert.That(
-                        System.Text.RegularExpressions.Regex.IsMatch(
-                            reference,
-                            workflowMatches[0],
-                            System.Text.RegularExpressions.RegexOptions.None,
-                            TimeSpan.FromSeconds(1)),
-                        Is.EqualTo(canonical),
-                        $"release.yml must classify '{reference}' exactly as the policy does.");
-                }
-            });
+                    foreach ((string reference, bool canonical) in cases)
+                    {
+                        Assert.That(
+                            System.Text.RegularExpressions.Regex.IsMatch(
+                                reference,
+                                workflowMatches[0],
+                                System.Text.RegularExpressions.RegexOptions.None,
+                                TimeSpan.FromSeconds(1)),
+                            Is.EqualTo(canonical),
+                            $"release.yml must classify '{reference}' exactly as the policy does.");
+                    }
+                });
         }
 
         [Test]
@@ -1228,25 +1311,26 @@ namespace Opc.Ua.Tools.Tests
                     .Where(l => !l.TrimStart().StartsWith('#'))
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    executableLines,
-                    Has.None.Contains(".azurepipelines/"),
-                    "No repository script may run before the candidate checkout.");
-                Assert.That(
-                    workflow[checkout..],
-                    Does.StartWith("uses: actions/checkout@v6"),
-                    "The candidate checkout must be the first checkout in the job.");
-                Assert.That(
-                    workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
-                    Does.Contain("ref: ${{ steps.source.outputs.commit }}"),
-                    "The first checkout must bind the workspace to the candidate commit.");
-                Assert.That(
-                    executableLines,
-                    Has.Some.Contains("id: source"),
-                    "The candidate SHA must be resolved before the checkout that uses it.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        executableLines,
+                        Has.None.Contains(".azurepipelines/"),
+                        "No repository script may run before the candidate checkout.");
+                    Assert.That(
+                        workflow[checkout..],
+                        Does.StartWith("uses: actions/checkout@v6"),
+                        "The candidate checkout must be the first checkout in the job.");
+                    Assert.That(
+                        workflow.Substring(checkout, Math.Min(200, workflow.Length - checkout)),
+                        Does.Contain("ref: ${{ steps.source.outputs.commit }}"),
+                        "The first checkout must bind the workspace to the candidate commit.");
+                    Assert.That(
+                        executableLines,
+                        Has.Some.Contains("id: source"),
+                        "The candidate SHA must be resolved before the checkout that uses it.");
+                });
         }
 
         [Test]
@@ -1257,10 +1341,11 @@ namespace Opc.Ua.Tools.Tests
             // the protocol: after each feed push, every package must be present
             // and byte-identical to the candidate.
             string workflow = File.ReadAllText(ReleaseWorkflowPath);
-            string verifier = File.ReadAllText(Path.Combine(
-                FindRepositoryRoot(),
-                ".azurepipelines",
-                "assert-published-packages-match.ps1"));
+            string verifier = File.ReadAllText(
+                Path.Combine(
+                    FindRepositoryRoot(),
+                    ".azurepipelines",
+                    "assert-published-packages-match.ps1"));
 
             int nugetPush = workflow.IndexOf("dotnet nuget push $package.FullName", StringComparison.Ordinal);
             int nugetPostCheck = workflow.IndexOf("-RequirePresent", nugetPush, StringComparison.Ordinal);
@@ -1270,74 +1355,79 @@ namespace Opc.Ua.Tools.Tests
                 StringComparison.Ordinal);
             int githubPostCheck = workflow.IndexOf("-RequirePresent", githubPush, StringComparison.Ordinal);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(nugetPush, Is.GreaterThanOrEqualTo(0));
-                Assert.That(nugetPostCheck, Is.GreaterThan(nugetPush));
-                Assert.That(githubPush, Is.GreaterThan(nugetPostCheck));
-                Assert.That(githubPostCheck, Is.GreaterThan(githubPush));
-                Assert.That(
-                    workflow.Split("-RequirePresent", StringSplitOptions.None),
-                    Has.Length.EqualTo(3),
-                    "Exactly the two post-push feed checks must require presence.");
-                Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
-                Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(nugetPush, Is.GreaterThanOrEqualTo(0));
+                    Assert.That(nugetPostCheck, Is.GreaterThan(nugetPush));
+                    Assert.That(githubPush, Is.GreaterThan(nugetPostCheck));
+                    Assert.That(githubPostCheck, Is.GreaterThan(githubPush));
+                    Assert.That(
+                        workflow.Split("-RequirePresent", StringSplitOptions.None),
+                        Has.Length.EqualTo(3),
+                        "Exactly the two post-push feed checks must require presence.");
+                    Assert.That(verifier, Does.Contain("[switch]$RequirePresent"));
+                    Assert.That(verifier, Does.Contain("WaitUntilPresent:$RequirePresent"));
+                });
         }
 
         [Test]
         public void NbgvCliUsesTheCentralPackageVersion()
         {
             string root = FindRepositoryRoot();
-            XDocument packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
             string? version = packages
                 .Descendants("PackageVersion")
-                .SingleOrDefault(element =>
-                    string.Equals(
-                        (string?)element.Attribute("Include"),
-                        "Nerdbank.GitVersioning",
-                        StringComparison.Ordinal))
-                ?.Attribute("Version")
-                ?.Value;
+                .SingleOrDefault(
+                    element =>
+                        string.Equals(
+                            (string?)element.Attribute("Include"),
+                            "Nerdbank.GitVersioning",
+                            StringComparison.Ordinal))?
+                .Attribute("Version")?
+                .Value;
             string script = File.ReadAllText(Path.Combine(root, ".azurepipelines", "set-version.ps1"));
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(version, Is.EqualTo("3.10.94"));
-                Assert.That(
-                    script,
-                    Does.Contain("$centralPackages.Project.ItemGroup.PackageVersion"),
-                    "The CLI must derive its exact version from central package management.");
-                Assert.That(script, Does.Contain("'--framework'"));
-                Assert.That(script, Does.Contain("'net10.0'"));
-                Assert.That(script, Does.Not.Contain("3.7.115"));
-                Assert.That(
-                    script,
-                    Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
-                    "The script must stay runnable from Windows PowerShell 5.1, which does not define $IsWindows.");
-                Assert.That(script, Does.Not.Contain("$IsWindows"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(version, Is.EqualTo("3.10.94"));
+                    Assert.That(
+                        script,
+                        Does.Contain("$centralPackages.Project.ItemGroup.PackageVersion"),
+                        "The CLI must derive its exact version from central package management.");
+                    Assert.That(script, Does.Contain("'--framework'"));
+                    Assert.That(script, Does.Contain("'net10.0'"));
+                    Assert.That(script, Does.Not.Contain("3.7.115"));
+                    Assert.That(
+                        script,
+                        Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
+                        "The script must stay runnable from Windows PowerShell 5.1, which does not define $IsWindows.");
+                    Assert.That(script, Does.Not.Contain("$IsWindows"));
+                });
         }
 
         [Test]
         public void OpenUsdPackageFamilyUsesOneVerifiedPrerelease()
         {
-            XDocument packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
+            var packages = XDocument.Load(Path.Combine(FindRepositoryRoot(), "Directory.Packages.props"));
             string[] versions =
             [
                 .. packages
                     .Descendants("PackageVersion")
-                    .Where(element =>
-                        ((string?)element.Attribute("Include"))?.StartsWith("OpenUsd", StringComparison.Ordinal) == true)
+                    .Where(
+                        element =>
+                            ((string?)element.Attribute("Include"))?.StartsWith("OpenUsd", StringComparison.Ordinal) == true)
                     .Select(element => (string?)element.Attribute("Version"))
                     .OfType<string>()
             ];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(versions, Has.Length.EqualTo(8));
-                Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(versions, Has.Length.EqualTo(8));
+                    Assert.That(versions, Is.All.EqualTo("0.14.0-alpha"));
+                });
         }
 
         private static string CreateTestPackage(string name, Dictionary<string, string> entries)
@@ -1471,6 +1561,568 @@ namespace Opc.Ua.Tools.Tests
             }
 
             throw new InvalidOperationException("Could not find the repository root.");
+        }
+
+        /// <summary>
+        /// All companion suite package variants share the intended build-time and validator classification.
+        /// </summary>
+        [Test]
+        public async Task CompanionSuitePoliciesMatchActualMsBuildAndPowerShellAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            (string Id, bool Preview)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool.Server", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.MachineTool.Client", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.MachineTool", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS.Server", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.GMS.Client", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.GMS", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoists.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.CranesHoistsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoistsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.CranesHoists.Debug.Debug", false)
+            ];
+            (string Root, string Preview)[] versions =
+            [
+                ("2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1+build5", "2.0.0-preview.rc.1+build5"),
+                ("2.0.0-gabc123def0", "2.0.0-preview.0.gabc123def0"),
+                ("2.0.0+build5", $"2.0.0-preview.{buildNumber}+build5")
+            ];
+            string[] suffixes = [string.Empty, ".Debug"];
+            PackageVersionCase[] cases =
+            [
+                .. packages.SelectMany(
+                    package => suffixes.SelectMany(
+                        suffix =>
+                            versions.Select(
+                                version => new PackageVersionCase(
+                                    package.Id + suffix,
+                                    version.Root,
+                                    package.Preview,
+                                    package.Preview ? version.Preview : version.Root))))
+            ];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task PromotedVisionIdsPreserveRootVersionsAsync()
+        {
+            (string Root, string Expected)[] versions =
+            [
+                ("2.0.0", "2.0.0"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1", "2.0.0-rc.1"),
+                ("2.0.0+gabc123def0", "2.0.0+gabc123def0"),
+                ("2.0.1-preview.3+build5", "2.0.1-preview.3+build5"),
+                ("2.0.0-ge78c648295", "2.0.0-ge78c648295")
+            ];
+            PackageVersionCase[] cases = [.. PromotedVisionPackageIds.SelectMany(
+                id => versions.Select(
+                    version => new PackageVersionCase(
+                        id,
+                        version.Root,
+                        false,
+                        version.Expected)))];
+
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionPolicyMatrixMatchesActualMsBuildAndPowerShellAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            // Alternate retained families and controls, including repeated IDs
+            // with different roots, to expose reused MSBuild evaluations.
+            PackageVersionCase[] cases =
+            [
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision", "2.0.0", false, "2.0.0"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", "2.0.0", true, $"2.0.0-preview.{buildNumber}"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug", "2.0.0", false, "2.0.0"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug",
+                    "2.0.0",
+                    true,
+                    $"2.0.0-preview.{buildNumber}"),
+                new("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra.Debug", "2.0.0", false, "2.0.0"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                    "2.0.0-rc.1+build5",
+                    true,
+                    "2.0.0-preview.rc.1+build5"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug",
+                    "2.0.0-rc.1+build5",
+                    false,
+                    "2.0.0-rc.1+build5"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug",
+                    "2.0.0-gabc123def0+build5",
+                    true,
+                    "2.0.0-preview.0.gabc123def0+build5"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
+                    "2.0.0-gabc123def0+build5",
+                    false,
+                    "2.0.0-gabc123def0+build5"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision",
+                    "2.0.1-preview.3+build5",
+                    false,
+                    "2.0.1-preview.3+build5"),
+                new(
+                    "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                    "2.0.1-preview.3+build5",
+                    true,
+                    "2.0.1-preview.3+build5")
+            ];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionOpenUsdVariantsRemainPreviewAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            string[] ids =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child",
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Child.Debug"
+            ];
+            (string Root, string Expected)[] versions =
+            [
+                ("2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
+                ("2.0.0+gabc123def0", $"2.0.0-preview.{buildNumber}+gabc123def0"),
+                ("2.0.1-preview.3+build5", "2.0.1-preview.3+build5"),
+                ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295")
+            ];
+            PackageVersionCase[] cases = [.. ids.SelectMany(
+                id => versions.Select(
+                    version => new PackageVersionCase(
+                        id,
+                        version.Root,
+                        true,
+                        version.Expected)))];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task VisionPolicyPreservesOtherFamiliesAndPrefixBoundariesAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            (string Id, bool Preview)[] packages =
+            [
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry.Client.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings.Mqtt.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics.Server.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Visionary", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Visionary.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Visionary", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Visionary.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.RoboticsExtra", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.RoboticsExtra.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Child.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug.Child", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics.Debug.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.AIToolkit.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Debug", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Core", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics", false),
+                ("OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub", false)
+            ];
+            (string Root, string Unchanged, string Preview)[] versions =
+            [
+                ("2.0.0", "2.0.0", $"2.0.0-preview.{buildNumber}"),
+                ("2.0.0-rc.1+gabc123def0", "2.0.0-rc.1+gabc123def0", "2.0.0-preview.rc.1+gabc123def0")
+            ];
+            PackageVersionCase[] cases = [.. packages.SelectMany(
+                package => versions.Select(
+                    version => new PackageVersionCase(
+                        package.Id,
+                        version.Root,
+                        package.Preview,
+                        package.Preview ? version.Preview : version.Unchanged)))];
+
+            await AssertVisionVersionPolicyMatrixAsync(cases, buildNumber).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task PreviewOrderingSkipsPromotedVisionIdsAsync()
+        {
+            string buildNumber = await GetPreviewPackageBuildNumberAsync().ConfigureAwait(false);
+            string previewVersion = $"2.0.0-preview.{buildNumber}";
+            (string Id, string Version, string Type)[] archives =
+            [
+                .. PromotedVisionPackageIds.Select(id => (id, "2.0.0", "package")),
+                ("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0", "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsdExtra", "2.0.0", "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.XRegistry", previewVersion, "package"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd", previewVersion, "symbols"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.SymbolsOnly", previewVersion, "symbols"),
+                ("OPCFoundation.NetStandard.Opc.Ua.Robotics", previewVersion, "symbols")
+            ];
+            string[] expectedRequests =
+            [
+                "offline:nuget/opcfoundation.netstandard.opc.ua.vision.openusd/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd/versions?per_page=100&page=1",
+                "offline:nuget/opcfoundation.netstandard.opc.ua.vision.openusd.debug/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd.Debug/versions?per_page=100&page=1",
+                "offline:nuget/opcfoundation.netstandard.opc.ua.xregistry/index.json",
+                "offline:github/orgs/OfflineOwner/packages/nuget/" +
+                "OPCFoundation.NetStandard.Opc.Ua.XRegistry/versions?per_page=100&page=1"
+            ];
+
+            JsonElement result = await RunVisionPreviewOrderingAsync(
+                archives,
+                expectedRequests).ConfigureAwait(false);
+            string[] requests =
+                [.. result.GetProperty("requests").EnumerateArray().Select(request => request.GetString()!)];
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.GetProperty("completed").GetBoolean(),
+                        Is.True,
+                        result.GetProperty("error").GetString());
+                    Assert.That(result.GetProperty("error").GetString(), Is.Empty);
+                    Assert.That(requests, Has.Length.EqualTo(6));
+                    Assert.That(requests, Is.Unique);
+                    Assert.That(requests, Is.EquivalentTo(expectedRequests));
+                    Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+                });
+        }
+
+        [Test]
+        public async Task PreviewOrderingFailsClosedWhenNoPreviewFamilyRemainsAsync()
+        {
+            (string Id, string Version, string Type)[] archives =
+                [.. PromotedVisionPackageIds.Select(id => (id, "2.0.0", "package"))];
+
+            JsonElement result = await RunVisionPreviewOrderingAsync(
+                archives,
+                []).ConfigureAwait(false);
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.GetProperty("completed").GetBoolean(), Is.False);
+                    Assert.That(
+                        result.GetProperty("error").GetString(),
+                        Is.EqualTo(
+                            "The stable package set for '2.0.0' contains no preview-family packages at all. " +
+                            "Either version.targets no longer pins them or the package set is incomplete; " +
+                            "see docs/ReleaseProcess.md."));
+                    Assert.That(result.GetProperty("requests").GetArrayLength(), Is.Zero);
+                    Assert.That(result.GetProperty("unexpectedRequests").GetArrayLength(), Is.Zero);
+                });
+        }
+
+        private static string[] PromotedVisionPackageIds =>
+        [
+            "OPCFoundation.NetStandard.Opc.Ua.Vision",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Client.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.Vision.Server.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Client.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.MachineVision.Server.Debug",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision.Debug"
+        ];
+
+        private readonly record struct PackageVersionCase(
+            string Id,
+            string Root,
+            bool Preview,
+            string Expected);
+
+        private static async Task AssertVisionVersionPolicyMatrixAsync(
+            PackageVersionCase[] cases,
+            string buildNumber)
+        {
+            string fixtureDirectory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "package-version-policy-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(fixtureDirectory);
+            string projectPath = Path.Combine(fixtureDirectory, "versions.proj");
+            string resultPath = Path.Combine(fixtureDirectory, "versions.txt");
+            string versionTargetsPath = Path.Combine(FindRepositoryRoot(), "version.targets");
+            string items = string.Concat(
+                cases.Select(
+                    c => $"<Case Include=\"{c.Id}|{c.Root}\" Id=\"{c.Id}\" Root=\"{c.Root}\" />"));
+
+            try
+            {
+                // Both inputs are global properties of each self-invocation.
+                // A plain project avoids SDK/NBGV/Directory.Build imports.
+                await File.WriteAllTextAsync(
+                    projectPath,
+                    $$"""
+                    <Project DefaultTargets="Run">
+                      <PropertyGroup>
+                        <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
+                        <PackageId>$(InputPackageId)</PackageId>
+                        <IsPackable>true</IsPackable>
+                        <NBGV_PublicRelease>True</NBGV_PublicRelease>
+                        <PreviewPackageBuildNumber>{{buildNumber}}</PreviewPackageBuildNumber>
+                        <Version>$(InputVersion)</Version>
+                        <PackageVersion>$(InputVersion)</PackageVersion>
+                        <NuGetPackageVersion>$(InputVersion)</NuGetPackageVersion>
+                        <NBGV_NuGetPackageVersion>$(InputVersion)</NBGV_NuGetPackageVersion>
+                      </PropertyGroup>
+                      <ItemGroup>{{items}}</ItemGroup>
+                      <Import Project="{{versionTargetsPath}}" />
+                      <Target Name="Map" DependsOnTargets="ApplyPreviewPackageVersion" Returns="@(Mapped)">
+                        <ItemGroup>
+                          <Mapped Include="$(PackageId)|$(InputVersion)"
+                                  Preview="$(_IsPreviewPackage)"
+                                  Version="$(Version)"
+                                  PackageVersion="$(PackageVersion)"
+                                  NuGetPackageVersion="$(NuGetPackageVersion)"
+                                  NBGV_NuGetPackageVersion="$(NBGV_NuGetPackageVersion)" />
+                        </ItemGroup>
+                      </Target>
+                      <Target Name="Run">
+                        <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Map"
+                                 Properties="InputPackageId=%(Case.Id);InputVersion=%(Case.Root)">
+                          <Output TaskParameter="TargetOutputs" ItemName="Result" />
+                        </MSBuild>
+                        <WriteLinesToFile File="{{resultPath}}"
+                          Lines="@(Result->'%(Identity)|%(Preview)|%(Version)|%(PackageVersion)|%(NuGetPackageVersion)|%(NBGV_NuGetPackageVersion)')"
+                          Overwrite="true" />
+                      </Target>
+                    </Project>
+                    """).ConfigureAwait(false);
+
+                using var process = new Process();
+                process.StartInfo.FileName = "dotnet";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.ArgumentList.Add("msbuild");
+                process.StartInfo.ArgumentList.Add(projectPath);
+                process.StartInfo.ArgumentList.Add("-nologo");
+                process.StartInfo.ArgumentList.Add("-nodeReuse:false");
+
+                Assert.That(process.Start(), Is.True);
+                Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                Task<string> standardError = process.StandardError.ReadToEndAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                string output = await standardOutput.ConfigureAwait(false);
+                string error = await standardError.ConfigureAwait(false);
+                Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
+
+                string[][] rows = [.. (await File.ReadAllLinesAsync(resultPath)
+                    .ConfigureAwait(false)).Select(line => line.Split('|'))];
+                Assert.That(rows, Has.Length.EqualTo(cases.Length));
+                Assert.That(rows.Select(row => row.Length), Is.All.EqualTo(7));
+                string[] expectedKeys = [.. cases.Select(c => $"{c.Id}|{c.Root}")];
+                string[] actualKeys = [.. rows.Select(row => $"{row[0]}|{row[1]}")];
+                Assert.That(actualKeys, Is.Unique);
+                Assert.That(actualKeys, Is.EquivalentTo(expectedKeys));
+                Dictionary<string, string[]> actual = rows.ToDictionary(
+                    row => $"{row[0]}|{row[1]}",
+                    StringComparer.Ordinal);
+
+                string policyInputs = string.Join(
+                    ",",
+                    cases.Select(c => $"@{{ id = '{c.Id}'; root = '{c.Root}' }}"));
+                JsonElement policy = await RunPolicyScriptAsync(
+                    $$"""
+                    . '{{PolicyScriptPath}}'
+                    $cases = @({{policyInputs}})
+                    $results = foreach ($case in $cases) {
+                        [pscustomobject]@{
+                            id = $case.id
+                            root = $case.root
+                            isPreview = (Test-PreviewPackageId -PackageId $case.id)
+                            version = (Get-ExpectedPackageVersion -PackageId $case.id -BaseVersion $case.root)
+                        }
+                    }
+                    $results | ConvertTo-Json -Depth 3 -AsArray
+                    """).ConfigureAwait(false);
+                Assert.That(policy.GetArrayLength(), Is.EqualTo(cases.Length));
+                string[] policyKeys = [.. policy.EnumerateArray().Select(
+                    row => $"{row.GetProperty("id").GetString()}|{row.GetProperty("root").GetString()}")];
+                Assert.That(policyKeys, Is.Unique);
+                Assert.That(policyKeys, Is.EquivalentTo(expectedKeys));
+                var policyRows = policy.EnumerateArray().ToDictionary(
+                    row => $"{row.GetProperty("id").GetString()}|{row.GetProperty("root").GetString()}",
+                    StringComparer.Ordinal);
+
+                Assert.Multiple(
+                    () =>
+                    {
+                        foreach (PackageVersionCase c in cases)
+                        {
+                            string key = $"{c.Id}|{c.Root}";
+                            string[] mapped = actual[key];
+                            JsonElement classified = policyRows[key];
+                            Assert.That(
+                                mapped[2],
+                                Is.EqualTo(c.Preview ? "true" : string.Empty),
+                                $"{key}: MSBuild classification");
+                            Assert.That(mapped[3], Is.EqualTo(c.Expected), $"{key}: Version");
+                            Assert.That(mapped[4], Is.EqualTo(c.Expected), $"{key}: PackageVersion");
+                            Assert.That(mapped[5], Is.EqualTo(c.Expected), $"{key}: NuGetPackageVersion");
+                            Assert.That(mapped[6], Is.EqualTo(c.Expected), $"{key}: NBGV_NuGetPackageVersion");
+                            Assert.That(
+                                classified.GetProperty("isPreview").GetBoolean(),
+                                Is.EqualTo(c.Preview),
+                                $"{key}: PowerShell classification");
+                            Assert.That(
+                                classified.GetProperty("version").GetString(),
+                                Is.EqualTo(c.Expected),
+                                $"{key}: Get-ExpectedPackageVersion");
+                        }
+                    });
+            }
+            finally
+            {
+                Directory.Delete(fixtureDirectory, recursive: true);
+            }
+        }
+
+        private static Task<JsonElement> RunVisionPreviewOrderingAsync(
+            (string Id, string Version, string Type)[] archives,
+            string[] allowedRequests)
+        {
+            string manifest = JsonSerializer.Serialize(
+                new
+                {
+                    schemaVersion = 2,
+                    channel = "stable",
+                    basePackageVersion = "2.0.0",
+                    archives = archives.Select(
+                        archive => new
+                        {
+                            id = archive.Id,
+                            version = archive.Version,
+                            type = archive.Type
+                        })
+                });
+            // Each fixture uses its own process; globals bridge the invoked script's separate scope.
+            // Keep shell comments outside raw literals: inactive C# branches still parse a leading '#'.
+            return RunPolicyScriptAsync(
+                $$"""
+                $ErrorActionPreference = 'Stop'
+                $manifestPath = [System.IO.Path]::ChangeExtension($PSCommandPath, '.manifest.json')
+                $global:orderingRequests = [System.Collections.Generic.List[string]]::new()
+                $global:unexpectedOrderingRequests = [System.Collections.Generic.List[string]]::new()
+                $global:allowedOrderingRequests = @({{string.Join(",", allowedRequests.Select(uri => $"'{uri}'"))}})
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $global:orderingRequests.Add($Uri)
+                    if ($Uri -cnotin $global:allowedOrderingRequests) {
+                        $global:unexpectedOrderingRequests.Add($Uri)
+                        throw "Unexpected offline feed request: $Uri"
+                    }
+                    if (-not $SkipHttpErrorCheck) {
+                        throw 'The ordering gate must request the HTTP status.'
+                    }
+                    if ($Uri.StartsWith('offline:nuget/', [System.StringComparison]::Ordinal)) {
+                        return [pscustomobject]@{
+                            StatusCode = 200
+                            Content = '{"versions":["2.0.0-preview"]}'
+                        }
+                    }
+                    return [pscustomobject]@{
+                        StatusCode = 200
+                        Content = '[{"name":"2.0.0-preview"}]'
+                    }
+                }
+                function Start-Sleep {
+                    param([int]$Seconds)
+                    throw 'An offline ordering fixture must not retry or sleep.'
+                }
+                try {
+                    [System.IO.File]::WriteAllText($manifestPath, '{{manifest}}')
+                    $completed = $false
+                    $errorMessage = ''
+                    try {
+                        & '{{OrderingScriptPath}}' -ManifestPath $manifestPath -GitHubToken offline `
+                            -GitHubPackagesOwner OfflineOwner -NuGetOrgIndexUrl 'offline:nuget' `
+                            -GitHubApiUrl 'offline:github' -InformationAction Ignore
+                        $completed = $true
+                    }
+                    catch {
+                        $errorMessage = $_.Exception.Message
+                    }
+                    [pscustomobject]@{
+                        completed = $completed
+                        error = $errorMessage
+                        requests = $global:orderingRequests.ToArray()
+                        unexpectedRequests = $global:unexpectedOrderingRequests.ToArray()
+                    } | ConvertTo-Json -Depth 4
+                }
+                finally {
+                    [System.IO.File]::Delete($manifestPath)
+                }
+                """);
         }
     }
 }

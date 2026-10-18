@@ -70,12 +70,6 @@ namespace Opc.Ua.PubSub.Security
     /// </remarks>
     public sealed class UadpSecurityWrapper
     {
-        private readonly IPubSubSecurityKeyProvider m_keyProvider;
-        private readonly INonceProvider m_nonceProvider;
-        private readonly ISecurityTokenWindow m_tokenWindow;
-        private readonly ILogger m_logger;
-        private readonly IPubSubSecurityEventSink? m_securityEventSink;
-
         /// <summary>
         /// Initializes a new <see cref="UadpSecurityWrapper"/>.
         /// </summary>
@@ -92,6 +86,22 @@ namespace Opc.Ua.PubSub.Security
             ISecurityTokenWindow tokenWindow,
             ITelemetryContext telemetry,
             IPubSubSecurityEventSink? securityEventSink = null)
+            : this(policy, keyProvider, nonceProvider, tokenWindow, telemetry, securityEventSink, null)
+        {
+        }
+
+        /// <summary>
+        /// Creates a resolver-owned wrapper whose authenticated provider tokens can enter its private replay window.
+        /// Registration must be idempotent and must not reset existing sequence or nonce history.
+        /// </summary>
+        internal UadpSecurityWrapper(
+            IPubSubSecurityPolicy policy,
+            IPubSubSecurityKeyProvider keyProvider,
+            INonceProvider nonceProvider,
+            ISecurityTokenWindow tokenWindow,
+            ITelemetryContext telemetry,
+            IPubSubSecurityEventSink? securityEventSink,
+            Action<uint>? registerAuthenticatedToken)
         {
             if (policy is null)
             {
@@ -119,6 +129,7 @@ namespace Opc.Ua.PubSub.Security
             m_tokenWindow = tokenWindow;
             m_logger = telemetry.CreateLogger<UadpSecurityWrapper>();
             m_securityEventSink = securityEventSink;
+            m_registerAuthenticatedToken = registerAuthenticatedToken;
         }
 
         /// <summary>
@@ -143,6 +154,9 @@ namespace Opc.Ua.PubSub.Security
         /// <c>[outerPrefix || SecurityHeader || ciphertext || signature]</c>.
         /// </returns>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The provider returned no current key or an invalid zero token identifier.
+        /// </exception>
         public async ValueTask<ReadOnlyMemory<byte>> WrapAsync(
             ReadOnlyMemory<byte> outerPrefix,
             ReadOnlyMemory<byte> innerPayload,
@@ -152,6 +166,13 @@ namespace Opc.Ua.PubSub.Security
             PubSubSecurityKey key = await m_keyProvider
                 .GetCurrentKeyAsync(cancellationToken)
                 .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (key is null || key.TokenId == 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The provider returned an invalid publication token.");
+            }
 
             bool sign = options is UadpSecurityWrapOptions.SignOnly
                 or UadpSecurityWrapOptions.SignAndEncrypt;
@@ -311,17 +332,25 @@ namespace Opc.Ua.PubSub.Security
             PubSubSecurityKey? key = await m_keyProvider
                 .TryGetKeyAsync(header.SecurityTokenId, cancellationToken)
                 .ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             if (key is null)
             {
                 m_logger.RejectedUnknownToken(header.SecurityTokenId);
-                EmitSecurityEvent(new PubSubSecurityEvent(
-                    PubSubSecurityEventKind.UnknownTokenRejected,
-                    DateTimeOffset.UtcNow,
-                    PubSubSecurityEventOutcome.Rejected,
-                    tokenId: header.SecurityTokenId));
+                EmitSecurityEvent(
+                    new PubSubSecurityEvent(
+                        PubSubSecurityEventKind.UnknownTokenRejected,
+                        DateTimeOffset.UtcNow,
+                        PubSubSecurityEventOutcome.Rejected,
+                        tokenId: header.SecurityTokenId));
                 return UnwrapResult.Failure(
                     StatusCodes.BadSecurityChecksFailed,
                     $"Unknown SecurityTokenId {header.SecurityTokenId}");
+            }
+            if (key.TokenId == 0 || key.TokenId != header.SecurityTokenId)
+            {
+                return UnwrapResult.Failure(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The key provider returned a different or invalid security token.");
             }
 
             int signedLength = outerPrefix.Length + headerLength + payloadAndFooterLength;
@@ -346,11 +375,12 @@ namespace Opc.Ua.PubSub.Security
                     if (!valid)
                     {
                         m_logger.SignatureVerificationFailed(header.SecurityTokenId);
-                        EmitSecurityEvent(new PubSubSecurityEvent(
-                            PubSubSecurityEventKind.SignatureVerificationFailed,
-                            DateTimeOffset.UtcNow,
-                            PubSubSecurityEventOutcome.Failed,
-                            tokenId: header.SecurityTokenId));
+                        EmitSecurityEvent(
+                            new PubSubSecurityEvent(
+                                PubSubSecurityEventKind.SignatureVerificationFailed,
+                                DateTimeOffset.UtcNow,
+                                PubSubSecurityEventOutcome.Failed,
+                                tokenId: header.SecurityTokenId));
                         return UnwrapResult.Failure(
                             StatusCodes.BadSecurityChecksFailed,
                             "Signature verification failed");
@@ -411,6 +441,11 @@ namespace Opc.Ua.PubSub.Security
                 // has succeeded. This prevents a forged record that fails during
                 // decryption or authentication from poisoning the sequence window
                 // or nonce filter.
+                cancellationToken.ThrowIfCancellationRequested();
+                if (signed && signatureLength > 0)
+                {
+                    m_registerAuthenticatedToken?.Invoke(key.TokenId);
+                }
                 ulong sequenceNumber = 0;
                 ReadOnlySpan<byte> nonceSpan = header.MessageNonce.Span;
                 if (nonceSpan.Length == AesCtrNonceLayout.NonceLength)
@@ -463,11 +498,12 @@ namespace Opc.Ua.PubSub.Security
                 {
                     Array.Clear(plaintext, 0, plaintext.Length);
                     m_logger.RejectedReplayOrNonceReuse(header.SecurityTokenId, sequenceNumber);
-                    EmitSecurityEvent(new PubSubSecurityEvent(
-                        PubSubSecurityEventKind.ReplayRejected,
-                        DateTimeOffset.UtcNow,
-                        PubSubSecurityEventOutcome.Rejected,
-                        tokenId: header.SecurityTokenId));
+                    EmitSecurityEvent(
+                        new PubSubSecurityEvent(
+                            PubSubSecurityEventKind.ReplayRejected,
+                            DateTimeOffset.UtcNow,
+                            PubSubSecurityEventOutcome.Rejected,
+                            tokenId: header.SecurityTokenId));
                     return UnwrapResult.Failure(
                         StatusCodes.BadSecurityChecksFailed,
                         "Replay or nonce reuse detected");
@@ -540,19 +576,29 @@ namespace Opc.Ua.PubSub.Security
                 Reason = reason;
             }
 
-            /// <summary>Decrypted payload bytes (success only).</summary>
+            /// <summary>
+            /// Decrypted payload bytes (success only).
+            /// </summary>
             public ReadOnlyMemory<byte>? InnerPayload { get; }
 
-            /// <summary>SecurityHeader read from the wire.</summary>
+            /// <summary>
+            /// SecurityHeader read from the wire.
+            /// </summary>
             public UadpSecurityHeader? Header { get; }
 
-            /// <summary>Final status code.</summary>
+            /// <summary>
+            /// Final status code.
+            /// </summary>
             public StatusCode Status { get; }
 
-            /// <summary>Diagnostic reason (failure only).</summary>
+            /// <summary>
+            /// Diagnostic reason (failure only).
+            /// </summary>
             public string? Reason { get; }
 
-            /// <summary>True when the unwrap succeeded.</summary>
+            /// <summary>
+            /// True when the unwrap succeeded.
+            /// </summary>
             public bool IsSuccess => StatusCode.IsGood(Status);
 
             /// <summary>
@@ -580,6 +626,13 @@ namespace Opc.Ua.PubSub.Security
                 return new UnwrapResult(null, null, status, reason);
             }
         }
+
+        private readonly IPubSubSecurityKeyProvider m_keyProvider;
+        private readonly INonceProvider m_nonceProvider;
+        private readonly ISecurityTokenWindow m_tokenWindow;
+        private readonly ILogger m_logger;
+        private readonly IPubSubSecurityEventSink? m_securityEventSink;
+        private readonly Action<uint>? m_registerAuthenticatedToken;
     }
 
     /// <summary>
@@ -587,7 +640,9 @@ namespace Opc.Ua.PubSub.Security
     /// </summary>
     internal static partial class UadpSecurityWrapperLog
     {
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 0, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 0,
+            Level = LogLevel.Debug,
             Message = "UadpSecurityWrapper wrapped message tokenId={TokenId} options={Options} " +
                 "payload={PayloadLength} signed={SignedLength}")]
         public static partial void WrappedMessage(
@@ -597,19 +652,27 @@ namespace Opc.Ua.PubSub.Security
             int payloadLength,
             int signedLength);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 1,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper failed to parse SecurityHeader")]
         public static partial void FailedToParseSecurityHeader(this ILogger logger);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 2, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 2,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper rejected unknown tokenId={TokenId}")]
         public static partial void RejectedUnknownToken(this ILogger logger, uint tokenId);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 3, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 3,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper signature verification failed tokenId={TokenId}")]
         public static partial void SignatureVerificationFailed(this ILogger logger, uint tokenId);
 
-        [LoggerMessage(EventId = PubSubEventIds.UadpSecurityWrapper + 4, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.UadpSecurityWrapper + 4,
+            Level = LogLevel.Warning,
             Message = "UadpSecurityWrapper rejected replay or nonce reuse tokenId={TokenId} " +
                 "sequenceNumber={SequenceNumber}")]
         public static partial void RejectedReplayOrNonceReuse(
@@ -617,5 +680,4 @@ namespace Opc.Ua.PubSub.Security
             uint tokenId,
             ulong sequenceNumber);
     }
-
 }

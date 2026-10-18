@@ -391,7 +391,7 @@ namespace Opc.Ua.Aot.Tests
             IServiceMessageContext messageContext,
             string name,
             DataValue value,
-            JsonEncoderOptions jsonEncodingType = null)
+            JsonEncoderOptions? jsonEncodingType = null)
         {
             string textbuffer;
             using (var jsonEncoder = new JsonEncoder(messageContext, jsonEncodingType))
@@ -430,7 +430,8 @@ namespace Opc.Ua.Aot.Tests
             var browseDescriptionCollection = new List<BrowseDescription>();
             foreach (NodeId nodeId in nodeIdCollection)
             {
-                BrowseDescription browseDescription = CoreUtils.Clone(template);
+                BrowseDescription browseDescription = CoreUtils.Clone(template) ??
+                    throw new InvalidOperationException("The browse template could not be cloned.");
                 browseDescription.NodeId = nodeId;
                 browseDescriptionCollection.Add(browseDescription);
             }

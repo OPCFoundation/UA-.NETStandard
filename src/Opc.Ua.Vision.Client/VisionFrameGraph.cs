@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Client
 {
@@ -80,10 +81,10 @@ namespace Opc.Ua.Vision.Client
             }
             string[] members =
             [
-                BrowseNames.FrameId,
-                BrowseNames.Role,
-                BrowseNames.ParentFrame,
-                BrowseNames.Transform
+                Perception.BrowseNames.FrameId,
+                Perception.BrowseNames.Role,
+                Perception.BrowseNames.ParentFrame,
+                Perception.BrowseNames.Transform
             ];
             ArrayOf<NodeId> nodes = await m_operations.ResolveChildrenAsync(
                 frameNodeId, members, cancellationToken).ConfigureAwait(false);
@@ -224,9 +225,9 @@ namespace Opc.Ua.Vision.Client
             NodeId toFrameId,
             CancellationToken cancellationToken)
         {
-            var fromChain = await WalkToRootAsync(fromFrameId, cancellationToken)
+            List<VisionFrameSnapshot> fromChain = await WalkToRootAsync(fromFrameId, cancellationToken)
                 .ConfigureAwait(false);
-            var toChain = await WalkToRootAsync(toFrameId, cancellationToken)
+            List<VisionFrameSnapshot> toChain = await WalkToRootAsync(toFrameId, cancellationToken)
                 .ConfigureAwait(false);
             (int fromIndex, int toIndex) = FindCommonAncestor(fromChain, toChain);
             if (fromIndex < 0 || toIndex < 0)
@@ -334,7 +335,7 @@ namespace Opc.Ua.Vision.Client
                 FrameId = frameId ?? string.Empty,
                 Position = [0.0, 0.0, 0.0],
                 Orientation = [0.0, 0.0, 0.0, 1.0],
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -362,7 +363,7 @@ namespace Opc.Ua.Vision.Client
                 FrameId = targetFrameId ?? inner.FrameId ?? string.Empty,
                 Position = [outerX + rx, outerY + ry, outerZ + rz],
                 Orientation = [qx, qy, qz, qw],
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -381,7 +382,7 @@ namespace Opc.Ua.Vision.Client
                 FrameId = targetFrameId ?? string.Empty,
                 Position = [rx, ry, rz],
                 Orientation = [invQx, invQy, invQz, invQw],
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 

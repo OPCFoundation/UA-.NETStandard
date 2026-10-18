@@ -386,6 +386,71 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
+        /// <summary>
+        /// Push validation resolves scoped stores without accepting issuers from another group.
+        /// </summary>
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        public async Task GroupTrustValidationUsesScopedProviderAndStillRequiresIssuerAsync(
+            bool caInTrustedStore, bool installIssuer)
+        {
+            (CertificateStoreIdentifier trustedStore, CertificateStoreIdentifier issuerStore) = CreateEmptyStores();
+            const string storeType = "ScopedFlatDirectory";
+            trustedStore.StoreType = storeType;
+            issuerStore.StoreType = storeType;
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns(storeType);
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            provider.Setup(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(true, telemetry));
+            using var manager = new CertificateManager(s_telemetry, [provider.Object]);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                UseValidatedCertificates = true,
+                AutoAcceptUntrustedCertificates = false
+            });
+            var scope = new TrustListIdentifier("ScopedGroup");
+            manager.RegisterTrustList(scope, trustedStore.StorePath!, issuerStore.StorePath);
+            using Certificate ca = CreateCa("CN=Scoped CA ");
+            using Certificate issued = CreateIssued(ca);
+            var otherScope = new TrustListIdentifier("OtherGroup");
+            manager.RegisterTrustList(
+                otherScope, Path.Combine(m_basePath, "other-trusted"), Path.Combine(m_basePath, "other-issuer"));
+            TrustListIdentifier installScope = installIssuer ? scope : otherScope;
+            using (ICertificateStore store = (caInTrustedStore
+                ? manager.OpenTrustedStore(installScope)
+                : manager.OpenIssuerStore(installScope)) ??
+                throw new InvalidOperationException("The scoped test store must be configured."))
+            {
+                await store.AddAsync(ca, ct: CancellationToken.None).ConfigureAwait(false);
+            }
+
+            if (installIssuer)
+            {
+                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                    trustedStore, issuerStore, scope.Name, issued, new SecurityConfiguration(),
+                    s_telemetry, CancellationToken.None, manager).ConfigureAwait(false);
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.AtLeastOnce);
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                        trustedStore, issuerStore, scope.Name, issued, new SecurityConfiguration(),
+                        s_telemetry, CancellationToken.None, manager).ConfigureAwait(false));
+                Assert.That(ContainsStatusCode(error.Result, StatusCodes.BadCertificateChainIncomplete), Is.True);
+            }
+
+            CertificateValidationResult peerValidation = await manager.ValidateAsync(issued, scope)
+                .ConfigureAwait(false);
+            if (!installIssuer || !caInTrustedStore)
+            {
+                Assert.That(peerValidation.IsValid, Is.False, "Push acceptance must not grant peer trust.");
+            }
+        }
+
         [Test]
         public void ValidateCertificateAgainstGroupTrustListAsyncRejectsACaSignedCertificateWhoseCaIsNotInstalled()
         {

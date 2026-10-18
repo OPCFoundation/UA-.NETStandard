@@ -27,15 +27,14 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
 using System.ComponentModel;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Mcp.Tools
 {

@@ -1,0 +1,55 @@
+{
+  "repository": "https://github.com/OPCFoundation/UA-Nodeset",
+  "revision": "96a08945425d0295edb3607d2a38f6841ef44046",
+  "specification": "OPC-40020-1",
+  "edition": "1.00",
+  "referenceUrl": "https://reference.opcfoundation.org/specs/OPC-40020-1",
+  "modelUri": "http://opcfoundation.org/UA/CranesHoists/",
+  "modelVersion": "1.00",
+  "modelPublicationDate": "2023-09-01T00:00:00Z",
+  "namespaceMetadataPublicationDate": "2023-05-01T00:00:00Z",
+  "normalization": "UTF-8, CRLF replaced by LF, no other changes",
+  "sources": [
+    {
+      "file": "Opc.Ua.CranesHoists.NodeSet2.xml",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/CranesHoists/Opc.Ua.CranesHoists.NodeSet2.xml",
+      "sha256": "79a2b2c4425d9ead9377dbe3e14b0f2b8a99c82d4af4d549f5236025e42c794d",
+      "normalizedSha256": "79a2b2c4425d9ead9377dbe3e14b0f2b8a99c82d4af4d549f5236025e42c794d"
+    },
+    {
+      "file": "Opc.Ua.CranesHoists.NodeSet2.documentation.csv",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/96a08945425d0295edb3607d2a38f6841ef44046/CranesHoists/Opc.Ua.CranesHoists.NodeSet2.documentation.csv",
+      "sha256": "c395846ffc6265e868d7893f7e35f67d2f7985143939f54b84e9ed0cd2efeef0",
+      "normalizedSha256": "c395846ffc6265e868d7893f7e35f67d2f7985143939f54b84e9ed0cd2efeef0"
+    }
+  ],
+  "derivedIdentifierTable": {
+    "file": "Opc.Ua.CranesHoists.NodeIds.csv",
+    "source": "Opc.Ua.CranesHoists.NodeSet2.xml",
+    "tool": "tools/nodesets/derive-identifier-table.py:NodeSet.symbolic_ids",
+    "declarationCount": 89,
+    "upstreamIdentifierTablePublished": false
+  },
+  "requiredModels": [
+    {
+      "modelUri": "http://opcfoundation.org/UA/",
+      "version": "1.05.01",
+      "publicationDate": "2022-02-24T00:00:00Z"
+    },
+    {
+      "modelUri": "http://opcfoundation.org/UA/DI/",
+      "version": "1.03.1",
+      "publicationDate": "2021-09-07T00:00:00Z"
+    },
+    {
+      "modelUri": "http://opcfoundation.org/UA/Machinery/",
+      "version": "1.02.0",
+      "publicationDate": "2022-05-01T00:00:00Z"
+    },
+    {
+      "modelUri": "http://opcfoundation.org/UA/Robotics/",
+      "version": "1.0.0",
+      "publicationDate": "2019-05-06T00:00:00Z"
+    }
+  ]
+}

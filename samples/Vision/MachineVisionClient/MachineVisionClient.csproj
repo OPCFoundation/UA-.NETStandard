@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(AppTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>MachineVisionClient</AssemblyName>
+    <RootNamespace>MachineVisionSample.Client</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
+    <Description>Typed client for the Machine Vision demonstrator, including discovery, recipe transfer, execution, result metadata, and assets.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.MachineVision.Client\Opc.Ua.MachineVision.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+</Project>

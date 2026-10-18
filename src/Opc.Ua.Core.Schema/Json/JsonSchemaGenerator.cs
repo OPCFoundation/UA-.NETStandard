@@ -324,10 +324,21 @@ namespace Opc.Ua.Schema.Json
 
             private JsonObject ElementSchema(NodeId dataType, bool allowNull)
             {
-                BuiltInType builtInType = TypeInfo.GetBuiltInType(dataType);
+                BuiltInType builtInType = SchemaTypeInfo.GetFieldEncodingType(dataType);
                 if (builtInType != BuiltInType.Null)
                 {
                     JsonObject schema = JsonBuiltInTypeSchemas.Create(builtInType, m_verbose, Definitions);
+                    if (dataType == DataTypeIds.Number ||
+                        dataType == DataTypeIds.Integer ||
+                        dataType == DataTypeIds.UInteger)
+                    {
+                        // Abstract numeric fields must retain their concrete Variant wire type.
+                        schema["required"] = new JsonArray("UaType");
+                        schema["properties"] = new JsonObject
+                        {
+                            ["UaType"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 25 }
+                        };
+                    }
                     return allowNull && IsNullable(builtInType) ? Nullable(schema) : schema;
                 }
 

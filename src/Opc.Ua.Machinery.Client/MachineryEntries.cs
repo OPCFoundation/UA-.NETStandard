@@ -32,6 +32,19 @@ using System;
 namespace Opc.Ua.Machinery.Client
 {
     /// <summary>
+    /// The real endpoint objects published by OPC 40001-3 job management.
+    /// Absent roles have <see cref="NodeId.Null"/> identifiers; no response
+    /// receiver is defined by this building block.
+    /// </summary>
+    /// <param name="JobManagementId">The job-management object, or null NodeId.</param>
+    /// <param name="JobOrderReceiverId">The JobOrderControl order receiver, or null NodeId.</param>
+    /// <param name="JobResponseProviderId">The JobOrderResults response provider, or null NodeId.</param>
+    public sealed record MachineryJobManagementEndpoints(
+        NodeId JobManagementId,
+        NodeId JobOrderReceiverId,
+        NodeId JobResponseProviderId);
+
+    /// <summary>
     /// A machine discovered below the OPC 40001-1 <c>Machines</c> folder.
     /// </summary>
     /// <param name="NodeId">The machine's NodeId.</param>
@@ -54,6 +67,11 @@ namespace Opc.Ua.Machinery.Client
     /// </summary>
     public sealed record MachineIdentification
     {
+        /// <summary>
+        /// Gets this operation's original fields in strict mode, including optional absence.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// Manufacturer. Mandatory in OPC 40001-1.
         /// </summary>
@@ -140,11 +158,16 @@ namespace Opc.Ua.Machinery.Client
     /// <c>AnalogSignal</c>.
     /// </summary>
     /// <remarks>
-    /// Every member but the two NodeIds is optional in the part, so a
-    /// <see langword="null"/> means the server does not publish it.
+    /// Optional model members are nullable when the server does not publish them.
+    /// The client retains the mandatory signal's original reading in <see cref="Sample"/>.
     /// </remarks>
     public sealed record MachineryProcessValue
     {
+        /// <summary>
+        /// Gets strict source evidence from the object and its AnalogSignal.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// The process value object.
         /// </summary>
@@ -156,12 +179,23 @@ namespace Opc.Ua.Machinery.Client
         public required NodeId SignalNodeId { get; init; }
 
         /// <summary>
-        /// The current reading.
+        /// The original signal sample, including its numeric type, quality and timestamps.
+        /// </summary>
+        /// <remarks>
+        /// Inspect this value to distinguish unavailable or uncertain data from an absent
+        /// optional property. The legacy numeric <see cref="Value"/> projection remains available.
+        /// </remarks>
+        public DataValue Sample { get; init; }
+
+        /// <summary>
+        /// The scalar reading. In strict mode a valid Number array is retained
+        /// in Values rather than coerced into a scalar.
         /// </summary>
         public double? Value { get; init; }
 
         /// <summary>
-        /// The setpoint the value is steered to.
+        /// The scalar setpoint. In strict mode a valid Number array is retained
+        /// in Values rather than coerced into a scalar.
         /// </summary>
         public double? Setpoint { get; init; }
 
@@ -219,6 +253,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryMeasurementValue(QualifiedName BrowseName, Variant Value)
     {
         /// <summary>
+        /// Gets the original measurement value, quality and timestamps in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// The NodeId of the variable the reading was taken from - the node a
         /// client subscribes to for live values.
         /// </summary>
@@ -235,13 +274,24 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryMeteringPoint(
         NodeId NodeId,
         string? ApplicationTag,
-        ArrayOf<MachineryMeasurementValue> Measurements);
+        ArrayOf<MachineryMeasurementValue> Measurements)
+    {
+        /// <summary>
+        /// Gets strict evidence for the application tag, metadata properties and every measurement.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+    }
 
     /// <summary>
     /// A machinery item's OPC 40001-1 operation counters.
     /// </summary>
     public sealed record MachineryOperationCounters
     {
+        /// <summary>
+        /// Gets this operation's original counter fields in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// The counters' functional group.
         /// </summary>
@@ -271,6 +321,11 @@ namespace Opc.Ua.Machinery.Client
     public sealed record MachineryLifetimeVariable
     {
         /// <summary>
+        /// Gets the original counter and metadata fields in strict mode.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
+        /// <summary>
         /// The variable's NodeId.
         /// </summary>
         public required NodeId NodeId { get; init; }
@@ -296,7 +351,8 @@ namespace Opc.Ua.Machinery.Client
         public double? LimitValue { get; init; }
 
         /// <summary>
-        /// The warning thresholds, when published.
+        /// The Double-array warning projection, when published in that form.
+        /// Strict scalar thresholds and other numeric array types remain in Values.
         /// </summary>
         public ArrayOf<double> WarningValues { get; init; }
     }
@@ -306,6 +362,11 @@ namespace Opc.Ua.Machinery.Client
     /// </summary>
     public sealed record MachineryEquipmentItem
     {
+        /// <summary>
+        /// Gets strict evidence for this equipment's fields and lifetime metadata.
+        /// </summary>
+        public ArrayOf<MachineryReadValue> Values { get; init; }
+
         /// <summary>
         /// The equipment's NodeId.
         /// </summary>

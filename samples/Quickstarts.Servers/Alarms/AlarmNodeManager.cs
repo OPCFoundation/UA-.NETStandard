@@ -56,9 +56,15 @@ namespace Alarms
             // transfers to the MasterNodeManager which disposes it.
 #pragma warning disable CA2000
             return new ValueTask<IAsyncNodeManager>(
-                new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!));
+                new AlarmNodeManager(server, configuration, NamespacesUris.ToArray()!, SimulationInterval));
 #pragma warning restore CA2000
         }
+
+        /// <summary>
+        /// The period in milliseconds at which the simulated alarm sources change their value.
+        /// A full alarm cycle through all limits takes 40 periods.
+        /// </summary>
+        public int SimulationInterval { get; set; } = AlarmNodeManager.DefaultSimulationInterval;
 
         /// <inheritdoc/>
         public ArrayOf<string> NamespacesUris
@@ -84,14 +90,36 @@ namespace Alarms
             IServerInternal server,
             ApplicationConfiguration configuration,
             string[] namespaceUris)
+            : this(server, configuration, namespaceUris, DefaultSimulationInterval)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the node manager with the period of the alarm simulation in milliseconds.
+        /// </summary>
+        internal AlarmNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string[] namespaceUris,
+            int simulationInterval)
             : base(
                   server,
                   configuration,
                   server.Telemetry.CreateLogger<AlarmNodeManager>(),
                   namespaceUris)
         {
+            if (simulationInterval <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(simulationInterval));
+            }
+            m_simulationInterval = simulationInterval;
             m_logger.CreatedAlarmNodeManager();
         }
+
+        /// <summary>
+        /// The default period in milliseconds at which the simulated alarm sources change their value.
+        /// </summary>
+        public const int DefaultSimulationInterval = 1000;
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -147,7 +175,7 @@ namespace Alarms
                 Type alarmControllerType = Type.GetType("Alarms.AlarmController") ??
                     throw new InvalidOperationException(
                         "Alarms.AlarmController type not found.");
-                const int interval = 1000;
+                int interval = m_simulationInterval;
                 string intervalString = interval.ToString(CultureInfo.InvariantCulture);
 
                 int conditionTypeIndex = 0;
@@ -1368,6 +1396,7 @@ namespace Alarms
         ];
 
         private const ushort kSimulationInterval = 100;
+        private readonly int m_simulationInterval;
         private ITimer? m_simulationTimer;
         private AlarmGroup? m_analogGroup;
         private BaseDataVariableState? m_maintenanceMode;
