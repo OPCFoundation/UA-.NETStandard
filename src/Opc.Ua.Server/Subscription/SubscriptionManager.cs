@@ -116,6 +116,16 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Whether <see cref="RestoreSubscriptionsAsync"/> continues when the
+        /// durable subscriptions cannot be restored. The default is
+        /// <c>false</c>: a subscription store that throws or reports a failed
+        /// restore, or a stored subscription that cannot be recreated, fails
+        /// the restore (and with it the startup). When <c>true</c> the failure
+        /// is only logged and the subscriptions concerned are lost.
+        /// </summary>
+        public bool ContinueOnRestoreFailure { get; set; }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -417,7 +427,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Restore durable subscriptions after a server restart
         /// </summary>
-        /// <exception cref="InvalidOperationException"></exception>
+        /// <remarks>
+        /// A subscription store that throws or reports a failed restore, and a
+        /// stored subscription that cannot be recreated, fail the restore
+        /// unless <see cref="ContinueOnRestoreFailure"/> is set. When a stored
+        /// subscription fails, the store is not told that the restore completed,
+        /// so it keeps what it holds. A restore that fails or is cancelled deletes
+        /// the subscriptions it already recreated, without storing them, so the
+        /// manager can retry the restore. Monitored item queues that implement
+        /// <see cref="IRestorableMonitoredItemQueue"/> write to their storage only
+        /// once the restore completed; a queue that fails to complete its restore is
+        /// logged and does not fail the restore.
+        /// </remarks>
+        /// <exception cref="InvalidOperationException">The server is already running.</exception>
+        /// <exception cref="ServiceResultException">The subscription store failed.</exception>
+        /// <exception cref="AggregateException">One or more stored subscriptions could not
+        /// be restored; the inner exceptions carry the reasons.</exception>
         public virtual async ValueTask RestoreSubscriptionsAsync(CancellationToken cancellationToken = default)
         {
             if (m_server.IsRunning)
@@ -440,45 +465,156 @@ namespace Opc.Ua.Server
                     .RestoreSubscriptionsAsync(cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
             {
                 m_logger.FailedToRestoreSubscriptions(ex);
+                if (ContinueOnRestoreFailure)
+                {
+                    return;
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The durable subscriptions could not be read from the subscription store.",
+                    ex);
+            }
+
+            if (restoreResult == null || !restoreResult.Success)
+            {
+                m_logger.SubscriptionStoreReportedRestoreFailure(ContinueOnRestoreFailure);
+                if (ContinueOnRestoreFailure)
+                {
+                    return;
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The subscription store reported that the durable subscriptions could not be restored.");
+            }
+
+            if (restoreResult.Subscriptions == null)
+            {
                 return;
             }
 
-            if (!restoreResult.Success ||
-                restoreResult.Subscriptions == null ||
-                !restoreResult.Subscriptions.Any())
+            List<IStoredSubscription> storedSubscriptions = [.. restoreResult.Subscriptions];
+            if (storedSubscriptions.Count == 0)
             {
                 return;
             }
 
             var createdSubscriptions = new Dictionary<uint, ArrayOf<uint>>();
+            var restoredSubscriptions = new List<ISubscription>();
+            List<Exception>? failures = null;
+            uint lastSubscriptionId = m_lastSubscriptionId;
+            var storedState = StoredRestoreState.Capture(storedSubscriptions);
 
-            foreach (IStoredSubscription storedSubscription in restoreResult.Subscriptions)
+            // The restored monitored items stage their queues until the restore completed.
+            using IDisposable staging = RestoredQueueStaging.Begin();
+            try
             {
-                ISubscription subscription;
+                foreach (IStoredSubscription storedSubscription in storedSubscriptions)
+                {
+                    ISubscription subscription;
+
+                    try
+                    {
+                        subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException || ContinueOnRestoreFailure)
+                    {
+                        m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
+                        (failures ??= []).Add(ex);
+                        continue;
+                    }
+
+                    restoredSubscriptions.Add(subscription);
+                    subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
+                    createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
+                }
+
+                m_lastSubscriptionId = storedSubscriptions.Max(s => s.Id);
+
+                if (failures != null)
+                {
+                    if (!ContinueOnRestoreFailure)
+                    {
+                        throw new AggregateException(
+                            $"{failures.Count} of the stored durable subscriptions could not be restored.",
+                            failures);
+                    }
+                    m_logger.DurableSubscriptionsLostOnRestore(failures.Count, failures.Count + createdSubscriptions.Count);
+                }
+
+                await m_subscriptionStore
+                    .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // A failed or cancelled restore leaves the manager, and the stored
+                // objects the store returned, as they were, so that it can be retried;
+                // the store still holds what it returned.
+                m_lastSubscriptionId = lastSubscriptionId;
+                await RollBackRestoredSubscriptionsAsync(restoredSubscriptions).ConfigureAwait(false);
+                storedState.Revert(m_logger);
+                throw;
+            }
+
+            // Only now may the restored queues change their stored contents. The store
+            // was told that the restore completed, so it cannot be rolled back anymore:
+            // every queue is committed, and a queue that fails to is logged.
+            staging.Dispose();
+            foreach (ISubscription subscription in restoredSubscriptions)
+            {
+                (subscription as Subscription)?.CommitRestoredQueues();
+            }
+        }
+
+        /// <summary>
+        /// Deletes the subscriptions that a failed restore recreated, with their
+        /// monitored items and diagnostics, without storing them. The stored
+        /// contents of their monitored item queues are kept for a retry.
+        /// </summary>
+        private async ValueTask RollBackRestoredSubscriptionsAsync(List<ISubscription> restoredSubscriptions)
+        {
+            foreach (ISubscription subscription in restoredSubscriptions)
+            {
+                m_subscriptions.TryRemove(subscription.Id, out _);
+                m_abandonedSubscriptions.TryRemove(subscription.Id, out _);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
+
+                RaiseSubscriptionEvent(subscription, true);
 
                 try
                 {
-                    subscription = await RestoreSubscriptionAsync(storedSubscription, cancellationToken)
-                        .ConfigureAwait(false);
+                    if (subscription is Subscription restored)
+                    {
+                        await restored.ReleaseAbortedRestoreAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // Other implementations have no restore-abort release.
+                        await subscription.DeleteAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    }
                 }
-                catch (Exception ex)
+                catch (Exception e)
                 {
-                    m_logger.FailedToRestoreSubscritptionWithIdSubscriptionId(ex, storedSubscription.Id);
-                    continue;
+                    m_logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+                }
+                finally
+                {
+                    subscription.Dispose();
                 }
 
-                subscription.GetMonitoredItems(out ArrayOf<uint> monitoredItemsIds, out _);
-                createdSubscriptions.Add(subscription.Id, monitoredItemsIds);
+                uint publishingIntervalCount = GetPublishingIntervalCount();
+
+                m_server.UpdateServerDiagnostics(diagnostics =>
+                {
+                    diagnostics.CurrentSubscriptionCount--;
+                    diagnostics.CumulatedSubscriptionCount--;
+                    diagnostics.PublishingIntervalCount = publishingIntervalCount;
+                });
             }
-
-            m_lastSubscriptionId = restoreResult.Subscriptions.Max(s => s.Id);
-
-            await m_subscriptionStore
-                .OnSubscriptionRestoreCompleteAsync(createdSubscriptions, cancellationToken)
-                .ConfigureAwait(false);
         }
 
         /// <summary>
@@ -3100,6 +3236,144 @@ namespace Opc.Ua.Server
             public NotificationMessage? Message;
         }
 
+        /// <summary>
+        /// The fields of the stored subscriptions and monitored items that a restore
+        /// writes, captured before the restore so that an aborted restore returns the
+        /// stored objects to the store as it provided them. A store may return the
+        /// same objects to the retry, and the node managers skip an item that is
+        /// marked restored.
+        /// </summary>
+        /// <remarks>
+        /// Reverting the fields keeps the store contract unchanged: the restore does
+        /// not need to copy objects whose concrete types and optional interfaces only
+        /// the store knows.
+        /// </remarks>
+        private sealed class StoredRestoreState
+        {
+            private StoredRestoreState(
+                List<StoredSubscriptionFields> subscriptions,
+                List<StoredMonitoredItemFields> monitoredItems)
+            {
+                m_subscriptions = subscriptions;
+                m_monitoredItems = monitoredItems;
+            }
+
+            public static StoredRestoreState Capture(List<IStoredSubscription> storedSubscriptions)
+            {
+                var subscriptions = new List<StoredSubscriptionFields>(storedSubscriptions.Count);
+                var monitoredItems = new List<StoredMonitoredItemFields>();
+                foreach (IStoredSubscription storedSubscription in storedSubscriptions)
+                {
+                    subscriptions.Add(new StoredSubscriptionFields(storedSubscription));
+                    if (storedSubscription.MonitoredItems == null)
+                    {
+                        continue;
+                    }
+                    foreach (IStoredMonitoredItem storedMonitoredItem in storedSubscription.MonitoredItems)
+                    {
+                        monitoredItems.Add(new StoredMonitoredItemFields(storedMonitoredItem));
+                    }
+                }
+                return new StoredRestoreState(subscriptions, monitoredItems);
+            }
+
+            /// <summary>
+            /// Restores the captured fields. Queues the aborted restore read from the
+            /// store and left on the stored items are released without removing their
+            /// stored contents.
+            /// </summary>
+            public void Revert(ILogger logger)
+            {
+                foreach (StoredSubscriptionFields subscription in m_subscriptions)
+                {
+                    subscription.Revert();
+                }
+                foreach (StoredMonitoredItemFields monitoredItem in m_monitoredItems)
+                {
+                    monitoredItem.Revert(logger);
+                }
+            }
+
+            private readonly List<StoredSubscriptionFields> m_subscriptions;
+            private readonly List<StoredMonitoredItemFields> m_monitoredItems;
+        }
+
+        private sealed class StoredSubscriptionFields
+        {
+            public StoredSubscriptionFields(IStoredSubscription storedSubscription)
+            {
+                m_storedSubscription = storedSubscription;
+                m_publishingInterval = storedSubscription.PublishingInterval;
+                m_maxKeepaliveCount = storedSubscription.MaxKeepaliveCount;
+                m_maxLifetimeCount = storedSubscription.MaxLifetimeCount;
+                m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
+            }
+
+            public void Revert()
+            {
+                m_storedSubscription.PublishingInterval = m_publishingInterval;
+                m_storedSubscription.MaxKeepaliveCount = m_maxKeepaliveCount;
+                m_storedSubscription.MaxLifetimeCount = m_maxLifetimeCount;
+                m_storedSubscription.MaxNotificationsPerPublish = m_maxNotificationsPerPublish;
+            }
+
+            private readonly IStoredSubscription m_storedSubscription;
+            private readonly double m_publishingInterval;
+            private readonly uint m_maxKeepaliveCount;
+            private readonly uint m_maxLifetimeCount;
+            private readonly uint m_maxNotificationsPerPublish;
+        }
+
+        private sealed class StoredMonitoredItemFields
+        {
+            public StoredMonitoredItemFields(IStoredMonitoredItem storedMonitoredItem)
+            {
+                m_storedMonitoredItem = storedMonitoredItem;
+                m_isRestored = storedMonitoredItem.IsRestored;
+                m_queueSize = storedMonitoredItem.QueueSize;
+                m_restoredDataChangeQueue = storedMonitoredItem.RestoredDataChangeQueue;
+                m_restoredEventQueue = storedMonitoredItem.RestoredEventQueue;
+            }
+
+            public void Revert(ILogger logger)
+            {
+                IDataChangeMonitoredItemQueue? dataChangeQueue = m_storedMonitoredItem.RestoredDataChangeQueue;
+                if (dataChangeQueue != null && !ReferenceEquals(dataChangeQueue, m_restoredDataChangeQueue))
+                {
+                    ReleaseQueue(dataChangeQueue, m_storedMonitoredItem.Id, logger);
+                }
+                IEventMonitoredItemQueue? eventQueue = m_storedMonitoredItem.RestoredEventQueue;
+                if (eventQueue != null && !ReferenceEquals(eventQueue, m_restoredEventQueue))
+                {
+                    ReleaseQueue(eventQueue, m_storedMonitoredItem.Id, logger);
+                }
+
+                m_storedMonitoredItem.IsRestored = m_isRestored;
+                m_storedMonitoredItem.QueueSize = m_queueSize;
+                m_storedMonitoredItem.RestoredDataChangeQueue = m_restoredDataChangeQueue;
+                m_storedMonitoredItem.RestoredEventQueue = m_restoredEventQueue;
+            }
+
+            private static void ReleaseQueue(IDisposable queue, uint monitoredItemId, ILogger logger)
+            {
+                try
+                {
+                    (queue as IRestorableMonitoredItemQueue)?.AbortRestore();
+                    queue.Dispose();
+                }
+                catch (Exception e)
+                {
+                    logger.ReleasingQueueOfAbortedRestoreFailed(e, monitoredItemId);
+                }
+            }
+
+            private readonly IStoredMonitoredItem m_storedMonitoredItem;
+            private readonly bool m_isRestored;
+            private readonly uint m_queueSize;
+            private readonly IDataChangeMonitoredItemQueue? m_restoredDataChangeQueue;
+            private readonly IEventMonitoredItemQueue? m_restoredEventQueue;
+        }
+
         private ConditionRefreshTask? m_runningConditionRefresh;
 
         /// <summary>
@@ -3445,5 +3719,27 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 30, Level = LogLevel.Error,
             Message = "Server - CleanupSubscriptions Task Halted Unexpectedly")]
         public static partial void ServerCleanupSubscriptionsTaskHaltedUnexpectedly(this ILogger logger, Exception ex);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 31, Level = LogLevel.Error,
+            Message = "The subscription store reported that the durable subscriptions could not be restored " +
+                "(continue on restore failure: {ContinueOnRestoreFailure})")]
+        public static partial void SubscriptionStoreReportedRestoreFailure(
+            this ILogger logger,
+            bool continueOnRestoreFailure);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 32, Level = LogLevel.Warning,
+            Message = "{FailedCount} of {StoredCount} stored durable subscriptions could not be restored and " +
+                "are lost; continuing because continue on restore failure is enabled")]
+        public static partial void DurableSubscriptionsLostOnRestore(
+            this ILogger logger,
+            int failedCount,
+            int storedCount);
+
+        [LoggerMessage(EventId = ServerEventIds.SubscriptionManager + 33, Level = LogLevel.Warning,
+            Message = "Releasing the queue of monitored item {MonitoredItemId} after an aborted restore failed")]
+        public static partial void ReleasingQueueOfAbortedRestoreFailed(
+            this ILogger logger,
+            Exception ex,
+            uint monitoredItemId);
     }
 }

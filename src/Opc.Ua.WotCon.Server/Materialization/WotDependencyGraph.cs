@@ -895,10 +895,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     relElement.ValueKind == JsonValueKind.String
                     ? relElement.GetString() ?? string.Empty
                     : string.Empty;
-                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item" or
-                    "ua:Organizes")
+                if (rel is "tm:extends" or "type" or "tm:submodel" or "collection" or "item")
                 {
                     references.Add((hrefElement.GetString() ?? string.Empty, rel));
+                }
+                else if (rel == "ua:Organizes")
+                {
+                    string href = hrefElement.GetString() ?? string.Empty;
+                    if (!ExpandedNodeId.TryParse(href, out _))
+                    {
+                        references.Add((href, rel));
+                    }
                 }
                 else if (rel is "ua:HasTypeDefinition" or "http://opcfoundation.org/UA/HasTypeDefinition")
                 {

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -91,6 +92,7 @@ namespace Opc.Ua.Client
                 ?? throw new ArgumentNullException(nameof(configuration));
             m_configuredEndpoint = endpoint
                 ?? throw new ArgumentNullException(nameof(endpoint));
+            m_publicationTarget = endpoint;
             SessionFactory = sessionFactory
                 ?? throw new ArgumentNullException(nameof(sessionFactory));
             m_reconnectPolicy = reconnectPolicy
@@ -261,6 +263,7 @@ namespace Opc.Ua.Client
                 connection,
                 updateBeforeConnect,
                 channelReconnectTimeout: null,
+                rediscoveredEndpointValidator: null,
                 ct);
         }
 
@@ -356,6 +359,7 @@ namespace Opc.Ua.Client
                 connection,
                 updateBeforeConnect,
                 options.ChannelReconnectTimeout,
+                options.ValidateRediscoveredEndpoint,
                 ct).ConfigureAwait(false);
             try
             {
@@ -404,6 +408,7 @@ namespace Opc.Ua.Client
             ITransportWaitingConnection? connection,
             bool? updateBeforeConnect,
             TimeSpan? channelReconnectTimeout,
+            RediscoveredEndpointValidator? rediscoveredEndpointValidator,
             CancellationToken ct)
         {
             if (sessionFactory == null)
@@ -456,7 +461,8 @@ namespace Opc.Ua.Client
                 m_initialConnection = connection,
                 m_reverseConnectRequired = reverseConnectManager != null || connection != null,
                 m_updateBeforeConnect = updateBeforeConnect,
-                m_channelReconnectTimeout = channelReconnectTimeout
+                m_channelReconnectTimeout = channelReconnectTimeout,
+                ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
             };
 
             managed.StateMachine.Start();
@@ -533,11 +539,42 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public ISessionFactory SessionFactory { get; }
 
+        /// <summary>
+        /// Validates the endpoint that a reconnect rediscovered before the
+        /// session is recreated against it. When a reconnect is rejected with a
+        /// status that requires the endpoint to be refreshed, the endpoint is
+        /// read again from the server's discovery endpoint and replaces the one
+        /// in use. A rediscovered endpoint that changes the security mode or
+        /// policy is always rejected before the validator is called. The
+        /// validator receives the endpoint this session last accepted and the
+        /// rediscovered one, so that the application can add its own checks,
+        /// such as pinning the server certificate. Only a Good result accepts
+        /// the rediscovered endpoint: any other result, an exception or a
+        /// cancellation keeps the endpoint in use and fails the reconnect
+        /// attempt. When <c>null</c>, only the security mode and policy are
+        /// checked.
+        /// </summary>
+        /// <remarks>
+        /// Set it through <see cref="ManagedSessionOptions.ValidateRediscoveredEndpoint"/>,
+        /// <c>ManagedSessionBuilder.WithRediscoveredEndpointValidator</c> or a
+        /// <see cref="RediscoveredEndpointValidator"/> registered in the service
+        /// collection so that it is installed before the session connects;
+        /// setting this property later only affects reconnects that start
+        /// afterwards.
+        /// </remarks>
+        public RediscoveredEndpointValidator? ValidateRediscoveredEndpoint { get; set; }
+
         /// <inheritdoc/>
         /// <remarks>
         /// Reports the endpoint of the current inner session, so it follows a
         /// server failover or network-path rotation like <see cref="Endpoint"/>;
         /// before the first connect it is the endpoint passed at creation.
+        /// Once connected, the session works on its own copy of the endpoint
+        /// passed at creation (or of the failover or alternate endpoint it
+        /// switched to), so other sessions sharing that endpoint cannot change
+        /// it. A rediscovered endpoint the session accepted is published to
+        /// the endpoint it was copied from, but the session never reads it
+        /// back.
         /// </remarks>
         public ConfiguredEndpoint ConfiguredEndpoint
             => m_session?.ConfiguredEndpoint ?? m_configuredEndpoint;
@@ -1332,11 +1369,14 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServiceResult> HandleConnectEndpointAsync(
-            ConfiguredEndpoint endpoint,
+            ConfiguredEndpoint source,
             CancellationToken ct)
         {
             try
             {
+                // The session works on its own copy, so another session that
+                // shares the source endpoint cannot change it afterwards.
+                ConfiguredEndpoint endpoint = await DetachTargetAsync(source, ct).ConfigureAwait(false);
                 m_logger.ManagedSessionConnectingEndpoint(endpoint.EndpointUrl);
 
                 // ConfiguredEndpoint.UpdateFromServer (called when
@@ -1365,6 +1405,7 @@ namespace Opc.Ua.Client
                     (m_updateBeforeConnect ?? endpoint.UpdateBeforeConnect) &&
                     !Profiles.IsHttpsOpenApi(profile) &&
                     !Profiles.IsWssOpenApi(profile);
+                bool refreshBeforeConnect = updateBeforeConnect;
 
                 IDisposable? connectLease = null;
                 Session session;
@@ -1526,6 +1567,12 @@ namespace Opc.Ua.Client
 
                     session.ConfigureChannelReconnectTimeout(m_channelReconnectTimeout, m_sessionTimeout);
                     WireSessionEvents(session);
+                    m_publicationTarget = source;
+                    RecordAcceptedTarget(source, endpoint);
+                    if (refreshBeforeConnect)
+                    {
+                        PublishEndpoint(endpoint, source);
+                    }
                     SetBindingSession(session);
                 }
                 finally
@@ -1741,8 +1788,8 @@ namespace Opc.Ua.Client
                     catch (ServiceResultException sre) when (RequiresEndpointRefresh(sre.StatusCode))
                     {
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(sre, sre.StatusCode);
-                        await RefreshEndpointAsync(session.ConfiguredEndpoint, ct).ConfigureAwait(false);
-                        await RecreateInPlaceAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
+                        await RefreshEndpointAndRecreateAsync(session, budget, UpdateEndpointFromServerAsync, ct)
+                            .ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (
                         RequiresSessionRecreate(sre.StatusCode))
@@ -1902,6 +1949,23 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Throws when a candidate endpoint changes an explicitly configured
+        /// mode or policy.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The candidate changes the
+        /// required security mode or policy.</exception>
+        private static void ThrowIfSecurityConfigurationMismatch(
+            EndpointDescription required,
+            EndpointDescription candidate)
+        {
+            ServiceResultException? mismatch = GetSecurityConfigurationMismatch(required, candidate);
+            if (mismatch != null)
+            {
+                throw mismatch;
+            }
+        }
+
+        /// <summary>
         /// Reactivates the session against the given endpoint reusing the current
         /// AuthenticationToken instead of recreating it. Used by client replica sets
         /// to fast-activate a mirrored session on promotion. The standby still performs
@@ -1920,17 +1984,26 @@ namespace Opc.Ua.Client
             using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
-                IManagedTransportChannel? previousChannel = InnerSession.ManagedChannel;
-                try
-                {
-                    ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, ct)
-                        .ConfigureAwait(false);
-                    await InnerSession.ReactivateMirroredSessionAsync(endpoint, connection, ct).ConfigureAwait(false);
-                }
-                finally
-                {
-                    RebindManagedChannelEvents(InnerSession, previousChannel);
-                }
+                Session session = InnerSession;
+                await SwitchEndpointAsync(
+                    session,
+                    endpoint,
+                    async target =>
+                    {
+                        IManagedTransportChannel? previousChannel = session.ManagedChannel;
+                        try
+                        {
+                            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
+                                target, ct).ConfigureAwait(false);
+                            await session.ReactivateMirroredSessionAsync(target, connection, ct)
+                                .ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            RebindManagedChannelEvents(session, previousChannel);
+                        }
+                    },
+                    ct).ConfigureAwait(false);
             }
 
             m_reconnectPolicy.Reset();
@@ -1968,20 +2041,238 @@ namespace Opc.Ua.Client
                 statusCode == StatusCodes.BadRequestTimeout;
         }
 
-        private async Task RefreshEndpointAsync(ConfiguredEndpoint endpoint, CancellationToken ct)
+        /// <summary>
+        /// Refreshes the endpoint the session works on from the server's
+        /// discovery endpoint, checks the result against it and recreates the
+        /// session against exactly the endpoint that passed the checks. The
+        /// inner session adopts that endpoint before it connects and keeps it
+        /// when the recreate fails; the endpoint it adopted is the one the
+        /// session works on. The accepted endpoint is also published to the
+        /// endpoint the session's copy was taken from.
+        /// </summary>
+        /// <param name="session">The inner session to recreate.</param>
+        /// <param name="budget">The retry budget of the reconnect.</param>
+        /// <param name="update">Refreshes the detached endpoint it is given.</param>
+        /// <param name="ct">The cancellation token.</param>
+        internal async Task RefreshEndpointAndRecreateAsync(
+            Session session,
+            IRetryBudget budget,
+            Func<ConfiguredEndpoint, CancellationToken, Task> update,
+            CancellationToken ct)
         {
-            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, ct)
+            ConfiguredEndpoint publicationTarget = m_publicationTarget;
+            ConfiguredEndpoint validated = await RefreshAndValidateEndpointAsync(
+                session.ConfiguredEndpoint,
+                publicationTarget,
+                update,
+                ValidateRediscoveredEndpoint,
+                ct).ConfigureAwait(false);
+            RecordAcceptedTarget(publicationTarget, validated);
+            await RecreateInPlaceCoreAndRebindAsync(session, validated, budget, ct).ConfigureAwait(false);
+        }
+
+        private async Task UpdateEndpointFromServerAsync(ConfiguredEndpoint target, CancellationToken ct)
+        {
+            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, ct)
                 .ConfigureAwait(false);
             if (connection == null)
             {
-                await endpoint.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, ct)
+                await target.UpdateFromServerAsync(m_configuration, SessionFactory.Telemetry, ct)
                     .ConfigureAwait(false);
             }
             else
             {
-                await endpoint.UpdateFromServerAsync(
-                    endpoint.EndpointUrl!, connection, endpoint.Description.SecurityMode,
-                    endpoint.Description.SecurityPolicyUri!, SessionFactory.Telemetry, ct).ConfigureAwait(false);
+                await target.UpdateFromServerAsync(
+                    target.EndpointUrl!, connection, target.Description.SecurityMode,
+                    target.Description.SecurityPolicyUri!, SessionFactory.Telemetry, ct)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Refreshes a detached copy of <paramref name="current"/>, the
+        /// endpoint the session works on, through <paramref name="update"/>.
+        /// The rediscovered endpoint is accepted only when it keeps the
+        /// security mode and policy of <paramref name="current"/> and
+        /// <paramref name="validator"/>, when set, returns a Good result for
+        /// it with <paramref name="current"/> as the current endpoint. Only
+        /// then is the rediscovered description published to
+        /// <paramref name="publicationTarget"/>, which other sessions may
+        /// share; it is never read. The check is fail-closed: a changed
+        /// security configuration, a validator result that is not Good, or a
+        /// refresh or validator that throws or is cancelled, publishes
+        /// nothing.
+        /// </summary>
+        /// <returns>The detached endpoint that passed the checks; the session
+        /// is recreated against it.</returns>
+        /// <exception cref="ServiceResultException">The rediscovered endpoint
+        /// changes the security mode or policy
+        /// (<see cref="StatusCodes.BadSecurityModeRejected"/>,
+        /// <see cref="StatusCodes.BadSecurityPolicyRejected"/>; the validator
+        /// is not called), or the validator rejected it: a Bad result is
+        /// thrown as it is, an Uncertain or missing result as
+        /// <see cref="StatusCodes.BadSecurityChecksFailed"/>. When the
+        /// current endpoint has no description to check against, nothing is
+        /// refreshed and <see cref="StatusCodes.BadInternalError"/> is
+        /// thrown.</exception>
+        internal static async Task<ConfiguredEndpoint> RefreshAndValidateEndpointAsync(
+            ConfiguredEndpoint current,
+            ConfiguredEndpoint publicationTarget,
+            Func<ConfiguredEndpoint, CancellationToken, Task> update,
+            RediscoveredEndpointValidator? validator,
+            CancellationToken ct)
+        {
+            // ConfiguredEndpoint never holds a null Description (its
+            // constructors substitute or reject null and Update clones a
+            // non-null description); should that ever change, fail the
+            // reconnect here rather than continue without a snapshot.
+            EndpointDescription accepted = CoreUtils.Clone(current.Description) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadInternalError,
+                    "The configured endpoint has no description to validate the rediscovered endpoint against.");
+            ConfiguredEndpoint candidate = DetachEndpoint(current);
+
+            await update(candidate, ct).ConfigureAwait(false);
+
+            await ValidateCandidateAsync(accepted, candidate.Description, validator, ct).ConfigureAwait(false);
+
+            PublishEndpoint(candidate, publicationTarget);
+            return candidate;
+        }
+
+        /// <summary>
+        /// Accepts <paramref name="candidate"/> in place of
+        /// <paramref name="accepted"/> only when it keeps the security mode
+        /// and policy and <paramref name="validator"/>, when set, returns a
+        /// Good result for it.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The candidate changes the
+        /// security mode or policy, or the validator rejected it: a Bad result
+        /// is thrown as it is, an Uncertain or missing result as
+        /// <see cref="StatusCodes.BadSecurityChecksFailed"/>.</exception>
+        private static async Task ValidateCandidateAsync(
+            EndpointDescription accepted,
+            EndpointDescription candidate,
+            RediscoveredEndpointValidator? validator,
+            CancellationToken ct)
+        {
+            ThrowIfSecurityConfigurationMismatch(accepted, candidate);
+
+            ServiceResult? result = validator == null
+                ? ServiceResult.Good
+                : await validator(accepted, candidate, ct).ConfigureAwait(false);
+
+            // A refresh or validator may ignore the token and still complete;
+            // a cancelled check is never an acceptance.
+            ct.ThrowIfCancellationRequested();
+
+            if (result == null || !ServiceResult.IsGood(result))
+            {
+                throw new ServiceResultException(
+                    result != null && ServiceResult.IsBad(result)
+                        ? result
+                        : new ServiceResult(
+                            StatusCodes.BadSecurityChecksFailed,
+                            new LocalizedText("The rediscovered endpoint was not accepted.")));
+            }
+        }
+
+        /// <summary>
+        /// Copies <paramref name="target"/> for the session to connect or
+        /// switch to. When the session used <paramref name="target"/> before
+        /// and its description changed since, another session sharing it
+        /// published that change, so it is checked like a rediscovered
+        /// endpoint against what this session accepted for the target. A
+        /// change that is not accepted is not taken over: the session uses
+        /// its own copy of the target again.
+        /// </summary>
+        private async Task<ConfiguredEndpoint> DetachTargetAsync(ConfiguredEndpoint target, CancellationToken ct)
+        {
+            ConfiguredEndpoint detached = DetachEndpoint(target);
+            if (!m_acceptedTargets.TryGetValue(target, out ConfiguredEndpoint? accepted) ||
+                accepted.Description.IsEqual(detached.Description))
+            {
+                return detached;
+            }
+
+            try
+            {
+                await ValidateCandidateAsync(
+                    CoreUtils.Clone(accepted.Description)!,
+                    detached.Description,
+                    ValidateRediscoveredEndpoint,
+                    ct).ConfigureAwait(false);
+                return detached;
+            }
+            catch (ServiceResultException sre)
+            {
+                m_logger.ManagedSessionPublishedEndpointNotAccepted(sre, target.EndpointUrl);
+                return DetachEndpoint(accepted);
+            }
+        }
+
+        /// <summary>
+        /// Remembers <paramref name="accepted"/>, the session's copy, as what
+        /// the session accepted for <paramref name="target"/>.
+        /// </summary>
+        private void RecordAcceptedTarget(ConfiguredEndpoint target, ConfiguredEndpoint accepted)
+        {
+            m_acceptedTargets.Remove(target);
+            m_acceptedTargets.Add(target, accepted);
+        }
+
+        /// <summary>
+        /// Copies <paramref name="endpoint"/> into an endpoint that only the
+        /// session uses.
+        /// </summary>
+        private static ConfiguredEndpoint DetachEndpoint(ConfiguredEndpoint endpoint)
+        {
+            ConfiguredEndpoint detached = CoreUtils.Clone(endpoint)!;
+            if (endpoint.Collection != null)
+            {
+                detached.Collection = endpoint.Collection;
+            }
+            detached.DiscoveryEndpoints = endpoint.DiscoveryEndpoints;
+            return detached;
+        }
+
+        /// <summary>
+        /// Publishes the description the session accepted to the endpoint its
+        /// copy was taken from.
+        /// </summary>
+        private static void PublishEndpoint(ConfiguredEndpoint accepted, ConfiguredEndpoint target)
+        {
+            target.Update(accepted.Description);
+            target.DiscoveryEndpoints = accepted.DiscoveryEndpoints;
+        }
+
+        /// <summary>
+        /// Switches the session to a copy of <paramref name="target"/>, checked
+        /// against what the session accepted for it before, through
+        /// <paramref name="switchAsync"/>. The inner session adopts the copy
+        /// before it connects and keeps it when the switch fails. Once it has
+        /// adopted the copy, whether the switch succeeded or not, the session
+        /// works on the copy and publishes accepted rediscoveries to
+        /// <paramref name="target"/>.
+        /// </summary>
+        private async Task SwitchEndpointAsync(
+            Session session,
+            ConfiguredEndpoint target,
+            Func<ConfiguredEndpoint, Task> switchAsync,
+            CancellationToken ct)
+        {
+            ConfiguredEndpoint detached = await DetachTargetAsync(target, ct).ConfigureAwait(false);
+            try
+            {
+                await switchAsync(detached).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (ReferenceEquals(session.ConfiguredEndpoint, detached))
+                {
+                    m_publicationTarget = target;
+                    RecordAcceptedTarget(target, detached);
+                }
             }
         }
 
@@ -2293,10 +2584,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Recreates the session in place and, whatever the outcome, rebinds
-        /// the channel events afterwards. Every in-place recreate has to go
-        /// through here: the recreate swaps the managed channel lease, and the
-        /// rebind is what keeps later channel faults triggering a reconnect.
+        /// Recreates the session in place, against a copy of
+        /// <paramref name="endpoint"/> when set, which must keep the security
+        /// mode and policy of the endpoint the session works on.
         /// </summary>
         private async Task RecreateInPlaceAndRebindAsync(
             Session session,
@@ -2304,18 +2594,32 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
-            if (endpoint != null)
+            if (endpoint == null)
             {
-                ServiceResultException? securityConfigurationMismatch =
-                    GetSecurityConfigurationMismatch(
-                        session.ConfiguredEndpoint.Description,
-                        endpoint.Description);
-                if (securityConfigurationMismatch != null)
-                {
-                    throw securityConfigurationMismatch;
-                }
+                await RecreateInPlaceCoreAndRebindAsync(session, null, budget, ct).ConfigureAwait(false);
+                return;
             }
 
+            ThrowIfSecurityConfigurationMismatch(session.ConfiguredEndpoint.Description, endpoint.Description);
+            await SwitchEndpointAsync(
+                session,
+                endpoint,
+                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct),
+                ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recreates the session in place and, whatever the outcome, rebinds
+        /// the channel events afterwards. Every in-place recreate has to go
+        /// through here: the recreate swaps the managed channel lease, and the
+        /// rebind is what keeps later channel faults triggering a reconnect.
+        /// </summary>
+        private async Task RecreateInPlaceCoreAndRebindAsync(
+            Session session,
+            ConfiguredEndpoint? endpoint,
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
@@ -2336,27 +2640,26 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
-            ServiceResultException? securityConfigurationMismatch =
-                GetSecurityConfigurationMismatch(
-                    session.ConfiguredEndpoint.Description,
-                    endpoint.Description);
-            if (securityConfigurationMismatch != null)
-            {
-                throw securityConfigurationMismatch;
-            }
-
-            IManagedTransportChannel? previousChannel = session.ManagedChannel;
-            try
-            {
-                ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(endpoint, ct)
-                    .ConfigureAwait(false);
-                await session.ReactivateOnNetworkEndpointAsync(endpoint, connection, budget, ct)
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                RebindManagedChannelEvents(session, previousChannel);
-            }
+            ThrowIfSecurityConfigurationMismatch(session.ConfiguredEndpoint.Description, endpoint.Description);
+            await SwitchEndpointAsync(
+                session,
+                endpoint,
+                async target =>
+                {
+                    IManagedTransportChannel? previousChannel = session.ManagedChannel;
+                    try
+                    {
+                        ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, ct)
+                            .ConfigureAwait(false);
+                        await session.ReactivateOnNetworkEndpointAsync(target, connection, budget, ct)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        RebindManagedChannelEvents(session, previousChannel);
+                    }
+                },
+                ct).ConfigureAwait(false);
         }
 
         private async Task<ITransportWaitingConnection?> WaitForRecoveryConnectionAsync(
@@ -3065,6 +3368,8 @@ namespace Opc.Ua.Client
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;
         private readonly ConfiguredEndpoint m_configuredEndpoint;
+        private volatile ConfiguredEndpoint m_publicationTarget;
+        private readonly ConditionalWeakTable<ConfiguredEndpoint, ConfiguredEndpoint> m_acceptedTargets = new();
         private readonly IReconnectPolicy m_reconnectPolicy;
         private readonly IServerRedundancyHandler? m_redundancyHandler;
         private static readonly TimeSpan IdentityRefreshSafetyMargin = TimeSpan.FromSeconds(60);
@@ -3289,5 +3594,13 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 30, Level = LogLevel.Information,
             Message = "ManagedSession: Reconnect skipped; the channel manager already reactivated the session.")]
         public static partial void ManagedSessionReconnectSkippedChannelRecovered(this ILogger logger);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 31, Level = LogLevel.Warning,
+            Message = "ManagedSession: The endpoint {EndpointUrl} changed since this session used it and the " +
+                      "change was not accepted; using the endpoint this session accepted.")]
+        public static partial void ManagedSessionPublishedEndpointNotAccepted(
+            this ILogger logger,
+            Exception? exception,
+            Uri? endpointUrl);
     }
 }

@@ -106,7 +106,7 @@ namespace Opc.Ua.Wot
         public WotDocumentSet(string rootHref, ArrayOf<WotDocumentSetEntry> entries)
         {
             RootHref = rootHref ?? throw new ArgumentNullException(nameof(rootHref));
-            Entries = entries.IsNull ? ArrayOf<WotDocumentSetEntry>.Empty : entries;
+            Entries = entries.IsNull ? [] : entries;
         }
 
         /// <summary>
@@ -332,6 +332,7 @@ namespace Opc.Ua.Wot
             cancellationToken.ThrowIfCancellationRequested();
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
+            resolved = resolved.ForPartitionReconstruction();
             var diagnostics = new List<WotDiagnostic>();
             using (var stream = new System.IO.MemoryStream())
             {
@@ -360,7 +361,8 @@ namespace Opc.Ua.Wot
             {
                 difference = await DocumentSetDifferenceAsync(
                     nodeSet, readable, resolved, nodeResolver, cancellationToken).ConfigureAwait(false);
-                if (candidate.Success && difference is null &&
+                if (candidate.Success &&
+                    difference is null &&
                     resolved.PreservationMode != WotNodeSetPreservationMode.Always)
                 {
                     keepCandidate = true;
@@ -376,7 +378,6 @@ namespace Opc.Ua.Wot
                     readable.Dispose();
                 }
             }
-
         }
 
         private static async ValueTask<string?> DocumentSetDifferenceAsync(
@@ -805,14 +806,13 @@ namespace Opc.Ua.Wot
         /// document and merging the results.
         /// </summary>
         /// <remarks>
-        /// Every document of a set is written from one source NodeSet, so all of
-        /// them carry the same <c>@context</c> namespace table and their NodeIds
-        /// already agree on namespace index. The merge is therefore a union
-        /// keyed on NodeId and needs no index remapping. Each nested document's
-        /// root Object is placed under its parent by the ordinary
-        /// <c>uav:componentOf</c> resolution of §7.3, which reads the parent
-        /// document's <c>uav:id</c> through the resolver this method supplies
-        /// over the set itself.
+        /// The default reconstructs partitions of one exported NodeSet with a
+        /// common namespace table. Explicit IndependentReadableModels import
+        /// normalizes readable inputs into a deterministic namespace URI union;
+        /// it never relaxes native/archive authority or retries a failed header.
+        /// Each document is resolved under its own authored context, and nested
+        /// Objects retain their parent through ordinary <c>uav:componentOf</c>
+        /// resolution over the set.
         /// </remarks>
         /// <param name="documents">The document set to convert.</param>
         /// <param name="options">The bounded conversion options, or <c>null</c>.</param>
@@ -881,27 +881,39 @@ namespace Opc.Ua.Wot
             WotNodeSetConverterOptions resolved = options ?? new WotNodeSetConverterOptions();
             resolved.Validate();
 
-            if (documents.Entries.Count == 1)
+            List<WotDiagnostic> diagnostics = CreateDocumentSetDiagnostics(resolved);
+            WotResolutionContext? resolution = ValidateDocumentSetInputs(
+                documents, resolved, diagnostics, cancellationToken);
+            if (HasErrors(diagnostics))
             {
-                return await ToNodeSetResultAsync(
+                return new WotConversionResult<UANodeSet>(null, diagnostics);
+            }
+            if (documents.Entries.Count == 1 &&
+                resolved.DocumentSetMode == WotDocumentSetMode.PartitionReconstruction)
+            {
+                WotConversionResult<UANodeSet> single = await ToNodeSetResultAsync(
                     documents.Entries[0].Document, resolved, new DocumentSetThingResolver(documents, fallback),
-                    resolutionContext: null,
+                    resolution,
                     ComposeSetLocalContext(documents, nodeResolver), schemaResolver, cancellationToken)
                     .ConfigureAwait(false);
+                diagnostics.AddRange(single.Diagnostics);
+                ValidateDocumentSetOutput(single.Value, documents.RootHref, resolved, diagnostics, cancellationToken);
+                return new WotConversionResult<UANodeSet>(HasErrors(diagnostics) ? null : single.Value, diagnostics);
             }
 
-            var diagnostics = new List<WotDiagnostic>();
             List<WotConversionResult<UANodeSet>> results = await ReadDocumentSetPartsAsync(
-                documents, resolved, nodeResolver, cancellationToken, fallback, schemaResolver).ConfigureAwait(false);
+                documents, resolved, nodeResolver, cancellationToken, resolution, fallback, schemaResolver)
+                .ConfigureAwait(false);
             foreach (WotConversionResult<UANodeSet> part in results)
             {
-                foreach (WotDiagnostic diagnostic in part.Diagnostics)
-                {
-                    diagnostics.Add(diagnostic);
-                }
+                diagnostics.AddRange(part.Diagnostics);
             }
-            List<UANodeSet> partitions = FilterDocumentSetParts(documents, results, resolved, diagnostics);
-            UANodeSet merged = MergeDocumentSetParts(documents, partitions, resolved, diagnostics);
+            ValidateDocumentSetNodeCount(documents, results, resolved, diagnostics);
+            List<UANodeSet> partitions = FilterDocumentSetParts(
+                documents, results, resolved, diagnostics, cancellationToken);
+            UANodeSet merged = MergeDocumentSetParts(documents, partitions, resolved, diagnostics, cancellationToken);
+            ValidateDocumentSetPreservedFacts(documents, partitions, merged, resolved, diagnostics);
+            ValidateDocumentSetOutput(merged, documents.RootHref, resolved, diagnostics, cancellationToken);
             return new WotConversionResult<UANodeSet>(
                 HasErrors(diagnostics) ? null : merged, diagnostics);
         }
@@ -925,7 +937,30 @@ namespace Opc.Ua.Wot
             {
                 siblings.Add(documents.Entries[i].Document);
             }
-            var own = new WotDocumentNodeResolver(siblings);
+            WotDocumentNodeResolver own;
+            try
+            {
+                own = new WotDocumentNodeResolver(siblings);
+            }
+            catch (FormatException)
+            {
+                // A document whose preserved native context cannot be restored contributes nothing to the local
+                // context only. Every document of the set is still converted, so that document's own conversion
+                // reports the failure as an error and the overall result cannot succeed.
+                var usable = new List<WotDocument>(siblings.Count);
+                foreach (WotDocument sibling in siblings)
+                {
+                    try
+                    {
+                        _ = new WotDocumentNodeResolver([sibling]);
+                        usable.Add(sibling);
+                    }
+                    catch (FormatException)
+                    {
+                    }
+                }
+                own = new WotDocumentNodeResolver(usable);
+            }
             return nodeResolver is null
                 ? own
                 : new WotCompositeNodeResolver(own, nodeResolver);
@@ -946,6 +981,29 @@ namespace Opc.Ua.Wot
 
             public UANodeSet? ArchiveContext { get; set; }
 
+            /// <summary>
+            /// Gets or sets the defer preserved fact validation for <c>DocumentSetThingResolver</c>.
+            /// </summary>
+            public bool DeferPreservedFactValidation { get; init; }
+
+            /// <summary>
+            /// Gets or sets the data types for <c>DocumentSetThingResolver</c>.
+            /// </summary>
+            public DataTypeDefinitionContext? DataTypes { get; set; }
+
+            public ArrayOf<WotDocument> DataTypeOwners
+            {
+                get
+                {
+                    var owners = new List<WotDocument>();
+                    foreach (WotDocumentSetEntry entry in m_documents.Entries)
+                    {
+                        owners.Add(entry.Document);
+                    }
+                    return owners.ToArrayOf();
+                }
+            }
+
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,
@@ -953,7 +1011,8 @@ namespace Opc.Ua.Wot
             {
                 if (m_documents.TryGetDocument(reference, out WotDocument document))
                 {
-                    return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(document.Utf8Json));
+                    return new ValueTask<WotResolverResult>(
+                        WotResolverResult.FromBytes(document.Utf8Json.ToArray()));
                 }
                 return m_fallback?.ResolveThingAsync(reference, context, cancellationToken) ??
                     new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
