@@ -286,6 +286,14 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string? DefaultValueXml { get; set; }
 
         /// <summary>
+        /// Whether the variable was imported from a NodeSet2 that declares no
+        /// Value for it, so that its Value is null rather than the default
+        /// value of its DataType (variables only). Carried as a variable flag
+        /// that older readers ignore.
+        /// </summary>
+        public bool NodeSetValueIsNull { get; set; }
+
+        /// <summary>
         /// The namespace table the namespace indexes in
         /// <see cref="DefaultValueXml"/> refer to in the producing model
         /// (index 0 is the OPC UA namespace): the producer's design
@@ -494,6 +502,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
+        // A reader that predates this flag ignores it and keeps implying the
+        // DataType default, which is what it did before.
+        private const byte kNodeSetValueIsNull = 0x20;
 
         /// <summary>
         /// Namespace URI that qualifies the standard reference types.
@@ -886,6 +897,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
             {
                 variableFlags |= kHistorizingSpecified;
             }
+            if (child.NodeSetValueIsNull)
+            {
+                variableFlags |= kNodeSetValueIsNull;
+            }
             writer.Write(variableFlags);
             writer.Write(child.AccessLevel);
             writer.Write(child.RawAccessLevel.GetValueOrDefault());
@@ -922,6 +937,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             child.MinimumSamplingIntervalSpecified = (flags & kMinimumSamplingIntervalSpecified) != 0;
             child.Historizing = reader.ReadBoolean();
             child.HistorizingSpecified = (flags & kHistorizingSpecified) != 0;
+            child.NodeSetValueIsNull = (flags & kNodeSetValueIsNull) != 0;
             child.DefaultValueXml = ReadNullableString(reader);
             if (child.DefaultValueXml != null)
             {
