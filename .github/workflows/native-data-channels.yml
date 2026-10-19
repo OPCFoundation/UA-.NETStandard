@@ -256,7 +256,7 @@ jobs:
         $tests = Join-Path $root 'native-checks/linux-x64'
         chmod +x "$tests/identity-fixture" "$tests/wire-tests" "$tests/capability-server"
         if ($LASTEXITCODE -ne 0) { throw 'Native test executables could not be prepared.' }
-        & "$tests/wire-tests" -test.v -test.timeout=30s
+        & "$tests/wire-tests" '-test.v' '-test.timeout=30s'
         if ($LASTEXITCODE -ne 0) { throw 'Exact native wire regressions failed.' }
         New-Item -ItemType Directory -Force native-results | Out-Null
         python3 ./tests/Opc.Ua.Native.QuicGo.Tests/native/generic_network_test.py `
