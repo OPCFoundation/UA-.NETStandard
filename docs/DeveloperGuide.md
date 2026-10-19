@@ -453,6 +453,15 @@ The executor fails a project when its build fails, when the TRX counters report 
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 
+Ordinary projects have a 45-minute combined ceiling. `Opc.Ua.Server.Tests`
+always runs in its own batch and receives 60 minutes on net48, with an
+80-minute job ceiling including setup. A measured passing run used over
+12 minutes for its cold build and nearly 32 minutes for its tests, leaving
+less than a minute of margin under the old limit. Other Server targets and
+all other projects retain their existing budgets. This does not extend the
+mainline 10-minute single-test hang detector, skip tests, or change category
+filters.
+
 The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 
 #### Why a project can be skipped

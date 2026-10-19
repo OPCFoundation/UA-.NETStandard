@@ -87,10 +87,10 @@ namespace Opc.Ua.Tools.Tests
                 Is.False,
                 "-ExcludeMacOS must drop every macOS entry.");
 
-            Dictionary<string, string> expected = withMac.Tests
+            var expected = withMac.Tests
                 .Where(entry => entry.Os != "macos")
                 .ToDictionary(entry => entry.Id, entry => entry.Projects);
-            Dictionary<string, string> actual = withoutMac.Tests
+            var actual = withoutMac.Tests
                 .ToDictionary(entry => entry.Id, entry => entry.Projects);
 
             Assert.That(actual, Is.EqualTo(expected));
@@ -106,7 +106,7 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync("full").ConfigureAwait(false);
 
-            HashSet<string> scheduled = matrix.Tests
+            var scheduled = matrix.Tests
                 .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 .ToHashSet(StringComparer.Ordinal);
 
@@ -155,16 +155,17 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
-            HashSet<string> mainline = matrix.Tests
+            var mainline = matrix.Tests
                 .Where(entry => entry.Tier == "mainline")
                 .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 .ToHashSet(StringComparer.Ordinal);
 
             foreach (IGrouping<string, MatrixEntry> profile in matrix.Tests.GroupBy(entry => entry.Profile))
             {
-                string[] projects = profile
-                    .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
-                    .ToArray();
+                string[] projects =
+                [
+                    .. profile.SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                ];
 
                 Assert.That(projects, Is.Unique, $"Profile '{profile.Key}' schedules a project twice.");
                 if (profile.First().Tier is "mainline" or "long-running")
@@ -189,11 +190,10 @@ namespace Opc.Ua.Tools.Tests
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
             Assert.That(matrix.BatchTargetMinutes, Is.Positive);
-            string[] overweight = matrix.Tests
+            string[] overweight = [.. matrix.Tests
                 .Where(entry => entry.PackedMinutes > matrix.BatchTargetMinutes &&
                     entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length > 1)
-                .Select(entry => $"{entry.Id}: {entry.PackedMinutes}min")
-                .ToArray();
+                .Select(entry => $"{entry.Id}: {entry.PackedMinutes}min")];
 
             Assert.That(overweight, Is.Empty);
             Assert.That(matrix.Tests.All(entry => entry.PackedMinutes > 0), Is.True);
@@ -212,7 +212,8 @@ namespace Opc.Ua.Tools.Tests
 
             foreach (IGrouping<string, MatrixEntry> profile in matrix.Tests.GroupBy(entry => entry.Profile))
             {
-                int projects = profile.Sum(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
+                int projects = profile.Sum(
+                    entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
                 Assert.That(
                     profile.Count(),
                     Is.LessThanOrEqualTo(projects / 3),
@@ -231,23 +232,22 @@ namespace Opc.Ua.Tools.Tests
             string root = FindRepositoryRoot();
             string table = await File.ReadAllTextAsync(Path.Combine(root, ".github", "ci-test-durations.json"))
                 .ConfigureAwait(false);
-            using JsonDocument document = JsonDocument.Parse(table);
+            using var document = JsonDocument.Parse(table);
 
             var options = new EnumerationOptions
             {
                 RecurseSubdirectories = true,
                 IgnoreInaccessible = true
             };
-            HashSet<string> onDisk = Directory.EnumerateFiles(root, "*.Tests.csproj", options)
+            var onDisk = Directory.EnumerateFiles(root, "*.Tests.csproj", options)
                 .Select(Path.GetFileNameWithoutExtension)
                 .OfType<string>()
                 .ToHashSet(StringComparer.Ordinal);
 
             Assert.That(document.RootElement.GetProperty("defaultMinutes").GetInt32(), Is.Positive);
-            string[] stale = document.RootElement.GetProperty("projects").EnumerateObject()
+            string[] stale = [.. document.RootElement.GetProperty("projects").EnumerateObject()
                 .Where(project => !onDisk.Contains(project.Name))
-                .Select(project => project.Name)
-                .ToArray();
+                .Select(project => project.Name)];
             Assert.That(stale, Is.Empty, "Remove these from .github/ci-test-durations.json.");
         }
 
@@ -261,11 +261,10 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync("pr").ConfigureAwait(false);
 
-            string[] fuzzProjects = matrix.Tests
+            string[] fuzzProjects = [.. matrix.Tests
                 .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
                 .Where(project => project.StartsWith("fuzzing/", StringComparison.Ordinal))
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
+                .Distinct(StringComparer.Ordinal)];
 
             Assert.That(fuzzProjects, Is.Not.Empty);
         }
@@ -301,9 +300,10 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult full = await RunMatrixAsync("full").ConfigureAwait(false);
 
-            MatrixEntry[] offenders = full.Tests
-                .Where(entry => entry.Framework.StartsWith("net4", StringComparison.Ordinal) && entry.Coverage)
-                .ToArray();
+            MatrixEntry[] offenders =
+            [
+                .. full.Tests.Where(entry => entry.Framework.StartsWith("net4", StringComparison.Ordinal) && entry.Coverage)
+            ];
 
             Assert.That(offenders.Select(entry => entry.Id), Is.Empty);
         }
@@ -317,7 +317,7 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult pr = await RunMatrixAsync("pr").ConfigureAwait(false);
 
-            string[] profiles = pr.Tests.Select(entry => entry.Profile).Distinct(StringComparer.Ordinal).ToArray();
+            string[] profiles = [.. pr.Tests.Select(entry => entry.Profile).Distinct(StringComparer.Ordinal)];
 
             Assert.That(profiles, Does.Contain("windows-net48"));
             Assert.That(profiles, Does.Contain("windows-net10.0"));
@@ -379,27 +379,23 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
-            string[] underBudget = matrix.Tests
+            string[] underBudget = [.. matrix.Tests
                 .Where(entry =>
                     entry.TimeoutMinutes <
                         entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length *
                         entry.PerProjectTimeout)
                 .Select(entry => $"{entry.Id} allows {entry.TimeoutMinutes}min for " +
                     $"{entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length} x " +
-                    $"{entry.PerProjectTimeout}min")
-                .ToArray();
+                    $"{entry.PerProjectTimeout}min")];
 
             Assert.That(underBudget, Is.Empty);
             Assert.That(matrix.Tests.All(entry => entry.PerProjectTimeout > 0), Is.True);
         }
 
         /// <summary>
-        /// The ceiling covers the build and test together. The net48 server
-        /// project has a roughly five-minute clean build and a roughly
-        /// twenty-minute test run on hosted Windows, so a 30-minute combined
-        /// ceiling has no useful runner-variance margin and has killed a healthy
-        /// run. Every ordinary project receives the established 45-minute
-        /// combined ceiling.
+        /// The ceiling covers the build and test together. Every ordinary project
+        /// receives at least the established 45-minute combined ceiling; the
+        /// isolated legacy Server project has its separately checked allowance.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -407,12 +403,73 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
-            string[] undersized = matrix.Tests
+            string[] undersized = [.. matrix.Tests
                 .Where(entry => entry.Tier == "mainline" && entry.PerProjectTimeout < 45)
-                .Select(entry => $"{entry.Id}: {entry.PerProjectTimeout}min")
-                .ToArray();
+                .Select(entry => $"{entry.Id}: {entry.PerProjectTimeout}min")];
 
             Assert.That(undersized, Is.Empty);
+        }
+
+        /// <summary>
+        /// The Server's observed net48 cold build and healthy tests take almost 45 minutes.
+        /// Its larger combined budget must apply only to an isolated Server batch.
+        /// </summary>
+        [TestCase("pr", false, 30)]
+        [TestCase("full", false, 30)]
+        [TestCase("pr", true, 30)]
+        [TestCase("full", true, 30)]
+        [TestCase("pr", false, 100)]
+        [TestCase("full", false, 100)]
+        public async Task ServerBatchesHaveAnIsolatedLegacyBudgetAsync(
+            string scope, bool onlyServer, int batchTargetMinutes)
+        {
+            const string serverProject = "tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj";
+            MatrixResult matrix = await RunMatrixAsync(
+                scope,
+                onlyProject: onlyServer ? serverProject : null,
+                batchTargetMinutes: batchTargetMinutes)
+                .ConfigureAwait(false);
+            MatrixEntry[] servers =
+            [
+                .. matrix.Tests.Where(entry => entry.Projects
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries).Contains(serverProject))
+            ];
+
+            Assert.That(servers, Is.Not.Empty);
+            Assert.That(servers.Any(entry => entry.Framework == "net48"), Is.True);
+            foreach (MatrixEntry server in servers)
+            {
+                int expectedBudget = server.Framework == "net48" ? 60 : 45;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(server.Projects, Is.EqualTo(serverProject), server.Id);
+                    Assert.That(server.PerProjectTimeout, Is.EqualTo(expectedBudget), server.Id);
+                    Assert.That(server.TimeoutMinutes, Is.EqualTo(20 + expectedBudget), server.Id);
+                    if (server.Tier == "mainline")
+                    {
+                        Assert.That(server.HangTimeout, Is.EqualTo("10m"), server.Id);
+                    }
+                });
+            }
+        }
+
+        /// <summary>
+        /// A longer legacy Server budget must not relax ordinary projects or drop their scheduling.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task OtherBatchesRetainTheCombinedFortyFiveMinuteCeilingAsync(string scope)
+        {
+            const string serverProject = "tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj";
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] others =
+            [
+                .. matrix.Tests.Where(entry => !entry.Projects
+                    .Split(';', StringSplitOptions.RemoveEmptyEntries).Contains(serverProject))
+            ];
+
+            Assert.That(others, Is.Not.Empty);
+            Assert.That(others.Select(entry => entry.PerProjectTimeout), Is.All.EqualTo(45));
         }
 
         /// <summary>
@@ -427,15 +484,15 @@ namespace Opc.Ua.Tools.Tests
             string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
             string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
 
-            string[] invocations = source
+            string[] invocations = [.. source
                 .Split('\n')
                 .Select(line => line.Trim())
-                .Where(line => line.Contains("= Invoke-Dotnet ", StringComparison.Ordinal))
-                .ToArray();
+                .Where(line => line.Contains("= Invoke-Dotnet ", StringComparison.Ordinal))];
 
             Assert.That(invocations, Has.Length.EqualTo(2), "The executor builds once and tests once per project.");
             Assert.That(
-                invocations.All(line => line.Contains("$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
+                invocations.All(
+                    line => line.Contains("$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
                 Is.True,
                 $"Both invocations must share the one stopwatch: {string.Join(" | ", invocations)}");
             Assert.That(
@@ -447,12 +504,14 @@ namespace Opc.Ua.Tools.Tests
         private static async Task<MatrixResult> RunMatrixAsync(
             string scope,
             bool excludeMacOs = false,
-            string? onlyProject = null)
+            string? onlyProject = null,
+            int? batchTargetMinutes = null)
         {
             string outputPath = Path.Combine(Path.GetTempPath(), $"ci-matrix-{Guid.NewGuid():N}.txt");
             try
             {
-                ScriptResult result = await RunScriptAsync(scope, excludeMacOs, onlyProject, outputPath)
+                ScriptResult result = await RunScriptAsync(
+                    scope, excludeMacOs, onlyProject, outputPath, batchTargetMinutes)
                     .ConfigureAwait(false);
                 Assert.That(result.ExitCode, Is.Zero, result.Output);
 
@@ -485,7 +544,8 @@ namespace Opc.Ua.Tools.Tests
             string scope,
             bool excludeMacOs = false,
             string? onlyProject = null,
-            string? githubOutputPath = null)
+            string? githubOutputPath = null,
+            int? batchTargetMinutes = null)
         {
             string root = FindRepositoryRoot();
             using var process = new Process();
@@ -509,6 +569,11 @@ namespace Opc.Ua.Tools.Tests
             {
                 process.StartInfo.ArgumentList.Add("-OnlyProject");
                 process.StartInfo.ArgumentList.Add(onlyProject);
+            }
+            if (batchTargetMinutes.HasValue)
+            {
+                process.StartInfo.ArgumentList.Add("-BatchTargetMinutes");
+                process.StartInfo.ArgumentList.Add(batchTargetMinutes.Value.ToString(CultureInfo.InvariantCulture));
             }
 
             // The matrices only reach GITHUB_OUTPUT, so pointing it at a
@@ -565,6 +630,7 @@ namespace Opc.Ua.Tools.Tests
             string Tier,
             string Framework,
             string Filter,
+            string HangTimeout,
             bool Coverage,
             string Projects,
             int PerProjectTimeout,

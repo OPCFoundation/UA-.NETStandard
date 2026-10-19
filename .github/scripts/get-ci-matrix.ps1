@@ -156,6 +156,7 @@ $MainlineExclusions = @(
     'Opc.Ua.OneFuzz.Validator.Tests.csproj')
 
 $DurableProject = 'Opc.Ua.Subscriptions.Durable.Tests.csproj'
+$ServerProject = 'tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj'
 
 <#
  .SYNOPSIS
@@ -268,11 +269,16 @@ $BatchFixedMinutes = 6
 
 # One combined ceiling per project, shared by that project's build and test
 # invocation in run-dotnet-tests.ps1. The job timeout budgets it exactly once
-# per project, so the executor must not spend it twice. Keep 45 minutes for
-# mainline too: on hosted Windows, the net48 Opc.Ua.Server.Tests build plus
-# its otherwise healthy test run normally takes about 25 minutes and has
-# exceeded 30 under runner variance.
+# per project, so the executor must not spend it twice. Ordinary projects keep
+# their established 45-minute ceiling.
 $PerProjectTimeoutMinutes = 45
+
+# The net48 Server project needs room for a cold build as well as its tests.
+# Run 39213825094 passed after 735s building + 1908s testing (44m03s); the next
+# run, 39236278891, was still progressing when 741s + 1959s reached 45 minutes.
+# Isolate that project below so its 60-minute legacy budget never widens the
+# budget of another project. The per-test hang detector is unchanged.
+$LegacyServerTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -392,7 +398,9 @@ function Expand-BuildMatrix([string] $scope)
     Contiguous rather than best-fit: path order keeps projects that share
     dependencies together, and the result only depends on the list and the
     table, so a run is reproducible. A project heavier than the target is
-    placed in a batch of its own rather than split or dropped.
+    placed in a batch of its own rather than split or dropped. The Server
+    project always runs alone because its legacy profile has a larger ceiling;
+    keeping this rule independent of the profile preserves cross-OS batching.
 #>
 function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 {
@@ -400,6 +408,15 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     $current = @()
     $currentMinutes = 0
     foreach ($project in $projects) {
+        if ($project -eq $ServerProject) {
+            if ($current.Count -gt 0) {
+                $batches += , @($current)
+                $current = @()
+                $currentMinutes = 0
+            }
+            $batches += , @($project)
+            continue
+        }
         $minutes = Get-ProjectMinutes $project
         if ($current.Count -gt 0 -and
             ($currentMinutes + $minutes -gt $targetMinutes -or $current.Count -ge $MaxProjectsPerBatch)) {
@@ -475,13 +492,16 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
         if ($testProfile.ContainsKey('coverage')) {
             $coverage = [bool]$testProfile.coverage
         }
-        # See $PerProjectTimeoutMinutes for why this is one combined ceiling.
-        $perProjectTimeout = $PerProjectTimeoutMinutes
-
         $batches = @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
+            # This remains one combined build-and-test ceiling. Only the isolated
+            # Server batch on .NET Framework needs the larger measured allowance.
+            $perProjectTimeout = $PerProjectTimeoutMinutes
+            if ($testProfile.framework -eq 'net48' -and $batch -contains $ServerProject) {
+                $perProjectTimeout = $LegacyServerTimeoutMinutes
+            }
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus
             # the combined build-and-test ceiling for every project in the
             # batch. It has to stay a true upper bound on what the executor can
