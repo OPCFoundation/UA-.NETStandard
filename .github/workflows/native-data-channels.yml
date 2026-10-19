@@ -24,7 +24,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
     - name: Prepare verified public tools and source
       shell: pwsh
       run: |
@@ -85,7 +85,7 @@ jobs:
         custom-test-target: net10.0
         framework: net10.0
         configuration: Release
-        dotnet: '10.0.401'
+        dotnet: '10.0.402'
         coverage: 'true'
         require-clean-exit: 'true'
         per-project-timeout: '20'
@@ -226,7 +226,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
     - uses: actions/download-artifact@v8
       with:
         name: native-linux-inputs
@@ -282,7 +282,7 @@ jobs:
         custom-test-target: net10.0
         framework: net10.0
         configuration: Release
-        dotnet: '10.0.401'
+        dotnet: '10.0.402'
         coverage: 'true'
         require-clean-exit: 'true'
         per-project-timeout: '20'
@@ -348,7 +348,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
     - uses: actions/download-artifact@v8
       with:
         name: native-quic-package-inputs
