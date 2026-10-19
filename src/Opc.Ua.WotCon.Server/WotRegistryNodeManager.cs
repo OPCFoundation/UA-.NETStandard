@@ -416,9 +416,9 @@ namespace Opc.Ua.WotCon.Server
 
         private void ApplyRegistrySettings(ISystemContext context, BaseObjectState registry)
         {
-            if (registry is WoTRegistryState typed)
+            if (registry is WoTRegistryState autoRefreshRegistry)
             {
-                typed.AddAutoRefresh(context);
+                autoRefreshRegistry.AddAutoRefresh(context);
             }
             SetChildValue(registry, "AutoRefresh", new Variant(m_options.AutoRefresh));
             SetChildValue(
@@ -595,7 +595,7 @@ namespace Opc.Ua.WotCon.Server
                 return decoded;
             }
 
-            request.CallerContext = context.OperationContext;
+            request.CallerContext = context.GetOperationContext();
             if (!await m_refreshGate
                     .WaitAsync(0, cancellationToken)
                     .ConfigureAwait(false))

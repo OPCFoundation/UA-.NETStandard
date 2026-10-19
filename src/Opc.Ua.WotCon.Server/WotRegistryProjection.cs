@@ -582,7 +582,7 @@ namespace Opc.Ua.WotCon.Server
                     StatusCodes.BadInvalidArgument, "The Enabled argument is required.");
             }
             WotRegistryMutationResult result = await m_manager.Coordinator
-                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct, context.OperationContext)
+                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), context.GetOperationContext(), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return ToServiceResult(result);
@@ -1108,7 +1108,7 @@ namespace Opc.Ua.WotCon.Server
                 CancellationToken ct)
             {
                 WotRegistryMutationResult result = await m_projection.m_registry
-                    .DeleteGroupAsync(groupId, epoch, context?.OperationContext, ct).ConfigureAwait(false);
+                    .DeleteGroupAsync(groupId, epoch, context?.GetOperationContext(), ct).ConfigureAwait(false);
                 return ToServiceResult(result);
             }
 
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.WotCon.Server
                 {
                     GroupId = groupId, ResourceId = resourceId, ExpectedEpoch = epoch,
                     Policy = m_projection.m_manager.Coordinator.DeletePolicy,
-                    CallerContext = context?.OperationContext
+                    CallerContext = context?.GetOperationContext()
                 }, ct).ConfigureAwait(false);
                 return ToServiceResult(new WotRegistryMutationResult(
                     result.Delete.Outcome, null, result.Delete.Generation, [], result.Delete.Message));
@@ -1200,7 +1200,7 @@ namespace Opc.Ua.WotCon.Server
                         versionId,
                         deleteLogicalResource,
                         epoch,
-                        context?.OperationContext,
+                        context?.GetOperationContext(),
                         ct)
                     .ConfigureAwait(false);
                 return ToServiceResult(result);

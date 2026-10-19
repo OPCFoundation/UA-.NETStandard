@@ -63,13 +63,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="resourceId">The resource ID.</param>
         /// <param name="enabled">The enabled flag supplied by the caller.</param>
         /// <param name="expectedEpoch">The expected epoch.</param>
-        public async ValueTask<WotRegistryMutationResult> SetEnabledAsync(
+        public ValueTask<WotRegistryMutationResult> SetEnabledAsync(
             string groupId,
             string resourceId,
             bool enabled,
             long? expectedEpoch = null,
-            CancellationToken cancellationToken = default,
-            IOperationContext? callerContext = null)
+            CancellationToken cancellationToken = default)
+        {
+            return SetEnabledAsync(groupId, resourceId, enabled, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Changes projection eligibility on behalf of the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="enabled">The enabled flag supplied by the caller.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="callerContext">The executing request's context, or <c>null</c> for an external caller.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        /// <returns>The registry mutation result.</returns>
+        public async ValueTask<WotRegistryMutationResult> SetEnabledAsync(
+            string groupId,
+            string resourceId,
+            bool enabled,
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken = default)
         {
             _ = groupId ?? throw new ArgumentNullException(nameof(groupId));
             _ = resourceId ?? throw new ArgumentNullException(nameof(resourceId));

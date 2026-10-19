@@ -163,7 +163,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ClearObserved();
 
             await m_coordinator.SetEnabledAsync(
-                WotRegistryGroups.ThingModels, "tm-a", false, null, CancellationToken.None, context)
+                WotRegistryGroups.ThingModels, "tm-a", false, null, context, CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(Phases("begin"), Is.Not.Empty);
