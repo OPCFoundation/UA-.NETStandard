@@ -1061,9 +1061,11 @@ namespace Opc.Ua
         internal long SpinDuration { get; set; } = Stopwatch.Frequency / 200_000;
 
         /// <summary>
-        /// The number of readers that look for a request at once before they park.
+        /// The number of readers that look for a request at once before they park: one per
+        /// eight processors. With fewer, a spinning reader takes a processor the receive loops
+        /// need, so readers park at once.
         /// </summary>
-        internal int MaxSpinningReaders { get; set; } = Math.Max(1, Environment.ProcessorCount / 8);
+        internal int MaxSpinningReaders { get; set; } = Environment.ProcessorCount / 8;
 
         /// <summary>
         /// Gets how much recent spins paid off: zero while they ran out, so that readers park
