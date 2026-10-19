@@ -73,8 +73,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 .Returns((string category) => category == "Opc.Ua.Di.Server.Hosting.DiPostSetupRunner"
                     ? startupLogger.Object : NullLogger.Instance);
             fixture.Services.AddLogging(logging => logging.AddProvider(loggerProvider.Object));
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await fixture.StartAsync(failStartup: true).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.StartAsync(failStartup: true).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(failure.LocalizedText.Text, Is.EqualTo("Unexpected error starting application"));
             Assert.That(failure.InnerResult, Is.Not.Null);
@@ -111,17 +111,17 @@ namespace Opc.Ua.Machinery.Tests.Integration
             Assert.That(fixture.Cranes.All(value => value.IsDisposed), Is.True);
             foreach (MachineToolRuntime<MachineToolState> machine in fixture.Machines)
             {
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await machine.RefreshAsync().ConfigureAwait(false));
             }
             foreach (GmsHandle system in fixture.Systems)
             {
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await system.RefreshAsync().ConfigureAwait(false));
             }
             foreach (WmtpPeripheral peripheral in fixture.Peripherals)
             {
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await peripheral.RefreshAsync().ConfigureAwait(false));
             }
             Assert.That(fixture.Inspections.All(value => value.ConformanceUnits.IsEmpty), Is.True);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
         public async Task StoppedMixedHostWithdrawsConformanceWithoutDereferencingDisposedServerAsync()
         {
             await using var fixture = new CompanionSuiteFixture();
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.StartAsync(failStartup: true).ConfigureAwait(false));
             foreach (MachineToolRuntime<MachineToolState> machine in fixture.Machines)
             {
@@ -185,8 +185,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                     throw new ServiceResultException(StatusCodes.BadConfigurationError, "Rejected composed binding.");
                 });
             });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             released.Verify(value => value.DisposeAsync(), Times.Once);
             Assert.That(staged, Has.Count.GreaterThan(1));
@@ -301,8 +301,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                     Receiver = missingReceiver ? null : source,
                     ResponseProvider = missingReceiver ? source : null
                 });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(fixture.Context.MachinesFolder.FindChild(fixture.Context.Context,
                 new QualifiedName("MissingPair", fixture.Context.InstanceNamespaceIndex)), Is.Null);
@@ -455,8 +455,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 fixture.Systems[0].State.ResultManagement!.NodeId, fixture.Telemetry);
             (uint firstHandle, _, _) = await firstMetadata.GetLatestResultAsync(0, ct).ConfigureAwait(false);
             (uint secondHandle, _, _) = await secondMetadata.GetLatestResultAsync(0, ct).ConfigureAwait(false);
-            ServiceResultException foreign = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await secondMetadata.ReleaseResultHandleAsync(firstHandle, ct).ConfigureAwait(false))!;
+            ServiceResultException foreign = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await secondMetadata.ReleaseResultHandleAsync(firstHandle, ct).ConfigureAwait(false)))!;
             Assert.That(foreign.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             var firstTransfer = new TemporaryFileTransferTypeClient(first,
                 fixture.Systems[0].State.ResultManagement!.ResultTransfer!.NodeId, fixture.Telemetry);
@@ -509,8 +509,8 @@ namespace Opc.Ua.Machinery.Tests.Integration
             {
                 await entered.Task.WaitAsync(ct).ConfigureAwait(false);
                 await first.CloseAsync(ct).ConfigureAwait(false);
-                ServiceResultException released = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await secondMetadata.ReleaseResultHandleAsync(firstHandle, ct).ConfigureAwait(false))!;
+                ServiceResultException released = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await secondMetadata.ReleaseResultHandleAsync(firstHandle, ct).ConfigureAwait(false)))!;
                 Assert.That(released.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 Assert.That(await secondMetadata.ReleaseResultHandleAsync(secondHandle, ct).ConfigureAwait(false),
                     Is.Zero);

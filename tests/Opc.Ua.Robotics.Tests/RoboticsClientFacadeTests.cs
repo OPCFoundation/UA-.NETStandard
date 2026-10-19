@@ -644,8 +644,8 @@ namespace Opc.Ua.Robotics.Client.Tests
 
             Assert.That(fileSystem.Root.NodeId, Is.EqualTo(h.ProgramsId));
             RoboticsSessionHarness missing = new();
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await missing.Client.ProgramsAsync(missing.ControllerId).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await missing.Client.ProgramsAsync(missing.ControllerId).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -665,8 +665,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             RoboticsSessionHarness bad = new();
             bad.ConfigureSystemOperation(StatusCodes.BadInvalidState, 0);
             SystemOperationClient badClient = new(bad.Session.Object, bad.SystemOperationId, bad.Telemetry);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await InvokeSystemVerbAsync(badClient, verb).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await InvokeSystemVerbAsync(badClient, verb).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -690,8 +690,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             RoboticsSessionHarness bad = new();
             bad.ConfigureTaskControl(StatusCodes.BadInvalidState, 0);
             TaskControlClient badClient = new(bad.Session.Object, bad.TaskControlId, bad.Telemetry);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await InvokeTaskVerbAsync(badClient, verb).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await InvokeTaskVerbAsync(badClient, verb).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -752,29 +752,29 @@ namespace Opc.Ua.Robotics.Client.Tests
         }
 
         [Test]
-        public void ResetToProgramStartFailsWithoutAReadySubstateMachine()
+        public async Task ResetToProgramStartFailsWithoutAReadySubstateMachine()
         {
             RoboticsSessionHarness h = new();
             h.ConfigureTaskControl(StatusCodes.Good, 5, readySubstateMachine: false);
             TaskControlClient client = new(h.Session.Object, h.TaskControlId, h.Telemetry);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ResetToProgramStartAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ResetToProgramStartAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(h.Calls, Is.Empty, "the Ready state has no ResetToProgramStart to call");
         }
 
         [Test]
-        public void OperationCallsFailExplicitlyWhenRequiredNodesAreAbsent()
+        public async Task OperationCallsFailExplicitlyWhenRequiredNodesAreAbsent()
         {
             RoboticsSessionHarness h = new();
             SystemOperationClient system = new(h.Session.Object, h.SystemOperationId, h.Telemetry);
             TaskControlClient task = new(h.Session.Object, h.TaskControlId, h.Telemetry);
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await system.StartAsync().ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await task.StartAsync().ConfigureAwait(false));
         }
 

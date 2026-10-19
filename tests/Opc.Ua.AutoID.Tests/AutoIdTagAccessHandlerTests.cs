@@ -246,10 +246,11 @@ namespace Opc.Ua.AutoID.Tests
 
             await ReaderOf(device).DisposeAsync().ConfigureAwait(false);
 
-            ServiceResultException halted = Assert.ThrowsAsync<ServiceResultException>(async () => await call.ConfigureAwait(false))!;
+            ServiceResultException halted = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await call.ConfigureAwait(false)))!;
             Assert.That(halted.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
-            ServiceResultException after = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(device).ConfigureAwait(false))!;
+            ServiceResultException after = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(device).ConfigureAwait(false)))!;
             Assert.That(after.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }
 

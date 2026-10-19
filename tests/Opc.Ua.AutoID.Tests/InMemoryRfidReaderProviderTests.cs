@@ -85,12 +85,13 @@ namespace Opc.Ua.AutoID.Tests
         [Test]
         public async Task PlacingAnExistingTagAgainFailsAndTheCountIsKeptAsync()
         {
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await m_reader!.PlaceTagAsync(new InMemoryRfidTag(s_epc)).ConfigureAwait(false));
             Assert.That(m_reader!.TagCount, Is.EqualTo(1));
             Assert.That(await m_reader.RemoveTagAsync(s_epc).ConfigureAwait(false), Is.True);
             Assert.That(await m_reader.RemoveTagAsync(s_epc).ConfigureAwait(false), Is.False);
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await m_reader.PlaceTagAsync(null!).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await m_reader.PlaceTagAsync(null!).ConfigureAwait(false));
         }
 
         [Test]
@@ -151,10 +152,10 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
-        public void AScanHonoursCancellation()
+        public async Task AScanHonoursCancellationAsync()
         {
             using var cancel = new CancellationTokenSource(20);
-            Assert.CatchAsync<OperationCanceledException>(async () => await m_reader!.ScanAsync(
+            await Assert.CatchAsync<OperationCanceledException>(async () => await m_reader!.ScanAsync(
                 AutoIdTestData.Settings(duration: 60_000), cancel.Token).ConfigureAwait(false));
         }
 
@@ -603,11 +604,12 @@ namespace Opc.Ua.AutoID.Tests
             int afterDetach = sink.Scans.Count;
             await Task.Delay(30).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(unattached, Is.EqualTo(AutoIdOperationStatusEnumeration.DEVICE_NOT_READY));
                 Assert.That(sink.Scans, Has.Count.EqualTo(afterDetach));
-                Assert.ThrowsAsync<ArgumentNullException>(async () => await m_reader.AttachAsync(null!).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await m_reader.AttachAsync(null!).ConfigureAwait(false));
             });
         }
 

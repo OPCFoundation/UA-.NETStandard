@@ -453,12 +453,12 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("download")]
         [TestCase("observe")]
         [TestCase("ack")]
-        public void PreCancellationRetainsTheCallersToken(string tool)
+        public async Task PreCancellationRetainsTheCallersToken(string tool)
         {
             using var cancel = new CancellationTokenSource();
             cancel.Cancel();
-            OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(
-                async () => await Invoke(tool, null!, cancellationToken: cancel.Token).ConfigureAwait(false))!;
+            OperationCanceledException failure = (await Assert.CatchAsync<OperationCanceledException>(
+                async () => await Invoke(tool, null!, cancellationToken: cancel.Token).ConfigureAwait(false)))!;
             Assert.That(failure.CancellationToken, Is.EqualTo(cancel.Token));
         }
 

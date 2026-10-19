@@ -341,7 +341,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Listener.ConnectionWaiting += (_, _) => throw new InvalidOperationException("handoff failed");
             Task handler = harness.Handler.OnConnectedAsync(connection);
             uint id = harness.Channels.Keys.Single();
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Listener.TransferListenerChannelAsync(
                     id, "urn:test:server", new Uri("opc.tcp://localhost:4840")).ConfigureAwait(false));
             await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);

@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Robotics.Tests
 
             try
             {
-                Assert.DoesNotThrowAsync(async () => await host.DisposeAsync().ConfigureAwait(false));
+                await Assert.DoesNotThrowAsync(async () => await host.DisposeAsync().ConfigureAwait(false));
             }
             finally
             {

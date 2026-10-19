@@ -107,11 +107,11 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(actual.RelativeValue!.Value.StatusCode, Is.EqualTo(StatusCodes.BadSensorFailure));
             Assert.That(actual.RelativeValue.Value.SourceTimestamp, Is.EqualTo(s_acquired));
             Assert.That(actual.RelativeValue.Value.WrappedValue.IsNull, Is.True);
-            ServiceResultException shape = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(new GmsCorrection("offset-1", "different", Analog(1))))!;
+            ServiceResultException shape = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await publisher.PublishCorrectionAsync(new GmsCorrection("offset-1", "different", Analog(1)))))!;
             Assert.That(shape.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(new GmsCorrection("absent", "bore", Analog(1))))!;
+            ServiceResultException missing = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await publisher.PublishCorrectionAsync(new GmsCorrection("absent", "bore", Analog(1)))))!;
             Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 

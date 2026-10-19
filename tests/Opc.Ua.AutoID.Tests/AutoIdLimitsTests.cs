@@ -76,10 +76,10 @@ namespace Opc.Ua.AutoID.Tests
             };
             RfidReaderDeviceState device = await CreateAsync(provider).ConfigureAwait(false);
 
-            ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await device.Scan!.OnCallAsync!(
                     m_fixture!.Context, device.Scan, device.NodeId, AutoIdTestData.Settings(duration: 250),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -113,10 +113,10 @@ namespace Opc.Ua.AutoID.Tests
             };
             RfidReaderDeviceState device = await CreateAsync(provider).ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await device.Scan!.OnCallAsync!(
                     m_fixture!.Context, device.Scan, device.NodeId, AutoIdTestData.Settings(cycles: 1),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo((uint)StatusCodes.BadResponseTooLarge));
         }

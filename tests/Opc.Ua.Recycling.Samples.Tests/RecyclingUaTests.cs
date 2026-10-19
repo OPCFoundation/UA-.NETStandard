@@ -119,16 +119,16 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 .ConfigureAwait(false);
             RecyclingCommand checkpoint =
                 CoordinatorTests.Command(environment.Coordinator, RecyclingCommandKind.Checkpoint);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(() =>
-                process.ExecuteAsync(checkpoint, timeout.Token).AsTask())!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                process.ExecuteAsync(checkpoint, timeout.Token).AsTask()))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            ServiceResultException impersonation = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException impersonation = (await Assert.ThrowsAsync<ServiceResultException>(() =>
                 process.ExecuteAsync(CoordinatorTests.Command(
                     environment.Coordinator, RecyclingCommandKind.Register, RecyclingProcess.Sorting),
-                    timeout.Token).AsTask())!;
+                    timeout.Token).AsTask()))!;
             Assert.That(impersonation.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            ServiceResultException observerDenied = Assert.ThrowsAsync<ServiceResultException>(() =>
-                observer.ExecuteAsync(checkpoint, timeout.Token).AsTask())!;
+            ServiceResultException observerDenied = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                observer.ExecuteAsync(checkpoint, timeout.Token).AsTask()))!;
             Assert.That(observerDenied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(environment.Coordinator.Current.Revision, Is.Zero);
         }

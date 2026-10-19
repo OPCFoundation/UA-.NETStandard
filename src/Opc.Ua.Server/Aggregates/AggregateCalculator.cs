@@ -680,6 +680,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks if the value is Good whatever TreatUncertainAsBad is. Aggregates whose
+        /// definition speaks of Good values (Average, Count, Delta, StandardDeviation*,
+        /// Variance*) use only Good values: the aggregate definition wins over the general
+        /// rule of Part 13 §4.2.1.2 (Mantis 11495 ~0025874, 7975).
+        /// </summary>
+        /// <param name="value">The value to test.</param>
+        /// <returns>True if the value is Good.</returns>
+        protected static bool IsGoodValue(DataValue value)
+        {
+            return !value.IsNull && StatusCode.IsGood(value.StatusCode);
+        }
+
+        /// <summary>
         /// Checks if a raw value can form a bounding value. Part 13 §3.1.8 and §3.1.9 build
         /// bounding values from non-Bad raw values; TreatUncertainAsBad does not apply to them
         /// (Mantis 11462), an Uncertain raw value makes the bound Uncertain_DataSubNormal instead.
@@ -1687,6 +1700,26 @@ namespace Opc.Ua.Server
             List<DataValue> values,
             StatusCode statusCode)
         {
+            return GetValueBasedStatusCode(slice, values, statusCode, false);
+        }
+
+        /// <summary>
+        /// Calculates the value based status code for the slice.
+        /// </summary>
+        /// <param name="slice">The time slice.</param>
+        /// <param name="values">The raw values in the slice.</param>
+        /// <param name="statusCode">The status code to update.</param>
+        /// <param name="goodValuesOnly">True for an aggregate whose definition uses only Good
+        /// values: an Uncertain value then counts as non-Good whatever TreatUncertainAsBad is
+        /// (Mantis 11495 ~0025874: the non-Good values affect the status).</param>
+        protected StatusCode GetValueBasedStatusCode(
+            TimeSlice slice,
+            List<DataValue> values,
+            StatusCode statusCode,
+            bool goodValuesOnly)
+        {
+            bool uncertainIsBad = goodValuesOnly || Configuration.TreatUncertainAsBad;
+
             // compute the total good/bad/uncertain.
             double badCount = 0;
             double goodCount = 0;
@@ -1703,13 +1736,11 @@ namespace Opc.Ua.Server
                 }
 
                 if (StatusCode.IsGood(values[ii].StatusCode) ||
-                    (!Configuration.TreatUncertainAsBad &&
-                        StatusCode.IsUncertain(values[ii].StatusCode)))
+                    (!uncertainIsBad && StatusCode.IsUncertain(values[ii].StatusCode)))
                 {
                     goodCount++;
                 }
-                else if (Configuration.TreatUncertainAsBad &&
-                    StatusCode.IsUncertain(values[ii].StatusCode))
+                else if (uncertainIsBad && StatusCode.IsUncertain(values[ii].StatusCode))
                 {
                     badCount++;
                 }

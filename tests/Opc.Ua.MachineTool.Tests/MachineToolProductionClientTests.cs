@@ -106,13 +106,13 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(read.PartsProducedInLifetime.IsNull, Is.True);
             Assert.That(read.ActiveProgram.Name.StatusCode, Is.EqualTo(sample.StatusCode));
             Assert.That(read.ActiveProgram.Name.SourceTimestamp, Is.EqualTo(sample.SourceTimestamp));
-            ServiceResultException oversized = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException oversized = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadProductionAsync(runtime.NodeId,
-                    new MachineToolProductionReadOptions { MaximumPayloadBytes = 1 }).ConfigureAwait(false))!;
+                    new MachineToolProductionReadOptions { MaximumPayloadBytes = 1 }).ConfigureAwait(false)))!;
             Assert.That(oversized.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             runtime.State.Production!.ActiveProgram!.Name!.UserAccessLevel = AccessLevels.None;
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await client.ReadProductionAsync(runtime.NodeId).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ReadProductionAsync(runtime.NodeId).ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }
@@ -230,9 +230,9 @@ namespace Opc.Ua.MachineTool.Tests
                 Is.True);
             Assert.That(transition, Is.EqualTo(sample.SourceTimestamp));
             Assert.That(read.PartsProducedInLifetime.IsNull, Is.True);
-            ServiceResultException limit = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException limit = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadProductionAsync(runtime.NodeId,
-                    new MachineToolProductionReadOptions { MaximumElements = 1 }).ConfigureAwait(false))!;
+                    new MachineToolProductionReadOptions { MaximumElements = 1 }).ConfigureAwait(false)))!;
             Assert.That(limit.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
         }

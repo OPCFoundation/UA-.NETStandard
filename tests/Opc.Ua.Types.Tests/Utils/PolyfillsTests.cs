@@ -41,45 +41,45 @@ namespace Opc.Ua.Types.Tests.Utils
     public class PolyfillsTests
     {
         [Test]
-        public void ConnectAsyncWithNullSocketThrowsArgumentNullException()
+        public async Task ConnectAsyncWithNullSocketThrowsArgumentNullException()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 1);
 
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     null!,
                     endpoint,
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("socket"));
         }
 
         [Test]
-        public void ConnectAsyncWithNullEndpointThrowsArgumentNullException()
+        public async Task ConnectAsyncWithNullEndpointThrowsArgumentNullException()
         {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     null!,
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("remoteEP"));
         }
 
         [Test]
-        public void ConnectAsyncWithPreCancelledTokenThrowsOperationCanceledException()
+        public async Task ConnectAsyncWithPreCancelledTokenThrowsOperationCanceledException()
         {
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             using var source = new CancellationTokenSource();
             source.Cancel();
 
-            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
+            OperationCanceledException exception = (await Assert.CatchAsync<OperationCanceledException>(
                 async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     new IPEndPoint(IPAddress.Loopback, 1),
-                    source.Token).ConfigureAwait(false))!;
+                    source.Token).ConfigureAwait(false)))!;
 
             Assert.That(exception.CancellationToken, Is.EqualTo(source.Token));
         }
@@ -108,13 +108,13 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
-        public void ConnectAsyncWithRefusedConnectionPreservesSocketException()
+        public async Task ConnectAsyncWithRefusedConnectionPreservesSocketException()
         {
             using var reserved = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             reserved.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-            Assert.ThrowsAsync<SocketException>(
+            await Assert.ThrowsAsync<SocketException>(
                 async () => await System.Net.Sockets.Polyfills.ConnectAsync(
                     socket,
                     reserved.LocalEndPoint!,

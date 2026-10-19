@@ -107,21 +107,20 @@ namespace Opc.Ua.Sessions.Tests
         /// the oversized message can pass because security None is enabled.
         /// </summary>
         [Test]
-        [Order(105)]
         public Task GetEndpointsOnDiscoveryChannelAsync()
         {
             return m_clientTest.GetEndpointsOnDiscoveryChannelAsync(true);
         }
 
         [Test]
-        [Order(230)]
+        [DependsOnTest(nameof(ConnectJWTAsync), AllowFailure = true)]
         public Task ReconnectJWTSecurityNoneAsync()
         {
             return m_clientTest.ReconnectJWTAsync(SecurityPolicies.None);
         }
 
         [Test]
-        [Order(220)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncNoSecurityAsync), AllowFailure = true)]
         public Task ConnectJWTAsync()
         {
             return m_clientTest.ConnectJWTAsync(SecurityPolicies.None);
@@ -132,10 +131,10 @@ namespace Opc.Ua.Sessions.Tests
         /// the same session on a new channel with saved session secrets
         /// </summary>
         [Test]
-        [Order(260)]
         [TestCase(true)]
         [TestCase(false)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ReconnectJWTSecurityNoneAsync), AllowFailure = true)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
             bool anonymous,
             CancellationToken ct)
@@ -147,14 +146,14 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(400)]
+        [DependsOnTest(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync), AllowFailure = true)]
         public Task BrowseFullAddressSpaceSecurityNoneAsync(bool operationLimits)
         {
             return m_clientTest.BrowseFullAddressSpaceAsync(SecurityPolicies.None, operationLimits);
         }
 
         [Test]
-        [Order(201)]
+        [DependsOnTest(nameof(GetEndpointsOnDiscoveryChannelAsync), AllowFailure = true)]
         public Task ConnectAndCloseAsyncNoSecurityAsync()
         {
             return m_clientTest.ConnectAndCloseAsync(SecurityPolicies.None);

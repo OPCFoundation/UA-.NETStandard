@@ -93,11 +93,12 @@ namespace Opc.Ua.AutoID.Tests
             await reader.StopScanAsync().ConfigureAwait(false);
             await reader.StopScanAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(started, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
                 Assert.That(sink.Completions, Is.EqualTo(1));
-                Assert.ThrowsAsync<ArgumentNullException>(async () => await reader.AttachAsync(null!).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await reader.AttachAsync(null!).ConfigureAwait(false));
             });
         }
 
@@ -116,13 +117,14 @@ namespace Opc.Ua.AutoID.Tests
             verifier.Clear();
             await verifier.DetachAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(verifier.Kind, Is.EqualTo(AutoIdReaderKind.OpticalVerifier));
                 Assert.That(started, Is.EqualTo(AutoIdOperationStatusEnumeration.SUCCESS));
                 Assert.That(((OpticalVerifierScanResult)sink.Scans[0][0]).IsoGrade, Is.EqualTo("A"));
                 Assert.Throws<ArgumentNullException>(() => verifier.Present(null!));
-                Assert.ThrowsAsync<ArgumentNullException>(async () => await verifier.AttachAsync(null!).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await verifier.AttachAsync(null!).ConfigureAwait(false));
             });
         }
 

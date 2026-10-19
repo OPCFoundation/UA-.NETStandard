@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that a bad raw-history result is surfaced as a ServiceResultException with the server status.
         /// </summary>
         [Test]
-        public Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
+        public async Task ReadRawThrowsServiceResultExceptionOnBadStatusAsync()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -86,7 +86,7 @@ namespace Opc.Ua.Client.Tests.Historian
             DateTime start = DateTime.UtcNow.AddHours(-1);
             DateTime end = DateTime.UtcNow;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (DataValue v in client.ReadRawAsync(nodeId, start, end).ConfigureAwait(false))
                 {
@@ -95,14 +95,13 @@ namespace Opc.Ua.Client.Tests.Historian
             });
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
-            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Verifies that an empty raw-history result collection produces BadUnexpectedError.
         /// </summary>
         [Test]
-        public void ReadRawWithEmptyResultsThrowsBadUnexpectedError()
+        public async Task ReadRawWithEmptyResultsThrowsBadUnexpectedError()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -120,12 +119,12 @@ namespace Opc.Ua.Client.Tests.Historian
 
             var client = new HistoryClient(mockSession.Object);
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await DrainAsync(
                         client.ReadRawAsync(
                             new NodeId("TestNode", 2),
                             DateTime.UtcNow.AddHours(-1),
-                            DateTime.UtcNow)).ConfigureAwait(false))!;
+                            DateTime.UtcNow)).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -183,7 +182,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that advancing empty raw-history pages stop at the configured page limit.
         /// </summary>
         [Test]
-        public Task ReadRawWithAdvancingEmptyPagesStopsAtConfiguredPageLimitAsync()
+        public async Task ReadRawWithAdvancingEmptyPagesStopsAtConfiguredPageLimitAsync()
         {
             int callCount = 0;
             ByteString released = ByteString.Empty;
@@ -237,7 +236,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     MaxPagesPerRead = 4
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (DataValue v in client.ReadRawAsync(
                     new NodeId("TestNode", 2),
@@ -251,14 +250,13 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             Assert.That(callCount, Is.EqualTo(4));
             Assert.That(released, Is.EqualTo(ByteString.From([4])));
-            return Task.CompletedTask;
         }
 
         /// <summary>
         /// Verifies that a history update with an empty result collection throws ServiceResultException.
         /// </summary>
         [Test]
-        public void PerformUpdateWithEmptyResultsThrowsServiceResultException()
+        public async Task PerformUpdateWithEmptyResultsThrowsServiceResultException()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -274,7 +272,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
             DateTime now = DateTime.UtcNow;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.InsertAsync(
                     new NodeId("TestNode", 2),
                     [
@@ -349,7 +347,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that at-time reads reject a response whose value count does not match the requested timestamps.
         /// </summary>
         [Test]
-        public void ReadAtTimeAsyncRejectsMismatchedValueCount()
+        public async Task ReadAtTimeAsyncRejectsMismatchedValueCount()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -383,7 +381,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () =>
                     {
                         await foreach (DataValue _ in
@@ -395,7 +393,7 @@ namespace Opc.Ua.Client.Tests.Historian
                                 ]).ConfigureAwait(false))
                         {
                         }
-                    })!;
+                    }))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -456,7 +454,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that reading annotations fails when the annotation property cannot be resolved.
         /// </summary>
         [Test]
-        public void ReadAnnotationsAsyncThrowsWhenPropertyIsMissing()
+        public async Task ReadAnnotationsAsyncThrowsWhenPropertyIsMissing()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -480,12 +478,12 @@ namespace Opc.Ua.Client.Tests.Historian
 
             var client = new HistoryClient(mockSession.Object);
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await DrainAsync(
                         client.ReadAnnotationsAsync(
                             new NodeId("TestNode", 2),
                             DateTime.UtcNow.AddHours(-1),
-                            DateTime.UtcNow)).ConfigureAwait(false))!;
+                            DateTime.UtcNow)).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -1037,7 +1035,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that annotation reads reject malformed annotation values.
         /// </summary>
         [Test]
-        public void ReadAnnotationsAsyncRejectsMalformedValues()
+        public async Task ReadAnnotationsAsyncRejectsMalformedValues()
         {
             Mock<ISession> mockSession = CreateSessionWithNamespaceTable();
             SetupBrowsePathResults(
@@ -1074,7 +1072,7 @@ namespace Opc.Ua.Client.Tests.Historian
             var client = new HistoryClient(mockSession.Object);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () =>
                     {
                         await foreach (Annotation _ in
@@ -1084,7 +1082,7 @@ namespace Opc.Ua.Client.Tests.Historian
                                 DateTime.UtcNow).ConfigureAwait(false))
                         {
                         }
-                    })!;
+                    }))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -1299,7 +1297,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that raw-history deletion throws ServiceResultException when the server returns no results.
         /// </summary>
         [Test]
-        public void DeleteRawAsyncThrowsServiceResultExceptionForEmptyResults()
+        public async Task DeleteRawAsyncThrowsServiceResultExceptionForEmptyResults()
         {
             var mockSession = new Mock<ISession>();
             mockSession
@@ -1313,7 +1311,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 }));
             var client = new HistoryClient(mockSession.Object);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.DeleteRawAsync(
                     new NodeId("TestNode", 2),
                     DateTime.UtcNow.AddHours(-1),
@@ -1355,7 +1353,7 @@ namespace Opc.Ua.Client.Tests.Historian
 
             Assert.That(statusFallback, Is.EqualTo(StatusCodes.BadNoData));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.WriteAnnotationAsync(
                     new NodeId("TestNode", 2),
                     DateTime.UtcNow,
@@ -1515,7 +1513,7 @@ namespace Opc.Ua.Client.Tests.Historian
         /// Verifies that at-time history paging stops at the configured page limit.
         /// </summary>
         [Test]
-        public void ReadAtTimeAsyncStopsAtConfiguredPageLimit()
+        public async Task ReadAtTimeAsyncStopsAtConfiguredPageLimit()
         {
             int readCalls = 0;
             ByteString released = ByteString.Empty;
@@ -1569,7 +1567,7 @@ namespace Opc.Ua.Client.Tests.Historian
                     MaxPagesPerRead = 4
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (DataValue value in client.ReadAtTimeAsync(
                     new NodeId("TestNode", 2),
@@ -1577,7 +1575,7 @@ namespace Opc.Ua.Client.Tests.Historian
                 {
                     Assert.Fail($"Unexpected value {value}.");
                 }
-            })!;
+            }))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             Assert.That(readCalls, Is.EqualTo(4));

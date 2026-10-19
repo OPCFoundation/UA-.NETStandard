@@ -116,8 +116,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotRegistryClient>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<WotRegistryClient>>>();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.Message, Does.Contain(nameof(WotRegistryClientOptions.LazyConnect)));
         }
 
@@ -181,10 +181,10 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotRegistryClient>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<WotRegistryClient>>>();
 
-            InvalidOperationException first = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
-            InvalidOperationException second = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            InvalidOperationException first = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
+            InvalidOperationException second = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(first.Message, Is.EqualTo("attempt 1"));
             Assert.That(second.Message, Is.EqualTo("attempt 2"));
@@ -216,9 +216,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
 
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(first, Is.SameAs(second));
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await first.ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await second.ConfigureAwait(false));
         }
 
@@ -330,7 +330,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             await accessor.DisposeAsync().ConfigureAwait(false);
             await accessor.DisposeAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await factory(CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -346,8 +346,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Func<CancellationToken, Task<WotRegistryClient>> factory =
                 sp.GetRequiredService<Func<CancellationToken, Task<WotRegistryClient>>>();
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await factory(CancellationToken.None).ConfigureAwait(false))!;
+            ArgumentNullException ex = (await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await factory(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(ex.ParamName, Is.EqualTo("session"));
         }

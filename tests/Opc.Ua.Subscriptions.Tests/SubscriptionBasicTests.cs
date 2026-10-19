@@ -1332,7 +1332,7 @@ namespace Opc.Ua.Subscriptions.Tests
             uint id = cr.SubscriptionId;
             await AddMonitoredItemAsync(id, ToNodeId(Constants.ScalarStaticInt32)).ConfigureAwait(false);
             await DeleteSubAsync(id).ConfigureAwait(false);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.ModifySubscriptionAsync(
                 null,
                 id,
                 DefaultInterval,
@@ -1355,7 +1355,7 @@ namespace Opc.Ua.Subscriptions.Tests
             PublishResponse pub = await PublishAsync().ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(pub.ResponseHeader.ServiceResult), Is.True);
             uint seqNum = pub.NotificationMessage.SequenceNumber;
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.RepublishAsync(null, id, seqNum + 10, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
             await DeleteSubAsync(id).ConfigureAwait(false);

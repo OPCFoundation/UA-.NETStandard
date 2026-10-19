@@ -74,34 +74,34 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void WaitOnAFaultedOperationThrowsTheError()
+        public async Task WaitOnAFaultedOperationThrowsTheError()
         {
             using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
             operation.Fault(new ServiceResult(StatusCodes.BadSecureChannelClosed));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await operation.WaitForCompletionAsync(CancellationToken.None).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await operation.WaitForCompletionAsync(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadSecureChannelClosed));
         }
 
         [Test]
         [CancelAfter(10000)]
-        public void WaitThrowsTheErrorOfAFaultWhileWaiting()
+        public async Task WaitThrowsTheErrorOfAFaultWhileWaiting()
         {
             using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
             ValueTask wait = operation.WaitForCompletionAsync(CancellationToken.None);
 
             operation.Fault(true, new ServiceResult(StatusCodes.BadUnknownResponse));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await wait.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await wait.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnknownResponse));
         }
 
         [Test]
         [CancelAfter(10000)]
-        public void CancellingTheTokenInterruptsTheWait()
+        public async Task CancellingTheTokenInterruptsTheWait()
         {
             using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
             using var cts = new CancellationTokenSource();
@@ -109,8 +109,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             cts.Cancel();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await wait.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await wait.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestInterrupted));
 
             // a response that arrives afterwards completes the operation quietly.
@@ -118,29 +118,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AnAlreadyCancelledTokenInterruptsTheWait()
+        public async Task AnAlreadyCancelledTokenInterruptsTheWait()
         {
             using var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await operation.WaitForCompletionAsync(cts.Token).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await operation.WaitForCompletionAsync(cts.Token).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestInterrupted));
         }
 
         [Test]
         [CancelAfter(10000)]
-        public void DisposingTheOperationInterruptsTheWait()
+        public async Task DisposingTheOperationInterruptsTheWait()
         {
             var operation = new ChannelAsyncOperation<int>(int.MaxValue, null, null, m_logger);
             ValueTask wait = operation.WaitForCompletionAsync(CancellationToken.None);
 
             operation.Dispose();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await wait.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await wait.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestInterrupted));
         }
 
@@ -231,12 +231,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         [Test]
         [CancelAfter(10000)]
-        public void TheTimeoutStillFaultsTheOperation()
+        public async Task TheTimeoutStillFaultsTheOperation()
         {
             using var operation = new ChannelAsyncOperation<int>(50, null, null, m_logger);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await operation.WaitForCompletionAsync(CancellationToken.None).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await operation.WaitForCompletionAsync(CancellationToken.None).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
         }

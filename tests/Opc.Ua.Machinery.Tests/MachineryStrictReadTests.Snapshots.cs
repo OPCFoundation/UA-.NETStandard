@@ -77,7 +77,7 @@ namespace Opc.Ua.Machinery.Tests
         /// UInt32 metadata refuses the StatusCode value accepted by Variant.TryGetValue.
         /// </summary>
         [Test]
-        public void StrictStateNumberRejectsStatusCodeWireType()
+        public async Task StrictStateNumberRejectsStatusCodeWireType()
         {
             var harness = new ReadHarness();
             (NodeId state, _) = AddState(harness, mode: false);
@@ -86,7 +86,7 @@ namespace Opc.Ua.Machinery.Tests
             NodeId source = harness.Add(state,
                 [new QualifiedName(Ua.BrowseNames.CurrentState), new QualifiedName(Ua.BrowseNames.Number)],
                 TimedValue(wrong, StatusCodes.Good));
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().GetItemStateAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -98,14 +98,14 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(nameof(StatusCodes.Uncertain))]
         [TestCase(nameof(StatusCodes.BadUserAccessDenied))]
-        public void StrictStateRejectsBadTransitionQuality(string statusName)
+        public async Task StrictStateRejectsBadTransitionQuality(string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness();
             (NodeId state, _) = AddState(harness, mode: false);
             DataValue original = TimedValue(Variant.From(new LocalizedText("Started")), status);
             NodeId source = harness.Add(state, [new QualifiedName(Ua.BrowseNames.LastTransition)], original);
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadItemStateAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -142,7 +142,7 @@ namespace Opc.Ua.Machinery.Tests
             MachineryClient client = harness.Client();
             if (kind is "WrongType" or "Uncertain" or "Denied")
             {
-                MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+                MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                     async () => await client.ReadDeviceHealthAsync(harness.Machine).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(kind == "WrongType" ? StatusCodes.BadTypeMismatch : status));
                 Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -244,7 +244,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("WrongUnits", nameof(StatusCodes.BadTypeMismatch))]
         [TestCase("ArrayLimit", nameof(StatusCodes.BadEncodingLimitsExceeded))]
         [TestCase("MissingSignal", nameof(StatusCodes.BadNoMatch))]
-        public void StrictProcessValuesRejectMalformedFields(string kind, string statusName)
+        public async Task StrictProcessValuesRejectMalformedFields(string kind, string statusName)
         {
             StatusCode expectedStatus = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -266,7 +266,7 @@ namespace Opc.Ua.Machinery.Tests
                         new DataValue(Variant.FromStructure(new Range { Low = 1, High = 2 })));
                 }
             }
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
                 await harness.Client(new MachineryClientOptions { MaximumReadArrayItems = 2 })
                     .ReadProcessValueAsync(harness.Machine)
                     .ConfigureAwait(false));
@@ -307,7 +307,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("MissingValue", nameof(StatusCodes.BadDecodingError))]
         [TestCase("WrongValue", nameof(StatusCodes.BadTypeMismatch))]
         [TestCase("WrongTag", nameof(StatusCodes.BadTypeMismatch))]
-        public void StrictMeterRejectsUnreadableOrMalformedMeasurements(string kind, string statusName)
+        public async Task StrictMeterRejectsUnreadableOrMalformedMeasurements(string kind, string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -326,7 +326,7 @@ namespace Opc.Ua.Machinery.Tests
                     ? new ReadResponse { ResponseHeader = new ResponseHeader(), Results = [] }
                     : harness.ReadNodes(nodes));
             }
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(kind == "WrongTag" ? tagSource : source));
@@ -362,7 +362,7 @@ namespace Opc.Ua.Machinery.Tests
 
             if (warningCount > 2)
             {
-                Assert.That(Assert.ThrowsAsync<MachineryReadException>(ReadAsync)!.StatusCode,
+                Assert.That((await Assert.ThrowsAsync<MachineryReadException>(ReadAsync))!.StatusCode,
                     Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(results, Is.Empty);
             }
@@ -415,10 +415,10 @@ namespace Opc.Ua.Machinery.Tests
         /// A selected resource's required Main meter is not treated like an optional block.
         /// </summary>
         [Test]
-        public void StrictMissingMainMeterIsAConformanceFailure()
+        public async Task StrictMissingMainMeterIsAConformanceFailure()
         {
             var harness = new ReadHarness();
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadMainMeteringPointAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
             Assert.That(error.ReadValue!.StartingNodeId, Is.EqualTo(harness.Machine));
@@ -433,7 +433,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("StartValue")]
         [TestCase("LimitValue")]
         [TestCase("WarningValues")]
-        public void StrictLifetimeCounterRejectsWrongWireTypes(string field)
+        public async Task StrictLifetimeCounterRejectsWrongWireTypes(string field)
         {
             var harness = new ReadHarness();
             NodeId folder = harness.Add(harness.Machine, [Machinery(harness, BrowseNames.LifetimeCounters)]);
@@ -452,7 +452,7 @@ namespace Opc.Ua.Machinery.Tests
                         : Variant.From("1")));
             }
             harness.Browse = _ => Page([counter]);
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
             {
                 await foreach (MachineryLifetimeVariable _ in harness.Client()
                     .ReadLifetimeCountersAsync(harness.Machine).ConfigureAwait(false))

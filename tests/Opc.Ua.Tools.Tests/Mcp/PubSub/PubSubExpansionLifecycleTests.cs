@@ -80,7 +80,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             await fixture.Transports.OpenStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Task<JsonObject> removing = fixture.Runtimes.RemoveAsync(handle).AsTask();
-            Assert.ThrowsAsync<TaskCanceledException>(async () => await starting.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TaskCanceledException>(async () => await starting.ConfigureAwait(false));
             Assert.That(starting.IsCanceled, Is.True);
             JsonObject removed = await removing.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await fixture.Runtimes.CreateAsync(
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await fixture.Runtimes.CreateAsync(
                 PubSubExpansionTestContext.Input(), cancelled.Token).ConfigureAwait(false));
 
             Assert.That(fixture.Registry.List(), Is.Empty);

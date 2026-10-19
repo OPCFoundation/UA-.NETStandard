@@ -312,12 +312,12 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             }
             if (outcome == "exception")
             {
-                Assert.That(Assert.ThrowsAsync<InvalidOperationException>(
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await pending.ConfigureAwait(false)), Is.SameAs(error));
             }
             else if (outcome == "cancel")
             {
-                Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
             }
             else
             {

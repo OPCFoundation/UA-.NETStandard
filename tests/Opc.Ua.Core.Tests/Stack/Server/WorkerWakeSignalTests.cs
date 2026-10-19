@@ -148,8 +148,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Task secondWait = signal.WaitAsync(second, cancellation.Token).AsTask();
             cancellation.Cancel();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            Assert.CatchAsync<OperationCanceledException>(
-                async () => await secondWait.WaitAsync(deadline.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(
+                async () => await secondWait.WaitAsync(deadline.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(signal.ParkedCount, Is.EqualTo(1));
 
             Assert.That(signal.TryIssue(), Is.True);
@@ -171,8 +171,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Task top = signal.WaitAsync(new WorkerWakeSignal.Waiter(signal), CancellationToken.None).AsTask();
             cancellation.Cancel();
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            Assert.CatchAsync<OperationCanceledException>(
-                async () => await middle.WaitAsync(deadline.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(
+                async () => await middle.WaitAsync(deadline.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(signal.ParkedCount, Is.EqualTo(2));
 
             Assert.That(signal.TryIssue(), Is.True);
@@ -229,8 +229,9 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 {
                     Assert.That(stayerWait.IsCompleted, Is.False, $"round {round}");
                     signal.Close();
-                    Assert.CatchAsync<OperationCanceledException>(
-                        async () => await stayerWait.WaitAsync(deadline.Token).ConfigureAwait(false));
+                    await Assert.CatchAsync<OperationCanceledException>(
+                        async () => await stayerWait.WaitAsync(deadline.Token).ConfigureAwait(false))
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -254,12 +255,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             foreach (Task waiter in waiters)
             {
-                Assert.CatchAsync<OperationCanceledException>(
-                    async () => await waiter.WaitAsync(deadline.Token).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await waiter.WaitAsync(deadline.Token).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.That(signal.ParkedCount, Is.Zero);
-            Assert.CatchAsync<OperationCanceledException>(async () => await signal.WaitAsync(
-                new WorkerWakeSignal.Waiter(signal), CancellationToken.None).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await signal.WaitAsync(
+                new WorkerWakeSignal.Waiter(signal), CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]

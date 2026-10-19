@@ -131,12 +131,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ConfigureStreamEndpointRejectsNullEndpointNodeId()
+        public async Task ConfigureStreamEndpointRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ConfigureStreamEndpointAsync(
                     NodeId.Null,
                     VisionVideoCodecEnum.H264,
@@ -146,12 +146,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void GetStreamEndpointRejectsNullProfileName()
+        public async Task GetStreamEndpointRejectsNullProfileName()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            ArgumentNullException? ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException? ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await media.GetStreamEndpointAsync(
                     harness.StreamEndpointNodeId,
                     null!,
@@ -168,7 +168,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.ConfigureStreamEndpointAsync(
                     harness.StreamEndpointNodeId,
                     VisionVideoCodecEnum.H264,
@@ -184,7 +184,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.ReleaseStreamEndpointAsync(
                     ByteString.Empty).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await media.SelectEndpointAsync(
                     harness.StreamEndpointNodeId,
                     harness.ClipEndpointNodeId).ConfigureAwait(false));
@@ -206,12 +206,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ReadLatestClipRejectsNullEndpointNodeId()
+        public async Task ReadLatestClipRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ReadLatestClipAsync(NodeId.Null).ConfigureAwait(false));
 
             Assert.That(ex!.ParamName, Is.EqualTo("clipEndpointNodeId"));
@@ -296,12 +296,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ReadLatestClipMetadataRejectsNullEndpointNodeId()
+        public async Task ReadLatestClipMetadataRejectsNullEndpointNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await media.ReadLatestClipMetadataAsync(NodeId.Null)
                     .ConfigureAwait(false));
 

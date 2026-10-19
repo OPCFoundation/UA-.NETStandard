@@ -166,7 +166,6 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(811)]
         [Parallelizable]
         public Task TransferSubscriptionAsync(
             [Values] bool sendInitialValues,
@@ -185,7 +184,6 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(812)]
         [Explicit]
         public async Task TransferSubscriptionDebugAsync(
             [Values] bool sendInitialValues,

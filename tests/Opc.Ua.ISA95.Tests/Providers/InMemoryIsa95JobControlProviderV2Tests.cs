@@ -646,7 +646,7 @@ namespace Opc.Ua.ISA95.Tests.Providers
             Assert.That(await pending.ConfigureAwait(false), Is.False);
             await changes.DisposeAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await provider.SubscribeResponseChangesAsync().GetAsyncEnumerator().MoveNextAsync()
                     .ConfigureAwait(false));
         }

@@ -231,7 +231,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void EnumeratePropagatesAFailedBrowseCall()
+        public async Task EnumeratePropagatesAFailedBrowseCall()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             sessionMock
@@ -245,13 +245,13 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
-        public void CancellingTheEnumerationReleasesTheContinuationPoint()
+        public async Task CancellingTheEnumerationReleasesTheContinuationPoint()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             var first = new ByteString(new byte[] { 1 });
@@ -281,7 +281,7 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
-            Assert.ThrowsAsync<System.OperationCanceledException>(
+            await Assert.ThrowsAsync<System.OperationCanceledException>(
                 async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false));
             sessionMock.Verify(
                 s => s.BrowseNextAsync(
@@ -295,7 +295,7 @@ namespace Opc.Ua.Di.Tests
         private static readonly string[] s_pagedDevices = ["Device 1", "Device 2", "Device 3"];
 
         [Test]
-        public void AFailedBrowseNextReleasesTheContinuationPoint()
+        public async Task AFailedBrowseNextReleasesTheContinuationPoint()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             var first = new ByteString(new byte[] { 1 });
@@ -325,8 +325,8 @@ namespace Opc.Ua.Di.Tests
 
             var client = new DiTopologyClient(sessionMock.Object, NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(client.EnumerateDevicesAsync()).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             sessionMock.Verify(
                 s => s.BrowseNextAsync(

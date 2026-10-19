@@ -170,16 +170,16 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public void GetSecurityKeysAsync_RejectsEmptySecurityGroupId()
+        public async Task GetSecurityKeysAsync_RejectsEmptySecurityGroupId()
         {
             (Mock<ISession> session, _) = BuildSessionMock(BuildSuccessfulResponse());
             var client = new OpcUaSecurityKeyServiceClient(
                 _ => new ValueTask<ISession>(session.Object),
                 NUnitTelemetryContext.Create(),
                 new FakeTimeProvider());
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -229,9 +229,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                     Interlocked.Increment(ref unavailableCount);
                 }
             };
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(unavailableCount, Is.EqualTo(1));
         }
@@ -243,9 +243,9 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 _ => throw new InvalidOperationException("boom"),
                 NUnitTelemetryContext.Create(),
                 new FakeTimeProvider());
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await client.GetSecurityKeysAsync(
-                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadCommunicationError));
         }
 
@@ -395,7 +395,7 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
 
         [Test]
         [TestSpec("8.3.2", Part = 14, Summary = "Malformed SKS durations are rejected")]
-        public void GetSecurityKeysAsyncRejectsMalformedKeyLifetime()
+        public async Task GetSecurityKeysAsyncRejectsMalformedKeyLifetime()
         {
             CallResponse response = BuildSuccessfulResponse();
             ArrayOf<Variant> original = response.Results[0].OutputArguments;
@@ -413,8 +413,8 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
                 NUnitTelemetryContext.Create(),
                 new FakeTimeProvider());
 
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
-                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false))!;
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await client.GetSecurityKeysAsync(new SksKeyRequest("g", 0U, 1U)).ConfigureAwait(false)))!;
 
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain("KeyLifetime"));

@@ -78,7 +78,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         [Explicit]
         [Category("ConnectionStability")]
         public async Task ShortHaulStabilityTestAsync()
@@ -98,7 +97,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         [Explicit]
         [Category("ConnectionStability")]
         public async Task LongHaulStabilityTestAsync()

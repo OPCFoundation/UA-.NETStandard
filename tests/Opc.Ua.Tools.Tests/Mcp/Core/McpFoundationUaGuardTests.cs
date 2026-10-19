@@ -396,7 +396,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             McpCapability[] expected = grants == "IdentityDenied"
                 ? [McpCapability.IdentityAdministration]
                 : [McpCapability.IdentityAdministration, McpCapability.CertificateAdministration];
-            Assert.That(m_policy.Invocations.Select(call => (McpCapability)call.Arguments[0]), Is.EqualTo(expected));
+            Assert.That(m_policy.Invocations.Select(call => (McpCapability)call.Arguments[0]!), Is.EqualTo(expected));
             m_policy.Verify(policy => policy.RequireSession(McpCapability.IdentityAdministration, "Prod-A"),
                 Times.Once);
             m_policy.Verify(policy => policy.RequireSession(McpCapability.CertificateAdministration, "Prod-A"),

@@ -78,7 +78,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// A result bound is an explicit error and the returned continuation is released.
         /// </summary>
         [Test]
-        public void DiscoveryOverflowReleasesTheOutstandingContinuation()
+        public async Task DiscoveryOverflowReleasesTheOutstandingContinuation()
         {
             var harness = new Harness();
             ByteString continuation = ByteString.From(new byte[] { 2 });
@@ -92,9 +92,9 @@ namespace Opc.Ua.CranesHoists.Tests
                 ContinuationPoint = continuation
             });
             harness.ReleaseContinuations();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Client(new CranesHoistsClientOptions { MaximumNodes = 1 }).DiscoverAsync()
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             harness.VerifyRelease(continuation);
         }
@@ -103,12 +103,12 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Access denial cannot be mistaken for an empty crane inventory.
         /// </summary>
         [Test]
-        public void DiscoveryPreservesBadOperationStatuses()
+        public async Task DiscoveryPreservesBadOperationStatuses()
         {
             var harness = new Harness();
             harness.Browse(new BrowseResult { StatusCode = StatusCodes.BadUserAccessDenied });
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.Client().DiscoverAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Client().DiscoverAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -116,7 +116,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Cancellation releases the continuation using a cleanup token that is not already canceled.
         /// </summary>
         [Test]
-        public void CancelledBrowseReleasesOnlyItsOwnedContinuation()
+        public async Task CancelledBrowseReleasesOnlyItsOwnedContinuation()
         {
             var harness = new Harness();
             using var cancellation = new CancellationTokenSource();
@@ -130,7 +130,7 @@ namespace Opc.Ua.CranesHoists.Tests
                     return new ValueTask<BrowseNextResponse>(Task.FromCanceled<BrowseNextResponse>(cancellation.Token));
                 });
             harness.ReleaseContinuations();
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await harness.Client().DiscoverAsync(cancellation.Token).ConfigureAwait(false));
             harness.VerifyRelease(continuation);
         }
@@ -139,7 +139,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Cyclic/empty continuation pages cannot make discovery unbounded.
         /// </summary>
         [Test]
-        public void EmptyContinuationPagesRespectThePageBound()
+        public async Task EmptyContinuationPagesRespectThePageBound()
         {
             var harness = new Harness();
             ByteString continuation = ByteString.From(new byte[] { 4 });
@@ -149,9 +149,9 @@ namespace Opc.Ua.CranesHoists.Tests
                 It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<BrowseNextResponse>(new BrowseNextResponse { Results = [page] }));
             harness.ReleaseContinuations();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Client(new CranesHoistsClientOptions { MaximumBrowsePages = 1 }).DiscoverAsync()
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             harness.VerifyRelease(continuation);
         }
@@ -202,7 +202,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// A failed generated child lookup is checked strictly rather than treated as optional absence.
         /// </summary>
         [Test]
-        public void RequiredProxyChildAccessFailureIsNotHidden()
+        public async Task RequiredProxyChildAccessFailureIsNotHidden()
         {
             var harness = new Harness();
             harness.Session.Setup(session => session.TranslateBrowsePathsToNodeIdsAsync(It.IsAny<RequestHeader>(),
@@ -212,8 +212,8 @@ namespace Opc.Ua.CranesHoists.Tests
                 {
                     Results = [new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }]
                 }));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.Client().ReadElementAsync(harness.Root).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Client().ReadElementAsync(harness.Root).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -222,7 +222,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void InvalidPathTargetsAreRejected(bool partial)
+        public async Task InvalidPathTargetsAreRejected(bool partial)
         {
             var harness = new Harness();
             harness.SystemPaths(partial);
@@ -236,8 +236,8 @@ namespace Opc.Ua.CranesHoists.Tests
                         Results = []
                     }));
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.Client().ReadElementAsync(harness.Root).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Client().ReadElementAsync(harness.Root).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode,
                 Is.EqualTo(partial ? StatusCodes.BadNoMatch : StatusCodes.BadUnexpectedError));
         }
@@ -259,11 +259,11 @@ namespace Opc.Ua.CranesHoists.Tests
             Assert.Throws<ArgumentNullException>(() => client.Axis(NodeId.Null));
             Assert.Throws<ArgumentNullException>(() => new CranesHoistsClient(null!, harness.Telemetry));
             Assert.Throws<ArgumentNullException>(() => new CranesHoistsClient(harness.Session.Object, null!));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await client.ObserveValuesAsync([]).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await client.ObserveValuesAsync([harness.Root, harness.Root]).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await client.ConfigureLimitAsync(harness.Root, CraneSignal.OperationalMode, Variant.From(1))
                     .ConfigureAwait(false));
         }
