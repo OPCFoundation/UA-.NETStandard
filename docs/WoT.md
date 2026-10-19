@@ -1,13 +1,17 @@
 # WoT design and provider contracts
 
-This page describes the registry's ownership, publication,
-and recovery contracts. Start with [WoT Connectivity usage](WoTConnectivity.md)
-for hosting/client examples and [bindings and conversion](WotBindings.md) for
-document authoring and transports. These contracts do not establish Full-profile,
-distributed HA, or full JSON Schema conformance.
+This page describes the document-to-NodeSet conversion contracts of the WoT
+types library. See [bindings and conversion](WotBindings.md) for document
+authoring and [NodeSet conversion](WoTNodeSetConversion.md) for the mapping
+rules. These contracts do not establish Full-profile or full JSON Schema
+conformance. The registry runtime's ownership, publication, and recovery
+contracts follow the conversion contracts below; hosting and client examples
+remain in [WoT Connectivity](WoTConnectivity.md).
 
 ## Contents
 
+- [Conversion providers](#conversion-providers)
+- [DataType declaration inputs](#datatype-declaration-inputs)
 - [Ownership and publication](#ownership-and-publication)
 - [Provider requirements](#provider-requirements)
 - [Dependency capture and observations](#dependency-capture-and-observations)
@@ -17,541 +21,6 @@ distributed HA, or full JSON Schema conformance.
 - [Dry-run validation](#dry-run-validation)
 - [Recovery](#recovery)
 - [Bridge deletion and recovery](#bridge-deletion-and-recovery)
-- [Conversion providers](#conversion-providers)
-- [DataType declaration inputs](#datatype-declaration-inputs)
-
-## Ownership and publication
-
-`IWotRegistryService` owns an immutable `WotRegistrySnapshot`. Mutations publish
-a new snapshot with an increasing Int64 store `Generation`.
-The snapshot's UInt32 `RefreshGeneration` identifies committed materialization.
-They are different counters: metadata-only observations can advance the store
-generation without replacing runtime Nodes.
-
-The stable registry NodeManager exposes metadata and files. Source NodeManagers
-own the converted Nodes and generation-bound binding runtimes. Canonical View
-NodeManagers own navigation Nodes/references, not copies of source affordances.
-The coordinator combines these owners in one prepared publication unit.
-
-```mermaid
-sequenceDiagram
-    participant C as Coordinator
-    participant R as Registry owner
-    participant L as Lifecycle/source owner
-    participant V as View participant
-    participant S as Deciding store
-    C->>R: Reserve invocation and capture exact inputs
-    C->>L: Reserve routing/type/factory revisions
-    C->>V: Prepare complete candidate graph
-    C->>L: Prepare source/View additions, replacements, removals
-    C->>R: Prepare metadata and captured read images
-    L->>S: Commit authoritative registry decision
-    S-->>L: Committed / NotCommitted / Indeterminate
-    Note over L,R: On confirmed commit, switch routing and install committed state
-    L-->>C: Active registrations and cleanup outcomes
-    C->>V: Acknowledge committed image
-    C->>R: Release ordered notifications
-```
-
-Candidate preparation is private. A rejected candidate cannot add serving
-references, replace read values, or dispose the old source. Confirmed noncommit
-disposes candidates and leaves both registry/runtime images intact.
-After a durable decision, caller cancellation cannot turn commitment into
-rollback. Cleanup, observer, readiness, or retirement failures are explicit
-committed warnings. An indeterminate store decision is neither success nor
-noncommit: mutation stays blocked until authoritative recovery.
-
-`IWotInvocationProjectionHost` captures routing/type/factory revisions before
-input acquisition. `IWotInvocationRegistryPublicationService.BeginPublicationAsync`
-reserves the existing registry owner across final checks and all units.
-Both reservations remain through notifications and completion bookkeeping.
-Own committed units update the checked generation without self-conflict.
-Stale preparation is reacquired/rebuilt; a stale nonzero caller
-`ExpectedGeneration` fails `BadInvalidState`.
-
-Registry mutations wait for the invocation; conflicting lifecycle operations
-fail `BadServerTooBusy` before effects. A callback must not synchronously wait
-for a mutation excluded by its own invocation.
-The notification FIFO orders registry reconciliation, exact-Version failures,
-and completion. It does not supply atomicity or a second durable decision.
-Canceling a caller's wait does not discard already accepted projection work.
-
-### Publication units
-
-| Requested atomicity | Initial unit boundary |
-| --- | --- |
-| PerResource | One selected activation Resource |
-| PerGroup | Selected work in one group |
-| PerClosure | One dependency closure |
-| PerRegistry | All selected/required activation work |
-
-Unrelated rows stay in the full registry snapshot but are not added to activation.
-Legal semantic reference cycles can coactivate; inheritance/order cycles fail.
-Dependency safety, shared declarations, grouping cycles, and affected old/new
-closures can coarsen boundaries. The final plan reports the applied atomicity.
-Disabled definition inputs do not become activation members.
-Dependent units need successful or exact unchanged prerequisites, not merely
-fetched bytes. Old source owners affected by merges/splits retire in the same
-batch as their replacements. A participant's affected-Resource footprint must
-stay within the planned unit.
-
-Independent units advance the refresh generation separately; an earlier success
-survives a later unit failure. Resource result rows describe the unit that
-actually changed them, including removal-only units. Deleted rows report
-Unloaded/no root/no nodes at the committed generation.
-No-op/dry-run units do not advance it.
-
-`LastRefreshPlan` is the final generated `WoTRefreshPlanDataType`: RequestId,
-PreparationGeneration, RequestedAtomicity, AppliedAtomicity, and UnitCount.
-It is published under admission before the first switch, not by read-only capture.
-Empty unmatched work can have zero units. Last completion time/summary describes
-an actual completed invocation, not an alternative generation guard.
-
-## Provider requirements
-
-The default lifecycle implements the optional `INodeManagerBatchLifecycle`.
-`LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` use the same
-lifecycle. Hosted forwarding checks the attached lifecycle's actual capability.
-Interface declarations alone do not supply it.
-
-The default source host plus a file registry with genuine immutable-content
-leases support the four modes. Refresh rejects unsupported owners/modes with
-`BadNotSupported` before acquisition/publication. `InMemoryWotRegistryStore`
-and immediate-only custom source/View hosts do not provide these guarantees.
-Storage and read-only capture remain independently available.
-
-The file provider's default immutable lease is supported for `LocalFileSystem`
-on Windows, where kernel sharing protects bytes and key mappings against writes,
-replacement, and deletion. POSIX advisory sharing and arbitrary `IFileSystem`
-implementations are not equivalent advertised guarantees. Inject a provider with
-genuine immutable version/key leases for another deployment.
-Copying bytes into a buffer or forwarding an unrelated snapshot capability is
-not an immutable backing-store lease.
-
-For a custom source host, preparation binds the supplied registry read images
-before the deciding store commits, or rejects the unit. Topology-free metadata
-observations use `PrepareReadImagesAsync` without replacing source/View
-registrations or emitting lifecycle model-change events.
-Supported custom View owners implement `IWotCanonicalViewReadImage` so native
-operations obtain digest/token facts from their captured routing image.
-
-## Dependency capture and observations
-
-Selection is resolved from metadata before body acquisition. Empty selectors
-select enabled committed content; nonempty unmatched selectors do no work.
-`Kind` and exact Resource/Version identity precede acquisition; reverse
-dependencies are added only when requested. Conflicting exact Versions fail
-before fetch when known.
-Absolute document identities are not matched by arbitrary resource suffixes.
-Portable native identifiers remain type/node lookups, not relative document URLs.
-
-Acquisition errors remain attached to their intended Resource/closure rather
-than aborting unrelated work. Contentless inputs remain unresolved with their
-raw edges; no fabricated digest pin converts them into usable definitions.
-Semantic strongly connected components and ordering constraints are distinct.
-
-For direct capture:
-
-```csharp
-using WotMaterializationSnapshot inputs = await WotDependencyGraph.CaptureAsync(
-    registry,
-    [selector],
-    includeDependents: false,
-    maxJsonDepth: registry.Bounds.MaxJsonDepth,
-    cancellationToken: ct);
-foreach (WotSelectedResource selected in inputs.Selection)
-{
-    if (selected.Resource.Enabled && selected.Version is { HasContent: true } version)
-    {
-        ByteString bytes = inputs.GetContent(selected.Resource, version);
-    }
-}
-```
-
-`GetContent` checks the captured incarnation, epoch, and digest. It never reads a
-new default or silently reacquires content. Snapshot disposal releases its
-Version leases without changing the captured metadata/bytes.
-
-`IWotRefreshCaptureProvider` resolves to the registered coordinator:
-
-```csharp
-using WotRefreshCapture capture = await captureProvider.CaptureAsync(request, ct);
-WotCapturedRefreshRequest invocation = capture.Request;
-ArrayOf<WotSelectedResource> selected = capture.Inputs.Selection;
-```
-
-It copies the request before yielding and performs no conversion, activation,
-retirement, or metadata publication. Selectors/plan values are independent copies.
-`GetRegistryInputDigest` covers captured registry inputs, not uncaptured external
-artifacts. `CreateRefreshPlan` observes the publication owner's applied boundary;
-it neither chooses units nor publishes `LastRefreshPlan`.
-Final stale-input checks belong to the publication owner.
-
-The default `IWotRegistryDependencySnapshotProvider` is the same registry service,
-not a replacement selection owner. The coordinator additionally needs observation
-and Version-lease capabilities. The hosted NodeManager supplies the authoritative
-ApplicationUri, actual registry-root NodeId, and exact Version projection NodeIds.
-A directly constructed coordinator needs an explicit verified/configured
-`WotRegistryOrigin`. Unsupported/unconfigured native reads report `BadNotSupported`.
-
-`WotDependencySnapshot` carries SourceVersionId, Generation, RequestId, ResolvedAt,
-IsCommitted, EffectiveInputDigest, Edges, and Targets.
-`DependencySnapshot` commits with successful source activation;
-`LastDependencyAttempt` records a completed actual attempt. Failure/no-op does
-not replace the committed graph; incomplete preparation has no complete effective
-digest. Dry runs publish neither.
-Raw authored targets coexist with exact target Version Xids, digest pins,
-authoritative origins, and optional portable Version NodeIds.
-Optional generated fields use their presence masks, not fabricated empty origins.
-
-These identities do not specify an execution partition:
-OriginRegistry is registry authority, RegistryNodeId is its root, VersionNodeId
-is a registry Version, and DocumentUri is a document identity/location.
-The capture has no source-model/root/partition selector. Do not infer a binding
-owner from leaf count, namespace membership, or URI suffixes.
-
-Dependency indexes live in Version manifest metadata. Old indexes are hydrated
-from exact content; incomplete/unsupported current indexes fail.
-Prepared-capable initialization persists derived indexes through full validation
-before using them as a metadata baseline. It preserves content/epochs, pending
-selections, canonical graph, and committed refresh generation.
-The schema-6 shared graph representation is described in
-[manifest schema](WoTConnectivity.md#persistence-and-manifest-schema).
-
-Selected acquisition does not guarantee selected-only `CommitAsync` I/O.
-Metadata scope obtains that guarantee from the actual prepared store/content
-provider described below, not from `ProjectionOnly` notifications.
-
-## Version leases
-
-The default `WotRegistryService` implements `IWotRegistryVersionLeaseProvider`.
-A lease protects an exact Version incarnation from automatic retention,
-independently of active/default/desired pointers.
-For a limit of two, leased v1 plus selected v2 leaves no room to commit v3.
-Contentless allocation checks the eventual commit can fit but does not evict
-committed content; dirty Close applies retention atomically.
-Releasing the final lease makes an unselected Version eligible for normal
-retention, not immediate deletion.
-
-```csharp
-using var registry = new WotRegistryService(store, bounds);
-await registry.InitializeAsync(ct);
-IWotRegistryVersionLeaseProvider leases = registry;
-WotResource resource = registry.Current.FindResource(groupId, resourceId)
-    ?? throw new InvalidOperationException("The Resource is absent.");
-WotResourceVersion version = resource.FindVersion(versionId)
-    ?? throw new InvalidOperationException("The Version is absent.");
-using IWotRegistryVersionLease lease = await leases.AcquireVersionLeaseAsync(
-    groupId, resourceId, version, ct);
-ByteString document = await registry.ReadContentAsync(lease.Version, ct);
-```
-
-Acquisition is serialized by the same mutation owner as retention/publication.
-`lease.Version` is the canonical owner snapshot. Deleted/stale incarnations fail
-with `BadNodeIdUnknown`/`BadInvalidState`; reacquire a new snapshot deliberately,
-not a silent VersionId retry.
-Same-owner initialization and indeterminate-outcome reconciliation preserve
-surviving incarnations. Delete/recreate does not reconnect an old lease, even
-when identifiers and bytes match; its disposal cannot release replacement leases.
-
-Native exact/logical read and write handles acquire independent leases.
-Dirty Close retains protection through commit; failed Open, cancellation, and
-Session abandonment release only their own reservations. In-flight reads keep
-leases until drain. Logical handles retain their original Version/cursor/writer
-reservation after default changes. Typed preserving-write allocation transfers
-an owner-issued lease into the prepared file reservation.
-
-`AddWotRegistryServer` aliases this capability to the same service singleton.
-Custom owners must implement it themselves. Additive async projected-file
-interfaces keep dispatch on the same provider; lease-aware low-level synchronous
-Open reports `BadNotSupported` rather than blocking on async acquisition.
-Normal generated clients use async dispatch.
-
-Leases change no snapshot, epoch, timestamp, or mutation event and are not
-persisted. They are not content-write reservations, explicit-deletion protection,
-immutable-byte leases, or distributed leases between independent owners.
-Writer exclusion remains the file manager's responsibility.
-
-## Prepared registry store
-
-`IWotRegistryPreparedStore` lets projection metadata commits retain verified
-content evidence instead of rereading independent blobs. It does not alone
-make a registry/runtime publication atomic.
-
-Normal service integration discovers the capability on its injected store:
-
-```csharp
-using var store = new FileWotRegistryStore(registryPath);
-using var registry = new WotRegistryService(store);
-await registry.InitializeAsync(ct);
-await registry.ApplyProjectionResultsAsync(projectionRecords, ct);
-```
-
-Initialization/full mutations establish validated generation/content evidence.
-The service retains it through metadata generations and disposes it on shutdown.
-Reload through `WotRegistryService.InitializeAsync`, not `LoadAsync` on its live
-store. A live-store Load invalidates earlier captures. For inspection, use a
-separate store observer with the same root/content provider; its snapshot does
-not replace `registry.Current`.
-
-| Interface/member | Responsibility |
-| --- | --- |
-| `SupportsPreparedCommits` | Reports the configured content provider's real immutable-lease support |
-| `CaptureValidatedGenerationAsync` | Returns store-owned `IWotRegistryValidatedGeneration` retaining validated manifest/content |
-| `PrepareCommitAsync` | Validates an intended snapshot against that capture without publishing it |
-| `IWotRegistryPreparedCommit.CommitAsync` | Rechecks the manifest and makes one durable decision |
-
-For direct store consumers:
-
-```csharp
-if (store is not IWotRegistryPreparedStore { SupportsPreparedCommits: true } preparedStore)
-{
-    throw new NotSupportedException("This store cannot publish isolated metadata.");
-}
-using IWotRegistryValidatedGeneration captured =
-    await preparedStore.CaptureValidatedGenerationAsync(ct);
-await using IWotRegistryPreparedCommit prepared = await preparedStore.PrepareCommitAsync(
-    intendedSnapshot, captured, WotRegistryCommitScope.ProjectionMetadata, ct);
-await prepared.CommitAsync(ct);
-```
-
-`ProjectionMetadata` preserves identities, Resource/Version membership, content,
-labels, dependency-source metadata, and entity epochs. It permits projection/
-validation observations, graph bytes, and committed refresh state.
-Only `ApplyProjectionResultsAsync` chooses that scope; a `ProjectionOnly`
-change notification is not sufficient. Other mutations use Full validation.
-
-Foreign/disposed/reload-invalidated captures, stale generations, unknown scopes,
-and changed manifest bytes (even at the same generation) fail before publication.
-The owner is single-use. Disposal before decision aborts; after decision it does
-not roll back. Direct consumers acquire the next validated generation before
-disposing the successful prepared owner; the service performs that handoff.
-Mutable validation payloads are defensively retained.
-
-`IWotRegistryContentLeaseProvider` belongs to the actual resource-store owner.
-Its `IWotRegistryContentLease` protects ResourceKey association and immutable bytes
-and supplies ContentLength/ReadAsync. The store hashes the real protected bytes;
-supplied digests, lengths, timestamps, or previously observed hashes alone do
-not count. A decorator forwards only its wrapped owner's genuine capability.
-Observe both ordinary and leased reads when instrumenting acquisition.
-`WotBlobResourceStore` resolves its local root once so later working-directory
-changes cannot alter the root/key association.
-
-### Outcomes and notifications
-
-| Outcome | Caller action |
-| --- | --- |
-| `WotRegistryCommitNotCommittedException` | Retain the old image; do not publish the candidate |
-| `WotRegistryCommitDurabilityUncertainException` | Treat `CommittedSnapshot` as authoritative and surface the warning |
-| `WotRegistryCommitIndeterminateException` | Do not guess/retry blindly; recover authoritative store state |
-
-The service completes validated-generation handoff before `Changed` observers.
-A failing observer cannot strand the old capture; the committed-warning exception
-retains the callback error in `PersistenceFailure`, combined with a store warning
-when needed. Exact-Version validation warnings retain `ValidatedVersionXid`;
-default changes do not redirect them.
-Pending validation notification intents survive reload and release once only
-when the recovered decision proves commitment.
-
-Cancellation before decision may abort; post-decision cleanup/publication does
-not use the caller token to report noncommit. Recovery artifacts retain their
-existing meaning. Read-only capture/preparation creates no new storage root.
-Pristine rollback releases uncommitted leases before removing owned artifacts.
-
-## Canonical Views
-
-`WotCommittedPublicationState` pairs the registry snapshot with Views and active
-binding plans. Constructing it does not publish it. Capability descriptors are
-detached copies; caller mutation cannot change the committed image.
-
-`IWotPreparedViewProjectionHost` extends the existing View host and reports
-`SupportsPreparedPublication`. Its `PrepareAsync` accepts updates, removals,
-and the expected committed image. It prepares the complete remaining graph:
-child changes include affected ancestors and shared canonical children.
-Immediate `ApplyAsync`/`RemoveAsync` plus later compensation is not equivalent.
-
-The returned `IWotPreparedViewPublication` contributes:
-
-- ordered `Changes` to the coordinator's lifecycle batch;
-- `BindPreparedRegistrations`, returning complete graph bytes, View handles,
-  and all `AffectedResourceXids`;
-- `OnPublished`, non-failing bookkeeping without I/O, new mutation, cancellation,
-  generation allocation, or another durable decision;
-- async disposal, discarding unpublished private state rather than the old View.
-
-DI resolves the prepared interface to the same registered View host. It does
-not replace an immediate-only custom provider. Direct hosts pair source/View
-hosts over the same lifecycle and retirement policy.
-Factories check the actual server, logical-server/allocation authority,
-predecessor registration, Node roles, allocations, and token history.
-A predecessor cannot authorize Add or replacement of another registration.
-Reload preserves inbound navigation only for surviving owned Nodes.
-
-### Identity, membership, and context
-
-Authored portable View identities must resolve in the supplied source-image
-namespace table; View preparation does not register namespaces. Unauthored roots
-use deterministic Resource-relative `/View` identities. A live View cannot be
-reassigned to another Resource or replace a different Node owner/role.
-Membership checks actual captured source partitions, not a prefix.
-Event selection may use captured type/subtype/GeneratesEvent relationships to
-reach a sibling EventType; it does not transfer ownership. Properties/Methods
-still require actual source partition membership.
-
-Views and organizational Objects own no binding runtime and have
-`EventNotifier.None`. Counts exclude organized source Nodes.
-Canonical roles/wrappers are one graph, not competing parent-local blobs.
-Prepared source roots and Views publish their `HasWoTProjection` correlations
-with matching registry references in the common batch.
-Arbitrary programmatic cross-owner correlation repair is a separate boundary.
-
-`ViewVersion` is a deterministic UInt32 membership token, not a counter:
-deduplicate portable member ExpandedNodeIds, sort by Unicode code point, encode
-each UTF-8 length, colon, identity, and newline, hash with SHA-256, and read
-the first four bytes big-endian (map zero to one). Reordering/duplicate paths
-do not change membership. Inequality proves change; equality is not collision-free
-proof. The full membership digest is 32 bytes.
-
-`CanonicalViewGraphState` is the immutable root `ByteString` carrier committed
-with all affected Resource rows. Per-Resource metadata is not independent graph
-authority. `WithPublicationState` preserves bytes for a default/null ByteString
-and clears them for explicit `ByteString.Empty`; absent, empty, and serialized
-inactive-history graphs have different meanings.
-Token/allocation history remains even when no Views are live.
-
-Native `ProjectionMembershipDigest`, ViewVersion, ActiveVersionId,
-RefreshGeneration, MaterializedNodeCount, RootNodeId, LoadState, and
-LastRefreshTime come from captured read images alongside routing. A Read started
-before replacement retains its original values after stable Nodes reconcile.
-`IWotCanonicalViewReadImage` and `IWotRegistryReadImageProjection` provide these
-images; an inactive captured image reports waiting-for-initial-data rather than
-falling through to a newer registry snapshot.
-
-### Projection context and supporting definitions
-
-Source locations, context prefixes/resets, payload schemas, and provenance
-remain owned by the source; the projection retains its own ordered root context.
-Host routing owns its forms/security/URI variables but not the selected data type.
-Unknown/unacquired contexts cannot authorize guessed aliases or membership.
-Local pointers address actual known schemas/definitions, not literal lookalikes.
-
-Selected/supporting affordances, reusable schemas, DataTypes, URI variables,
-and provider-created documents share bounded node/document/byte/depth budgets.
-Definitions are carried once only when their expanded identities and contextual
-facts agree. Recursive field references are legal; conflicting native identities,
-definition facts, or inherited bases fail.
-Literal `const`/`default`/`enum`/`examples` and opaque metadata retain received
-representation and are not searched for apparent references.
-
-Security schemes are qualified by exact UTF-8 source/scheme names:
-`q:s:<B64u(sourceName)>:<B64u(schemeName)>` and host
-`q:p:<B64u(schemeName)>`. Requirements/combos follow that mapping; source names
-cannot impersonate host schemes. Required definitions must exist and combo
-dependencies must be acyclic. Host forms cannot send host credentials to a
-source origin. An active API-key URI placeholder comes from its security domain,
-not a fabricated data URI variable.
-
-`WotProjectionResolver.ResolveAsync` preserves origin/context; it does not alone
-acquire every dependency required for an executable TD. External event/schema
-resolution uses explicit configured modules and budgets as described in
-[conversion entry points](WotBindings.md#conversion-entry-points).
-An HTTP-shaped identifier is not permission to fetch.
-
-## Dry-run validation
-
-Dry runs use `IWotProjectionValidationPublication` and the lifecycle's private
-`INodeManagerValidationPublication`. They prepare namespace/server mappings,
-source/View candidates, full routing/type/reference checks, and registry read
-images, then dispose every candidate without deciding.
-Serving mappings and mutation versions stay unchanged.
-Successful private prerequisites remain available to later units without becoming
-live. A View failure rejects its source peers, not earlier independent predictions.
-Rejected retirements retain serving metadata and report Activation failure.
-Results collate one row per exact selector-resolved Resource/Version/digest.
-
-No dry run changes observations, LastRefreshPlan, completion caches, committed
-generation, View tokens, or management/model-change events. It does not resolve
-an outstanding recovery as a side effect. Predicted roots in namespaces not yet
-serving are `NodeId.Null`, with node-count predictions retained.
-Custom hosts need private validation support or return a failed prediction.
-
-## Recovery
-
-### Cold recovery of a committed publication
-
-Readiness calls `RecoverAsync` after loading the deciding store. A fresh registry
-with no committed refresh generation uses ordinary startup materialization.
-A committed publication, including an explicitly empty one, restores before
-readiness returns regardless of `AutoRefresh`.
-
-Recovery uses retained exact committed content, not newer defaults, desired
-Versions, pending Enabled changes, or edits under the same VersionId.
-Active owners retain their own committed input metadata/digests.
-Resolution-only Versions remain flat retained input records, not activation
-owners. Ordinary eviction/editing cannot replace the bytes that justified the
-committed image. Missing/conflicting evidence fails rather than guessing.
-
-Sources and Views prepare privately. `IWotRecoverableViewProjectionHost` restores
-the persisted canonical graph through the common source batch.
-The planner verifies logical server, roles, Node facts, full handle set,
-Resource owners/counts, membership, and token history.
-An active projection needs its real recorded graph; absent/empty/history-only
-payloads cannot stand in for it. Runtime NodeIds can rebase to current namespace
-indexes without changing durable identities, graph bytes, or generations.
-
-`IWotRegistryRecoveryStore` retains store-issued validation through the runtime
-switch; `IWotRegistryRecoveryPublication` prepares only the local representation.
-Recovery writes no manifest, allocates no generation, and replays no registry/
-materialization event intent. Concurrent store change fails final validation.
-Successful repeated recovery is a no-op.
-Direct hosts initialize the service then call `RecoverAsync`; ordinary Refresh
-does not reinterpret every new coordinator as a cold server.
-
-### Interrupted warm publication
-
-`IWotRegistryRecoveryResolver` aliases the injected registry owner.
-A healthy owner does not reload/invalidate evidence. An unresolved outcome uses
-the store's recovery rules. Missing primary with staging/backup artifacts remains
-an error: equal bytes do not let the coordinator elect an authoritative candidate.
-
-Mutation remains fenced until runtime routes, read images, and hosted registry
-projections match the authoritative decision. Recovery-only admission and read-only
-capture remain available; recovery cannot decide a new publication.
-`IWotRegistryRecoveryProjection.Publish`/`CompleteAsync` install/acknowledge
-notification-silent native reconciliation before lifting the fence.
-Callbacks run without holding the mutation semaphore, but nested mutation/reload
-is rejected. A failed acknowledgment retains the fence and committed warning;
-later recovery retries synchronization without replacing healthy owners.
-
-If the old image committed, keep its owners. If the candidate committed, restore
-that exact image. A first-publication noncommit invents no prior runtime image.
-Post-validation cancellation does not abandon a committed runtime switch.
-The coordinator retries recovery before later Refresh after its own unresolved
-decision/warning, including metadata-only attempt warnings.
-This is local recovery, not cross-replica consensus.
-
-## Bridge deletion and recovery
-
-The optional [WoT-Con 1.02 bridge](WoTConnectivity.md#mirroring-assets-into-the-registry)
-retains the assigned logical Resource and registry instance. Backing deletion
-precedes removal of the local provider, graph, handles, and persisted TD.
-Reject/noncommit retains the asset. Committed warning returns
-`GoodResultsMayBeIncomplete`; indeterminate outcome retains the asset until the
-same backing registry recovers. A retry does not repeat a confirmed deletion.
-
-For `Retire`, an already disabled/retired Resource with no active root/count is
-unchanged. Local cleanup after commitment ignores caller cancellation. If it
-fails, the retained asset entry supports cleanup retry without another backing
-delete; replacement uploads remain blocked until completion.
-
-With asset persistence enabled, bounded `.delete-pending` records retain the
-assigned identity and last confirmed generation before decision.
-They are intents, not proof of commitment. Interrupted startup restores a
-management entry/TD bytes without reconnecting or remirroring.
-Initialize/recover the same registry, then retry DeleteAsset.
-An uninitialized empty snapshot is not proof of deletion; invalid recovery
-records or missing backing registry fail startup.
-Successful cleanup removes both TD and recovery record.
 
 ## Conversion providers
 
@@ -584,3 +53,257 @@ does not dispose borrowed documents and does not retain them after conversion.
 
 Generated NodeSets declare the namespaces their Nodes own; merely referring to
 a namespace does not claim it.
+
+## Ownership and publication
+
+`IWotRegistryService` owns an immutable `WotRegistrySnapshot`. Its Int64
+`Generation` tracks store mutations; UInt32 `RefreshGeneration` tracks committed
+materialization. Metadata-only observations need not replace runtime Nodes.
+The stable registry NodeManager owns metadata/files; source generations own
+converted Nodes and binding runtimes; canonical Views own navigation, not copies
+of source affordances.
+
+The coordinator captures routing/type/factory revisions through
+`IWotInvocationProjectionHost` and reserves the registry owner through
+`IWotInvocationRegistryPublicationService.BeginPublicationAsync`. Candidates,
+read images, and source/View changes prepare privately before the deciding store
+commits. Reservations remain through notification/completion bookkeeping.
+Confirmed noncommit disposes candidates and preserves the old image; confirmed
+commit switches routes/read images together. Cancellation after that decision
+cannot turn commitment into rollback. Cleanup/readiness/observer failures are
+committed warnings. An indeterminate decision fences mutation until recovery.
+Conflicting lifecycle operations fail `BadServerTooBusy` before effects;
+callbacks must not synchronously wait on a mutation excluded by their invocation.
+
+| Requested atomicity | Initial publication unit |
+| --- | --- |
+| PerResource | One selected activation Resource |
+| PerGroup | Selected work in one group |
+| PerClosure | One dependency closure |
+| PerRegistry | All selected/required activation work |
+
+Dependencies, shared declarations, grouping cycles, and affected old/new closures
+can coarsen these boundaries. Disabled definition inputs are not activation
+members; unrelated registry rows are not added to activation. Semantic reference
+cycles can coactivate, but inheritance/order cycles fail. Replacements and
+affected retiring owners publish in the same batch.
+
+Independent units commit independently; no-op/dry-run units allocate no generation.
+Result rows describe the unit that changed them, including removal-only work.
+`LastRefreshPlan` records RequestId, PreparationGeneration, requested/applied
+atomicity, and UnitCount before the first switch of an actual invocation.
+Read-only capture does not publish it. A stale nonzero `ExpectedGeneration`
+fails `BadInvalidState`; the guard is the committed refresh generation, not the
+last completion summary.
+
+## Provider requirements
+
+`LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` require the same
+actual `INodeManagerBatchLifecycle`. The default lifecycle and file registry with
+genuine immutable-content leases support the four modes. Immediate-only custom
+hosts and `InMemoryWotRegistryStore` do not provide Refresh publication;
+unsupported capabilities fail `BadNotSupported` before acquisition/effects.
+Storage and read-only capture remain available independently.
+
+The default immutable lease requires `LocalFileSystem` on Windows, whose kernel
+sharing protects bytes and key mappings against write/replacement/deletion.
+POSIX advisory sharing, arbitrary `IFileSystem` implementations, copied buffers,
+and unrelated snapshot capabilities are not equivalent guarantees. Other
+deployments must inject a genuine immutable version/key lease provider.
+Custom source hosts bind registry read images before the deciding commit;
+topology-free observations use `PrepareReadImagesAsync` without source reload.
+Custom View owners expose `IWotCanonicalViewReadImage` for captured native reads.
+
+## Dependency capture and observations
+
+Selection resolves Kind and exact Resource/Version from metadata before body
+acquisition. Empty selectors select enabled committed content; unmatched nonempty
+selectors do no work. `IncludeDependents` adds reverse dependencies. Conflicting
+exact Versions fail before fetch when known; URI suffixes do not establish identity.
+Acquisition failures stay with the affected Resource/closure. Contentless inputs
+remain unresolved, not fabricated digest-pinned definitions.
+
+```csharp
+using WotRefreshCapture capture = await captureProvider.CaptureAsync(request, ct);
+WotCapturedRefreshRequest invocation = capture.Request;
+ArrayOf<WotSelectedResource> selected = capture.Inputs.Selection;
+```
+
+DI resolves `IWotRefreshCaptureProvider` to the coordinator. Capture copies the
+request before yielding, retains exact bytes/Version leases, and performs no
+conversion, activation, retirement, or publication. `GetContent` checks the
+captured incarnation/epoch/digest without reacquiring a new default.
+`GetRegistryInputDigest` covers registry inputs, not uncaptured external artifacts;
+`CreateRefreshPlan` observes the owner's applied boundary rather than choosing it.
+
+`WotDependencySnapshot` retains exact source Version, request/time/generation,
+effective input digest, edges, targets, and authoritative origins.
+`DependencySnapshot` commits with successful activation; `LastDependencyAttempt`
+records a completed actual attempt. Failure/no-op retains the committed graph;
+dry runs publish neither. Incomplete preparation has no complete effective digest.
+Native reads require a verified `WotRegistryOrigin`; the hosted NodeManager
+supplies ApplicationUri, registry root, and exact Version NodeIds. Unconfigured
+direct/native reads report `BadNotSupported`. OriginRegistry/VersionNodeId and
+DocumentUri are authorities/identities, not execution-partition selectors.
+
+Dependency indexes live in Version metadata and are hydrated from exact old
+content. Prepared initialization persists derived indexes with full validation
+without changing content, epochs, selections, or committed refresh generation.
+Shared graph storage is described in
+[manifest schema](WoTConnectivity.md#persistence-and-manifest-schema).
+
+## Version leases
+
+`WotRegistryService` implements `IWotRegistryVersionLeaseProvider`, aliased by DI
+to the same singleton. A lease prevents automatic removal of an exact Version
+incarnation independently of active/default/desired pointers:
+
+```csharp
+IWotRegistryVersionLeaseProvider leases = registry;
+using IWotRegistryVersionLease lease = await leases.AcquireVersionLeaseAsync(
+    groupId, resourceId, version, ct);
+ByteString document = await registry.ReadContentAsync(lease.Version, ct);
+```
+
+Acquisition shares the mutation owner with retention/publication. Stale/deleted
+incarnations fail `BadInvalidState`/`BadNodeIdUnknown`; delete/recreate cannot
+reconnect an old lease. Same-owner reload preserves surviving incarnations.
+Native file handles retain their own Version/cursor/writer reservation through
+in-flight reads and dirty Close; failed Open, cancellation, and Session abandonment
+release only their reservations. Async file dispatch acquires leases without
+sync-over-async; lease-aware synchronous Open reports `BadNotSupported`.
+
+A leased unselected Version still counts toward retention limits. Releasing the
+last lease makes it eligible for normal retention, not immediate deletion.
+Leases change no snapshot/epoch/event, are not persisted, and do not protect
+against explicit deletion, content writes, or independent distributed owners.
+Immutable-byte leasing and writer exclusion are separate contracts.
+
+## Prepared registry store
+
+`IWotRegistryPreparedStore` retains validated generation/content evidence so
+projection-metadata commits need not reread independent blobs. The service
+discovers the capability on its injected store and retains it through metadata
+generations. Reload through `WotRegistryService.InitializeAsync`; calling
+`LoadAsync` on its live store invalidates existing captures.
+
+| Member | Contract |
+| --- | --- |
+| `SupportsPreparedCommits` | Actual content provider's immutable-lease capability |
+| `CaptureValidatedGenerationAsync` | Store-owned validated manifest/content capture |
+| `PrepareCommitAsync` | Validate intended snapshot against that capture, without publication |
+| `IWotRegistryPreparedCommit.CommitAsync` | Recheck the manifest and make one durable decision |
+
+Only `ApplyProjectionResultsAsync` selects `ProjectionMetadata` scope; a
+`ProjectionOnly` notification alone does not. That scope preserves identities,
+membership, content, labels, dependency-source metadata, and epochs while allowing
+observations/graphs/committed refresh state. Other mutations use full validation.
+Foreign, disposed, reload-invalidated, stale, or same-generation changed-manifest
+captures fail. Prepared owners are single-use; disposal before decision aborts,
+and after decision does not roll back. Direct consumers acquire the next validated
+generation before disposing a successful prepared owner.
+
+`IWotRegistryContentLeaseProvider` must belong to the real resource-store owner.
+Its lease protects immutable bytes and their ResourceKey association; validation
+hashes those bytes, not trusted digest/length/timestamp claims. Decorators forward
+only genuine underlying capabilities. `WotBlobResourceStore` fixes its root at
+construction. Sharing bytes alone does not coordinate distributed publication.
+
+| Commit outcome | Required handling |
+| --- | --- |
+| `WotRegistryCommitNotCommittedException` | Keep the old image |
+| `WotRegistryCommitDurabilityUncertainException` | Use `CommittedSnapshot` and surface the warning |
+| `WotRegistryCommitIndeterminateException` | Fence mutation and recover authoritative state |
+
+Validated-generation handoff precedes `Changed` observers. Observer errors remain
+in `PersistenceFailure`; exact-Version warnings retain `ValidatedVersionXid`.
+Pending validation intents release once only when recovery proves commitment.
+Post-decision completion ignores caller cancellation; read-only preparation
+creates no storage root, and pristine rollback releases leases before cleanup.
+
+## Canonical Views
+
+`WotCommittedPublicationState` pairs registry, canonical graph, and active plans;
+construction does not publish it. `IWotPreparedViewProjectionHost.PrepareAsync`
+prepares the complete remaining graph, including affected ancestors/shared children.
+Its publication contributes ordered lifecycle `Changes`, binds complete graph
+bytes/handles/`AffectedResourceXids`, and performs non-failing `OnPublished`
+bookkeeping without I/O or a second decision. Disposal discards unpublished state.
+DI aliases this capability to the same View host, not a replacement provider.
+
+Authored portable View IDs must already resolve in the captured source namespace
+table; default roots use Resource-relative `/View` identities. Ownership checks
+use actual source partitions/roles, not prefixes or a predecessor belonging to
+another registration. Source/View `HasWoTProjection` correlations switch together.
+Views/groups have `EventNotifier.None` and own no binding runtime.
+
+`CanonicalViewGraphState` is the root immutable graph carrier, not independent
+per-Resource authority. `WithPublicationState` preserves it for default/null
+`ByteString`, clears it for explicit `ByteString.Empty`, and retains token/allocation
+history even without live Views. `ViewVersion` hashes membership as described in
+[projection Views](WoTConnectivity.md#124-projection-documents-and-the-view-nodeclass);
+the full `ProjectionMembershipDigest` is 32 bytes.
+Native membership/version/root/count/load/refresh fields read from the same
+captured image as routing; an inactive captured image does not fall through to
+newer state.
+
+Projection inputs retain source context/location/provenance; host routing owns
+forms/security/URI variables, not source DataTypes. Supporting definitions share
+bounded document/node/byte/depth budgets. Security names are qualified by source
+(`q:s:<B64u(sourceName)>:<B64u(schemeName)>`) or host (`q:p:<B64u(schemeName)>`);
+combos must be complete/acyclic and cannot confer host credentials on source origins.
+Literal instance values/opaque metadata are not searched for references.
+
+## Dry-run validation
+
+`IWotProjectionValidationPublication` prepares private source/View candidates,
+mapping/routing/type/reference checks, and registry read images, then disposes
+them without a durable decision. Earlier private prerequisites can support later
+units without becoming live. Rejected retirements retain serving metadata.
+No observations, LastRefreshPlan/completion caches, generations, View tokens, or
+management/model-change events change. Predicted roots in unregistered namespaces
+are `NodeId.Null`; counts remain predictions. Custom hosts without private
+validation report failure, not an unsupported successful preview.
+
+## Recovery
+
+Readiness calls `RecoverAsync` after loading the deciding store. Fresh registries
+use ordinary materialization; a committed publication, including an empty one,
+restores before readiness even with `AutoRefresh = false`. Recovery uses retained
+exact committed inputs, not newer defaults/desired Versions or edits under the
+same VersionId. Missing/conflicting evidence fails rather than guessing.
+Source/View candidates prepare privately; `IWotRecoverableViewProjectionHost`
+restores the recorded graph in the common batch. Runtime namespace indexes may
+rebase without changing durable identities, graph bytes, or generations.
+
+`IWotRegistryRecoveryStore` retains validation through the switch;
+`IWotRegistryRecoveryPublication` prepares the local image. Recovery writes no
+manifest/generation and replays no events. Repeated healthy recovery is a no-op.
+Direct hosts initialize then call `RecoverAsync`; ordinary Refresh is not cold
+recovery merely because the coordinator is new.
+
+For an interrupted warm publication, `IWotRegistryRecoveryResolver` uses the
+same owner/store rules. Missing primary plus staging/backup is an error, not a
+choice among equal candidates. Mutation remains fenced until routes/read images
+and native registry projections acknowledge the authoritative image.
+`Publish`/`CompleteAsync` reconcile silently before lifting the fence; failed
+acknowledgment retains it for retry. Nested mutation/reload is rejected.
+The coordinator retries recovery before a later Refresh after its unresolved
+decision/warning. This is local recovery, not cross-replica consensus.
+
+## Bridge deletion and recovery
+
+The optional [1.02 bridge](WoTConnectivity.md#mirroring-assets-into-the-wot-xregistry)
+retains the assigned Resource and registry owner. Backing deletion precedes local
+provider/graph/file removal. Reject/noncommit retains the asset; committed warning
+returns `GoodResultsMayBeIncomplete`; indeterminate outcomes retain it until that
+same registry recovers. Retry does not repeat a confirmed deletion.
+Post-commit cleanup ignores caller cancellation and blocks replacement uploads
+until complete; an already disabled/retired `Retire` is unchanged.
+
+With asset persistence enabled, bounded `.delete-pending` intents retain assigned
+identity and the last confirmed generation, not proof of commitment. Startup
+restores management/TD state without reconnecting/remirroring; initialize/recover
+the same registry and retry DeleteAsset. An uninitialized empty snapshot proves
+nothing. Invalid records/missing backing registry fail startup; successful cleanup
+removes the TD and recovery record.
