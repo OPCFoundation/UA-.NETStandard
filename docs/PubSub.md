@@ -456,9 +456,9 @@ shows complete UADP and JSON message settings for every transport.
 
 ### Subscriber — MQTT / JSON
 
-The broker transports are easiest to wire through dependency
-injection (see [Dependency injection / hosting](#dependency-injection--hosting)),
-which registers the MQTT client factory for you:
+For broker transports, use
+[Dependency injection / hosting](#dependency-injection--hosting)
+to register the MQTT client factory:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
