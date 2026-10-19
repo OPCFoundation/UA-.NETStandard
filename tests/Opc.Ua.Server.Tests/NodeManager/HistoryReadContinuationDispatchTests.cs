@@ -149,6 +149,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
         }
 
+        /// <summary>
+        /// Verifies that a faulted request keeps a client supplied continuation point that the
+        /// node manager restored, saved again and assigned to a result before it failed.
+        /// </summary>
+        [Test]
+        public void FaultedRequestKeepsAssignedClientSuppliedContinuationPoint()
+        {
+            using var harness = new HistoryHarness(maxHistory: 10);
+            var continued = new TrackingPoint();
+            harness.Points.SaveHistory(continued);
+            harness.RestoreSaveAssignThenThrow();
+
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
+
+            Assert.That(continued.Disposed, Is.False);
+            Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
+        }
+
         private static ByteString ToByteString(Guid id)
         {
             return new ByteString(id.ToByteArray());
@@ -266,6 +285,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ArrayOf<HistoryReadValueId> nodesToRead, IList<HistoryReadResult> _,
                         IList<ServiceResult> _, CancellationToken cancellationToken) =>
                         new ValueTask(RestoreSaveThenThrowAsync(context, nodesToRead, cancellationToken)));
+            }
+
+            /// <summary>
+            /// Makes the node manager continue the client's point, save it again, assign it to the
+            /// result and then fail.
+            /// </summary>
+            public void RestoreSaveAssignThenThrow()
+            {
+                Manager.Setup(value => value.HistoryReadAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<HistoryReadDetails>(),
+                        It.IsAny<TimestampsToReturn>(), It.IsAny<bool>(),
+                        It.IsAny<ArrayOf<HistoryReadValueId>>(), It.IsAny<IList<HistoryReadResult>>(),
+                        It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext context, HistoryReadDetails _, TimestampsToReturn _, bool _,
+                        ArrayOf<HistoryReadValueId> nodesToRead, IList<HistoryReadResult> results,
+                        IList<ServiceResult> _, CancellationToken cancellationToken) =>
+                        new ValueTask(RestoreSaveAssignThenThrowAsync(
+                            context, nodesToRead, results, cancellationToken)));
+            }
+
+            private static async Task RestoreSaveAssignThenThrowAsync(
+                OperationContext context,
+                ArrayOf<HistoryReadValueId> nodesToRead,
+                IList<HistoryReadResult> results,
+                CancellationToken cancellationToken)
+            {
+                IHistoryContinuationPoint point = (await context.Session.ContinuationPoints
+                    .RestoreHistoryAsync(nodesToRead[0].ContinuationPoint, cancellationToken)
+                    .ConfigureAwait(false))!;
+                await context.Session.ContinuationPoints
+                    .SaveHistoryAsync(point, cancellationToken).ConfigureAwait(false);
+                results[0] = new HistoryReadResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    ContinuationPoint = nodesToRead[0].ContinuationPoint
+                };
+                throw new OperationCanceledException();
             }
 
             private static async Task SaveThenThrowAsync(
