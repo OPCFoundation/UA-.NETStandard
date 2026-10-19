@@ -600,10 +600,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }).ConfigureAwait(false);
 
+            // the activations may all have run after the last response was sealed; a response
+            // sent once they are done is sealed with the newest token.
+            const uint lastRequestId = 2_000_000;
+            await channel.SendResponseAsync(lastRequestId, CreateResponse(null, 10)).ConfigureAwait(false);
+
             IEnumerable<uint> expected = Enumerable.Range(1, producers * perProducer).Select(id => (uint)id)
-                .Concat(Enumerable.Range(1_000_000, numbered).Select(id => (uint)id));
+                .Concat(Enumerable.Range(1_000_000, numbered).Select(id => (uint)id))
+                .Append(lastRequestId);
             List<WireChunk> chunks = await transport
-                .WaitForFinalChunksAsync((producers * perProducer) + numbered)
+                .WaitForFinalChunksAsync((producers * perProducer) + numbered + 1)
                 .ConfigureAwait(false);
             AssertWireOrder(chunks, expected);
             Assert.That(chunks.Any(chunk => !chunk.IsFinal), Is.True, "no response was split into chunks.");
@@ -614,7 +620,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(chunk.TokenId, Is.GreaterThanOrEqualTo(lastTokenId), "a token was used after its successor.");
                 lastTokenId = chunk.TokenId;
             }
-            Assert.That(lastTokenId, Is.GreaterThan(1u), "no message was secured with an activated token.");
+            Assert.That(chunks[chunks.Count - 1].RequestId, Is.EqualTo(lastRequestId));
+            Assert.That(lastTokenId, Is.EqualTo((uint)activations + 1), "the last response was not secured with the newest token.");
 
             await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
         }
@@ -767,6 +774,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 SealProbe.Renew(writer, reader, 1, readerTokens);
                 writer.Send(1, CreateResponse(null, 10));
                 await transport.WaitForMessageCountAsync(1).ConfigureAwait(false);
+
+                // the first send is recorded before it completes: hold only once it has
+                // completed, or the hold would catch it instead of the second.
+                await WaitUntilAsync(() => !writer.HasPendingWritesForTest).ConfigureAwait(false);
 
                 // the writer waits on the second send while the next ones queue up.
                 transport.HoldSends();
