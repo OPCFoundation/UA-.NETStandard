@@ -104,7 +104,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 long loh = all[^1].LohSize;
                 text.Append(CultureInfo.InvariantCulture,
                     $" gen2MB={gen2 / 1048576.0:F1} lohMB={loh / 1048576.0:F1}");
+                // the largest heap left after a collection in the window
+                text.Append(CultureInfo.InvariantCulture,
+                    $" peakAfterGcMB={all.Max(c => c.HeapSize) / 1048576.0:F1}");
             }
+            GCMemoryInfo info = GC.GetGCMemoryInfo();
+            text.Append(CultureInfo.InvariantCulture,
+                $" committedMB={info.TotalCommittedBytes / 1048576.0:F1} limitMB={info.TotalAvailableMemoryBytes / 1048576}");
             if (heaps.Count > 0)
             {
                 text.Append(CultureInfo.InvariantCulture, $" heaps={heaps.Min()}..{heaps.Max()}");
@@ -170,6 +176,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     m_current.Gen2Size = ToLong(e, "GenerationSize2");
                     m_current.LohSize = ToLong(e, "GenerationSize3");
                     m_current.Pinned = ToLong(e, "PinnedObjectCount");
+                    m_current.HeapSize = ToLong(e, "GenerationSize0") + ToLong(e, "GenerationSize1") +
+                        m_current.Gen2Size + m_current.LohSize + ToLong(e, "GenerationSize4");
                 }
                 else if (name.StartsWith("GCGlobalHeapHistory", StringComparison.Ordinal))
                 {
@@ -260,6 +268,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             public long Gen2Size;
             public long LohSize;
             public long Pinned;
+            public long HeapSize;
         }
 
         private readonly object m_lock = new();

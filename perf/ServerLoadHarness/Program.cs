@@ -73,6 +73,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         // client GC events of the window (--gc-events 0 turns the listener off)
         private static GcListener? s_gcListener;
 
+        // processor masks of a constrained client run (--client-cores), set by RunConstrainedAsync
+        private const string kClientAffinityVariable = "PERF_CLIENT_AFFINITY";
+        private const string kServerAffinityVariable = "PERF_SERVER_AFFINITY";
+
         /// <summary>
         /// Runs the server or the load driver.
         /// </summary>
@@ -96,9 +100,48 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 return await RunServerAsync().ConfigureAwait(false);
             }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                Environment.GetEnvironmentVariable(kClientAffinityVariable) == null)
+            {
+                return await RunConstrainedAsync(args).ConfigureAwait(false);
+            }
             return NativeWorkerBenchmark.IsScenario(Arg("scenario", "read"))
                 ? await NativeWorkerBenchmark.RunAsync(args).ConfigureAwait(false)
                 : await RunDriverAsync(args).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the harness again as a client confined like a container: <c>--client-cores N</c>
+        /// gives it the last N processors (the runtime sizes the thread pool and GC for N through
+        /// <c>DOTNET_PROCESSOR_COUNT</c>) and the server the others; <c>--client-memory MB</c> sets
+        /// the GC heap hard limit to 75 % of MB, the limit .NET derives from a container memory limit.
+        /// </summary>
+        private static async Task<int> RunConstrainedAsync(string[] args)
+        {
+            int total = Math.Min(Environment.ProcessorCount, 63);
+            int cores = Math.Clamp(ArgInt("client-cores", total), 1, total);
+            long allMask = (1L << total) - 1;
+            long clientMask = ((1L << cores) - 1) << (total - cores);
+            var startInfo = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+            foreach (string arg in args)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+            startInfo.Environment[kClientAffinityVariable] = clientMask.ToString("X", CultureInfo.InvariantCulture);
+            if (cores < total)
+            {
+                startInfo.Environment["DOTNET_PROCESSOR_COUNT"] = cores.ToString(CultureInfo.InvariantCulture);
+                startInfo.Environment[kServerAffinityVariable] =
+                    (allMask & ~clientMask).ToString("X", CultureInfo.InvariantCulture);
+            }
+            if (TryGetArg("client-memory", out string? memory))
+            {
+                long limit = long.Parse(memory!, CultureInfo.InvariantCulture) * 1048576 * 3 / 4;
+                startInfo.Environment["DOTNET_GCHeapHardLimit"] = "0x" + limit.ToString("X", CultureInfo.InvariantCulture);
+            }
+            using Process child = Process.Start(startInfo)!;
+            await child.WaitForExitAsync().ConfigureAwait(false);
+            return child.ExitCode;
         }
 
         internal static bool TryGetArg(string name, out string? value)
@@ -293,12 +336,28 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 s_gcListener = new GcListener();
             }
+            string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
+            if (clientAffinity != null && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
+            {
+                using Process self = Process.GetCurrentProcess();
+                self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
+                Console.WriteLine(FormattableString.Invariant(
+                    $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity} ") +
+                    FormattableString.Invariant(
+                    $"heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
+            }
 
             (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
                     $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"));
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
+            string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            if (serverAffinity != null && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
+            {
+                // the server keeps the processors the constrained client does not have
+                server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);
+            }
             string ready = serverLines.Take();
             if (!ready.StartsWith("READY", StringComparison.Ordinal))
             {
@@ -537,12 +596,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 RedirectStandardOutput = true,
                 UseShellExecute = false
             };
-            // GC settings of the harness configure the measured client; the server inherits
-            // the environment, so they are removed and only SERVER_ variables configure it
+            // GC and processor settings of the harness configure the measured client; the server
+            // inherits the environment, so they are removed and only SERVER_ variables configure it
             foreach (string name in startInfo.Environment.Keys.ToList())
             {
                 if (name.StartsWith("DOTNET_GC", StringComparison.OrdinalIgnoreCase) ||
-                    name.StartsWith("COMPlus_GC", StringComparison.OrdinalIgnoreCase))
+                    name.StartsWith("COMPlus_GC", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("DOTNET_ThreadPool_", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("DOTNET_PROCESSOR_COUNT", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("PERF_", StringComparison.Ordinal))
                 {
                     startInfo.Environment.Remove(name);
                 }

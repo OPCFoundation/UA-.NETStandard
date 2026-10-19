@@ -57,6 +57,8 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
+| `--client-cores` | all | Confine the client like a container with N processors: the harness runs itself again with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) on the last N processors, and pins the server to the other processors. |
+| `--client-memory` | unlimited | Container memory limit of the client in MB: the GC heap hard limit becomes 75 % of it, the limit .NET derives from a container memory limit. Only the managed heap is limited, not native memory. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
 for example `SERVER_DOTNET_gcServer=1` to compare garbage collector modes. GC settings set for
@@ -79,7 +81,9 @@ The `client-gc:` line summarizes the client's collections in the window from the
 events (an in-process `EventListener`, a few events per collection): the GC mode, the
 collections by condemned generation and trigger (`gen2bg` is a background gen2), pause and
 suspension percentiles, the bytes that survived gen0 and gen1 per collection, the gen2 and LOH
-sizes after the last collection, the heap count DATAS chose and the gen0 budget. A
+sizes after the last collection, the largest heap left after a collection (`peakAfterGcMB`), the
+committed bytes and the heap limit (`limitMB`, the hard limit under `--client-memory`), the heap
+count DATAS chose and the gen0 budget. A
 `survivedKB/gen0` close to the gen0 budget means objects outlive a gen0 collection, and the
 collections turn into gen1 and background gen2 ones. `CollectionCount` in `client-process:`
 counts a gen1 collection under both `gen0` and `gen1`; `client-gc:` counts each collection once.
