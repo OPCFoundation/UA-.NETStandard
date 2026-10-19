@@ -287,6 +287,11 @@ namespace Opc.Ua.AutoID.Tests
                         new EUInformation(), new EUInformation(), new EUInformation(), new EUInformation()));
                 IAutoIdReaderBuilder builder = runtime.Reader(m_fixture.Name(Unique("X")), rfid);
                 Assert.Throws<ArgumentNullException>(() => builder.WithParent(null!));
+                Assert.Throws<ArgumentNullException>(() => builder.AsComponentOf(null!));
+                Assert.Throws<InvalidOperationException>(() => runtime.Reader(m_fixture.Name(Unique("X")), rfid)
+                    .WithParent(new BaseObjectState(null)).AsComponentOf(new BaseObjectState(null)));
+                Assert.Throws<InvalidOperationException>(() => runtime.Reader(m_fixture.Name(Unique("X")), rfid)
+                    .AsComponentOf(new BaseObjectState(null)).WithParent(new BaseObjectState(null)));
                 Assert.Throws<ArgumentException>(() => builder.WithDeviceName(string.Empty));
                 Assert.Throws<ArgumentNullException>(() => builder.WithDeviceInfo(null!));
                 Assert.Throws<ArgumentNullException>(() => builder.WithDeviceLocation(null!));
@@ -335,9 +340,9 @@ namespace Opc.Ua.AutoID.Tests
                 SymbolicName = Unique("Line"),
                 BrowseName = m_fixture.Name(Unique("Line")),
                 DisplayName = new LocalizedText(Unique("Line")),
-                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
+                NodeId = new NodeId(Unique("Line"), m_fixture.Manager.InstanceNamespaceIndex)
             };
-            line.NodeId = new NodeId(Unique("Line"), m_fixture.Manager.InstanceNamespaceIndex);
             await m_fixture.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
 
             AutoIdReader reader = await m_fixture.Runtime.Reader(m_fixture.Name(Unique("Portal")), new FakeProvider())
@@ -349,7 +354,7 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(OrganizedFrom(deviceSet, reader.Device), Is.True,
                     "every ComponentType instance stays reachable from DeviceSet (OPC 10000-100 4.9)");
                 Assert.That(reader.Device.ReferenceExists(
-                    Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId), Is.True);
+                    Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId), Is.True);
             });
         }
 
@@ -364,7 +369,7 @@ namespace Opc.Ua.AutoID.Tests
                 SymbolicName = "Line",
                 BrowseName = own.Name("Line"),
                 DisplayName = new LocalizedText("Line"),
-                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType,
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
                 NodeId = new NodeId("Line", own.Manager.InstanceNamespaceIndex)
             };
             await own.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
@@ -382,6 +387,35 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(References(own.Context, deviceSet), Is.EqualTo(before + 1),
                     "only the retried reader is organized");
                 Assert.That(OrganizedFrom(deviceSet, retried.Device), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AStandaloneReaderCannotBeAComponentOfAMachineAsync()
+        {
+            var machine = new BaseObjectState(null)
+            {
+                BrowseName = m_fixture!.Name(Unique("Press")),
+                NodeId = new NodeId(Unique("Press"), m_fixture.Manager.InstanceNamespaceIndex)
+            };
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_fixture
+                    .Runtime.Reader(m_fixture.Name(Unique("Component")), new FakeProvider())
+                    .AsComponentOf(machine)
+                    .WithIdentification(nameplate =>
+                    {
+                        nameplate.Manufacturer = new LocalizedText("Contoso");
+                        nameplate.SerialNumber = "R-1";
+                    })
+                    .BuildAsync().ConfigureAwait(false)))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("AddAutoIdToMachinery"));
+                Assert.That(m_fixture.Runtime.Readers.ToArray()!.Select(reader => reader.Name.Name),
+                    Does.Not.Contain(Unique("Component")));
             });
         }
 
@@ -530,7 +564,7 @@ namespace Opc.Ua.AutoID.Tests
 
         private static bool OrganizedFrom(NodeState deviceSet, NodeState device)
         {
-            return deviceSet.ReferenceExists(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, device.NodeId);
+            return deviceSet.ReferenceExists(Types.ReferenceTypeIds.Organizes, false, device.NodeId);
         }
 
         private static int References(ISystemContext context, NodeState node)

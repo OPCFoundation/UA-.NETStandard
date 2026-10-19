@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server;
 
@@ -321,6 +322,20 @@ namespace Opc.Ua.AutoID.Server
             AutoIdReaderKind kind = builder.Provider.Kind;
             ISystemContext context = SystemContext;
             QualifiedName name = builder.BrowseName;
+            DeviceIdentificationData? nameplate = null;
+            if (builder.Identification != null)
+            {
+                nameplate = new DeviceIdentificationData();
+                builder.Identification(nameplate);
+            }
+            NodeState? requestedParent = builder.Parent;
+            if (builder.Machine != null)
+            {
+                // Checked before anything is registered: a reader that cannot be a component of
+                // the machine is not created at all.
+                requestedParent = m_placement.ResolveComponents(builder.Machine, name);
+                AutoIdReaderPlacement.ValidateComponentNameplate(nameplate, name);
+            }
             AutoIdDeviceState device;
             Action applyIdentification;
             switch (kind)
@@ -328,6 +343,8 @@ namespace Opc.Ua.AutoID.Server
                 case AutoIdReaderKind.Rfid:
                     (device, applyIdentification) = await CreateDeviceAsync(
                         builder,
+                        requestedParent,
+                        nameplate,
                         ObjectTypeIds.RfidReaderDeviceType,
                         parent => context.CreateInstanceOfRfidReaderDeviceType(parent, name),
                         cancellationToken).ConfigureAwait(false);
@@ -335,6 +352,8 @@ namespace Opc.Ua.AutoID.Server
                 case AutoIdReaderKind.Ocr:
                     (device, applyIdentification) = await CreateDeviceAsync(
                         builder,
+                        requestedParent,
+                        nameplate,
                         ObjectTypeIds.OcrReaderDeviceType,
                         parent => context.CreateInstanceOfOcrReaderDeviceType(parent, name),
                         cancellationToken).ConfigureAwait(false);
@@ -342,6 +361,8 @@ namespace Opc.Ua.AutoID.Server
                 case AutoIdReaderKind.Optical:
                     (device, applyIdentification) = await CreateDeviceAsync(
                         builder,
+                        requestedParent,
+                        nameplate,
                         ObjectTypeIds.OpticalReaderDeviceType,
                         parent => context.CreateInstanceOfOpticalReaderDeviceType(parent, name),
                         cancellationToken).ConfigureAwait(false);
@@ -349,6 +370,8 @@ namespace Opc.Ua.AutoID.Server
                 case AutoIdReaderKind.OpticalVerifier:
                     (device, applyIdentification) = await CreateDeviceAsync(
                         builder,
+                        requestedParent,
+                        nameplate,
                         ObjectTypeIds.OpticalVerifierDeviceType,
                         parent => context.CreateInstanceOfOpticalVerifierDeviceType(parent, name),
                         cancellationToken).ConfigureAwait(false);
@@ -356,6 +379,8 @@ namespace Opc.Ua.AutoID.Server
                 case AutoIdReaderKind.Rtls:
                     (device, applyIdentification) = await CreateDeviceAsync(
                         builder,
+                        requestedParent,
+                        nameplate,
                         ObjectTypeIds.RtlsDeviceType,
                         parent => context.CreateInstanceOfRtlsDeviceType(parent, name),
                         cancellationToken).ConfigureAwait(false);
@@ -374,6 +399,10 @@ namespace Opc.Ua.AutoID.Server
             try
             {
                 applyIdentification();
+                if (builder.Machine != null)
+                {
+                    await m_placement.AddComponentIdentificationAsync(device, cancellationToken).ConfigureAwait(false);
+                }
                 organizedBy = KeepReachableFromDeviceSet(parentNode, device);
                 reader = new AutoIdReader(
                     this,
@@ -436,6 +465,8 @@ namespace Opc.Ua.AutoID.Server
 
         private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceAsync<TDevice>(
             AutoIdReaderBuilder builder,
+            NodeState? parent,
+            DeviceIdentificationData? nameplate,
             ExpandedNodeId typeId,
             Func<NodeState, TDevice> create,
             CancellationToken cancellationToken)
@@ -445,24 +476,44 @@ namespace Opc.Ua.AutoID.Server
             Di.Server.Builders.IDeviceBuilder<TDevice> deviceBuilder = await Manager.CreateDeviceAsync(
                 builder.BrowseName,
                 typeDefinitionId,
-                parent =>
+                deviceParent =>
                 {
-                    TDevice device = create(parent);
+                    TDevice device = create(deviceParent);
                     AutoIdDeviceConfigurator.Configure(SystemContext, device, builder);
                     return device;
                 },
-                builder.Parent,
+                parent,
                 cancellationToken).ConfigureAwait(false);
             return (
                 deviceBuilder.Device,
                 () =>
                 {
-                    if (builder.Identification != null)
+                    if (nameplate != null)
                     {
-                        deviceBuilder.WithIdentification(builder.Identification);
+                        deviceBuilder.WithIdentification(data => CopyNameplate(nameplate, data));
                     }
                 }
             );
+        }
+
+        /// <summary>
+        /// Copies the nameplate the builder's delegate produced once, so the delegate is not run
+        /// a second time.
+        /// </summary>
+        private static void CopyNameplate(DeviceIdentificationData source, DeviceIdentificationData target)
+        {
+            target.Manufacturer = source.Manufacturer;
+            target.ManufacturerUri = source.ManufacturerUri;
+            target.Model = source.Model;
+            target.HardwareRevision = source.HardwareRevision;
+            target.SoftwareRevision = source.SoftwareRevision;
+            target.DeviceRevision = source.DeviceRevision;
+            target.ProductCode = source.ProductCode;
+            target.DeviceManual = source.DeviceManual;
+            target.DeviceClass = source.DeviceClass;
+            target.SerialNumber = source.SerialNumber;
+            target.ProductInstanceUri = source.ProductInstanceUri;
+            target.RevisionCounter = source.RevisionCounter;
         }
 
         private async ValueTask DisposeProviderQuietlyAsync(IAutoIdReaderProvider provider, string? name)
