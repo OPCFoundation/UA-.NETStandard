@@ -1920,6 +1920,7 @@ namespace Opc.Ua.Server.Tests
         /// causing <c>ValidateRolePermissions</c> to be called again on the next value change.
         /// </summary>
         [Test]
+        [NonParallelizable] // Exact cache counts require a stable process-wide RolePermissionsVersion.
         public async Task InvalidatePermissionCacheForSessionClearsPermissionCacheForMatchingSessionAsync()
         {
             // Arrange
@@ -1983,6 +1984,7 @@ namespace Opc.Ua.Server.Tests
         /// clear the permission cache for monitored items belonging to a different session.
         /// </summary>
         [Test]
+        [NonParallelizable] // Exact cache counts require a stable process-wide RolePermissionsVersion.
         public async Task InvalidatePermissionCacheForSessionDoesNotClearCacheForOtherSessionAsync()
         {
             // Arrange

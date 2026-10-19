@@ -609,9 +609,11 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 12,
                 Uuid.Empty,
                 4);
-            MetaDataMatchResult result = registry.TryGet(in key, out DataSetMetaDataType? stored);
+            MetaDataMatchResult result = connection.InboundMetaDataRegistry.TryGet(
+                in key, out DataSetMetaDataType? stored);
             Assert.That(result, Is.EqualTo(MetaDataMatchResult.Match));
             Assert.That(stored, Is.SameAs(meta));
+            Assert.That(registry.TryGet(in key, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
         }
 
         [Test]
@@ -669,7 +671,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
 
             Assert.That(decodeCount, Is.EqualTo(2));
             var key = new DataSetMetaDataKey(PublisherId.FromUInt16(4), 0, 9, Uuid.Empty, 2);
-            Assert.That(registry.TryGet(in key, out _), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(connection.InboundMetaDataRegistry.TryGet(in key, out _),
+                Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(registry.TryGet(in key, out _), Is.EqualTo(MetaDataMatchResult.NotFound));
         }
 
         [Test]

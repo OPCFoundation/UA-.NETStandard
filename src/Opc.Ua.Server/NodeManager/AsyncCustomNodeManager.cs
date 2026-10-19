@@ -261,31 +261,36 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
+        /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                NodeManagerOperationContext? previous = m_operationContext.Value;
+                if (m_disposed && previous?.Active != true &&
+                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
+                var context = new NodeManagerOperationContext(previous);
+                m_operationContext.Value = context;
                 m_operationCount++;
-                return new NodeManagerOperation(this);
+                return new NodeManagerOperation(this, context);
             }
         }
 
         /// <summary>
-        /// Rejects access after admission closes unless it belongs to the active teardown callback.
+        /// Rejects access after admission closes unless an admitted operation or teardown callback owns it.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private protected void ThrowIfNodeManagerStopping()
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                if (m_disposed && m_operationContext.Value?.Active != true &&
+                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
@@ -340,10 +345,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases an admitted operation and signals shutdown when the final operation exits.
         /// </summary>
-        private void CompleteNodeManagerOperation()
+        private void CompleteNodeManagerOperation(NodeManagerOperationContext context)
         {
             lock (m_operationLifetimeLock)
             {
+                if (!context.Active)
+                {
+                    return;
+                }
+                context.Active = false;
+                if (ReferenceEquals(m_operationContext.Value, context))
+                {
+                    m_operationContext.Value = context.Previous;
+                }
                 m_operationCount--;
                 if (m_disposed && m_operationCount == 0)
                 {
@@ -434,6 +448,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Tracks whether an operation inherited through an execution context is still admitted.
+        /// </summary>
+        private protected sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous)
+        {
+            /// <summary>
+            /// Gets the surrounding operation to restore when this scope completes.
+            /// </summary>
+            public NodeManagerOperationContext? Previous { get; } = previous;
+
+            /// <summary>
+            /// Gets or sets whether this scope still retains operation admission.
+            /// </summary>
+            public bool Active { get; set; } = true;
+        }
+
+        /// <summary>
         /// Retains operation admission through semaphore scopes and any deferred callbacks.
         /// </summary>
         private protected readonly struct NodeManagerOperation : IDisposable
@@ -441,9 +471,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Captures the node manager whose admitted operation this scope completes.
             /// </summary>
-            public NodeManagerOperation(AsyncCustomNodeManager owner)
+            public NodeManagerOperation(AsyncCustomNodeManager owner, NodeManagerOperationContext context)
             {
                 m_owner = owner;
+                m_context = context;
             }
 
             /// <summary>
@@ -451,13 +482,16 @@ namespace Opc.Ua.Server
             /// </summary>
             public void Dispose()
             {
-                m_owner.CompleteNodeManagerOperation();
+                m_owner.CompleteNodeManagerOperation(m_context);
             }
 
             /// <summary>
             /// Owns the admission count retained by this operation scope.
             /// </summary>
             private readonly AsyncCustomNodeManager m_owner;
+
+            /// <summary>The execution-context scope retained by this operation.</summary>
+            private readonly NodeManagerOperationContext m_context;
         }
 
         /// <summary>
@@ -11137,6 +11171,10 @@ namespace Opc.Ua.Server
         /// Counts admitted operations until their semaphore work and deferred callbacks finish.
         /// </summary>
         private int m_operationCount;
+
+        /// <summary>The admitted operation inherited by nested callbacks.</summary>
+        private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();
+
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>

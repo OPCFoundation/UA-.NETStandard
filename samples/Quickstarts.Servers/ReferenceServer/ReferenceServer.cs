@@ -397,8 +397,23 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
+            string temporaryDirectory = Path.GetTempPath();
+#if NET8_0_OR_GREATER
+            // Select the physical system temp directory before defining the mount boundary (macOS aliases /var).
+            string physicalDirectory = Path.GetPathRoot(temporaryDirectory)!;
+            foreach (string component in temporaryDirectory[physicalDirectory.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries))
+            {
+                var directory = new DirectoryInfo(Path.Combine(physicalDirectory, component));
+                physicalDirectory = directory.Exists
+                    ? directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName
+                    : directory.FullName;
+            }
+            temporaryDirectory = physicalDirectory;
+#endif
             string root = Path.Combine(
-                Path.GetTempPath(),
+                temporaryDirectory,
                 "OpcUaReferenceServerFs");
             return new Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider(
                 root,

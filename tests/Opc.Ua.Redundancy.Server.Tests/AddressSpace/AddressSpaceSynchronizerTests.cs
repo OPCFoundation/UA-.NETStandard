@@ -67,6 +67,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
             messageContext.NamespaceUris.GetIndexOrAppend("urn:test:sync");
+            messageContext.NamespaceUris.GetIndexOrAppend("urn:test:foreign");
             m_messageContext = messageContext;
             m_systemContext = new SystemContext(telemetry)
             {

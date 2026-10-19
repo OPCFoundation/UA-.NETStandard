@@ -77,14 +77,14 @@ namespace Opc.Ua.Lds.Tests
             Path.GetFullPath("server.sem") + ":stream",
             Path.GetFullPath("server.sem") + ".",
             Path.GetFullPath("server.sem") + " ",
-            Path.GetFullPath("server?.sem"),
-            Path.GetFullPath("NUL.txt"),
-            Path.GetFullPath("NUL .txt"),
-            Path.GetFullPath("con"),
-            Path.GetFullPath("CONIN$"),
-            Path.GetFullPath("CONOUT$"),
-            Path.GetFullPath("COM1.sem"),
-            Path.GetFullPath("lpt¹.sem"),
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "server?.sem",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "NUL.txt",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "NUL .txt",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "con",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "CONIN$",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "CONOUT$",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "COM1.sem",
+            Path.GetFullPath(".") + Path.DirectorySeparatorChar + "lpt¹.sem",
             Path.Combine(Path.GetFullPath("."), "..", "server.sem")
         ];
 
