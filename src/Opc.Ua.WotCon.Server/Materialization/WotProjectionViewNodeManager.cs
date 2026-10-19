@@ -322,10 +322,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var unresolved = new HashSet<NodeId>();
             foreach (NodeId candidate in candidates)
             {
-                (object? handle, IAsyncNodeManager? _) = await Server.NodeManager
-                    .GetManagerHandleAsync(candidate, cancellationToken)
-                    .ConfigureAwait(false);
-                if (handle is null)
+                bool materialized;
+                if (Server.NodeManager is MasterNodeManager master)
+                {
+                    materialized = await master.IsNodeMaterializedAsync(candidate, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    (object? handle, IAsyncNodeManager? _) = await Server.NodeManager
+                        .GetManagerHandleAsync(candidate, cancellationToken)
+                        .ConfigureAwait(false);
+                    materialized = handle is not null;
+                }
+                if (!materialized)
                 {
                     unresolved.Add(candidate);
                     omissions.Add(

@@ -198,6 +198,7 @@ namespace Opc.Ua.Server
             m_server = server;
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
+            SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
             Id = id;
             NodeId = itemToMonitor.NodeId;
@@ -415,6 +416,12 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
+
+        /// <summary>
+        /// Gets the metadata snapshot of the source node captured when the item was created or last rebound, which
+        /// lets a detached item be modified after its source node left the address space.
+        /// </summary>
+        internal NodeState? SourceMetadata { get; private set; }
 
         /// <summary>
         /// Whether any live monitored item in the process is detached or marked deleted.
@@ -793,10 +800,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
+            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
+                SourceMetadata = metadata;
                 SetDetachState(isDetached: false, isDeleted: false);
                 m_finalValuePublished = false;
             }
@@ -1683,20 +1692,19 @@ namespace Opc.Ua.Server
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
-            IFilterContext context,
+            FilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
             // fetch the event fields.
             bool[] rejected = GetRejectedSelectClauses(context, filter);
-            var eventFieldValues = new List<Variant>(rejected.Length);
+            var eventFieldValues = new Variant[rejected.Length];
             for (int ii = 0; ii < rejected.Length; ii++)
             {
                 // a select clause rejected in the EventFilterResult returns a null field
                 // (Part 4 §7.22.3).
                 if (rejected[ii])
                 {
-                    eventFieldValues.Add(Variant.Null);
                     continue;
                 }
 
@@ -1710,22 +1718,16 @@ namespace Opc.Ua.Server
                     clause.AttributeId,
                     clause.ParsedIndexRange);
 
-                // add the value to the list of event fields.
+                // a missing value stays a null field.
                 if (!value.IsNull)
                 {
                     // translate any localized text (scalar or array).
                     if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
                     {
-                        value = m_server.ResourceManager.TranslateValue(Session?.PreferredLocales!, value);
+                        value = m_server.ResourceManager.TranslateValue(context.PreferredLocales, value);
                     }
 
-                    // add value.
-                    eventFieldValues.Add(value);
-                }
-                // add a dummy entry for missing values.
-                else
-                {
-                    eventFieldValues.Add(Variant.Null);
+                    eventFieldValues[ii] = value;
                 }
             }
             var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
@@ -1734,6 +1736,45 @@ namespace Opc.Ua.Server
             result.EventFields = eventFieldValues;
             m_server.EventManager?.RegisterEventFields(result, instance);
             return result;
+        }
+
+        /// <summary>
+        /// Returns the context to evaluate the event filter with. The context only carries
+        /// the server tables and the preferred locales of the session, so it is created again
+        /// only when the session replaces its locales (or the item moves to another session).
+        /// </summary>
+        private FilterContext GetEventFilterContext()
+        {
+            string[]? preferredLocales = Session?.PreferredLocales;
+            EventFilterContext? cached = m_eventFilterContext;
+            if (cached == null || !ReferenceEquals(cached.PreferredLocales, preferredLocales))
+            {
+                cached = new EventFilterContext(
+                    preferredLocales,
+                    new FilterContext(
+                        m_server.NamespaceUris,
+                        m_server.TypeTree,
+                        preferredLocales!,
+                        m_server.Telemetry));
+                m_eventFilterContext = cached;
+            }
+            return cached.Context;
+        }
+
+        /// <summary>
+        /// The event filter context and the locales it was created for.
+        /// </summary>
+        private sealed class EventFilterContext
+        {
+            public EventFilterContext(string[]? preferredLocales, FilterContext context)
+            {
+                PreferredLocales = preferredLocales;
+                Context = context;
+            }
+
+            public string[]? PreferredLocales { get; }
+
+            public FilterContext Context { get; }
         }
 
         /// <summary>
@@ -1791,12 +1832,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // construct the context to use for the event filter.
-                var context = new FilterContext(
-                    m_server.NamespaceUris,
-                    m_server.TypeTree,
-                    Session?.PreferredLocales!,
-                    m_server.Telemetry);
+                FilterContext context = GetEventFilterContext();
 
                 // event filter must be specified.
                 if (FilterToUse is not EventFilter filter)
@@ -2495,6 +2531,42 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
+        /// </summary>
+        /// <param name="server">The server providing the type tree and system context.</param>
+        /// <param name="managerHandle">The node manager handle of the monitored source node.</param>
+        /// <returns>The metadata snapshot, or null when the handle does not carry a node.</returns>
+        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
+        {
+            if (managerHandle is not NodeHandle { Node: { } source })
+            {
+                return null;
+            }
+            if (source is not BaseVariableState variable)
+            {
+                return new BaseObjectState(null) { NodeId = source.NodeId };
+            }
+            var metadata = new BaseDataVariableState(null)
+            {
+                NodeId = source.NodeId,
+                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
+                    ? DataTypeIds.Number
+                    : variable.DataType,
+                MinimumSamplingInterval = variable.MinimumSamplingInterval
+            };
+            if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
+                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+            {
+                metadata.AddChild(new PropertyState(metadata)
+                {
+                    BrowseName = QualifiedName.From(BrowseNames.EURange),
+                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
+                });
+            }
+            return metadata;
+        }
+
         private void QueueNodeIdUnknown()
         {
             // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
@@ -3087,6 +3159,7 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
         private RejectedSelectClauses? m_rejectedSelectClauses;
+        private EventFilterContext? m_eventFilterContext;
         private bool m_isDetached;
         private bool m_isDeleted;
         private bool m_countedAsRecoverable;

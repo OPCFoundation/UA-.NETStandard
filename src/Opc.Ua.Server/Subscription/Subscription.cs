@@ -50,6 +50,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object.
         /// </summary>
+        /// <param name="server">The server that owns the subscription.</param>
+        /// <param name="session">The session that owns the subscription.</param>
+        /// <param name="subscriptionId">The identifier of the subscription.</param>
+        /// <param name="publishingInterval">The publishing interval in milliseconds.</param>
+        /// <param name="maxLifetimeCount">The maximum lifetime count.</param>
+        /// <param name="maxKeepAliveCount">The maximum keep-alive count.</param>
+        /// <param name="maxNotificationsPerPublish">The maximum notifications per publish response.</param>
+        /// <param name="priority">The subscription priority.</param>
+        /// <param name="publishingEnabled">Whether publishing is initially enabled.</param>
+        /// <param name="maxMessageCount">The maximum number of retained notification messages.</param>
         public Subscription(
             IServerInternal server,
             ISession session,
@@ -81,6 +91,17 @@ namespace Opc.Ua.Server
         /// <see cref="TimeProvider"/> so the monotonic publish-timer expiry can
         /// be mocked in tests.
         /// </summary>
+        /// <param name="server">The server that owns the subscription.</param>
+        /// <param name="session">The session that owns the subscription.</param>
+        /// <param name="subscriptionId">The identifier of the subscription.</param>
+        /// <param name="publishingInterval">The publishing interval in milliseconds.</param>
+        /// <param name="maxLifetimeCount">The maximum lifetime count.</param>
+        /// <param name="maxKeepAliveCount">The maximum keep-alive count.</param>
+        /// <param name="maxNotificationsPerPublish">The maximum notifications per publish response.</param>
+        /// <param name="priority">The subscription priority.</param>
+        /// <param name="publishingEnabled">Whether publishing is initially enabled.</param>
+        /// <param name="maxMessageCount">The maximum number of retained notification messages.</param>
+        /// <param name="timeProvider">The time provider, or <c>null</c> to use the server or system provider.</param>
         public Subscription(
             IServerInternal server,
             ISession session,
@@ -833,8 +854,9 @@ namespace Opc.Ua.Server
 
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
-                // check if publish interval has elapsed.
-                if (m_publishTimerExpiry >= currentTime)
+                // check if publish interval has elapsed; a sweep that runs exactly at the
+                // deadline counts as elapsed.
+                if (m_publishTimerExpiry > currentTime)
                 {
                     // check if waiting for publish.
                     if (m_waitingForPublish)
@@ -845,10 +867,20 @@ namespace Opc.Ua.Server
                     return PublishingState.Idle;
                 }
 
-                // set next expiry time.
-                while (m_publishTimerExpiry < currentTime)
+                // set next expiry time. The publish timer sweep runs on its own cadence, and
+                // when it runs at the publishing interval a sweep that wakes a little late
+                // can find the subscription a whole interval behind. Advancing by one
+                // interval keeps that expiry due for the next sweep instead of dropping a
+                // publishing cycle; only a subscription that is still behind by a whole
+                // interval after that (a stalled sweep) skips the missed expiries.
+                long publishingInterval = (long)m_publishingInterval;
+                m_publishTimerExpiry += publishingInterval;
+                if (m_publishTimerExpiry <= currentTime - publishingInterval)
                 {
-                    m_publishTimerExpiry += (long)m_publishingInterval;
+                    while (m_publishTimerExpiry <= currentTime)
+                    {
+                        m_publishTimerExpiry += publishingInterval;
+                    }
                 }
 
                 // OPC 10000-4 §5.14.1.2 row 27: the LifetimeCounter is decremented when the
@@ -2805,7 +2837,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    // The dispatcher preserves completed items and reports cancellation per unfinished item.
                     ThrowIfDeleted();
                     VerifySession(context);
                     ownershipTransferred = true;
@@ -3416,6 +3448,11 @@ namespace Opc.Ua.Server
             {
                 // check session.
                 VerifySession(context);
+
+                if (monitoringMode is < MonitoringMode.Disabled or > MonitoringMode.Reporting)
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoringModeInvalid);
+                }
 
                 // clear lifetime counter.
                 ResetLifetimeCount();

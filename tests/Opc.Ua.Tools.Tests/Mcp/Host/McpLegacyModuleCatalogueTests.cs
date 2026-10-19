@@ -146,7 +146,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [TestCaseSource(nameof(FullSetCases))]
-        public void AllThirtySixProfilesProduceExactIndependentFullSetCatalogues(
+        public void AllThirtySevenProfilesProduceExactIndependentFullSetCatalogues(
             string module,
             bool diagnosticsToolsEnabled,
             string catalogue,
@@ -154,7 +154,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             int expectedConnectionCount)
         {
             McpToolProfileSet profiles = AllProfiles();
-            Assert.That(profiles.Count, Is.EqualTo(36));
+            Assert.That(profiles.Count, Is.EqualTo(37));
             string[] actual = Observe(builder => RegisterSet(builder, module, profiles, diagnosticsToolsEnabled));
 
             AssertCatalogue(actual, ExpectedNames(catalogue, expectedConnectionCount),
@@ -553,7 +553,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile[] invalidProfiles =
             [
                 (McpToolProfile)(-1),
-                (McpToolProfile)36,
+                (McpToolProfile)37,
                 (McpToolProfile)63,
                 (McpToolProfile)64,
                 (McpToolProfile)int.MinValue,
@@ -932,7 +932,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
         private static McpToolProfileSet AllProfiles()
         {
-            // These two explicit, disjoint tables contain all 36 profiles, not just Full.
+            // These two explicit, disjoint tables contain all 37 profiles, not just Full.
             return new McpToolProfileSet([.. s_boundedProfiles, .. s_appendedProfiles]);
         }
 
@@ -1300,7 +1300,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.WotDocuments,
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
-            McpToolProfile.CranesHoists
+            McpToolProfile.CranesHoists,
+            McpToolProfile.AutoId
         ];
 
         /// <summary>
@@ -1341,7 +1342,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
             McpToolProfile.XRegistry,
             McpToolProfile.MachineTool,
             McpToolProfile.Gms,
-            McpToolProfile.CranesHoists
+            McpToolProfile.CranesHoists,
+            McpToolProfile.AutoId
         ];
 
         /// <summary>

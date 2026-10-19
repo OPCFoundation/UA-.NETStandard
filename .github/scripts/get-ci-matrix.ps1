@@ -279,6 +279,7 @@ $SampleProjectTimeoutMinutes = 240
 $IntegrationProjectTimeoutMinutes = 90
 $WotFrameworkProjectTimeoutMinutes = 150
 $DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
+$Net48ServerTestsTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -514,6 +515,13 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                 if ([System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.Types.Tests') {
                     $batchHangTimeout = '30m'
                 }
+            }
+            if ($testProfile.framework -eq 'net48' -and
+                $testProfile.os -eq 'windows' -and
+                @($batch | Where-Object {
+                    [System.IO.Path]::GetFileNameWithoutExtension($_) -eq 'Opc.Ua.Server.Tests'
+                }).Count -gt 0) {
+                $batchTimeout = [System.Math]::Max($batchTimeout, $Net48ServerTestsTimeoutMinutes)
             }
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus

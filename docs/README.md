@@ -193,6 +193,10 @@ models that each model depends on.
   Industrial Automation, Device Integration, PA-DIM, ECM and ISA-95 models.
 - [Pumps](Pumps.md) (OPC 40223) — pumps and vacuum pumps,
   published both as Device Integration devices and as Machinery machines.
+- [AutoID Devices](AutoID.md) (OPC 30010) — RFID, OCR, optical, optical
+  verifier and RTLS readers: model, server hosting with a provider contract for
+  the reader hardware, typed client, MCP tools and a simulated RFID reader
+  sample, based on the Device Integration model.
 - [Machine Vision](Vision.md) (OPC 40100-1 and OPC 40100-2) —
   released control, recipes, configurations, results, assets, and condition monitoring,
   with Vision/Perception composition and Machinery hosting.

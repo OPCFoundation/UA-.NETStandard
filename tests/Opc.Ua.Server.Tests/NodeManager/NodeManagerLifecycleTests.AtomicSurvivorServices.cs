@@ -77,8 +77,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 null, 100, 100, 10, 0, true, 0, timeout.Token).ConfigureAwait(false);
             uint subscriptionId = subscription.SubscriptionId;
             MonitoredItemCreateRequest request = events
-                ? CreateEmissionEventRequest(nodeId, 1)
-                : CreateEmissionDataRequest(nodeId, 1);
+                ? CreateSurvivorEventRequest(nodeId, 1)
+                : CreateSurvivorDataRequest(nodeId, 1);
             CreateMonitoredItemsResponse created = await session.CreateMonitoredItemsAsync(
                 null, subscriptionId, TimestampsToReturn.Both, [request], timeout.Token).ConfigureAwait(false);
             Assert.That(created.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? NodeManagerBatchChange.Replace(registration,
                             CreateTrackingNodeManagementFactory(202, _ => { }), true)
                         : NodeManagerBatchChange.Remove(registration, true)
-                ], timeout.Token).ConfigureAwait(false);
+                ], null, timeout.Token).ConfigureAwait(false);
             try
             {
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
@@ -222,7 +222,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await CheckFiltersAsync().ConfigureAwait(false);
                 await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                    [NodeManagerBatchChange.Remove(registration, true)], timeout.Token).ConfigureAwait(false);
+                    [NodeManagerBatchChange.Remove(registration, true)], null, timeout.Token)
+                    .ConfigureAwait(false);
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
@@ -271,6 +272,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(response.Results[0].StatusCode, Is.EqualTo(expected), $"Filter: {deadband}.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates an event monitored item for a retired-source service check.
+        /// </summary>
+        /// <param name="nodeId">The monitored source.</param>
+        /// <param name="clientHandle">The client handle.</param>
+        /// <returns>The monitored item request.</returns>
+        private static MonitoredItemCreateRequest CreateSurvivorEventRequest(NodeId nodeId, uint clientHandle)
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            return new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.EventNotifier },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = clientHandle,
+                    Filter = new ExtensionObject(filter),
+                    SamplingInterval = 0,
+                    QueueSize = 32,
+                    DiscardOldest = true
+                }
+            };
+        }
+
+        /// <summary>
+        /// Creates a data monitored item for a retired-source service check.
+        /// </summary>
+        /// <param name="nodeId">The monitored source.</param>
+        /// <param name="clientHandle">The client handle.</param>
+        /// <returns>The monitored item request.</returns>
+        private static MonitoredItemCreateRequest CreateSurvivorDataRequest(NodeId nodeId, uint clientHandle)
+        {
+            return new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = clientHandle,
+                    SamplingInterval = 0,
+                    QueueSize = 1,
+                    DiscardOldest = true
+                }
+            };
         }
     }
 }

@@ -146,7 +146,6 @@ namespace Opc.Ua.History.Tests
         public async Task DisableEnableViaTypeAndInstanceMethodNoEventsDuringDisabledAsync()
         {
             NodeId alarmId = RequireCttAlarm("AlarmConditionType");
-            await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
 
             NodeId instanceDisable = await FindInstanceMethodAsync(alarmId, BrowseNames.Disable)
                 .ConfigureAwait(false);
@@ -161,8 +160,16 @@ namespace Opc.Ua.History.Tests
             await using AlarmEventCollector collector =
                 await AlarmEventCollector.CreateAsync(Session).ConfigureAwait(false);
 
+            // The background alarm simulator can report a severity change inside the Enable call
+            // window. End takes the simulation lock and disables automatic ticks; its single pending
+            // reset tick still steps the value by 5, but from 50 or 90 it crosses no severity or
+            // active boundary (50 to 55 stays inactive, 90 to 95 stays high-high).
+            // Start in finally restores the fixture even when End fails client-side after executing.
             try
             {
+                await CallAlarmsFolderMethodAsync("Alarms.End").ConfigureAwait(false);
+                await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+
                 await VerifyDisableEnableCycleAsync(
                     collector,
                     alarmId,
@@ -181,6 +188,11 @@ namespace Opc.Ua.History.Tests
                     "Disable/Enable event did not arrive within the expected window " +
                     "(CI load flakiness): " +
                     ex.Message);
+            }
+            finally
+            {
+                await CallAlarmsFolderMethodAsync("Alarms.Start", new Variant(uint.MaxValue))
+                    .ConfigureAwait(false);
             }
         }
 
@@ -306,6 +318,20 @@ namespace Opc.Ua.History.Tests
                 callResult.StatusCode == StatusCodes.BadConditionAlreadyDisabled ||
                 StatusCode.IsBad(callResult.StatusCode), Is.True,
                 $"Disable on an already-disabled condition should fail: {callResult.StatusCode}");
+        }
+
+        /// <summary>
+        /// Calls a method of the Alarms folder simulation control and requires success.
+        /// </summary>
+        private async Task CallAlarmsFolderMethodAsync(string methodName, params Variant[] arguments)
+        {
+            ushort ns = AlarmsFolderId.NamespaceIndex;
+            CallMethodResult result = await CallMethodOnAlarmAsync(
+                AlarmsFolderId,
+                new NodeId(methodName, ns),
+                arguments).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True,
+                $"{methodName} should succeed: {result.StatusCode}");
         }
 
         private async Task VerifyDisableEnableCycleAsync(
