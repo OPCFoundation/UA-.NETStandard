@@ -16,7 +16,7 @@ if ($LASTEXITCODE -ne 0 -or $image -ne $pins.linux.image_id) {
 }
 Push-Location $root
 try {
-    & python 'build\verify.py' source
+    & python (Join-Path (Join-Path $root 'build') 'verify.py') source
     if ($LASTEXITCODE -ne 0) { throw 'Source verification failed.' }
 }
 finally {
@@ -69,7 +69,7 @@ finally {
 } | ConvertTo-Json -Depth 6 | Set-Content (Join-Path $artifacts 'receipts\linux-build.json')
 Push-Location $root
 try {
-    & python 'build\verify.py' binary --rid linux-x64
+    & python (Join-Path (Join-Path $root 'build') 'verify.py') binary --rid linux-x64
     if ($LASTEXITCODE -ne 0) { throw 'Linux asset verification failed.' }
 }
 finally {
