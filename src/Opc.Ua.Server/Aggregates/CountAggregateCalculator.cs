@@ -308,13 +308,14 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // count the values. Part 13 §4.2.1.2: with TreatUncertainAsBad = false an
-            // Uncertain value is equivalent to Good, so it is counted (IsGood applies the setting).
+            // count the values. Part 13 §5.4.3.19: non-Good values are not counted. The definition
+            // wins over §4.2.1.2, so Uncertain values are never counted but make the status
+            // non-Good, whatever TreatUncertainAsBad is (Mantis 11495 ~0025874).
             int count = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (IsGood(values[ii]))
+                if (IsGoodValue(values[ii]))
                 {
                     count++;
                 }
@@ -326,7 +327,7 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
+            value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode, true));
 
             if (!StatusCode.IsBad(value.StatusCode))
             {

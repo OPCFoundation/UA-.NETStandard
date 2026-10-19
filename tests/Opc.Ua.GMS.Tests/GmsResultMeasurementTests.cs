@@ -143,7 +143,7 @@ namespace Opc.Ua.GMS.Tests
                 Description = initial.Description,
                 ProgramName = initial.ProgramName
             };
-            ServiceResultException changedReference = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException changedReference = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await publisher.PublishCorrectionAsync(invalidReference).ConfigureAwait(false))!;
             Assert.That(changedReference.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             var invalidShape = new GmsCorrection("offset-1", "bore", Analog(1), complete ? null : Analog(1))
@@ -153,7 +153,7 @@ namespace Opc.Ua.GMS.Tests
                 Description = initial.Description,
                 ProgramName = initial.ProgramName
             };
-            ServiceResultException changedShape = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException changedShape = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await publisher.PublishCorrectionAsync(invalidShape).ConfigureAwait(false))!;
             Assert.That(changedShape.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             foreach (BaseVariableState variable in variables)
@@ -223,11 +223,11 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(actual.RelativeValue!.Value.StatusCode, Is.EqualTo(StatusCodes.BadSensorFailure));
             Assert.That(actual.RelativeValue.Value.SourceTimestamp, Is.EqualTo(s_acquired));
             Assert.That(actual.RelativeValue.Value.WrappedValue.IsNull, Is.True);
-            ServiceResultException shape = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(new GmsCorrection("offset-1", "different", Analog(1))))!;
+            ServiceResultException shape = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await publisher.PublishCorrectionAsync(new GmsCorrection("offset-1", "different", Analog(1)))))!;
             Assert.That(shape.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(new GmsCorrection("absent", "bore", Analog(1))))!;
+            ServiceResultException missing = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await publisher.PublishCorrectionAsync(new GmsCorrection("absent", "bore", Analog(1)))))!;
             Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }
 

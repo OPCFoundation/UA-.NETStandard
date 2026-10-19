@@ -201,8 +201,8 @@ namespace Opc.Ua.GMS.Tests
                     Features = GmsFeatures.Sensors | GmsFeatures.AdditionalSensors | GmsFeatures.SensorWarnings
                 })
                 .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(error.Message, Does.Contain("actual additional sensor"));
             Assert.That(context.MachinesFolder.FindChild(context.Context,
@@ -258,8 +258,8 @@ namespace Opc.Ua.GMS.Tests
                 Assert.That(warning.SourceNode!.Value, Is.EqualTo(measuredId));
                 return;
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(error.Message, Does.Contain("additional sensor's measured value"));
             Assert.That(fixture.Manager.FindPredefinedNode(measuredId), Is.Null);
@@ -344,8 +344,8 @@ namespace Opc.Ua.GMS.Tests
                 ]
             }).ConfigureAwait(false);
             await handle.RefreshAsync().ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await condition.DisableAsync().ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await condition.DisableAsync().ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(warning.EnabledState.Id.Value, Is.True);
             Assert.That(warning.ActiveState.Id.Value, Is.True);
@@ -395,7 +395,7 @@ namespace Opc.Ua.GMS.Tests
             {
                 SensorWarnings = [initial.SensorWarnings[0] with { ErrorCode = "T43" }]
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await handle.RefreshAsync().ConfigureAwait(false));
             ByteString eventId = warning.EventId!.Value;
             await provider.SetSnapshotAsync(initial with
@@ -410,7 +410,7 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(handle.TryGetSensorWarning("Unknown", out _), Is.False);
             Assert.Throws<ArgumentNullException>(() => handle.TryGetSensorWarning(null!, out _));
             Assert.Throws<ArgumentNullException>(() => handle.TryGetSensor(null!, out _));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await handle.RefreshNotificationsAsync().ConfigureAwait(false));
             warning.OnReportEventAsync = null;
         }

@@ -290,11 +290,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var reboundChannel = new SecureChannelContext("rebound", reboundEndpoint, RequestEncoding.Binary);
                 if (plaintext)
                 {
-                    ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await ActivateAsync(reboundChannel).ConfigureAwait(false))!;
                     Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
                     Assert.That(created.Session.SecureChannelId, Is.EqualTo(originalChannel.SecureChannelId));
-                    ServiceResultException rejectedPublish = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException rejectedPublish = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () =>
                     {
                         using OperationContext denied = await sessions.ValidateRequestAsync(
                             new RequestHeader { AuthenticationToken = created.AuthenticationToken },
@@ -302,7 +303,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         _ = Publish(item, denied);
                     })!;
                     Assert.That(rejectedPublish.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
-                    ServiceResultException rejectedAdmission = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException rejectedAdmission = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () =>
                     {
                         using OperationContext denied = await sessions.ValidateRequestAsync(
                             new RequestHeader { AuthenticationToken = created.AuthenticationToken },

@@ -121,7 +121,7 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
             Assert.That(m_services.GetServices<McpServerTool>().Select(tool => tool.ProtocolTool.Name),
                 Does.Contain("start_capture").And.Contain("get_capture").And.Not.Contain("dump_keys"));
 
-            Assert.That(
+            await Assert.ThatAsync(
                 () => ReplayAndExportRawCaptureAsync(listed[0].KeyLogFilePath!),
                 Throws.TypeOf<PcapDiagnosticsException>());
             Assert.That(PacketCaptureTools.ListCaptures(manager), Has.Count.EqualTo(1));
@@ -149,7 +149,7 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
                 .ConfigureAwait(false);
             await File.WriteAllTextAsync(pcap, kNotAKeyLog).ConfigureAwait(false);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 () => PacketCaptureTools.GetCaptureAsync(manager, m_formatters, started.SessionId, format),
                 Throws.TypeOf<PcapDiagnosticsException>());
         }

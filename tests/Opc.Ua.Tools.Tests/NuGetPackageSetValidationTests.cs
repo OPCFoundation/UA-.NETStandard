@@ -52,6 +52,14 @@ namespace Opc.Ua.Tools.Tests
     [NonParallelizable]
     public sealed class NuGetPackageSetValidationTests
     {
+        private static readonly string[] s_autoIdPackages =
+        [
+            "OPCFoundation.NetStandard.Opc.Ua.AutoID",
+            "OPCFoundation.NetStandard.Opc.Ua.AutoID.Client",
+            "OPCFoundation.NetStandard.Opc.Ua.AutoID.Server",
+            "OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID"
+        ];
+
         /// <summary>
         /// The approved suite adds exactly twelve package identities and never a separate WMTP package.
         /// </summary>
@@ -94,6 +102,25 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(actual, Is.EquivalentTo(expected));
             Assert.That(actual, Has.Length.EqualTo(12));
+        }
+
+        /// <summary>
+        /// The AutoID companion ships as exactly the model, server, client and MCP packages.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryContainsTheFourAutoIdPackagesAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(
+                    id => id.Contains("AutoID", StringComparison.Ordinal))
+            ];
+
+            Assert.That(
+                actual,
+                Is.EquivalentTo(s_autoIdPackages));
         }
 
         /// <summary>

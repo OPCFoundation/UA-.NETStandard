@@ -259,7 +259,7 @@ namespace Opc.Ua.WotCon.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             {
                 await foreach ((string Name, ThingDescription Description) in registry.EnumeratePersistedAsync(cts.Token)
                     .ConfigureAwait(false))

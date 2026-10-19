@@ -100,7 +100,7 @@ namespace Opc.Ua.GMS.Tests
                 },
                 Loading = initial.Loading! with { LoadStatus = GmsEquipmentTests.Sample(Variant.From(1u)) }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
             Assert.That(handle.Observation, Is.SameAs(initial));
             Assert.That(handle.State.Monitoring.LoadingMonitoring!.LoadStatus!.Value.TryGetValue(out uint load),
                 Is.True);
@@ -113,7 +113,7 @@ namespace Opc.Ua.GMS.Tests
                 },
                 Calibration = initial.Calibration! with { Calibrated = GmsEquipmentTests.Sample(Variant.From(false)) }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
             Assert.That(calibration.Calibrated.Value, Is.True);
             await provider.SetSnapshotAsync(initial with
             {

@@ -238,7 +238,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(retiredMetadataNotifications, Is.Zero);
             servers[0].Session.VerifyRemove(s => s.ModelChanged -= It.IsAny<EventHandler>(), Times.Once);
             servers[0].Session.Verify(s => s.DisposeAsync(), Times.Once);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await before.SampleAsync(oldMetadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
             if (removeDataSet)
@@ -392,7 +392,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 servers[1].Session.Verify(s => s.CreateDataChangeSubscriptionAsync(
                     250, It.IsAny<CancellationToken>()), Times.Once);
             }
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await before.SampleAsync(oldMetadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
@@ -477,7 +477,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(servers[1].Subscriptions[0].Disposed, Is.True);
             servers[0].Session.Verify(s => s.DisposeAsync(), Times.Once);
             servers[1].Session.Verify(s => s.DisposeAsync(), Times.Once);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await before.SampleAsync(oldMetadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
             context.Application.Verify(a => a.ReplaceConfigurationAsync(
@@ -576,7 +576,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .ConfigureAwait(false);
             Assert.That(cyclic.Fields[0].Value, Is.EqualTo(Variant.From(70)));
             Assert.That(servers[1].Subscriptions, Is.Empty);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await subscriptionSource.SampleAsync(metadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
 
@@ -588,7 +588,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 .ConfigureAwait(false);
             Assert.That(subscription.Fields[0].Value, Is.EqualTo(Variant.From(70)));
             Assert.That(servers[2].Subscriptions, Has.Count.EqualTo(1));
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await cyclicSource.SampleAsync(metadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }
@@ -635,7 +635,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             IPublishedDataSetSource after = GetSecuritySource(context);
             PublishedDataSetSnapshot snapshot = await after.SampleAsync(after.BuildMetaData()).ConfigureAwait(false);
             Assert.That(snapshot.Fields[0].Value, Is.EqualTo(Variant.From(88)));
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await before.SampleAsync(oldMetadata).ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }

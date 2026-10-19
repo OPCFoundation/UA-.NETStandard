@@ -515,7 +515,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics,
                 TimeProvider.System);
 
-            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException? exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "SendChunkedAsync",
@@ -815,7 +815,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics,
                 TimeProvider.System);
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "EncodeAndWrapUadpAsync",

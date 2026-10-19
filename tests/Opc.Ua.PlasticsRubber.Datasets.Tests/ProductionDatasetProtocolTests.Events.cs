@@ -449,7 +449,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                         Is.False);
                 });
                 fixture.Policy.DenyAll = true;
-                AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+                await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                     await fixture.Binding.RequestListAsync(caller,
                         cancellationToken: deadline.Token).ConfigureAwait(false));
             }
@@ -493,7 +493,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 Assert.That(calls.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
                 Assert.That(calls.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
             });
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await fixture.Client.OpenWriteAsync(
+            await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await fixture.Client.OpenWriteAsync(
                 WriteOptions(StorageEnumeration.FILE_SYSTEM, new string('a', 65))).ConfigureAwait(false));
             var selected = new ProductionDatasetWriteOptionsType
             {
@@ -501,7 +501,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 Storage = StorageEnumeration.PRODUCTION,
                 Components = new ushort[17].ToArrayOf()
             };
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
+            await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
                 await fixture.Client.OpenWriteAsync(selected).ConfigureAwait(false));
             ProductionDatasetListsTypeClient? lists = await fixture.Client.Proxy.GetProductionDatasetListsAsync(
                 fixture.Session.MessageContext.Telemetry).ConfigureAwait(false);
@@ -510,7 +510,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             {
                 oversized[i] = new ProductionDatasetInformationType { Name = "dataset-" + i };
             }
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
+            await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
                 await lists!.SendProductionDatasetListAsync(oversized.ToArrayOf()).ConfigureAwait(false));
             Assert.That(fixture.Provider.CommitCount, Is.Zero);
         }

@@ -551,11 +551,11 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task ModuleWithoutIdentificationIsRejectedAsync()
         {
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAsync(ScaleKind.Simple, b => b.AddFeederModule("F")));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await CreateAsync(ScaleKind.Simple, b => b.AddPrinterModule("P", p => p.WithFeederSpeed(0, 1, ScaleUnits.Percent, 0)), "S2"));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await CreateAsync(ScaleKind.Simple, b => b.AddFeederModule("F", f => f.WithLabel("x", 1, 1, ScaleUnits.Percent)), "S3"));
         }
 
@@ -1010,7 +1010,7 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task ScaleSystemWithoutIdentificationIsRejectedAsync()
         {
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_fixture.Manager.CreateScaleSystemAsync(m_fixture.Name("NoId"), s => { }));
             ScaleSystemHandle minimal = await m_fixture.Manager.CreateScaleSystemAsync(
                 m_fixture.Name("Minimal"),

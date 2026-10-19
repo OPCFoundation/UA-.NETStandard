@@ -1546,8 +1546,8 @@ Pick the entry point that best matches your call site:
 ## Server session lifecycle
 
 Channel and security-policy association failures are rejected before
-authentication-failure accounting. Requests from another channel cannot
-lock out the application owning an unactivated session; genuine invalid
+authentication-failure accounting. A request from a different channel cannot
+lock out the application that owns an unactivated session; genuine invalid
 signatures and identity credentials still count toward that application's
 lockout threshold.
 
@@ -1561,6 +1561,16 @@ continuation remains caller-owned until its mirror write and local
 admission succeed. If the session closes during persistence, the late
 mirror entry is removed and `BadSessionClosed` is returned without
 transferring or disposing the caller's resource twice.
+
+Activating an unknown server session restores it first. The flow is:
+
+1. The activation enters binding admission.
+2. Admission is suspended while the restore provider runs, so activations for
+   other tokens and unrelated session creation can continue. Activations that
+   use the same token share one pending restore.
+3. Admission is reacquired.
+4. The restored session is validated and its security checks run.
+5. The session is activated and binding notifications are sent.
 
 Replacing or resetting a session's ephemeral user-token key retires the
 previous key. A key already borrowed by credential decryption remains

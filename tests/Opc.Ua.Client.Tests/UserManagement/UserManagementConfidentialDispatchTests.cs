@@ -64,7 +64,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
             SetSuccessfulCalls(fixture);
             var client = new UserManagementClient(fixture.ManagedSession);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await InvokeAsync(client, operation).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -148,14 +148,14 @@ namespace Opc.Ua.Client.Tests.UserManagement
         /// </summary>
         [Test]
         [Category("SecurityRegression")]
-        public Task SecurityF02CustomSessionCannotDispatchPasswords()
+        public async Task SecurityF02CustomSessionCannotDispatchPasswords()
         {
             var session = new Mock<ISession>();
             session.SetupGet(value => value.MessageContext).Returns(
                 ServiceMessageContext.Create(NUnitTelemetryContext.Create()));
             var client = new UserManagementClient(session.Object);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -163,7 +163,6 @@ namespace Opc.Ua.Client.Tests.UserManagement
                 It.IsAny<RequestHeader>(),
                 It.IsAny<ArrayOf<CallMethodRequest>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -186,7 +185,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             var client = new UserManagementClient(borrowed.Session);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -208,7 +207,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
             var client = new UserManagementClient(borrowed.Session);
             fixture.Recreate();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
@@ -257,7 +256,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
             fixture.InnerSession.NamespaceUris.Update(
                 ["http://opcfoundation.org/UA/", "urn:request-context:replacement"]);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
@@ -313,7 +312,7 @@ namespace Opc.Ua.Client.Tests.UserManagement
                 }
             }
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await operation.ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(replacementKind == "Downgrade"
                 ? StatusCodes.BadSecurityModeInsufficient

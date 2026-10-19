@@ -158,14 +158,14 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
 
             using (FileStream lockedFile = new(outside, FileMode.Open, FileAccess.Read, FileShare.None))
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     () => PubSubDecodeTools.DissectCaptureAsync(
                         m_services, m_manager, "json", supplied),
                     Throws.TypeOf<ArgumentException>().With.Property("ParamName").EqualTo("filePath"),
                     "Root authorization must reject the path before any attempt to open the locked key file.");
             }
 
-            Assert.That(
+            await Assert.ThatAsync(
                 () => PubSubDecodeTools.DissectCaptureAsync(m_services, m_manager, "json", supplied),
                 Throws.TypeOf<ArgumentException>(),
                 "An existing readable key file under the broader PcapOptions root is still outside the MCP root.");
@@ -179,10 +179,10 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
 
         [Test]
         [Category("SecurityRegression")]
-        public void SecurityF30DissectionRejectsMissingOutsideKeyBeforeFileLookup()
+        public async Task SecurityF30DissectionRejectsMissingOutsideKeyBeforeFileLookup()
         {
             string outside = Path.Combine(m_directory, "not-created", "keys.jsonl");
-            Assert.That(
+            await Assert.ThatAsync(
                 () => PubSubDecodeTools.DissectCaptureAsync(m_services, m_manager, "json", outside),
                 Throws.TypeOf<ArgumentException>().With.Property("ParamName").EqualTo("filePath"));
         }
@@ -217,7 +217,7 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
 
             if (entryPoint == "load")
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     () => PubSubDecodeTools.LoadKeyLogAsync(m_services, outside, CancellationToken.None),
                     Throws.TypeOf<ArgumentException>());
                 PubSubKeyLogInfo loaded = await PubSubDecodeTools.LoadKeyLogAsync(
@@ -229,7 +229,7 @@ namespace Opc.Ua.Tools.Tests.CaptureAuthorization
             }
             else
             {
-                Assert.That(
+                await Assert.ThatAsync(
                     () => PubSubDecodeTools.DecodePcapAsync(
                         m_services, capture.FilePath, "json", outside),
                     Throws.TypeOf<ArgumentException>());

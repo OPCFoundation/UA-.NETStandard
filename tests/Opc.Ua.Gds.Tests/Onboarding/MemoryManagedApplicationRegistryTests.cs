@@ -128,16 +128,16 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
-        public void RegisterRejectsNullArgs()
+        public async Task RegisterRejectsNullArgs()
         {
             var registry = new MemoryManagedApplicationRegistry();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await registry.RegisterAsync(string.Empty,
                     [], MakeTicket()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
                     null!, MakeTicket()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.RegisterAsync("urn:1",
                     [], null!).ConfigureAwait(false));
         }

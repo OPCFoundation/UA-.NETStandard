@@ -67,9 +67,9 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     disposing.SetValue(binding, true);
                 }
                 Assert.That(stopping.IsCancellationRequested, Is.False);
-                AssertStatus(StatusCodes.BadShutdown, async () =>
+                await AssertStatus(StatusCodes.BadShutdown, async () =>
                     await binding.ReclaimExpiredAsync().ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadShutdown, async () =>
+                await AssertStatus(StatusCodes.BadShutdown, async () =>
                     await binding.RefreshAsync(fixture.Manager.SystemContext).ConfigureAwait(false));
 
                 // Observe termination here; public disposal below must still surface a faulted worker.
@@ -127,7 +127,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(files[0].Object.File.NodeId),
                         Is.Not.Null);
                 });
-                AssertStatus(StatusCodes.BadShutdown, async () =>
+                await AssertStatus(StatusCodes.BadShutdown, async () =>
                     await binding.ReclaimExpiredAsync().ConfigureAwait(false));
             }
             finally
@@ -212,14 +212,14 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 release.TrySetResult(true);
                 try
                 {
-                    AggregateException failure = Assert.ThrowsAsync<AggregateException>(async () =>
+                    AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(async () =>
                         await binding.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10))
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                     Assert.That(failure.InnerExceptions, Is.EqualTo(new[] { expected }));
                     if (first != null)
                     {
-                        AggregateException firstFailure = Assert.ThrowsAsync<AggregateException>(async () =>
-                            await first.ConfigureAwait(false))!;
+                        AggregateException firstFailure = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                            await first.ConfigureAwait(false)))!;
                         Assert.That(firstFailure, Is.SameAs(failure));
                     }
                 }

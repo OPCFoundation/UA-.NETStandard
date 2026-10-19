@@ -296,8 +296,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 IWotBindingChannel channel = await registry.OpenChannelAsync(read).ConfigureAwait(false);
                 await using (channel.ConfigureAwait(false))
                 {
-                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                        async () => await channel.ReadAsync().ConfigureAwait(false))!;
+                    ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await channel.ReadAsync().ConfigureAwait(false)))!;
                     Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
                 }
             }
@@ -322,8 +322,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 IWotBindingChannel channel = await registry.OpenChannelAsync(observe).ConfigureAwait(false);
                 await using (channel.ConfigureAwait(false))
                 {
-                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                        async () => await channel.ObserveAsync(_ => { }).ConfigureAwait(false))!;
+                    ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await channel.ObserveAsync(_ => { }).ConfigureAwait(false)))!;
                     Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 }
             }
@@ -586,7 +586,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 IWotBindingChannel channel = await registry.OpenChannelAsync(write).ConfigureAwait(false);
 
                 // Dispose should not throw.
-                Assert.DoesNotThrowAsync(
+                await Assert.DoesNotThrowAsync(
                     async () => await channel.DisposeAsync().ConfigureAwait(false));
             }
             finally

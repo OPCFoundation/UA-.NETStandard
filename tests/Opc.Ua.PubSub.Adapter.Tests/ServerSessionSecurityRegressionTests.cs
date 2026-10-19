@@ -54,7 +54,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using Certificate peer = CreatePeer("expected.invalid");
             await using var bootstrap = new OfflineBootstrap(peer, trustPeer: false);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await bootstrap.ReadAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode").EqualTo(StatusCodes.BadCertificateUntrusted));
@@ -75,7 +75,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             using Certificate peer = CreatePeer("different.invalid");
             await using var bootstrap = new OfflineBootstrap(peer, trustPeer: true);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await bootstrap.ReadAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode").EqualTo(StatusCodes.BadCertificateHostNameInvalid));
@@ -129,7 +129,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
                 Assert.That(supplied.SecurityConfiguration.AutoAcceptUntrustedCertificates, Is.EqualTo(autoAccept));
             }
             await using var fallback = new OfflineBootstrap(peer, trustPeer: false);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await fallback.ReadAsync().ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property("StatusCode").EqualTo(StatusCodes.BadCertificateUntrusted));

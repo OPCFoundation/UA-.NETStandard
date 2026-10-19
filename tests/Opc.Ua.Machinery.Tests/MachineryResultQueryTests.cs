@@ -956,8 +956,8 @@ namespace Opc.Ua.Machinery.Tests
                 "...and reports the result-ready event.");
 
             // A result the store does not hold cannot be announced.
-            ServiceResultException refused = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await machine.Results.PublishAsync(Result("C-missing")))!;
+            ServiceResultException refused = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await machine.Results.PublishAsync(Result("C-missing"))))!;
             Assert.That(refused.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
         }
 
@@ -983,7 +983,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(store.Added[0], Is.SameAs(complete));
 
             // The metadata check still runs before the store sees anything.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await machine.Results.PublishAsync(Result("W-2")));
             Assert.That(store.Added, Has.Count.EqualTo(1));
         }
@@ -1019,7 +1019,7 @@ namespace Opc.Ua.Machinery.Tests
                 manager.ConformanceUnits.ToArray(),
                 Contains.Item(new QualifiedName("Machinery-Result ResultEvents")));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.Publisher.PublishAsync(Result("S-missing")));
 
             // The stand-alone ResultTransfer refuses writes the same way.

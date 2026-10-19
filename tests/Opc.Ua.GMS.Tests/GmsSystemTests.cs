@@ -58,8 +58,8 @@ namespace Opc.Ua.GMS.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             IMachineryBuildContext context = Context(fixture);
             GmsBuilder builder = Builder(context, "MissingResults", new InMemoryGmsProvider(new GmsSystemSnapshot()));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(context.MachinesFolder.FindChild(context.Context,
                 new QualifiedName("MissingResults", context.InstanceNamespaceIndex)), Is.Null);

@@ -280,9 +280,9 @@ namespace Opc.Ua.Vision.Tests
             b[0].TryGetValue(out ByteString bBytes);
             Assert.That(aBytes.Span.ToArray(), Is.EqualTo("\n"u8.ToArray()));
             Assert.That(bBytes.Span.ToArray(), Is.EqualTo("\n"u8.ToArray()));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await binding.CloseAsync(other, first).ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await binding.OpenAsync(owner, 6).ConfigureAwait(false));
             await binding.CloseAsync(owner, first).ConfigureAwait(false);
             await binding.CloseAsync(other, second).ConfigureAwait(false);

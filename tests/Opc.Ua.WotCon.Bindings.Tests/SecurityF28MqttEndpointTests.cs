@@ -64,7 +64,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("mqtt", null, true)]
         [TestCase("mqtts", " \t", true)]
         [Category("SecurityRegression")]
-        public void SecurityF28HostlessMqttNeverResolvesCredentialsOrConnects(
+        public async Task SecurityF28HostlessMqttNeverResolvesCredentialsOrConnects(
             string scheme, string? host, bool allowLoopback)
         {
             var attempts = new RejectedMqttConnection(new WotEndpointPolicy { AllowLoopback = allowLoopback });
@@ -84,15 +84,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                     scheme, host, -1, scheme + "://broker.example"));
-                ServiceResultException? preparation = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? preparation = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await MqttWotConnection.PrepareAsync(
                         form, attempts.Context, attempts.Options, "security-regression", CancellationToken.None)
                         .ConfigureAwait(false));
                 Assert.That(preparation!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-                AssertRejected(
+                await AssertRejectedAsync(
                     () => attempts.Executor.ActivateAsync(form, attempts.Context),
                     StatusCodes.BadInvalidArgument);
-                AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
+                await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
             }
 
             attempts.AssertNoAttempt();
@@ -104,7 +104,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("mqtt")]
         [TestCase("mqtts")]
         [Category("SecurityRegression")]
-        public void SecurityF28HostlessMqttAuthorityNeverActivates(string scheme)
+        public async Task SecurityF28HostlessMqttAuthorityNeverActivates(string scheme)
         {
             var attempts = new RejectedMqttConnection();
             WotProtocolBinderRegistry registry = attempts.Registry();
@@ -112,7 +112,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 scheme, "broker.example", -1, scheme + "://"));
 
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
 
             attempts.AssertNoAttempt();
         }
@@ -126,7 +126,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("mqtts", "::1")]
         [TestCase("mqtt", "localhost")]
         [Category("SecurityRegression")]
-        public void SecurityF28FinalMqttDestinationCannotBypassLoopbackPolicy(string scheme, string host)
+        public async Task SecurityF28FinalMqttDestinationCannotBypassLoopbackPolicy(string scheme, string host)
         {
             var attempts = new RejectedMqttConnection();
             WotProtocolBinderRegistry registry = attempts.Registry();
@@ -134,10 +134,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 scheme, host, -1, scheme + "://broker.example"));
 
-            AssertRejected(
+            await AssertRejectedAsync(
                 () => attempts.Executor.ActivateAsync(form, attempts.Context),
                 StatusCodes.BadSecurityChecksFailed);
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
 
             attempts.AssertNoAttempt();
         }
@@ -148,7 +148,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase(false)]
         [TestCase(true)]
         [Category("SecurityRegression")]
-        public void SecurityF28FinalMqttDestinationHonorsHostRestrictions(bool useAllowList)
+        public async Task SecurityF28FinalMqttDestinationHonorsHostRestrictions(bool useAllowList)
         {
             var policy = new WotEndpointPolicy();
             if (useAllowList)
@@ -165,10 +165,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 "mqtts", "other.example", 8883, "mqtts://broker.example"));
 
-            AssertRejected(
+            await AssertRejectedAsync(
                 () => attempts.Executor.ActivateAsync(form, attempts.Context),
                 StatusCodes.BadSecurityChecksFailed);
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
 
             attempts.AssertNoAttempt();
         }
@@ -261,9 +261,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpoint, form.Addressing, form.OperationInfo, form.Payload, form.Security, form.IsExecutable);
         }
 
-        private static void AssertRejected(Func<ValueTask<IWotBindingChannel>> activate, StatusCode expected)
+        private static async Task AssertRejectedAsync(Func<ValueTask<IWotBindingChannel>> activate, StatusCode expected)
         {
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await using IWotBindingChannel channel = await activate().ConfigureAwait(false);
             });

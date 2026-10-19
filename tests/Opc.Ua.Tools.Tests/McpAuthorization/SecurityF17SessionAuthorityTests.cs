@@ -92,11 +92,11 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
                     Is.EqualTo("BadUserAccessDenied"));
                 foreach (string? selected in new string?[] { name, null })
                 {
-                    ServiceResultException? disconnect = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException? disconnect = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await fixture.Manager.DisconnectAsync(selected).ConfigureAwait(false));
                     Assert.That(disconnect!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 }
-                ServiceResultException? provision = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? provision = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Manager.RegisterExistingSessionAsync(
                         name, fixture.Evil.Session.Object, "Anonymous").ConfigureAwait(false));
                 Assert.That(provision!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -113,7 +113,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             {
                 using IDisposable granted = fixture.Callers.EnterTrustedCaller(SecurityF17SessionContext.Victim);
                 Assert.That(fixture.Manager.GetSessionOrThrow(name), Is.SameAs(fixture.Approved.Session.Object));
-                ServiceResultException? disconnect = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? disconnect = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Manager.DisconnectAsync(name).ConfigureAwait(false));
                 Assert.That(disconnect!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied),
                     "A use grant must not become authority to remove the host's registration.");

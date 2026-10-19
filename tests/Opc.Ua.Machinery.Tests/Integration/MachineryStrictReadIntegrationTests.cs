@@ -141,7 +141,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
             Assert.That(meters[0].Measurements.Count, Is.GreaterThan(0));
             Assert.That(meters[0].Values.Count, Is.EqualTo(meters[0].Measurements.Count + 2));
             Assert.That(meters[0].Values.ToArray(), Has.Some.Matches<MachineryReadValue>(field =>
-                field.BrowsePath[^1].Name == IA.BrowseNames.StartTime &&
+                field is not null && field.BrowsePath[^1].Name == IA.BrowseNames.StartTime &&
                 field.Value.WrappedValue == Variant.From(startTime)));
             MachineryJobOrdersSnapshot jobSnapshot = await client.ReadJobOrdersSnapshotAsync(machine.NodeId)
                 .ConfigureAwait(false);

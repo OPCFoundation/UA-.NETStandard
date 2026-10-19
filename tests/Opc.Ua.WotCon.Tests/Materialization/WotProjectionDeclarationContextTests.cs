@@ -149,7 +149,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.ProjectedAffordances[0], Is.SameAs(declaration));
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await factory.CreateAsync(
                     h.Builder, [plan.WithDeclarationContext(false)]).ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -263,7 +263,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var harness = new WotProjectionBindingRuntimeTestHarness();
             var factory = new WotProjectionBindingRuntimeFactory(harness.ChannelFactory);
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await factory.CreateAsync(harness.Builder, [instancePlan]).ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }

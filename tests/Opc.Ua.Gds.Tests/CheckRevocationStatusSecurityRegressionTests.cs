@@ -236,7 +236,7 @@ namespace Opc.Ua.Gds.Tests
         {
             await using var fixture = new RevocationContext();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.CheckAsync(MessageSecurityMode.None).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));

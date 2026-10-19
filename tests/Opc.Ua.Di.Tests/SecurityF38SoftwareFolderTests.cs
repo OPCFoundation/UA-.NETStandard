@@ -97,19 +97,19 @@ namespace Opc.Ua.Di.Tests
             var folder = new FileSystemSoftwareFolder(recording.Object, new NodeId("Device", 2));
             using var payload = new MemoryStream([1, 2, 3]);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await folder.GetVersionAsync(version).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                 {
                     using Stream stream = await folder.OpenVersionAsync(version).ConfigureAwait(false);
                 });
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await folder.RemoveVersionAsync(version).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await folder.SetCurrentVersionAsync(version).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await folder.AddVersionAsync(Package(version), payload).ConfigureAwait(false));
                 Assert.That(recording.Invocations, Is.Empty, "Rejected revisions must not reach storage.");
             });
@@ -148,9 +148,9 @@ namespace Opc.Ua.Di.Tests
             Mock<IFileSystemProvider> recording = CreateRecordingProvider();
             var folder = new FileSystemSoftwareFolder(recording.Object, new NodeId("Device", 2));
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.GetCurrentVersionAsync().ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.RemoveVersionAsync("1.0.0").ConfigureAwait(false));
 
             recording.Verify(
@@ -191,14 +191,14 @@ namespace Opc.Ua.Di.Tests
                 .Returns(SingleEntryAsync(entry));
             var folder = new FileSystemSoftwareFolder(recording.Object, new NodeId("Device", 2));
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 await foreach (SoftwarePackage package in folder.ListVersionsAsync())
                 {
                     Assert.Fail("An invalid provider name must not produce a package: " + package.Version);
                 }
             });
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await folder.RemoveVersionAsync("1.0.0").ConfigureAwait(false));
 
             recording.Verify(

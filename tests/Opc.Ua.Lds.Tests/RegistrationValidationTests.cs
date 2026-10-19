@@ -84,11 +84,11 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegisterServerRejectsMalformedSubjectAltNameWithoutMutatingStore()
+        public async Task RegisterServerRejectsMalformedSubjectAltNameWithoutMutatingStore()
         {
             using Certificate certificate = CreateCertificateWithMalformedSubjectAltName();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Lds.RegisterServerAsync(
                     CreateChannel(certificate.RawData),
                     new RequestHeader(),
@@ -100,9 +100,9 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegisterServer2RejectsMissingCertificateWithoutMutatingStore()
+        public async Task RegisterServer2RejectsMissingCertificateWithoutMutatingStore()
         {
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Lds.RegisterServer2Async(
                     CreateChannel(null),
                     new RequestHeader(),
@@ -181,7 +181,7 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegistrationEntryPointsRejectUnsafeSemaphorePaths(
+        public async Task RegistrationEntryPointsRejectUnsafeSemaphorePaths(
             [ValueSource(typeof(SemaphorePathTests), nameof(SemaphorePathTests.UnsafePaths))] string path,
             [Values] bool registerServer2,
             [Values] bool isOnline)
@@ -191,7 +191,7 @@ namespace Opc.Ua.Lds.Tests
             registration.SemaphoreFilePath = path;
             registration.IsOnline = isOnline;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (registerServer2)
                 {
@@ -222,7 +222,7 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegistrationEntryPointsRequireObservedLoopbackForSemaphores(
+        public async Task RegistrationEntryPointsRequireObservedLoopbackForSemaphores(
             [Values(null, "192.0.2.1", "2001:db8::1", "::ffff:192.0.2.1")] string? peer,
             [Values] bool registerServer2)
         {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Lds.Tests
             SecureChannelContext channel = CreateChannel(
                 certificate.RawData, peer == null ? null : IPAddress.Parse(peer));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (registerServer2)
                 {

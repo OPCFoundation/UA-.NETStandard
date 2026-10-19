@@ -341,6 +341,7 @@ dnx OPCFoundation.NetStandard.Opc.Ua.Mcp -- --profile scales,di
 | `machinery` | Machines and building blocks, state, counters, process values, energy, job information and results | [Machinery](Machinery.md) |
 | `scales` | Weights and units, products, recipes, scale-specific operations and PackML | [Scales](Scales.md) |
 | `pumps` | Pump identity, configuration, operational measurements, supervision and maintenance | [Pumps](Pumps.md) |
+| `autoid` | RFID, OCR, optical, verifier and RTLS reader discovery, snapshots, scans, tag reads and location queries | [AutoID Devices](AutoID.md) |
 | `di` | Device topology and identity, locking, parameter transfer and software update | [Device Integration](DeviceIntegration.md) |
 | `isa95` | Common objects and V1/V2 job order control, responses and status | [ISA-95](ISA95.md) |
 | `positioning` | Relative spatial frames, global positions, zones and coordinate conversion | [Positioning](Positioning.md) |
@@ -434,6 +435,26 @@ the lock implicitly.
 
 These tools are read-only and do not invent start/stop controls.
 [API/JSON reference](../tools/Opc.Ua.Mcp.Pumps/NugetREADME.md).
+
+#### AutoID tools
+
+| Tool | What it does |
+| --- | --- |
+| `autoid_list_readers` | Discover RFID, OCR, optical, verifier and RTLS readers below the DI DeviceSet. |
+| `autoid_read_device` | Read a reader's status, model version, location, antennas, last scan and nameplate. |
+| `autoid_scan` | Run the synchronous `Scan` method and return the typed results. |
+| `autoid_scan_start` | Start the asynchronous scan whose results arrive as events. |
+| `autoid_scan_stop` | Stop the asynchronous scan. |
+| `autoid_observe_scan_events` | Collect scan events for a bounded window. |
+| `autoid_read_tag` | Read tag memory by hexadecimal identifier; the device status is part of the result. |
+| `autoid_get_supported_location_types` | List the location types of an RTLS device. |
+| `autoid_get_location` | Locate an object known to an RTLS device. |
+
+No tool changes a tag: write, kill, lock and password commands and tag
+passwords are left to the typed `Opc.Ua.AutoID.Client`. A scan occupies the
+reader, so `autoid_scan` and `autoid_scan_start` are not read-only; a scan
+while another is active fails with `Bad_InvalidState`.
+[API/JSON reference](../tools/Opc.Ua.Mcp.AutoID/NugetREADME.md).
 
 #### Device Integration tools
 
@@ -1065,6 +1086,7 @@ in a library that an application can reference on its own.
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` | Machine monitoring, process values, energy, jobs and results | Core + `Opc.Ua.Machinery.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products, recipes and PackML | Core + `Opc.Ua.Scales.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps` | Pump values, supervision and maintenance | Core + `Opc.Ua.Pumps.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID` | AutoID reader scans, tag reads and RTLS locations | Core + `Opc.Ua.AutoID.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device topology, locks, transfers and software updates | Core + `Opc.Ua.Di.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and job control V1/V2 | Core + `Opc.Ua.ISA95.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames, global locations and transforms | Core + `Opc.Ua.Positioning.Client` |
@@ -1108,6 +1130,7 @@ the owning package's reference:
 | Machines and results | [Machinery](../tools/Opc.Ua.Mcp.Machinery/NugetREADME.md) |
 | Weighing | [Scales](../tools/Opc.Ua.Mcp.Scales/NugetREADME.md) |
 | Pump inspection | [Pumps](../tools/Opc.Ua.Mcp.Pumps/NugetREADME.md) |
+| RFID, OCR, optical and RTLS readers | [AutoID](../tools/Opc.Ua.Mcp.AutoID/NugetREADME.md) |
 | Device integration | [DI](../tools/Opc.Ua.Mcp.Di/NugetREADME.md) |
 | Jobs | [ISA-95](../tools/Opc.Ua.Mcp.ISA95/NugetREADME.md) |
 | Coordinates | [Positioning](../tools/Opc.Ua.Mcp.Positioning/NugetREADME.md) |

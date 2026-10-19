@@ -65,7 +65,7 @@ namespace Opc.Ua.Client.Tests.Samples
                 ? new Mock<ITransportWaitingConnection>().Object
                 : null;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.CreateSessionAsync(
                     SampleSessionSecurityTestContext.RequestedUrl, fixture.Description, connection, fixture.Factory,
                     CancellationToken.None)
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests.Samples
             using var client = new UAClient(fixture.Configuration, fixture.Telemetry, null);
             fixture.Description.EndpointUrl = "https://advertised.example:443/";
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.CreateSessionAsync(
                     SampleSessionSecurityTestContext.RequestedUrl, fixture.Description, null, fixture.Factory,
                     CancellationToken.None)

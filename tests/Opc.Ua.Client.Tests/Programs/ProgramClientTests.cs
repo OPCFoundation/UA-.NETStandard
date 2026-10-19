@@ -157,14 +157,14 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A vendor-namespace lookalike does not satisfy a mandatory standard property.
         /// </summary>
         [Test]
-        public void MissingMandatoryCapabilityIsNotASuccessfulDefault()
+        public async Task MissingMandatoryCapabilityIsNotASuccessfulDefault()
         {
             ConfigureCapabilities();
             m_browse[(s_invocation, ReferenceTypeIds.Aggregates, BrowseDirection.Forward)] =
             [
                 Child(s_deletable, BrowseNames.Deletable, NodeClass.Variable, 2)
             ];
-            AssertStatus(
+            await AssertStatus(
                 async () => await m_client.ReadCapabilitiesAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadNotFound);
         }
@@ -173,11 +173,11 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Good-quality malformed scalar values cannot become default capabilities.
         /// </summary>
         [Test]
-        public void ReadableCapabilityWithWrongWireTypeIsRejected()
+        public async Task ReadableCapabilityWithWrongWireTypeIsRejected()
         {
             ConfigureCapabilities();
             m_values[(s_deletable, Attributes.Value)] = new DataValue(Variant.From("true"));
-            AssertStatus(
+            await AssertStatus(
                 async () => await m_client.ReadCapabilitiesAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadTypeMismatch);
         }
@@ -289,13 +289,13 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Older diagnostic layouts are explicitly rejected rather than padded with missing fields.
         /// </summary>
         [Test]
-        public void LegacyDiagnosticsAreNotMisrepresentedAsModern()
+        public async Task LegacyDiagnosticsAreNotMisrepresentedAsModern()
         {
             NodeId diagnosticId = new("diagnostic", 2);
             SetChildren(s_invocation, Child(diagnosticId, BrowseNames.ProgramDiagnostic));
             m_values[(diagnosticId, Attributes.Value)] =
                 new DataValue(Variant.FromStructure(new ProgramDiagnosticDataType()));
-            AssertStatus(
+            await AssertStatus(
                 async () => await m_client.ReadDiagnosticsAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadTypeMismatch);
         }
@@ -304,7 +304,7 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A failed service envelope cannot be reported as a missing optional capability.
         /// </summary>
         [Test]
-        public void BadReadServiceResultIsNotOptionalAbsence()
+        public async Task BadReadServiceResultIsNotOptionalAbsence()
         {
             SetChildren(s_invocation, Child(new NodeId("diagnostic", 2), BrowseNames.ProgramDiagnostic));
             m_session.Setup(s => s.ReadAsync(It.IsAny<RequestHeader>(), 0, TimestampsToReturn.Both,
@@ -313,7 +313,7 @@ namespace Opc.Ua.Client.Tests.Programs
                 {
                     ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadSessionClosed }
                 }));
-            AssertStatus(
+            await AssertStatus(
                 async () => await m_client.ReadDiagnosticsAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadSessionClosed);
         }
@@ -322,13 +322,13 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A response with missing results fails protocol validation.
         /// </summary>
         [Test]
-        public void InvalidReadCardinalityIsRejected()
+        public async Task InvalidReadCardinalityIsRejected()
         {
             SetChildren(s_invocation, Child(new NodeId("diagnostic", 2), BrowseNames.ProgramDiagnostic));
             m_session.Setup(s => s.ReadAsync(It.IsAny<RequestHeader>(), 0, TimestampsToReturn.Both,
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ReadResponse>(new ReadResponse { ResponseHeader = new ResponseHeader() }));
-            AssertStatus(
+            await AssertStatus(
                 async () => await m_client.ReadDiagnosticsAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadUnexpectedError);
         }
@@ -423,7 +423,7 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Cancellation releases the outstanding server browse resource without retrying discovery.
         /// </summary>
         [Test]
-        public void DiscoveryReleasesContinuationAfterCancellation()
+        public async Task DiscoveryReleasesContinuationAfterCancellation()
         {
             ByteString point = ByteString.From([1]);
             m_session.Setup(s => s.BrowseAsync(It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), 0,
@@ -443,7 +443,7 @@ namespace Opc.Ua.Client.Tests.Programs
                     ResponseHeader = new ResponseHeader(),
                     Results = [new BrowseResult()]
                 }));
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await m_client.DiscoverTypesAsync().ConfigureAwait(false));
             m_session.Verify(s => s.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
                 It.Is<ArrayOf<ByteString>>(p => p[0] == point), CancellationToken.None), Times.Once);
@@ -508,7 +508,7 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Invocation deletion is authorized by the server rather than a racy client-side read.
         /// </summary>
         [Test]
-        public void DeletePropagatesServerPolicyRejection()
+        public async Task DeletePropagatesServerPolicyRejection()
         {
             m_session.Setup(s => s.DeleteNodesAsync(It.IsAny<RequestHeader>(),
                     It.Is<ArrayOf<DeleteNodesItem>>(r => r[0].NodeId == s_invocation && r[0].DeleteTargetReferences),
@@ -518,7 +518,7 @@ namespace Opc.Ua.Client.Tests.Programs
                     ResponseHeader = new ResponseHeader(),
                     Results = [StatusCodes.BadUserAccessDenied]
                 }));
-            AssertStatus(async () => await m_client.DeleteAsync(s_invocation).ConfigureAwait(false),
+            await AssertStatus(async () => await m_client.DeleteAsync(s_invocation).ConfigureAwait(false),
                 StatusCodes.BadUserAccessDenied);
         }
 
@@ -550,9 +550,9 @@ namespace Opc.Ua.Client.Tests.Programs
             };
         }
 
-        private static void AssertStatus(Func<Task> action, StatusCode expected)
+        private static async Task AssertStatus(Func<Task> action, StatusCode expected)
         {
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(action)!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(action))!;
             Assert.That(exception.StatusCode, Is.EqualTo(expected));
         }
 

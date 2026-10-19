@@ -86,11 +86,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void LinkedDirectoryRejectsAllOperations(bool junction)
+        public async Task LinkedDirectoryRejectsAllOperations(bool junction)
         {
             var provider = new PhysicalFileSystemProvider(m_root);
             CreateLink(Path.Combine(m_root, "link"), m_outside, directory: true, junction);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
             {
                 using Stream stream = await provider.OpenReadAsync("link/secret.txt", CancellationToken.None)
                     .ConfigureAwait(false);
@@ -98,38 +98,38 @@ namespace Opc.Ua.Server.Tests.FileSystem
             FileWriteMode[] modes = [FileWriteMode.OpenOrCreate, FileWriteMode.Truncate, FileWriteMode.Append];
             foreach (FileWriteMode mode in modes)
             {
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 {
                     using Stream stream = await provider.OpenWriteAsync("link/secret.txt", mode, CancellationToken.None)
                         .ConfigureAwait(false);
                 });
             }
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.GetEntryAsync("link/secret.txt", CancellationToken.None).ConfigureAwait(false));
             Assert.Throws<UnauthorizedAccessException>(() => provider.GetPathIdentity("link/new.txt"));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CreateFileAsync("link/new.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CreateDirectoryAsync("link/new/nested", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.DeleteAsync("link/secret.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.DeleteAsync("link", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.MoveAsync("link", "moved", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("link", "copy", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.MoveAsync("link/secret.txt", "moved.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.MoveAsync("source.txt", "link/moved.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("link/secret.txt", "copy.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("source.txt", "link/copy.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await DrainAsync(provider, "link").ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await DrainAsync(provider, string.Empty).ConfigureAwait(false));
             Assert.That(File.ReadAllText(Path.Combine(m_outside, "secret.txt")), Is.EqualTo("outside"));
             Assert.That(Directory.GetFileSystemEntries(m_outside), Has.Length.EqualTo(1));
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void RecursiveCopyRejectsInRootLinksAndCycles(bool cycle)
+        public async Task RecursiveCopyRejectsInRootLinksAndCycles(bool cycle)
         {
             var provider = new PhysicalFileSystemProvider(m_root);
             string tree = Path.Combine(m_root, "tree");
@@ -157,7 +157,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 cycle ? tree : nested,
                 directory: true,
                 junction: Path.DirectorySeparatorChar == '\\');
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("tree", "copy", CancellationToken.None).ConfigureAwait(false));
             Assert.That(Directory.Exists(Path.Combine(m_root, "copy")), Is.False);
             Assert.That(File.ReadAllText(Path.Combine(nested, "safe.txt")), Is.EqualTo("inside"));
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
-        public void RecursiveOperationsRejectLinkedDescendantsBeforeMutation(bool junction, bool directory)
+        public async Task RecursiveOperationsRejectLinkedDescendantsBeforeMutation(bool junction, bool directory)
         {
             var provider = new PhysicalFileSystemProvider(m_root);
             string tree = Path.Combine(m_root, "tree");
@@ -177,11 +177,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
             File.WriteAllText(Path.Combine(tree, "nested", "safe.txt"), "safe");
             string target = directory ? m_outside : Path.Combine(m_outside, "secret.txt");
             CreateLink(Path.Combine(tree, "nested", "escape"), target, directory, junction);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("tree", "copy", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.MoveAsync("tree", "moved", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.DeleteAsync("tree", CancellationToken.None).ConfigureAwait(false));
             Assert.That(Directory.Exists(Path.Combine(m_root, "copy")), Is.False);
             Assert.That(Directory.Exists(Path.Combine(m_root, "moved")), Is.False);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [TestCase("outside")]
         [TestCase("dangling")]
         [TestCase("inside")]
-        public void FileLinksRejectReadWriteAndCopy(string targetKind)
+        public async Task FileLinksRejectReadWriteAndCopy(string targetKind)
         {
             var provider = new PhysicalFileSystemProvider(m_root);
             string target = targetKind switch
@@ -205,23 +205,23 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 _ => Path.Combine(m_root, "source.txt")
             };
             CreateLink(Path.Combine(m_root, "link.txt"), target, directory: false, junction: false);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
             {
                 using Stream stream = await provider.OpenReadAsync("link.txt", CancellationToken.None)
                     .ConfigureAwait(false);
             });
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
             {
                 using Stream stream = await provider.OpenWriteAsync(
                     "link.txt", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false);
             });
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("link.txt", "copy.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CopyAsync("source.txt", "link.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.GetEntryAsync("link.txt", CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await DrainAsync(provider, string.Empty).ConfigureAwait(false));
             Assert.That(File.ReadAllText(Path.Combine(m_outside, "secret.txt")), Is.EqualTo("outside"));
             Assert.That(File.ReadAllText(Path.Combine(m_root, "source.txt")), Is.EqualTo("inside"));
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void OperationsRejectReplacedRootAncestor(bool junction)
+        public async Task OperationsRejectReplacedRootAncestor(bool junction)
         {
             string ancestor = Path.Combine(m_root, "ancestor");
             string mount = Path.Combine(ancestor, "mount");
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Directory.Delete(ancestor, recursive: true);
             Directory.CreateDirectory(Path.Combine(m_outside, "mount"));
             CreateLink(ancestor, m_outside, directory: true, junction);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await provider.CreateFileAsync("new.txt", CancellationToken.None).ConfigureAwait(false));
             Assert.Throws<UnauthorizedAccessException>(() => provider.GetPathIdentity(string.Empty));
             Assert.That(File.Exists(Path.Combine(m_outside, "mount", "new.txt")), Is.False);

@@ -150,7 +150,6 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         }
 
         [Test]
-        [Order(100)]
         public async Task ReadDictionaryByteStringAsync()
         {
             var dictionaryIds = new List<NodeId> {
@@ -179,7 +178,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
                 ArrayOf<ReadValueId> nodesToRead = [readValueId];
 
-                ServiceResultException x = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException x = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await theSession.ReadAsync(
                         null,
                         0,

@@ -133,8 +133,8 @@ namespace Opc.Ua.MachineTool.Tests
             NodeId before = machine.Production!.ActiveProgram!.State!.CurrentState!.Id!.Value;
             MachineToolSnapshot bad = InvalidExample(initial, violation);
 
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await controller.ApplyAsync(bad).ConfigureAwait(false))!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await controller.ApplyAsync(bad).ConfigureAwait(false)))!;
 
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState), violation);
             Assert.That(controller.Observation, Is.SameAs(initial), violation);
@@ -228,19 +228,19 @@ namespace Opc.Ua.MachineTool.Tests
                 new MachineToolProductionOptions(), TimeProvider.System);
             using var canceled = new CancellationTokenSource();
             canceled.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await controller.InitializeAsync(new MachineToolSnapshot(), canceled.Token).ConfigureAwait(false));
             Assert.That(controller.Observation, Is.Null);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.ApplyAsync(new MachineToolSnapshot()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await controller.InitializeAsync(null!).ConfigureAwait(false));
             await controller.InitializeAsync(new MachineToolSnapshot()).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.InitializeAsync(new MachineToolSnapshot()).ConfigureAwait(false));
             await controller.DisposeAsync().ConfigureAwait(false);
             await controller.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await controller.ApplyAsync(new MachineToolSnapshot()).ConfigureAwait(false));
         }
 

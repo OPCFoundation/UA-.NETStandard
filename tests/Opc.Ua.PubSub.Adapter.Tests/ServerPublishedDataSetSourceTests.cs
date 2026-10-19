@@ -315,7 +315,7 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(notifications, Is.Zero);
             session.Verify(s => s.ReadAsync(
                 It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Once);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await builder.RefreshAsync().ConfigureAwait(false),
                 Throws.TypeOf<ObjectDisposedException>());
         }

@@ -131,7 +131,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             var client = new PlasticsRubberClient(peer.Session.Object, peer.Telemetry);
             if (fail)
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.MachineConfiguration(instance).GetPageAsync("overview",
                         cancellation.Token).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -250,7 +250,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
                 ? client.ObserveAlarmsAsync(notifier, stream.Object)
                 : client.ObserveLogbookAsync(notifier, stream.Object);
             await using IAsyncEnumerator<BaseEventTypeRecord> iterator = records.GetAsyncEnumerator();
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await iterator.MoveNextAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(disposed, Is.True);
@@ -282,7 +282,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             await using IAsyncEnumerator<LogbookEventTypeRecord> iterator =
                 client.ObserveLogbookAsync(notifier, stream.Object, cancellationToken: cancellation.Token)
                     .GetAsyncEnumerator(cancellation.Token);
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await iterator.MoveNextAsync().ConfigureAwait(false));
             Assert.That(disposed, Is.True);
             stream.Verify(value => value.DisposeAsync(), Times.Never);
@@ -292,7 +292,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         /// DI retains one factory/delegate and forwards the original token and failure without owning a session.
         /// </summary>
         [Test]
-        public void HostingRegistrationIsIdempotentAndForwardsCallerCancellationAndFailure()
+        public async Task HostingRegistrationIsIdempotentAndForwardsCallerCancellationAndFailure()
         {
             var telemetry = NUnitTelemetryContext.Create();
             using var cancellation = new CancellationTokenSource();
@@ -325,7 +325,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
                 Assert.That(provider.GetRequiredService<Func<CancellationToken, Task<PlasticsRubberClient>>>(),
                     Is.SameAs(create));
             });
-            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await create(cancellation.Token).ConfigureAwait(false)), Is.SameAs(failure));
             Assert.That(calls, Is.EqualTo(1));
             Assert.Throws<ArgumentNullException>(() => new PlasticsRubberClientFactory(null!, telemetry));

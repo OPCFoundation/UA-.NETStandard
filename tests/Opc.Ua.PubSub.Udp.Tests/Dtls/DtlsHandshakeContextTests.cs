@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                         .With.Property(nameof(ServiceResultException.StatusCode))
                         .EqualTo(StatusCodes.BadCertificateHostNameInvalid)).ConfigureAwait(false);
                 Assert.That(pair.Client.AuthenticatedPeer, Is.Null);
-                Assert.That(
+                await Assert.ThatAsync(
                     async () => await client.ProtectAsync(payload).ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>(),
                     "An unrelated trusted peer must never receive application traffic keys.");
@@ -354,7 +354,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 }
 
                 Assert.That(pair.Client.AuthenticatedPeer, Is.Null);
-                Assert.That(
+                await Assert.ThatAsync(
                     async () => await client.ProtectAsync(payload).ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>());
             }
@@ -636,7 +636,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 .ConfigureAwait(false);
 
             Assert.That(response.ToArray(), Is.EqualTo(responsePayload));
-            Assert.That(() => client.UnprotectAsync(responseRecord, CancellationToken.None).AsTask(), Throws.Exception);
+            await Assert.ThatAsync(
+                () => client.UnprotectAsync(responseRecord, CancellationToken.None).AsTask(), Throws.Exception);
         }
 
         private static Mock<ICertificateValidatorEx> CreateSuccessfulValidator()

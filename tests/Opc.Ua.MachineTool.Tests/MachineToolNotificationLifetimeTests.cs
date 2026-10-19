@@ -88,7 +88,7 @@ namespace Opc.Ua.MachineTool.Tests
             if (remove)
             {
                 Assert.That(fixture.Context.Manager.FindPredefinedNode(runtime.NodeId), Is.Null);
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             }
             else

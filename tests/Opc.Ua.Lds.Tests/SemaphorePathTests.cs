@@ -92,7 +92,7 @@ namespace Opc.Ua.Lds.Tests
         /// A direct store call must not bypass the protocol-level path policy, even when unregistering.
         /// </summary>
         [Test]
-        public void StoreRejectsUnsafePathsBeforeFileSystemAccess(
+        public async Task StoreRejectsUnsafePathsBeforeFileSystemAccess(
             [ValueSource(nameof(UnsafePaths))] string path,
             [Values] bool isOnline)
         {
@@ -110,7 +110,7 @@ namespace Opc.Ua.Lds.Tests
                 IsOnline = isOnline
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await store.RegisterAsync(registration, null).ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));

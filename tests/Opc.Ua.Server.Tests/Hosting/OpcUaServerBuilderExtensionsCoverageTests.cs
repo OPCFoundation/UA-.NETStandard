@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(d =>
-                    d.ServiceType == typeof(IOpcUaServerFactory) &&
+                    d is not null && d.ServiceType == typeof(IOpcUaServerFactory) &&
                     d.ImplementationType == typeof(ActivatorOpcUaServerFactory<CustomTestServer>)));
 
             _ = new CustomTestServer(
@@ -153,7 +153,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IOpcUaServerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IOpcUaServerFactory)));
         }
 
         [Test]
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IOpcUaServerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IOpcUaServerFactory)));
         }
 
         [Test]
@@ -210,7 +210,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IRoleManager)));
+                    d => d is not null && d.ServiceType == typeof(IRoleManager)));
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IRoleManager)));
+                    d => d is not null && d.ServiceType == typeof(IRoleManager)));
         }
 
         [Test]
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(d =>
-                    d.ServiceType == typeof(IRoleManager) &&
+                    d is not null && d.ServiceType == typeof(IRoleManager) &&
                     d.ImplementationType == typeof(RoleManager)));
         }
 
@@ -260,12 +260,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(StubUserTokenAuthenticator)));
+                    d => d is not null && d.ServiceType == typeof(StubUserTokenAuthenticator)));
 
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
 
             _ = new StubUserTokenAuthenticator();
         }
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerIdentityAugmenterRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerIdentityAugmenterRegistration)));
 
             _ = new StubIdentityAugmenter();
         }
@@ -293,7 +293,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerIdentityAugmenterRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerIdentityAugmenterRegistration)));
         }
 
         [Test]
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(KeyCredentialPushSubject)));
+                    d => d is not null && d.ServiceType == typeof(KeyCredentialPushSubject)));
         }
 
         [Test]
@@ -328,7 +328,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(KeyCredentialPushSubject)));
+                    d => d is not null && d.ServiceType == typeof(KeyCredentialPushSubject)));
         }
 
         [Test]
@@ -340,7 +340,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
         }
 
         [Test]
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerIdentityAuthenticatorRegistration)));
         }
 
         [Test]
@@ -372,7 +372,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IIssuerKeyResolver)));
+                    d => d is not null && d.ServiceType == typeof(IIssuerKeyResolver)));
         }
 
         [Test]
@@ -389,7 +389,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IIssuerKeyResolver)));
+                    d => d is not null && d.ServiceType == typeof(IIssuerKeyResolver)));
         }
 
         [Test]
@@ -437,7 +437,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerSessionManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerSessionManagerRegistration)));
         }
 
         [Test]
@@ -449,12 +449,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerSessionManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerSessionManagerRegistration)));
 
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(SessionManager)));
+                    d => d is not null && d.ServiceType == typeof(SessionManager)));
         }
 
         [Test]
@@ -466,7 +466,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerSubscriptionManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerSubscriptionManagerRegistration)));
         }
 
         [Test]
@@ -478,12 +478,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerSubscriptionManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerSubscriptionManagerRegistration)));
 
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(SubscriptionManager)));
+                    d => d is not null && d.ServiceType == typeof(SubscriptionManager)));
         }
 
         [Test]
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(FileSystemNodeManagerFactory)));
+                    d => d is not null && d.ServiceType == typeof(FileSystemNodeManagerFactory)));
         }
 
         [Test]
@@ -520,7 +520,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(FileSystemNodeManagerFactory)));
+                    d => d is not null && d.ServiceType == typeof(FileSystemNodeManagerFactory)));
         }
 
         [Test]
@@ -532,12 +532,12 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IAsyncNodeManagerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IAsyncNodeManagerFactory)));
 
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerNodeManagerRegistration)));
         }
 
         [Test]
@@ -648,7 +648,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(OpcUaServerAliasNameStoreRegistration)));
+                    d => d is not null && d.ServiceType == typeof(OpcUaServerAliasNameStoreRegistration)));
         }
 
         [Test]
@@ -718,7 +718,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IOpcUaServerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IOpcUaServerFactory)));
         }
 
         [Test]
@@ -735,7 +735,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IOpcUaServerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IOpcUaServerFactory)));
         }
 
         [Test]
@@ -753,7 +753,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IOpcUaServerFactory)));
+                    d => d is not null && d.ServiceType == typeof(IOpcUaServerFactory)));
         }
 
         [Test]
@@ -769,7 +769,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 builder.Services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(FileSystemNodeManagerFactory)));
+                    d => d is not null && d.ServiceType == typeof(FileSystemNodeManagerFactory)));
         }
 
         [Test]
@@ -789,7 +789,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(
                 services,
                 Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IRoleManager)));
+                    d => d is not null && d.ServiceType == typeof(IRoleManager)));
         }
 
         // ── Private test doubles ─────────────────────────────────────────────

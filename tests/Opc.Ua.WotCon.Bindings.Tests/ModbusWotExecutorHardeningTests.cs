@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void ModbusExecutorRevalidatesOutOfRangeAddressBeforeCast()
+        public async Task ModbusExecutorRevalidatesOutOfRangeAddressBeforeCast()
         {
             // A hand-built compiled form whose address is beyond the 16-bit Modbus
             // space would truncate to a valid ushort without the executor's
@@ -116,12 +116,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [], isExecutable: true);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRevalidatesRangeOverflowBeforeCast()
+        public async Task ModbusExecutorRevalidatesRangeOverflowBeforeCast()
         {
             var addressing = new WotAddressingDescriptor(
                 "holdingRegister:65530:10@1",
@@ -145,12 +145,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [], isExecutable: true);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRejectsQuantityThatWouldTruncateToZero()
+        public async Task ModbusExecutorRejectsQuantityThatWouldTruncateToZero()
         {
             var addressing = new WotAddressingDescriptor(
                 "holdingRegister:0:65536@1",
@@ -178,14 +178,14 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 isExecutable: true);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRevalidatesConfiguredCoilBound()
+        public async Task ModbusExecutorRevalidatesConfiguredCoilBound()
         {
             WotCompiledForm form = BitForm(
                 quantity: 9,
@@ -195,12 +195,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 bounds: new WotBindingBounds { MaxCoilQuantity = 8 });
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor.ActivateAsync(form, context).ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRevalidatesMultipleCoilWriteProtocolBound()
+        public async Task ModbusExecutorRevalidatesMultipleCoilWriteProtocolBound()
         {
             WotCompiledForm form = BitForm(
                 quantity: 1969,
@@ -208,7 +208,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 method: "writeMultipleCoils");
 
             var executor = new ModbusWotBindingExecutor();
-            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            ArgumentOutOfRangeException? exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
@@ -216,7 +216,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void ModbusExecutorRejectsSingleCoilQuantityMismatch()
+        public async Task ModbusExecutorRejectsSingleCoilQuantityMismatch()
         {
             WotCompiledForm form = BitForm(
                 quantity: 2,
@@ -224,7 +224,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 method: "writeSingleCoil");
 
             var executor = new ModbusWotBindingExecutor();
-            ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            ArgumentOutOfRangeException? exception = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
@@ -243,7 +243,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             "coil",
             WoTBindingCapabilityEnum.WriteProperty,
             "unknownCoilMethod")]
-        public void ModbusExecutorRejectsInconsistentEntityDirectionOrMethod(
+        public async Task ModbusExecutorRejectsInconsistentEntityDirectionOrMethod(
             string entity,
             WoTBindingCapabilityEnum operation,
             string method)
@@ -255,14 +255,14 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 entity: entity);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRejectsOperationDescriptorMismatch()
+        public async Task ModbusExecutorRejectsOperationDescriptorMismatch()
         {
             WotCompiledForm form = BitForm(
                 quantity: 1,
@@ -271,14 +271,14 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 descriptorOperation: WoTBindingCapabilityEnum.ReadProperty);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusExecutorRejectsFunctionCodeMismatch()
+        public async Task ModbusExecutorRejectsFunctionCodeMismatch()
         {
             WotCompiledForm form = BitForm(
                 quantity: 1,
@@ -287,7 +287,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 functionCode: 15);
 
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
@@ -295,12 +295,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         [TestCase(3, "uint64")]
         [TestCase(2, null)]
-        public void ModbusExecutorRejectsRegisterWriteWidthMismatch(int quantity, string? type)
+        public async Task ModbusExecutorRejectsRegisterWriteWidthMismatch(int quantity, string? type)
         {
             WotCompiledForm form = RegisterWriteForm(quantity, type, 502);
 
             var executor = new ModbusWotBindingExecutor();
-            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));

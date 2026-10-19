@@ -35,6 +35,12 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Adds, reloads, and removes lifecycle-managed NodeManagers on a running server.
     /// </summary>
+    /// <remarks>
+    /// Add and reload await <see cref="INodeManagerReadinessNotification"/> after committing
+    /// the generation. Its registration remains visible but cannot be removed or reloaded
+    /// until that startup operation completes. A readiness failure or cancellation is a
+    /// post-commit failure; the live registration remains available for recovery or removal.
+    /// </remarks>
     public interface INodeManagerLifecycle
     {
         /// <summary>
@@ -144,6 +150,9 @@ namespace Opc.Ua.Server
         /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
         /// reload modes.
         /// </remarks>
+        /// <param name="registration">The live registration to replace.</param>
+        /// <param name="replacement">The factory that creates the replacement generation.</param>
+        /// <param name="ct">The token to cancel the operation.</param>
         ValueTask<NodeManagerRegistration> ShadowReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -161,6 +170,9 @@ namespace Opc.Ua.Server
         /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
         /// reload modes.
         /// </remarks>
+        /// <param name="registration">The live registration to replace.</param>
+        /// <param name="replacement">The factory that creates the replacement generation.</param>
+        /// <param name="ct">The token to cancel the operation.</param>
         ValueTask<NodeManagerRegistration> ShadowReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
@@ -174,6 +186,9 @@ namespace Opc.Ua.Server
         /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
         /// reload modes.
         /// </remarks>
+        /// <param name="registration">The live registration to replace.</param>
+        /// <param name="replacement">The factory that creates the replacement generation.</param>
+        /// <param name="ct">The token to cancel the operation.</param>
         ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -187,6 +202,9 @@ namespace Opc.Ua.Server
         /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
         /// reload modes.
         /// </remarks>
+        /// <param name="registration">The live registration to replace.</param>
+        /// <param name="replacement">The factory that creates the replacement generation.</param>
+        /// <param name="ct">The token to cancel the operation.</param>
         ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,

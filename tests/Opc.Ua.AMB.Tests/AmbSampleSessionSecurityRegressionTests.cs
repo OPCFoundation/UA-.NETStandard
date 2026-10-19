@@ -53,7 +53,7 @@ namespace Opc.Ua.AMB.Tests
             await fixture.AssertTrustedAsync().ConfigureAwait(false);
             var options = new AmbClientOptions { ServerUrl = SampleSessionSecurityTestContext.RequestedUrl };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ConnectAsync(fixture, options).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
@@ -112,7 +112,7 @@ namespace Opc.Ua.AMB.Tests
             int requestsBeforeDefaultConnect = fixture.Requests.Count;
             var secure = new AmbClientOptions { ServerUrl = SampleSessionSecurityTestContext.RequestedUrl };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ConnectAsync(fixture, secure).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
@@ -132,7 +132,7 @@ namespace Opc.Ua.AMB.Tests
             fixture.Description.EndpointUrl = "https://advertised.example:443/";
             var options = new AmbClientOptions { ServerUrl = SampleSessionSecurityTestContext.RequestedUrl };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ConnectAsync(fixture, options).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));

@@ -58,7 +58,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("modbus+tcp", null, true)]
         [TestCase("modbus", " \t", true)]
         [Category("SecurityRegression")]
-        public void SecurityF45HostlessModbusNeverConnects(string scheme, string? host, bool allowLoopback)
+        public async Task SecurityF45HostlessModbusNeverConnects(string scheme, string? host, bool allowLoopback)
         {
             var attempts = new RejectedModbusConnection(new WotEndpointPolicy { AllowLoopback = allowLoopback });
             WotProtocolBinderRegistry registry = attempts.Registry();
@@ -74,10 +74,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                     scheme, host, -1, scheme + "://device.example"));
 
-                AssertRejected(
+                await AssertRejectedAsync(
                     () => attempts.Executor.ActivateAsync(form, attempts.Context),
                     StatusCodes.BadInvalidArgument);
-                AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
+                await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
             }
 
             Assert.That(attempts.ConnectionAttempts, Is.Zero);
@@ -89,7 +89,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("modbus+tcp")]
         [TestCase("modbus")]
         [Category("SecurityRegression")]
-        public void SecurityF45HostlessModbusAuthorityNeverActivates(string scheme)
+        public async Task SecurityF45HostlessModbusAuthorityNeverActivates(string scheme)
         {
             var attempts = new RejectedModbusConnection();
             WotProtocolBinderRegistry registry = attempts.Registry();
@@ -97,7 +97,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 scheme, "device.example", -1, scheme + "://"));
 
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadInvalidArgument);
 
             Assert.That(attempts.ConnectionAttempts, Is.Zero);
         }
@@ -111,7 +111,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("modbus", "::1")]
         [TestCase("modbus+tcp", "localhost")]
         [Category("SecurityRegression")]
-        public void SecurityF45FinalModbusDestinationCannotBypassLoopbackPolicy(string scheme, string host)
+        public async Task SecurityF45FinalModbusDestinationCannotBypassLoopbackPolicy(string scheme, string host)
         {
             var attempts = new RejectedModbusConnection();
             WotProtocolBinderRegistry registry = attempts.Registry();
@@ -119,10 +119,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 scheme, host, -1, scheme + "://device.example"));
 
-            AssertRejected(
+            await AssertRejectedAsync(
                 () => attempts.Executor.ActivateAsync(form, attempts.Context),
                 StatusCodes.BadSecurityChecksFailed);
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
 
             Assert.That(attempts.ConnectionAttempts, Is.Zero);
         }
@@ -133,7 +133,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase(false)]
         [TestCase(true)]
         [Category("SecurityRegression")]
-        public void SecurityF45FinalModbusDestinationHonorsHostRestrictions(bool useAllowList)
+        public async Task SecurityF45FinalModbusDestinationHonorsHostRestrictions(bool useAllowList)
         {
             var policy = new WotEndpointPolicy();
             if (useAllowList)
@@ -150,10 +150,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotCompiledForm form = WithEndpoint(planned, new WotEndpointDescriptor(
                 "modbus+tcp", "other.example", 502, "modbus+tcp://device.example"));
 
-            AssertRejected(
+            await AssertRejectedAsync(
                 () => attempts.Executor.ActivateAsync(form, attempts.Context),
                 StatusCodes.BadSecurityChecksFailed);
-            AssertRejected(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
+            await AssertRejectedAsync(() => registry.OpenChannelAsync(form), StatusCodes.BadSecurityChecksFailed);
 
             Assert.That(attempts.ConnectionAttempts, Is.Zero);
         }
@@ -237,9 +237,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 endpoint, form.Addressing, form.OperationInfo, form.Payload, form.Security, form.IsExecutable);
         }
 
-        private static void AssertRejected(Func<ValueTask<IWotBindingChannel>> activate, StatusCode expected)
+        private static async Task AssertRejectedAsync(Func<ValueTask<IWotBindingChannel>> activate, StatusCode expected)
         {
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await using IWotBindingChannel channel = await activate().ConfigureAwait(false);
             });

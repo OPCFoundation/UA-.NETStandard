@@ -74,7 +74,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
             await File.WriteAllTextAsync(path, kNotAKeyLog).ConfigureAwait(false);
             await using CaptureSessionManager manager = CreateManager();
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.StartAsync(new StartCaptureRequest
                 {
                     Source = CaptureSourceKind.Replay,
@@ -255,7 +255,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
             }, CancellationToken.None).ConfigureAwait(false);
             await manager.StopAsync(owner.Id, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await manager.StartAsync(new StartCaptureRequest
                 {
                     Source = CaptureSourceKind.Replay,
@@ -284,7 +284,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 pcapFilePath: path, keyLogFilePath: markedAsKey ? path : null);
             ITraceFormatter formatter = TraceFormatterRegistry.CreateDefault().Get(format);
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await formatter.FormatAsync(source, null, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<PcapDiagnosticsException>());
         }
@@ -307,7 +307,7 @@ namespace Opc.Ua.Pcap.Tests.Capture
             await File.WriteAllTextAsync(path, kNotAKeyLog).ConfigureAwait(false);
 
             ITraceFormatter formatter = TraceFormatterRegistry.CreateDefault().Get(format);
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await formatter.FormatAsync(source, null, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<PcapDiagnosticsException>());
         }

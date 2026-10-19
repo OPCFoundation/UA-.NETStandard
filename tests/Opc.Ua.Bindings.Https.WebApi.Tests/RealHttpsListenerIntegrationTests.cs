@@ -290,7 +290,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 if (cancelPublish)
                 {
                     cancellation.Cancel();
-                    Assert.CatchAsync<OperationCanceledException>(() => publish);
+                    await Assert.CatchAsync<OperationCanceledException>(() => publish);
                     IServiceResponse reused = await channel.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } })
                         .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -299,10 +299,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 }
                 else
                 {
-                    ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await channel.SendRequestAsync(
                             new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } })
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                     Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
                 }
 
@@ -353,7 +353,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 await m_callback.PublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 clock.Advance(TimeSpan.FromSeconds(1));
-                ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(() => publish)!;
+                ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(() => publish))!;
                 Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
                 IServiceResponse response = await channel.SendRequestAsync(
                     new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 2 } })
@@ -405,14 +405,14 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                         if (expireDeadline)
                         {
                             clock.Advance(TimeSpan.FromSeconds(1));
-                            ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(
-                                async () => await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                            ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(
+                                async () => await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                             Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
                         }
                         else
                         {
                             cancellation.Cancel();
-                            Assert.CatchAsync<OperationCanceledException>(
+                            await Assert.CatchAsync<OperationCanceledException>(
                                 async () => await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
                         }
                         IServiceResponse read = await channel.SendRequestAsync(
@@ -503,10 +503,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
                 connection.GetType().GetMethod("Stop")!.Invoke(
                     connection, [new ServiceResultException(StatusCodes.BadConnectionClosed)]);
-                ServiceResultException publishFailure = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
-                ServiceResultException readFailure = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await read.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                ServiceResultException publishFailure = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await publish.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
+                ServiceResultException readFailure = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await read.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(publishFailure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
@@ -519,10 +519,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 await receiver.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await close.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(close.IsCompletedSuccessfully, Is.True);
-                ServiceResultException disconnected = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException disconnected = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await channel.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 83 } })
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(disconnected.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             }
             finally
@@ -608,10 +608,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     .ConfigureAwait(false);
                 Assert.That(observed, Is.SameAs(exhausted),
                     "Exhaustion must reject without emitting a wrapped request.");
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await exhausted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
-                ServiceResultException stopped = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await last.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await exhausted.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
+                ServiceResultException stopped = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await last.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 await receiver.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
@@ -677,7 +677,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 await m_callback.PublishEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 await channel.ReconnectAsync(ct: deadline.Token).ConfigureAwait(false);
-                ServiceResultException closed = Assert.ThrowsAsync<ServiceResultException>(() => publish)!;
+                ServiceResultException closed = (await Assert.ThrowsAsync<ServiceResultException>(() => publish))!;
                 Assert.That(closed.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
                 m_callback.PublishRelease.TrySetResult(true);
                 IServiceResponse response = await channel.SendRequestAsync(
@@ -706,9 +706,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 NamespaceUris = context.NamespaceUris,
                 Factory = context.Factory
             };
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.OpenAsync(
-                    new Uri("ws://unused.invalid"), settings, CancellationToken.None).ConfigureAwait(false))!;
+                    new Uri("ws://unused.invalid"), settings, CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(ReferenceEquals(channel.EndpointDescription, original), Is.True);
         }
@@ -997,7 +997,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(
                 contentType?.Parameters,
                 Has.Some.Matches<NameValueHeaderValue>(p =>
-                    p.Name == WebApiMediaType.EncodingParameter &&
+                    p is not null && p.Name == WebApiMediaType.EncodingParameter &&
                     p.Value == expectedEncoding));
         }
 

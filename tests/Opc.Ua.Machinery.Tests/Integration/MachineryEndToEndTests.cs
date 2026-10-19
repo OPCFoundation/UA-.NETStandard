@@ -194,10 +194,10 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
 
                 using var oversizedDestination = new MemoryStream();
-                ServiceResultException overflow = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException overflow = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await machinery.DownloadResultAsync(
                         machine, "bounded-selected", oversizedDestination, payload.Length - 1, ct)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(overflow.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(oversizedDestination.Length, Is.EqualTo(payload.Length - 1));
                 await AssertNoResultFilesAsync(session, transfer, ct).ConfigureAwait(false);
@@ -1564,7 +1564,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 .ConfigureAwait(false);
             Assert.That(capped.ToArray(), Is.EqualTo(s_expectedFirstJobAResult));
 
-            ServiceResultException invalidOrder = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException invalidOrder = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await results
                     .GetResultIdListFilteredAsync(
                         new ContentFilter(),
@@ -1584,7 +1584,7 @@ namespace Opc.Ua.Machinery.Tests.Integration
                         0,
                         0,
                         ct)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(
                 invalidOrder.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
@@ -1596,15 +1596,15 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 new QualifiedName("ResultTransfer", resultNamespace),
                 ct).ConfigureAwait(false);
             var transferClient = new TemporaryFileTransferClient(session, transfer);
-            ServiceResultException write = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException write = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transferClient.Proxy
                     .GenerateFileForWriteAsync(Variant.Null, ct)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(write.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotWritable));
-            ServiceResultException commit = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException commit = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transferClient.Proxy
                     .CloseAndCommitAsync(4711, ct)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(
                 commit.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));

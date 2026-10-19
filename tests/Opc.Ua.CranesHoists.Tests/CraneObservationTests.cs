@@ -122,8 +122,8 @@ namespace Opc.Ua.CranesHoists.Tests
                     new DataValueChange[] { new(harness.Item.Object, new DataValue(12), null) },
                     PublishState.None, Array.Empty<string>()).ConfigureAwait(false);
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             harness.Subscription.Verify(value => value.DisposeAsync(), Times.Once);
         }
@@ -148,13 +148,13 @@ namespace Opc.Ua.CranesHoists.Tests
         /// A setup timeout differs from a successfully established empty observation.
         /// </summary>
         [Test]
-        public void SetupTimeoutIsAnErrorAndReleasesTheSubscription()
+        public async Task SetupTimeoutIsAnErrorAndReleasesTheSubscription()
         {
             var harness = new Harness();
             harness.Item.SetupGet(value => value.Created).Returns(false);
             Task<CraneObservation> operation = harness.Client.ObserveEventsAsync(new NodeId(42, 1)).AsTask();
             harness.ExpireWindow();
-            Assert.ThrowsAsync<TimeoutException>(async () => await operation.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TimeoutException>(async () => await operation.ConfigureAwait(false));
             harness.Subscription.Verify(value => value.DisposeAsync(), Times.Once);
         }
 
@@ -162,13 +162,13 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Monitored-item creation failure is surfaced rather than mistaken for optional-member absence.
         /// </summary>
         [Test]
-        public void ItemErrorPreservesItsOriginalStatus()
+        public async Task ItemErrorPreservesItsOriginalStatus()
         {
             var harness = new Harness();
             harness.Item.SetupGet(value => value.Created).Returns(false);
             harness.Item.SetupGet(value => value.Error).Returns(new ServiceResult(StatusCodes.BadUserAccessDenied));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.Client.ObserveEventsAsync(new NodeId(42, 1)).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.Client.ObserveEventsAsync(new NodeId(42, 1)).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             harness.Subscription.Verify(value => value.DisposeAsync(), Times.Once);
         }
@@ -185,8 +185,8 @@ namespace Opc.Ua.CranesHoists.Tests
                 harness.Subscription.Object, 1, DateTime.UtcNow, PublishState.None).ConfigureAwait(false);
             await harness.Handler.OnSubscriptionStateChangedAsync(harness.Subscription.Object,
                 SubscriptionState.Error, PublishState.Stopped).ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await operation.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await operation.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             harness.Subscription.Verify(value => value.DisposeAsync(), Times.Once);
         }
@@ -195,15 +195,15 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Caller cancellation retains the caller token and disposes the subscription once.
         /// </summary>
         [Test]
-        public void CancellationRetainsTheCallerToken()
+        public async Task CancellationRetainsTheCallerToken()
         {
             var harness = new Harness();
             using var cancellation = new CancellationTokenSource();
             Task<CraneObservation> operation = harness.Client.ObserveEventsAsync(
                 new NodeId(42, 1), cancellationToken: cancellation.Token).AsTask();
             cancellation.Cancel();
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await operation.ConfigureAwait(false))!;
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await operation.ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             harness.Subscription.Verify(value => value.DisposeAsync(), Times.Once);
         }
@@ -212,7 +212,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Cleanup failures are not hidden by normal observation-window completion.
         /// </summary>
         [Test]
-        public void CleanupFailureIsNotReportedAsSuccessfulObservation()
+        public async Task CleanupFailureIsNotReportedAsSuccessfulObservation()
         {
             var harness = new Harness();
             var failure = new InvalidOperationException("Test disposal failure.");
@@ -220,8 +220,8 @@ namespace Opc.Ua.CranesHoists.Tests
                 .Returns(new ValueTask(Task.FromException(failure)));
             Task<CraneObservation> operation = harness.Client.ObserveEventsAsync(new NodeId(42, 1)).AsTask();
             harness.ExpireWindow();
-            InvalidOperationException actual = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await operation.ConfigureAwait(false))!;
+            InvalidOperationException actual = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await operation.ConfigureAwait(false)))!;
             Assert.That(actual, Is.SameAs(failure));
         }
 

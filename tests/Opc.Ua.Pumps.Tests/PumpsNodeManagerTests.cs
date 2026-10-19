@@ -171,7 +171,7 @@ namespace Opc.Ua.Pumps.Tests
 
             await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await fixture.Manager.CreatePumpAsync(
                     fixture.PumpName("Pump_1")));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
@@ -258,7 +258,7 @@ namespace Opc.Ua.Pumps.Tests
                 throw new InvalidOperationException("Registration failed.");
             };
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"))
                     .ConfigureAwait(false));
 
@@ -302,7 +302,7 @@ namespace Opc.Ua.Pumps.Tests
             fixture.Manager.PumpRegisteredForTest = _ =>
                 throw new InvalidOperationException("Registration failed.");
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await fixture.Manager.CreatePumpAsync(fixture.PumpName("Pump_1"), parent)
                     .ConfigureAwait(false));
 

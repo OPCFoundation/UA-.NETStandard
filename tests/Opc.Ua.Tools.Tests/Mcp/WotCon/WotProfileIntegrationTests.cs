@@ -254,7 +254,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         /// </summary>
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\",\"properties\":{}}")]
         [TestCase(/*lang=json,strict*/ "{\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}}")]
-        public void MalformedWotSchemasFailExplicitly(string schema)
+        public async Task MalformedWotSchemasFailExplicitly(string schema)
         {
             using var document = JsonDocument.Parse(schema);
             var response = new ListToolsResult
@@ -264,7 +264,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             McpRequestHandler<ListToolsRequestParams, ListToolsResult> filter =
                 WotMcpFilters.AddInputSchemas((_, _) => ValueTask.FromResult(response));
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await filter(null!, CancellationToken.None).ConfigureAwait(false));
         }
 

@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult disabled = await harness.CreateSessionAsync().ConfigureAwait(false);
             Assert.That(disabled.SessionId, Is.Not.EqualTo(original.SessionId));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.ActivateAsync(disabled, AuthenticationHarness.UserName, harness.Password)
                     .ConfigureAwait(false))!;
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests
             await using var harness = new AuthenticationHarness();
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.ActivateAsync(created, userName, password).ConfigureAwait(false))!;
 
             Assert.That(StatusCode.IsBad(error.StatusCode), Is.True);

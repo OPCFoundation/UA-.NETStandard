@@ -536,6 +536,47 @@ namespace Opc.Ua.Schema.Model
             return x == y;
         }
 
+        /// <summary>
+        /// Returns whether an override changes only the type argument of a
+        /// generic node state class, e.g. a <c>PropertyState&lt;ArrayOf&lt;A&gt;&gt;</c>
+        /// overridden as <c>PropertyState&lt;ArrayOf&lt;B&gt;&gt;</c> because the
+        /// subtype refines the DataType of the child to a subtype of
+        /// <c>A</c>.
+        /// </summary>
+        /// <remarks>
+        /// Two constructions of one generic class are unrelated types, so the
+        /// child of the supertype can neither be cast to nor assigned from the
+        /// class of the subtype.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="instance"/> is <c>null</c>.
+        /// </exception>
+        public static bool IsOverriddenWithRefinedGenericClass(
+            this InstanceDesign instance,
+            string targetNamespace,
+            Namespace[] namespaces)
+        {
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (!instance.IsOverridden())
+            {
+                return false;
+            }
+
+            string x = instance.GetMergedInstance().GetNodeStateClassName(targetNamespace, namespaces);
+            string y = instance.OveriddenNode.GetNodeStateClassName(targetNamespace, namespaces);
+            if (x == y)
+            {
+                return false;
+            }
+            int genericStart = x.IndexOf('<', StringComparison.Ordinal);
+            return genericStart > 0 &&
+                genericStart == y.IndexOf('<', StringComparison.Ordinal) &&
+                string.CompareOrdinal(x, 0, y, 0, genericStart) == 0;
+        }
+
         private static bool IsIndeterminateType(this InstanceDesign instance)
         {
             if (instance is VariableDesign variable)

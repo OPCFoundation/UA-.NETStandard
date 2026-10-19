@@ -266,14 +266,14 @@ namespace Opc.Ua.Lds.Tests.Hosting
         }
 
         [Test]
-        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        public async Task InitializeServiceHostsThrowsForUnregisteredScheme()
         {
             var server = new TestLdsServer();
             ApplicationConfiguration configuration = CreateConfiguration("https://localhost:4840/TestLds");
             var registry = new DefaultTransportBindingRegistry();
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await server.InitializeAndDiscardAsync(configuration, registry).ConfigureAwait(false))!;
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await server.InitializeAndDiscardAsync(configuration, registry).ConfigureAwait(false)))!;
 
             Assert.That(exception.Message, Does.Contain("https"));
             Assert.That(exception.Message, Does.Contain("AddHttpsTransport"));

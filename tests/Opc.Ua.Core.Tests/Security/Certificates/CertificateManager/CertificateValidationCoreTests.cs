@@ -228,11 +228,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public void ValidateAsyncNullChainThrowsArgumentNullException()
+        public async Task ValidateAsyncNullChainThrowsArgumentNullException()
         {
             CertificateValidationCore core = NewCore();
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => core.ValidateAsync(null!, null, null, CancellationToken.None));
 
             Assert.That(ex.ParamName, Is.EqualTo("chain"));
@@ -253,11 +253,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public void UpdateAsyncNullConfigurationThrowsArgumentNullException()
+        public async Task UpdateAsyncNullConfigurationThrowsArgumentNullException()
         {
             CertificateValidationCore core = NewCore();
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => core.UpdateAsync(null!));
 
             Assert.That(ex.ParamName, Is.EqualTo("configuration"));
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 else
                 {
-                    CryptographicException exception = Assert.ThrowsAsync<CryptographicException>(
+                    CryptographicException exception = await Assert.ThrowsAsync<CryptographicException>(
                         async () => await core.ValidateAsync(
                             chain, null, null, CancellationToken.None).ConfigureAwait(false));
                     Assert.That(exception, Is.SameAs(copyFailure));
@@ -1398,7 +1398,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
-        public void NativeIssuerCopiesAreReleasedWhenChainBuildThrows()
+        public async Task NativeIssuerCopiesAreReleasedWhenChainBuildThrows()
         {
             var nativeCopies = new List<X509Certificate2>();
             bool issuerCopiesWereLive = false;
@@ -1425,7 +1425,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using CertificateCollection chain = Chain(m_leafUnderIntermediate, m_intermediateCa);
             try
             {
-                ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
+                ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(
                     async () => await core.ValidateAsync(
                         chain, null, null, CancellationToken.None).ConfigureAwait(false));
                 Assert.That(exception.ParamName, Is.EqualTo("certificate"));

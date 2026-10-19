@@ -64,14 +64,14 @@ namespace Opc.Ua.Gds.Tests
             if (push)
             {
                 await using ServerPushConfigurationClient client = CreatePushClient(fixture);
-                failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))!;
             }
             else
             {
                 await using var client = new GlobalDiscoveryServerClient(
                     fixture.Configuration, fixture.Administrator, fixture.Factory);
-                failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))!;
             }
 
@@ -159,7 +159,7 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(ConnectAsync)!;
+                ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(ConnectAsync)!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
                 Assert.That(fixture.Activations, Is.Zero);
                 Assert.That(fixture.Requests, Is.Empty);
@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Tests
                 ? CreatePushClient(fixture)
                 : null;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await (push
                     ? pusher!.ConnectInternalAsync(fixture.Endpoint, false, requestedEndpoint, CancellationToken.None)
                     : gds!.ConnectInternalAsync(fixture.Endpoint, false, requestedEndpoint, CancellationToken.None))
@@ -215,7 +215,7 @@ namespace Opc.Ua.Gds.Tests
             await using ServerPushConfigurationClient client = CreatePushClient(fixture);
             await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await UploadAsync(client, format, s_privateKey).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -307,7 +307,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(fixture.InnerSession.ConfiguredEndpoint.Description.SecurityMode,
                 Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await UploadAsync(client, "PFX", s_privateKey).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -329,7 +329,7 @@ namespace Opc.Ua.Gds.Tests
             await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false);
             IUserIdentity original = fixture.InnerSession.Identity;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await UploadAsync(client, "PEM", s_privateKey).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
@@ -385,7 +385,7 @@ namespace Opc.Ua.Gds.Tests
                 }
             }
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await operation.ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(replacementKind == "Downgrade"

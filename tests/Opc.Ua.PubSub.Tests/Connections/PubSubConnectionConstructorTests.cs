@@ -373,7 +373,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await using PubSubConnection conn = NewConnection();
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await conn.EnableAsync(cts.Token).ConfigureAwait(false));
         }
 
@@ -383,7 +383,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
             await using PubSubConnection conn = NewConnection();
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await conn.DisableAsync(cts.Token).ConfigureAwait(false));
         }
 

@@ -251,7 +251,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             }
 
             Assert.That(provider.PendingRequestCount, Is.EqualTo(InMemoryAccessTokenProvider.MaxPendingRequests));
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .StartRequestTokenAsync(Audience, "jwt", ByteString.Empty)
                     .ConfigureAwait(false));
@@ -312,17 +312,17 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
                 .ConfigureAwait(false);
         }
 
-        private static Task<ServiceResultException> AssertServiceResultAsync(
+        private static async Task<ServiceResultException> AssertServiceResultAsync(
             Func<ValueTask<AccessTokenResult>> action,
             StatusCode statusCode,
             string message)
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await action().ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.StatusCode, Is.EqualTo(statusCode));
             Assert.That(ex.Message, Does.Contain(message));
-            return Task.FromResult(ex);
+            return ex;
         }
 
         private static bool IsRejectedReplay(Task<AccessTokenResult> task)

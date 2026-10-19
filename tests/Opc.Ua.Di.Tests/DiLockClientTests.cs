@@ -161,7 +161,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void CallThrowsServiceResultExceptionWhenStatusBad()
+        public async Task CallThrowsServiceResultExceptionWhenStatusBad()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
@@ -173,13 +173,13 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.InitLockAsync("tag").ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.InitLockAsync("tag").ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUserAccessDenied));
         }
 
         [Test]
-        public void CallThrowsBadUnexpectedErrorWhenOutputEmpty()
+        public async Task CallThrowsBadUnexpectedErrorWhenOutputEmpty()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
@@ -191,13 +191,13 @@ namespace Opc.Ua.Di.Tests
             var client = new DiLockClient(
                 sessionMock.Object, new NodeId("lock-1", 2), NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.RenewLockAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.RenewLockAsync().ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 
         [Test]
-        public void CallThrowsBadUnexpectedErrorWhenOutputIsNotInt32()
+        public async Task CallThrowsBadUnexpectedErrorWhenOutputIsNotInt32()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupCallReturns(sessionMock, new CallMethodResult
@@ -214,8 +214,8 @@ namespace Opc.Ua.Di.Tests
             // when the typed unwrap fails; the original hand-rolled
             // helper raised BadTypeMismatch. The proxy's wire-form
             // contract is now canonical for this client.
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ExitLockAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ExitLockAsync().ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
 

@@ -126,11 +126,11 @@ namespace Opc.Ua.Tools.Tests.McpVisionSecurity
                 Assert.That(fixture.Manager.GetSessionOrThrow("Prod-A"), Is.SameAs(remote.Session.Object),
                     "The attacker really can borrow this same UA session for ordinary operations.");
                 int calls = remote.Calls.Count;
-                ServiceResultException? write = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? write = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.FileAsync(accessor, trust.ToString(), "Write",
                         handle: raw, dataBase64: "AQID", sessionName: "Prod-A").ConfigureAwait(false));
                 Assert.That(write!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-                ServiceResultException? open = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? open = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.FileAsync(accessor, trust.ToString(), "Open", mode: 6,
                         sessionName: "Prod-A").ConfigureAwait(false));
                 Assert.That(open!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -205,7 +205,7 @@ namespace Opc.Ua.Tools.Tests.McpVisionSecurity
             using (fixture.Callers.EnterTrustedCaller(violation == "Caller"
                 ? SecurityF17SessionContext.Attacker : SecurityF17SessionContext.Victim))
             {
-                ServiceResultException? refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? refused = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.FileAsync(accessor,
                         violation == "Target" ? fixture.Approved.Id("different-file").ToString() : file.ToString(),
                         "Write", handle: violation == "RawHandle" ? 11u : handle, dataBase64: "AQID",
@@ -255,7 +255,7 @@ namespace Opc.Ua.Tools.Tests.McpVisionSecurity
                 OutputArguments = [Variant.From(file), Variant.From(11u)]
             };
             using IDisposable caller = fixture.Callers.EnterTrustedCaller(SecurityF17SessionContext.Victim);
-            ServiceResultException? refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? refused = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await VisionMachineTools.FileAsync(accessor, transfer.ToString(), "GenerateWrite",
                     sessionName: "Prod-A").ConfigureAwait(false));
             Assert.That(refused!.StatusCode, Is.EqualTo(violation == "TransferType"
@@ -352,7 +352,7 @@ namespace Opc.Ua.Tools.Tests.McpVisionSecurity
                 Is.EqualTo(1));
             Assert.That(remote.Calls.Any(call => call.MethodId == UaMethods.FileType_Open), Is.False);
             int completedCalls = remote.Calls.Count;
-            ServiceResultException? stale = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? stale = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await VisionMachineTools.FileAsync(accessor, file.ToString(), "Write",
                     handle: writeHandle, dataBase64: "AQID", sessionName: "Prod-A").ConfigureAwait(false));
             Assert.That(stale!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -398,14 +398,14 @@ namespace Opc.Ua.Tools.Tests.McpVisionSecurity
             int reads = remote.Reads.Count;
             using (fixture.Callers.EnterTrustedCaller(SecurityF17SessionContext.Attacker))
             {
-                ServiceResultException? stolen = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? stolen = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.FileAsync(accessor, completion.ToString(), operation,
                         handle: handle, sessionName: "Prod-A").ConfigureAwait(false));
                 Assert.That(stolen!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             using (fixture.Callers.EnterTrustedCaller(SecurityF17SessionContext.Victim))
             {
-                ServiceResultException? wrongTarget = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? wrongTarget = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.FileAsync(accessor, remote.Id("unrelated-state-machine").ToString(),
                         operation, handle: handle, sessionName: "Prod-A").ConfigureAwait(false));
                 Assert.That(wrongTarget!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));

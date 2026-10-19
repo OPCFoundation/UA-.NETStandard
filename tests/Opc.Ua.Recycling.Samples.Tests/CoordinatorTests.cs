@@ -105,11 +105,11 @@ namespace Opc.Ua.Recycling.Samples.Tests
             await using RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false);
             CommittedSnapshot before = coordinator.Current;
             RecyclingPrincipal principal = ProcessPrincipal(RecyclingProcess.Collection);
-            AssertDenied(() => coordinator.ExecuteAsync(
+            await AssertDenied(() => coordinator.ExecuteAsync(
                 principal, Command(coordinator, RecyclingCommandKind.Register, RecyclingProcess.Sorting)).AsTask());
-            AssertDenied(() => coordinator.ExecuteAsync(
+            await AssertDenied(() => coordinator.ExecuteAsync(
                 principal, Command(coordinator, RecyclingCommandKind.Checkpoint)).AsTask());
-            AssertDenied(() => coordinator.ExecuteAsync(
+            await AssertDenied(() => coordinator.ExecuteAsync(
                 principal, Command(coordinator, RecyclingCommandKind.EnableProcess)).AsTask());
             Assert.That(coordinator.Current, Is.SameAs(before));
         }
@@ -127,12 +127,12 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(
                 await coordinator.ExecuteAsync(s_administrator, original).ConfigureAwait(false), Is.EqualTo(outcome));
             Assert.That(coordinator.Current.Revision, Is.EqualTo(outcome.Revision));
-            ServiceResultException conflict = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException conflict = (await Assert.ThrowsAsync<ServiceResultException>(() =>
                 coordinator.ExecuteAsync(
-                    s_administrator, original with { Kind = RecyclingCommandKind.Pause }).AsTask())!;
+                    s_administrator, original with { Kind = RecyclingCommandKind.Pause }).AsTask()))!;
             Assert.That(conflict.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            ServiceResultException stale = Assert.ThrowsAsync<ServiceResultException>(() => coordinator.ExecuteAsync(
-                s_administrator, original with { RequestId = Guid.NewGuid().ToString("N") }).AsTask())!;
+            ServiceResultException stale = (await Assert.ThrowsAsync<ServiceResultException>(() => coordinator.ExecuteAsync(
+                s_administrator, original with { RequestId = Guid.NewGuid().ToString("N") }).AsTask()))!;
             Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -204,8 +204,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     break;
             }
             CommittedSnapshot before = coordinator.Current;
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
-                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask()))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(coordinator.Current, Is.SameAs(before));
         }
@@ -230,8 +230,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 }
             }
             await using RecyclingCoordinator recovered = await OpenAsync().ConfigureAwait(false);
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
-                recovered.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                recovered.ExecuteAsync(s_administrator, confirmed).AsTask()))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -277,8 +277,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
             await coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Bagging),
                 Command(coordinator, RecyclingCommandKind.Initialize, RecyclingProcess.Bagging)).ConfigureAwait(false);
             Assert.That(coordinator.Current.Lifecycle, Is.EqualTo(RunLifecycle.Running));
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
-                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask())!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(s_administrator, confirmed).AsTask()))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -406,8 +406,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     break;
             }
             CommittedSnapshot before = coordinator.Current;
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
-                coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection), observed).AsTask())!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                coordinator.ExecuteAsync(ProcessPrincipal(RecyclingProcess.Collection), observed).AsTask()))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(coordinator.Current, Is.SameAs(before));
         }
@@ -482,13 +482,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 Assert.That(await coordinator.ExecuteAsync(principal, newest).ConfigureAwait(false),
                     Is.EqualTo(newestOutcome));
                 Assert.That(coordinator.Current.Participants[0].LeaseExpiresUtc, Is.EqualTo(expiry));
-                ServiceResultException stale = Assert.ThrowsAsync<ServiceResultException>(() =>
-                    coordinator.ExecuteAsync(principal, first).AsTask())!;
+                ServiceResultException stale = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    coordinator.ExecuteAsync(principal, first).AsTask()))!;
                 Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(coordinator.Current.Participants[0].LeaseExpiresUtc, Is.EqualTo(expiry));
-                ServiceResultException full = Assert.ThrowsAsync<ServiceResultException>(() =>
+                ServiceResultException full = (await Assert.ThrowsAsync<ServiceResultException>(() =>
                     coordinator.ExecuteAsync(s_administrator, Command(coordinator, RecyclingCommandKind.Resume))
-                        .AsTask())!;
+                        .AsTask()))!;
                 Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
                 Assert.That(await coordinator.ExecuteAsync(s_administrator, pause).ConfigureAwait(false),
                     Is.EqualTo(pauseOutcome));
@@ -695,7 +695,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
             byte[] frame = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
             frame[7] = (byte)'1';
             await File.WriteAllBytesAsync(path, frame).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(() => OpenAsync().AsTask());
+            await Assert.ThrowsAsync<InvalidDataException>(() => OpenAsync().AsTask());
         }
 
         /// <summary>
@@ -718,7 +718,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
             }
             string committed = Directory.GetFiles(m_root, "*.record")[0];
             await File.WriteAllBytesAsync(committed, new byte[] { 1, 2, 3 }).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(() => OpenAsync().AsTask());
+            await Assert.ThrowsAsync<InvalidDataException>(() => OpenAsync().AsTask());
         }
 
         /// <summary>
@@ -729,13 +729,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
         {
             await using (RecyclingCoordinator coordinator = await OpenAsync().ConfigureAwait(false))
             {
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () =>
                 {
                     await using RecyclingCoordinator unexpected = await OpenAsync().ConfigureAwait(false);
                 });
                 Assert.That(coordinator.Current.Tick, Is.Zero);
             }
-            Assert.ThrowsAsync<InvalidDataException>(() =>
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
                 OpenAsync(new RecyclingConfiguration { Seed = 7 }).AsTask());
         }
 
@@ -764,9 +764,9 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 {
                     Snapshot = recovered.Snapshot with { Revision = 1 }
                 }).ConfigureAwait(false);
-                Assert.ThrowsAsync<ObjectDisposedException>(() => original.CheckpointAsync().AsTask());
-                Assert.ThrowsAsync<ObjectDisposedException>(() => original.CommitAsync(recovered).AsTask());
-                Assert.ThrowsAsync<ObjectDisposedException>(() =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => original.CheckpointAsync().AsTask());
+                await Assert.ThrowsAsync<ObjectDisposedException>(() => original.CommitAsync(recovered).AsTask());
+                await Assert.ThrowsAsync<ObjectDisposedException>(() =>
                     original.OpenAsync("test-configuration", "test-line").AsTask());
             }
             await using var verifier = new RecyclingJournal(m_files);
@@ -809,8 +809,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(coordinator.Current, Is.SameAs(before));
                 Assert.That(pending.IsCompleted, Is.False);
-                ServiceResultException overflow = Assert.ThrowsAsync<ServiceResultException>(() =>
-                    coordinator.TickAsync().AsTask())!;
+                ServiceResultException overflow = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    coordinator.TickAsync().AsTask()))!;
                 Assert.That(overflow.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             }
             finally
@@ -835,12 +835,12 @@ namespace Opc.Ua.Recycling.Samples.Tests
             provider.Setup(fileSystem => fileSystem.OpenWriteAsync(
                     "journal.pending", FileWriteMode.Truncate, It.IsAny<CancellationToken>()))
                 .Throws(new IOException("Injected persistence failure."));
-            Assert.ThrowsAsync<IOException>(() => coordinator.ExecuteAsync(
+            await Assert.ThrowsAsync<IOException>(() => coordinator.ExecuteAsync(
                 s_administrator, Command(coordinator, RecyclingCommandKind.Checkpoint)).AsTask());
             Assert.That(coordinator.IsHealthy, Is.False);
             Assert.That(coordinator.Current, Is.SameAs(before));
             ServiceResultException stopped =
-                Assert.ThrowsAsync<ServiceResultException>(() => coordinator.TickAsync().AsTask())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(() => coordinator.TickAsync().AsTask()))!;
             Assert.That(stopped.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
         }
 
@@ -917,10 +917,10 @@ namespace Opc.Ua.Recycling.Samples.Tests
             }
         }
 
-        private static void AssertDenied(Func<Task<RecyclingCommandOutcome>> action)
+        private static async Task AssertDenied(Func<Task<RecyclingCommandOutcome>> action)
         {
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await action().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await action().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 

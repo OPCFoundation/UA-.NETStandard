@@ -464,7 +464,7 @@ namespace Opc.Ua.Features.Tests
                 .ConfigureAwait(false);
 
             FileSystemClient client = OpenClient();
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await client.Root.CreateFileAsync("denied.txt").ConfigureAwait(false));
         }
     }
