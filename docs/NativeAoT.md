@@ -177,10 +177,9 @@ tests/Opc.Ua.Aot.Tests/
 ### Why TUnit Instead of NUnit?
 
 The project uses the [TUnit](https://tunit.dev/) test framework instead of
-NUnit. TUnit generates test-discovery code at compile time, avoiding
-unrestricted runtime discovery. Native AOT and trimming can support reflection
-when the required types and members are preserved; test code and dependencies
-must still be validated under Native AOT.
+NUnit. TUnit generates test-discovery code at compile time, so this test binary
+can be published with Native AOT. The repository's NUnit test projects use
+runtime reflection for discovery instead and are not the Native AOT test path.
 
 ### Test Fixture Pattern
 

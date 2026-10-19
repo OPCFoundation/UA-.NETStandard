@@ -159,18 +159,16 @@ dotnet format analyzers <YourSolution>.sln \
 
 ### Common pitfalls
 
-- **Do not suppress `[Obsolete]` or `UA00xx` warnings.** Obsolete API will be
-  removed in the next minor 2.0 release; if you `<NoWarn>` it now, your build
-  will break on upgrade.
+- **Do not suppress `[Obsolete]` or `UA00xx` warnings.** Removal timing follows
+  the version-specific migration guidance; suppressing
+  the warnings can hide work needed before the next upgrade.
 - **Generated `<Type>Collection` shims are temporary public types.** They keep
   legacy public signatures compiling during migration, but disappear when the
   analyzer package is removed. Migrate every public signature and call site to
   `List<T>` / `ArrayOf<T>` before removing the package.
 - **Legacy `.NET Framework` desktop projects need `PackageReference` support.**
-  For projects using `xmlns="http://schemas.microsoft.com/developer/msbuild/2003"`,
-  migrate `packages.config` references if present, then add the migration package
-  directly to the csproj's existing `<ItemGroup>`. Verify restore and analyzer
-  loading; see [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
+  Follow the package-management and installation checks in
+  [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
 - **`TreatWarningsAsErrors=true` blocks the warning-driven workflow.** Use the
   `NoWarn` recipe in `assets/Directory.Build.targets.example.xml` for the
   migration window, then peel each entry back as you fix the rule.
@@ -314,13 +312,8 @@ MigrationAnalyzer package is removed.
 
 ### Known compatibility gaps
 
-- Legacy `.NET Framework` WinForms projects in pre-SDK MSBuild XML format
-  (`xmlns="…/2003"`) can use `PackageReference` without SDK-style conversion.
-  The legacy sample projects did not resolve the reference injected through
-  `Directory.Build.targets`; follow
-  [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml)
-  to migrate package management if needed, add the package directly and verify
-  analyzer loading.
+- For legacy `.NET Framework` WinForms project installation, see
+  [`references/known-gaps.md` G1](references/known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
 - Public APIs can continue returning a generated `<Type>Collection` while the
   package is installed, but those temporary types disappear with the package.
   Migrate the public surface to `List<T>` / `ArrayOf<T>` before removal.

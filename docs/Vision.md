@@ -1386,13 +1386,12 @@ sees the same scene the agent sees.
 
 ### Scene lighting
 
-The sample stage uses a single `DomeLight` with `intensity = 1000`. Preserve
-distinguishable part colors when changing lighting, exposure, materials or
-renderer settings, because color-based selection depends on the captured image.
-Check captured colors after a change. The recorded RGB examples are
-`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`; they
-are historical examples, not a complete five-part measurement or a guarantee
-across rendering configurations. The `Cell.usda` header records this requirement.
+Keep the single `DomeLight` at intensity 1000. In the sample's original lighting
+tests, a `DistantLight` bright enough to show geometry washed every part to white,
+preventing selection of "the red part". Historical DomeLight captures measured
+`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`.
+Re-check captured colors after lighting, material or renderer changes.
+The `Cell.usda` header records this requirement.
 
 ### Feedback validation
 
@@ -1456,13 +1455,13 @@ responsibility for learning counters.
   `VisionSubmitDetectionsRequest` / `VisionSubmitCorrectionRequest`, so
   a host that binds a learning job has everything it needs to satisfy
   §9.4 on the counter it owns.
-- **Rendering availability is separate from NativeAOT compatibility.**
-  Capture requires the appropriate native dependencies and a usable hardware
-  or software graphics backend; native payload presence alone does not
-  establish readiness. Check `Backend.IsAvailable` and
-  `Backend.UnavailableReason`. When no usable backend is available, capture
-  reports `SceneCameraCaptureStatus.NoRenderingBackend`. Backend availability
-  alone does not guarantee that a particular capture will succeed.
+- **Native AOT scope.** `Opc.Ua.Vision.OpenUsd` is not marked
+  `IsAotCompatible`: its legacy device-probing entry points are outside an
+  assembly-wide AOT contract. `RetainedSceneCameraCaptureProvider` is a typed
+  adapter over an existing frame source and performs no device probing.
+  Native renderer assets ship per RID; validate the selected renderer when
+  publishing with Native AOT. See [Rendering without pixels](#rendering-without-pixels)
+  for backend detection.
 
 ## Visual inspection: a cross-companion cell
 

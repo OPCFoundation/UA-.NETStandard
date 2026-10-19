@@ -100,8 +100,8 @@
   (`Opc.Ua.PubSub.Schema`), and redundancy integration
   (`Opc.Ua.Redundancy.PubSub`).
 - Multi-TFM: `net48`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
-- Native AOT clean — both reference samples publish with zero
-  `IL2026` / `IL3050` warnings.
+- The combined reference sample publishes as a Native AOT self-contained
+  executable on `net10.0` with its default backends; see [Native AOT](#native-aot).
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), **Kafka** (`kafka://` / `kafkas://`), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
@@ -207,16 +207,16 @@ The runtime assembly contains these areas:
 
 | Area | Types and services |
 | --- | --- |
-| Application | `PubSubApplication`, `PubSubApplicationBuilder`, `IPubSubApplication`, `MetaDataPublisher` |
+| Application | `PubSubApplication`, `PubSubApplicationBuilder`, `IPubSubApplication` |
 | Configuration | `PubSubConfigurationSnapshot`, validator, XML |
-| Connections | `PubSubConnection`, `UaPubSubConnection` |
+| Connections | `PubSubConnection`, `IPubSubConnection` |
 | Groups | `WriterGroup`, `ReaderGroup` |
 | DataSets | Published, Subscribed, Source, Sink |
 | Encoding | UADP and JSON encoders/decoders, Discovery, Action |
 | MetaData | `IDataSetMetaDataRegistry` |
 | Scheduling | `IPubSubScheduler`, `PubSubSchedule` |
-| Security | `UadpSecurityWrapper`, `KeyRing`, `NonceLayout`, KAT |
-| Security/Sks | `ISecurityKeyService`, `OpcUaSecurityKeyServiceClient`, `InMemoryPubSubKeyServiceServer`, `PullSecurityKey` |
+| Security | `UadpSecurityWrapper`, `PubSubSecurityKeyRing`, `AesCtrNonceLayout`, known-answer tests |
+| Security/Sks | `ISecurityKeyService`, `OpcUaSecurityKeyServiceClient`, `InMemoryPubSubKeyServiceServer`, `PullSecurityKeyProvider` |
 | StateMachine | `PubSubStateMachine` |
 | Transports | `IPubSubTransportFactory`, `IPubSubTransport` |
 | DependencyInjection | `AddPubSub`, `AddPubSubSecurityKeyService*` |
@@ -2004,7 +2004,7 @@ Providers can be registered by type — `WithActivationCoordinator<TCoordinator>
 / `WithLeaseStore<TStore>()` — or by instance via the
 `WithActivationCoordinator(...)` / `WithLeaseStore(...)` builder methods.
 
-`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally restores writer sequence checkpoints on promotion. Hot mode does not guarantee gap-free delivery; see [sequence-number continuity](PubSubHighAvailability.md#sequence-number-continuity-hot-standby) for checkpoint freshness and wrap limitations.
+`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally restores writer sequence checkpoints on promotion. See [sequence-number continuity](PubSubHighAvailability.md#sequence-number-continuity-hot-standby).
 
 **Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. `SharedStorePubSubLeaseStore` in `Opc.Ua.Redundancy.PubSub` implements `IPubSubLeaseStore` over `ISharedKeyValueStore.CompareAndSwapAsync`. This lets server redundancy and PubSub coordination use the same shared-store backend. See [PubSub high availability](PubSubHighAvailability.md) for registration and consistency requirements.
 
@@ -2051,8 +2051,8 @@ The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) a
   exercise UADP encode/decode, JSON encode/decode, key-ring rotation,
   scheduler tick dispatch, and metadata-registry lookup inside an
   AOT-published binary.
-- **Reference sample.** The combined reference application publishes AOT-clean
-  with zero `IL2026` / `IL3050` warnings:
+- **Reference sample.** The combined reference application publishes as a
+  Native AOT self-contained executable on `net10.0` with its default backends:
   - [`samples/PubSub/ConsoleReferencePubSubClient`](../samples/PubSub/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
@@ -2070,7 +2070,7 @@ below maps Part 14 sections to the type / file that implements them.
 | §6.2.2.4     | Metadata registration                               | `MetaData/DataSetMetaDataRegistry.cs`                                          |
 | §6.2.2.5     | Metadata publishing                                 | `Application/MetaDataPublisher.cs`                                             |
 | §6.2.5       | Configuration validation                            | `Configuration/PubSubConfigurationValidator.cs`                                |
-| §6.2.6       | Connection / Group model                            | `Connections/UaPubSubConnection.cs`, `Groups/WriterGroup.cs`, `Groups/ReaderGroup.cs` |
+| §6.2.6       | Connection / Group model                            | `Connections/PubSubConnection.cs`, `Groups/WriterGroup.cs`, `Groups/ReaderGroup.cs` |
 | §6.2.7       | DataSetReader                                       | `DataSets/DataSetReader.cs`                                                     |
 | §6.4.1       | Periodic publishing                                 | `Scheduling/IPubSubScheduler.cs`, `Scheduling/PubSubScheduler.cs`              |
 | §6.4.2       | Datagram-v2 fields                                  | `Transports/Udp/UdpDatagramTransport.cs`                                       |

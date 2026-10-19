@@ -68,7 +68,7 @@ the manual constructors when you need finer control.
 - [Complex types](#complex-types)
 - [Programs](#programs)
 - [Alarms and conditions](#alarms-and-conditions)
-  - [Client-side reverse connect](#client-side-reverse-connect)
+- [Client-side reverse connect](#client-side-reverse-connect)
 - [Channel manager](#channel-manager)
 - [Application instance (advanced)](#application-instance-advanced)
 - [GDS Client](#gds-client)
@@ -1588,7 +1588,7 @@ use the dependency injection infrastructure. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the full
 developer guide.
 
-### Client-side reverse connect
+## Client-side reverse connect
 
 When `OpcUaClientOptions.ReverseConnect` is set, the dependency injection container
 registers a singleton `ReverseConnectManager` that opens the configured

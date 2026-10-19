@@ -79,9 +79,9 @@ The intended high-level service-collection API is `AddPubSubRedundancy(Action<Pu
 
 OPC UA Part 14 §7.2.5.4.1 defines the subscriber de-duplication key as `(PublisherId, DataSetWriterId, SequenceNumber)`. For a redundant publisher, the shared `PublisherId` and identical writer configuration mean the promoted standby must continue the same logical sequence stream.
 
-Hot standby restores each writer from its stored sequence checkpoint with a fixed offset of 1,000, advancing the local counter only if the calculated value is higher. This does not guarantee continuity beyond every message accepted from the failed publisher: checkpoint age, publication rate, store lag and sequence-number wrap affect the result. A strongly consistent store prevents stale reads of committed checkpoints, but cannot recover sequence advances that were never checkpointed. Validate failover and subscriber duplicate handling for the deployment; Hot mode alone does not guarantee lossless or gap-free delivery.
+On promotion, Hot standby restores each writer to its stored sequence checkpoint + 1,000, advancing the local counter only if that value is higher. Sequence advances after the last checkpoint, store lag and wrap can still produce duplicates or gaps.
 
-Cold and Warm deployments may restart a writer without a current sequence checkpoint. That can create a sequence reset and require subscriber de-duplication state to be reset, producing an observable data gap. Hot adds checkpoint-based restoration, but deployments requiring sequence continuity must account for the limitations above. Normal sequence-number wrap must be distinguished from a restart; a lower numeric value alone does not establish a reset.
+Cold and Warm may restart sequences, requiring subscribers to reset de-duplication state. Distinguish a restart from normal sequence-number wrap.
 
 ## Shared security keys (SKS)
 

@@ -71,6 +71,9 @@ This is intended as a **migration aid only** — keep the build green while you
 port the call chain to `async`/`await`. Do **not** leave these calls on
 production hot paths because:
 
+- On a UI thread or another `SynchronizationContext` thread, direct blocking
+  can deadlock if the async implementation or a callback needs to resume on
+  that blocked context.
 - Under load, blocked worker threads can delay other requests and contribute
   to thread-pool starvation or timeouts.
 - Synchronous blocking obscures the async call chain and complicates timeout

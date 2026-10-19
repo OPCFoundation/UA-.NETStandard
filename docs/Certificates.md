@@ -743,11 +743,8 @@ configuration.SecurityConfiguration.MaxRejectedCertificates = 10;
 
 ### Suppressible Validation Errors
 
-Use `CertificateValidationOptions.AcceptError` to accept an individual
-suppressible validation error when application policy permits it. This callback
-cannot override non-suppressible errors; inspect the returned validation result.
-See the [certificate-validation migration example](migrate/2.0.x/certificates.md#migrating-the-certificatevalidatorcertificatevalidation-event)
-for the replacement of the legacy event. The following errors are suppressible:
+Use `CertificateValidationOptions.AcceptError` to accept individual suppressible
+errors; non-suppressible errors cannot be overridden. The following errors are suppressible:
 
 - **BadCertificateUntrusted**: The certificate is not trusted (not in the trusted store or chain).
 - **BadCertificateHostNameInvalid**: The domain name in the endpoint URL does not match any domain in the certificate.

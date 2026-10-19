@@ -25,6 +25,9 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
     <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Replace x.y.z with the version used by the stack packages. -->
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
+                      Version="x.y.z" PrivateAssets="all" />
     <!-- Generate code behind for the following design or nodeset2.xml files during build-->
     <AdditionalFiles Include="Boiler\Generated\BoilerDesign.csv" />
     <AdditionalFiles Include="Boiler\Generated\BoilerDesign.xml" />
@@ -35,11 +38,11 @@ To migrate remove all your generated files (ending in `*.Classes.cs`, `*.Constan
   </ItemGroup>
 ```
 
-With [source generation](https://devblogs.microsoft.com/dotnet/introducing-c-source-generators/),
-model code is produced during compilation using the configured generator
-version. Upgrade the generator and stack together and rebuild the model
-projects to apply changes to generated code. Application code may still
-require updates for other stack changes.
+Model code is generated at compile time by
+`OPCFoundation.NetStandard.Opc.Ua.SourceGeneration`. Keep its version equal to
+the stack packages and rebuild model projects after upgrading. With central
+package management, set the version in `Directory.Packages.props` instead of
+the `PackageReference`.
 
 Code generation also runs while you are developing. The stack uses this feature to generate `IEncodeable` implementations for partial POCO types using the `[DataType]` and `[DataTypeField]` attributes as annotation (similar to `DataContract`/`DataMember`).
 

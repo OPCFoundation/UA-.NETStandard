@@ -188,8 +188,9 @@ Three consequences worth knowing:
 diagnostics objects, inference jobs, rediscovered assets. Its counter
 starts above `0x40000000`, separating its initial allocations from lower
 numeric identifiers. This is not a reserved range or a guarantee against
-authored-ID collisions. Keep model and instance identifiers appropriately
-separated and coordinate explicit assignments within a shared namespace.
+authored-ID collisions. Authored numeric identifiers at or above `0x40000000`
+in the same namespace can collide with Counter identifiers; the factory does
+not detect these collisions.
 (The predefined-node index takes the last writer, so such a collision
 silently replaces the type rather than failing.)
 

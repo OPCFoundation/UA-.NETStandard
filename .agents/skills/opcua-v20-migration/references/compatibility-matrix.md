@@ -13,12 +13,6 @@ correctly.
 | C# language version | 8.0 | 14 (default in SDK 10) | The generator emits nullable-reference syntax. The runtime shim's C# 14 extension blocks are precompiled, so consumers do not need C# 14 merely to reference them |
 | Consumer project format | C# project with `PackageReference` support | `Microsoft.NET.Sdk` (SDK-style) | Legacy `.NET Framework` desktop projects are also supported; see [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml) for package-management prerequisites and installation checks |
 
-Legacy .NET Framework desktop projects can use `PackageReference` without
-converting to SDK style. If a project uses `packages.config`, migrate its package
-references first; then add the migration package directly to the project file
-and verify restore and analyzer loading. See NuGet's
-[project-type support](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#project-type-support).
-
 ## Supported consumer target frameworks
 
 The migration package's runtime shim DLL (`Opc.Ua.MigrationAnalyzer.Core.dll`)

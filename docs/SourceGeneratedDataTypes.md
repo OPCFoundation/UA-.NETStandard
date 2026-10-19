@@ -541,9 +541,9 @@ public partial class SecuritySettings
 > **Guideline**: `Exclude` preserves an explicit `false` for the
 > constructor-assigned Boolean shown here. A missing XML field keeps the
 > constructor value; a missing JSON field becomes the type default.
-> Choose `Include` when an absent XML field should overwrite the constructor
-> value with the type default, not merely because the constructor sets the
-> property to `true`.
+> Choose `SetIfMissing` (or `Include` to also always write the field) when an
+> absent XML field should overwrite the constructor value with the type default,
+> not merely because the constructor sets the property to `true`.
 
 ## Partial Init Properties
 

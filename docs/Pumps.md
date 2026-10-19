@@ -638,11 +638,8 @@ unit for its analog variables. That costs one extra round trip per group.
 | `IncludeTimestamps` | `false` | Return source timestamps |
 | `PumpReadOptions.ValuesOnly` | | One browse and one read, no metadata |
 
-If the server guarantees stable engineering units and ranges during polling,
-read once with the defaults, retain that metadata, and poll with `ValuesOnly`.
-Refresh the metadata after relevant server or device configuration changes.
-Otherwise, keep metadata reads enabled. `ValuesOnly` does not include
-previously read metadata in its results.
+Read once with the defaults, retain the metadata, then poll with `ValuesOnly`;
+re-read metadata after a device or server configuration change.
 
 ### Supervision
 
@@ -662,11 +659,9 @@ if (supervision?.HasActiveSignals == true)
 }
 ```
 
-`ActiveSignals` includes signals whose value is Boolean `true` and whose
-status is not bad. False, bad-status and non-Boolean readings are excluded.
-An empty result means no active signal was found in the available readings;
-it does not establish that the pump is healthy. Check the group readings,
-status codes and expected signal coverage separately.
+`ActiveSignals` includes Boolean `true` readings whose status is not bad.
+An empty result means no readable signal is raised; signals that are missing,
+non-Boolean or bad are not counted.
 
 ### Maintenance
 

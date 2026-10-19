@@ -6,7 +6,7 @@ The package is the shared model contract used by `Opc.Ua.ISA95.Client` and `Opc.
 
 ## Overview
 
-The Common Model NodeSet2 XML in this package carries two normative repairs for ReferenceTypes that OPC-10030 requires but the published 2013 NodeSet omitted (`DefinedByMaterialClass`, `AssembledFromSublot`); see the [ISA-95 guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ISA95.md#normative-nodeset-repairs) for the full rationale and specification references.
+The Common Model NodeSet2 XML in this package carries two normative repairs for ReferenceTypes that OPC-10030 requires but the published 2013 NodeSet omitted (`DefinedByMaterialClass`, `AssembledFromSublot`); see the [ISA-95 guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/ISA95.md#normative-common-model-repairs) for the full rationale and specification references.
 
 ## Target frameworks
 

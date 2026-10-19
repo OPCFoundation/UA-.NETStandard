@@ -145,13 +145,12 @@ to the flange so the view moves with the arm.
 
 ### Scene lighting is load-bearing
 
-The sample stage uses a single `DomeLight` at intensity 1000. Preserve
-distinguishable part colors when changing lighting, exposure, materials or
-renderer settings, because color-based selection depends on the captured image.
-Check captured colors after a change. The recorded RGB examples are
-`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`; they
-are historical examples, not a complete five-part measurement or a guarantee
-across rendering configurations. The `Cell.usda` header records this requirement.
+Keep the single `DomeLight` at intensity 1000. In the sample's original lighting
+tests, a `DistantLight` bright enough to show geometry washed every part to white,
+preventing selection of "the red part". Historical DomeLight captures measured
+`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`.
+Re-check captured colors after lighting, material or renderer changes.
+The `Cell.usda` header records this requirement.
 
 ### Frame tree contract
 

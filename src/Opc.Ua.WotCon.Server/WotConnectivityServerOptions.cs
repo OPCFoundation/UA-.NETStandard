@@ -88,8 +88,6 @@ namespace Opc.Ua.WotCon.Server
         /// Maximum JSON nesting depth for a persisted Thing Description,
         /// enforced through <c>JsonSerializerOptions.MaxDepth</c>. Defaults to 64.
         /// Files exceeding the configured depth are skipped with a warning.
-        /// This bounds accepted JSON nesting; it does not guarantee total
-        /// memory use or available thread-stack space.
         /// </summary>
         public int MaxThingDescriptionJsonDepth { get; set; } = 64;
 

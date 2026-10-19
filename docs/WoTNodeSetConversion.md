@@ -47,69 +47,37 @@ authoring and runtime integration.
 
 ## Which specification revision this tracks
 
-This implementation tracks **WoT Binding revision 1.1**. The revision is
-stated once, as `Opc.Ua.Wot.WotBindingConformance.CurrentRevision`, and
-everything that depends on it — the `uav:bindingVersion` values strict
-conformance accepts, the versioned artifact base
-`http://opcfoundation.org/UA/WoT-Binding/v1.1/`, and the closed Section 11
-name set — derives from that constant. No public behaviour is keyed to an
-upstream commit: a revision is a published contract, a commit is not.
+This implementation tracks **WoT Binding revision 1.1**, exposed by
+`Opc.Ua.Wot.WotBindingConformance.CurrentRevision`. It determines the accepted
+`uav:bindingVersion` values, versioned artifact base
+`http://opcfoundation.org/UA/WoT-Binding/v1.1/`, and Section 11 name set.
 
 The `uav` prefix binds to `http://opcfoundation.org/UA/WoT-Binding/`. The
-reader matches the compact `uav:` spelling and never consults the IRI a
-document binds the prefix to, in permissive *and* in strict mode, because
-strictness is about the vocabulary a document uses and not about the IRI it
-declares that vocabulary under. A document written against the earlier
-`http://opcfoundation.org/UA/WoT/v1#` draft binding therefore stays
-readable; that leniency is deliberate and is covered by a test.
+reader matches compact `uav:` names without resolving the prefix's IRI, in
+both permissive and strict mode. Documents using the earlier
+`http://opcfoundation.org/UA/WoT/v1#` draft prefix binding remain readable.
 
-The specification's worked examples are vendored as test fixtures under
-`tests/Opc.Ua.Types.Tests/Wot/Assets`, and *those* do record the exact
-source. `spec-examples.manifest.json` beside them names the source
-repository, branch and commit together with the size and SHA-256 of every
-example, and `WotSpecFixtureManifestTests` fails the build when the two
-disagree. See [How this is checked](WotBindings.md#how-this-is-checked)
-for the drift check and the regeneration step.
+Specification fixtures under `tests/Opc.Ua.Types.Tests/Wot/Assets` record
+their source revisions and hashes in `spec-examples.manifest.json`.
+See [How this is checked](WotBindings.md#how-this-is-checked) for validation
+and regeneration.
 
 ## Importable output
 
-A NodeSet2 document may write a standard name such as `HasComponent` or
-`Double` wherever a NodeId is expected, but only if it declares that name
-in its own `<Aliases>` table; the importer reports `BadNodeIdInvalid` for a
-name it cannot find. Both halves of the conversion produce such names —
-synthesis writes the readable names directly, and a restore reproduces
-whatever spelling the document it restores from used — so every converted
-NodeSet is passed through an alias-completion pass before it is returned.
-That pass is not a WoT concept: `NodeSetAliasCompleter` sits beside
-`UANodeSet` itself and declares whatever the `INodeSetAliasResolver` it is
-handed knows. The WoT Binding's own policy is one object,
-`WotNodeSetAliases`, which states that a converted document writes the
-standard base-namespace names and delegates to the single table of them
-(`NodeSetStandardAliases`) rather than repeating any.
+A NodeSet2 document must declare names such as `HasComponent` or `Double`
+in its `<Aliases>` table when using them as NodeIds. An undeclared name
+causes `BadNodeIdInvalid` during import.
 
-The pass declares only names that policy resolves, appended after the
-declarations the document already carried in ascending ordinal order of
-the alias. It is idempotent, so a byte-exact `uav:nodeSet` restore stays
-byte-exact, and it never rewrites a name: a vendor alias the document uses
-but does not declare still fails the import with the message that names
-it, rather than being quietly discarded.
+Both conversion directions complete missing standard aliases before returning
+the NodeSet. Existing declarations are retained; added aliases are sorted
+ordinally. Undeclared vendor aliases remain errors. Completion is idempotent:
+a preserved document with complete aliases needs no changes.
 
-Completion is a decision a *producer* makes about a document it writes.
-Comparison makes none of its own: `NodeSetComparer.CompareEquivalent`
-resolves each document through its own declarations first and asks
-`NodeSetComparisonOptions.AliasResolver` about the rest. That property
-defaults to nothing at all, so a comparison of two arbitrary NodeSets does
-not report a document that writes `HasComponent` without declaring it —
-which no Server could load — as equivalent to one that writes `i=47`. The
-WoT conversion injects `WotNodeSetAliases` through
-`WotNodeSetConverterOptions.ToComparisonOptions`, so its Section 9.2
-completeness check reads the names the Binding writes, and the comparison
-itself stays free of any knowledge of WoT.
-
-That matters beyond tidiness, because the runtime registry materialization
-path is `ConvertAsync` → serialize → `UANodeSet.Read` → `Import`. Every
-vendored specification example that converts is run through exactly that
-sequence by `WotNodeSetImportTests`, and so is every preservation mode.
+`NodeSetComparer.CompareEquivalent` resolves each document's declared aliases
+first, then uses `NodeSetComparisonOptions.AliasResolver` if supplied.
+The default comparer does not equate an undeclared name with a numeric NodeId.
+WoT conversion supplies its standard-alias resolver for the completeness check.
+The registry imports converted output through `UANodeSet.Read` and `Import`.
 
 ### Modelling rules and the two placeholder identifiers
 
@@ -145,7 +113,7 @@ them.
 | Root `uav:browseName` | **Default** | `1:<rootLocal>`. |
 | Root `title` | **Default** | Root `DisplayName` becomes `<rootLocal>`. |
 | Thing Model root event annotation `uav:eventType` | **Default** | Root is a non-abstract `UAObjectType` with inverse `HasSubtype` to `BaseObjectType` (`i=58`). If the event annotation is present, the default supertype is `BaseEventType` (`i=2041`). |
-| Thing Description root type information | **Default** / **Bound** / **Fails** | Absent: root is a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). Present: a `ua:HasTypeDefinition` link (WoT Binding Section 5.2.1) whose `href` is the ExpandedNodeId of the type, and/or a compact model name in `@type`, binds the root to that type so the converter reuses the existing type rather than defining a second one. The two forms are resolved against the Section 5.1.5 local context — the sibling documents of the conversion first, a loaded AddressSpace as the fallback — supplied through `IWotNodeResolver`. A binding that names a type the local context does not hold **fails** (`UnresolvedTypeBinding`) rather than falling back to `BaseObjectType`; two bindings that disagree, an ambiguous name with nothing to settle it, or a resolved type of the wrong NodeClass **fail** as `AmbiguousTypeBinding`. A compact name is a binding when its namespace is one the local context holds; any other `@type` member is ordinary annotation and is retained as residue. |
+| Thing Description root type information | **Default** / **Bound** / **Fails** | Absent: a `UAObject` with `HasTypeDefinition` to `BaseObjectType` (`i=58`). A `ua:HasTypeDefinition` link or recognized compact `@type` name binds an existing type. Unresolved bindings fail with `UnresolvedTypeBinding`; conflicting, ambiguous or wrong-NodeClass bindings fail with `AmbiguousTypeBinding`. Other `@type` annotations remain residue. See [type-binding resolution](WotBindings.md#resolving-a-type-binding-the-local-context) for context and precedence. |
 | Root `description` | **Default** | No `Description` field is materialized. |
 | Property affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>`. |
@@ -159,7 +127,7 @@ them.
 | Action affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Action affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>`. |
 | Action `title` | **Default** | No `DisplayName` field is materialized for the method. |
-| Action `input` / `output` (Section 9.1) | **Default** / **Fails** | Absent: the Method is materialized with no argument Property. Present: the schema becomes an `InputArguments` / `OutputArguments` Property (`Argument[]`, `DataType` `i=296`, `ValueRank` `1`) held by `HasProperty`, with NodeId `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<actionLocal>/<InputArguments\|OutputArguments>` (Annex G.1; the standard child keeps its bare base-namespace name). A schema that names one DataType — through `uav:mapToType`, `uav:dataTypeId`, `uav:dataTypeName` or an inline `uav:dataTypeDefinition` — is one argument, named from its `uav:browseName` or `title` and otherwise `Input` / `Output`; an object schema's members are the arguments. Each member's DataType resolves by the property rules above, `uav:valueRank` defaults to `-1` and `uav:arrayDimensions` and `description` are carried onto the `Argument`. Order comes from `uav:fieldOrder` (Section 6.11.4); a single member needs none, and an `Acknowledge`, `Confirm` or `AddComment` action takes the fixed OPC 10000-9 order `EventId`, `Comment`. A multi-member schema with no order **fails** (`MethodArgumentOrderAmbiguous`) rather than using JSON member order, and one whose `uav:fieldOrder` does not list every member exactly once, or that is not a JSON object, **fails** (`MethodArgumentSchemaInvalid`). A reported schema is still carried verbatim through residue, so a rejected document never loses the signature it authored. |
+| Action `input` / `output` (Section 9.1) | **Default** / **Fails** | Absent: no argument Property. Present: an `InputArguments` / `OutputArguments` Property of `Argument[]`. Missing multi-argument order fails with `MethodArgumentOrderAmbiguous`; invalid schemas or ordering fail with `MethodArgumentSchemaInvalid`. See [Method arguments](#method-arguments-section-91) for mapping and order rules. |
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Event affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
@@ -229,10 +197,8 @@ the same model. Shared model ownership joins their activation closure; unrelated
 readable documents do not become one atomic closure merely because their NodeIds
 use the same namespace.
 
-Generated Double constants, ranges, and sampling intervals use the canonical
-shortest round-trip spelling on every supported framework. This avoids
-platform-specific formatter output being rejected as an over-precise authored
-literal. Validation of received numeric literals remains unchanged.
+Generated Double constants, ranges, and sampling intervals use the shortest
+round-trip spelling. Received numeric literals retain their validation rules.
 
 ```csharp
 WotConversionResult<WotDocumentSet> exported =
@@ -309,42 +275,21 @@ the identity must be fixed independently of its browse path.
 Annex G distinguishes retained-byte digests, JSON-value equality and
 compact-received-form size. This implementation keeps those operations separate.
 
-* **A digest over retained bytes.** The `Sha256` of a `WoTJsonResidue` member is
-  the SHA-256 of the **decoded residue bytes exactly** — the bytes the producer
-  encoded, and the bytes a verifier decoded. Nothing is canonicalized, reordered,
-  re-escaped or re-formatted before digesting, in either direction, and a
-  mismatch is a mismatch: the entry is corrupt, not merely differently spelled.
-  A residue member exists to carry a value Section 6.6 forbids a consumer to
-  reformat, so a digest over a re-serialization would pin a value no party is
-  allowed to produce. The `sha256` of a `uav:nodeSet` envelope and the
-  `uav:sourceDigest` of a projection source are of the same kind.
-* **Equality over a JSON value.** RFC 8785 (JCS) is used where two JSON *values*
-  are compared for equality — the Section 9.4 conflict test that asks whether a
-  residue entry holds the same value as a member the readable mapping already
-  produced. `WotJsonCanonicalizer` is that form, and `WotDocument.ToCanonicalUtf8`
-  writes it: object members sorted by the UTF-16 code units of their names,
-  the minimal string escaping of ECMAScript `JSON.stringify`, and numbers in the
-  ECMAScript form of their IEEE-754 double value. A reordered object, an
-  equivalent escape and `1.0` beside `1` are therefore one value and not a
-  conflict. A number outside the interoperable domain of RFC 8259 §6 — a literal
-  carrying more precision than a double holds, such as `9007199254740993` — is
-  **diagnosed** rather than canonicalized, and the conflict test falls back to
-  comparing the two as written: that can report a conflict JCS would not, but it
-  never reports two different values as one. No digest is taken over this form.
-* **A size over the compact received form.** The opaque-object size bound of
-  Section 6.6 is measured over the **compact received form** of Annex G.4: the
-  received text of the value with insignificant whitespace removed — the four
-  RFC 8259 whitespace characters outside a string literal — and nothing else
-  changed. Member order is the received order, numbers keep the lexical form
-  they were written in, and strings keep the escapes they were written with.
-  Deliberately *not* a canonical re-serialization: measuring one would oblige a
-  consumer to produce exactly the reordered, renumbered value the preservation
-  rule forbids. For example, re-serializing `1.0` as `1` changes its UTF-8 length
-  from three bytes to one, even though the numeric value is unchanged. Measuring
-  the received representation avoids that change. Whitespace removal outside
-  string literals is decidable by a scanner with one bit of state, so two implementations that received the same
-  bytes measure the same number. The depth and key-count bounds are measured
-  over the parsed value, where formatting cannot matter.
+* **Retained-byte digests.** Residue digests hash the decoded bytes without
+  canonicalization or reformatting. The `sha256` of a `uav:nodeSet` envelope
+  and `uav:sourceDigest` of a projection source also hash retained bytes.
+  A mismatch is an integrity error.
+* **JSON-value equality.** `WotDocument.ToCanonicalUtf8` writes the RFC 8785
+  (JCS) form used by the Section 9.4 residue-conflict comparison. Object
+  member order, equivalent escapes, and `1.0` versus `1` do not create
+  conflicts. Numbers that cannot be represented without precision loss,
+  such as `9007199254740993`, produce diagnostics; comparison then uses the
+  written forms. Preservation digests do not hash this canonical form.
+* **Compact-received size.** Section 6.6's opaque-object limit measures the
+  received JSON after removing only RFC 8259 whitespace outside strings.
+  Member order, number spelling and string escapes remain unchanged.
+  For example, `1.0` still counts as three UTF-8 bytes, not one. Depth and
+  key-count limits apply to the parsed value.
 
 ### Unmapped reference vocabulary is residue
 
@@ -629,10 +574,13 @@ opaque bounds and the security strength orders are stated once, in
 `Opc.Ua.Wot.WotBindingConformance`; the select-clause term, its shape rules,
 its member-naming rule and its documented `BaseEventType` default are stated
 once, in `Opc.Ua.Wot.WotEventSelectClauses`. `WotBindingConformance.VocabularyTerms`
-is the complete set of 113 `uav:` IRIs the published `@context` mints:
-`IsKnownTerm` answers for the 100 a document spells with the prefix, and
-`ScopedTerms` / `IsScopedTerm` for the 13 a scoped context mints under a short
-member name (`namespaceUri`, `unitId`, `minimum`, `sha256` and the rest).
+contains the revision 1.1 IRIs and the additional Call, projection, declaration,
+encoding and event-identity terms implemented by this library. `IsKnownTerm`
+recognizes prefixed document terms; `ScopedTerms` / `IsScopedTerm` recognize
+the vocabulary IRIs introduced by scoped contexts, such as `uav:unitNamespaceUri`,
+`uav:unitId`, `uav:rangeLow` and `uav:sha256`. Pass the compact `uav:` IRI to
+`IsScopedTerm`, not the JSON object's short member name. Use these APIs rather
+than a fixed term count.
 
 ### The `uav:nodes` record grammar is not vocabulary
 
@@ -841,7 +789,25 @@ the arguments are and not which Nodes hold them, so the exact NodeId and
 attributes of the argument Properties travel in the `uav:nodes` preservation
 projection.
 
-**WoT to NodeSet.** See the `input` / `output` row of the defaults table above.
+**WoT to NodeSet.** Each supplied schema creates an `InputArguments` or
+`OutputArguments` Property (`Argument[]`, DataType `i=296`, ValueRank `1`)
+held by `HasProperty`. Its generated NodeId appends the bare base-namespace
+`InputArguments` or `OutputArguments` name to the action's Annex G.1 path.
+
+A schema naming one DataType through `uav:mapToType`, `uav:dataTypeId`,
+`uav:dataTypeName` or inline `uav:dataTypeDefinition` creates one argument.
+Its name comes from `uav:browseName`, then `title`, then `Input` or `Output`.
+Otherwise, the object schema's members are the arguments. Their DataTypes use
+the property mapping rules; `uav:valueRank` defaults to `-1`, and
+`uav:arrayDimensions` and `description` are copied to each `Argument`.
+
+`uav:fieldOrder` sets argument order. A single argument needs no order annotation;
+`Acknowledge`, `Confirm` and `AddComment` use the OPC 10000-9 order `EventId`,
+`Comment`. Other multi-member schemas without ordering fail with
+`MethodArgumentOrderAmbiguous`. An order that does not list every member exactly
+once, or a schema that is not a JSON object, fails with
+`MethodArgumentSchemaInvalid`. The authored schema remains in residue for
+diagnostic and preservation purposes.
 
 <a id="component-template-declarations"></a>
 

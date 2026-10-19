@@ -4,10 +4,10 @@ Use `StructureDefinition.StructureType` together with each `StructureField`
 to determine field presence and permitted subtypes. Then apply the OPC UA
 Binary encoding rules for the field's DataType and ValueRank.
 
-This reference follows the linked OPC UA specifications. It does not infer
-historical version support from a DataType's abstractness.
-
 ## Structure metadata
+
+The `DataTypeDefinition` Attribute is mandatory for DataTypes derived from
+`Structure` and `Union` ([Part 3, 5.8.3](https://reference.opcfoundation.org/specs/OPC-10000-3/5.8.3)).
 
 [Part 3, 8.48](https://reference.opcfoundation.org/specs/OPC-10000-3/8.48)
 defines `StructureDefinition`:

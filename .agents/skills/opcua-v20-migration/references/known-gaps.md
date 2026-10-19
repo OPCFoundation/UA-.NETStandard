@@ -7,23 +7,18 @@ not auto-fixed.
 
 ## G1 — Legacy `.NET Framework` WinForms projects in pre-SDK MSBuild XML
 
-**Symptom:** the 5 WinForms `.Net4` sample projects use the pre-SDK XML
-format:
+Legacy .NET Framework desktop projects using pre-SDK MSBuild XML support
+`PackageReference` but default to `packages.config`:
 
 ```xml
 <Project ToolsVersion="12.0" DefaultTargets="Build"
          xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 ```
 
-In these sample projects, injecting `<PackageReference>` through
-`Directory.Build.targets` did not resolve the migration package into the
-compilation.
-
-**Scope:** pre-SDK format alone does not prevent using `PackageReference`.
-Legacy .NET Framework desktop projects support it but default to
-`packages.config`; see NuGet's
+SDK-style conversion is not required; see NuGet's
 [project-type support](https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files#project-type-support).
-The reported injection failure is specific to the sample project setup.
+Central injection through `Directory.Build.targets` is not guaranteed to
+resolve the migration package for these projects.
 
 **Mitigation:** if the project uses `packages.config`, first
 [migrate its package references](https://learn.microsoft.com/en-us/nuget/consume-packages/migrate-packages-config-to-package-reference).

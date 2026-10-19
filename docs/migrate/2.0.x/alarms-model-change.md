@@ -32,6 +32,9 @@ compliant:
 `OutOfServiceState`, review application logic and tests that depended on the
 previous behavior. Preserve optional states your application needs; omit a
 state only when its associated capability is not required.
+Leaving `LatchedState`, `SilenceState` and `OutOfServiceState` unpopulated
+(`null`) reproduces the previous behavior for the transitions and state
+computations listed above.
 
 The quickstart reference server (`samples/Quickstarts.Servers/
 Alarms/AlarmHolders/AlarmConditionTypeHolder.cs`) now creates the

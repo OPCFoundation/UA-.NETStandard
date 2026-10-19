@@ -197,10 +197,10 @@ ROS-Industrial URDF (`ros-industrial/kuka_experimental`, `kuka_kr16_support`):
 | A6 | coincident with A4 | `xformOp:rotateX` | ±350° |
 | Flange | 158 mm past the wrist centre | — | — |
 
-The listed offsets describe the sample kinematic chain; their simple sum is not a
-verified workspace or clearance bound. A4, A5 and A6 are coincident,
+The arm's [published reach is 1611 mm](https://my.kuka.com/s/product/kr-162/01t58000002hnhrAAA?language=en_US);
+the cell's 7.2 × 4.8 m floor is sized around it. A4, A5 and A6 are coincident,
 which is the real spherical wrist. The livery is KUKA orange over dark cast housings, and
-the cell has a 7.2 × 4.8 m floor with the guarding at
+the cell has guarding at
 x = ±3.4 m, y = ±2.2 m, plus a controller cabinet, two transfer stations, two charging
 docks and a stack light.
 

@@ -178,8 +178,11 @@ an existing `IUserDatabase` for credential persistence. Built-in
 `LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
 `UserConfigurationMask` and description.
 
-With an `IUserDatabase` already registered, configure the host's service
-collection before building it:
+The `AddSecureServer` DI preset registers `IUserDatabase` as `LinqUserDatabase`
+and `IUserManagement` as `UserManagement` using `TryAddSingleton`. After calling
+that preset (or registering those services explicitly), the following
+replacement changes the password policy while retaining the registered user
+database. Configure it before building the host:
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;

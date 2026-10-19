@@ -28,7 +28,7 @@ After activation the session enters **steady state**: it keeps one long-polled `
 
 ## What bounds single-node scale
 
-**Session establishment can be CPU-bound.** In the documented `Basic256Sha256` load test, client and server RSA handshakes competed for the same cores and dominated establishment time. A simultaneous connect burst can saturate the available CPU, but capacity also depends on hardware, security configuration, connection pacing and workload. Use the [measured session-scaling results](Benchmarks.md#server-session-scalability) as a reference, and measure the target deployment rather than treating a session count as a general single-node limit.
+**Session establishment can be CPU-bound.** The historical `Basic256Sha256` load test established about **4,000 sessions** on a six-core Xeon W-2235 with client and server sharing the machine; RSA handshakes dominated establishment time. See the [measured session-scaling results](Benchmarks.md#server-session-scalability) for the configuration and failed 10,000-session case.
 
 **Connect storms amplify overload.** If the server is saturated and a handshake is slow enough to time out, a client may retry; the retry can create a fresh server session while the original is left orphaned, adding load rather than relieving it. Unchecked, this is a positive-feedback loop. The server's admission controls break the loop by returning a fast, deterministic *busy* response that a cooperating client honors, instead of failing deep in the handshake and inviting a retry.
 
@@ -81,7 +81,7 @@ Enable Server GC in the server's project file:
 </PropertyGroup>
 ```
 
-or set `DOTNET_gcServer=1` in the environment. DATAS adjusts Server GC heap count and allocation budgets to application memory requirements. It is opt-in on .NET 8 (`DOTNET_GCDynamicAdaptationMode=1`) and enabled by default starting with .NET 9 unless disabled. The console reference server explicitly enables Server GC; DATAS follows the runtime default or deployment configuration. Measure memory use and throughput for the target workload. See Microsoft's [DATAS configuration guidance](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector#dynamic-adaptation-to-application-sizes-datas).
+or set `DOTNET_gcServer=1` in the environment. DATAS adjusts Server GC heap count and allocation budgets to application memory requirements. It is opt-in on .NET 8 (`DOTNET_GCDynamicAdaptationMode=1`) and on by default from .NET 9. See Microsoft's [DATAS configuration guidance](https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector#dynamic-adaptation-to-application-sizes-datas).
 
 ## Configuration
 

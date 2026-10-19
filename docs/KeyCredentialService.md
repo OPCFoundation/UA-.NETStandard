@@ -46,8 +46,9 @@ flowchart LR
         manager --> requests --> secrets
     end
     client -->|StartRequest| manager
-    manager -->|response| client
+    manager -->|request ID| client
     client -->|FinishRequest| manager
+    manager -->|credential when ready| client
     client -->|Revoke| manager
 ```
 

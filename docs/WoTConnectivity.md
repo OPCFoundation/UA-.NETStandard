@@ -330,14 +330,12 @@ The persisted-TD loader (`AssetRegistry.EnumeratePersistedAsync`) walks
 the configured `ThingDescriptionStorageFolder` and re-materialises every
 `*.jsonld` file at startup. The following options constrain the number
 of files, per-file size and JSON nesting depth accepted by the loader.
-They limit processing of corrupted or adversarial input without
-guaranteeing total startup time or resource usage:
 
 | Option | Default | Effect |
 |---|---|---|
 | `MaxThingDescriptionSize` | `1 MiB` | Per-file size cap. Files larger than this are skipped at load time with a warning that names the file and reports the size. Also enforced on the write path via the OPC UA file primitives. |
 | `MaxPersistedThingDescriptionFiles` | `10 000` | Hard cap on the number of `*.jsonld` files processed per startup. When reached, the loader emits a single warning and stops; the server still comes up with the assets that *were* loaded. Set to `0` (or negative) to disable persistence loading entirely without removing the directory. |
-| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth enforced through `JsonSerializerOptions.MaxDepth`. Files exceeding the configured depth are skipped with a warning. This bounds accepted JSON nesting; it is not a guarantee about total memory use or available thread-stack space. |
+| `MaxThingDescriptionJsonDepth` | `64` | Maximum JSON nesting depth enforced through `JsonSerializerOptions.MaxDepth`. Files exceeding the configured depth are skipped with a warning. |
 
 Bumping the defaults is appropriate for controlled environments that
 have audited the source of the persisted files; for example:
@@ -651,15 +649,14 @@ Two persistence back-ends are provided:
 
 #### Keeping the document bytes in a shared store
 
-`WotRegistryServerOptions.ResourceStore` moves the document bytes behind the shared, injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage). A shared resource store makes document bytes accessible to multiple nodes; it is one prerequisite for a distributed registry, not a complete high-availability configuration. The deployment must also maintain consistent registry manifests, coordinate mutations and refresh each node's registry and materialized state. `ResourceStore` alone does not provide those mechanisms. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
+`WotRegistryServerOptions.ResourceStore` stores document bytes through the injectable [`IXRegistryResourceStore`](XRegistry.md#resource-storage). A shared store makes those bytes reachable from every node; manifests, mutation coordination and per-node refresh still need separate replication and coordination. A store registered in DI wins over one set on the options, matching the xRegistry server's precedence:
 
 ```csharp
 options.StorageFolder = "/var/lib/myapp/wot-registry";   // manifest
 options.ResourceStore = new WotBlobResourceStore("/mnt/shared/wot-documents");
 ```
 
-This example shares document bytes only; it does not configure manifest replication
-or high availability. `FileWotRegistryStore` serializes loads and commits across
+`FileWotRegistryStore` serializes loads and commits across
 processes sharing the same storage root and rejects stale generations. Those
 protections require filesystem semantics that support its locking, atomic
 replacement and durability operations; sharing only the document store does not

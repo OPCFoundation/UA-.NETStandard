@@ -119,9 +119,11 @@ Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreU
 > **Override migration required.** Update every override to include
 > `CancellationToken ct = default`, pass it to the base call, and recompile
 > against 2.0. The optional parameter preserves calls that omit the token, not
-> overrides with the old signature; those produce `CS0115` when rebuilt. Do not
-> assume previously compiled overrides remain compatible. Verify that the
-> callback runs after rebuilding.
+> overrides with the old signature; those produce `CS0115` when rebuilt.
+> The 2.0 create lifecycle calls only the three-argument method. A previously
+> compiled two-argument method does not override that callback, so its
+> initialization logic is not invoked through it. Rebuild all custom node
+> assemblies; do not rely on binary compatibility with 1.5.x.
 
 ```csharp
 protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)

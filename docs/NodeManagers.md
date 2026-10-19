@@ -2268,9 +2268,8 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`samples/MinimalApi/MinimalBoilerServer` demonstrates Native AOT publishing.
-Publish for your target runtime to check AOT/trimming diagnostics and measure
-the resulting executable size.
+`samples/MinimalApi/MinimalBoilerServer` publishes as a Native AOT
+self-contained executable. Check diagnostics and executable size for your target runtime.
 
 ### Runtime NodeSet alternative
 

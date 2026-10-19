@@ -93,6 +93,15 @@ and trade-offs. Their designs are reproduced below **verbatim and in full**.
 > No sampling method is supplied for those figures; treat them as the designers'
 > assumptions, not measured usage statistics. Repository inventory counts are
 > separate evidence.
+>
+> The synthesis below preserves its original historical conclusions, not current
+> validated guidance. Agreement between proposals does not prove necessity or
+> sufficiency. In particular, the claim that `commoncase` does not address HA
+> overlooks its HA-backed providers and reuse of `ILocalAddressSpace`. Separating
+> data from delegates does not alone prove correct replication or failover; state
+> capture, restoration and behavior binding still need validation. The rejection
+> of per-node `ReadAsync` likewise needs workload measurements: a session-count
+> limit does not establish the cost of an await.
 
 ## The problem space as briefed
 
@@ -1886,9 +1895,9 @@ The client (`ManagedSession` with `WithServerRedundancy()`) sees a transparent r
 
 ### Convergence — what all four agreed on
 
-The four proposals share the five recommendations below. That agreement makes them
-candidates for further evaluation, but does not establish that they are necessary or
-sufficient. Their trade-offs still require implementation and workload validation.
+Four designers working independently, none seeing another's output, arrived at the same
+five moves. When independent designs converge like this, the moves are not design opinions —
+they are the shape of the problem, and they are the most actionable output of the exercise.
 
 | Convergent move | minimal | flexible | commoncase | ports |
 |---|---|---|---|---|
@@ -2042,11 +2051,13 @@ through a rung-1/2 source, which is precisely the failure mode the current
 And keeping rung 4 un-obsoleted respects what this API actually is: plugin surface with 33
 subclasses and unknown external consumers.
 
-**Why combine it with ports.** `commoncase` addresses HA-backed providers and reuses
-`ILocalAddressSpace`. `ports` adds an explicit classification of transferable state and
-a data/behaviour split. Keeping delegates out of replicated data clarifies what each
-replica must reconstruct, but does not by itself establish correct replication or failover.
-The combined design still needs validation of state capture, restoration and behavior binding.
+**Why it must absorb ports.** `commoncase` does not address high availability at all — the
+project's stated *first* architectural goal. The data/behaviour split is the one change that
+makes replication correct by construction: delegates are code, cannot be serialised, and
+therefore must not live in the replicated graph. A replica can then never fail over into a
+half-reconstructed address space. `ports` also notes the split is already latent in the
+existing AOT-safe `NodeStateSerializer`, so this is formalising something the codebase has
+half-built rather than inventing.
 
 **Why the interceptor chain.** Audit, rate limiting and Part 18 role permissions are all
 per-request and all already present in the repository. They are the cases inheritance serves
@@ -2054,11 +2065,10 @@ worst and composition serves best.
 
 ### What to reject and why
 
-- **`minimal`'s per-node `ReadAsync` needs a performance gate.** Compare it with batched
-  and synchronous-completion paths under representative monitored-item and Read workloads.
-  Measure allocation, throughput and latency before rejecting it: a session-count limit
-  does not establish the cost of a per-node await. Its `IAsyncEnumerable<NodeReference>`
-  browse remains a separate design choice.
+- **`minimal`'s per-node `ReadAsync`.** An `await` per node at thousands of monitored items is
+  a regression this codebase cannot absorb — a single node already tops out near 2,000
+  sessions. The rest of the design is elegant, and its `IAsyncEnumerable<NodeReference>` browse
+  is arguably the cleanest of the four, but the read path is central rather than peripheral.
 - **Any fifth KV-layered "store" port.** `ports` argued this pre-emptively and correctly:
   a store that just forwards to `ISharedKeyValueStore` is indirection, not a seam.
 - **Obsoleting the full node-manager surface now.** `minimal` and `flexible` both propose it.

@@ -32,7 +32,7 @@ address-space surface it creates, and how clients drive it.
 `SoftwareUpdateType` instance per device with the following children:
 
 ```mermaid
-flowchart LR
+flowchart TD
     device["Device<br/>ComponentState / DeviceState"]
     update["SoftwareUpdate<br/>SoftwareUpdateType (OPC-DI i=1)"]
     loading["Loading<br/>Package / Direct / Cached LoadingType<br/>Default: PackageLoadingType i=137"]

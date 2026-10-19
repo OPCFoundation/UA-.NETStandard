@@ -251,11 +251,8 @@ For the **final, per-requirement Part 12 support status** — every ServerConfig
 
 ### ServerConfiguration identity properties and opt-in members
 
-`ConfigurationNodeManager` now also exposes the Optional OPC UA Part 12
-§7.10.3 `ServerConfigurationType` members. The identity properties are exposed
-automatically from `ApplicationConfiguration`. The remaining members listed
-below are exposed only when their corresponding values or providers are
-configured. Existing applications do not need to enable those opt-in features.
+`ConfigurationNodeManager` exposes the following Optional OPC UA Part 12
+§7.10.3 `ServerConfigurationType` members:
 
 | Member | Change |
 |---|---|

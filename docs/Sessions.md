@@ -979,6 +979,8 @@ handler configuration. The `DefaultOpcUaHttpClientFactory.Shared`
 sentinel also selects the direct path. If a non-`Shared` factory is
 bypassed because a validator is configured, the channel logs a warning
 that the named-client pipeline is not applied.
+In practice, only validator-less discovery/GetEndpoints channels use the
+named-client factory.
 
 Configuring the primary handler of `Opc.Ua.Client` does not override this
 guard, so its Polly resilience pipeline is not applied to a channel with
@@ -991,9 +993,8 @@ See [certificate validation](Certificates.md#configuring-a-custom-certificate-va
 for the current validation API.
 
 On platforms that do not support the custom TLS validation callback, the
-direct handler falls back to platform TLS validation and requires a trusted
-root CA. That is not equivalent to enforcing the OPC UA trust list through
-the callback; verify platform support when that validation is required.
+direct handler falls back to platform TLS validation (trusted root CA required)
+and does not enforce the OPC UA trust list.
 
 ### Shared retry budget with `ManagedSession`
 

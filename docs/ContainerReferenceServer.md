@@ -8,7 +8,7 @@ local build:
 - Pull the latest or a release image from the [GitHub Container Registry](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). These images support Linux targets.
 - The image supports `amd64` and `arm64`. The sample builds inside a container, so you do not need to install the .NET SDK. This change was introduced in [this commit](https://github.com/OPCFoundation/UA-.NETStandard/commit/61a61081f6060804b12b8f351e32a8075703263d).
 - Build locally with Docker Desktop on Linux or Windows. Docker Desktop settings select the target container OS.
-- This guide documents Docker CLI and repository-script workflows. IDE-integrated container build and debugging workflows are outside its scope.
+- Visual Studio's integrated container build/debug has reported build, startup, and connection failures with the UA Reference solution. Use the Docker CLI or repository scripts below.
 - Visual Studio 2022 supports native debugging of a Linux distribution through WSL.
 
 ## Contents

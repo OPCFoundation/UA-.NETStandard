@@ -1891,13 +1891,12 @@ not a protective measure.
 ### What this interface carries, and what it brokers
 
 This model uses OPC UA Methods to submit complete operations, not to schedule cyclic real-time control.
-Method-call latency depends on the client, server, transport and workload. Applications that need a
-high-rate control channel use a separately described real-time channel with timing guarantees
-appropriate to that application.
+Method calls provide no deterministic completion deadline. A cyclic controller needs a
+separately described real-time channel with a specified cycle time and jitter budget.
 
 **Carried here.** A trajectory, a Cartesian path or a force-controlled move is handed over *whole* and
-run by the robot's own motion kernel. The round trip happens once, at submission, so transport latency
-bounds how quickly work can be *started* and never how accurately it is *executed*. This is the shape of
+run by the robot's own motion kernel. The round trip happens once, at submission; subsequent trajectory
+setpoints are scheduled locally rather than by further OPC UA round trips. This is the shape of
 `FollowJointTrajectory` in ROS and of the PLCopen buffered path function blocks, and it is why
 trajectory execution belongs here while trajectory streaming does not.
 

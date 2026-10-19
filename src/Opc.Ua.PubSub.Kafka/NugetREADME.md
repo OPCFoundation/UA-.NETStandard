@@ -34,11 +34,11 @@ pubsub.AddKafkaTransport()
 
 The Confluent backend uses native `librdkafka` and is not NativeAOT or trimming compatible.
 
-NativeAOT support for other PubSub transports depends on the target runtime and
-selected backend. See the
+The UDP, Ethernet and MQTT transports support Native AOT on `net10.0` with
+their default backends. See the
 [PubSub Native AOT guidance](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md#native-aot)
-and the [Ethernet backend notes](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.PubSub.Eth/NugetREADME.md#frame-backends);
-targeting a framework does not itself establish NativeAOT compatibility.
+and the [Ethernet backend notes](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.PubSub.Eth/NugetREADME.md#frame-backends)
+for platform requirements and opt-in backends.
 
 ## Additional documentation
 

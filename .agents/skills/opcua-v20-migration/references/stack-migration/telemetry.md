@@ -2,9 +2,7 @@
 
 > **When to read this:** Read this when migrating logger use (`Utils.LogX`, `Utils.Trace`, static log helpers) to the new `ITelemetryContext` model that resolves `ILogger` via `telemetry.CreateLogger<T>()`.
 
-Observability in 2.0 is plumbed through `ITelemetryContext`. Loggers are resolved from the telemetry context via `telemetry.CreateLogger<T>()` rather than from `Utils.Trace` / `Utils.LogX`. The static logging helpers remain compilable but are `[Obsolete]`; consumers should resolve `ILogger` from `ITelemetryContext` instead.
-
-Constructor signatures differ across the public API. Some require a telemetry-context argument; `ApplicationInstance` accepts a nullable argument, while `Session` / `CustomNodeManager2` have no direct telemetry parameter. The table below summarises the shape per type:
+Telemetry enters each API at a different point:
 
 | Type | Telemetry parameter | Notes |
 |---|---|---|
@@ -112,13 +110,27 @@ logger.LogInformation("Request processed successfully");
 
 ## Telemetry constructors and related migrations
 
-Prefer passing the application's configured `ITelemetryContext` to
-`ApplicationInstance`. The constructor accepts `null` for compatibility,
-but uses a null logger for the instance in that case. Constructors without
-a telemetry parameter remain available and are obsolete.
+Update these constructor and method calls when migrating telemetry:
 
-For current constructor and API migrations, use the topic guides below. This
-page covers telemetry wiring and logging changes.
+- Replace `SystemContext()` with `SystemContext(ITelemetryContext)` or
+  `SystemContext(IOperationContext, ITelemetryContext)`.
+- Pass telemetry to `DirectoryCertificateStore(ITelemetryContext)` and
+  `TcpTransportChannel(ITelemetryContext)`; their parameterless constructors
+  have been removed.
+- Where an `ICertificateStore` is required, replace the old
+  `CertificateIdentifierCollection` store usage with
+  `CertificateIdentifierCollectionStore(ITelemetryContext)`.
+- Prefer `ApplicationConfiguration(ITelemetryContext)` to the parameterless
+  constructor, which remains available.
+- Pass telemetry to `ConfiguredEndpointCollection.Load(..., ITelemetryContext)`.
+- Use `ServerSecurityPolicy.CalculateSecurityLevel(mode, policyUri, ILogger)`
+  (or the corresponding `SecuredApplication` overload); the overload without
+  a logger is obsolete.
+- Replace obsolete `ServiceMessageContext()` and
+  `ServiceMessageContext(ITelemetryContext)` calls with
+  `ServiceMessageContext.Create(ITelemetryContext)`.
+
+See the topic guides for related API migrations:
 
 | Area | Current migration guidance |
 |---|---|

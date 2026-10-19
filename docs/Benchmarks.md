@@ -392,10 +392,11 @@ For `DataChangeNotification` (container + inner items + backing array):
 
 For `EventFieldList`:
 
-- In the measured empty-`EventFields` benchmark, pooling lowers allocations
+- In the historical empty-`EventFields` benchmark, pooling lowers allocations
   but increases mean time from 8.967 µs to 22.280 µs per 1,000 iterations.
-  These results do not establish performance for populated events or full
-  dispatch; those workloads need separate measurements.
+  The empty `EventFields` default allocates no backing storage, leaving little
+  allocation work to offset the `Interlocked.CompareExchange` and pool
+  round-trip overhead. Populated events were not measured.
 
 ### Reproducing
 

@@ -691,7 +691,8 @@ docker build -f samples\Recycling\RecyclingOperatorConsole\Dockerfile -t recycli
 Both Dockerfiles compile portable framework-dependent .NET 10 IL on `$BUILDPLATFORM`,
 without a runtime identifier, app host or NativeAOT. The server image uses the .NET runtime;
 the console uses the ASP.NET runtime and includes `wwwroot`. Both run as the non-root .NET
-`app` user. Their build stages pin the SDK from `global.json`; update both when that SDK changes.
+`app` user. Their build stages pin an SDK version independently of `global.json`;
+the image SDK must meet the repository's minimum stable SDK version.
 
 CI publishes once natively, then reuses the prebuilt output for `linux/amd64` and
 `linux/arm64/v8` without compiling an SDK under QEMU. To reproduce the console path:
@@ -763,7 +764,7 @@ and container startup need the separate live qualification above.
 
 ### NativeAOT publication
 
-Use the repository-pinned .NET SDK from `global.json` and the platform's native toolchain.
+Use a stable .NET SDK allowed by `global.json` and the platform's native toolchain.
 Windows needs Visual Studio C++ Build Tools with the Desktop development with C++ workload
 and a supported Windows SDK. Linux needs the NativeAOT prerequisites, including Clang and
 development libraries.

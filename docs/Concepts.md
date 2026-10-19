@@ -25,13 +25,15 @@ API. Each section links to the guide with complete contracts and examples.
 ## Applications
 
 An OPC UA application is a client, a server, or both. Each application
-instance has an *application instance certificate* and an *ApplicationUri*.
-The URI identifies that installed instance and must match the URI in its
-certificate. A product URI identifies the product rather than one installation.
+instance has an *ApplicationUri*, which identifies that installed instance.
+An *application instance certificate* authenticates the instance when certificate-based
+security is used; its URI must match the ApplicationUri. A product URI identifies
+the product rather than one installation.
 
 In this SDK, you set the application name, URIs, and certificate-store root when
-you configure a client or server. The hosting builders create the application
-certificate on first start if the store does not contain one.
+you configure a client or server. The default hosting setup can create a missing
+application certificate. A custom certificate manager can instead require
+provisioning before startup.
 
 ## Endpoints, secure channels, and sessions
 
@@ -49,7 +51,7 @@ two layers:
 
 | Layer | Purpose | Authenticated by |
 | --- | --- | --- |
-| Secure channel | Signs and encrypts the messages between the two application instances. | Application instance certificates. |
+| Secure channel | Protects messages according to the selected transport, security mode and policy; `None` provides no UA message signing or encryption. | Application instance certificates when the selected security profile uses them. |
 | Session | Carries the user identity, request context, and subscriptions. | A user token, such as anonymous, user name, X.509, or an issued token. |
 
 A session can survive the loss of its channel: the client opens a new channel
@@ -90,7 +92,8 @@ by *references*. Each node has a *node class*:
 | View | A subset of the address space. |
 
 References have types. Hierarchical references, such as `Organizes`,
-`HasComponent`, and `HasProperty`, form the tree you browse. Other references
+`HasComponent`, and `HasProperty`, provide browse paths through the graph;
+a node can have more than one parent. Other references
 describe relationships, such as `HasTypeDefinition`, which links an instance to
 its type. Every server has a standard `Objects` folder (`ObjectIds.ObjectsFolder`)
 that contains the `Server` object with status, capabilities, and diagnostics.
@@ -172,11 +175,11 @@ Polling with `Read` is inefficient for values that change. A *subscription*
 lets the server report changes instead:
 
 1. The client creates a *subscription* in its session. The *publishing
-   interval* controls how often the server sends notifications.
+   interval* controls when notifications are ready for pending `Publish` requests.
 2. The client adds *monitored items*. Each one watches a node attribute, usually
-   a variable's value, or an event source. The *sampling interval* controls how
-   often the server checks for changes; the *queue size* controls how many
-   changes it keeps between notifications.
+   a variable's value, or an event source. For data changes, the *sampling
+   interval* controls how often the server checks the value; events are reported
+   when they occur. The *queue size* controls how many notifications it retains.
 3. The server sends data-change or event notifications, and *keep-alive*
    messages when nothing has changed. If the client stops requesting
    notifications, the subscription expires after its lifetime.
@@ -219,7 +222,7 @@ OPC UA defines two communication patterns:
 | --- | --- | --- |
 | Connection | A session between one client and one server. | No session; publishers send messages to a transport. |
 | Interaction | Requests (read, write, browse, call) and subscriptions. | One-way dataset messages, plus optional actions. |
-| Security | Secure channel plus per-session user identity. | Message security with group keys from a Security Key Service. |
+| Security | Transport/channel security plus per-session user identity. | Optional message security with group keys, which a Security Key Service can distribute; transport security depends on the mapping. |
 | Transports | UA-TCP, HTTPS, WebSockets. | UDP, MQTT, Kafka, Ethernet. |
 
 In PubSub, a publisher's *DataSetWriter* turns a *published dataset* into

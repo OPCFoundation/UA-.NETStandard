@@ -29,9 +29,6 @@ trip points are in [`DATASHEET.md`](DATASHEET.md), and every one of them is a
 constant in [`GeneratorDatasheet.cs`](GeneratorDatasheet.cs), so the document, the
 address space and the simulation cannot drift apart.
 
-The OpenUSD asset uses a V16 layout for visualization and is not a dimensionally
-or mechanically faithful model of the inline-six specified by the simulation datasheet.
-
 ## The model
 
 ```mermaid

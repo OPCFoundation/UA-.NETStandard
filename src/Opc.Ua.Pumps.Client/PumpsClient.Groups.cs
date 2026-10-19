@@ -140,12 +140,9 @@ namespace Opc.Ua.Pumps.Client
         /// read, and the one to poll on a cycle.
         /// </summary>
         /// <remarks>
-        /// If the server guarantees stable engineering units and ranges during
-        /// polling, read them once, retain them, and pass
-        /// <see cref="PumpReadOptions.ValuesOnly"/> on subsequent reads.
-        /// Refresh metadata after relevant server or device configuration changes;
-        /// otherwise, keep metadata reads enabled. Values-only results do not
-        /// include metadata from previous reads.
+        /// Read once with the defaults, retain the metadata, then poll with
+        /// <see cref="PumpReadOptions.ValuesOnly"/>. Re-read metadata after a
+        /// device or server configuration change.
         /// </remarks>
         /// <param name="pump">The pump to read.</param>
         /// <param name="options">What to fetch.</param>

@@ -948,9 +948,7 @@ operationally or accept as residual risk.
   options:
   1. Run the host under a **dedicated, least-privilege service account**
      with interactive shell access disabled. Restrict its filesystem and
-     network permissions to those required. This limits exposure but does
-     not protect in-memory keys from a compromised capture process or
-     prevent access to resources the account is allowed to use.
+     network permissions to those required.
   2. Register a custom `IKeyEscrowProvider` that hands keys to a
      KMS (e.g., Azure Key Vault HSM) instead of the disk writer.
      The disk writer is then unused.
@@ -1076,10 +1074,11 @@ server, a `ServerBase`/`StandardServer` host that is not built around
 `Microsoft.Extensions.DependencyInjection`, or any client that creates
 sessions through the static/fluent APIs.
 
-Capture requires both binding installation and an active capture session:
+Capture needs both steps; installing a binding without starting a capture
+session records nothing:
 
 1. **Install a binding** so the affected channels become
-   capture-*aware*. This alone records nothing.
+   capture-*aware*.
 2. **Start a capture session** (a `CaptureSessionManager` session)
    sharing the *same* `IChannelCaptureRegistry`. Recording is gated by
    the registry's `CurrentObserver`, which is `null` until a session is

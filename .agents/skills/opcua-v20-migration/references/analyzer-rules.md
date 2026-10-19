@@ -235,7 +235,7 @@ var user = new UserIdentity(...);
 |---|---|
 | **Default severity** | Info |
 | **Auto-fix** | No |
-| **Why** | The sync methods are shimmed in `Opc.Ua.MigrationAnalyzer.Core` via `Task.Run(...).GetAwaiter().GetResult()` so 1.5.378 call sites continue to compile, but they are a migration aid only. Promote your call chain to `async`/`await` before production. |
+| **Why** | The sync methods in `Opc.Ua.MigrationAnalyzer.Core` block directly on their async counterparts with `.AsTask().GetAwaiter().GetResult()` so 1.5.378 call sites continue to compile. They are a migration aid only; promote your call chain to `async`/`await` before production. |
 
 See [`runtime-shim.md`](runtime-shim.md) for the sync-over-async caveat in
 detail.

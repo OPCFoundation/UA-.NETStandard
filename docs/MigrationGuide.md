@@ -7,9 +7,9 @@ covers cross-cutting changes.
 
 ## Contents
 
+- [General principles](#general-principles)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
-- [General principles](#general-principles)
 - [Per-version migration index](#per-version-migration-index)
 - [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
   - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
@@ -45,6 +45,30 @@ covers cross-cutting changes.
 - [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
 - [Support](#support)
 
+## General principles
+
+Compatibility is documented per API and release in the
+[version-specific migration guides](migrate/). Some replaced APIs retain
+`[Obsolete]` forwarders; others are removed and require source changes.
+Resolve obsolete warnings before upgrading, and work through the applicable
+minor-version guides in order; removal timing is specific to the API and release,
+not a universal grace period or SemVer guarantee.
+Consult the [Security Policy](../SECURITY.md) for maintained release lines.
+
+> **Pro TIP.** Point your favourite coding agent at this guide and let
+> it do the migration work for you. The
+> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
+> agent skill knows when to load which sub-doc and runs the
+> migration-analyzer codefixer end-to-end.
+
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
+
 ## Program state numbers and managed execution
 
 `ProgramStateMachineState.CurrentState.Number` now agrees with the standard
@@ -77,28 +101,6 @@ empty selected translation remains absent text rather than selecting fallback
 text; its `Text` property returns `null`. Translation-backed values retain
 their metadata and are not necessarily `IsNull`, even when both exposed fields
 are null.
-
-## General principles
-
-Compatibility is documented per API and release in the
-[version-specific migration guides](migrate/). Some replaced APIs retain
-`[Obsolete]` forwarders; others are removed and require source changes.
-Use those guides to resolve obsolete warnings and update removed APIs.
-Consult the [Security Policy](../SECURITY.md) for maintained release lines.
-
-> **Pro TIP.** Point your favourite coding agent at this guide and let
-> it do the migration work for you. The
-> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
-> agent skill knows when to load which sub-doc and runs the
-> migration-analyzer codefixer end-to-end.
-
-Copilot CLI discovers the skill automatically inside a clone. To install it
-for use in any repository:
-
-```bash
-copilot plugin marketplace add OPCFoundation/UA-.NETStandard
-copilot plugin install opcua-v20-migration@opcua-dotnet
-```
 
 ## Per-version migration index
 
@@ -1091,10 +1093,8 @@ inventory of removed / `[Obsolete]` `Utils` APIs.
 Configuration-level trace apply APIs were removed as well: `TraceConfiguration.ApplySettings()` and `ApplicationConfigurationBuilder` trace setters (`SetOutputFilePath`, `SetDeleteOnLoad`, `SetTraceMasks`). Configure logging through `ITelemetryContext` instead.
 ## Migrating from 1.04 to 1.05
 
-This historical migration section is not a current conformance assessment.
-See [OPC UA Profiles and Facets](Profiles.md) for the current implementation's
-supported features and limitations. Certification must be checked for the
-particular product version and profiles being assessed.
+See [OPC UA Profiles and Facets](Profiles.md) for current feature coverage;
+check certification against the specific product version and profiles.
 
 ## Support
 

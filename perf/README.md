@@ -68,10 +68,9 @@ The result block reports client throughput and latency percentiles, the deltas o
 processes for the window (`server:`, `client-process:`), and the allocated bytes and CPU time
 per request (or per notification) of the server (`per-op:`) and of the client
 (`client-per-op:`). Classic sessions are created without diagnostics in responses, as an
-application would; the test fixture otherwise asks for them. Allocated bytes per operation are
-process-wide allocation deltas divided by completed operations. Compare them under the same
-workload, runtime and configuration; background activity and batching can change the ratio.
-Use repeated paired runs to assess allocation, throughput and latency changes.
+application would; the test fixture otherwise asks for them. Use bytes/op to compare allocation
+cost: it divides process-wide allocation deltas by completed operations. Keep the workload,
+runtime and configuration matched, including background activity and batching.
 On a shared machine, throughput and latency vary
 from run to run, so compare builds with `ab.sh` rather than with two separate runs.
 
@@ -136,9 +135,8 @@ SERVER_DOTNET_PROCESSOR_COUNT=4 ServerLoadHarness.exe run --scenario native-read
 With `--thread-states 1` a thread in the harness samples the threads of the server process
 every ~3 ms during the measurement and appends
 `sched: samples=<n> running=<avg> ready=<avg> readyMax=<max>` to the `server:` line. `ready`
-counts threads in the Ready or Standby state. Sustained runnable-thread pressure can indicate
-CPU contention, but this count alone does not establish oversubscription or explain a GC
-suspension. Correlate it with CPU availability, affinity and scheduling events.
+counts threads in the Ready or Standby state. Sustained runnable-thread pressure suggests
+CPU contention; check available cores, affinity and scheduling events.
 The sampler enumerates the server threads every time, so leave it off for
 throughput comparisons.
 
@@ -155,10 +153,7 @@ Clone it and build its workers separately. On Windows they build with `zig cc` a
 CMake against the open62541 commit the benchmark pins (`deps/open62541`, OpenSSL backend,
 `UA_ENABLE_DEBUG_SANITIZER=OFF`, Release). The subscription workers additionally need `poll()` on
 stdin replaced by `PeekNamedPipe` and unbuffered control output (the C runtime treats `_IOLBF` as
-full buffering). The open62541 win32 event loop is `select()` based. That implementation
-difference alone does not establish whether Windows or Linux is faster. Compare matched
-hardware, build settings, security configuration and workloads before drawing a
-cross-platform performance conclusion.
+full buffering). The open62541 win32 event loop is `select()` based.
 
 ## Analyse a trace
 
@@ -177,25 +172,23 @@ above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, an
 direct callees. `gc` reads a
 trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
 reason and reports the interval between suspension start and stop separately from the whole
-pause. A long suspension can involve delays in reaching a safe point or in scheduling threads;
-duration alone does not identify the cause. `samples`
+pause. For a long suspension, inspect safe-point and thread-scheduling delays. `samples`
 lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua` frame),
 including the ones `cpu` leaves out.
 
 `suspend <trace> [thresholdMs]` (default 40) reads a `--trace-profile gc` trace and prints every
 GC suspension that took at least the threshold, with the events recorded between SuspendEE
 start and stop by thread. An `AllocationTick` inside that window records allocation activity
-on the reporting thread during suspension. It does not, by itself, identify the thread
-responsible for the delay; examine event ordering and scheduling evidence as well. It also counts all
+on the reporting thread during suspension; use event ordering and scheduling evidence to
+identify the cause of a delay. It also counts all
 events, including `HEAPS <n> gen0budget~<bytes>` (the heap count DATAS chose, from
 `GlobalHeapHistory`) and `HANDLEKIND <kind>` (GC handle churn by kind), and ends with
 `SetGCHandle=<count> trace ms=<duration>`.
 
 `threads` lists the busy share of each thread (its on-CPU samples over all of its samples) with
 its main roles. This is a sample ratio, not a measurement of wall-clock CPU utilization.
-A high ratio while other cores are idle can suggest serialized work, but can also reflect
-a dedicated worker with little demand elsewhere. Check the call stacks, work distribution
-and throughput before treating it as a serialization bottleneck.
+A thread near 100% busy while other cores are idle points to a possible serialized stage;
+confirm with its call stacks and the workload's available parallelism.
 
 The `sub` and `events` scenarios add a `per-op2` line with the server cost per written value or
 per generated event. Async methods with loops run on-stack-replaced code that the trace rundown

@@ -215,8 +215,6 @@ For both WSS variants the HTTPS / WSS factories live in
 `RegisterChannelFactory` directly for non-DI hosts. Applications must
 reference `OPCFoundation.NetStandard.Opc.Ua.Bindings.Https` directly; Server
 and GDS packages do not pull the optional binding transitively.
-Configuring an endpoint URL alone does not add the package or register
-these factories.
 
 `AddHttpsTransport(options => ...)` is available as a one-shot registration
 for the Kestrel HTTPS stack. It registers HTTPS and WSS by default and can

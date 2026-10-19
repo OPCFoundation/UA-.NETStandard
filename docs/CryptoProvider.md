@@ -229,7 +229,7 @@ Every provider declares what may be said about the module behind it:
 |---|---|
 | `Permissive` (default) | Existing behaviour. Nothing is filtered and nothing is warned about |
 | `WarnOnUncertified` | Every provider carrying no validation is reported |
-| `FipsOnly` | Providers whose declared validation status is not accepted are refused; the auditor also checks algorithm coverage for the offered security policies |
+| `FipsOnly` | Providers declared `Uncertified` or `Unknown` are refused; the auditor also checks algorithm coverage for the offered security policies |
 
 ```csharp
 using var auditor = new CryptoProviderAuditor(registry, telemetry, CryptoCompliancePolicy.FipsOnly);
@@ -251,11 +251,10 @@ when an observer collects them:
 the operating system supplies — CNG on Windows, OpenSSL on Linux, CoreCrypto on macOS. Whether that module
 is running in a validated mode is a property of how the machine is configured, not of this stack.
 
-`FipsOnly` enforces the configured provider policy using declared validation
-status and algorithm support. It permits validated non-platform providers as
-well as FIPS-capable platform providers. Deployment owners must verify the
-selected modules, versions and operating modes against their validation
-certificates. Enabling this policy does not certify the stack or deployment.
+`FipsOnly` admits only providers declared `FipsValidated` or
+`FipsCapablePlatform` and checks their algorithm coverage. It does not validate
+the stack; verify each selected module, version and operating mode against its
+validation certificate.
 
 These algorithms are **not** FIPS-approved and are enabled by default:
 
@@ -271,14 +270,13 @@ certificate building, for the raw ECDH agreement of the ECC security policies an
 ChaCha20-Poly1305 ciphers of the AEAD policies. Because those steps bypass the provider registry,
 `FipsOnly` withholds every ECC policy and every AEAD policy on `net48`, including the NIST curves and
 `RSA_DH_AesGcm`. That package is **not** the separately validated Bouncy Castle
-product. These exclusions describe the affected policy paths on `net48`;
-any deployment-level validation claim still needs evidence for the actual
-modules, versions and operating modes.
+product, so a `net48` deployment cannot rely on this package for a FIPS claim.
 
 ### What `FipsOnly` actually enforces at startup
 
-`CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start when a provider bound to an operation
-would not perform it. Carrying the facet is necessary but not sufficient: `Supports(algorithm)` is
+When the application calls `CryptoProviderAuditor.ThrowIfNotCompliant()` at startup,
+the auditor throws if a provider bound to an operation would not perform it.
+Carrying the facet is necessary but not sufficient: `Supports(algorithm)` is
 consulted again at the point of use, and a provider that answers `false` there is bypassed in favour of
 the platform *for that algorithm alone*. So the audit checks the algorithms of every policy the
 application actually offers, and names what would fall through:

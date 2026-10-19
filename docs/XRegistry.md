@@ -692,9 +692,8 @@ classDiagram
     note for WotRegistryClient "Domain registry"
 ```
 
-Resolving a resource from an id received on the wire is one client API call, which may
-issue multiple wire requests. It reads through
-`ReadBytesAsync`, so a document larger than the session's `MaxByteStringLength` is fetched with
+`ResolveResourceAsync` reads through `ReadBytesAsync`, so a document larger than
+the session's `MaxByteStringLength` is fetched with
 range-based reads rather than failing. It returns a **null** `ByteString` — check `IsNull` — when no
 fast-path node is registered, so the caller can fall back to a Browse or a registry-specific download:
 

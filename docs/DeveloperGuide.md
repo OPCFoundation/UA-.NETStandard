@@ -37,7 +37,9 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
-The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build, so no extra tooling install is required to get the same diagnostics locally that CI produces.
+The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
+A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
 
 ## Repository layout
 

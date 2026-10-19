@@ -46,13 +46,7 @@ The `Condition` lets individual projects opt out by setting
 PropertyGroup — useful for the test or AOT-validation projects that you don't
 want the analyzer running against.
 
-> **Legacy `.NET Framework` caveat.** Desktop projects using the pre-SDK MSBuild XML
-> format (`<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">`)
-> can use `PackageReference` without converting to SDK style. If a project uses
-> `packages.config`, migrate its package references first. Add the
-> `<PackageReference>` directly to the existing `<ItemGroup>` in the csproj and
-> verify restore and analyzer loading. The legacy sample projects did not resolve
-> the centrally injected reference; see
+> **Legacy `.NET Framework` caveat.** Follow the installation checks in
 > [`known-gaps.md` G1](known-gaps.md#g1--legacy-net-framework-winforms-projects-in-pre-sdk-msbuild-xml).
 
 ## Bump the OPC UA package versions

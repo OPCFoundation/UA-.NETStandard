@@ -80,8 +80,9 @@ The [recycling operator console](samples/Recycling/README.md#operator-console-wa
 live browser monitoring, native companion-specification inspection, material genealogy,
 and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
-You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-to build the repo. From the repository root:
+You need a stable [.NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+version **10.0.400 or later** to build the repo. `global.json` selects the
+highest installed stable SDK, including newer major versions. From the repository root:
 
 ```bash
 dotnet restore UA.slnx
