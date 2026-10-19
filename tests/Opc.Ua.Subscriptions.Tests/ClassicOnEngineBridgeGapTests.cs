@@ -103,7 +103,6 @@ namespace Opc.Ua.Subscriptions.Tests
         /// V2 manager-side routing remains.
         /// </summary>
         [Test]
-        [Order(100)]
         [CancelAfter(30_000)]
         public async Task ClassicSubscriptionImplementsMessageSinkV2Async(
             CancellationToken ct)
@@ -147,8 +146,8 @@ namespace Opc.Ua.Subscriptions.Tests
         /// arrive instead of Assert.Inconclusive.
         /// </summary>
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(ClassicSubscriptionImplementsMessageSinkV2Async), AllowFailure = true)]
         public async Task ClassicSubscriptionOnV2EngineReceivesNoNotificationsAsync(
             CancellationToken ct)
         {

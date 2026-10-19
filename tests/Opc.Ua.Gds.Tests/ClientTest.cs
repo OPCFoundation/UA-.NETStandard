@@ -172,7 +172,6 @@ namespace Opc.Ua.Gds.Tests
         /// Clean the app database from application Uri used during test.
         /// </summary>
         [Test]
-        [Order(10)]
         public async Task CleanGoodApplicationsAsync()
         {
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -194,7 +193,7 @@ namespace Opc.Ua.Gds.Tests
         /// ServerStatusChanged for the initial value of the monitored item.
         /// </summary>
         [Test]
-        [Order(11)]
+        [DependsOnTest(nameof(CleanGoodApplicationsAsync), AllowFailure = true)]
         public async Task ServerStatusChangedIsRaisedAsync()
         {
             var received = new TaskCompletionSource<Client.ServerStatusChangedEventArgs>(
@@ -231,7 +230,7 @@ namespace Opc.Ua.Gds.Tests
         /// Register the good applications in the database.
         /// </summary>
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(ServerStatusChangedIsRaisedAsync), AllowFailure = true)]
         public async Task RegisterGoodApplicationsAsync()
         {
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -247,7 +246,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(105)]
+        [DependsOnTest(nameof(RegisterGoodApplicationsAsync), AllowFailure = true)]
         public async Task RegisterDuplicateGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -257,14 +256,14 @@ namespace Opc.Ua.Gds.Tests
                 var newRecord = (ApplicationRecordDataType)application.ApplicationRecord
                     .MemberwiseClone();
                 newRecord.ApplicationId = default;
-                ServiceResultException serviceResultException = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException serviceResultException = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_gdsClient.GDSClient.RegisterApplicationAsync(newRecord).ConfigureAwait(false));
                 Assert.That(serviceResultException.StatusCode, Is.EqualTo(StatusCodes.BadEntryExists));
             }
         }
 
         [Test]
-        [Order(110)]
+        [DependsOnTest(nameof(RegisterDuplicateGoodApplicationsAsync), AllowFailure = true)]
         public async Task RegisterInvalidApplicationsAsync()
         {
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -279,7 +278,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(120)]
+        [DependsOnTest(nameof(RegisterInvalidApplicationsAsync), AllowFailure = true)]
         public async Task RegisterApplicationAsUserAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -294,7 +293,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(RegisterApplicationAsUserAsync), AllowFailure = true)]
         public async Task UpdateGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -304,14 +303,14 @@ namespace Opc.Ua.Gds.Tests
                 var updatedApplicationRecord = (ApplicationRecordDataType)
                     application.ApplicationRecord.MemberwiseClone();
                 updatedApplicationRecord.ApplicationUri += "update";
-                ServiceResultException serviceResultException = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException serviceResultException = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_gdsClient.GDSClient.UpdateApplicationAsync(updatedApplicationRecord).ConfigureAwait(false));
                 Assert.That(serviceResultException.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
             }
         }
 
         [Test]
-        [Order(210)]
+        [DependsOnTest(nameof(UpdateGoodApplicationsAsync), AllowFailure = true)]
         public async Task UpdateGoodApplicationsWithNewGuidAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -328,7 +327,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(210)]
+        [DependsOnTest(nameof(UpdateGoodApplicationsWithNewGuidAsync), AllowFailure = true)]
         public async Task UpdateGoodApplicationsWithNewStringAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -346,7 +345,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(220)]
+        [DependsOnTest(nameof(UpdateGoodApplicationsWithNewStringAsync), AllowFailure = true)]
         public async Task UpdateInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -360,7 +359,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(UpdateInvalidApplicationsAsync), AllowFailure = true)]
         public async Task FindGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -375,7 +374,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(FindGoodApplicationsAsync), AllowFailure = true)]
         public async Task FindInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -389,7 +388,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(FindInvalidApplicationsAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -416,7 +415,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetInvalidApplicationsAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestApplicationIdAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -435,7 +434,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestApplicationIdAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestApplicationNamesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -452,7 +451,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestApplicationNamesAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestApplicationTypeAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -469,7 +468,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestApplicationTypeAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestApplicationUriAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -486,7 +485,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestApplicationUriAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestDiscoveryUrlsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -505,7 +504,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestDiscoveryUrlsAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestProductUriAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -522,7 +521,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestProductUriAsync), AllowFailure = true)]
         public async Task GetGoodApplicationsTestServerCapabilitiesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -545,7 +544,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(GetGoodApplicationsAsync), AllowFailure = true)]
         public async Task GetInvalidApplicationsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -561,7 +560,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(410)]
+        [DependsOnTest(nameof(GetGoodApplicationsTestServerCapabilitiesAsync), AllowFailure = true)]
         public async Task QueryAllServersAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -601,7 +600,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(411)]
+        [DependsOnTest(nameof(QueryAllServersAsync), AllowFailure = true)]
         public async Task QueryAllServersNullAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -641,7 +640,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(420)]
+        [DependsOnTest(nameof(QueryAllServersNullAsync), AllowFailure = true)]
         public async Task QueryGoodServersBatchesAsync()
         {
             // repeating queries to get all servers
@@ -684,7 +683,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(430)]
+        [DependsOnTest(nameof(QueryGoodServersBatchesAsync), AllowFailure = true)]
         public async Task QueryServersByNameAsync()
         {
             // search applications by name
@@ -723,7 +722,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(440)]
+        [DependsOnTest(nameof(QueryServersByNameAsync), AllowFailure = true)]
         public async Task QueryServersByAppUriAsync()
         {
             // search applications by name
@@ -762,7 +761,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(450)]
+        [DependsOnTest(nameof(QueryServersByAppUriAsync), AllowFailure = true)]
         public async Task QueryServersByProductUriAsync()
         {
             // search applications by name
@@ -800,7 +799,6 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-        [Order(480)]
         public async Task QueryAllApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -846,7 +844,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(QueryServersByProductUriAsync), AllowFailure = true)]
         public async Task StartGoodNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -874,7 +872,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(501)]
+        [DependsOnTest(nameof(StartGoodNewKeyPairRequestsAsync), AllowFailure = true)]
         public async Task StartInvalidNewKeyPairRequestsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -897,7 +895,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(510)]
+        [DependsOnTest(nameof(StartInvalidNewKeyPairRequestsAsync), AllowFailure = true)]
         public async Task FinishGoodNewKeyPairRequestsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -977,7 +975,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(520)]
+        [DependsOnTest(nameof(FinishGoodNewKeyPairRequestsAsync), AllowFailure = true)]
         public async Task StartGoodSigningRequestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1016,7 +1014,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(530)]
+        [DependsOnTest(nameof(StartGoodSigningRequestsAsync), AllowFailure = true)]
         public async Task FinishGoodSigningRequestsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1095,7 +1093,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(540)]
+        [DependsOnTest(nameof(FinishGoodSigningRequestsAsync), AllowFailure = true)]
         public async Task GetGoodCertificatesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1125,7 +1123,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(GetGoodCertificatesAsync), AllowFailure = true)]
         public async Task StartGoodSigningRequestWithInvalidAppURIAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1149,7 +1147,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(600)]
+        [DependsOnTest(nameof(StartGoodSigningRequestWithInvalidAppURIAsync), AllowFailure = true)]
         public async Task GetGoodCertificateGroupsNullTestsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1178,7 +1176,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(601)]
+        [DependsOnTest(nameof(GetGoodCertificateGroupsNullTestsAsync), AllowFailure = true)]
         public async Task GetInvalidCertificateGroupsNullTestsAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -1210,7 +1208,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(610)]
+        [DependsOnTest(nameof(GetInvalidCertificateGroupsNullTestsAsync), AllowFailure = true)]
         public async Task GetGoodCertificateGroupsAndTrustListsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1235,7 +1233,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(620)]
+        [DependsOnTest(nameof(GetGoodCertificateGroupsAndTrustListsAsync), AllowFailure = true)]
         public async Task FailToGetGoodCertificateGroupsWithoutPriviledgesAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1248,7 +1246,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (application.Certificate != null)
                 {
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(() =>
                             m_gdsClient.GDSClient
                             .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId).AsTask());
@@ -1265,7 +1263,7 @@ namespace Opc.Ua.Gds.Tests
         /// use self registered application and get the group / trust lists
         /// </summary>
         [Test]
-        [Order(630)]
+        [DependsOnTest(nameof(FailToGetGoodCertificateGroupsWithoutPriviledgesAsync), AllowFailure = true)]
         public async Task GetGoodCertificateGroupsAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1290,7 +1288,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (testApplication.Certificate != null)
                 {
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(() =>
                             m_gdsClient.GDSClient
                             .GetCertificateGroupsAsync(testApplication.ApplicationRecord.ApplicationId).AsTask());
@@ -1323,7 +1321,7 @@ namespace Opc.Ua.Gds.Tests
         /// self issue a certificate and read it back
         /// </summary>
         [Test]
-        [Order(631)]
+        [DependsOnTest(nameof(GetGoodCertificateGroupsAsSelfAdminAsync), AllowFailure = true)]
         public async Task GoodSigningRequestAsSelfAdminAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1361,7 +1359,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (testApplication.CertificateRequestId.IsNull)
                 {
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(() =>
                             m_gdsClient.GDSClient.StartSigningRequestAsync(
                                 testApplication.ApplicationRecord.ApplicationId,
@@ -1457,7 +1455,7 @@ namespace Opc.Ua.Gds.Tests
         /// self issue a public/private key pair and read it back
         /// </summary>
         [Test]
-        [Order(632)]
+        [DependsOnTest(nameof(GoodSigningRequestAsSelfAdminAsync), AllowFailure = true)]
         public async Task GoodKeyPairRequestAsSelfAdminAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1475,7 +1473,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (testApplication.CertificateRequestId.IsNull)
                 {
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(() =>
                             m_gdsClient.GDSClient.StartNewKeyPairRequestAsync(
                                 testApplication.ApplicationRecord.ApplicationId,
@@ -1581,7 +1579,7 @@ namespace Opc.Ua.Gds.Tests
         /// and gets an empty result for an unregistered ApplicationUri.
         /// </summary>
         [Test]
-        [Order(632)]
+        [DependsOnTest(nameof(GoodKeyPairRequestAsSelfAdminAsync), AllowFailure = true)]
         public async Task FindApplicationsAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
@@ -1615,7 +1613,7 @@ namespace Opc.Ua.Gds.Tests
         /// returning a RequestId that FinishRequest later fails.
         /// </summary>
         [Test]
-        [Order(632)]
+        [DependsOnTest(nameof(FindApplicationsAsSelfAdminAsync), AllowFailure = true)]
         public async Task StartSigningRequestWithMismatchedKeyTypeAsSelfAdminAsync()
         {
             AssertIgnoreTestWithoutGdsRegisteredTestClient();
@@ -1641,7 +1639,7 @@ namespace Opc.Ua.Gds.Tests
 
             await ConnectGDSAsync(false, true).ConfigureAwait(false);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 m_gdsClient.GDSClient.StartSigningRequestAsync(
                     application.ApplicationRecord.ApplicationId,
                     default,
@@ -1656,7 +1654,7 @@ namespace Opc.Ua.Gds.Tests
         /// unregister the Client at the GDS and try to read the trust List
         /// </summary>
         [Test]
-        [Order(633)]
+        [DependsOnTest(nameof(StartSigningRequestWithMismatchedKeyTypeAsSelfAdminAsync), AllowFailure = true)]
         public async Task FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilegeAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1678,7 +1676,7 @@ namespace Opc.Ua.Gds.Tests
             //connect as self admin with revoked cert
 
             await ConnectGDSAsync(false, true).ConfigureAwait(false);
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 m_gdsClient.GDSClient
                     .GetCertificateGroupsAsync(application.ApplicationRecord.ApplicationId).AsTask());
             Assert.That(sre, Is.Not.Null);
@@ -1689,7 +1687,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(690)]
+        [DependsOnTest(nameof(FailToGetGoodCertificateGroupsWithoutSelfAdminPrivilegeAsync), AllowFailure = true)]
         public async Task GetGoodCertificateStatusAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1705,7 +1703,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(691)]
+        [DependsOnTest(nameof(GetGoodCertificateStatusAsync), AllowFailure = true)]
         public async Task GetInvalidCertificateStatusAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -1724,7 +1722,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(700)]
+        [DependsOnTest(nameof(GetInvalidCertificateStatusAsync), AllowFailure = true)]
         public async Task CheckGoodRevocationStatusAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1741,7 +1739,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(895)]
+        [DependsOnTest(nameof(CheckGoodRevocationStatusAsync), AllowFailure = true)]
         public async Task RevokeGoodCertificatesAsync()
         {
             AssertIgnoreTestWithoutInvalidRegistration();
@@ -1766,7 +1764,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(900)]
+        [DependsOnTest(nameof(RevokeGoodCertificatesAsync), AllowFailure = true)]
         public async Task UnregisterGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1779,7 +1777,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(910)]
+        [DependsOnTest(nameof(UnregisterGoodApplicationsAsync), AllowFailure = true)]
         public async Task CheckRevocationStatusUnregisteredApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1801,7 +1799,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(910)]
+        [DependsOnTest(nameof(CheckRevocationStatusUnregisteredApplicationsAsync), AllowFailure = true)]
         public async Task UnregisterInvalidApplicationsAsync()
         {
             await ConnectGDSAsync(true).ConfigureAwait(false);
@@ -1815,7 +1813,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(915)]
+        [DependsOnTest(nameof(UnregisterInvalidApplicationsAsync), AllowFailure = true)]
         public async Task VerifyUnregisterGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();
@@ -1829,7 +1827,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(920)]
+        [DependsOnTest(nameof(VerifyUnregisterGoodApplicationsAsync), AllowFailure = true)]
         public async Task UnregisterUnregisteredGoodApplicationsAsync()
         {
             AssertIgnoreTestWithoutGoodRegistration();

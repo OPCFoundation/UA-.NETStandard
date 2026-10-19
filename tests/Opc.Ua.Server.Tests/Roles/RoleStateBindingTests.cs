@@ -835,7 +835,7 @@ namespace Opc.Ua.Server.Tests.Roles
                     }, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(identity.ServiceResult), Is.True);
                 Assert.That(m_roleManager.GetRole(readdedId)!.Identities,
-                    Has.Some.Matches<IdentityMappingRuleType>(rule => rule.Criteria == "replacement-engineer"));
+                    Has.Some.Matches<IdentityMappingRuleType>(rule => rule is not null && rule.Criteria == "replacement-engineer"));
             }
             finally
             {

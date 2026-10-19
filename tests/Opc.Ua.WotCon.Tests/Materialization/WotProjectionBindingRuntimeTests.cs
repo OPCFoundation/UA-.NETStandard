@@ -156,7 +156,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public void ConflictingDirectAndFieldMappingThrowsDuringWire()
+        public async Task ConflictingDirectAndFieldMappingThrowsDuringWire()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm direct = WotProjectionBindingRuntimeTestHarness.Form(
@@ -170,14 +170,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await factory.CreateAsync(
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(direct, field)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
-        public void DuplicateReadMappingThrowsDuringWire()
+        public async Task DuplicateReadMappingThrowsDuringWire()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm read1 = WotProjectionBindingRuntimeTestHarness.Form(
@@ -191,14 +191,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await factory.CreateAsync(
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(read1, read2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
-        public void DuplicateWriteMappingThrowsDuringWire()
+        public async Task DuplicateWriteMappingThrowsDuringWire()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm write1 = WotProjectionBindingRuntimeTestHarness.Form(
@@ -212,14 +212,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await factory.CreateAsync(
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(write1, write2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
         [Test]
-        public void UnsupportedOperationThrowsDuringWire()
+        public async Task UnsupportedOperationThrowsDuringWire()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm invoke = WotProjectionBindingRuntimeTestHarness.Form(
@@ -228,7 +228,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await factory.CreateAsync(
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(invoke)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -337,7 +337,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await h.ScalarVar.WriteAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(1))).ConfigureAwait(false);
 
-            AggregateException? ex = Assert.ThrowsAsync<AggregateException>(
+            AggregateException? ex = await Assert.ThrowsAsync<AggregateException>(
                 async () => await runtime!.DisposeAsync().ConfigureAwait(false));
             Assert.That(ex!.InnerExceptions, Has.Count.EqualTo(1));
             Assert.That(readChannel.DisposeCount, Is.EqualTo(1),
@@ -843,7 +843,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         [Test]
-        public void StructuredDuplicateFieldMappingThrowsDuringWire()
+        public async Task StructuredDuplicateFieldMappingThrowsDuringWire()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm readA1 = WotProjectionBindingRuntimeTestHarness.Form(
@@ -857,7 +857,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await factory.CreateAsync(
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA1, readA2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));

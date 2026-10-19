@@ -67,12 +67,12 @@ namespace Opc.Ua.Server.Tests
             if (cancel)
             {
                 cancellation.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(async () => await expired.ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () => await expired.ConfigureAwait(false));
             }
             else
             {
                 clock.Advance(TimeSpan.FromMilliseconds(600));
-                ServiceResultException exception = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.CatchAsync<ServiceResultException>(
                     async () => await expired.ConfigureAwait(false));
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
             }
@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests
             });
             Task<ISubscriptionPublishPipeline> overflow = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
-            ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException full = await Assert.CatchAsync<ServiceResultException>(
                 async () => await replacement.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
             Assert.That(overflow.IsCompleted, Is.False);
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests
                 false,
                 new ActionParkSink(cancellation.Cancel),
                 cancellation.Token);
-            Assert.CatchAsync<OperationCanceledException>(async () => await cancelled.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await cancelled.ConfigureAwait(false));
 
             Task<ISubscriptionPublishPipeline> first = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
             });
             Task<ISubscriptionPublishPipeline> third = queue.PublishAsync(
                 "channel", DateTime.MaxValue, false, null, CancellationToken.None);
-            ServiceResultException full = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException full = await Assert.CatchAsync<ServiceResultException>(
                 async () => await first.ConfigureAwait(false));
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
 
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             await cancellationTask.ConfigureAwait(false);
-            Exception exception = Assert.CatchAsync(async () => await publish.ConfigureAwait(false));
+            Exception exception = await Assert.CatchAsync(async () => await publish.ConfigureAwait(false));
             if (exception is ServiceResultException serviceException)
             {
                 Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));

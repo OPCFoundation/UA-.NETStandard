@@ -232,12 +232,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ReadRejectsNullFrameNodeId()
+        public async Task ReadRejectsNullFrameNodeId()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await graph.ReadAsync(NodeId.Null).ConfigureAwait(false));
 
@@ -245,12 +245,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ComposeRejectsNullPose()
+        public async Task ComposeRejectsNullPose()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
 
-            ArgumentNullException? ex = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException? ex = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () =>
                     await graph.ComposeAsync(
                         null!,
@@ -261,13 +261,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ComposeRejectsNullFromFrameId()
+        public async Task ComposeRejectsNullFromFrameId()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
             var pose = new VisionPose3DDataType();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await graph.ComposeAsync(pose, NodeId.Null, harness.FrameNodeId)
                         .ConfigureAwait(false));
@@ -276,13 +276,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ComposeRejectsNullToFrameId()
+        public async Task ComposeRejectsNullToFrameId()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
             var pose = new VisionPose3DDataType();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await graph.ComposeAsync(pose, harness.FrameNodeId, NodeId.Null)
                         .ConfigureAwait(false));
@@ -291,12 +291,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ComposeTransformRejectsNullFromFrameId()
+        public async Task ComposeTransformRejectsNullFromFrameId()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await graph.ComposeTransformAsync(NodeId.Null, harness.FrameNodeId)
                         .ConfigureAwait(false));
@@ -305,12 +305,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ComposeTransformRejectsNullToFrameId()
+        public async Task ComposeTransformRejectsNullToFrameId()
         {
             var harness = new VisionSessionHarness();
             VisionFrameGraph graph = harness.Client.Frames();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await graph.ComposeTransformAsync(harness.FrameNodeId, NodeId.Null)
                         .ConfigureAwait(false));

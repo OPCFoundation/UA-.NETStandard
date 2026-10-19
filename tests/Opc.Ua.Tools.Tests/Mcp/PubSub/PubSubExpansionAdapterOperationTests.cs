@@ -186,7 +186,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(fixture.Remote.Reads.All(read => read.AttributeId == Attributes.Value), Is.True);
             Assert.That(fixture.Remote.Reads.Select(read => read.NodeId),
                 Does.Contain(fixture.Remote.Id("count")).And.Contain(fixture.Remote.Id("flag")));
-            ServiceResultException? refusal = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? refusal = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.PublishAsync(handle, new PubSubPublishInput
                 {
                     Fields =

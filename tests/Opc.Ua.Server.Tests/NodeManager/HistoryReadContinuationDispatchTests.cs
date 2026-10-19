@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// because the client never receives them, while points of earlier requests survive.
         /// </summary>
         [Test]
-        public void FaultedRequestReleasesItsSavedContinuationPoints()
+        public async Task FaultedRequestReleasesItsSavedContinuationPoints()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var prior = new TrackingPoint();
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var created = new List<TrackingPoint>();
             harness.SaveForEveryOperation(created, failAtOperation: 2);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await harness.ReadAsync(3).ConfigureAwait(false));
 
             Assert.That(created, Has.Count.EqualTo(2));
@@ -116,13 +116,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// receives its identifier (Part 4 §7.9).
         /// </summary>
         [Test]
-        public void FaultedRequestReleasesPointSavedWithoutResult()
+        public async Task FaultedRequestReleasesPointSavedWithoutResult()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var saved = new TrackingPoint();
             harness.SaveThenThrow(saved);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.ReadAsync(1).ConfigureAwait(false));
 
             Assert.That(saved.Disposed, Is.True);
@@ -135,14 +135,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// client still holds it.
         /// </summary>
         [Test]
-        public void FaultedRequestKeepsClientSuppliedContinuationPoint()
+        public async Task FaultedRequestKeepsClientSuppliedContinuationPoint()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var continued = new TrackingPoint();
             harness.Points.SaveHistory(continued);
             harness.RestoreSaveThenThrow();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
 
             Assert.That(continued.Disposed, Is.False);

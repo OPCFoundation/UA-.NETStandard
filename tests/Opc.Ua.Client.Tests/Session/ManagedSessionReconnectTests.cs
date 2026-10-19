@@ -634,7 +634,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await WaitForPhaseAsync(recovery, "channel recovery while an identity update holds the lock")
                 .ConfigureAwait(false);
             Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             Assert.That(harness.Session.InnerSession.Reconnecting, Is.False);
@@ -675,7 +675,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(harness.Lease.State, Is.EqualTo(ChannelState.Ready));
             foreach (Task update in new[] { holding, queued })
             {
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await update.WaitAsync(PhaseTimeout).ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             }

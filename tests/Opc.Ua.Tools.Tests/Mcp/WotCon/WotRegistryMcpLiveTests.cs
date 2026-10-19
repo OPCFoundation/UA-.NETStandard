@@ -338,7 +338,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Task<CallToolResult> observation = CallAsync("wot_observe_events", Observation(), cancellation.Token);
             await WaitForItemCountAsync(baseline + 1, timeout.Token).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
             await WaitForItemCountAsync(baseline, timeout.Token).ConfigureAwait(false);
             Assert.That(m_sessions!.GetSessionOrThrow("encrypted").Connected, Is.True);
         }

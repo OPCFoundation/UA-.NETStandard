@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests
                             new InvalidOperationException("Dispose failed."))));
                 }
 
-                IOException thrown = Assert.ThrowsAsync<IOException>(async () =>
+                IOException thrown = await Assert.ThrowsAsync<IOException>(async () =>
                     await server.CreateServiceHostEndpointAsync(
                         new Uri("opc.tcp://localhost:4840/failed"),
                         [],

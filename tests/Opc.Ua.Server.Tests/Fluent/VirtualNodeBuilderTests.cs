@@ -771,9 +771,9 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             if (cancel)
             {
-                OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+                OperationCanceledException failure = (await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await master.TranslateBrowsePathsToNodeIdsAsync(context, requests, cancellation.Token)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
                 Assert.That(failures, Is.EqualTo(1));
                 Assert.That(translated, Does.Not.Contain(branches[2]));
@@ -872,10 +872,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new RequestHeader(), null,
                 browse ? RequestType.Browse : RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
 
-            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException actual = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await BrowseOrTranslateAsync(manager, context, source,
                     new QualifiedName("Target", manager.TestNamespaceIndex), browse, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(actual.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
         }
@@ -915,9 +915,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new RequestHeader(), null,
                 browse ? RequestType.Browse : RequestType.TranslateBrowsePathsToNodeIds, RequestLifetime.None);
 
-            OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+            OperationCanceledException failure = (await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await BrowseOrTranslateAsync(manager, context, source, targetName, browse, cancellation.Token)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(resolved, Does.Contain(cancelled));
@@ -943,7 +943,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             ServiceResult[] errors = [StatusCodes.BadNodeIdUnknown, StatusCodes.BadNodeIdUnknown];
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await manager.ReadAsync(
+            await Assert.CatchAsync<OperationCanceledException>(async () => await manager.ReadAsync(
                 context, 0,
                 [
                     new ReadValueId { NodeId = cancelled, AttributeId = Attributes.Value },
@@ -1175,7 +1175,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
             await manager.Builder.SealAsync().ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await manager.ResolveAsync(id, new Dictionary<NodeId, NodeState>()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -1382,8 +1382,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var cache = new Dictionary<NodeId, NodeState>();
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -1431,8 +1431,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             await manager.Builder.SealAsync().ConfigureAwait(false);
 
             var cache = new Dictionary<NodeId, NodeState>();
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false)))!;
             Assert.That(exception, Is.SameAs(failure));
             Assert.That(cache, Is.Empty);
 
@@ -1464,8 +1464,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             await manager.Builder.SealAsync().ConfigureAwait(false);
             var cache = new Dictionary<NodeId, NodeState>();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.ResolveAsync(requestedId, cache).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(cache, Is.Empty);
 
@@ -1492,7 +1492,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             cts.Cancel();
             var cache = new Dictionary<NodeId, NodeState>();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await manager
                     .ResolveAsync(
                         requestedId,

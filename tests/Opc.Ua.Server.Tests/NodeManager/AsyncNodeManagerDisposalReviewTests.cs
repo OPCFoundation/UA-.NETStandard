@@ -257,7 +257,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// disposal.
         /// </summary>
         [Test]
-        public void CleanupFailuresAreReportedAfterOwnedResourcesAreReleased()
+        public async Task CleanupFailuresAreReportedAfterOwnedResourcesAreReleased()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -270,10 +270,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     OwnedCleanup = () => throw ownedFailure
                 };
 
-                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+                AggregateException failure = await Assert.ThrowsAsync<AggregateException>(
                     async () => await manager.DisposeAsync().ConfigureAwait(false));
                 Assert.That(failure.InnerExceptions, Is.EqualTo(new[] { coreFailure, ownedFailure }));
-                AggregateException repeated = Assert.ThrowsAsync<AggregateException>(
+                AggregateException repeated = await Assert.ThrowsAsync<AggregateException>(
                     async () => await manager.DisposeAsync().ConfigureAwait(false));
 
                 Assert.That(repeated, Is.SameAs(failure));

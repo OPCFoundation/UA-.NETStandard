@@ -60,7 +60,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private static readonly string[] s_dedupedScopes = ["read", "write"];
 
         [Test]
-        public void IssueAsyncWithoutSigningCertificateThrowsBadConfigurationError()
+        public async Task IssueAsyncWithoutSigningCertificateThrowsBadConfigurationError()
         {
             using Certificate certificate = CreateEcCertificate(ECCurve.NamedCurves.nistP256);
             using var certificateProvider = new InProcessCertificateProvider(certificate);
@@ -70,7 +70,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             };
             var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     "subject",
                     Audience,
@@ -82,7 +82,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         }
 
         [Test]
-        public void IssueAsyncWithoutSubjectThrowsBadIdentityTokenRejected()
+        public async Task IssueAsyncWithoutSubjectThrowsBadIdentityTokenRejected()
         {
             using Certificate certificate = CreateEcCertificate(ECCurve.NamedCurves.nistP256);
             using var certificateProvider = new InProcessCertificateProvider(certificate);
@@ -93,7 +93,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             };
             var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     string.Empty,
                     Audience,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         }
 
         [Test]
-        public void IssueAsyncWithoutAudienceThrowsBadInvalidArgument()
+        public async Task IssueAsyncWithoutAudienceThrowsBadInvalidArgument()
         {
             using Certificate certificate = CreateEcCertificate(ECCurve.NamedCurves.nistP256);
             using var certificateProvider = new InProcessCertificateProvider(certificate);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             };
             var issuer = new CertificateJwtIssuer(options, certificateProvider, NUnitTelemetryContext.Create());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await issuer.IssueAsync(new TokenIssuanceRequest(
                     "subject",
                     string.Empty,

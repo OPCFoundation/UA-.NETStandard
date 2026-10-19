@@ -262,7 +262,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void TryGetNodeResolvesANodeThatIsNotRegisteredYet()
+        public async Task TryGetNodeResolvesANodeThatIsNotRegisteredYet()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -339,18 +339,18 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void QualifiedNameOverloadRejectsNamespaceZero()
+        public async Task QualifiedNameOverloadRejectsNamespaceZero()
         {
             using var manager = new AuthoringTestManager(
                 builder => builder.AddFolder(new QualifiedName("Machines", 0)));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
         [Test]
-        public void DuplicateNodeIdIsRejected()
+        public async Task DuplicateNodeIdIsRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -367,26 +367,26 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
         }
 
         [Test]
-        public void ParentInAnOwnedNamespaceMustBeAuthoredFirst()
+        public async Task ParentInAnOwnedNamespaceMustBeAuthoredFirst()
         {
             using var manager = new AuthoringTestManager(builder => builder.AddObject(
                 "Orphan",
                 new NodeId("NeverAdded", builder.Context.NamespaceUris.GetIndexOrAppend(
                     kNamespaceUri))));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
-        public void NamespaceZeroNodeIdsAreRejected()
+        public async Task NamespaceZeroNodeIdsAreRejected()
         {
             using var manager = new AuthoringTestManager(builder => builder.AddRoot(
                 new BaseObjectState(null)
@@ -395,8 +395,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                     BrowseName = new QualifiedName("InBaseNamespace", 1)
                 }));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
@@ -418,8 +418,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             using var manager = new AuthoringTestManager(builder => builder.AddFolder("Machines"));
             await manager.BuildAsync().ConfigureAwait(false);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.RegisterAgainAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.RegisterAgainAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -465,7 +465,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void CreatedNodesAreVisibleToTypeAndDataTypeLookups()
+        public async Task CreatedNodesAreVisibleToTypeAndDataTypeLookups()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -483,7 +483,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -564,7 +564,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void NullArgumentsAreRejected()
+        public async Task NullArgumentsAreRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -579,16 +579,16 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
         }
 
         [Test]
-        public void RegisterAuthoredNodesRejectsANullRegisterDelegate()
+        public async Task RegisterAuthoredNodesRejectsANullRegisterDelegate()
         {
             using var manager = new AuthoringTestManager(_ => { });
             NodeManagerBuilder builder = manager.CreateBuilder();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await builder
                     .RegisterAuthoredNodesAsync(null!)
                     .ConfigureAwait(false));
@@ -611,7 +611,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
-        public void EmptyBrowseNamesAreRejected()
+        public async Task EmptyBrowseNamesAreRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -628,11 +628,11 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await manager.BuildAsync().ConfigureAwait(false));
         }
 
         [Test]
-        public void ANodeWithoutABrowseNameIsRejected()
+        public async Task ANodeWithoutABrowseNameIsRejected()
         {
             using var manager = new AuthoringTestManager(builder => builder.AddRoot(
                 new BaseObjectState(null)
@@ -640,13 +640,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                     NodeId = new NodeId("NoBrowseName", 2)
                 }));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
         [Test]
-        public void ANonInstanceNodeCannotBeGivenAParent()
+        public async Task ANonInstanceNodeCannotBeGivenAParent()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -661,13 +661,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                     folder.Node.NodeId);
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeClassInvalid));
         }
 
         [Test]
-        public void AParentIdThatContradictsAnExistingParentIsRejected()
+        public async Task AParentIdThatContradictsAnExistingParentIsRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -683,13 +683,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 builder.Add(child, b.Node.NodeId);
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
-        public void AnExistingParentWithoutANodeIdIsRejected()
+        public async Task AnExistingParentWithoutANodeIdIsRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -704,13 +704,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 
         [Test]
-        public void AnExistingParentOutsideTheGraphIsRejected()
+        public async Task AnExistingParentOutsideTheGraphIsRejected()
         {
             using var manager = new AuthoringTestManager(builder =>
             {
@@ -726,13 +726,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 });
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
         [Test]
-        public void ANodeIdInAnUnownedNamespaceIsRejected()
+        public async Task ANodeIdInAnUnownedNamespaceIsRejected()
         {
             using var manager = new AuthoringTestManager(builder => builder.AddRoot(
                 new BaseObjectState(null)
@@ -741,8 +741,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                     BrowseName = new QualifiedName("Foreign", 99)
                 }));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await manager.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
         }
 

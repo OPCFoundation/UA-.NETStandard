@@ -219,11 +219,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await writeArray(first, 0, first.Length, default).ConfigureAwait(false);
             await buffer.WriteAsync(new ReadOnlyMemory<byte>([3, 4])).ConfigureAwait(false);
             Assert.That(buffer.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await buffer.WriteAsync(new ReadOnlyMemory<byte>([5])).ConfigureAwait(false));
             await cancellation.CancelAsync().ConfigureAwait(false);
             buffer.Position = 0;
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await buffer.WriteAsync(new ReadOnlyMemory<byte>([9])).ConfigureAwait(false));
             Assert.That(buffer.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4 }));
         }

@@ -69,7 +69,7 @@ namespace Opc.Ua.AMB.Tests
         }
 
         [Test]
-        public void StoresRejectValuesBeyondTheLimit()
+        public async Task StoresRejectValuesBeyondTheLimit()
         {
             string tooLong = new('v', AssetConfigurationNames.MaxValueLength + 1);
             var memory = new MemoryAssetConfigurationStore();
@@ -78,24 +78,24 @@ namespace Opc.Ua.AMB.Tests
                 nameof(StoresRejectValuesBeyondTheLimit),
                 Guid.NewGuid().ToString("N")));
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(async () => await memory.SetValueAsync(Uri, "AssetId", tooLong).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(async () => await memory.SetValueAsync(Uri, "AssetId", tooLong).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await fileSystem.SetValueAsync(Uri, "AssetId", tooLong).ConfigureAwait(false));
             });
         }
 
         [Test]
-        public void StoresRejectEmptyKeys()
+        public async Task StoresRejectEmptyKeys()
         {
             var store = new MemoryAssetConfigurationStore();
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(async () => await store.GetValueAsync(string.Empty, "AssetId").ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await store.GetValueAsync(Uri, string.Empty).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await store.SetValueAsync(null!, "AssetId", "x").ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(async () => await store.GetValueAsync(string.Empty, "AssetId").ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(async () => await store.GetValueAsync(Uri, string.Empty).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(async () => await store.SetValueAsync(null!, "AssetId", "x").ConfigureAwait(false));
             });
         }
 

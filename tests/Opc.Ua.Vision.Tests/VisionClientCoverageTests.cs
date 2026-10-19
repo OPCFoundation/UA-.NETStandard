@@ -193,13 +193,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveDetectionsAsyncThrowsBadNotFoundWhenResultDoesNotExposeDetections()
+        public async Task ObserveDetectionsAsyncThrowsBadNotFoundWhenResultDoesNotExposeDetections()
         {
             var harness = new VisionSessionHarness();
             IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (VisionDetectionResultSnapshot? _ in reader.ObserveDetectionsAsync(streaming)
                     .ConfigureAwait(false))
@@ -211,13 +211,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveInspectionAsyncThrowsBadNotFoundWhenResultDoesNotExposeCharacteristics()
+        public async Task ObserveInspectionAsyncThrowsBadNotFoundWhenResultDoesNotExposeCharacteristics()
         {
             var harness = new VisionSessionHarness();
             IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (VisionInspectionResultSnapshot? _ in reader.ObserveInspectionAsync(streaming)
                     .ConfigureAwait(false))
@@ -229,13 +229,13 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveSegmentationAsyncThrowsBadNotFoundWhenResultDoesNotExposeMask()
+        public async Task ObserveSegmentationAsyncThrowsBadNotFoundWhenResultDoesNotExposeMask()
         {
             var harness = new VisionSessionHarness();
             IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (VisionSegmentationResultSnapshot? _ in reader.ObserveSegmentationAsync(streaming)
                     .ConfigureAwait(false))

@@ -57,8 +57,8 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(await first.ListIdsAsync(2), Has.Count.EqualTo(1));
             await first.WriteAsync(Result("two"));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await first.WriteAsync(Result("three")))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await first.WriteAsync(Result("three"))))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
             Assert.That((await first.ReadLatestAsync())!.ResultId, Is.EqualTo("two"));
@@ -84,7 +84,7 @@ namespace Opc.Ua.GMS.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<System.OperationCanceledException>(
+            await Assert.ThrowsAsync<System.OperationCanceledException>(
                 async () => await store.WriteAsync(Result("two"), cancellation.Token));
             ArrayOf<int> errors = await store.AcknowledgeAsync(["one", "absent"]);
             Assert.That(errors[0], Is.Zero);
@@ -110,8 +110,8 @@ namespace Opc.Ua.GMS.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await store.WriteAsync(result))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await store.WriteAsync(result)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(await store.ReadLatestAsync(), Is.Null);
             }
@@ -140,7 +140,7 @@ namespace Opc.Ua.GMS.Tests
             }
             else
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () => await store.WriteAsync(result));
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await store.WriteAsync(result));
                 Assert.That(await store.ReadLatestAsync(), Is.Null);
             }
         }

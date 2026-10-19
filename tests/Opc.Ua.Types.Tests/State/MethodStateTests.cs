@@ -168,7 +168,7 @@ namespace Opc.Ua.Types.Tests.State
                 await cancellation.CancelAsync().ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
             };
-            OperationCanceledException? failure = Assert.CatchAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? failure = await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await method.CallAsync(m_callContext, new NodeId(123u), [], [], [], cancellation.Token)
                     .ConfigureAwait(false));
             Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));

@@ -135,7 +135,7 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.401'
+$LatestSdk = '10.0.402'
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'

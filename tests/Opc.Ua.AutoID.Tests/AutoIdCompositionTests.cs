@@ -276,7 +276,7 @@ namespace Opc.Ua.AutoID.Tests
             var failing = new FakeProvider();
             runtime.ReaderRegisteredForTest = _ => throw new InvalidOperationException("injected");
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await runtime.CreateReaderAsync(fixture.Name("Gate1"), failing));
             runtime.ReaderRegisteredForTest = null;
             AutoIdReader reader = await runtime.CreateReaderAsync(fixture.Name("Gate1"), new FakeProvider());
@@ -300,12 +300,12 @@ namespace Opc.Ua.AutoID.Tests
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
 
-            Assert.That(
+            await Assert.ThatAsync(
                 async () => await runtime.CreateReaderAsync(fixture.Name("Gate1"), new FakeProvider(), cancelled.Token),
                 Throws.InstanceOf<OperationCanceledException>());
             AutoIdReader reader = await runtime.CreateReaderAsync(fixture.Name("Gate1"), new FakeProvider());
-            ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await runtime.CreateReaderAsync(fixture.Name("Gate1"), new FakeProvider()))!;
+            ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await runtime.CreateReaderAsync(fixture.Name("Gate1"), new FakeProvider())))!;
 
             Assert.Multiple(() =>
             {
@@ -325,10 +325,10 @@ namespace Opc.Ua.AutoID.Tests
 
             await fixture.Manager.DisposeAsync();
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(provider.DetachCalls, Is.EqualTo(1), "the owner disposed the composed runtime");
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await runtime.CreateReaderAsync(fixture.Name("Late"), new FakeProvider()));
             });
         }

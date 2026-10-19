@@ -239,12 +239,12 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("delete")]
         [TestCase("abort")]
         [TestCase("transfer")]
-        public void PreCancelledCallsPreserveTheOriginalToken(string operation)
+        public async Task PreCancelledCallsPreserveTheOriginalToken(string operation)
         {
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            OperationCanceledException error = Assert.CatchAsync<OperationCanceledException>(async () =>
-                await InvokeAsync(operation, null!, cancellation.Token).ConfigureAwait(false))!;
+            OperationCanceledException error = (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await InvokeAsync(operation, null!, cancellation.Token).ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
         }
 

@@ -84,12 +84,12 @@ namespace Opc.Ua.Client.Tests.Roles
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
-        public void MappingLimitRejectsFirstExcessEntry(int kind)
+        public async Task MappingLimitRejectsFirstExcessEntry(int kind)
         {
             Mock<ISession> session = CreateSession(kind, 3);
             var client = new RoleManagementClient(session.Object, 2);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ReadRoleAsync(new NodeId(12u)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ReadRoleAsync(new NodeId(12u)).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 

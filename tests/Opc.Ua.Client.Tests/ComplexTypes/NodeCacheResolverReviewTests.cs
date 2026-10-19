@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
 
             if (cancel)
             {
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await resolver.LoadDataTypeSystem(ct: timeout.Token).ConfigureAwait(false));
                 return;
             }

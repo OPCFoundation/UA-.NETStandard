@@ -126,8 +126,8 @@ namespace Opc.Ua.GMS.Tests
                 .BuildAsync().ConfigureAwait(false);
             GmsSystemSnapshot invalid = Change(initial, mistake);
             await provider.SetSnapshotAsync(invalid).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await handle.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await handle.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(StatusCode.IsBad(error.StatusCode), Is.True);
             Assert.That(handle.Observation, Is.SameAs(initial));
             Assert.That(handle.CalibrationHistory.Count, Is.EqualTo(1));
@@ -155,14 +155,14 @@ namespace Opc.Ua.GMS.Tests
         [TestCase(GmsFeatures.Accessories)]
         [TestCase(GmsFeatures.AdditionalSensors)]
         [TestCase(GmsFeatures.Calibration)]
-        public void MissingSelectedObservationFailsBeforePublication(GmsFeatures feature)
+        public async Task MissingSelectedObservationFailsBeforePublication(GmsFeatures feature)
         {
             IMachineryBuildContext context = GmsSystemTests.Context(m_fixture!);
             GmsBuilder builder = GmsSystemTests.Builder(context, "Missing" + feature,
                 new InMemoryGmsProvider(new GmsSystemSnapshot()))
                 .WithOptions(new GmsSystemOptions { Features = feature })
                 .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()));
-            Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
             Assert.That(context.MachinesFolder.FindChild(context.Context,
                 new QualifiedName("Missing" + feature, context.InstanceNamespaceIndex)), Is.Null);
         }

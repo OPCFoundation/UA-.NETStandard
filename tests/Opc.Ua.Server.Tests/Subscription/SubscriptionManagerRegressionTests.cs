@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                 semaphore.Release();
             }
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await creating.ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(manager.GetSubscriptions(), Is.Empty);

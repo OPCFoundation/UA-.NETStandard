@@ -122,7 +122,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             await fixture.Sessions.RegisterExistingSessionAsync(
                 PubSubExpansionTestContext.SessionName, fixture.Remote.Session.Object, "Anonymous")
                 .ConfigureAwait(false);
-            ServiceResultException? stale = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? stale = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await borrowed.ReadAsync(request).ConfigureAwait(false));
 
             Assert.That(first.ToList().Single().WrappedValue.TryGetValue(out int value), Is.True);

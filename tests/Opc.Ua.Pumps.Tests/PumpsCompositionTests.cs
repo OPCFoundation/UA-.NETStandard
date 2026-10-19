@@ -107,8 +107,8 @@ namespace Opc.Ua.Pumps.Tests
             Assert.That(async () => await runtime.CreatePumpAsync(name, cancelled.Token),
                 Throws.InstanceOf<OperationCanceledException>());
             await runtime.CreatePumpAsync(name);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await runtime.CreatePumpAsync(name))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await runtime.CreatePumpAsync(name)))!;
             Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
             Assert.That(runtime.Pumps, Has.Count.EqualTo(1));
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Pumps.Tests
             await runtime.CreatePumpAsync(new QualifiedName("Feed", runtime.InstanceNamespaceIndex));
 
             await fixture.Manager.DisposeAsync();
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await runtime.CreatePumpAsync(new QualifiedName("AfterShutdown", runtime.InstanceNamespaceIndex)));
             await runtime.DisposeAsync();
         }

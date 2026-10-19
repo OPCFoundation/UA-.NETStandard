@@ -127,7 +127,7 @@ namespace Opc.Ua.MachineTool.Tests
                 });
             await controller.InitializeAsync(initial).ConfigureAwait(false);
             MachineToolSnapshot bad = Invalid(initial, violation);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.ApplyAsync(bad).ConfigureAwait(false));
             Assert.That(controller.Observation, Is.SameAs(initial));
             var tool = (ToolState)state.Equipment!.Tools!.FindChild(m_fixture.Context.Context,

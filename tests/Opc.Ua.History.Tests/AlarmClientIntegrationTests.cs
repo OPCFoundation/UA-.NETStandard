@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.Alarms;
 using Opc.Ua.Client.TestFramework;
@@ -52,11 +53,11 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public void ConditionRefreshOnInvalidSubscriptionReturnsBadStatus()
+        public async Task ConditionRefreshOnInvalidSubscriptionReturnsBadStatus()
         {
             AlarmClient client = Session.GetAlarmClient(Telemetry);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ConditionRefreshAsync(
                     subscriptionId: 0xFFFFFFFFu,
                     ct: CancellationToken.None).ConfigureAwait(false));
@@ -68,11 +69,11 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public void EnableOnUnknownConditionReturnsBadStatus()
+        public async Task EnableOnUnknownConditionReturnsBadStatus()
         {
             AlarmClient client = Session.GetAlarmClient(Telemetry);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.EnableAsync(
                     conditionId: new NodeId(0xDEADBEEF),
                     ct: CancellationToken.None).ConfigureAwait(false));
@@ -84,11 +85,11 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public void AcknowledgeOnUnknownConditionReturnsBadStatus()
+        public async Task AcknowledgeOnUnknownConditionReturnsBadStatus()
         {
             AlarmClient client = Session.GetAlarmClient(Telemetry);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AcknowledgeAsync(
                     conditionId: new NodeId(0xDEADBEEF),
                     eventId: new ByteString(new byte[] { 1, 2, 3 }),
@@ -102,11 +103,11 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public void SilenceOnUnknownConditionReturnsBadStatus()
+        public async Task SilenceOnUnknownConditionReturnsBadStatus()
         {
             AlarmClient client = Session.GetAlarmClient(Telemetry);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.SilenceAsync(
                     conditionId: new NodeId(0xDEADBEEF),
                     ct: CancellationToken.None).ConfigureAwait(false));
@@ -118,11 +119,11 @@ namespace Opc.Ua.History.Tests
         }
 
         [Test]
-        public void TimedShelveOnUnknownConditionReturnsBadStatus()
+        public async Task TimedShelveOnUnknownConditionReturnsBadStatus()
         {
             AlarmClient client = Session.GetAlarmClient(Telemetry);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.TimedShelveAsync(
                     conditionId: new NodeId(0xDEADBEEF),
                     shelvingTime: 1000,
