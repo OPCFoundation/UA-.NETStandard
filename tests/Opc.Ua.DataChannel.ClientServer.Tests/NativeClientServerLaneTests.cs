@@ -609,7 +609,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
             ServiceResultException? closed = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lane.SendRequestAsync(request, harness.Token).ConfigureAwait(false));
             Assert.That(closed!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
-            Assert.That(harness.ClientContext.IsReady, Is.True);
+            Assert.That(harness.ClientContext.IsReady, Is.True,
+                $"Client context termination: {string.Join(",", harness.ClientClosures)}; " +
+                $"transport failure: {harness.ClientTransportFailure}");
             Assert.That(harness.NativeClient.Completion.IsCompleted, Is.False);
         }
 
