@@ -253,7 +253,7 @@ namespace Opc.Ua.Machinery.Tests
 
             var openOutputs = new List<Variant>();
             ServiceResult openStatus = file.Open!.Call(
-                m_fixture.Manager.SystemContext,
+                m_fixture.SessionContext,
                 file.NodeId,
                 new Variant[] { Variant.From((byte)1) }.ToArrayOf(),
                 new List<ServiceResult>(),
@@ -264,7 +264,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Open.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From((byte)2) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -273,7 +273,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Write!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[]
                     {
@@ -288,7 +288,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(
                 ServiceResult.IsGood(
                     file.GetPosition!.Call(
-                        m_fixture.Manager.SystemContext,
+                        m_fixture.SessionContext,
                         file.NodeId,
                         new Variant[] { Variant.From(handle) }.ToArrayOf(),
                         new List<ServiceResult>(),
@@ -297,7 +297,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.SetPosition!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(3ul) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -305,7 +305,7 @@ namespace Opc.Ua.Machinery.Tests
                 Is.EqualTo((StatusCode)StatusCodes.Good));
             Assert.That(
                 file.SetPosition.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(9999ul) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -314,7 +314,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Read!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle), Variant.From(-1) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -323,7 +323,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 (await file.Close!.CallAsync(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -763,7 +763,7 @@ namespace Opc.Ua.Machinery.Tests
 
             Assert.That(
                 file.Read!.Call(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(999u), Variant.From(4) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -771,7 +771,7 @@ namespace Opc.Ua.Machinery.Tests
                 Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
             Assert.That(
                 (await file.Close!.CallAsync(
-                    m_fixture.Manager.SystemContext,
+                    m_fixture.SessionContext,
                     file.NodeId,
                     new Variant[] { Variant.From(handle) }.ToArrayOf(),
                     new List<ServiceResult>(),
@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Machinery.Tests
             Variant options)
         {
             return management.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { options }.ToArrayOf(),
                 new List<ServiceResult>(),
@@ -1100,7 +1100,7 @@ namespace Opc.Ua.Machinery.Tests
         {
             var outputs = new List<Variant>();
             ServiceResult status = await management.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[]
                 {
