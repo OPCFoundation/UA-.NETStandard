@@ -83,17 +83,17 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase(1)]
         [TestCase(8)]
         [TestCase(65536)]
-        public void FirstByteOverLimitStopsBeforeWritingTheOffendingChunk(int limit)
+        public async Task FirstByteOverLimitStopsBeforeWritingTheOffendingChunk(int limit)
         {
             m_transfer.Payload = MakePayload(limit + 2);
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     destination,
-                    limit))!;
+                    limit)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(m_transfer.Position, Is.EqualTo(limit + 1));
@@ -140,18 +140,18 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void ShortReadRequestBudgetIsFinite()
+        public async Task ShortReadRequestBudgetIsFinite()
         {
             m_transfer.Payload = MakePayload(2048);
             m_transfer.MaxReturnedBytes = 1;
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     destination,
-                    4096))!;
+                    4096)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(m_transfer.ReadLengths, Has.Count.EqualTo(1024));
@@ -208,18 +208,18 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void OversizedReturnedChunkIsRejectedWithoutCopyingOrAnotherRead()
+        public async Task OversizedReturnedChunkIsRejectedWithoutCopyingOrAnotherRead()
         {
             m_transfer.Read = (_, _) => new ValueTask<CallResponse>(
                 TransferHarness.Response([Variant.From(MakePayload(100))]));
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     destination,
-                    8))!;
+                    8)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(m_transfer.ReadLengths, Is.EqualTo(s_oversizedReadLengths));
@@ -230,15 +230,15 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase(" \t")]
-        public void BlankResultIdIsRejectedBeforeAnyService(string? resultId)
+        public async Task BlankResultIdIsRejectedBeforeAnyService(string? resultId)
         {
             using var destination = new MemoryStream();
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     resultId!,
                     destination,
-                    1))!;
+                    1)))!;
 
             Assert.That(error.ParamName, Is.EqualTo("resultId"));
             AssertNoRequests();
@@ -246,68 +246,68 @@ namespace Opc.Ua.Machinery.Tests
 
         [TestCase(-1)]
         [TestCase(long.MinValue)]
-        public void NegativeLimitIsRejectedBeforeAnyService(long limit)
+        public async Task NegativeLimitIsRejectedBeforeAnyService(long limit)
         {
             using var destination = new MemoryStream();
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     destination,
-                    limit))!;
+                    limit)))!;
 
             Assert.That(error.ParamName, Is.EqualTo("maxBytes"));
             AssertNoRequests();
         }
 
         [Test]
-        public void NullMachineIsRejectedBeforeAnyService()
+        public async Task NullMachineIsRejectedBeforeAnyService()
         {
             using var destination = new MemoryStream();
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await m_transfer.Client.DownloadResultAsync(NodeId.Null, "selected", destination, 1))!;
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_transfer.Client.DownloadResultAsync(NodeId.Null, "selected", destination, 1)))!;
 
             Assert.That(error.ParamName, Is.EqualTo("machine"));
             AssertNoRequests();
         }
 
         [Test]
-        public void NullDestinationIsRejectedBeforeAnyService()
+        public async Task NullDestinationIsRejectedBeforeAnyService()
         {
-            ArgumentNullException error = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException error = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     null!,
-                    1))!;
+                    1)))!;
 
             Assert.That(error.ParamName, Is.EqualTo("destination"));
             AssertNoRequests();
         }
 
         [Test]
-        public void NonWritableDestinationIsRejectedBeforeAnyService()
+        public async Task NonWritableDestinationIsRejectedBeforeAnyService()
         {
             using var destination = new MemoryStream(Array.Empty<byte>(), writable: false);
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
                     destination,
-                    1))!;
+                    1)))!;
 
             Assert.That(error.ParamName, Is.EqualTo("destination"));
             AssertNoRequests();
         }
 
         [Test]
-        public void PreCancelledTransferDoesNotAcquireAHandle()
+        public async Task PreCancelledTransferDoesNotAcquireAHandle()
         {
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId,
                     "selected",
@@ -367,14 +367,14 @@ namespace Opc.Ua.Machinery.Tests
 
         [TestCase(0)]
         [TestCase(-1)]
-        public void MutatedInvalidChunkSizeIsRejectedBeforeGeneration(int chunkSize)
+        public async Task MutatedInvalidChunkSizeIsRejectedBeforeGeneration(int chunkSize)
         {
             var client = new TemporaryFileTransferClient(m_transfer.Session.Object, TransferHarness.TransferId);
             client.Options.ChunkSize = chunkSize;
             using var destination = new MemoryStream();
 
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await client.CopyToAsync(Variant.Null, destination, 1))!;
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await client.CopyToAsync(Variant.Null, destination, 1)))!;
 
             Assert.That(error.ParamName, Is.EqualTo(nameof(FileSystemClientOptions.ChunkSize)));
             AssertNoRequests();
@@ -422,7 +422,7 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(m_transfer.Calls[^1].InputArguments[0].TryGetValue(out uint handle), Is.True);
             Assert.That(handle, Is.EqualTo(m_transfer.Handle));
             Assert.That(m_transfer.Paths, Has.None.Matches<BrowsePath>(static path =>
-                path.StartingNode == TransferHarness.FileId &&
+                path is not null && path.StartingNode == TransferHarness.FileId &&
                 path.RelativePath.Elements[0].TargetName.Name == "Close"));
             m_transfer.Session.Verify(session => session.Dispose(), Times.Never);
         }

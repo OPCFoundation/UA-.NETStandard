@@ -144,7 +144,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             if (failStart)
             {
-                ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Runtimes.StartAsync(handle).ConfigureAwait(false));
                 Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             }

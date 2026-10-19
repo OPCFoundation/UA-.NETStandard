@@ -212,7 +212,7 @@ namespace Opc.Ua.CranesHoists.Tests
             Assert.That(provider.AcceptedRequests, Is.EqualTo(new[] { request }));
             Assert.That(await provider.RequestAsync(request).ConfigureAwait(false),
                 Is.EqualTo(StatusCodes.BadResourceUnavailable));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await provider.SetSamplesAsync([samples[0], samples[0]]).ConfigureAwait(false));
             Assert.That(await provider.ReadAsync().ConfigureAwait(false), Is.EqualTo(samples));
         }
@@ -230,12 +230,12 @@ namespace Opc.Ua.CranesHoists.Tests
                 Is.EqualTo(StatusCodes.BadNotSupported));
             using var canceled = new CancellationTokenSource();
             canceled.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await provider.ReadAsync(canceled.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await provider.RequestAsync(request, canceled.Token).ConfigureAwait(false));
             await provider.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () => await provider.ReadAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await provider.ReadAsync().ConfigureAwait(false));
             Assert.Throws<ObjectDisposedException>(() => _ = provider.AcceptedRequests);
         }
 

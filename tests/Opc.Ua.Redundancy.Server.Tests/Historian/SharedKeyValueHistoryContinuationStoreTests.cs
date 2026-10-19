@@ -270,8 +270,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             await store.StoreAsync(envelope).ConfigureAwait(false);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await store.StoreAsync(envelope).ConfigureAwait(false))!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await store.StoreAsync(envelope).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadEntryExists));
         }
@@ -337,8 +337,8 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             await writer.StoreAsync(CreateEnvelope(sessionId)).ConfigureAwait(false);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await reader.LoadAsync(sessionId).ConfigureAwait(false))!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await reader.LoadAsync(sessionId).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,
@@ -809,7 +809,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
 
             try
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await store.StoreAsync(envelope).ConfigureAwait(false));
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             }
@@ -954,7 +954,7 @@ namespace Opc.Ua.Redundancy.Server.Tests.Historian
             await store.StoreAsync(envelope).ConfigureAwait(false);
             keyValueStore.ThrowNextCompareAndSwapBeforeCommit = true;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await store.TryTakeAsync(
                     sessionId,
                     envelope.Id).ConfigureAwait(false));

@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             Assert.That(result.CanSatisfy, Is.False);
             Assert.That(result.RejectionReason, Does.Contain("TokenTypeNotSupported"));
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void UserNameProviderThrowsWhenSecretMissing()
+        public async Task UserNameProviderThrowsWhenSecretMissing()
         {
             var provider = new UserNamePasswordIdentityProvider(
                 "user1",
@@ -100,7 +100,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 new SecretIdentifier("password", "fake"));
             UserTokenPolicy policy = CreatePolicy(UserTokenType.UserName);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
@@ -130,14 +130,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void IssuedTokenProviderRejectsWrongIssuedTokenProfile()
+        public async Task IssuedTokenProviderRejectsWrongIssuedTokenProfile()
         {
             var provider = new IssuedTokenIdentityProvider(
                 new FakeAccessTokenProvider("jwt-token"u8.ToArray(), DateTime.UtcNow.AddMinutes(10)));
             UserTokenPolicy policy = CreatePolicy(UserTokenType.IssuedToken);
             policy.IssuedTokenType = "urn:wrong-profile";
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
@@ -226,13 +226,13 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void CompositeProviderRejectsUnmatchedPolicy()
+        public async Task CompositeProviderRejectsUnmatchedPolicy()
         {
             UserTokenPolicy policy = CreatePolicy(UserTokenType.Certificate);
             var provider = new CompositeClientIdentityProvider(
                 new StubProvider("user", UserTokenType.UserName, DateTime.MaxValue, []));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.GetIdentityAsync(policy, CreateContext(policy)).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));

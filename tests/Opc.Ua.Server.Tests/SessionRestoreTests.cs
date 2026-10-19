@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
                         CreateChannelContext(server),
                         new RequestHeader
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         default,
                         null,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             }
@@ -203,7 +203,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var authenticationToken = new NodeId("foreign-owner-token", 2);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
                         CreateChannelContext(server),
                         new RequestHeader { AuthenticationToken = authenticationToken },
@@ -212,7 +212,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         default,
                         null,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityChangeNotSupported));
                 Assert.That(factory.Manager!.AdmitAttempts.ContainsKey(authenticationToken.ToString()), Is.False);
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var authenticationToken = new NodeId("rejected-admission-token", 2);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
                         CreateChannelContext(server),
                         new RequestHeader { AuthenticationToken = authenticationToken },
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         default,
                         null,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
                 Assert.That(factory.Manager!.AdmitAttempts[authenticationToken.ToString()], Is.EqualTo(1));
@@ -290,7 +290,7 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 var authenticationToken = new NodeId("missing-token", 2);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
                         CreateChannelContext(server),
                         new RequestHeader
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         default,
                         null,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
                 Assert.That(factory.Manager, Is.Not.Null);
@@ -331,7 +331,7 @@ namespace Opc.Ua.Server.Tests
             {
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ActivateSessionAsync(
                         CreateChannelContext(server),
                         new RequestHeader
@@ -343,7 +343,7 @@ namespace Opc.Ua.Server.Tests
                         [],
                         default,
                         null,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             }

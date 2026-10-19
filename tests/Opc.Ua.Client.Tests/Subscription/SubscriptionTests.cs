@@ -961,7 +961,7 @@ namespace Opc.Ua.Client.Subscriptions
                 async Task act() => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
                 // Assert
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
@@ -1148,13 +1148,13 @@ namespace Opc.Ua.Client.Subscriptions
                     List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
                     Assert.That(acknowledgements, Has.Count.EqualTo(2));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement.SubscriptionId == 10 &&
+                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 10 &&
                             acknowledgement.SequenceNumber == 4999));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement.SubscriptionId == 22 &&
+                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 22 &&
                             acknowledgement.SequenceNumber == 1));
                     Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement.SequenceNumber == 5000));
+                        acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
                 }
                 finally
                 {
@@ -1884,7 +1884,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.SetMessageStateForTest(17, 19, [11, 13]);
 
                 ServiceResultException exception =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await sut.RecreateAsync(default).ConfigureAwait(false));
 
                 Assert.That(exception.StatusCode,

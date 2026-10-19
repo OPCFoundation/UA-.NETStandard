@@ -61,6 +61,7 @@ namespace Opc.Ua.Redundancy.Server
         IHistorianBulkInsertProvider,
         IHistorianTransactionalProvider,
         IHistorianProviderIdentity,
+        IHistorianContinuationDependencies,
         IAsyncDisposable
     {
         /// <summary>
@@ -151,6 +152,17 @@ namespace Opc.Ua.Redundancy.Server
                     return m_cleanupFailure;
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetContinuationDependencies(
+            NodeId sourceNodeId,
+            HistorianResumeToken resumeToken,
+            out ArrayOf<NodeId> dependencies)
+        {
+            // Successor pages read the source archive's pinned generation, not other local Nodes.
+            dependencies = [];
+            return true;
         }
 
         /// <inheritdoc/>

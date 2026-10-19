@@ -201,7 +201,7 @@ namespace Opc.Ua.MachineTool.Tests
                 ActiveProgram = initial.ActiveProgram with { Name = "NotCommitted" },
                 Equipment = new() { Tools = [first, Tool("New", 2), Tool("Reject", 3)] }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(staged, Is.Not.Null);
             Assert.That(staged!.WorkCompleted, Is.True);
@@ -241,9 +241,9 @@ namespace Opc.Ua.MachineTool.Tests
                     {
                         if (name.Name == "Late")
                         {
-                            Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                                 await runtime!.RefreshAsync().ConfigureAwait(false));
-                            Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                                 await runtime!.DisposeAsync().ConfigureAwait(false));
                             entered.TrySetResult(true);
                             await release.Task.ConfigureAwait(false);
@@ -268,7 +268,7 @@ namespace Opc.Ua.MachineTool.Tests
                 Assert.That(lateResource!.Disposals, Is.EqualTo(1));
                 Assert.That(lateResource.WorkCompleted, Is.True);
                 Assert.That(runtime.Equipment.Observation!.Revision, Is.Zero);
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await runtime.RefreshAsync().ConfigureAwait(false));
             }
         }
@@ -308,7 +308,7 @@ namespace Opc.Ua.MachineTool.Tests
             {
                 Equipment = new() { Tools = [Tool("First", 1), Tool("New", 2)] }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(runtime.Equipment.Observation!.Equipment!.Tools.Count, Is.EqualTo(2));
             string version = runtime.Equipment.State.Tools.GetNodeVersionProperty()!.Value;
@@ -327,12 +327,11 @@ namespace Opc.Ua.MachineTool.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             MachineToolRuntime<MachineToolState>? runtime = null;
             bool rejected = false;
-            var resource = new EquipmentResource(onDispose: () =>
+            var resource = new EquipmentResource(onDispose: async () =>
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await runtime!.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
                 rejected = true;
-                return default;
             });
             var provider = new InMemoryMachineToolProvider(new MachineToolSnapshot
             {

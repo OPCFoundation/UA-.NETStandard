@@ -175,10 +175,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// because the HTTPS channel creates a fresh HTTP connection per request.
         /// </summary>
         [Test]
-        public void ReconnectAsyncThrowsException()
+        public async Task ReconnectAsyncThrowsException()
         {
             using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
-            Assert.CatchAsync(
+            await Assert.CatchAsync(
                 async () => await channel.ReconnectAsync(
                     connection: null,
                     ct: CancellationToken.None).ConfigureAwait(false));
@@ -189,13 +189,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// must throw <see cref="StatusCodes.BadNotConnected"/>.
         /// </summary>
         [Test]
-        public void SendRequestAsyncBeforeOpenThrowsBadNotConnected()
+        public async Task SendRequestAsyncBeforeOpenThrowsBadNotConnected()
         {
             using var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(
                     new ReadRequest(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotConnected));
         }
 
@@ -295,11 +295,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// must throw <see cref="ObjectDisposedException"/>.
         /// </summary>
         [Test]
-        public void CloseAsyncAfterDisposeThrowsObjectDisposedException()
+        public async Task CloseAsyncAfterDisposeThrowsObjectDisposedException()
         {
             var channel = new HttpsTransportChannel(Utils.UriSchemeHttps, m_telemetry);
             channel.Dispose();
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -384,10 +384,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await channel.OpenAsync(url, settings, CancellationToken.None).ConfigureAwait(false);
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(
                     new ReadRequest(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotConnected));
         }
 

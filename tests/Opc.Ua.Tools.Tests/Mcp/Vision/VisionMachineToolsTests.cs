@@ -127,9 +127,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
         [TestCase(0u)]
         [TestCase(101u)]
-        public void OversizedMetadataPagesFailBeforeSessionAccess(uint maximum)
+        public async Task OversizedMetadataPagesFailBeforeSessionAccess(uint maximum)
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.ResultsAsync(null!, "i=1", "List", maximumResults: maximum)
                     .ConfigureAwait(false));
         }
@@ -137,27 +137,27 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(-1)]
         [TestCase(0)]
         [TestCase(1048577)]
-        public void InvalidFileChunkLengthsFailBeforeSessionAccess(int length)
+        public async Task InvalidFileChunkLengthsFailBeforeSessionAccess(int length)
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.FileAsync(null!, "i=1", "Read", length: length).ConfigureAwait(false));
         }
 
         [TestCase("[]")]
         [TestCase("{}")]
         [TestCase(/*lang=json,strict*/ "{\"Parameters\":42}")]
-        public void MalformedStartParametersFailBeforeSessionAccess(string json)
+        public async Task MalformedStartParametersFailBeforeSessionAccess(string json)
         {
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await VisionMachineTools.CommandAsync(null!, "i=1", "StartSingleJob", parametersJson: json)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void OversizedStructuredFiltersFailBeforeSessionAccess()
+        public async Task OversizedStructuredFiltersFailBeforeSessionAccess()
         {
             string json = "{\"ignored\":\"" + new string('x', 1024 * 1024) + "\"}";
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.ResultsAsync(null!, "i=1", "List", filtersJson: json).ConfigureAwait(false));
         }
 
@@ -226,60 +226,60 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(0)]
         [TestCase(-1)]
         [TestCase(61)]
-        public void ObservationRejectsInvalidWindowsBeforeSessionAccess(int seconds)
+        public async Task ObservationRejectsInvalidWindowsBeforeSessionAccess(int seconds)
         {
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.ObserveAsync(null!, "i=2253", durationSeconds: seconds)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("Window"));
         }
 
         [TestCase(0)]
         [TestCase(-1)]
         [TestCase(101)]
-        public void ObservationRejectsInvalidCountsBeforeSessionAccess(int count)
+        public async Task ObservationRejectsInvalidCountsBeforeSessionAccess(int count)
         {
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.ObserveAsync(null!, "i=2253", maximumNotifications: count)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("MaximumNotifications"));
         }
 
         [TestCase("")]
         [TestCase("events")]
         [TestCase("All")]
-        public void ObservationRejectsUnknownModesBeforeSessionAccess(string mode)
+        public async Task ObservationRejectsUnknownModesBeforeSessionAccess(string mode)
         {
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await VisionMachineTools.ObserveAsync(null!, "i=2253", mode: mode).ConfigureAwait(false))!;
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await VisionMachineTools.ObserveAsync(null!, "i=2253", mode: mode).ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("mode"));
         }
 
         [Test]
-        public void ObservationRefusesRefreshInEventMode()
+        public async Task ObservationRefusesRefreshInEventMode()
         {
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await VisionMachineTools.ObserveAsync(null!, "i=2253", refreshConditions: true)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.Message, Does.Contain("condition mode"));
         }
 
         [TestCase(0u)]
         [TestCase(101u)]
-        public void RelationshipsRejectInvalidPageSizesBeforeSessionAccess(uint size)
+        public async Task RelationshipsRejectInvalidPageSizesBeforeSessionAccess(uint size)
         {
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.RelationshipsAsync(null!, "i=1", maximumResults: size)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("maximum"));
         }
 
         [Test]
-        public void RelationshipsRejectAnOffsetAboveTheTraversalBound()
+        public async Task RelationshipsRejectAnOffsetAboveTheTraversalBound()
         {
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.RelationshipsAsync(null!, "i=1", startIndex: 10001)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("startIndex"));
         }
 
@@ -287,12 +287,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("SameEntity", "Unknown", "direction")]
         [TestCase("sameentity", "Both", "relationship")]
         [TestCase("SameEntity", "forward", "direction")]
-        public void RelationshipsRejectUnknownSelectorsBeforeSessionAccess(
+        public async Task RelationshipsRejectUnknownSelectorsBeforeSessionAccess(
             string relationship, string direction, string parameter)
         {
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await VisionMachineTools.RelationshipsAsync(null!, "i=1", relationship, direction)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo(parameter));
         }
 
@@ -300,11 +300,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(true, 1048577)]
         [TestCase(false, 1048578)]
         [TestCase(true, 1048578)]
-        public void UploadRejectsDecodedContentAboveOneMiBEvenAtTheEncodedLimit(bool configuration, int length)
+        public async Task UploadRejectsDecodedContentAboveOneMiBEvenAtTheEncodedLimit(bool configuration, int length)
         {
             string content = Convert.ToBase64String(new byte[length]);
             Assert.That(content, Has.Length.EqualTo(1398104));
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             {
                 if (configuration)
                 {
@@ -314,17 +314,17 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 {
                     await VisionMachineTools.UploadRecipeAsync(null!, "i=1", content).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
             Assert.That(error.ParamName, Is.EqualTo("dataBase64"));
             Assert.That(error.Message, Does.Contain("file chunks"));
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public void UploadRejectsOversizedEncodedContentBeforeDecoding(bool configuration)
+        public async Task UploadRejectsOversizedEncodedContentBeforeDecoding(bool configuration)
         {
             string content = new('!', 1398105);
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             {
                 if (configuration)
                 {
@@ -334,15 +334,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 {
                     await VisionMachineTools.UploadRecipeAsync(null!, "i=1", content).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
             Assert.That(error.ParamName, Is.EqualTo("dataBase64"));
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public void UploadRejectsMalformedBase64BeforeSessionAccess(bool configuration)
+        public async Task UploadRejectsMalformedBase64BeforeSessionAccess(bool configuration)
         {
-            Assert.ThrowsAsync<FormatException>(async () =>
+            await Assert.ThrowsAsync<FormatException>(async () =>
             {
                 if (configuration)
                 {
@@ -358,11 +358,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(-1)]
         [TestCase(0)]
         [TestCase(1048577)]
-        public void DownloadRejectsInvalidLimitsBeforeSessionAccess(int limit)
+        public async Task DownloadRejectsInvalidLimitsBeforeSessionAccess(int limit)
         {
-            ArgumentOutOfRangeException error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException error = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionMachineTools.DownloadResultAsync(null!, "i=1", "result", maximumBytes: limit)
-                .ConfigureAwait(false))!;
+                .ConfigureAwait(false)))!;
             Assert.That(error.ParamName, Is.EqualTo("maximumBytes"));
         }
 
@@ -549,9 +549,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string mode, bool refresh, int duration, int count)
         {
             await using ToolSession harness = await ToolSession.CreateAsync().ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await VisionMachineTools.ObserveAsync(
-                    harness.Accessor, "i=2253", mode, refresh, duration, count).ConfigureAwait(false))!;
+                    harness.Accessor, "i=2253", mode, refresh, duration, count).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -569,9 +569,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
             await using ToolSession harness = await ToolSession.CreateAsync().ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await VisionMachineTools.ObserveAsync(harness.Accessor, "i=2253", ct: cancellation.Token)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(harness.Calls, Is.Empty);
             Assert.That(harness.Browses, Is.Empty);
@@ -676,7 +676,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         Variant.From(NodeId.Null), Variant.From(NodeId.Null), Variant.From(true),
                         Variant.From(domainError)]
             };
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (configuration)
                 {
@@ -688,7 +688,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     await VisionMachineTools.UploadRecipeAsync(harness.Accessor,
                         harness.SystemId.ToString(), "AQ==", externalId: "external").ConfigureAwait(false);
                 }
-            })!;
+            }))!;
             Assert.That(error.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(harness.Calls, Has.Count.EqualTo(1));
             Assert.That(harness.Calls[0].MethodId, Is.EqualTo(method));
@@ -707,7 +707,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             await using ToolSession harness = await ToolSession.CreateAsync().ConfigureAwait(false);
             const string identifier = /*lang=json,strict*/ """{"EncodingMask":1,"Id":"external","Version":"v3"}""";
-            ArgumentException error = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException error = (await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 if (configuration)
                 {
@@ -720,7 +720,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         harness.SystemId.ToString(), "AQ==", externalId: id, version: version,
                         identifierJson: identifier).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
             Assert.That(error.ParamName, Is.EqualTo(parameter));
             Assert.That(harness.Calls, Is.Empty);
             Assert.That(harness.Browses, Is.Empty);
@@ -753,17 +753,17 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 };
             if (releaseFails)
             {
-                AggregateException error = Assert.ThrowsAsync<AggregateException>(async () =>
+                AggregateException error = (await Assert.ThrowsAsync<AggregateException>(async () =>
                     await VisionMachineTools.DownloadResultAsync(harness.Accessor,
-                        harness.SystemId.ToString(), "result-4").ConfigureAwait(false))!;
+                        harness.SystemId.ToString(), "result-4").ConfigureAwait(false)))!;
                 Assert.That(error.InnerExceptions.Select(exception => ((ServiceResultException)exception).StatusCode),
                     Is.EqualTo([StatusCodes.BadNotSupported, StatusCodes.BadUserAccessDenied]));
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await VisionMachineTools.DownloadResultAsync(harness.Accessor,
-                        harness.SystemId.ToString(), "result-4").ConfigureAwait(false))!;
+                        harness.SystemId.ToString(), "result-4").ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(error.Message, Does.Contain("ResultTransfer"));
             }

@@ -82,7 +82,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task HandlerStateChangedFiresOnLifecycleV2Async(
             CancellationToken ct)
@@ -142,8 +141,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(HandlerStateChangedFiresOnLifecycleV2Async), AllowFailure = true)]
         public async Task FluentLoadSubscriptionsAsyncStreamV2Async(
             CancellationToken ct)
         {
@@ -232,8 +231,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(FluentLoadSubscriptionsAsyncStreamV2Async), AllowFailure = true)]
         public async Task SendInitialValuesOnTransferV2Async(CancellationToken ct)
         {
             // When the test runs against a reference server that denies
@@ -358,8 +357,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SendInitialValuesOnTransferV2Async), AllowFailure = true)]
         public async Task SnapshotEmptySubscriptionRoundTripV2Async(
             CancellationToken ct)
         {
@@ -441,8 +440,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(500)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SnapshotEmptySubscriptionRoundTripV2Async), AllowFailure = true)]
         public async Task SnapshotWithDataChangeFilterRoundTripV2Async(
             CancellationToken ct)
         {
@@ -549,8 +548,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(600)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SnapshotWithDataChangeFilterRoundTripV2Async), AllowFailure = true)]
         public async Task SnapshotUnderConcurrentMutationV2Async(
             CancellationToken ct)
         {

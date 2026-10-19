@@ -216,7 +216,7 @@ namespace Opc.Ua.MachineTool.Tests
             })
             {
                 equipment.Samples["Last"] = invalid;
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await peripheral.RefreshAsync().ConfigureAwait(false));
                 Assert.That(peripheral.Measurements[0].Sample.WrappedValue, Is.EqualTo(Variant.From(1d)));
                 Assert.That(peripheral.Measurements[1].Sample.WrappedValue, Is.EqualTo(Variant.From(2d)));
@@ -237,7 +237,7 @@ namespace Opc.Ua.MachineTool.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             var equipment = new WmtpTestEquipment();
             WmtpPeripheralBuilder builder = equipment.Builder(fixture.Context).WithFeatures(feature);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
             equipment.FullSnapshot();
             await using WmtpPeripheral peripheral = await builder.BuildAsync().ConfigureAwait(false);
             Assert.That(peripheral.Features, Is.EqualTo(feature));
@@ -255,24 +255,24 @@ namespace Opc.Ua.MachineTool.Tests
             await using var store = new InMemoryWmtpRecordStore(NUnitTelemetryContext.Create());
             WmtpPeripheralBuilder shared = equipment.Builder(fixture.Context)
                 .WithWorkRecords(store).WithServiceRecords(store);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await shared.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await shared.BuildAsync().ConfigureAwait(false));
             await using WmtpPeripheral peripheral = await equipment.Builder(fixture.Context).WithWorkRecords(store)
                 .BuildAsync().ConfigureAwait(false);
             var index = new WmtpRecordQuery { Selection = WmtpRecordSelection.Index };
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.WorkRecords!.ReadAsync(index, new WmtpRequest()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.WorkRecords!.CountAsync(index, new WmtpRequest()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.WorkRecords!.DeleteAsync(new WmtpRecordQuery(), new WmtpRequest())
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.SetCalibrationAsync(0, new WmtpRequest()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await peripheral.WorkRecords!.CountAsync(new WmtpRecordQuery(), null!).ConfigureAwait(false));
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await peripheral.WorkRecords!.CountAsync(new WmtpRecordQuery(), new WmtpRequest(), cancelled.Token)
                     .ConfigureAwait(false));
         }

@@ -120,11 +120,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void EmptyApplicationUriCannotBypassCertificateValidation(bool expired)
+        public async Task EmptyApplicationUriCannotBypassCertificateValidation(bool expired)
         {
             Certificate certificate = expired ? m_expired : m_untrusted;
             SecureChannelContext channel = CreateContext(certificate, Profiles.UaTcpTransport);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAndCloseAsync(channel, string.Empty, certificate.RawData.ToByteString())
                     .ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(
@@ -162,10 +162,10 @@ namespace Opc.Ua.Server.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase("urn:wrong:application")]
-        public void TrustedCertificateStillRequiresMatchingApplicationUri(string? applicationUri)
+        public async Task TrustedCertificateStillRequiresMatchingApplicationUri(string? applicationUri)
         {
             SecureChannelContext channel = CreateContext(m_trusted, Profiles.UaTcpTransport);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAndCloseAsync(channel, applicationUri!, m_trusted.RawData.ToByteString())
                     .ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
@@ -176,10 +176,10 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(Profiles.UaTcpTransport)]
         [TestCase(Profiles.UaWssTransport)]
-        public void SecureConversationRejectsADifferentApplicationCertificate(string profile)
+        public async Task SecureConversationRejectsADifferentApplicationCertificate(string profile)
         {
             SecureChannelContext channel = CreateContext(m_trusted, profile);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAndCloseAsync(channel, kApplicationUri, m_otherTrusted.RawData.ToByteString())
                     .ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -189,10 +189,10 @@ namespace Opc.Ua.Server.Tests
         /// Verifies that a secured session cannot omit its application certificate.
         /// </summary>
         [Test]
-        public void SecuredSessionRequiresTheApplicationCertificate()
+        public async Task SecuredSessionRequiresTheApplicationCertificate()
         {
             SecureChannelContext channel = CreateContext(m_trusted, Profiles.UaTcpTransport);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAndCloseAsync(channel, kApplicationUri, ByteString.Empty).ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }

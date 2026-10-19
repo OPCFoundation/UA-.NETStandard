@@ -838,8 +838,8 @@ namespace Opc.Ua.Server.Tests
                 ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
                 SessionSystemContext anonymous = CreateContext(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await OpenAsync(file, anonymous, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false))!;
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await OpenAsync(file, anonymous, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
         }
@@ -861,8 +861,8 @@ namespace Opc.Ua.Server.Tests
                 });
 
                 SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(1, 1));
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false))!;
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTransactionPending));
 
                 harness.Coordinator.CancelChanges(otherSession);
@@ -879,9 +879,9 @@ namespace Opc.Ua.Server.Tests
                 MethodState reset = harness.Node.ResetToServerDefaults!;
                 SessionSystemContext ctx = CreateContext(UserTokenType.Anonymous, MessageSecurityMode.SignAndEncrypt);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await reset.OnCallMethod2Async!(ctx, reset, harness.Node.NodeId, ArrayOf<Variant>.Empty,
-                        new List<Variant>(), CancellationToken.None).ConfigureAwait(false))!;
+                        new List<Variant>(), CancellationToken.None).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
         }
@@ -897,9 +897,9 @@ namespace Opc.Ua.Server.Tests
                 SessionSystemContext ctx = CreateContext(
                     UserTokenType.UserName, MessageSecurityMode.None, ObjectIds.WellKnownRole_SecurityAdmin);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await reset.OnCallMethod2Async!(ctx, reset, harness.Node.NodeId, ArrayOf<Variant>.Empty,
-                        new List<Variant>(), CancellationToken.None).ConfigureAwait(false))!;
+                        new List<Variant>(), CancellationToken.None).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             }
         }

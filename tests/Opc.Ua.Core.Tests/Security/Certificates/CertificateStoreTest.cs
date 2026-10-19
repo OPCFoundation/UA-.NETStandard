@@ -109,7 +109,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify new app certificate is stored in X509Store with private key.
         /// </summary>
         [Theory]
-        [Order(10)]
         public async Task VerifyAppCertX509StoreAsync(string storePath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -152,7 +151,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// with password for private key (PFX).
         /// </summary>
         [Test]
-        [Order(20)]
+        [DependsOnTest(nameof(VerifyAppCertX509StoreAsync), AllowFailure = true)]
         public async Task VerifyAppCertDirectoryStoreAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -237,7 +236,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify loading a private key does not change the configured certificate type.
         /// </summary>
         [Test]
-        [Order(21)]
+        [DependsOnTest(nameof(VerifyAppCertDirectoryStoreAsync), AllowFailure = true)]
         public async Task LoadPrivateKeyKeepsConfiguredAbstractApplicationCertificateTypeAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -296,7 +295,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify PEM Certs are stored in Directory Store
         /// </summary>
         [Test]
-        [Order(25)]
+        [DependsOnTest(nameof(LoadPrivateKeyKeepsConfiguredAbstractApplicationCertificateTypeAsync), AllowFailure = true)]
         public async Task VerifyPEMSupportDirectoryStoreAsync()
         {
 #if !NET8_0_OR_GREATER
@@ -386,7 +385,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify PEM Certs with private key in single file are stored in Directory Store
         /// </summary>
         [Test]
-        [Order(25)]
+        [DependsOnTest(nameof(VerifyPEMSupportDirectoryStoreAsync), AllowFailure = true)]
         public async Task VerifyPEMSupportPrivateKeyPairDirectoryStoreAsync()
         {
 #if !NET8_0_OR_GREATER
@@ -464,17 +463,17 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify that old invalid cert stores throw.
         /// </summary>
         [Test]
-        [Order(30)]
-        public void VerifyInvalidAppCertX509Store()
+        [DependsOnTest(nameof(VerifyPEMSupportPrivateKeyPairDirectoryStoreAsync), AllowFailure = true)]
+        public async Task VerifyInvalidAppCertX509Store()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Certificate appCertificate = GetTestCert();
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "User\\UA_MachineDefault",
                     telemetry: telemetry).ConfigureAwait(false));
-            _ = Assert.ThrowsAsync<ServiceResultException>(
+            _ = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await appCertificate.AddToStoreAsync(
                     CertificateStoreType.X509Store,
                     "System\\UA_MachineDefault",
@@ -485,8 +484,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify X509 Store supports no Crls on Linux or MacOs
         /// </summary>
         [Theory]
-        [Order(40)]
-        public void VerifyNoCrlSupportOnLinuxOrMacOsX509Store(string storePath)
+        [DependsOnTest(nameof(VerifyInvalidAppCertX509Store), AllowFailure = true)]
+        public async Task VerifyNoCrlSupportOnLinuxOrMacOsX509Store(string storePath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var x509Store = new X509CertificateStore(telemetry);
@@ -494,7 +493,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 Assert.That(x509Store.SupportsCRLs, Is.False);
-                Assert
+                await Assert
                     .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
             }
             else
@@ -519,7 +518,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// reachable on the platforms the outage hit.
         /// </remarks>
         [Theory]
-        [Order(45)]
+        [DependsOnTest(nameof(VerifyNoCrlSupportOnLinuxOrMacOsX509Store), AllowFailure = true)]
         public async Task IsRevokedAsyncReportsUnknownWithoutCrlSupportAsync(string storePath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -544,7 +543,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Add an new crl to the X509 store
         /// </summary>
         [Theory]
-        [Order(50)]
+        [DependsOnTest(nameof(IsRevokedAsyncReportsUnknownWithoutCrlSupportAsync), AllowFailure = true)]
         public async Task AddAndEnumerateNewCrlInX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -584,7 +583,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Enumerate and update an existing crl to the X509 store
         /// </summary>
         [Theory]
-        [Order(60)]
+        [DependsOnTest(nameof(AddAndEnumerateNewCrlInX509StoreOnWindowsAsync), AllowFailure = true)]
         public async Task UpdateExistingCrlInX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -624,7 +623,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Add a second crl to the X509 store
         /// </summary>
         [Theory]
-        [Order(70)]
+        [DependsOnTest(nameof(UpdateExistingCrlInX509StoreOnWindowsAsync), AllowFailure = true)]
         public async Task AddSecondCrlToX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -653,7 +652,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Delete both crls from the X509 store
         /// </summary>
         [Theory]
-        [Order(80)]
+        [DependsOnTest(nameof(AddSecondCrlToX509StoreOnWindowsAsync), AllowFailure = true)]
         public async Task DeleteCrlsFromX509StoreOnWindowsAsync(string storePath)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -695,8 +694,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// Verify X509 Store Extension methods throw on Linux or MacOs
         /// </summary>
         [Theory]
-        [Order(90)]
-        public void X509StoreExtensionsThrowException(string storePath)
+        [DependsOnTest(nameof(DeleteCrlsFromX509StoreOnWindowsAsync), AllowFailure = true)]
+        public async Task X509StoreExtensionsThrowException(string storePath)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Microsoft.Extensions.Logging.ILogger logger = telemetry.CreateLogger<CertificateStoreTest>();
@@ -721,11 +720,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 x509Store.Open(storePath);
                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(() =>
+                    await Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.AddCRLAsync(new X509CRL()));
-                    Assert
+                    await Assert
                         .ThrowsAsync<ServiceResultException>(() => x509Store.EnumerateCRLsAsync());
-                    Assert.ThrowsAsync<ServiceResultException>(() =>
+                    await Assert.ThrowsAsync<ServiceResultException>(() =>
                         x509Store.DeleteCRLAsync(new X509CRL()));
                 }
                 else
@@ -745,7 +744,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         /// <returns></returns>
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(X509StoreExtensionsThrowException), AllowFailure = true)]
         public void FindInCollectionTest()
         {
             // DateTime.UtcNow is used in certificate creation, so ensure all certs

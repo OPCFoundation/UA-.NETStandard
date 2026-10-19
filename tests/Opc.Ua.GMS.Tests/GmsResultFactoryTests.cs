@@ -70,7 +70,7 @@ namespace Opc.Ua.GMS.Tests
         /// Cancellation both before and after acquisition prevents a new workflow without disposing borrowed resources.
         /// </summary>
         [Test]
-        public void FactoryValidatesArgumentsAndCancellation()
+        public async Task FactoryValidatesArgumentsAndCancellation()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Mock<ISession> session = GmsResultClientTests.CreateSession([]);
@@ -80,10 +80,10 @@ namespace Opc.Ua.GMS.Tests
                 cancellation.Cancel();
                 return new ValueTask<ISession>(session.Object);
             }, telemetry);
-            Assert.ThrowsAsync<ArgumentException>(async () => await factory.CreateAsync(NodeId.Null));
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<ArgumentException>(async () => await factory.CreateAsync(NodeId.Null));
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await factory.CreateAsync(new NodeId("gms", 1), cancellation.Token));
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await factory.CreateAsync(new NodeId("gms", 1), cancellation.Token));
             Assert.Throws<ArgumentNullException>(() => _ = new GmsResultClientFactory(null!, telemetry));
             Assert.Throws<ArgumentNullException>(() => _ = new GmsResultClientFactory(

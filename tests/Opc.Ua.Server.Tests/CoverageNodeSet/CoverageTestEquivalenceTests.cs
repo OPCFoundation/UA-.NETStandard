@@ -162,7 +162,6 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// BrowseName and NodeClass.
         /// </summary>
         [Test]
-        [Order(100)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
         public async Task NodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
@@ -188,8 +187,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// Every catalogue reference edge exists in both address spaces.
         /// </summary>
         [Test]
-        [Order(200)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.References))]
+        [DependsOnTest(nameof(SecondaryNodeIdentityMatchesAcrossPipelinesAsync), AllowFailure = true)]
         public async Task ReferenceEdgeMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedReference expected)
         {
             bool inSourceGen = await ReferenceExistsAsync(m_sourceGen, m_sourceGenNs, expected).ConfigureAwait(false);
@@ -249,8 +248,8 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         /// with identical BrowseName and NodeClass.
         /// </summary>
         [Test]
-        [Order(150)]
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.SecondaryNodes))]
+        [DependsOnTest(nameof(NodeIdentityMatchesAcrossPipelinesAsync), AllowFailure = true)]
         public async Task SecondaryNodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
             NodeState sourceGen = (await FindAsync(m_sourceGen, SecondaryNs(m_sourceGen), expected.Id).ConfigureAwait(false))!;

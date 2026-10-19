@@ -806,7 +806,7 @@ namespace Opc.Ua.Tools.Tests
                 else
                 {
                     await m_mcp.CancelAsync(id).ConfigureAwait(false);
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await own.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                     Assert.That(delivered.IsCancellationRequested, Is.True);
                 }

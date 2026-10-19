@@ -181,14 +181,14 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task ScaleWithoutIdentificationOrRangeIsRejectedAsync()
         {
-            ServiceResultException? noIdentity = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? noIdentity = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_fixture.Manager.CreateScaleAsync(
                     m_fixture.Name("NoId"),
                     ScaleKind.Simple,
                     b => b.WithWeighingRange(new WeighingRangeDefinition(0, 1, 0.1, 0.1))));
             Assert.That(noIdentity!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
 
-            ServiceResultException? noRange = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? noRange = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_fixture.Manager.CreateScaleAsync(
                     m_fixture.Name("NoRange"),
                     ScaleKind.Simple,
@@ -199,12 +199,12 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task IdentificationWithoutMandatoryFieldsIsRejectedAsync()
         {
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_fixture.Manager.CreateScaleAsync(
                     m_fixture.Name("Bad"),
                     ScaleKind.Simple,
                     b => b.WithIdentification(new ScaleIdentification { SerialNumber = "1" })));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_fixture.Manager.CreateScaleAsync(
                     m_fixture.Name("Bad2"),
                     ScaleKind.Simple,
@@ -219,7 +219,7 @@ namespace Opc.Ua.Scales.Tests
         public async Task DuplicateScaleNameIsRejectedAsync()
         {
             await CreateAsync(ScaleKind.Simple, "Twin");
-            ServiceResultException? duplicate = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? duplicate = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAsync(ScaleKind.Simple, "Twin"));
             Assert.That(duplicate!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
         }
@@ -234,7 +234,7 @@ namespace Opc.Ua.Scales.Tests
             ScaleDeviceState? failed = null;
             bool attached = false;
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateAsync(ScaleKind.Simple, "Broken", b =>
                 {
                     failed = b.Scale;
@@ -283,7 +283,7 @@ namespace Opc.Ua.Scales.Tests
                 throw new InvalidOperationException("Registration failed.");
             };
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await CreateAsync(ScaleKind.Simple, "Broken").ConfigureAwait(false));
             m_fixture.Manager.PublishedForTest = null;
 
@@ -309,7 +309,7 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
-        public void AFailingDetachDoesNotReplaceThePublicationFailure()
+        public async Task AFailingDetachDoesNotReplaceThePublicationFailure()
         {
             // The parent is supplied by the caller and RemoveChild is virtual.
             // A detach that threw during the rollback escaped and replaced the
@@ -319,7 +319,7 @@ namespace Opc.Ua.Scales.Tests
             var parent = new DetachRefusingState(m_fixture.Name("DetachRefusingParent"));
             m_fixture.Manager.PublishedForTest = _ => throw new InvalidOperationException("Registration failed.");
 
-            InvalidOperationException? error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await m_fixture.Manager.CreateScaleAsync(
                     m_fixture.Name("Broken"),
                     ScaleKind.Simple,
@@ -1136,12 +1136,12 @@ namespace Opc.Ua.Scales.Tests
         [Test]
         public async Task StaticPresetWithoutProductsIsRejectedAsync()
         {
-            ServiceResultException? empty = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? empty = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAsync(ScaleKind.Simple, "Empty", b => b.WithProductionPreset(p => p.AllowSelection())));
             Assert.That(empty!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await CreateAsync(ScaleKind.Simple, "Unknown", b => b.WithProductionPreset(p => p.AddProduct("P1", new LocalizedText("A")).Select("P9"))));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await CreateAsync(ScaleKind.Simple, "Twice", b => b.WithProductionPreset(p => p
                     .AddProduct("P1", new LocalizedText("A"))
                     .AddProduct("P1", new LocalizedText("B")))));

@@ -178,10 +178,10 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(file.Open.OnCall!(
                 runtime.SystemContext, file.Open, file.NodeId, 1, ref handle).StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadShutdown));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await runtime.CreateScaleAsync(new QualifiedName("Stopped"), ScaleKind.Simple,
                     builder => ScalesNodeManagerTests.FullScale(builder, "S")));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await runtime.CreateScaleSystemAsync(new QualifiedName("StoppedSystem"),
                     builder => builder.WithIdentification(ScalesNodeManagerTests.Identity("SS"))));
             await runtime.DisposeAsync();
@@ -202,9 +202,9 @@ namespace Opc.Ua.Scales.Tests
                 Throws.InstanceOf<OperationCanceledException>());
             await runtime.CreateScaleSystemAsync(name,
                 builder => builder.WithIdentification(ScalesNodeManagerTests.Identity("System")));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await runtime.CreateScaleAsync(name, ScaleKind.Simple,
-                    builder => ScalesNodeManagerTests.FullScale(builder, "S")))!;
+                    builder => ScalesNodeManagerTests.FullScale(builder, "S"))))!;
             Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadBrowseNameDuplicated));
             Assert.That(runtime.Scales, Is.Empty);
             Assert.That(runtime.ScaleSystems, Has.Count.EqualTo(1));

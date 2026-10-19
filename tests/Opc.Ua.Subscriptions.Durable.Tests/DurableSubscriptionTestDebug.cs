@@ -39,7 +39,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         internal const int LoopCount = 100;
 
         [Test]
-        [Order(200)]
         [TestCase(false, false, TestName = "Validate Session Close")]
         [TestCase(true, false, TestName = "Validate Transfer")]
         [TestCase(true, true, TestName = "Restart of Server")]

@@ -90,7 +90,7 @@ namespace Opc.Ua.Client.Tests
 
         [Test]
         [Category("Programs")]
-        public void BadServiceEnvelopeCannotBeInterpretedAsSuccessfulMethodOutput()
+        public async Task BadServiceEnvelopeCannotBeInterpretedAsSuccessfulMethodOutput()
         {
             m_sessionMock.Setup(session => session.CallAsync(
                 It.IsAny<RequestHeader>(),
@@ -103,10 +103,10 @@ namespace Opc.Ua.Client.Tests
                 });
             TestObjectTypeClient client = CreateClient();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.InvokeAsync(
                     m_typeMethodId, kMethodNamespaceUri, kMethodBrowseName, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             VerifyCallCount(Times.Once());
@@ -151,16 +151,16 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void UnresolvedInstanceMethodIdSurfacesOriginalBadMethodInvalid()
+        public async Task UnresolvedInstanceMethodIdSurfacesOriginalBadMethodInvalid()
         {
             SetupCall(_ => BadMethodInvalid());
             SetupTranslate(NodeId.Null);
             TestObjectTypeClient client = CreateClient();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client
                     .InvokeAsync(m_typeMethodId, kMethodNamespaceUri, kMethodBrowseName, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
             // Only the initial attempt is made; the missed resolution means no retry.

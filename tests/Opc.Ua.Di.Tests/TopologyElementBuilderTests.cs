@@ -178,13 +178,13 @@ namespace Opc.Ua.Di.Tests
                 references,
                 Has.Some.Matches<ReferenceDescription>(
                     reference =>
-                        reference.NodeId == new ExpandedNodeId(engineeringUnitsId) &&
+                        reference is not null && reference.NodeId == new ExpandedNodeId(engineeringUnitsId) &&
                         reference.BrowseName == new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits)));
             Assert.That(
                 references,
                 Has.Some.Matches<ReferenceDescription>(
                     reference =>
-                        reference.NodeId == new ExpandedNodeId(euRangeId) &&
+                        reference is not null && reference.NodeId == new ExpandedNodeId(euRangeId) &&
                         reference.BrowseName == new QualifiedName(Opc.Ua.BrowseNames.EURange)));
 
             await AssertPropertyReadableAsync(

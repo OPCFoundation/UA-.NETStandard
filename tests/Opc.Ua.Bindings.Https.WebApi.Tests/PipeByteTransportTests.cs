@@ -107,12 +107,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// server-side only (built from an accepted Kestrel connection).
         /// </summary>
         [Test]
-        public void ConnectAsyncThrowsNotSupported()
+        public async Task ConnectAsyncThrowsNotSupported()
         {
             using var ctx = new TestConnectionContext();
             using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
 
-            Assert.ThrowsAsync<NotSupportedException>(
+            await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await transport.ConnectAsync(
                     new Uri("opc.tcp://localhost:4840"),
                     CancellationToken.None).ConfigureAwait(false));
@@ -211,12 +211,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// <see cref="ArgumentNullException"/>.
         /// </summary>
         [Test]
-        public void SendChunkAsyncNullBufferCollectionThrowsArgumentNull()
+        public async Task SendChunkAsyncNullBufferCollectionThrowsArgumentNull()
         {
             using var ctx = new TestConnectionContext();
             using var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await transport.SendChunkAsync(
                     (BufferCollection)null!,
                     CancellationToken.None).ConfigureAwait(false));
@@ -299,8 +299,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .ConfigureAwait(false);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
         }
@@ -356,9 +356,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             byte[] header = BuildValidChunk(size: kBufferSize + 1);
             await WriteToServerInputAsync(ctx, header).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
         }
 
@@ -379,9 +379,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             await WriteToServerInputAsync(ctx, bad).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
         }
 
@@ -401,9 +401,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             BinaryPrimitives.WriteUInt32BigEndian(chunk, messageType);
             await WriteToServerInputAsync(ctx, chunk).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
         }
 
@@ -420,9 +420,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // Complete the pipe without writing anything.
             await ctx.ServerInput.CompleteAsync().ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
@@ -446,9 +446,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             await writer.FlushAsync(CancellationToken.None).ConfigureAwait(false);
             await writer.CompleteAsync().ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
@@ -482,16 +482,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// <see cref="StatusCodes.BadConnectionClosed"/>.
         /// </summary>
         [Test]
-        public void SendChunkAsyncOnClosedTransportThrowsBadConnectionClosed()
+        public async Task SendChunkAsyncOnClosedTransportThrowsBadConnectionClosed()
         {
             using var ctx = new TestConnectionContext();
             var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
             transport.Close();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.SendChunkAsync(
                     new ReadOnlyMemory<byte>(new byte[8]),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
@@ -543,7 +543,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// instead of leaking the writer's <see cref="InvalidOperationException"/>.
         /// </summary>
         [Test]
-        public void SendChunkAsyncRacingCloseThrowsBadConnectionClosed()
+        public async Task SendChunkAsyncRacingCloseThrowsBadConnectionClosed()
         {
             using var ctx = new TestConnectionContext();
             var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
@@ -551,10 +551,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 ctx.Transport.Input,
                 new CloseOnGetMemoryPipeWriter(ctx.Transport.Output, transport.Close));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.SendChunkAsync(
                     new ReadOnlyMemory<byte>(new byte[8]),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
             Assert.That(ex.InnerException, Is.TypeOf<InvalidOperationException>());
         }
@@ -564,7 +564,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// with <see cref="StatusCodes.BadConnectionClosed"/>.
         /// </summary>
         [Test]
-        public void SendChunkAsyncBufferCollectionRacingCloseThrowsBadConnectionClosed()
+        public async Task SendChunkAsyncBufferCollectionRacingCloseThrowsBadConnectionClosed()
         {
             using var ctx = new TestConnectionContext();
             var transport = new PipeByteTransport(ctx, m_bufferManager, kBufferSize, m_telemetry);
@@ -576,10 +576,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 new ArraySegment<byte>(new byte[8])
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.SendChunkAsync(
                     buffers,
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
             Assert.That(ex.InnerException, Is.TypeOf<InvalidOperationException>());
         }

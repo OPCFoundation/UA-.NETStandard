@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.Subscriptions
                     SubscriptionStateSnapshot.AsOptions(options, 8, [], [])
                 ];
 
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await sut.RestoreGroupAsync(m_mockNotificationDataHandler.Object,
                         snapshots, true, default).ConfigureAwait(false));
 

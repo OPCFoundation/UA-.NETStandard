@@ -280,9 +280,9 @@ namespace Opc.Ua.GranulateDrying.Tests
             });
         }
 
-        internal static void AssertFailure(Func<Task> action, StatusCode status)
+        internal static async Task AssertFailure(Func<Task> action, StatusCode status)
         {
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await action().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
         }

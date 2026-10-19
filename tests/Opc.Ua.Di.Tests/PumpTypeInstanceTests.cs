@@ -138,7 +138,7 @@ namespace Opc.Ua.Di.Tests
                 deviceSetReferences,
                 Has.Some.Matches<ReferenceDescription>(
                     reference =>
-                        reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
+                        reference is not null && reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
                         ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             manager.Server.NamespaceUris) ==
@@ -147,7 +147,7 @@ namespace Opc.Ua.Di.Tests
                 deviceSetReferences,
                 Has.None.Matches<ReferenceDescription>(
                     reference =>
-                        reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
+                        reference is not null && reference.NodeId == new ExpandedNodeId(pump.NodeId) &&
                         ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             manager.Server.NamespaceUris) ==

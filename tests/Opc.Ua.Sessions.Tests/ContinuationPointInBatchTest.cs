@@ -253,6 +253,7 @@ namespace Opc.Ua.Sessions.Tests
         /// empty references with a Good status.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(MBNodeCacheBrowseAllVariablesMultipleNodesAsync), AllowFailure = true)]
         public async Task ManagedBrowsePropagatesClosedChannelAsync()
         {
             await Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -274,6 +275,7 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
+        [DependsOnTest(nameof(MBNodeCacheBrowseAllVariablesMultipleNodesAsync), AllowFailure = true)]
         public async Task ManagedBrowsePropagatesCancellationAsync(bool empty, bool closeChannel)
         {
             if (closeChannel)
@@ -298,6 +300,7 @@ namespace Opc.Ua.Sessions.Tests
         /// successful nodes or throwing a request-level exception.
         /// </summary>
         [Test]
+        [DependsOnTest(nameof(MBNodeCacheBrowseAllVariablesMultipleNodesAsync), AllowFailure = true)]
         public async Task ManagedBrowsePreservesPerNodeResultsAsync()
         {
             (ArrayOf<ArrayOf<ReferenceDescription>> references, ArrayOf<ServiceResult> errors) =
@@ -333,7 +336,6 @@ namespace Opc.Ua.Sessions.Tests
         /// <para>Browse all variables in the objects folder.</para>
         /// </summary>
         [Theory]
-        [Order(100)]
         public async Task MBNodeCacheBrowseAllVariablesAsync(ManagedBrowseTestDataProvider testData)
         {
             ISession theSession = Session;
@@ -419,7 +421,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </para>
         /// </summary>
         [Theory]
-        [Order(200)]
+        [DependsOnTest(nameof(MBNodeCacheBrowseAllVariablesAsync), AllowFailure = true)]
         public async Task ManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
@@ -557,7 +559,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </para>
         /// </summary>
         [Theory]
-        [Order(210)]
+        [DependsOnTest(nameof(ManagedBrowseWithManyContinuationPointsAsync), AllowFailure = true)]
         public async Task BalancedManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData)
         {
@@ -692,7 +694,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </para>
         /// </summary>
         [Theory]
-        [Order(300)]
+        [DependsOnTest(nameof(BalancedManagedBrowseWithManyContinuationPointsAsync), AllowFailure = true)]
         public async Task ParallelManagedBrowseWithManyContinuationPointsAsync(
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy)
@@ -833,8 +835,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Theory]
-        [Order(400)]
         [CancelAfter(300_000)]
+        [DependsOnTest(nameof(ParallelManagedBrowseWithManyContinuationPointsAsync), AllowFailure = true)]
         public async Task MBNodeCacheBrowseAllVariablesMultipleNodesAsync(
             ManagedBrowseTestDataProvider testData,
             ContinuationPointPolicy policy,

@@ -2,7 +2,7 @@
 # Images CI selects prebuilt and supplies its native, portable IL publish directory.
 ARG PUBLISH_SOURCE=build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.402-azurelinux3.0 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .

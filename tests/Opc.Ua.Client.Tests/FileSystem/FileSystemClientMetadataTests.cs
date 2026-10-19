@@ -220,19 +220,19 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
             int callsBeforeOperations = harness.CallRequests.Count;
             int invocationsBeforeOperations = harness.SessionMock.Invocations.Count;
-            InvalidOperationException? delete = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? delete = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await file.DeleteAsync().ConfigureAwait(false));
-            InvalidOperationException? move = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? move = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await file.MoveToAsync(client.Root, "moved.bin").ConfigureAwait(false));
-            InvalidOperationException? copy = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? copy = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await file.CopyToAsync("/copied.bin").ConfigureAwait(false));
             // A nested destination is not resolved first: the directory does
             // not exist, and the detached file is still the reason given.
-            InvalidOperationException? nestedMove = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? nestedMove = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await file.MoveToAsync("/missing/moved.bin").ConfigureAwait(false));
-            InvalidOperationException? nestedCopy = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? nestedCopy = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await file.CopyToAsync("/missing/copied.bin").ConfigureAwait(false));
-            IOException? root = Assert.ThrowsAsync<IOException>(
+            IOException? root = await Assert.ThrowsAsync<IOException>(
                 async () => await client.Root.DeleteAsync().ConfigureAwait(false));
 
             Assert.Multiple(() =>

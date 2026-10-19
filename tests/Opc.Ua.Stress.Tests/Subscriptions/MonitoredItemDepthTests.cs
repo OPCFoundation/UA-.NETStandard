@@ -895,7 +895,7 @@ queueSize: 1, discardOldest: true))
                     mode: MonitoringMode.Sampling)).ConfigureAwait(false);
             uint linkedId = createResp.Results[0].MonitoredItemId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.SetTriggeringAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.SetTriggeringAsync(
                     null, m_subscriptionId, 999999u,
                     new uint[] { linkedId }.ToArrayOf(),
                     default,

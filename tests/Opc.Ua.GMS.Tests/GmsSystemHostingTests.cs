@@ -209,7 +209,7 @@ namespace Opc.Ua.GMS.Tests
             await first.DisposeAsync().ConfigureAwait(false);
             await first.DisposeAsync().ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
             Assert.That(subscriptions.Count, Is.EqualTo(before));
             Assert.That(shared.Disposed, Is.False);
             Assert.That(shared.Connected, Is.True);
@@ -264,8 +264,8 @@ namespace Opc.Ua.GMS.Tests
                 return cached;
             }, telemetry);
 
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
-                () => factory.CreateAsync(cancellation.Token))!;
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token)))!;
 
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(acquisitions, Is.EqualTo(1));
@@ -297,8 +297,8 @@ namespace Opc.Ua.GMS.Tests
                 Is.EqualTo(StatusCodes.Good));
             Assert.That(shared.Disposed, Is.False);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => provider.GetRequiredService<IGmsClientFactory>().CreateAsync())!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => provider.GetRequiredService<IGmsClientFactory>().CreateAsync()))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(shared.Disposed, Is.False);
@@ -311,7 +311,7 @@ namespace Opc.Ua.GMS.Tests
         /// A pre-cancelled request never invokes the session accessor.
         /// </summary>
         [Test]
-        public void ClientFactoryRejectsCancellationBeforeAcquisition()
+        public async Task ClientFactoryRejectsCancellationBeforeAcquisition()
         {
             bool acquired = false;
             var factory = new GmsClientFactory(_ =>
@@ -322,8 +322,8 @@ namespace Opc.Ua.GMS.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
-                () => factory.CreateAsync(cancellation.Token))!;
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token)))!;
 
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(acquired, Is.False);

@@ -180,26 +180,26 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void ModbusChannelWriteToDiscreteInputIsRejectedDuringActivation()
+        public async Task ModbusChannelWriteToDiscreteInputIsRejectedDuringActivation()
         {
             using var server = new TestModbusServer();
             WotCompiledForm form = BuildRawForm(
                 server.Port, "discreteInput", WoTBindingCapabilityEnum.WriteProperty, "writeproperty");
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusChannelWriteToInputRegisterIsRejectedDuringActivation()
+        public async Task ModbusChannelWriteToInputRegisterIsRejectedDuringActivation()
         {
             using var server = new TestModbusServer();
             WotCompiledForm form = BuildRawForm(
                 server.Port, "inputRegister", WoTBindingCapabilityEnum.WriteProperty, "writeproperty");
             var executor = new ModbusWotBindingExecutor();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await executor
                     .ActivateAsync(form, new WotExecutorContext())
                     .ConfigureAwait(false));
@@ -291,7 +291,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
 
             // Second dispose must not throw.
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await channel.DisposeAsync().ConfigureAwait(false));
         }
 
@@ -502,7 +502,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             using var client = new ModbusTcpClient("127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? ex = Assert.ThrowsAsync<ModbusException>(async () =>
+            ModbusException? ex = await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(
                     1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
@@ -510,12 +510,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void ModbusTcpClientNotConnectedThrowsModbusException()
+        public async Task ModbusTcpClientNotConnectedThrowsModbusException()
         {
             // Never call ConnectAsync — the client is not connected.
             using var client = new ModbusTcpClient("127.0.0.1", 1, TimeSpan.FromSeconds(1));
 
-            ModbusException? ex = Assert.ThrowsAsync<ModbusException>(async () =>
+            ModbusException? ex = await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(
                     1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
@@ -533,7 +533,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? ex = Assert.ThrowsAsync<ModbusException>(async () =>
+            ModbusException? ex = await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(
                     1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
@@ -552,7 +552,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? ex = Assert.ThrowsAsync<ModbusException>(async () =>
+            ModbusException? ex = await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(
                     1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 
@@ -577,7 +577,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "127.0.0.1", server.Port, TimeSpan.FromSeconds(2));
             await client.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ModbusException? ex = Assert.ThrowsAsync<ModbusException>(async () =>
+            ModbusException? ex = await Assert.ThrowsAsync<ModbusException>(async () =>
                 await client.ReadHoldingRegistersAsync(
                     1, 0, 1, CancellationToken.None).ConfigureAwait(false));
 

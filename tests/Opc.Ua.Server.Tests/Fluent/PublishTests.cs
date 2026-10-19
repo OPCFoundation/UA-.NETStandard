@@ -679,7 +679,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             // Cancelling the seal is not a configuration error, so it must not
             // be wrapped as one.
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await manager.EventSources
                     .CompleteRegistrationsAsync(cts.Token).ConfigureAwait(false));
             Assert.That(manager.RootNotifiers, Does.Not.ContainKey(notifier.NodeId));
@@ -712,7 +712,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             // registration.
             await WaitForAsync(iteratorEntered.Task).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.EventSources.CompleteRegistrationsAsync()
                     .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -1373,8 +1373,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 clock.Advance(deadline - TimeSpan.FromTicks(1));
                 Assert.That(transition.IsCompleted, Is.False);
                 clock.Advance(TimeSpan.FromTicks(1));
-                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                    async () => await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false))!;
+                AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                    async () => await transition.WaitAsync(s_signalTimeout).ConfigureAwait(false)))!;
                 Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
                 Assert.That(failure.InnerExceptions[0], Is.SameAs(originalFailure));
                 Assert.That(failure.InnerExceptions[1],

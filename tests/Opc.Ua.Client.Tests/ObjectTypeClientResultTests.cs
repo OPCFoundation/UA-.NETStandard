@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
         [TestCase("missing-result")]
         [TestCase("extra-result")]
         [TestCase("extra-diagnostic")]
-        public void CallWithResultAsyncRejectsInvalidResponseCardinality(string shape)
+        public async Task CallWithResultAsyncRejectsInvalidResponseCardinality(string shape)
         {
             var response = new CallResponse
             {
@@ -102,16 +102,16 @@ namespace Opc.Ua.Client.Tests
             }
             SetupResponse(response);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.CallWithResultAsync(
-                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false))!;
+                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             VerifyOneCallAndNoFallback();
         }
 
         [Test]
-        public void CallWithResultAsyncRejectsBadServiceStatusEvenWithGoodMethodResult()
+        public async Task CallWithResultAsyncRejectsBadServiceStatusEvenWithGoodMethodResult()
         {
             SetupResponse(new CallResponse
             {
@@ -120,16 +120,16 @@ namespace Opc.Ua.Client.Tests
                     [new CallMethodResult { StatusCode = StatusCodes.Good, OutputArguments = [Variant.From(123)] }]
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.CallWithResultAsync(
-                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false))!;
+                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             VerifyOneCallAndNoFallback();
         }
 
         [Test]
-        public void CallWithResultAsyncPropagatesServiceExceptionWithoutRetry()
+        public async Task CallWithResultAsyncPropagatesServiceExceptionWithoutRetry()
         {
             var primary = new ServiceResultException(StatusCodes.BadTimeout);
             m_session.Setup(s => s.CallAsync(
@@ -137,9 +137,9 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(primary);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.CallWithResultAsync(
-                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false))!;
+                    new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             VerifyOneCallAndNoFallback();
@@ -147,15 +147,15 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void CallWithResultAsyncRejectsNonLocalMethodWithoutDispatch(bool remote)
+        public async Task CallWithResultAsyncRejectsNonLocalMethodWithoutDispatch(bool remote)
         {
             ExpandedNodeId method = remote
                 ? new ExpandedNodeId(new NodeId(91u, 1), null, 3)
                 : new ExpandedNodeId(91u, "urn:missing:method");
             int namespaceCount = m_context.NamespaceUris.Count;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client.CallWithResultAsync(method, []).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.CallWithResultAsync(method, []).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(m_context.NamespaceUris.Count, Is.EqualTo(namespaceCount));
@@ -165,11 +165,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CallWithResultAsyncRejectsNullProxy()
+        public async Task CallWithResultAsyncRejectsNullProxy()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await ObjectTypeClientExtensions.CallWithResultAsync(
-                    null!, new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false))!;
+                    null!, new ExpandedNodeId(91u, kNamespace), []).ConfigureAwait(false)))!;
             Assert.That(exception.ParamName, Is.EqualTo("client"));
         }
 

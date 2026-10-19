@@ -92,7 +92,7 @@ namespace Opc.Ua.MachineTool.Tests
                 Revision = 1,
                 Alerts = [alert with { Severity = 800 }, alert with { Key = "Second" }, alert with { Key = "Third" }]
             };
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             Assert.That(original.Severity!.Value, Is.EqualTo(500));
             Assert.That(runtime.Notifications.TryGetAlert("Second", out _), Is.False);
@@ -142,7 +142,7 @@ namespace Opc.Ua.MachineTool.Tests
                 Revision = 1,
                 Messages = [MachineToolNotificationValidationTests.Message(1)]
             };
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             Assert.That(runtime.Notifications!.Observation!.Revision, Is.EqualTo(1));
             fail = false;
@@ -172,7 +172,7 @@ namespace Opc.Ua.MachineTool.Tests
                 Provider = provider,
                 CreateAlertAsync = (_, _, _, _) => new ValueTask<AlertState>(existing!)
             };
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Builder(fixture, options).BuildAsync().ConfigureAwait(false));
             Assert.That(fixture.Context.Manager.FindPredefinedNode(existing!.NodeId), Is.SameAs(existing));
             Assert.That(existing.ActiveState!.Id!.Value, Is.True);

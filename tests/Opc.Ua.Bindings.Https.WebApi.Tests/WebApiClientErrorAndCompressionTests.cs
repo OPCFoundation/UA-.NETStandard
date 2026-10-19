@@ -80,7 +80,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [TestCaseSource(nameof(HttpStatusCases))]
-        public void HttpErrorStatusSurfacesAsServiceResultException(
+        public async Task HttpErrorStatusSurfacesAsServiceResultException(
             HttpStatusCode status,
             bool sendCredentials,
             StatusCode expected)
@@ -91,7 +91,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 BearerToken = sendCredentials ? "token" : null
             });
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(expected));
@@ -110,7 +110,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         /// </summary>
         [TestCase(HttpStatusCode.TooManyRequests)]
         [TestCase(HttpStatusCode.ServiceUnavailable)]
-        public void ThrottledRequestSurfacesAsServerTooBusyWithRetryAfter(HttpStatusCode status)
+        public async Task ThrottledRequestSurfacesAsServerTooBusyWithRetryAfter(HttpStatusCode status)
         {
             using var handler = new StubHandler(_ =>
             {
@@ -120,7 +120,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             });
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions());
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
@@ -128,7 +128,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void ConnectionFailureMapsLikeTheTransportChannel()
+        public async Task ConnectionFailureMapsLikeTheTransportChannel()
         {
             var failure = new HttpRequestException(
                 "Connection refused",
@@ -136,7 +136,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             using var handler = new StubHandler(_ => throw failure);
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions());
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
@@ -146,7 +146,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void TlsHandshakeFailureMapsLikeTheTransportChannel()
+        public async Task TlsHandshakeFailureMapsLikeTheTransportChannel()
         {
             var failure = new HttpRequestException(
                 "The SSL connection could not be established.",
@@ -154,7 +154,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             using var handler = new StubHandler(_ => throw failure);
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions());
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(HttpsTransportChannel.MapRequestFailure(failure)));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void ElapsedRequestTimeoutSurfacesAsBadRequestTimeout()
+        public async Task ElapsedRequestTimeoutSurfacesAsBadRequestTimeout()
         {
             using var handler = new StubHandler(async (_, ct) =>
             {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 RequestTimeout = TimeSpan.FromMilliseconds(100)
             });
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
@@ -182,7 +182,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void CallerCancellationStaysOperationCanceled()
+        public async Task CallerCancellationStaysOperationCanceled()
         {
             using var handler = new StubHandler(async (_, ct) =>
             {
@@ -192,7 +192,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions());
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await client.ReadAsync(new ReadRequest(), cts.Token).ConfigureAwait(false));
         }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void GzipBodyIsBoundedByMaxMessageSizeAfterInflating()
+        public async Task GzipBodyIsBoundedByMaxMessageSizeAfterInflating()
         {
             // 1 MiB of zeros compresses to about 1 KiB; the budget applies
             // to the inflated body.
@@ -270,7 +270,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             using var handler = new StubHandler(_ => GzipResponse(new byte[1024 * 1024]));
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = context });
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadResponseTooLarge));
@@ -299,13 +299,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void PlainBodyDeclaringMoreThanTheLimitIsRejectedUpFront()
+        public async Task PlainBodyDeclaringMoreThanTheLimitIsRejectedUpFront()
         {
             byte[] body = new byte[32];
             using var content = new ByteArrayContent(body);
             content.Headers.ContentLength = body.Length;
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await HttpResponseBodyReader.ReadAsync(content, 16, CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -313,7 +313,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void CorruptGzipIsADecodingError()
+        public async Task CorruptGzipIsADecodingError()
         {
             using var handler = new StubHandler(_ =>
             {
@@ -326,7 +326,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             });
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = CreateContext() });
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -334,7 +334,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void UnsupportedContentEncodingIsRejected()
+        public async Task UnsupportedContentEncodingIsRejected()
         {
             using var handler = new StubHandler(_ =>
             {
@@ -344,7 +344,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             });
             using WebApiClient client = CreateClient(handler, new WebApiClientOptions { MessageContext = CreateContext() });
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(new ReadRequest()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
