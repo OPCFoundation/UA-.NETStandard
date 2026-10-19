@@ -2432,6 +2432,12 @@ namespace Opc.Ua
         private T[] ReadArrayElements<T, TReader>(int length, TReader reader)
             where TReader : struct, IElementReader<T>
         {
+            // an empty array is immutable: all share one instance.
+            if (length == 0)
+            {
+                return Array.Empty<T>();
+            }
+
             int capacity = GetInitialArrayCapacity<T>(length);
             if (capacity < length)
             {
@@ -2526,6 +2532,11 @@ namespace Opc.Ua
         /// against the remaining bytes by the caller.</param>
         private T[] ReadFixedWidthArray<T>(int length) where T : unmanaged
         {
+            if (length == 0)
+            {
+                return Array.Empty<T>();
+            }
+
             // The caller verified the length against the remaining bytes. If
             // they are unknown the array grows with the bytes actually read.
             int capacity = GetRemainingLength() >= 0
