@@ -101,8 +101,9 @@ foreach ($file in $pins.windows.native_files) {
         default { throw "Unknown native-tool input base '$($file.base)'." }
     }
     $path = Join-Path $base $file.path
-    if ((Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash -ne $file.sha256) {
-        throw "The accepted MSVC/SDK input differs at '$($file.path)'."
+    $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+    if ($actualHash -ne $file.sha256) {
+        throw "The accepted MSVC/SDK input differs at '$($file.path)' (expected '$($file.sha256)', found '$actualHash')."
     }
 }
 
