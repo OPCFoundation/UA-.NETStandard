@@ -16,6 +16,20 @@ counters taken in the parent process measure the client stack without the server
 `LoadTest` fixture in `tests/Opc.Ua.Sessions.Tests` checks correctness under load; this harness
 measures it.
 
+- [Build](#build)
+- [Run](#run): `ServerLoadHarness run` scenarios and options
+- [External benchmark workers](#external-benchmark-workers): `native-read`, `native-counters`,
+  [steady-state parameters](#steady-state-parameters)
+- [Analyse a trace](#analyse-a-trace): `TraceAnalyzer` modes for CPU, allocations, lock
+  contention, GC, suspensions and thread scheduling
+- [A/B comparison](#ab-comparison): `ab.sh`, `ab-summary.ps1`
+- [Measurement method](#measurement-method): [run record](#run-record),
+  [reading the result block](#reading-the-result-block), [artifacts](#artifacts)
+
+Current results and the recommended server baseline are in
+[docs/Benchmarks.md](../docs/Benchmarks.md#server-request-throughput); the runtime settings
+are described in [docs/ServerScalability.md](../docs/ServerScalability.md#runtime-and-host-settings).
+
 ## Build
 
 ```bash
@@ -277,5 +291,45 @@ These rules proved reliable on a developer machine shared with other work:
   every round during which one ran, and repeat it.
 - Run **5 rounds** per scenario and report the **median with the range** (min–max) of each side.
   A difference inside the ranges of both sides is not a result.
-- Name the machine, the operating system, the .NET version, the commit and the date with every
-  number you publish.
+- Publish every number with its [run record](#run-record) and keep the result files.
+
+### Run record
+
+Record with each published result:
+
+| Item | Where to get it |
+|---|---|
+| Date, commit or package version | `git rev-parse --short HEAD`; `version.json` for the version line |
+| SDK and runtime | `dotnet --version`, `dotnet --list-runtimes` |
+| OS and build | `winver` / `ver`, or `uname -a` and `/etc/os-release` |
+| CPU model and topology | cores, logical processors and core types (Sysinternals Coreinfo, `lscpu --extended`) |
+| Affinity and processor count | `--server-affinity`, `--client-affinity`, `SERVER_DOTNET_PROCESSOR_COUNT`, or how the harness was started |
+| Power policy | `powercfg /getactivescheme`; on Linux the cpufreq governor |
+| Memory | installed RAM, container limits |
+| GC and JIT settings | `SERVER_DOTNET_*` variables set for the run (`gcServer`, `GCDynamicAdaptationMode`, `TieredCompilation`) |
+| Security, placement | `--security`; whether client and server shared the machine |
+| Workload | the full `RESULT` line: scenario, sessions or clients, in flight, subscriptions, monitored items, queue sizes, publishing, sampling and write intervals, `--threads`, `--queue` |
+| Duration, repeats | `--duration`/`--warmup` or `--iterations`/`--warmup-calls`; rounds, and how many were discarded |
+
+### Reading the result block
+
+Each run prints one `RESULT` block (and appends it to `--out <file>`); the first line repeats
+the scenario and all arguments.
+
+| Metric | Line and field |
+|---|---|
+| Throughput | `client:` `req/s` (requests), `notif/s` (`sub`), `events/s` and `generated/s` (`events`), `samples/s` (`native-counters`) |
+| Delivery, completeness | `client:` `received/expected` (`sub`, `events`); `PASS`/`FAIL` for `native-counters` |
+| Latency | `client:` percentiles `p50`/`p90`/`p99`; `write->notify latency` (`sub`), `event->notify latency` (`events`) |
+| CPU and allocation per operation | `per-op:` `cpuUs`, `allocB` per request or notification; `per-op2:` per written value or generated event |
+| GC | `server:` `gen0`/`gen1`/`gen2` collections and `pauseMs` in the window; `client-process:` the same for the client |
+| CPU use | `server:` `cpuMs` and `cpuCores` (average busy cores) |
+
+### Artifacts
+
+| Artifact | Produced by | Content |
+|---|---|---|
+| Result file | `run --out <file>` | `RESULT` blocks, one per run |
+| `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers with the result blocks |
+| Summary | `ab-summary.ps1` | medians per scenario, `baseline -> candidate (change)` |
+| `.nettrace` | `run --trace <file>` | `dotnet-trace` recording of the measurement window, input of `TraceAnalyzer` |

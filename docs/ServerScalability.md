@@ -14,6 +14,7 @@ This document describes how the reference server scales to large numbers of conc
   - [Dynamic GC heap count (DATAS)](#dynamic-gc-heap-count-datas)
   - [Hybrid CPUs and processor affinity](#hybrid-cpus-and-processor-affinity)
   - [JIT warm-up](#jit-warm-up)
+  - [Verifying the effective configuration](#verifying-the-effective-configuration)
 - [Configuration](#configuration)
   - [Request workers and the request queue](#request-workers-and-the-request-queue)
 - [Scaling out](#scaling-out)
@@ -135,6 +136,27 @@ The benchmark's default parameters (10,000 warm-up and 100,000 measured calls pe
 - Warm up before measuring: run the load until the per-request cost stops falling (for the benchmark above, 100,000 warm-up calls per client), then measure.
 - Publish with ReadyToRun (`<PublishReadyToRun>true</PublishReadyToRun>`) so that start-up code begins precompiled instead of at tier 0; tiered compilation still re-optimizes the hot methods.
 - `TieredPGO` (on by default since .NET 8) and `TieredCompilation` can be set in the project file (`<TieredPGO>`, `<TieredCompilation>`) or as `DOTNET_TieredPGO` and `DOTNET_TieredCompilation`. Disabling tiered compilation compiles every method fully optimized at first call, which removes the warm-up phase but loses the profile-guided optimization and makes start-up slower; measure both settings at steady state before changing them.
+
+### Verifying the effective configuration
+
+A setting in the project file reaches the runtime through `<app>.runtimeconfig.json` next to the executable (`configProperties`, for example `"System.GC.Server": true`); a `DOTNET_` environment variable takes precedence over it. To check what a running server uses, log it at start-up:
+
+```csharp
+using System.Runtime;
+
+IReadOnlyDictionary<string, object> gc = GC.GetConfigurationVariables();
+logger.LogInformation(
+    "ServerGC={ServerGC} DATAS={Datas} HeapCount={HeapCount} ProcessorCount={ProcessorCount} Runtime={Runtime}",
+    GCSettings.IsServerGC,
+    gc["GCDynamicAdaptationMode"],
+    gc["HeapCount"],
+    Environment.ProcessorCount,
+    System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+```
+
+`GCDynamicAdaptationMode` is `1` while DATAS is on; with DATAS, `HeapCount` is the upper bound of heaps, not the number in use. `Environment.ProcessorCount` shows the processor count the runtime sized itself for, which reflects the start-up affinity and `DOTNET_PROCESSOR_COUNT`. From outside the process, `dotnet-counters monitor -p <pid>` shows the collection counts, the time spent in GC and the heap size of the running server.
+
+To compare GC settings for a deployment, run the same load against each configuration (for the server load harness, `SERVER_DOTNET_gcServer=0`/`1` and `SERVER_DOTNET_GCDynamicAdaptationMode=0`) and compare CPU and allocation per request, GC count and pause time, and the working set, not only throughput; see the [measurement method](../perf/README.md#measurement-method).
 
 ## Configuration
 
