@@ -129,6 +129,91 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A publish timer pass that runs exactly at the subscription's deadline processes
+        /// the expiry. The fixed-cadence sweep often lands on the deadline; treating it as not
+        /// yet due skipped every other cycle when the sweep alternated between 1 ms late and
+        /// on time.
+        /// </summary>
+        [Test]
+        public void SweepExactlyAtTheDeadlineProcessesTheExpiry()
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                clock,
+                maxLifetimeCount: 1000,
+                maxKeepAliveCount: 300);
+
+            // sweeps at 101, 200, 301, 400, ... ms after the creation; the deadlines are at 100,
+            // 200, 300, 400, ...
+            long[] steps = [101, 99, 101, 99, 101, 99, 101, 99];
+            foreach (long step in steps)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(step));
+                subscription.PublishTimerExpired();
+            }
+
+            // no Publish request is queued, so every processed expiry counts the lifetime up.
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo((uint)steps.Length));
+        }
+
+        /// <summary>
+        /// A sweep that runs at the publishing interval and wakes a little early or late
+        /// around the deadline does not drop publishing cycles. The deadline moves by one
+        /// interval per expiry, so a sweep that finds the subscription a whole interval
+        /// behind because of timer jitter keeps the next expiry due for the next sweep.
+        /// </summary>
+        [Test]
+        public void SweepJitterAroundTheDeadlineDoesNotDropCycles()
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                clock,
+                maxLifetimeCount: 1000,
+                maxKeepAliveCount: 300);
+
+            // deadlines at 100, 200, 300, ...; sweeps at 95, 205, 295, 405, 495, 605, 695, 805.
+            long[] steps = [95, 110, 90, 110, 90, 110, 90, 110];
+            foreach (long step in steps)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(step));
+                subscription.PublishTimerExpired();
+            }
+
+            // the sweep at 95 is early; every later sweep processes one expiry.
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo(7u));
+        }
+
+        /// <summary>
+        /// A subscription that fell behind by more than a publishing interval (a stalled
+        /// sweep) skips the missed expiries instead of catching up with a burst.
+        /// </summary>
+        [Test]
+        public void StalledSweepSkipsMissedExpiries()
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                clock,
+                maxLifetimeCount: 1000,
+                maxKeepAliveCount: 300);
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            subscription.PublishTimerExpired();
+
+            // the sweep stalls for ten intervals; the late sweep processes one expiry.
+            clock.Advance(TimeSpan.FromMilliseconds(1000));
+            subscription.PublishTimerExpired();
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo(2u));
+
+            // the next expiry is the first deadline after the late sweep (1200 ms).
+            clock.Advance(TimeSpan.FromMilliseconds(50));
+            subscription.PublishTimerExpired();
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo(2u));
+            clock.Advance(TimeSpan.FromMilliseconds(50));
+            subscription.PublishTimerExpired();
+            Assert.That(subscription.Diagnostics.CurrentLifetimeCount, Is.EqualTo(3u));
+        }
+
+        /// <summary>
         /// M1-1: a client that keeps answering keep-alives never lets the lifetime expire.
         /// </summary>
         [Test]
@@ -500,7 +585,7 @@ namespace Opc.Ua.Server.Tests
         /// the in-progress state.
         /// </summary>
         [Test]
-        public void FailedConditionRefreshClearsTheInProgressState()
+        public async Task FailedConditionRefreshClearsTheInProgressState()
         {
             using Subscription subscription = CreateSubscription(new FakeTimeProvider(), 1000, 10);
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
@@ -516,7 +601,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new InvalidOperationException("refresh failed"));
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false));
             Assert.DoesNotThrow(() => subscription.ValidateConditionRefresh(context));
         }

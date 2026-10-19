@@ -218,7 +218,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                 callerCts.Cancel();
                 foreach (Task<IServiceResponse> queuedCall in queuedCalls)
                 {
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await queuedCall.ConfigureAwait(false));
                 }
 

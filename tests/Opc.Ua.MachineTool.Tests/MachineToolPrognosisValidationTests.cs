@@ -114,7 +114,7 @@ namespace Opc.Ua.MachineTool.Tests
             await controller.InitializeAsync(initial).ConfigureAwait(false);
             var before = (MaintenancePrognosisState)controller.State!.FindChild(m_fixture.Context.Context,
                 new QualifiedName("Maintenance", m_fixture.Context.InstanceNamespaceIndex))!;
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.ApplyAsync(Invalid(initial, violation)).ConfigureAwait(false));
             Assert.That(controller.Observation, Is.SameAs(initial));
             Assert.That(before.PredictedTime!.Value,

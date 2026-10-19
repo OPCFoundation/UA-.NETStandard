@@ -3,6 +3,10 @@
 See [Testing UaLens](../../docs/DeveloperGuide.md#testing-ualens) for the four
 test assemblies, standard commands, coverage and evidence boundaries.
 
+The assemblies use the centrally pinned NUnit 5 framework and VSTest adapter.
+Await `Assert.ThrowsAsync`, `Assert.CatchAsync` and `Assert.DoesNotThrowAsync`;
+otherwise teardown can run before the assertion finishes.
+
 ## Native desktop prerequisites
 
 Use .NET SDK 10 and PowerShell 7 on an interactive Windows desktop, or Linux with

@@ -59,7 +59,6 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
     public sealed class CertRotationLiveTests : IntegrationTestBase
     {
         [Test]
-        [Order(100)]
         [CancelAfter(180_000)]
         [Description("L2-CERT1: rotate the client application certificate while shared sessions stay active.")]
         public async Task L2Cert1RotateCertificateWhileSessionsActiveReconnectsSharedChannelAsync(
@@ -112,9 +111,9 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         /// transports.
         /// </summary>
         [Test]
-        [Order(200)]
         [CancelAfter(180_000)]
         [Description("L2-CERT2: rotate the client application certificate while server restart recovery is pending.")]
+        [DependsOnTest(nameof(L2Cert1RotateCertificateWhileSessionsActiveReconnectsSharedChannelAsync), AllowFailure = true)]
         public async Task L2Cert2RotateCertificateDuringServerRestartRecoversSharedChannelAsync(
             CancellationToken ct)
         {

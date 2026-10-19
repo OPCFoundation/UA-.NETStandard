@@ -121,12 +121,13 @@ namespace UaLens.Tests.NodeSets.Loading
         [TestCase(HttpStatusCode.TooManyRequests)]
         [TestCase(HttpStatusCode.InternalServerError)]
         [TestCase(HttpStatusCode.Redirect)]
-        public void HttpFailuresAreNotReportedAsNotFound(HttpStatusCode status)
+        public async Task HttpFailuresAreNotReportedAsNotFound(HttpStatusCode status)
         {
             using HttpClient client = Client((_, _) => new HttpResponseMessage(status));
             using var repository = new UaNodeSetRepository(client);
-            HttpRequestException? exception = Assert.ThrowsAsync<HttpRequestException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false));
+            HttpRequestException? exception = await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.StatusCode, Is.EqualTo(status));
         }
 
@@ -141,35 +142,38 @@ namespace UaLens.Tests.NodeSets.Loading
                 Is.Null);
             using HttpClient missing = Client((_, _) => new HttpResponseMessage(HttpStatusCode.NotFound));
             using var missingRepository = new UaNodeSetRepository(missing);
-            Assert.ThrowsAsync<HttpRequestException>(async () =>
-                await missingRepository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await missingRepository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
-        public void TruncatedTreeCannotProduceNotFound()
+        public async Task TruncatedTreeCannotProduceNotFound()
         {
             using HttpClient client = Client((_, _) => Response(Tree().Replace(
                 "\"truncated\":false", "\"truncated\":true", StringComparison.Ordinal)));
             using var repository = new UaNodeSetRepository(client);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("truncated"));
         }
 
         [Test]
-        public void DownloadedModelMustMatchItsDiscoveryHeader()
+        public async Task DownloadedModelMustMatchItsDiscoveryHeader()
         {
             using HttpClient client = Client((request, _) =>
                 Response(request.RequestUri!.AbsoluteUri == UaNodeSetRepository.TreeUrl ?
                     Tree("Model.NodeSet2.xml") :
                     NodeSetLoaderTests.Model(request.Headers.Range is null ? "urn:wrong" : "urn:expected")));
             using var repository = new UaNodeSetRepository(client);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:expected")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:expected")).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
-        public void DownloadedRevisionMustMeetTheMinimum()
+        public async Task DownloadedRevisionMustMeetTheMinimum()
         {
             using HttpClient client = Client((request, _) =>
             {
@@ -182,10 +186,10 @@ namespace UaLens.Tests.NodeSets.Loading
                     $"""<Model ModelUri="urn:model" PublicationDate="{year}-01-01T00:00:00Z"/>"""));
             });
             using var repository = new UaNodeSetRepository(client);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await repository.FindAsync(new NodeSetRequirement(
                     "urn:model", PublicationDate: new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
@@ -223,15 +227,15 @@ namespace UaLens.Tests.NodeSets.Loading
                 return Response(Tree());
             });
             using var repository = new UaNodeSetRepository(client);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await repository.FindAsync(new NodeSetRequirement("urn:model"), cancellation.Token)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false), Is.Null);
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransportTimeoutIsAnHttpErrorRatherThanUserCancellation(bool duringBodyRead)
+        public async Task TransportTimeoutIsAnHttpErrorRatherThanUserCancellation(bool duringBodyRead)
         {
             using HttpClient client = Client((request, _) =>
             {
@@ -249,8 +253,9 @@ namespace UaLens.Tests.NodeSets.Loading
                 };
             });
             using var repository = new UaNodeSetRepository(client);
-            HttpRequestException? exception = Assert.ThrowsAsync<HttpRequestException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false));
+            HttpRequestException? exception = await Assert.ThrowsAsync<HttpRequestException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("timed out"));
             Assert.That(exception.InnerException, Is.InstanceOf<OperationCanceledException>());
         }
@@ -345,20 +350,21 @@ namespace UaLens.Tests.NodeSets.Loading
         }
 
         [Test]
-        public void TruncatedMetadataHasAnExplicitHeaderLimitError()
+        public async Task TruncatedMetadataHasAnExplicitHeaderLimitError()
         {
             using HttpClient client = Client((request, _) => Response(
                 request.RequestUri!.AbsoluteUri == UaNodeSetRepository.TreeUrl ?
                     Tree("Large.NodeSet2.xml") :
                     "<?xml version=\"1.0\"?><!--" + new string('x', NodeSetDocumentReader.MaxHeaderBytes)));
             using var repository = new UaNodeSetRepository(client);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:missing")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("header limit"));
         }
 
         [Test]
-        public void OversizedDocumentIsRejectedBeforeReadingTheBody()
+        public async Task OversizedDocumentIsRejectedBeforeReadingTheBody()
         {
             using HttpClient client = Client((request, _) =>
             {
@@ -374,29 +380,32 @@ namespace UaLens.Tests.NodeSets.Loading
                 return response;
             });
             using var repository = new UaNodeSetRepository(client);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("byte input limit"));
         }
 
         [Test]
-        public void RepositoryPathsCannotEscapeTheApprovedTree()
+        public async Task RepositoryPathsCannotEscapeTheApprovedTree()
         {
             using HttpClient client = Client((_, _) => Response(Tree("../other/Model.NodeSet2.xml")));
             using var repository = new UaNodeSetRepository(client);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
-        public void SuccessfulHttpResponseContainingHtmlIsNotTreatedAsModelAbsence()
+        public async Task SuccessfulHttpResponseContainingHtmlIsNotTreatedAsModelAbsence()
         {
             using HttpClient client = Client((request, _) => Response(
                 request.RequestUri!.AbsoluteUri == UaNodeSetRepository.TreeUrl ?
                     Tree("Model.NodeSet2.xml") : "<html><body>Server error</body></html>"));
             using var repository = new UaNodeSetRepository(client);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await repository.FindAsync(new NodeSetRequirement("urn:model")).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         private static HttpClient Client(Func<HttpRequestMessage, CancellationToken, HttpResponseMessage> respond)

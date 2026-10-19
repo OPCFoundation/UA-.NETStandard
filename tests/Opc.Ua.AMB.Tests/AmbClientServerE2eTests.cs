@@ -357,10 +357,10 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(old.Count, Is.Zero);
                 Assert.That(identification.AssetId, Is.EqualTo(written));
             });
-            ServiceResultException tooLong = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await amb.WriteAssetIdAsync(pump, new string('x', 300)).ConfigureAwait(false))!;
-            ServiceResultException none = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await amb.WriteAssetIdAsync(plant.Motor!.NodeId, "M-1").ConfigureAwait(false))!;
+            ServiceResultException tooLong = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await amb.WriteAssetIdAsync(pump, new string('x', 300)).ConfigureAwait(false)))!;
+            ServiceResultException none = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await amb.WriteAssetIdAsync(plant.Motor!.NodeId, "M-1").ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(tooLong.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
@@ -555,10 +555,10 @@ namespace Opc.Ua.AMB.Tests
                     ListOf(links).Single(link => link.BrowseName.Name == "Handbook").NodeId,
                     "https://plant.example/handbook").ConfigureAwait(false);
                 await amb.WriteAssetIdAsync(pump, "P-42").ConfigureAwait(false);
-                ServiceResultException manual = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException manual = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await amb.RemoveDocumentationLinkAsync(
                         pump,
-                        ListOf(links).Single(link => link.BrowseName.Name == "Manual").NodeId).ConfigureAwait(false))!;
+                        ListOf(links).Single(link => link.BrowseName.Name == "Manual").NodeId).ConfigureAwait(false)))!;
                 Assert.That(manual.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
 
@@ -577,11 +577,11 @@ namespace Opc.Ua.AMB.Tests
             ArrayOf<DocumentationLinkRecord> withoutAddIn = await client
                 .ReadDocumentationLinksAsync(second.Motor!.NodeId)
                 .ConfigureAwait(false);
-            ServiceResultException noAddIn = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException noAddIn = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AddDocumentationLinkAsync(
                     second.Motor!.NodeId,
                     "https://x",
-                    new QualifiedName("X")).ConfigureAwait(false))!;
+                    new QualifiedName("X")).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

@@ -152,7 +152,6 @@ namespace Opc.Ua.Server.Tests
         /// runtime-loaded structure and enumeration DataTypes.
         /// </summary>
         [Test]
-        [Order(100)]
         public void ServerRegistersRuntimeStandInTypes()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -194,7 +193,7 @@ namespace Opc.Ua.Server.Tests
         /// via its stand-in and the client decodes it into a structured value.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(ServerRegistersRuntimeStandInTypes), AllowFailure = true)]
         public async Task ClientReadsRuntimeStructureValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.PointValueVariable);
@@ -220,7 +219,7 @@ namespace Opc.Ua.Server.Tests
         /// enumeration value.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(ClientReadsRuntimeStructureValue), AllowFailure = true)]
         public async Task ClientReadsRuntimeEnumValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.ColorValueVariable);
@@ -240,7 +239,7 @@ namespace Opc.Ua.Server.Tests
         /// on the next read.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ClientReadsRuntimeEnumValue), AllowFailure = true)]
         public async Task ClientWritesRuntimeStructureValue()
         {
             NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.PointValueVariable);
@@ -289,7 +288,7 @@ namespace Opc.Ua.Server.Tests
         /// and the value round-trips.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(ClientWritesRuntimeStructureValue), AllowFailure = true)]
         public async Task ClientReadsAndWritesRuntimeStructureSubtypeValue()
         {
             NodeId dataTypeId = ClientNodeId(ServerComplexTypesTestNodeManager.TestPoint3DDataType);

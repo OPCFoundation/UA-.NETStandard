@@ -127,7 +127,7 @@ namespace Opc.Ua.MachineTool.Tests
                 .ConfigureAwait(false);
             Assert.That(read.Entries[0].BrowseName.Name, Is.EqualTo("Inspection"));
             Assert.That(read.Entries[1].NodeId, Is.EqualTo(removedId));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await facade.ReadPrognosesAsync(runtime.NodeId, maximumPrognoses: 1).ConfigureAwait(false));
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
@@ -257,7 +257,7 @@ namespace Opc.Ua.MachineTool.Tests
                     Entries = [jobForecast, partForecast with { PartName = "Wrong part" }, toolForecast]
                 }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(runtime.Production.Observation!.Revision, Is.Zero);
             Assert.That(runtime.Equipment.Observation!.Revision, Is.Zero);
             Assert.That(runtime.Prognoses.Observation!.Revision, Is.Zero);
@@ -321,7 +321,7 @@ namespace Opc.Ua.MachineTool.Tests
             ulong accepted = runtime.Prognoses.Observation!.Revision;
             var removed = next with { Production = next.Production with { Jobs = [oldAborted] } };
             await provider.SetSnapshotAsync(removed).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(runtime.Prognoses.Observation.Revision, Is.EqualTo(accepted));
             Assert.That(runtime.Production.Observation!.Revision, Is.EqualTo(accepted));
             Assert.That(fixture.Context.Manager.FindPredefinedNode(nextJobId), Is.Not.Null);
@@ -468,14 +468,14 @@ namespace Opc.Ua.MachineTool.Tests
                 {
                     Prognoses = new() { Entries = [forecast with { Target = new() { NodeId = target } }] }
                 }).ConfigureAwait(false);
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await first.RefreshAsync().ConfigureAwait(false));
                 Assert.That(first.Equipment.Observation!.Revision, Is.Zero);
                 Assert.That(first.Prognoses.Observation!.Revision, Is.Zero);
                 Assert.That(second.Prognoses.Observation!.Revision, Is.Zero);
             }
             await firstProvider.SetSnapshotAsync(initial with { Equipment = new() }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await first.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await first.RefreshAsync().ConfigureAwait(false));
             Assert.That(fixture.Context.Manager.FindPredefinedNode(firstTool.NodeId), Is.SameAs(firstTool));
             await firstProvider.SetSnapshotAsync(initial with { Equipment = new(), Prognoses = new() })
                 .ConfigureAwait(false);
@@ -569,7 +569,7 @@ namespace Opc.Ua.MachineTool.Tests
                 },
                 Operation = initial.Operation with { Mode = MachineOperationMode.Service }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(toolResource!.Disposals, Is.EqualTo(1));
             Assert.That(forecastResource!.Disposals, Is.EqualTo(1));
             Assert.That(toolResource.WorkCompleted, Is.True);
@@ -607,9 +607,9 @@ namespace Opc.Ua.MachineTool.Tests
                     PublishFinalObservationsAsync = async (nodes, ct) =>
                     {
                         await fixture.Context.Manager.WaitForValuePublicationAsync(nodes, ct).ConfigureAwait(false);
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await runtime!.RefreshAsync(ct).ConfigureAwait(false));
-                        Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await Assert.ThrowsAsync<ServiceResultException>(async () =>
                             await runtime!.DisposeAsync().ConfigureAwait(false));
                         if (hold)
                         {

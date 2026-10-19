@@ -135,7 +135,7 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.401'
+$LatestSdk = '10.0.402'
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
@@ -273,6 +273,7 @@ $BatchFixedMinutes = 6
 # its otherwise healthy test run normally takes about 25 minutes and has
 # exceeded 30 under runner variance.
 $PerProjectTimeoutMinutes = 45
+$Net48ServerTestsTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -481,6 +482,14 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
         $batches = @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
+            $perProjectTimeout = $PerProjectTimeoutMinutes
+            if ($testProfile.framework -eq 'net48' -and
+                $testProfile.os -eq 'windows' -and
+                @($batch | Where-Object {
+                    [System.IO.Path]::GetFileNameWithoutExtension($_) -eq 'Opc.Ua.Server.Tests'
+                }).Count -gt 0) {
+                $perProjectTimeout = $Net48ServerTestsTimeoutMinutes
+            }
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus
             # the combined build-and-test ceiling for every project in the

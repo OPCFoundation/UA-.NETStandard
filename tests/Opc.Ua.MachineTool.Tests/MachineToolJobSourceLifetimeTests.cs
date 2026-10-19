@@ -56,7 +56,7 @@ namespace Opc.Ua.MachineTool.Tests
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.Store, Order()).ConfigureAwait(false));
             Assert.That((await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.Start, Order())
                 .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.UnableToAccept));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await source.SetMonitoringAsync(new MachineToolSnapshot()).ConfigureAwait(false));
             var revisions = new List<ulong>();
             await source.DrainAsync(async ct =>
@@ -119,24 +119,24 @@ namespace Opc.Ua.MachineTool.Tests
             await using var source = new MachineToolJobSource(Options());
             Success(await source.ReceiveJobOrderAsync(Isa95JobOrderOperationV2.Store, Order()).ConfigureAwait(false));
             MachineToolSnapshot? failed = null;
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await source.DrainAsync(async ct =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await source.DrainAsync(async ct =>
             {
                 failed = await source.ReadAsync(ct).ConfigureAwait(false);
-                Assert.ThrowsAsync<ServiceResultException>(async () => await source.ReceiveJobOrderAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await source.ReceiveJobOrderAsync(
                     Isa95JobOrderOperationV2.Start, Order(), cancellationToken: ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () => await source.TransitionAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await source.TransitionAsync(
                     "Job-1", Isa95JobExecutionTransition.BeginExecution, ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.SetMonitoringAsync(new MachineToolSnapshot(), ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.RecordPartsAsync("Job-1", default, ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.CompleteRunAsync("Job-1", ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.ReceiveJobResponseAsync(new V2.ISA95JobResponseDataType(), ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.DrainAsync(static _ => default, ct).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.DisposeAsync().ConfigureAwait(false));
                 throw new InvalidOperationException("Simulated publication failure.");
             }).ConfigureAwait(false));
@@ -161,16 +161,16 @@ namespace Opc.Ua.MachineTool.Tests
             await using var source = new MachineToolJobSource(Options());
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await source.ReceiveJobOrderAsync(
+            await Assert.CatchAsync<OperationCanceledException>(async () => await source.ReceiveJobOrderAsync(
                 Isa95JobOrderOperationV2.Store, Order(), cancellationToken: cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await source.ReadAsync(cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await source.CaptureAsync(cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await source.DrainAsync(static _ => default, cancelled.Token).ConfigureAwait(false));
             using var cancelDelivery = new CancellationTokenSource();
-            Assert.CatchAsync<OperationCanceledException>(async () => await source.DrainAsync(_ =>
+            await Assert.CatchAsync<OperationCanceledException>(async () => await source.DrainAsync(_ =>
             {
                 cancelDelivery.Cancel();
                 return default;
@@ -211,7 +211,7 @@ namespace Opc.Ua.MachineTool.Tests
             await Task.WhenAll(first, second).ConfigureAwait(false);
             await Assert.ThatAsync(async () => await drain.ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () => await source.ReadAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await source.ReadAsync().ConfigureAwait(false));
             Assert.That(clock.Disposed, Is.False);
         }
 
@@ -317,8 +317,8 @@ namespace Opc.Ua.MachineTool.Tests
             Task<bool> pending = first.MoveNextAsync().AsTask();
             await using IAsyncEnumerator<Isa95JobResponseChange> refused =
                 source.SubscribeResponseChangesAsync().GetAsyncEnumerator();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await refused.MoveNextAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await refused.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             stop.Cancel();
             Assert.That(await pending.ConfigureAwait(false), Is.False);

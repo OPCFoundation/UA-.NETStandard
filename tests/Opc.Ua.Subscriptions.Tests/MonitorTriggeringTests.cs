@@ -305,7 +305,7 @@ namespace Opc.Ua.Subscriptions.Tests
         /// Non-transient publish failures remain visible rather than becoming a partial successful collection.
         /// </summary>
         [TestCaseSource(nameof(s_nonTransientPublishErrors))]
-        public void PublishCollectionPropagatesNonTransientErrors(StatusCode statusCode)
+        public async Task PublishCollectionPropagatesNonTransientErrors(StatusCode statusCode)
         {
             var error = new ServiceResultException(statusCode);
             var session = new Mock<ISession>(MockBehavior.Strict);
@@ -318,7 +318,7 @@ namespace Opc.Ua.Subscriptions.Tests
             try
             {
                 Session = session.Object;
-                ServiceResultException? thrown = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? thrown = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await PublishUntilHandlesObservedAsync([1u, 2u], initialDelayMs: 0).ConfigureAwait(false));
                 Assert.That(thrown, Is.SameAs(error));
                 session.Verify(value => value.PublishAsync(
@@ -953,7 +953,7 @@ namespace Opc.Ua.Subscriptions.Tests
             uint idB = createResp.Results[0].MonitoredItemId;
 
             // Invalid triggering item ID
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, m_subscriptionId, 999999u,
                         default,
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             uint idA = createResp.Results[0].MonitoredItemId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, 999999u, idA,
                         new uint[] { idA }.ToArrayOf(),
@@ -1173,7 +1173,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             uint idB = createResp.Results[0].MonitoredItemId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, m_subscriptionId, 999999u,
                         new uint[] { idB }.ToArrayOf(),
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 CancellationToken.None).ConfigureAwait(false);
             m_subscriptionId = 0;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, deletedSubId, idA,
                         new uint[] { idA }.ToArrayOf(),

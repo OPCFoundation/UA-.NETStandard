@@ -78,8 +78,8 @@ namespace Opc.Ua.Machinery.Tests
         public async Task LifetimeBoundsAreMandatoryOnlyInStrictReads(bool equipment, string missing)
         {
             (ReadHarness harness, NodeId source) = CreateLifetimeHarness(equipment, Variant.From(5.0), missing);
-            MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await ReadLifetimeAsync(harness, equipment).ConfigureAwait(false))!;
+            MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
+                async () => await ReadLifetimeAsync(harness, equipment).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
             Assert.That(error.ReadValue!.StartingNodeId, Is.EqualTo(source));
             Assert.That(error.ReadValue.BrowsePath.Count, Is.EqualTo(1));
@@ -144,14 +144,14 @@ namespace Opc.Ua.Machinery.Tests
         /// Non-Double warning arrays still obey the configured decoded-array limit.
         /// </summary>
         [Test]
-        public void FloatWarningArraysCannotBypassTheReadLimit()
+        public async Task FloatWarningArraysCannotBypassTheReadLimit()
         {
             (ReadHarness harness, NodeId source) = CreateLifetimeHarness(false, Variant.From(5.0));
             harness.Add(source, [Di(harness, DiNames.WarningValues)],
                 new DataValue(Variant.From((ArrayOf<float>)[3f, 2f, 1f])));
-            MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await ReadLifetimeAsync(harness, false,
-                    options: new MachineryClientOptions { MaximumReadArrayItems = 2 }).ConfigureAwait(false))!;
+                    options: new MachineryClientOptions { MaximumReadArrayItems = 2 }).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(error.ReadValue!.BrowsePath.Count, Is.EqualTo(1));
             Assert.That(error.ReadValue.BrowsePath[0].Name, Is.EqualTo(DiNames.WarningValues));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void WarningValuesRejectWrongNumericRankAndStatusCode(bool matrix)
+        public async Task WarningValuesRejectWrongNumericRankAndStatusCode(bool matrix)
         {
             (ReadHarness harness, NodeId source) = CreateLifetimeHarness(false, Variant.From(5.0));
             Variant value = matrix
@@ -170,8 +170,8 @@ namespace Opc.Ua.Machinery.Tests
                 : Variant.From((StatusCode)StatusCodes.Good);
             harness.Add(source, [Di(harness, DiNames.WarningValues)], new DataValue(value));
 
-            MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await ReadLifetimeAsync(harness, false).ConfigureAwait(false))!;
+            MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
+                async () => await ReadLifetimeAsync(harness, false).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(error.ReadValue!.Value.WrappedValue, Is.EqualTo(value));

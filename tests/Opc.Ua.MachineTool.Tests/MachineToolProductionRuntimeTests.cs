@@ -114,7 +114,7 @@ namespace Opc.Ua.MachineTool.Tests
             {
                 Production = changes.Production with { Jobs = [job with { PartsGood = 2 }] }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             await AssertUnchangedAsync().ConfigureAwait(false);
 
             MachineToolProgram running = job.Programs[0] with
@@ -137,7 +137,7 @@ namespace Opc.Ua.MachineTool.Tests
             {
                 Channels = [channel with { FeedOverride = 250 }]
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             await AssertUnchangedAsync().ConfigureAwait(false);
 
             await provider.SetSnapshotAsync(changes with
@@ -154,7 +154,7 @@ namespace Opc.Ua.MachineTool.Tests
                     ]
                 }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await runtime.RefreshAsync().ConfigureAwait(false));
             await AssertUnchangedAsync().ConfigureAwait(false);
 
@@ -168,9 +168,9 @@ namespace Opc.Ua.MachineTool.Tests
                     DataValue observed = await session.ReadValueAsync(modeId, ct).ConfigureAwait(false);
                     Assert.That(observed.WrappedValue.TryGetValue(out int mode), Is.True);
                     Assert.That(mode, Is.EqualTo((int)MachineOperationMode.Service));
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await runtime.RefreshAsync(ct).ConfigureAwait(false));
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await runtime.DisposeAsync().ConfigureAwait(false));
                     reports++;
                     if (failOnce)
@@ -185,7 +185,7 @@ namespace Opc.Ua.MachineTool.Tests
                 }
             };
             await provider.SetSnapshotAsync(changes).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(runtime.State.Monitoring.MachineTool.OperationMode.Value,
                 Is.EqualTo(MachineOperationMode.Service));

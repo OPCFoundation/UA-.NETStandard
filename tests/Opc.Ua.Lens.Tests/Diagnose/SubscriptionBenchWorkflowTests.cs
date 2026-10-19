@@ -198,7 +198,7 @@ public sealed partial class SubscriptionBenchWorkflowTests
         collection.Setup(
             values => values.TryAdd("boiler-temperature", It.IsAny<IOptionsMonitor<V2ItemOptions>>(), out created))
             .Callback(
-                new InvocationAction(invocation => received = (IOptionsMonitor<V2ItemOptions>)invocation.Arguments[1]))
+                new InvocationAction(invocation => received = (IOptionsMonitor<V2ItemOptions>?)invocation.Arguments[1]))
             .Returns(true);
         collection.Setup(values => values.TryRemove(117)).Returns(removeResult);
         protocol.Subscriptions[0].SetupGet(value => value.MonitoredItems).Returns(collection.Object);

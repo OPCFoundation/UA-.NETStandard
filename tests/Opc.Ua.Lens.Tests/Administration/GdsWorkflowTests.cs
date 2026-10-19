@@ -226,7 +226,7 @@ public sealed class GdsWorkflowTests
     }
 
     [Test]
-    public void ClientEndpointChangeIsRejectedBeforeDelivery()
+    public async Task ClientEndpointChangeIsRejectedBeforeDelivery()
     {
         var client = new Mock<IGdsManagementClient>(MockBehavior.Strict);
         string endpoint = GdsEndpoint;
@@ -242,9 +242,9 @@ public sealed class GdsWorkflowTests
             .ReturnsAsync(new GdsIssuedCertificate(new NodeId(99), ByteString.From([1]), default, []));
         var delivery = new Mock<IGdsCertificateDelivery>(MockBehavior.Strict);
 
-        Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             await new GdsCertificateIssuance().IssueAndDeliverAsync(target, client.Object, delivery.Object)
-                .ConfigureAwait(false));
+                .ConfigureAwait(false)).ConfigureAwait(false);
         delivery.VerifyNoOtherCalls();
     }
 

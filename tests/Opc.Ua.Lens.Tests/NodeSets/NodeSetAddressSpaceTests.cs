@@ -249,11 +249,11 @@ namespace UaLens.Tests.NodeSets
         }
 
         [Test]
-        public void DuplicateNodeIdsAndCyclicSubtypeDefinitionsFailBeforePublication()
+        public async Task DuplicateNodeIdsAndCyclicSubtypeDefinitionsFailBeforePublication()
         {
             NodeSetDocument duplicate = ReadDocument(kApp, "duplicate.xml");
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await CreateAsync(duplicate).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await CreateAsync(duplicate).ConfigureAwait(false)).ConfigureAwait(false);
             NodeSetDocument cycle = ReadDocument("""
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
               <NamespaceUris><Uri>urn:lens:cycle</Uri></NamespaceUris>
@@ -265,25 +265,26 @@ namespace UaLens.Tests.NodeSets
               </UAObjectType>
             </UANodeSet>
             """, "cycle.xml");
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await CreateAsync(cycle).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await CreateAsync(cycle).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
-        public void CancellationStopsImportReadBrowseAndPathResolution()
+        public async Task CancellationStopsImportReadBrowseAndPathResolution()
         {
             using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
-            Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
                 await new NodeSetAddressSpaceFactory(Telemetry()).CreateAsync(
-                    [ReadDocument(kApp, "app.xml")], cancellation.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.ReadAsync(
+                    [ReadDocument(kApp, "app.xml")], cancellation.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.ReadAsync(
                 [new ReadValueId { NodeId = ObjectIds.ObjectsFolder, AttributeId = Attributes.BrowseName }],
-                cancellation.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.BrowseAsync(
+                cancellation.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.BrowseAsync(
                 [new BrowseDescription { NodeId = ObjectIds.ObjectsFolder }], cancellation.Token)
-                .ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.ResolvePathAsync(
-                ObjectIds.ObjectsFolder, "/Machine", cancellation.Token).ConfigureAwait(false));
+                .ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await m_graph.ResolvePathAsync(
+                ObjectIds.ObjectsFolder, "/Machine", cancellation.Token).ConfigureAwait(false)).ConfigureAwait(false);
         }
     }
 }

@@ -316,24 +316,24 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
-        public void WriteRequestAsyncWithInvalidChunkSizeThrowsArgumentOutOfRangeException()
+        public async Task WriteRequestAsyncWithInvalidChunkSizeThrowsArgumentOutOfRangeException()
         {
             var harness = new AISessionHarness();
             harness.AddChild(s_transferId, BrowseNames.Request, s_requestFileId);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await harness.Client.Transfer(s_transferId)
                     .WriteRequestAsync(ByteString.Empty, 0)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void WriteRequestAsyncWithNullStreamThrowsArgumentNullException()
+        public async Task WriteRequestAsyncWithNullStreamThrowsArgumentNullException()
         {
             var harness = new AISessionHarness();
             harness.AddChild(s_transferId, BrowseNames.Request, s_requestFileId);
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await harness.Client.Transfer(s_transferId)
                     .WriteRequestAsync(null!, 1)
                     .ConfigureAwait(false));

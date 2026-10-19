@@ -652,7 +652,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void OwnedCleanupFailureIsSharedAndStillClearsRetainedNodes()
+        public async Task OwnedCleanupFailureIsSharedAndStillClearsRetainedNodes()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -663,9 +663,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 monitoredItems.Setup(value => value.Dispose()).Throws(failure);
 
                 manager.Dispose();
-                InvalidOperationException first = Assert.ThrowsAsync<InvalidOperationException>(
+                InvalidOperationException first = await Assert.ThrowsAsync<InvalidOperationException>(
                     () => manager.DisposeAsync().AsTask());
-                InvalidOperationException repeated = Assert.ThrowsAsync<InvalidOperationException>(
+                InvalidOperationException repeated = await Assert.ThrowsAsync<InvalidOperationException>(
                     () => DisposeAsync((IDisposable)manager.ToAsyncNodeManager()));
 
                 Assert.Multiple(() =>

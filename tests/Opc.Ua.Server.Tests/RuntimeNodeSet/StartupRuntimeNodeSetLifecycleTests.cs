@@ -141,7 +141,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// and accept a Call carrying the declared input.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task ImportedMethodAcceptsDeclaredArgumentsAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -208,7 +207,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// without deleting or disposing the existing startup registration.
         /// </summary>
         [Test]
-        [Order(150)]
+        [DependsOnTest(nameof(ImportedMethodAcceptsDeclaredArgumentsAsync), AllowFailure = true)]
         public async Task DuplicateFactoryOutputDoesNotDestroyStartupManagerAsync()
         {
             NodeManagerRegistration registration = FindRegistration(
@@ -252,7 +251,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// external references contributed by another startup NodeManager.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(DuplicateFactoryOutputDoesNotDestroyStartupManagerAsync), AllowFailure = true)]
         public async Task StartupRuntimeNodeSetCanReloadAndRemoveWithoutAffectingPeerAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -342,7 +341,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// must not expose disposed startup managers through the lifecycle.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(StartupRuntimeNodeSetCanReloadAndRemoveWithoutAffectingPeerAsync), AllowFailure = true)]
         public async Task FailedStartupPublishesNoLifecycleRegistrationsAsync()
         {
             // Leave room for certificate filenames within the .NET Framework path limit.
@@ -388,7 +387,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// newly created startup NodeManager generations on restart.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(FailedStartupPublishesNoLifecycleRegistrationsAsync), AllowFailure = true)]
         public async Task ServerRestartRecreatesStartupRegistrationsAsync()
         {
             string pkiRoot = Path.Combine(

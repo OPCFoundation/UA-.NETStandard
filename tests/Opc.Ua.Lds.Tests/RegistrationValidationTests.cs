@@ -29,6 +29,7 @@
 
 using System;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
@@ -80,11 +81,11 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegisterServerRejectsMalformedSubjectAltNameWithoutMutatingStore()
+        public async Task RegisterServerRejectsMalformedSubjectAltNameWithoutMutatingStore()
         {
             using Certificate certificate = CreateCertificateWithMalformedSubjectAltName();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Lds.RegisterServerAsync(
                     CreateChannel(certificate.RawData),
                     new RequestHeader(),
@@ -96,9 +97,9 @@ namespace Opc.Ua.Lds.Tests
         }
 
         [Test]
-        public void RegisterServer2RejectsMissingCertificateWithoutMutatingStore()
+        public async Task RegisterServer2RejectsMissingCertificateWithoutMutatingStore()
         {
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Lds.RegisterServer2Async(
                     CreateChannel(null),
                     new RequestHeader(),

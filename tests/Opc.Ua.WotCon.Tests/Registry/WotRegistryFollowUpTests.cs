@@ -72,12 +72,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "pending",
                     string.Empty,
                     WoTDocumentKindEnum.ThingDescription);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "pending",
                     "different",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {
@@ -207,12 +207,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await reloaded.InitializeAsync();
             WotRegistrySnapshot before = reloaded.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await reloaded.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "desired",
                     "v4",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {
@@ -553,12 +553,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Request("collision", TestMaterialization.Td("urn:collision", "first"), "V1"));
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "collision",
                         TestMaterialization.Td("urn:collision", "second"),
-                        "v1")))!;
+                        "v1"))))!;
 
             Assert.Multiple(() =>
             {
@@ -568,31 +568,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void MalformedUpsertVersionIdThrowsBadInvalidArgument()
+        public async Task MalformedUpsertVersionIdThrowsBadInvalidArgument()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "invalid-upsert",
                         TestMaterialization.Td("urn:invalid-upsert"),
-                        "invalid/version")))!;
+                        "invalid/version"))))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
-        public void NewOverlongUpsertVersionIdThrowsBadInvalidArgument()
+        public async Task NewOverlongUpsertVersionIdThrowsBadInvalidArgument()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "overlong-upsert",
                         TestMaterialization.Td("urn:overlong-upsert"),
-                        new string('a', 129))))!;
+                        new string('a', 129)))))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -606,12 +606,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Request("overflow", TestMaterialization.Td("urn:overflow"), maximum));
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "overflow",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {

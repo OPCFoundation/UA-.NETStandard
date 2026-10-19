@@ -118,13 +118,15 @@ namespace UaLens.Tests.NodeSets
             NodeViewModel originalRoot = vm.Browser.Roots[0];
             if (cancel)
             {
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                    await vm.OpenNodeSetsAsync(["replacement.xml"], resolver).ConfigureAwait(false));
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await vm.OpenNodeSetsAsync(["replacement.xml"], resolver).ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             else
             {
-                Assert.ThrowsAsync<FormatException>(async () =>
-                    await vm.OpenNodeSetsAsync(["replacement.xml"], resolver).ConfigureAwait(false));
+                await Assert.ThrowsAsync<FormatException>(async () =>
+                    await vm.OpenNodeSetsAsync(["replacement.xml"], resolver).ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             Assert.That(vm.OfflineAddressSpace, Is.SameAs(m_graph));
             Assert.That(vm.Browser.Roots[0], Is.SameAs(originalRoot));

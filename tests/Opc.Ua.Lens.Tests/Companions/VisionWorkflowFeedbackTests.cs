@@ -632,7 +632,10 @@ namespace UaLens.Tests.Companions
             fixture.Set(endpoint, "Authentication", Variant.From(0));
         }
 
-        private static bool IsPreflightRejection(Exception error)
+        /// <summary>
+        /// Accepts only the expected preflight failures, including for nullable NUnit predicate inputs.
+        /// </summary>
+        private static bool IsPreflightRejection(Exception? error)
         {
             return error is ArgumentException or UnauthorizedAccessException ||
                 (error is ServiceResultException service &&

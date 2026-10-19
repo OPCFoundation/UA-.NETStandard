@@ -404,7 +404,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
 
             await lease.DisposeAsync().ConfigureAwait(false);
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.ReleaseCount, Is.EqualTo(1));
         }
@@ -421,8 +421,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             RobotIntentControllerClient controller = new(transport);
             CommandAuthorityLease lease = await controller.RequestAuthorityAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.ReleaseCount, Is.EqualTo(1));
         }
@@ -466,8 +466,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             Task dispose = handle.DisposeAsync().AsTask();
             allowCallbackToExit.Set();
 
-            Assert.DoesNotThrowAsync(async () => await dispose.ConfigureAwait(false));
-            Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await dispose.ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await handle.DisposeAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -625,7 +625,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             await lease.OpenAsync().ConfigureAwait(false);
             await AwaitWithTimeoutAsync(transport.WaitForOpenChannelCountAsync(2), s_handshakeTimeout).ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
 
@@ -645,7 +645,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync().ConfigureAwait(false);
             await lease.DisposeAsync().ConfigureAwait(false);
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
 
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
@@ -667,8 +667,8 @@ namespace Opc.Ua.Robotics.Client.Tests
             RealTimeChannelLease lease = new(transport, "rt1", TimeSpan.FromMilliseconds(30));
             await lease.OpenAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
-            Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await lease.DisposeAsync().ConfigureAwait(false));
             Assert.That(transport.CloseChannelCount, Is.EqualTo(1));
         }
 
@@ -709,7 +709,7 @@ namespace Opc.Ua.Robotics.Client.Tests
             IntentDataType throwingIntent = RobotIntentBuilder.Wait(1).Build();
             IntentDataType refusalAwareIntent = RobotIntentBuilder.Wait(2).Build();
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await controller.SubmitIntentAsync(throwingIntent).ConfigureAwait(false));
             IntentSubmissionResult result = await controller.TrySubmitIntentAsync(refusalAwareIntent).ConfigureAwait(false);
 

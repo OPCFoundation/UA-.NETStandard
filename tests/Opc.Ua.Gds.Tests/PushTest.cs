@@ -353,7 +353,6 @@ namespace Opc.Ua.Gds.Tests
         /// raises ServerStatusChanged for the initial value of the item.
         /// </summary>
         [Test]
-        [Order(99)]
         public async Task ServerStatusChangedIsRaisedAsync()
         {
             var received = new TaskCompletionSource<Gds.Client.ServerStatusChangedEventArgs>(
@@ -387,7 +386,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(ServerStatusChangedIsRaisedAsync), AllowFailure = true)]
         public async Task GetSupportedKeyFormatsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -396,7 +395,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(GetSupportedKeyFormatsAsync), AllowFailure = true)]
         public async Task ReadTrustListAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -452,7 +451,7 @@ namespace Opc.Ua.Gds.Tests
         /// applied.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(ReadTrustListAsync), AllowFailure = true)]
         public async Task UpdateTrustListAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -475,7 +474,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(310)]
+        [DependsOnTest(nameof(AddRemoveCAIssuerCertAsync), AllowFailure = true)]
         public async Task UpdateTrustListOfCustomGroupAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -504,7 +503,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(311)]
+        [DependsOnTest(nameof(UpdateTrustListOfCustomGroupAsync), AllowFailure = true)]
         public async Task AddRemoveCertOfCustomGroupAsync()
         {
             using Certificate trustedCert = s_factory
@@ -525,7 +524,7 @@ namespace Opc.Ua.Gds.Tests
 
             // OPC 10000-12 §7.8.2.6: issuer certificates cannot be added with
             // AddCertificate (IsTrustedCertificate FALSE is Bad_CertificateInvalid).
-            ServiceResultException addIssuer = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException addIssuer = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 m_pushClient.PushClient.AddCertificateAsync(groupId, issuerCert, false).AsTask());
             Assert.That(addIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
 
@@ -571,7 +570,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(301)]
+        [DependsOnTest(nameof(UpdateTrustListAsync), AllowFailure = true)]
         public async Task AddRemoveCertAsync()
         {
             using Certificate trustedCert = s_factory
@@ -583,7 +582,7 @@ namespace Opc.Ua.Gds.Tests
             await ConnectPushClientAsync(true).ConfigureAwait(false);
             TrustListDataType beforeTrustList = await m_pushClient.PushClient.ReadTrustListAsync().ConfigureAwait(false);
             await m_pushClient.PushClient.AddCertificateAsync(trustedCert, true).ConfigureAwait(false);
-            ServiceResultException addIssuer = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException addIssuer = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 m_pushClient.PushClient.AddCertificateAsync(issuerCert, false).AsTask());
             Assert.That(addIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
             await m_pushClient.PushClient.ApplyChangesAsync().ConfigureAwait(false);
@@ -602,7 +601,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(302)]
+        [DependsOnTest(nameof(AddRemoveCertAsync), AllowFailure = true)]
         public async Task AddRemoveCATrustedCertAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -615,7 +614,7 @@ namespace Opc.Ua.Gds.Tests
                 Is.GreaterThan(beforeTrustList.TrustedCertificates.Count));
             Assert.That(beforeTrustList.TrustedCrls.Count, Is.EqualTo(afterAddTrustList.TrustedCrls.Count));
             Assert.That(Utils.IsEqual(beforeTrustList, afterAddTrustList), Is.False);
-            ServiceResultException serviceResultException = Assert
+            ServiceResultException serviceResultException = await Assert
                 .ThrowsAsync<ServiceResultException>(() =>
                     m_pushClient.PushClient.RemoveCertificateAsync(m_caCert.Thumbprint, false).AsTask());
             Assert.That(
@@ -631,7 +630,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(303)]
+        [DependsOnTest(nameof(AddRemoveCATrustedCertAsync), AllowFailure = true)]
         public async Task AddRemoveCAIssuerCertAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -665,7 +664,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(AddRemoveCertOfCustomGroupAsync), AllowFailure = true)]
         public async Task CreateSigningRequestBadParmsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -690,7 +689,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(401)]
+        [DependsOnTest(nameof(CreateSigningRequestBadParmsAsync), AllowFailure = true)]
         public async Task CreateSigningRequestNullParmsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -700,7 +699,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(402)]
+        [DependsOnTest(nameof(CreateSigningRequestNullParmsAsync), AllowFailure = true)]
         public async Task CreateSigningRequestRsaMinNullParmsAsync()
         {
 #if NET5_0_OR_GREATER
@@ -721,7 +720,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(409)]
+        [DependsOnTest(nameof(CreateSigningRequestRsaMinNullParmsAsync), AllowFailure = true)]
         public async Task CreateSigningRequestAllParmsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -736,7 +735,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(410)]
+        [DependsOnTest(nameof(CreateSigningRequestAllParmsAsync), AllowFailure = true)]
         public async Task CreateSigningRequestNullParmsWithNewPrivateKeyAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -751,7 +750,7 @@ namespace Opc.Ua.Gds.Tests
                 // regenerate-key request for an ECC
                 // CertificateType must be rejected with Bad_NotSupported rather
                 // than silently ignoring the mandated Nonce.
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
                         default,
                         m_certificateType,
@@ -771,7 +770,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(419)]
+        [DependsOnTest(nameof(CreateSigningRequestNullParmsWithNewPrivateKeyAsync), AllowFailure = true)]
         public async Task CreateSigningRequestAllParmsWithNewPrivateKeyAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -784,7 +783,7 @@ namespace Opc.Ua.Gds.Tests
                 // Bad_NotSupported when a private-only EC scalar cannot be
                 // imported (see
                 // CreateSigningRequestNullParmsWithNewPrivateKeyAsync).
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
                         m_pushClient.PushClient.DefaultApplicationGroup,
                         m_certificateType,
@@ -804,7 +803,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(CreateSigningRequestAllParmsWithNewPrivateKeyAsync), AllowFailure = true)]
         public async Task UpdateCertificateSelfSignedNoPrivateKeyAssertsAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -931,7 +930,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(501)]
+        [DependsOnTest(nameof(UpdateCertificateSelfSignedNoPrivateKeyAssertsAsync), AllowFailure = true)]
         public async Task UpdateCertificateSelfSignedNoPrivateKeyAsync()
         {
             if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -960,14 +959,14 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(509)]
+        [DependsOnTest(nameof(UpdateCertificateSelfSignedNoPrivateKeyAsync), AllowFailure = true)]
         public async Task UpdateCertificateCASignedRegeneratePrivateKeyAsync()
         {
             await UpdateCertificateCASignedAsync(true).ConfigureAwait(false);
         }
 
         [Test]
-        [Order(510)]
+        [DependsOnTest(nameof(UpdateCertificateCASignedRegeneratePrivateKeyAsync), AllowFailure = true)]
         public async Task UpdateCertificateCASignedAsync()
         {
             await UpdateCertificateCASignedAsync(false).ConfigureAwait(false);
@@ -1000,7 +999,7 @@ namespace Opc.Ua.Gds.Tests
                 // §7.10.10: ECC regenerate-key requests are rejected with
                 // Bad_NotSupported when the server stack cannot import a
                 // private-only EC scalar (.NET Framework).
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     () => m_pushClient.PushClient.CreateSigningRequestAsync(
                         default,
                         m_certificateType,
@@ -1075,14 +1074,14 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(520)]
+        [DependsOnTest(nameof(UpdateCertificateCASignedAsync), AllowFailure = true)]
         public async Task UpdateCertificateSelfSignedPFXAsync()
         {
             await UpdateCertificateSelfSignedAsync("PFX").ConfigureAwait(false);
         }
 
         [Test]
-        [Order(530)]
+        [DependsOnTest(nameof(UpdateCertificateSelfSignedPFXAsync), AllowFailure = true)]
         public async Task UpdateCertificateSelfSignedPEMAsync()
         {
             await UpdateCertificateSelfSignedAsync("PEM").ConfigureAwait(false);
@@ -1160,14 +1159,14 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(540)]
+        [DependsOnTest(nameof(UpdateCertificateSelfSignedPEMAsync), AllowFailure = true)]
         public async Task UpdateCertificateNewKeyPairPFXAsync()
         {
             await UpdateCertificateWithNewKeyPairAsync("PFX").ConfigureAwait(false);
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(UpdateCertificateNewKeyPairPFXAsync), AllowFailure = true)]
         public async Task UpdateCertificateNewKeyPairPEMAsync()
         {
             await UpdateCertificateWithNewKeyPairAsync("PEM").ConfigureAwait(false);
@@ -1239,7 +1238,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(600)]
+        [DependsOnTest(nameof(UpdateCertificateNewKeyPairPEMAsync), AllowFailure = true)]
         public async Task GetRejectedListAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -1248,7 +1247,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(610)]
+        [DependsOnTest(nameof(GetRejectedListAsync), AllowFailure = true)]
         public async Task GetCertificatesAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
@@ -1298,11 +1297,11 @@ namespace Opc.Ua.Gds.Tests
         /// so by the time this test runs there is nothing pending.
         /// </summary>
         [Test]
-        [Order(700)]
+        [DependsOnTest(nameof(GetCertificatesAsync), AllowFailure = true)]
         public async Task ApplyChangesAsync()
         {
             await ConnectPushClientAsync(true).ConfigureAwait(false);
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 () => m_pushClient.PushClient.ApplyChangesAsync().AsTask());
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNothingToDo));
         }
@@ -1318,7 +1317,7 @@ namespace Opc.Ua.Gds.Tests
         /// session over a fresh SecureChannel.
         /// </summary>
         [Test]
-        [Order(701)]
+        [DependsOnTest(nameof(ApplyChangesAsync), AllowFailure = true)]
         public async Task ApplyChangesForcesChannelRenegotiateAsync()
         {
             if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -1412,7 +1411,7 @@ namespace Opc.Ua.Gds.Tests
         /// its security-token renewal — and must not be able to reconnect.
         /// </summary>
         [Test]
-        [Order(702)]
+        [DependsOnTest(nameof(ApplyChangesForcesChannelRenegotiateAsync), AllowFailure = true)]
         public async Task PushedCrlDisconnectsRevokedClientAsync()
         {
             if (m_certificateType != OpcUa.ObjectTypeIds.RsaSha256ApplicationCertificateType)
@@ -1671,7 +1670,7 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        [Order(800)]
+        [DependsOnTest(nameof(PushedCrlDisconnectsRevokedClientAsync), AllowFailure = true)]
         public async Task VerifyNoUserAccessAsync()
         {
             await ConnectPushClientAsync(false).ConfigureAwait(false);

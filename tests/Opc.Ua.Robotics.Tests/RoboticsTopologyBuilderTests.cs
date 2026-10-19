@@ -173,7 +173,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             IRoboticsBuildContext context = fixture.CreateBuildContext();
             var browseName = new QualifiedName("Retryable", context.InstanceNamespaceIndex);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await context.AddMotionDeviceSystemAsync(
                     browseName,
                     (systemContext, parent, name) =>
@@ -194,7 +194,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                             MotionDeviceState device = systemContext.CreateInstanceOfMotionDeviceType(parent, name);
                             device.TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType;
                             return device;
-                        })).ConfigureAwait(false))!;
+                        })).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeDefinitionInvalid));
             Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
@@ -871,7 +871,7 @@ namespace Opc.Ua.Robotics.Server.Tests
             const string browseName = "RetryAfterFailedBuild";
             for (int ii = 0; ii < 3; ii++)
             {
-                _ = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await context.AddMotionDeviceSystemAsync(
                         browseName,
                         system =>
@@ -884,20 +884,20 @@ namespace Opc.Ua.Robotics.Server.Tests
                 Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
 
                 ServiceResultException validationException =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             browseName,
                             system => ConfigureValidGraph(
                                 system,
                                 new GraphOptions { IncludeController = false }))
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                 Assert.That(
                     validationException.StatusCode,
                     Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Manager.ReservedNodeIdCount, Is.Zero);
 
                 ServiceResultException nodeIdException =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             browseName,
                             system =>
@@ -906,7 +906,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                                 system.Configure((state, _) =>
                                     state.NodeId = NodeId.Null);
                             })
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
                 Assert.That(
                     nodeIdException.StatusCode,
                     Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -916,7 +916,7 @@ namespace Opc.Ua.Robotics.Server.Tests
 
             using var cancellationSource = new CancellationTokenSource();
             cancellationSource.Cancel();
-            _ = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            _ = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await context.AddMotionDeviceSystemAsync(
                     browseName,
                     system => ConfigureValidGraph(system),
@@ -994,7 +994,7 @@ namespace Opc.Ua.Robotics.Server.Tests
 
             await context.SealAsync().ConfigureAwait(false);
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await context.SealAsync().ConfigureAwait(false),
                 "A redundant seal must be ignored, not rejected.");
         }
@@ -1034,8 +1034,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         .WaitAsync(TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                     ServiceResultException exception =
-                        Assert.ThrowsAsync<ServiceResultException>(
-                            async () => await context.SealAsync().ConfigureAwait(false))!;
+                        (await Assert.ThrowsAsync<ServiceResultException>(
+                            async () => await context.SealAsync().ConfigureAwait(false)))!;
                     Assert.That(
                         exception.StatusCode,
                         Is.EqualTo(StatusCodes.BadInvalidState));
@@ -1103,7 +1103,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                 await context.SealAsync().ConfigureAwait(false);
 
                 ServiceResultException exception =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await context.AddMotionDeviceSystemAsync(
                             "RejectedAfterSeal",
                             system =>
@@ -1111,7 +1111,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                                 configureCalls++;
                                 ConfigureValidGraph(system);
                             })
-                            .ConfigureAwait(false))!;
+                            .ConfigureAwait(false)))!;
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(configureCalls, Is.Zero);
@@ -1304,14 +1304,14 @@ namespace Opc.Ua.Robotics.Server.Tests
                 .ConfigureAwait(false);
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_fixture.CreateBuildContext()
                         .AddMotionDeviceSystemAsync(NextName("ScopeB"), system =>
                         {
                             GraphParts second = ConfigureValidGraph(system);
                             second.Controller.Controls(first.MotionDevice);
                         })
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(exception.Message, Does.Contain("same MotionDeviceSystem"));
@@ -2038,12 +2038,12 @@ namespace Opc.Ua.Robotics.Server.Tests
             Action<IMotionDeviceSystemBuilder> configure)
         {
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_fixture.CreateBuildContext()
                         .AddMotionDeviceSystemAsync(
                             NextName("Invalid"),
                             configure)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,

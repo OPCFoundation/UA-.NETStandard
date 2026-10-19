@@ -210,7 +210,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             var factory = new FakeMqttClientFactory();
             await using MqttBrokerTransport transport = NewTransport(factory);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await transport.SendAsync(
                     new byte[] { 1, 2, 3 },
                     "opcua/pubsub/json/data/1/2").ConfigureAwait(false));
@@ -223,7 +223,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using MqttBrokerTransport transport = NewTransport(factory);
             await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await transport.SendAsync(
                     new byte[] { 1, 2, 3 },
                     topic: null).ConfigureAwait(false));
@@ -236,11 +236,11 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
             await using MqttBrokerTransport transport = NewTransport(factory);
             await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await transport.SendAsync(
                     new byte[] { 1, 2, 3 },
                     topic: "opcua/pubsub/json/data/+/2").ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await transport.SendAsync(
                     new byte[] { 1, 2, 3 },
                     topic: "opcua/pubsub/#").ConfigureAwait(false));
@@ -333,7 +333,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                         MqttQualityOfService.AtLeastOnce));
             }
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await transport.OpenAsync(CancellationToken.None).ConfigureAwait(false));
         }
     }

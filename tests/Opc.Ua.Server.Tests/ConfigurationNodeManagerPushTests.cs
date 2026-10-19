@@ -263,14 +263,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateWithEmptyDnsAndIpAddressesThrowsBadInvalidArgument()
+        public async Task CreateSelfSignedCertificateWithEmptyDnsAndIpAddressesThrowsBadInvalidArgument()
         {
             // OPC 10000-12 §7.10.6: "There shall be at least one entry in
             // dnsName or IP address lists," regardless of certificate type
             // or whether SubjectName was supplied.
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateWithEmptySubjectNameForApplicationCertificateTypeComputesDefault()
+        public async Task CreateSelfSignedCertificateWithEmptySubjectNameForApplicationCertificateTypeComputesDefault()
         {
             // OPC 10000-12 §7.10.6/§7.10.21: for ApplicationCertificateTypes
             // the SubjectName may be omitted; the Server derives a suitable
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests
             // no longer fires first.
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -321,14 +321,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateWithUnsupportedKeySizeThrowsBadOutOfRange()
+        public async Task CreateSelfSignedCertificateWithUnsupportedKeySizeThrowsBadOutOfRange()
         {
             // OPC 10000-12 §7.10.6: "Bad_OutOfRange: The keySizeInBits is
             // not supported." RsaSha256ApplicationCertificateType only
             // supports 2048/3072/4096; 1024 is not one of them.
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -347,11 +347,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateNonAdminThrowsBadUserAccessDenied()
+        public async Task CreateSelfSignedCertificateNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -370,11 +370,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateWithInvalidGroupThrowsBadInvalidArgument()
+        public async Task CreateSelfSignedCertificateWithInvalidGroupThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -393,7 +393,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
+        public async Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
         {
             ISystemContext context = CreateAdminContext();
 
@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.Tests
             // already has an active RsaSha256 certificate (the server's own
             // application certificate) — CreateSelfSignedCertificate must never
             // replace an occupied slot.
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -418,7 +418,6 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(exception, Is.Not.Null, "expected BadInvalidState but call succeeded");
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -1112,11 +1111,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestNonAdminThrowsBadUserAccessDenied()
+        public async Task CreateSigningRequestNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
@@ -1133,11 +1132,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestWithInvalidGroupThrowsBadInvalidArgument()
+        public async Task CreateSigningRequestWithInvalidGroupThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
@@ -1154,11 +1153,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestWithNullCertificateTypeThrowsBadInvalidArgument()
+        public async Task CreateSigningRequestWithNullCertificateTypeThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
@@ -1198,14 +1197,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestWithCertificateTypeNotInGroupThrowsBadInvalidArgument()
+        public async Task CreateSigningRequestWithCertificateTypeNotInGroupThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();
 
             // HttpsCertificateType is only ever registered on the
             // DefaultHttpsGroup, never on DefaultApplicationGroup, so this
             // must hit the "certificate type not valid for group" branch.
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
@@ -1222,11 +1221,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithEmptyCertificateThrowsArgumentNullException()
+        public async Task UpdateCertificateWithEmptyCertificateThrowsArgumentNullException()
         {
             ISystemContext context = CreateAdminContext();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1242,11 +1241,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithInvalidCertificateDataThrowsBadCertificateInvalid()
+        public async Task UpdateCertificateWithInvalidCertificateDataThrowsBadCertificateInvalid()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1427,12 +1426,12 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        public void UpdateCertificateWithInvalidPrivateKeyThrowsBadSecurityChecksFailed(string privateKeyFormat)
+        public async Task UpdateCertificateWithInvalidPrivateKeyThrowsBadSecurityChecksFailed(string privateKeyFormat)
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1450,11 +1449,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithUnsupportedPrivateKeyFormatThrowsBadNotSupported()
+        public async Task UpdateCertificateWithUnsupportedPrivateKeyFormatThrowsBadNotSupported()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1472,13 +1471,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithVersion1CertificateThrowsBadCertificateInvalid()
+        public async Task UpdateCertificateWithVersion1CertificateThrowsBadCertificateInvalid()
         {
             // OPC 10000-6 §6.2.2: application certificates are X.509 v3.
             ISystemContext context = CreateAdminContext();
             byte[] version1 = PushComplianceRegressionTests.CreateVersion1Certificate("CN=Update Version 1");
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1496,11 +1495,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateNonAdminThrowsBadUserAccessDenied()
+        public async Task UpdateCertificateNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1518,7 +1517,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithInsecureChannelThrowsBadSecurityModeInsufficient()
+        public async Task UpdateCertificateWithInsecureChannelThrowsBadSecurityModeInsufficient()
         {
             // OPC 10000-12 §7.10.5: UpdateCertificate requires an encrypted
             // SecureChannel; a Sign-only channel is reported as
@@ -1529,7 +1528,7 @@ namespace Opc.Ua.Server.Tests
                 MessageSecurityMode.Sign,
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1547,11 +1546,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateCertificateWithInvalidGroupThrowsBadInvalidArgument()
+        public async Task UpdateCertificateWithInvalidGroupThrowsBadInvalidArgument()
         {
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
@@ -1686,7 +1685,7 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_configNode.UpdateCertificate!.OnCallAsync!(
                             context,
                             m_configNode.UpdateCertificate,
@@ -2017,7 +2016,7 @@ namespace Opc.Ua.Server.Tests
             await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            await Assert.ThrowsAsync<TaskCanceledException>(async () =>
                 await m_configManager
                     .DrainPendingApplyChangesAsync(cancellationTokenSource.Token)
                     .ConfigureAwait(false));
@@ -2065,13 +2064,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ApplyChangesNonAdminThrowsBadUserAccessDenied()
+        public async Task ApplyChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
             ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.ApplyChanges,
@@ -2093,11 +2092,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidatePushCertificateAndIssuerChainWithNullCertificateThrowsArgumentNullException()
+        public async Task ValidatePushCertificateAndIssuerChainWithNullCertificateThrowsArgumentNullException()
         {
             using var issuerCertificates = new CertificateCollection();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         null!,
                         issuerCertificates,
@@ -2108,12 +2107,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidatePushCertificateAndIssuerChainWithNullIssuersThrowsArgumentNullException()
+        public async Task ValidatePushCertificateAndIssuerChainWithNullIssuersThrowsArgumentNullException()
         {
             using Certificate certificate = CertificateBuilder.Create("CN=Validation Subject")
                 .CreateForRSA();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         null!,
@@ -2124,13 +2123,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidatePushCertificateAndIssuerChainWithNullConfigurationThrowsArgumentNullException()
+        public async Task ValidatePushCertificateAndIssuerChainWithNullConfigurationThrowsArgumentNullException()
         {
             using Certificate certificate = CertificateBuilder.Create("CN=Validation Subject")
                 .CreateForRSA();
             using var issuerCertificates = new CertificateCollection();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         issuerCertificates,
@@ -2141,13 +2140,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidatePushCertificateAndIssuerChainWithNullTelemetryThrowsArgumentNullException()
+        public async Task ValidatePushCertificateAndIssuerChainWithNullTelemetryThrowsArgumentNullException()
         {
             using Certificate certificate = CertificateBuilder.Create("CN=Validation Subject")
                 .CreateForRSA();
             using var issuerCertificates = new CertificateCollection();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         issuerCertificates,
@@ -2225,9 +2224,9 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void BindKeyCredentialPushWithNullSubjectThrowsArgumentNullException()
+        public async Task BindKeyCredentialPushWithNullSubjectThrowsArgumentNullException()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await m_configManager.BindKeyCredentialPushAsync(null!, CancellationToken.None)
                     .ConfigureAwait(false));
         }
@@ -2238,7 +2237,7 @@ namespace Opc.Ua.Server.Tests
             using var store = new InMemoryKeyCredentialStore();
             var subject = new KeyCredentialPushSubject(store);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await m_configManager.BindKeyCredentialPushAsync(subject, CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -2550,7 +2549,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DeleteCertificateWithInvalidGroupThrowsBadInvalidArgument()
+        public async Task DeleteCertificateWithInvalidGroupThrowsBadInvalidArgument()
         {
             // The "slot already empty" rejection path is covered end-to-end
             // by the isolated fixture in
@@ -2561,7 +2560,7 @@ namespace Opc.Ua.Server.Tests
             // shared with VerifyGroupAndTypeId's other callers.
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.DeleteCertificate!.OnCallAsync!(
                         context,
                         m_configNode.DeleteCertificate,
@@ -2575,11 +2574,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DeleteCertificateNonAdminThrowsBadUserAccessDenied()
+        public async Task DeleteCertificateNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.DeleteCertificate!.OnCallAsync!(
                         context,
                         m_configNode.DeleteCertificate,
@@ -2631,7 +2630,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(firstDeleteResult.ServiceResult), Is.True);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await configNode.DeleteCertificate.OnCallAsync(
                             context,
                             configNode.DeleteCertificate,
@@ -2715,7 +2714,7 @@ namespace Opc.Ua.Server.Tests
                 }
 
                 NodeId lastType = types[^1];
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_configNode.DeleteCertificate!.OnCallAsync!(
                             context,
                             m_configNode.DeleteCertificate,
@@ -2796,7 +2795,7 @@ namespace Opc.Ua.Server.Tests
                     Thumbprint = oldCertificate.Thumbprint
                 };
 
-                ArgumentException caught = Assert.ThrowsAsync<ArgumentException>(async () =>
+                ArgumentException caught = await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await InvokeApplyCertificateSlotChangeAsync(
                             m_configManager,
                             existingCertIdentifier,
@@ -3218,7 +3217,7 @@ namespace Opc.Ua.Server.Tests
                         poisonedIssuer
                     };
 
-                    UnauthorizedAccessException caught = Assert.ThrowsAsync<UnauthorizedAccessException>(
+                    UnauthorizedAccessException caught = await Assert.ThrowsAsync<UnauthorizedAccessException>(
                         async () => await InvokeApplyCertificateSlotChangeFullAsync(
                                 m_configManager,
                                 certificateGroup,
@@ -3609,13 +3608,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CancelChangesNonAdminThrowsBadUserAccessDenied()
+        public async Task CancelChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
             ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.CancelChanges,
@@ -3726,7 +3725,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(ownerResult.ServiceResult), Is.True);
 
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_configNode.UpdateCertificate.OnCallAsync(
                             otherContext,
                             m_configNode.UpdateCertificate,
@@ -3910,7 +3909,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestWithInsecureChannelThrowsBadSecurityModeInsufficient()
+        public async Task CreateSigningRequestWithInsecureChannelThrowsBadSecurityModeInsufficient()
         {
             // §7.10.10: CreateSigningRequest requires an encrypted channel.
             ISystemContext context = CreateContext(
@@ -3918,7 +3917,7 @@ namespace Opc.Ua.Server.Tests
                 MessageSecurityMode.Sign,
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
@@ -3978,14 +3977,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateOverUnauthenticatedChannelThrowsBadSecurityModeInsufficient()
+        public async Task CreateSelfSignedCertificateOverUnauthenticatedChannelThrowsBadSecurityModeInsufficient()
         {
             ISystemContext context = CreateContext(
                 UserTokenType.UserName,
                 MessageSecurityMode.None,
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -4004,14 +4003,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSelfSignedCertificateOverSignChannelWithoutAdminRoleThrowsBadUserAccessDenied()
+        public async Task CreateSelfSignedCertificateOverSignChannelWithoutAdminRoleThrowsBadUserAccessDenied()
         {
             // Channel security is sufficient (authenticated Sign channel) but
             // the SecurityAdmin Role is missing: the failure must be the
             // Role failure (Bad_UserAccessDenied), not the channel failure.
             ISystemContext context = CreateContext(UserTokenType.Anonymous, MessageSecurityMode.Sign);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
@@ -4030,13 +4029,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSigningRequestWithRegenerateAndShortNonceThrowsBadInvalidArgument()
+        public async Task CreateSigningRequestWithRegenerateAndShortNonceThrowsBadInvalidArgument()
         {
             // §7.10.10: the Nonce must be at least 32 bytes when a new private
             // key is regenerated; a shorter Nonce is Bad_InvalidArgument.
             ISystemContext context = CreateAdminContext();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,

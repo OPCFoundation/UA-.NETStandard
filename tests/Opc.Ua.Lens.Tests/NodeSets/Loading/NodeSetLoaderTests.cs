@@ -147,8 +147,8 @@ namespace UaLens.Tests.NodeSets.Loading
             </UANodeSet>
             """;
             string path = await WriteAsync("alias.xml", xml).ConfigureAwait(false);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([path], m_resolver.Object).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([path], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain(alias).And.Contain("<Aliases>"));
 
             await WriteAsync("alias.xml", xml.Replace("<UAObject",
@@ -254,11 +254,11 @@ namespace UaLens.Tests.NodeSets.Loading
         {
             string broken = await WriteAsync("broken.xml", Model("urn:broken").Replace(
                 "</UANodeSet>", "<broken", StringComparison.Ordinal)).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([broken], m_resolver.Object).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([broken], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             string app = await WriteAsync("app.xml", Model("urn:app", "urn:broken")).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [TestCase("""ModelVersion="1.0.0" """, """ModelVersion="2.0.0" """)]
@@ -271,8 +271,8 @@ namespace UaLens.Tests.NodeSets.Loading
                 Xml($"""<Model ModelUri="urn:model" {firstRevision}/>""")).ConfigureAwait(false);
             string second = await WriteAsync("second.xml",
                 Xml($"""<Model ModelUri="urn:model" {secondRevision}/>""")).ConfigureAwait(false);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([first, second], m_resolver.Object).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([first, second], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("conflicting revisions").And.Contain("urn:model"));
         }
 
@@ -318,17 +318,18 @@ namespace UaLens.Tests.NodeSets.Loading
             string app = await WriteAsync("app.xml", Model("urn:app", "urn:missing")).ConfigureAwait(false);
             m_resolver.Setup(value => value.ResolveAsync(
                 It.IsAny<NodeSetRequirement>(), It.IsAny<CancellationToken>())).ReturnsAsync((NodeSetDocument?)null);
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
-        public void CancellationBeforeOpenDoesNotReadFiles()
+        public async Task CancellationBeforeOpenDoesNotReadFiles()
         {
             using var cancellation = new CancellationTokenSource();
-            cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await m_loader.LoadAsync(["missing.xml"], m_resolver.Object, cancellation.Token).ConfigureAwait(false));
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await m_loader.LoadAsync(["missing.xml"], m_resolver.Object, cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
@@ -344,8 +345,9 @@ namespace UaLens.Tests.NodeSets.Loading
                     token.ThrowIfCancellationRequested();
                     return null;
                 });
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object, cancellation.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object, cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
@@ -355,8 +357,8 @@ namespace UaLens.Tests.NodeSets.Loading
             NodeSetDocument wrong = await ReadAsync(Model("urn:wrong")).ConfigureAwait(false);
             m_resolver.Setup(value => value.ResolveAsync(
                 It.IsAny<NodeSetRequirement>(), It.IsAny<CancellationToken>())).ReturnsAsync(wrong);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("urn:missing"));
         }
 
@@ -373,8 +375,8 @@ namespace UaLens.Tests.NodeSets.Loading
                 .ConfigureAwait(false);
             string old = await WriteAsync("old.xml", Xml(
                 """<Model ModelUri="urn:dependency" PublicationDate="2024-01-01T00:00:00Z"/>""")).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([app, old], m_resolver.Object).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([app, old], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             m_resolver.VerifyNoOtherCalls();
         }
 
@@ -392,8 +394,8 @@ namespace UaLens.Tests.NodeSets.Loading
                     token.ThrowIfCancellationRequested();
                     return document;
                 });
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("depth limit"));
         }
 
@@ -408,8 +410,8 @@ namespace UaLens.Tests.NodeSets.Loading
             });
             m_resolver.Setup(value => value.ResolveAsync(
                 It.IsAny<NodeSetRequirement>(), It.IsAny<CancellationToken>())).ReturnsAsync(huge);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await m_loader.LoadAsync([app], m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("nodes"));
         }
 
@@ -420,13 +422,13 @@ namespace UaLens.Tests.NodeSets.Loading
             <!DOCTYPE UANodeSet [<!ENTITY hostile SYSTEM "file:///not-accessed">]>
             <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">&hostile;</UANodeSet>
             """).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await NodeSetDocument.ReadAsync(dtd).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await NodeSetDocument.ReadAsync(dtd).ConfigureAwait(false)).ConfigureAwait(false);
             string nested = string.Concat(Enumerable.Repeat("<x>", NodeSetDocumentReader.MaxXmlDepth + 1)) +
                 string.Concat(Enumerable.Repeat("</x>", NodeSetDocumentReader.MaxXmlDepth + 1));
             string deep = await WriteAsync("deep.xml", Xml(string.Empty, nodes: nested)).ConfigureAwait(false);
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await NodeSetDocument.ReadAsync(deep).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await NodeSetDocument.ReadAsync(deep).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("depth limit"));
         }
 
@@ -442,25 +444,25 @@ namespace UaLens.Tests.NodeSets.Loading
         }
 
         [Test]
-        public void ReaderRejectsOversizedFilesWithoutParsingOrModifyingThem()
+        public async Task ReaderRejectsOversizedFilesWithoutParsingOrModifyingThem()
         {
             string path = Path.Combine(m_directory, "oversized.xml");
             using (var file = new FileStream(path, FileMode.CreateNew, FileAccess.Write))
             {
                 file.SetLength(NodeSetDocumentReader.MaxDocumentBytes + 1);
             }
-            InvalidDataException? exception = Assert.ThrowsAsync<InvalidDataException>(async () =>
-                await NodeSetDocument.ReadAsync(path).ConfigureAwait(false));
+            InvalidDataException? exception = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await NodeSetDocument.ReadAsync(path).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Message, Does.Contain("byte input limit"));
             Assert.That(new FileInfo(path).Length, Is.EqualTo(NodeSetDocumentReader.MaxDocumentBytes + 1));
         }
 
         [Test]
-        public void SelectedDocumentCountIsBounded()
+        public async Task SelectedDocumentCountIsBounded()
         {
             string[] paths = [.. Enumerable.Repeat("not-read.xml", NodeSetLoader.MaxDocuments + 1)];
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await m_loader.LoadAsync(paths, m_resolver.Object).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_loader.LoadAsync(paths, m_resolver.Object).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]

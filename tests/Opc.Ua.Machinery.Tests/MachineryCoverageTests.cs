@@ -390,7 +390,7 @@ namespace Opc.Ua.Machinery.Tests
                 .BuildAsync();
 
             Assert.That(publisher, Is.Not.Null);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await publisher!.PublishAsync(new BaseEventState(null)));
 
             var notification = new SystemEventState(null);
@@ -636,7 +636,7 @@ namespace Opc.Ua.Machinery.Tests
                 })
                 .BuildAsync();
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await machine.Results!.PublishAsync(Result("incomplete")));
 
             await machine.Results!.PublishAsync(
@@ -923,7 +923,7 @@ namespace Opc.Ua.Machinery.Tests
                     new QualifiedName("x")));
 
             await NewMachine("Dup-Name").BuildAsync();
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await NewMachine("Dup-Name").BuildAsync());
 
             ArrayOf<string> buildingBlockNamespaces =

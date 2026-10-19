@@ -165,7 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     "sensors", "empty", WoTDocumentKindEnum.ThingDescription)
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.ValidateResourceAsync("sensors", "empty"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }

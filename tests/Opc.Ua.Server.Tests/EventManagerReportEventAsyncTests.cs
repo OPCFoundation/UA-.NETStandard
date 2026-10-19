@@ -80,14 +80,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ReportEventCancellationStillStopsDispatch()
+        public async Task ReportEventCancellationStillStopsDispatch()
         {
             var owner = new Mock<IAsyncNodeManager>();
             var receiver = new Mock<IEventMonitoredItem>();
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await EventManager.ReportEventAsync(
                     new BaseEventState(null), owner.Object, [receiver.Object], cancellation.Token)
                     .ConfigureAwait(false));

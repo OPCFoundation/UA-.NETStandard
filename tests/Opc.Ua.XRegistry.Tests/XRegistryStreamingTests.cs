@@ -115,13 +115,13 @@ namespace Opc.Ua.XRegistry.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ResolveResourceToAsyncRejectsNullOrEmptyIdentityWithoutRead(bool emptyNotNull)
+        public async Task ResolveResourceToAsyncRejectsNullOrEmptyIdentityWithoutRead(bool emptyNotNull)
         {
             using var destination = new MemoryStream();
 
-            ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException exception = (await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_registry.ResolveResourceToAsync(
-                    emptyNotNull ? ByteString.Empty : default, destination, 8).ConfigureAwait(false))!;
+                    emptyNotNull ? ByteString.Empty : default, destination, 8).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("contentId"));
             Assert.That(destination.Length, Is.Zero);
@@ -131,14 +131,14 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [TestCaseSource(nameof(s_badReadStatuses))]
-        public void ResolveResourceToAsyncPreservesFailedReadRatherThanReturningEmptySuccess(StatusCode status)
+        public async Task ResolveResourceToAsyncPreservesFailedReadRatherThanReturningEmptySuccess(StatusCode status)
         {
             m_values.Enqueue(DataValue.FromStatusCode(status));
             using var destination = new MemoryStream();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_registry.ResolveResourceToAsync(ByteString.From([7]), destination, 8, 4)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(status));
             Assert.That(destination.Length, Is.Zero);
@@ -164,13 +164,13 @@ namespace Opc.Ua.XRegistry.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ResolveResourceToAsyncEnforcesRangeAndCumulativeLimitBeforeDestinationWrite(bool ignoredRange)
+        public async Task ResolveResourceToAsyncEnforcesRangeAndCumulativeLimitBeforeDestinationWrite(bool ignoredRange)
         {
             m_values.Enqueue(Value(11, 12));
             m_values.Enqueue(ignoredRange ? Value(13, 14, 15, 16, 17) : Value(13, 14));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_registry.ResolveResourceToAsync(
                     ByteString.From([7]), destination, ignoredRange ? 20 : 3, 4).ConfigureAwait(false));
 
@@ -207,11 +207,11 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void WriteDocumentAsyncStreamLimitFailureClosesHandleWithoutWritingOffendingChunk()
+        public async Task WriteDocumentAsyncStreamLimitFailureClosesHandleWithoutWritingOffendingChunk()
         {
             using var source = new MemoryStream([31, 32, 33, 34, 35, 36]);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_resource.WriteDocumentAsync(kHandle, source, 5, 2).ConfigureAwait(false));
 
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [31, 32], [33, 34] }));
@@ -227,7 +227,7 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void WriteDocumentAsyncStreamPreservesWriteFailureAndReleasesOwnedHandle()
+        public async Task WriteDocumentAsyncStreamPreservesWriteFailureAndReleasesOwnedHandle()
         {
             var primary = new ServiceResultException(StatusCodes.BadCommunicationError);
             using var source = new MemoryStream([41, 42]);
@@ -239,8 +239,8 @@ namespace Opc.Ua.XRegistry.Tests
                 }
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_resource.WriteDocumentAsync(kHandle, source, 2, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_resource.WriteDocumentAsync(kHandle, source, 2, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(m_calls.Select(c => c.Request.MethodId),
@@ -283,13 +283,13 @@ namespace Opc.Ua.XRegistry.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ReadDocumentAsyncStreamRejectsLimitOrIgnoredRangeAndCloses(bool ignoredRange)
+        public async Task ReadDocumentAsyncStreamRejectsLimitOrIgnoredRangeAndCloses(bool ignoredRange)
         {
             m_fileChunks.Enqueue(ByteString.From([61, 62]));
             m_fileChunks.Enqueue(ignoredRange ? ByteString.From([63, 64, 65, 66, 67]) : ByteString.From([63, 64]));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_resource.ReadDocumentAsync(destination, ignoredRange ? 20 : 3, 4).ConfigureAwait(false));
 
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 61, 62 }));
@@ -324,12 +324,12 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase(true, 0L, 4, "maxBytes")]
         [TestCase(false, 8L, 0, "chunkSize")]
         [TestCase(true, 8L, 1048577, "chunkSize")]
-        public void ResourceStreamOverloadsValidateLimitsBeforeRemoteCalls(
+        public async Task ResourceStreamOverloadsValidateLimitsBeforeRemoteCalls(
             bool upload, long maxBytes, int chunkSize, string parameter)
         {
             using var stream = new MemoryStream();
 
-            ArgumentOutOfRangeException exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException exception = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             {
                 if (upload)
                 {
@@ -339,7 +339,7 @@ namespace Opc.Ua.XRegistry.Tests
                 {
                     await m_resource.ReadDocumentAsync(stream, maxBytes, chunkSize).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.ParamName, Is.EqualTo(parameter));
             Assert.That(m_calls, Is.Empty);

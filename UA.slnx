@@ -42,6 +42,10 @@
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
   </Folder>
+  <Folder Name="/samples/AutoID/">
+    <Project Path="samples/AutoID/AutoIdServer/AutoIdServer.csproj" />
+    <Project Path="samples/AutoID/AutoIdClient/AutoIdClient.csproj" />
+  </Folder>
   <Folder Name="/samples/Machinery/">
     <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
     <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />
@@ -187,6 +191,9 @@
     <Project Path="src/Opc.Ua.AMB/Opc.Ua.AMB.csproj" />
     <Project Path="src/Opc.Ua.AMB.Client/Opc.Ua.AMB.Client.csproj" />
     <Project Path="src/Opc.Ua.AMB.Server/Opc.Ua.AMB.Server.csproj" />
+    <Project Path="src/Opc.Ua.AutoID/Opc.Ua.AutoID.csproj" />
+    <Project Path="src/Opc.Ua.AutoID.Client/Opc.Ua.AutoID.Client.csproj" />
+    <Project Path="src/Opc.Ua.AutoID.Server/Opc.Ua.AutoID.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
@@ -409,6 +416,7 @@
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AutoID.Tests/Opc.Ua.AutoID.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
@@ -441,6 +449,7 @@
     <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.AutoID/Opc.Ua.Mcp.AutoID.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.CranesHoists/Opc.Ua.Mcp.CranesHoists.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Di/Opc.Ua.Mcp.Di.csproj" />

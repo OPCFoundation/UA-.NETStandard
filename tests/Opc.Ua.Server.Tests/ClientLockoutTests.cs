@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 4; i++)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () => await m_server.ActivateSessionAsync(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () => await m_server.ActivateSessionAsync(
                         secureChannelContext,
                         requestHeader,
                         createResponse.ServerSignature,
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_server.ActivateSessionAsync(
                         secureChannelContext,
                         requestHeader,
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
             ServerFixtureUtils.ValidateResponse(newCreateResponse.ResponseHeader);
             requestHeader.AuthenticationToken = newCreateResponse.AuthenticationToken;
 
-            ServiceResultException lockoutException = Assert.ThrowsAsync<ServiceResultException>(async () => await m_server.ActivateSessionAsync(
+            ServiceResultException lockoutException = await Assert.ThrowsAsync<ServiceResultException>(async () => await m_server.ActivateSessionAsync(
                     secureChannelContext,
                     requestHeader,
                     newCreateResponse.ServerSignature,
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.Tests
                     ServerFixtureUtils.DefaultMaxResponseMessageSize,
                     RequestLifetime.None).ConfigureAwait(false);
                 firstHeader.AuthenticationToken = firstSession.AuthenticationToken;
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_server.ActivateSessionAsync(
                         firstContext,
                         firstHeader,
@@ -335,7 +335,7 @@ namespace Opc.Ua.Server.Tests
 
             if (hasPeerAddress)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(ActivateVictimAsync);
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(ActivateVictimAsync);
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(exception.Message, Does.Contain("Too many failed authentication attempts"));
             }

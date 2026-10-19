@@ -39,7 +39,7 @@ namespace Opc.Ua.Machinery.Tests
     public sealed partial class MachineryResultTransferTests
     {
         [TestCaseSource(nameof(NonGoodPathStatuses))]
-        public void NonGoodTransferPathIsRejectedBeforeGeneration(StatusCode status, bool serviceStatus)
+        public async Task NonGoodTransferPathIsRejectedBeforeGeneration(StatusCode status, bool serviceStatus)
         {
             TranslateBrowsePathsToNodeIdsResponse response = TransferPathResponse();
             if (serviceStatus)
@@ -53,9 +53,9 @@ namespace Opc.Ua.Machinery.Tests
             m_transfer.Translate = _ => response;
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 8))!;
+                    TransferHarness.MachineId, "selected", destination, 8)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(status));
             Assert.That(m_transfer.Paths, Has.Count.EqualTo(1));
@@ -70,7 +70,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("null")]
         [TestCase("null-response")]
         [TestCase("result-count")]
-        public void InvalidTransferTargetNeverTriggersGenerationOrAnotherSearch(string kind)
+        public async Task InvalidTransferTargetNeverTriggersGenerationOrAnotherSearch(string kind)
         {
             TranslateBrowsePathsToNodeIdsResponse response = TransferPathResponse();
             BrowsePathTarget target = response.Results[0].Targets[0];
@@ -98,7 +98,7 @@ namespace Opc.Ua.Machinery.Tests
             m_transfer.Translate = _ => kind == "null-response" ? null! : response;
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId, "selected", destination, 8));
 
@@ -108,14 +108,14 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void MissingResultNamespaceDoesNotSearchOtherNamespaces()
+        public async Task MissingResultNamespaceDoesNotSearchOtherNamespaces()
         {
             m_transfer.Session.SetupGet(session => session.NamespaceUris).Returns(new NamespaceTable());
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 8))!;
+                    TransferHarness.MachineId, "selected", destination, 8)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             AssertNoRequests();
@@ -125,7 +125,7 @@ namespace Opc.Ua.Machinery.Tests
         /// Replacing an ordinary session while resolving the transfer path cannot begin generation on its successor.
         /// </summary>
         [Test]
-        public void SessionReplacementDuringTransferTranslationPreventsGeneration()
+        public async Task SessionReplacementDuringTransferTranslationPreventsGeneration()
         {
             m_transfer.Translate = path =>
             {
@@ -134,9 +134,9 @@ namespace Opc.Ua.Machinery.Tests
             };
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 1).ConfigureAwait(false))!;
+                    TransferHarness.MachineId, "selected", destination, 1).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(m_transfer.Paths, Has.Count.EqualTo(1));
@@ -146,7 +146,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void ReadMethodResolutionFailureStillClosesTheAcquiredFile()
+        public async Task ReadMethodResolutionFailureStillClosesTheAcquiredFile()
         {
             m_transfer.Translate = path =>
             {
@@ -160,9 +160,9 @@ namespace Opc.Ua.Machinery.Tests
             };
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 8))!;
+                    TransferHarness.MachineId, "selected", destination, 8)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
             Assert.That(m_transfer.ReadLengths, Is.Empty);
@@ -218,14 +218,14 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void GenerationErrorClosesWithoutReadingTheFile()
+        public async Task GenerationErrorClosesWithoutReadingTheFile()
         {
             EnableCompletionStateMachine();
             m_transfer.ReadState = _ => new ValueTask<ReadResponse>(
                 StateResponse(Opc.Ua.ObjectIds.FileTransferStateMachineType_Error));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId, "selected", destination, 2));
 
@@ -235,16 +235,16 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void GenerationStateRequestBudgetIsFinite()
+        public async Task GenerationStateRequestBudgetIsFinite()
         {
             EnableCompletionStateMachine();
             m_transfer.ReadState = _ => new ValueTask<ReadResponse>(
                 StateResponse(Opc.Ua.ObjectIds.FileTransferStateMachineType_Idle));
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 2))!;
+                    TransferHarness.MachineId, "selected", destination, 2)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(m_transfer.AttributeReads, Is.EqualTo(64));
@@ -253,7 +253,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [TestCaseSource(nameof(NonGoodPathStatuses))]
-        public void NonGoodGenerationStateClosesTheAcquiredHandle(StatusCode status, bool serviceStatus)
+        public async Task NonGoodGenerationStateClosesTheAcquiredHandle(StatusCode status, bool serviceStatus)
         {
             EnableCompletionStateMachine();
             ReadResponse response = StateResponse(Opc.Ua.ObjectIds.FileTransferStateMachineType_ReadTransfer);
@@ -268,9 +268,9 @@ namespace Opc.Ua.Machinery.Tests
             m_transfer.ReadState = _ => new ValueTask<ReadResponse>(response);
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 2))!;
+                    TransferHarness.MachineId, "selected", destination, 2)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(status));
             Assert.That(m_transfer.ReadLengths, Is.Empty);
@@ -278,7 +278,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void InvalidGenerationStateClosesTheAcquiredHandle()
+        public async Task InvalidGenerationStateClosesTheAcquiredHandle()
         {
             EnableCompletionStateMachine();
             m_transfer.ReadState = _ => new ValueTask<ReadResponse>(new ReadResponse
@@ -288,9 +288,9 @@ namespace Opc.Ua.Machinery.Tests
             });
             using var destination = new MemoryStream();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
-                    TransferHarness.MachineId, "selected", destination, 2))!;
+                    TransferHarness.MachineId, "selected", destination, 2)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(m_transfer.ReadLengths, Is.Empty);
@@ -298,7 +298,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void GenerationWaitCancellationStillClosesUnderAnIndependentToken()
+        public async Task GenerationWaitCancellationStillClosesUnderAnIndependentToken()
         {
             EnableCompletionStateMachine();
             using var cancellation = new CancellationTokenSource();
@@ -309,7 +309,7 @@ namespace Opc.Ua.Machinery.Tests
             };
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await m_transfer.Client.DownloadResultAsync(
                     TransferHarness.MachineId, "selected", destination, 2, cancellation.Token));
 

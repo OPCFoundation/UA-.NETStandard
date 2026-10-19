@@ -86,14 +86,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void ConnectAsyncWithRefusedConnectionPreservesSocketException()
+        public async Task ConnectAsyncWithRefusedConnectionPreservesSocketException()
         {
             using var reserved = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             reserved.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             int port = ((IPEndPoint)reserved.LocalEndPoint!).Port;
             using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
 
-            Assert.ThrowsAsync<SocketException>(
+            await Assert.ThrowsAsync<SocketException>(
                 async () => await transport.ConnectAsync(
                     new Uri($"opc.tcp://127.0.0.1:{port}"),
                     CancellationToken.None).ConfigureAwait(false));
@@ -109,10 +109,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             cancellationSource.Cancel();
             using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
 
-            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(
+            OperationCanceledException exception = (await Assert.CatchAsync<OperationCanceledException>(
                 async () => await transport.ConnectAsync(
                     new Uri("opc.tcp://192.0.2.1:4840"),
-                    cancellationSource.Token).ConfigureAwait(false))!;
+                    cancellationSource.Token).ConfigureAwait(false)))!;
 
             Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
             Assert.That(transport.LocalEndpoint, Is.Null);
@@ -164,7 +164,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 cancellationSource.Cancel();
 
                 OperationCanceledException exception =
-                    Assert.CatchAsync<OperationCanceledException>(async () => await connect.ConfigureAwait(false))!;
+                    (await Assert.CatchAsync<OperationCanceledException>(async () => await connect.ConfigureAwait(false)))!;
                 Assert.That(exception.CancellationToken, Is.EqualTo(cancellationSource.Token));
                 Assert.That(transport.LocalEndpoint, Is.Null);
                 Assert.That(transport.RemoteEndpoint, Is.Null);
@@ -310,7 +310,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                     cts.Cancel();
 
-                    Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false));
+                    await Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false));
                 }
                 finally
                 {
@@ -419,7 +419,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [TestCase(0)]
         [TestCase(13)]
-        public void SendAllAsyncRejectsInvalidSendCounts(int sent)
+        public async Task SendAllAsyncRejectsInvalidSendCounts(int sent)
         {
             var buffers = new BufferCollection(new byte[12], 0, 12);
             StatusCode expectedStatusCode = sent == 0
@@ -429,10 +429,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ? "Remote side closed the connection while sending"
                 : "Socket reported sending 13 bytes with only 12 bytes pending";
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await TcpByteTransport.SendAllAsync(
                     buffers,
-                    _ => Task.FromResult(sent)).ConfigureAwait(false))!;
+                    _ => Task.FromResult(sent)).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)expectedStatusCode));
             Assert.That(ex.Message, Does.Contain(expectedMessage));
@@ -480,15 +480,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void SendAllAsyncRejectsNullArguments()
+        public async Task SendAllAsyncRejectsNullArguments()
         {
             var buffers = new BufferCollection();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await TcpByteTransport.SendAllAsync(
                     null!,
                     _ => Task.FromResult(0)).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await TcpByteTransport.SendAllAsync(
                     buffers,
                     null!).ConfigureAwait(false));
@@ -660,9 +660,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Throws.InstanceOf<OperationCanceledException>());
 
                 await SendAllAsync(serverSocket, chunk, 12000, chunk.Length - 12000).ConfigureAwait(false);
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpInternalError));
             }
         }
@@ -781,9 +781,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .SendAsync(new ArraySegment<byte>(header), SocketFlags.None)
                     .ConfigureAwait(false);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
             }
         }
@@ -804,9 +804,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .SendAsync(new ArraySegment<byte>(header), SocketFlags.None)
                     .ConfigureAwait(false);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
             }
         }
@@ -828,9 +828,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .SendAsync(new ArraySegment<byte>(header), SocketFlags.None)
                     .ConfigureAwait(false);
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
             }
         }
@@ -847,9 +847,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 serverSocket.Shutdown(SocketShutdown.Both);
                 serverSocket.Dispose();
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await client.ReceiveChunkAsync(CancellationToken.None)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
             }
         }
@@ -865,14 +865,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void SendChunkAsyncOnDisconnectedTransportFails()
+        public async Task SendChunkAsyncOnDisconnectedTransportFails()
         {
             using var transport = new TcpByteTransport(m_bufferManager, kBufferSize, m_telemetry);
             byte[] payload = BuildValidChunk(TcpMessageType.Hello, 16);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport
                     .SendChunkAsync(payload, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 

@@ -229,7 +229,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
         [TestCase(true)]
         [TestCase(false)]
-        public void CancelledEnumerationIsDisposedAndDoesNotReturnPartialSuccess(bool providerObservesCancellation)
+        public async Task CancelledEnumerationIsDisposedAndDoesNotReturnPartialSuccess(bool providerObservesCancellation)
         {
             using var cancellation = new CancellationTokenSource();
             var entries = new CountingEntries(100000)
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             SetEntries(entries);
             using INodeBrowser browser = CreateBrowser();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await ReadProviderTargetsAsync(browser, cancellation.Token).ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -286,9 +286,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
             {
                 cancellation.Cancel();
                 var cancelledPage = new List<ReferenceDescription>();
-                OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(async () =>
+                OperationCanceledException exception = (await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await m_manager.BrowseAsync(context, point, cancelledPage, cancellation.Token)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
                 Assert.That(cancelledPage, Is.Empty);
             }
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await browser.NextAsync(cancellation.Token).ConfigureAwait(false));
             Assert.Multiple(() =>
             {

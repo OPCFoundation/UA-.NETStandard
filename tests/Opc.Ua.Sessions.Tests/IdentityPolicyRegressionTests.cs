@@ -70,7 +70,7 @@ namespace Opc.Ua.Sessions.Tests
                     Password = ByteString.From([1, 2, 3])
                 };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Session.ActivateSessionAsync(
                     null,
                     new SignatureData(),
@@ -78,7 +78,7 @@ namespace Opc.Ua.Sessions.Tests
                     [],
                     new ExtensionObject(token),
                     new SignatureData(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             DataValue status = await Session
                 .ReadValueAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);

@@ -1301,7 +1301,7 @@ namespace Opc.Ua
         /// Gets the endpoint descriptions returned by the most recent
         /// discovery request used to update this endpoint.
         /// </summary>
-        public ArrayOf<EndpointDescription> DiscoveryEndpoints { get; private set; }
+        public ArrayOf<EndpointDescription> DiscoveryEndpoints { get; internal set; }
 
         /// <summary>
         /// Returns a discovery url that can be used to update the endpoint description.

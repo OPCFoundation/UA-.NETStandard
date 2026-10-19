@@ -253,9 +253,9 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingOperationClient other = await new GranulateDryingClient(second, m_host.Telemetry)
                 .Device(device.NodeId).OperationAsync().ConfigureAwait(false);
             await control.DeviceMappingNumber.WriteAsync(23).ConfigureAwait(false);
-            AssertUaFailure(async () => await readOnly.DeviceMappingNumber.WriteAsync(24).ConfigureAwait(false),
+            await AssertUaFailure(async () => await readOnly.DeviceMappingNumber.WriteAsync(24).ConfigureAwait(false),
                 StatusCodes.BadUserAccessDenied);
-            AssertUaFailure(async () => await other.DeviceMappingNumber.WriteAsync(25).ConfigureAwait(false),
+            await AssertUaFailure(async () => await other.DeviceMappingNumber.WriteAsync(25).ConfigureAwait(false),
                 StatusCodes.BadUserAccessDenied);
             GranulateDryingReading<uint> observed = await
                 readOnly.DeviceMappingNumber.ReadAsync().ConfigureAwait(false);
@@ -280,15 +280,15 @@ namespace Opc.Ua.GranulateDrying.Tests
                 GranulateDryingTestHost.FullOptions(Name()), authority).ConfigureAwait(false);
             GranulateDryingBinClient bin = (await m_host.Client.Device(device.NodeId).BinsAsync()
                 .ConfigureAwait(false))[0];
-            AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
                 StatusCodes.BadNotSupported);
             authority.Execute = (_, _) => new ValueTask<GranulateDryingResult>(
                 new GranulateDryingResult(StatusCodes.Good));
-            AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
                 StatusCodes.BadInvalidState);
             authority.Execute = (_, _) => new ValueTask<GranulateDryingResult>(
                 new GranulateDryingResult(StatusCodes.Good, authority.Next()));
-            AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await bin.Proxy.ActivateTemperatureControllerAsync().ConfigureAwait(false),
                 StatusCodes.BadInvalidState);
             Assert.Multiple(() =>
             {
@@ -324,10 +324,10 @@ namespace Opc.Ua.GranulateDrying.Tests
                     Is.EqualTo((StatusCode)StatusCodes.UncertainLastUsableValue));
                 Assert.That(observed.DataValue.SourceTimestamp, Is.EqualTo(DryingAuthority.Time(17)));
             });
-            AssertUaFailure(async ()
+            await AssertUaFailure(async ()
                 => await device.PublishAsync(committed with { Revision = 1 }).ConfigureAwait(false),
                 StatusCodes.BadInvalidState);
-            AssertUaFailure(async () => await device.PublishAsync(committed with
+            await AssertUaFailure(async () => await device.PublishAsync(committed with
             {
                 Values = [DryingAuthority.Value(GranulateDryingTarget.Bin(1),
                     "Temperature/ActualValue", Variant.From(90.0), 17)]
@@ -335,7 +335,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingCommit invalid = authority.Next(
                 DryingAuthority.Value(GranulateDryingTarget.Bin(1), "Temperature/ActualValue", Variant.From(99.0)),
                 DryingAuthority.Value(GranulateDryingTarget.Bin(1), "DryingMode", Variant.From(99)));
-            AssertUaFailure(async () => await device.PublishAsync(invalid).ConfigureAwait(false),
+            await AssertUaFailure(async () => await device.PublishAsync(invalid).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
             Assert.That((await bin.Temperature.ReadAsync().ConfigureAwait(false)).Value, Is.EqualTo(81.25));
             Assert.That(device.Revision, Is.EqualTo(2));
@@ -400,11 +400,11 @@ namespace Opc.Ua.GranulateDrying.Tests
                 GranulateDryingTestHost.FullOptions(Name()), authority).ConfigureAwait(false);
             GranulateDryingDeviceClient client = m_host.Client.Device(device.NodeId);
             GranulateDryingOperationClient operation = await client.OperationAsync().ConfigureAwait(false);
-            AssertUaFailure(async () => await operation.EnergyConsumptionLimit.WriteAsync(-1).ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.EnergyConsumptionLimit.WriteAsync(-1).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
-            AssertUaFailure(async () => await operation.EnergyConsumptionLimit.WriteAsync(201).ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.EnergyConsumptionLimit.WriteAsync(201).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
-            AssertUaFailure(async ()
+            await AssertUaFailure(async ()
                 => await operation.EnergyConsumptionLimit.WriteAsync(double.NaN).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
             Assert.That(authority.LastCommand, Is.Null);
@@ -442,7 +442,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             authority.Execute = (_, _) => new ValueTask<GranulateDryingResult>(new GranulateDryingResult(
                 StatusCodes.Good, authority.Next(DryingAuthority.Value(
                     GranulateDryingTarget.Device, "Operation/EnergyConsumptionResettable", Variant.From(0.0)))));
-            AssertUaFailure(async () => await operation.Proxy.ResetEnergyMeasurementAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.Proxy.ResetEnergyMeasurementAsync().ConfigureAwait(false),
                 StatusCodes.BadInvalidState);
             Assert.That((await operation.EnergyConsumptionResettable.ReadAsync().ConfigureAwait(false)).Value,
                 Is.EqualTo(12.0));
@@ -530,10 +530,10 @@ namespace Opc.Ua.GranulateDrying.Tests
                 .ConfigureAwait(false))[0];
             ByteString instructions = await maintenance.ReadInstructionsAsync().ConfigureAwait(false);
             Assert.That(instructions.Span.ToArray(), Is.EqualTo(new byte[] { 1, 3, 5, 7 }));
-            AssertUaFailure(async () => await maintenance.ReadInstructionsAsync(3).ConfigureAwait(false),
+            await AssertUaFailure(async () => await maintenance.ReadInstructionsAsync(3).ConfigureAwait(false),
                 StatusCodes.BadEncodingLimitsExceeded);
             Assert.That(device.Maintenance(1).MaintenanceInstructions!.OpenCount!.Value, Is.Zero);
-            AssertUaFailure(async () => await maintenance.Proxy.ResetAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await maintenance.Proxy.ResetAsync().ConfigureAwait(false),
                 StatusCodes.BadNotSupported);
             authority.Execute = (_, _) => new ValueTask<GranulateDryingResult>(new GranulateDryingResult(
                 StatusCodes.Good, authority.Next(
@@ -572,10 +572,10 @@ namespace Opc.Ua.GranulateDrying.Tests
             Task operation = bin.Proxy.ActivateTemperatureControllerAsync().AsTask();
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             await device.DisposeAsync().ConfigureAwait(false);
-            AssertUaFailure(async () => await operation.ConfigureAwait(false), StatusCodes.BadShutdown);
+            await AssertUaFailure(async () => await operation.ConfigureAwait(false), StatusCodes.BadShutdown);
             Assert.That((await bin.TemperatureControllerStatus.ReadAsync().ConfigureAwait(false)).Value,
                 Is.EqualTo(FunctionStatusEnumeration.OFF));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await device.PublishAsync(authority.Next()).ConfigureAwait(false));
             await device.DisposeAsync().ConfigureAwait(false);
         }
@@ -592,19 +592,19 @@ namespace Opc.Ua.GranulateDrying.Tests
                 ReadFailure = new ServiceResultException(StatusCodes.BadResourceUnavailable)
             };
             GranulateDryingDeviceOptions options = GranulateDryingTestHost.BasicOptions(name);
-            AssertUaFailure(async () => await m_host.CreateAsync(options, authority).ConfigureAwait(false),
+            await AssertUaFailure(async () => await m_host.CreateAsync(options, authority).ConfigureAwait(false),
                 StatusCodes.BadResourceUnavailable);
             Assert.That((await m_host.Client.DiscoverDevicesAsync().ConfigureAwait(false))
                 .FindIndex(entry => entry.BrowseName.Name == name), Is.EqualTo(-1));
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await m_host.CreateAsync(options, new DryingAuthority(), cancellationToken: cancelled.Token)
                     .ConfigureAwait(false));
             GranulateDryingDevice device = await m_host.CreateAsync(options,
                 new DryingAuthority()).ConfigureAwait(false);
             Assert.That(device.Options.BrowseName, Is.EqualTo(name));
-            AssertUaFailure(async () => await m_host.CreateAsync(options, new DryingAuthority()).ConfigureAwait(false),
+            await AssertUaFailure(async () => await m_host.CreateAsync(options, new DryingAuthority()).ConfigureAwait(false),
                 StatusCodes.BadBrowseNameDuplicated);
         }
 
@@ -636,9 +636,9 @@ namespace Opc.Ua.GranulateDrying.Tests
         /// <summary>
         /// Checks exact UA failures rather than merely accepting any exception.
         /// </summary>
-        private static void AssertUaFailure(Func<Task> operation, StatusCode code)
+        private static async Task AssertUaFailure(Func<Task> operation, StatusCode code)
         {
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(operation)!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(operation))!;
             Assert.That(error.StatusCode, Is.EqualTo(code));
         }
 
@@ -755,10 +755,10 @@ namespace Opc.Ua.GranulateDrying.Tests
 
         [TestCase(0)]
         [TestCase(-1)]
-        public void GddDiscoveryRejectsNonpositiveBoundsBeforeServices(int maximum)
+        public async Task GddDiscoveryRejectsNonpositiveBoundsBeforeServices(int maximum)
         {
             var peer = new GranulateDryingClientPeer();
-            ArgumentOutOfRangeException? error = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException? error = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await peer.Client.DiscoverDevicesAsync(maximumNodes: maximum).ConfigureAwait(false));
             Assert.That(error!.ParamName, Is.EqualTo("maximumNodes"));
             peer.VerifyNoServices();
@@ -786,7 +786,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 GranulateDryingClientPeer.Reference(device, expectedType, "Duplicate"));
             if (maximum == 2)
             {
-                GranulateDryingClientPeer.AssertFailure(async () =>
+                await GranulateDryingClientPeer.AssertFailure(async () =>
                     await peer.Client.DiscoverDevicesAsync(root, maximum).ConfigureAwait(false),
                     StatusCodes.BadEncodingLimitsExceeded);
                 Assert.That(peer.Cache.Invocations, Has.Count.EqualTo(1), "Over-limit nodes must not be classified.");
@@ -865,13 +865,13 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase(0)]
         [TestCase(2)]
         [TestCase(1)]
-        public void GddBrowseFailuresRemainObservable(int count)
+        public async Task GddBrowseFailuresRemainObservable(int count)
         {
             var peer = new GranulateDryingClientPeer();
             NodeId root = GranulateDryingClientPeer.DeviceId;
             peer.ExpectBrowseResults(root, Enumerable.Repeat(
                 new BrowseResult { StatusCode = StatusCodes.BadUserAccessDenied }, count).ToArray().ToArrayOf());
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await peer.Client.DiscoverDevicesAsync(root).ConfigureAwait(false),
                 count == 1 ? StatusCodes.BadUserAccessDenied : StatusCodes.BadUnexpectedError);
             Assert.That(peer.Cache.Invocations, Is.Empty);
@@ -881,7 +881,7 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase("BeforeBrowse")]
         [TestCase("Browse")]
         [TestCase("TypeCache")]
-        public void GddBrowseFailuresAndCancellationRemainObservable(string cancelAt)
+        public async Task GddBrowseFailuresAndCancellationRemainObservable(string cancelAt)
         {
             using var cancellation = new CancellationTokenSource();
             var peer = new GranulateDryingClientPeer(token: cancellation.Token);
@@ -905,7 +905,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                     peer.ExpectType(expectedType, expectedType, true, beforeReturn: cancellation.Cancel);
                 }
             }
-            OperationCanceledException? error = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await peer.Client.DiscoverDevicesAsync(root,
                     cancellationToken: cancellation.Token).ConfigureAwait(false));
             Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
@@ -966,7 +966,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingDeviceClient device = peer.Client.Device(GranulateDryingClientPeer.DeviceId);
             if (group == "Bins")
             {
-                GranulateDryingClientPeer.AssertFailure(async () =>
+                await GranulateDryingClientPeer.AssertFailure(async () =>
                     await device.BinsAsync().ConfigureAwait(false), StatusCodes.BadNotSupported);
             }
             else
@@ -981,13 +981,13 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase("Operation")]
         [TestCase("Identification")]
         [TestCase("MachineConfiguration")]
-        public void GddMandatoryGeneratedChildrenReportNotSupported(string missing)
+        public async Task GddMandatoryGeneratedChildrenReportNotSupported(string missing)
         {
             var peer = new GranulateDryingClientPeer();
             peer.ExpectChild(GranulateDryingClientPeer.DeviceId,
                 missing == "Identification" ? peer.Di(missing) : peer.Gdd(missing), false);
             GranulateDryingDeviceClient device = peer.Client.Device(GranulateDryingClientPeer.DeviceId);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
             {
                 switch (missing)
                 {
@@ -1107,7 +1107,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 else
                 {
                     Assert.That(create.Target, Is.SameAs(factory));
-                    Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                         await create(cancellation.Token).ConfigureAwait(false)), Is.SameAs(failure));
                 }
             }
@@ -1119,7 +1119,7 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase("Fault", true)]
         [TestCase("Throw", false)]
         [TestCase("CancelledTask", true)]
-        public void GddFactoryValidatesDependenciesAndForwardsTokensAndFailures(string outcome, bool preCancelled)
+        public async Task GddFactoryValidatesDependenciesAndForwardsTokensAndFailures(string outcome, bool preCancelled)
         {
             using var cancellation = new CancellationTokenSource();
             if (preCancelled)
@@ -1153,13 +1153,13 @@ namespace Opc.Ua.GranulateDrying.Tests
             var factory = new GranulateDryingClientFactory(AcquireAsync, peer.Telemetry);
             if (outcome == "CancelledTask")
             {
-                TaskCanceledException? error = Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                TaskCanceledException? error = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
                     await factory.CreateAsync(cancellation.Token).ConfigureAwait(false));
                 Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
             }
             else
             {
-                Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await factory.CreateAsync(cancellation.Token).ConfigureAwait(false)), Is.SameAs(failure));
             }
             Assert.That(calls, Is.EqualTo(1));
@@ -1204,7 +1204,7 @@ namespace Opc.Ua.GranulateDrying.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void GddPlaceholderCancellationReachesBrowseAndTypeCache(bool duringTypeCheck)
+        public async Task GddPlaceholderCancellationReachesBrowseAndTypeCache(bool duringTypeCheck)
         {
             using var cancellation = new CancellationTokenSource();
             var peer = new GranulateDryingClientPeer(token: cancellation.Token);
@@ -1225,7 +1225,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             {
                 peer.ExpectType(vendor, expectedType, true, beforeReturn: cancellation.Cancel);
             }
-            OperationCanceledException? error = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await peer.Client.Device(GranulateDryingClientPeer.DeviceId).BinsAsync(cancellation.Token)
                     .ConfigureAwait(false));
             Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));

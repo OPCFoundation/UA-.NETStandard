@@ -82,7 +82,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task FailoverChannelBreakWithTransferOnRecreateV2Async(
             CancellationToken ct)
@@ -175,8 +174,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(FailoverChannelBreakWithTransferOnRecreateV2Async), AllowFailure = true)]
         public async Task FailoverChannelBreakWithoutTransferOnRecreateV2Async(
             CancellationToken ct)
         {

@@ -66,8 +66,8 @@ namespace Opc.Ua.GMS.Tests
             }
             else
             {
-                GmsResultDomainException exception = Assert.ThrowsAsync<GmsResultDomainException>(
-                    async () => await client.GetLatestAsync())!;
+                GmsResultDomainException exception = (await Assert.ThrowsAsync<GmsResultDomainException>(
+                    async () => await client.GetLatestAsync()))!;
                 Assert.That(exception.Error, Is.EqualTo(-17));
                 Assert.That(exception.Operation, Is.EqualTo("GetLatestResult"));
             }
@@ -80,15 +80,15 @@ namespace Opc.Ua.GMS.Tests
         /// Oversized metadata fails explicitly and the acquired handle is still released.
         /// </summary>
         [Test]
-        public void OversizedMetadataIsNotTruncatedAndStillReleasesItsHandle()
+        public async Task OversizedMetadataIsNotTruncatedAndStillReleasesItsHandle()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateSession(calls);
             var client = new GmsResultClient(session.Object, new NodeId("gms", 1), NUnitTelemetryContext.Create(),
                 new GmsResultLimits { MaximumMetadataBytes = 8 });
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.GetLatestAsync())!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.GetLatestAsync()))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(calls, Has.Count.EqualTo(2));
@@ -98,14 +98,14 @@ namespace Opc.Ua.GMS.Tests
         /// A bad method service status never triggers release of an unacquired handle.
         /// </summary>
         [Test]
-        public void ServiceFailureIsNotADomainStatusOrAnEmptyGoodResult()
+        public async Task ServiceFailureIsNotADomainStatusOrAnEmptyGoodResult()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateSession(calls, serviceStatus: StatusCodes.BadUserAccessDenied);
             var client = new GmsResultClient(session.Object, new NodeId("gms", 1), NUnitTelemetryContext.Create());
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.GetLatestAsync())!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.GetLatestAsync()))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(calls, Has.Count.EqualTo(1));
@@ -115,7 +115,7 @@ namespace Opc.Ua.GMS.Tests
         /// Cancellation after a successful service response still releases its acquired handle with an independent token.
         /// </summary>
         [Test]
-        public void CancellationAfterTheReplyDoesNotCancelOwnedMetadataCleanup()
+        public async Task CancellationAfterTheReplyDoesNotCancelOwnedMetadataCleanup()
         {
             var calls = new List<CallMethodRequest>();
             var tokens = new List<CancellationToken>();
@@ -123,7 +123,7 @@ namespace Opc.Ua.GMS.Tests
             Mock<ISession> session = CreateSession(calls, cancelAfterGet: cancellation, tokens: tokens);
             var client = new GmsResultClient(session.Object, new NodeId("gms", 1), NUnitTelemetryContext.Create());
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await client.GetLatestAsync(cancellation.Token));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await client.GetLatestAsync(cancellation.Token));
 
             Assert.That(calls, Has.Count.EqualTo(2));
             Assert.That(tokens[0].IsCancellationRequested, Is.True);
@@ -134,13 +134,13 @@ namespace Opc.Ua.GMS.Tests
         /// Both domain failures remain visible when the operation and release fail independently.
         /// </summary>
         [Test]
-        public void MetadataReleaseFailureRetainsTheOriginalDomainFailure()
+        public async Task MetadataReleaseFailureRetainsTheOriginalDomainFailure()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateSession(calls, domainError: -17, releaseError: -23);
             var client = new GmsResultClient(session.Object, new NodeId("gms", 1), NUnitTelemetryContext.Create());
-            AggregateException error = Assert.ThrowsAsync<AggregateException>(
-                async () => await client.GetLatestAsync())!;
+            AggregateException error = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await client.GetLatestAsync()))!;
             Assert.That(error.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(((GmsResultDomainException)error.InnerExceptions[0]).Error, Is.EqualTo(-17));
             Assert.That(((GmsResultDomainException)error.InnerExceptions[1]).Error, Is.EqualTo(-23));
@@ -163,7 +163,7 @@ namespace Opc.Ua.GMS.Tests
         /// Invalid limits, identities and empty request batches fail without a service call.
         /// </summary>
         [Test]
-        public void InvalidClientRequestsDoNotReachTheSession()
+        public async Task InvalidClientRequestsDoNotReachTheSession()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateSession(calls);
@@ -173,11 +173,11 @@ namespace Opc.Ua.GMS.Tests
             Assert.Throws<ArgumentNullException>(() => _ = new GmsResultClient(null!, new NodeId(1), telemetry));
             Assert.Throws<ArgumentNullException>(() => _ = new GmsResultClient(session.Object, new NodeId(1), null!));
             Assert.Throws<ArgumentException>(() => _ = new GmsResultClient(session.Object, NodeId.Null, telemetry));
-            Assert.ThrowsAsync<ArgumentException>(async () => await client.GetByIdAsync(string.Empty));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.QueryAsync(0));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.QueryAsync(3));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.AcknowledgeAsync([]));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.AcknowledgeAsync(["a", "b", "c"]));
+            await Assert.ThrowsAsync<ArgumentException>(async () => await client.GetByIdAsync(string.Empty));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.QueryAsync(0));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.QueryAsync(3));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.AcknowledgeAsync([]));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () => await client.AcknowledgeAsync(["a", "b", "c"]));
             Assert.Throws<ArgumentException>(() => client.CreateIntermediateResultFilter([QualifiedName.Null]));
             Assert.Throws<ArgumentOutOfRangeException>(() => client.CreateIntermediateResultFilter(
                 [new QualifiedName("A"), new QualifiedName("B")]));

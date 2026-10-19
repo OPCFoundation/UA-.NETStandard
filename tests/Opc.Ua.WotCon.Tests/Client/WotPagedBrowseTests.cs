@@ -143,7 +143,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         [TestCase("properties", true)]
         [TestCase("actions", false)]
         [TestCase("actions", true)]
-        public void PagedWrapperRejectsUnresolvableOrRemoteReferenceAndReleasesToken(string kind, bool remote)
+        public async Task PagedWrapperRejectsUnresolvableOrRemoteReferenceAndReleasesToken(string kind, bool remote)
         {
             ByteString point = ByteString.From([91, 92]);
             ExpandedNodeId target = remote
@@ -152,13 +152,13 @@ namespace Opc.Ua.WotCon.Tests.Client
             m_pages.Enqueue(Page(point, new ReferenceDescription { NodeId = target }));
             int namespaceCount = m_context.NamespaceUris.Count;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (NodeId id in EnumerateIds(kind).ConfigureAwait(false))
                 {
                     Assert.Fail($"An invalid reference was yielded as {id}.");
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(m_context.NamespaceUris.Count, Is.EqualTo(namespaceCount));
@@ -204,8 +204,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 Assert.That(await iterator.MoveNextAsync().ConfigureAwait(false), Is.True);
                 Assert.That(iterator.Current, Is.EqualTo(new NodeId("one", m_namespace)));
                 cancellation.Cancel();
-                OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(
-                    async () => await iterator.MoveNextAsync().ConfigureAwait(false))!;
+                OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await iterator.MoveNextAsync().ConfigureAwait(false)))!;
                 Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
             }
 

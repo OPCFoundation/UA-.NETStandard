@@ -57,6 +57,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   upstream Production-facet exception), OPC 40020-1
   ([Cranes and Hoists](docs/CranesHoists.md)),
   OPC 40223 (Pumps and Vacuum Pumps),
+  OPC 30010 ([AutoID Devices](docs/AutoID.md)),
   OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
 - **Hosting and code generation** — `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
@@ -131,7 +132,7 @@ the companion
   exposing OPC UA client operations to LLMs and Copilot. Embeddable libraries
   provide Part 4 services, PubSub, diagnostics, Robotics and Vision, plus
   [industrial companion profiles](docs/McpServer.md#industrial-companion-tools) for AMB, Machinery,
-  Scales, Pumps, Device Integration, ISA-95 and Positioning. The
+  Scales, Pumps, AutoID, Device Integration, ISA-95 and Positioning. The
   [WoT and xRegistry profiles](docs/McpServer.md#wot-and-registry-tools) add
   asset/registry management and bounded document validation, planning and
   NodeSet conversion. [Stack workflow profiles](docs/McpServer.md#stack-workflow-tools)
