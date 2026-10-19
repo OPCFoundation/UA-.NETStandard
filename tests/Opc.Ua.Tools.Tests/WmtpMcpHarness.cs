@@ -56,7 +56,21 @@ namespace Opc.Ua.Tools.Tests
         private WmtpMcpHarness()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore().AddOpcUaMcpMachineTool();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "wmtp-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity("wmtp-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["wireless", "second"]
+                        }
+                    ]
+                }
+            }).AddOpcUaMcpMachineTool();
             services.AddMcpServer()
                 .WithStreamServerTransport(m_requests.Reader.AsStream(), m_responses.Writer.AsStream())
                 .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, ct) =>

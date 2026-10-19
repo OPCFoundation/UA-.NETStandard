@@ -35,9 +35,11 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Tools.Tests.McpCompanion
@@ -64,6 +66,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             ReferenceServer? server = null;
             ServiceProvider? provider = null;
             OpcUaSessionManager? manager = null;
+            ClientFixture? client = null;
             try
             {
                 server = await serverFixture.StartAsync(Path.Combine(root, "server-pki")).ConfigureAwait(false);
@@ -84,7 +87,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         ]
                     }
                 }).AddOpcUaMcpWotRuntime();
-                services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(root, "client-pki"));
+                client = new ClientFixture(NUnitTelemetryContext.Create());
+                await client.LoadClientConfigurationAsync(Path.Combine(root, "client-pki"), "WotRuntimeMcpLiveClient")
+                    .ConfigureAwait(false);
+                services.AddSingleton(new OpcUaClientOptions { Configuration = client.Config });
                 services.AddSingleton(serviceProvider =>
                 {
                     OpcUaSessionManager.SessionInfo info = serviceProvider
@@ -167,6 +173,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 }
                 await serverFixture.StopAsync().ConfigureAwait(false);
                 server?.Dispose();
+                if (client is not null)
+                {
+                    await client.DisposeAsync().ConfigureAwait(false);
+                }
                 Directory.Delete(root, recursive: true);
             }
         }

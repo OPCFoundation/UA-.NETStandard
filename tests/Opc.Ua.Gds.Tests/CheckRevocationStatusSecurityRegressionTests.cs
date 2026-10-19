@@ -237,7 +237,8 @@ namespace Opc.Ua.Gds.Tests
             await using var fixture = new RevocationContext();
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await fixture.CheckAsync(MessageSecurityMode.None).ConfigureAwait(false))!;
+                await fixture.CheckAsync(MessageSecurityMode.None).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             fixture.Store.Verify(store => store.EnumerateAsync(It.IsAny<CancellationToken>()), Times.Never);

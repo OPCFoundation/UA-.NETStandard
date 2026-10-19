@@ -57,7 +57,21 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private CranesHoistsMcpHarness(CranesHoistsClientOptions? options)
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "crane-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity("crane-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["crane", "second", "unauthorized"]
+                        }
+                    ]
+                }
+            });
             if (options != null)
             {
                 services.AddSingleton(options);

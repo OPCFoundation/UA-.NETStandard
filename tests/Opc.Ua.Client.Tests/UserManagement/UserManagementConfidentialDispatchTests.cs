@@ -65,7 +65,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
             var client = new UserManagementClient(fixture.ManagedSession);
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await InvokeAsync(client, operation).ConfigureAwait(false))!;
+                async () => await InvokeAsync(client, operation).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             Assert.That(fixture.Requests, Is.Empty);
@@ -156,7 +157,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
             var client = new UserManagementClient(session.Object);
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
+                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             session.Verify(value => value.CallAsync(
@@ -186,7 +188,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
             var client = new UserManagementClient(borrowed.Session);
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
+                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             Assert.That(fixture.Requests, Is.Empty);
@@ -208,7 +211,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
             fixture.Recreate();
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
+                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Is.Empty);
@@ -257,7 +261,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
                 ["http://opcfoundation.org/UA/", "urn:request-context:replacement"]);
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))!;
+                async () => await client.ChangePasswordAsync("old-marker", "new-marker").ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Is.Empty);
@@ -313,7 +318,8 @@ namespace Opc.Ua.Client.Tests.UserManagement
             }
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await operation.ConfigureAwait(false))!;
+                async () => await operation.ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
             Assert.That(failure.StatusCode, Is.EqualTo(replacementKind == "Downgrade"
                 ? StatusCodes.BadSecurityModeInsufficient
                 : StatusCodes.BadSessionIdInvalid));

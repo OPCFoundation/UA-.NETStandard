@@ -69,7 +69,8 @@ namespace Opc.Ua.Client.Tests.Samples
                 await client.CreateSessionAsync(
                     SampleSessionSecurityTestContext.RequestedUrl, fixture.Description, connection, fixture.Factory,
                     CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
             Assert.That(fixture.Attempts, Is.Zero);
@@ -143,7 +144,8 @@ namespace Opc.Ua.Client.Tests.Samples
                 await client.CreateSessionAsync(
                     SampleSessionSecurityTestContext.RequestedUrl, fixture.Description, null, fixture.Factory,
                     CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(fixture.Attempts, Is.Zero);

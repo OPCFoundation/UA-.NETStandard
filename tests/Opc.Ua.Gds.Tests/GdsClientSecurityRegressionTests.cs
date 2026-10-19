@@ -65,14 +65,16 @@ namespace Opc.Ua.Gds.Tests
             {
                 await using ServerPushConfigurationClient client = CreatePushClient(fixture);
                 failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))!;
+                    await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))
+                    ?? throw new AssertionException("Expected a service failure.");
             }
             else
             {
                 await using var client = new GlobalDiscoveryServerClient(
                     fixture.Configuration, fixture.Administrator, fixture.Factory);
                 failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))!;
+                    await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false))
+                    ?? throw new AssertionException("Expected a service failure.");
             }
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
@@ -159,7 +161,8 @@ namespace Opc.Ua.Gds.Tests
             }
             else
             {
-                ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(ConnectAsync)!;
+                ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(ConnectAsync)
+                    ?? throw new AssertionException("Expected a service failure.");
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
                 Assert.That(fixture.Activations, Is.Zero);
                 Assert.That(fixture.Requests, Is.Empty);
@@ -191,7 +194,8 @@ namespace Opc.Ua.Gds.Tests
                 await (push
                     ? pusher!.ConnectInternalAsync(fixture.Endpoint, false, requestedEndpoint, CancellationToken.None)
                     : gds!.ConnectInternalAsync(fixture.Endpoint, false, requestedEndpoint, CancellationToken.None))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(fixture.FactoryCalls, Is.Zero);
@@ -216,7 +220,8 @@ namespace Opc.Ua.Gds.Tests
             await client.ConnectAsync(fixture.Endpoint).ConfigureAwait(false);
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await UploadAsync(client, format, s_privateKey).ConfigureAwait(false))!;
+                await UploadAsync(client, format, s_privateKey).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             Assert.That(fixture.Requests, Is.Empty);
@@ -308,7 +313,8 @@ namespace Opc.Ua.Gds.Tests
                 Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await UploadAsync(client, "PFX", s_privateKey).ConfigureAwait(false))!;
+                await UploadAsync(client, "PFX", s_privateKey).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             Assert.That(fixture.Requests, Is.Empty);
@@ -330,7 +336,8 @@ namespace Opc.Ua.Gds.Tests
             IUserIdentity original = fixture.InnerSession.Identity;
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await UploadAsync(client, "PEM", s_privateKey).ConfigureAwait(false))!;
+                await UploadAsync(client, "PEM", s_privateKey).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
             Assert.That(fixture.InnerSession.IdentityUpdates, Is.EqualTo([fixture.Administrator, original]));
@@ -386,7 +393,8 @@ namespace Opc.Ua.Gds.Tests
             }
 
             ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.ConfigureAwait(false))!;
+                await operation.ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(failure.StatusCode, Is.EqualTo(replacementKind == "Downgrade"
                 ? StatusCodes.BadSecurityModeInsufficient

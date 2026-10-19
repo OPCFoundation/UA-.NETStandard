@@ -40,11 +40,13 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Opc.Ua.Tools.Tests.McpCompanion;
 using Quickstarts.ReferenceServer;
 
@@ -80,12 +82,6 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                     .AddDataSetSource(input.DataSetName, source)
                     .Build();
                 var server = new ReferenceServer(telemetry);
-                server.UserDatabase.CreateUser("pubsub-test-admin", Encoding.UTF8.GetBytes(password),
-                    [
-                        Server.Role.SecurityAdmin,
-                        Server.Role.ConfigureAdmin,
-                        Server.Role.AuthenticatedUser
-                    ]);
                 server.AddNodeManager(new PubSubNodeManagerFactory(m_application, null,
                     new PubSubServerOptions { ExposeConfigurationMethods = true }, telemetry));
                 return server;
@@ -98,7 +94,18 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             await m_fixture.LoadConfigurationAsync(Path.Combine(m_root, "server-pki")).ConfigureAwait(false);
             m_fixture.Config.ServerConfiguration!.UserTokenPolicies =
                 [new UserTokenPolicy(UserTokenType.Anonymous), new UserTokenPolicy(UserTokenType.UserName)];
-            _ = await m_fixture.StartAsync().ConfigureAwait(false);
+            ReferenceServer server = await m_fixture.StartAsync().ConfigureAwait(false);
+            var userManagement = server.CurrentInstance!.UserManagement
+                ?? throw new AssertionException("The reference server must provide user management.");
+            ServiceResult provisioned = userManagement.AddUser(
+                "pubsub-test-admin", password, UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(provisioned), Is.True);
+            server.UserDatabase.CreateUser("pubsub-test-admin", Encoding.UTF8.GetBytes(password),
+                [
+                    Server.Role.SecurityAdmin,
+                    Server.Role.ConfigureAdmin,
+                    Server.Role.AuthenticatedUser
+                ]);
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore(new OpcUaMcpOptions
             {
@@ -141,7 +148,10 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                     }
                 ]
             });
-            services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "client-pki"), "PubSubRemoteMcpClient")
+                .ConfigureAwait(false);
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
             m_services = services.BuildServiceProvider();
             OpcUaSessionManager sessions = m_services.GetRequiredService<OpcUaSessionManager>();
             using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -164,6 +174,10 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             if (m_application is not null)
             {
                 await m_application.DisposeAsync().ConfigureAwait(false);
+            }
+            if (m_client is not null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
             }
             if (m_root is not null && Directory.Exists(m_root))
             {
@@ -268,6 +282,8 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
         private ServerFixture<ReferenceServer> m_fixture = null!;
         private IPubSubApplication m_application = null!;
         private ServiceProvider m_services = null!;
+        /// <summary>The fixture-owned client configuration and certificate stores.</summary>
+        private ClientFixture? m_client;
     }
 }
 #endif

@@ -144,7 +144,8 @@ namespace Opc.Ua.GMS.Tests
                 ProgramName = initial.ProgramName
             };
             ServiceResultException changedReference = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(invalidReference).ConfigureAwait(false))!;
+                await publisher.PublishCorrectionAsync(invalidReference).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
             Assert.That(changedReference.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             var invalidShape = new GmsCorrection("offset-1", "bore", Analog(1), complete ? null : Analog(1))
             {
@@ -154,7 +155,8 @@ namespace Opc.Ua.GMS.Tests
                 ProgramName = initial.ProgramName
             };
             ServiceResultException changedShape = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await publisher.PublishCorrectionAsync(invalidShape).ConfigureAwait(false))!;
+                await publisher.PublishCorrectionAsync(invalidShape).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
             Assert.That(changedShape.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             foreach (BaseVariableState variable in variables)
             {

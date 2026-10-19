@@ -291,7 +291,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (plaintext)
                 {
                     ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await ActivateAsync(reboundChannel).ConfigureAwait(false))!;
+                        await ActivateAsync(reboundChannel).ConfigureAwait(false))
+                        ?? throw new AssertionException("Expected a service failure.");
                     Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
                     Assert.That(created.Session.SecureChannelId, Is.EqualTo(originalChannel.SecureChannelId));
                     ServiceResultException rejectedPublish = await Assert.ThrowsAsync<ServiceResultException>(
@@ -301,7 +302,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             new RequestHeader { AuthenticationToken = created.AuthenticationToken },
                             reboundChannel, RequestType.Publish, RequestLifetime.None).ConfigureAwait(false);
                         _ = Publish(item, denied);
-                    })!;
+                    }) ?? throw new AssertionException("Expected a service failure.");
                     Assert.That(rejectedPublish.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
                     ServiceResultException rejectedAdmission = await Assert.ThrowsAsync<ServiceResultException>(
                         async () =>
@@ -309,7 +310,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         using OperationContext denied = await sessions.ValidateRequestAsync(
                             new RequestHeader { AuthenticationToken = created.AuthenticationToken },
                             reboundChannel, RequestType.CreateMonitoredItems, RequestLifetime.None).ConfigureAwait(false);
-                    })!;
+                    }) ?? throw new AssertionException("Expected a service failure.");
                     Assert.That(rejectedAdmission.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
                 }
                 else

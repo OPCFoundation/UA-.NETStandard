@@ -43,14 +43,17 @@ using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Gds;
 using Opc.Ua.Gds.Server;
 using Opc.Ua.Gds.Server.Database.Linq;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Mcp;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 using UaRole = Opc.Ua.Server.Role;
 using UaSession = Opc.Ua.Client.ISession;
@@ -78,9 +81,6 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             m_fixture = new ServerFixture<ReferenceServer>(telemetry =>
             {
                 var server = new ReferenceServer(telemetry);
-                server.UserDatabase.CreateUser("gds-test-operator", Encoding.UTF8.GetBytes(password),
-                    [GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin, UaRole.SecurityAdmin,
-                        UaRole.AuthenticatedUser]);
                 m_certificateGroups = new CertificateGroup(telemetry);
                 server.AddNodeManager(new LiveGdsFactory(m_certificateGroups));
                 return server;
@@ -102,6 +102,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 DatabaseStorePath = Path.Combine(m_root, "database.json")
             });
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
+            var userManagement = m_server.CurrentInstance!.UserManagement
+                ?? throw new AssertionException("The reference server must provide user management.");
+            ServiceResult provisioned = userManagement.AddUser(
+                "gds-test-operator", password, UserConfigurationMask.None, string.Empty);
+            Assert.That(ServiceResult.IsGood(provisioned), Is.True);
+            m_server.UserDatabase.CreateUser("gds-test-operator", Encoding.UTF8.GetBytes(password),
+                [GdsRole.DiscoveryAdmin, GdsRole.CertificateAuthorityAdmin, UaRole.SecurityAdmin,
+                    UaRole.AuthenticatedUser]);
             var services = new ServiceCollection();
             services.AddOpcUaMcpCore(new OpcUaMcpOptions
             {
@@ -128,7 +136,24 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             var secretStore = new InMemorySecretStore("GdsMcpLive");
             services.AddOpcUaMcpSecrets(new SecretRegistry(secretStore), issuanceStore: secretStore);
             services.AddOpcUaMcpGds();
-            services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "client-pki"), "GdsMcpLiveClient")
+                .ConfigureAwait(false);
+            m_client.Config.SecurityConfiguration.AutoAcceptUntrustedCertificates = false;
+            ICertificateManager clientCertificates = m_client.Config.CertificateManager!;
+            await clientCertificates.UpdateAsync(
+                m_client.Config.SecurityConfiguration, m_client.Config.ApplicationUri).ConfigureAwait(false);
+            using var serverCertificate = m_fixture.Config.CertificateManager!
+                .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)
+                ?? throw new AssertionException("The local server must provide its secure endpoint certificate.");
+            using Certificate trustedCertificate = Certificate.FromRawData(serverCertificate.Certificate.RawData);
+            await using (ITrustListTransaction trust = await clientCertificates
+                .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false))
+            {
+                await trust.AddTrustedCertificateAsync(trustedCertificate).ConfigureAwait(false);
+                await trust.CommitAsync().ConfigureAwait(false);
+            }
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
             services.AddMcpServer().WithStreamServerTransport(Stream.Null, Stream.Null)
                 .WithOpcUaGdsTools(McpToolProfileSet.Parse("gds,certificates,credentials"));
             m_services = services.BuildServiceProvider();
@@ -136,7 +161,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string endpoint = $"opc.tcp://localhost:{m_fixture.Port}";
             using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await m_sessions.ConnectAsync("encrypted", endpoint, "SignAndEncrypt", "Basic256Sha256",
-                "Username", "gds-test-operator", password, true, startup.Token).ConfigureAwait(false);
+                "Username", "gds-test-operator", password, false, startup.Token).ConfigureAwait(false);
             await m_sessions.ConnectAsync("anonymous", endpoint, "SignAndEncrypt", "Basic256Sha256",
                 "Anonymous", null, null, true, startup.Token).ConfigureAwait(false);
             await m_sessions.ConnectAsync("unencrypted", endpoint, "None", "None",
@@ -169,6 +194,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }
             m_server?.Dispose();
             m_certificateGroups?.Dispose();
+            if (m_client is not null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_root is not null && Directory.Exists(m_root))
             {
                 Directory.Delete(m_root, recursive: true);
@@ -398,6 +427,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         private CertificateGroup? m_certificateGroups;
         private ServiceProvider? m_services;
         private OpcUaSessionManager? m_sessions;
+        /// <summary>The fixture-owned client configuration and application certificates.</summary>
+        private ClientFixture? m_client;
         private const string kAudience = "urn:test:mcp:gds:token-audience";
         private const string kIssuer = "urn:test:mcp:gds:token-issuer";
     }

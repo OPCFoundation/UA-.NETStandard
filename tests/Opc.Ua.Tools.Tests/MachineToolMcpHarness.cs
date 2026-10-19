@@ -53,7 +53,22 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private MachineToolMcpHarness()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore().AddOpcUaMcpMachineTool();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "machine-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity(
+                                "machine-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["machine"]
+                        }
+                    ]
+                }
+            }).AddOpcUaMcpMachineTool();
             services.AddMcpServer()
                 .WithStreamServerTransport(m_requests.Reader.AsStream(), m_responses.Writer.AsStream())
                 .WithRequestFilters(filters => filters.AddCallToolFilter(next => (request, token) =>

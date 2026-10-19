@@ -75,7 +75,8 @@ namespace Opc.Ua.Server.Tests
 
             ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.ActivateAsync(disabled, AuthenticationHarness.UserName, harness.Password)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(disabled.Session.Activated, Is.False);
@@ -107,7 +108,8 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
 
             ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.ActivateAsync(created, userName, password).ConfigureAwait(false))!;
+                await harness.ActivateAsync(created, userName, password).ConfigureAwait(false))
+                ?? throw new AssertionException("Expected a service failure.");
 
             Assert.That(StatusCode.IsBad(error.StatusCode), Is.True);
             Assert.That(created.Session.Activated, Is.False);
