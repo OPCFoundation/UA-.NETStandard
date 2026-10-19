@@ -124,8 +124,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             pair.Clock.Advance(TimeSpan.FromMilliseconds(9999));
             Assert.That(starting.IsCompleted, Is.False);
             pair.Clock.Advance(TimeSpan.FromMilliseconds(1));
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await starting.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await starting.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.Timeout));
             Assert.That(pair.InitiatorBudget.Usage.Contexts, Is.Zero);
             Assert.That(pair.InitiatorBudget.Usage.Flows, Is.Zero);
@@ -148,8 +149,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             pair.Clock.Advance(TimeSpan.FromMilliseconds(9999));
             Assert.That(opening.IsCompleted, Is.False);
             pair.Clock.Advance(TimeSpan.FromMilliseconds(1));
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.Timeout));
             await FlowLoopback.EventuallyAsync(() => pair.AcceptorBudget.Usage.Operations == 0 &&
                 pair.InitiatorBudget.Usage.Operations == 0).ConfigureAwait(false);
@@ -294,8 +296,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.AcceptorCarrier.BeforeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             await revoked.CancelAsync().ConfigureAwait(false);
             pair.AcceptorCarrier.BeforeRelease.TrySetResult(true);
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await opening.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             Assert.That(pair.AcceptorCarrier.Writes.Any(
                 write => TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Accept),

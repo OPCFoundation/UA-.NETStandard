@@ -109,8 +109,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 .AddDataSetSource("TelemetryB", new TestSource("TelemetryB", "beta"))
                 .Build();
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await application.StartAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await application.StartAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));

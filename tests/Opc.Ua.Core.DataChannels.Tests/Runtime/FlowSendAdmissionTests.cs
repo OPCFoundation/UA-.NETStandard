@@ -254,8 +254,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             try
             {
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(
-                    async () => await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 Assert.That(flow.Local.StateData.LastDataId, Is.Zero);
                 Assert.That(flow.Local.StateData.SendMessages, Is.Zero);
                 Assert.That(flow.Local.StateData.SendBytes, Is.Zero);

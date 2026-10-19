@@ -254,7 +254,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 new ByteString("*"u8.ToArray()), cancellationToken: cancellation.Token).AsTask();
             await pair.InitiatorCarrier.BeforeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false))
+                .ConfigureAwait(false);
             pair.InitiatorCarrier.BeforeRelease.TrySetResult(true);
             await FlowLoopback.EventuallyAsync(() => pair.InitiatorBudget.Usage.BufferedBytes == 0)
                 .ConfigureAwait(false);
@@ -279,7 +280,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.InitiatorCarrier.AfterEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             source[0] = 99;
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await send.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(19));
             pair.InitiatorCarrier.AfterRelease.TrySetResult(true);
             await FlowLoopback.EventuallyAsync(() => flow.Local.GetDiagnostics().MessagesSent == 1)
@@ -418,9 +420,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             await using var pair = new FlowLoopback(kind);
             await pair.StartAsync().ConfigureAwait(false);
-            DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await pair.Initiator.OpenAsync(FlowLoopback.Parameters(
-                    delivery: DataChannelDeliveryMode.Datagram, rate: 1000)).ConfigureAwait(false));
+                    delivery: DataChannelDeliveryMode.Datagram, rate: 1000)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.Unsupported));
             Assert.That(pair.Initiator.Channels.IsEmpty, Is.True);
         }

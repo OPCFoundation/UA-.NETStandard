@@ -213,8 +213,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
             Assert.That(await receiver.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(receiver.Current.Payload.ToArray(), Is.EqualTo(boundary));
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await pair.Sender.SendAsync(new byte[129]).ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await pair.Sender.SendAsync(new byte[129]).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.TooLarge));
@@ -241,8 +241,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 using var cancellation = new CancellationTokenSource();
                 Task waiting = pair.Sender.SendAsync(payload, cancellationToken: cancellation.Token).AsTask();
                 Assert.That(waiting.IsCompleted, Is.False);
-                DataChannelException? overflow = Assert.ThrowsAsync<DataChannelException>(
-                    async () => await pair.Sender.SendAsync(payload).ConfigureAwait(false));
+                DataChannelException? overflow = await Assert.ThrowsAsync<DataChannelException>(
+                    async () => await pair.Sender.SendAsync(payload).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(overflow!.Result, Is.EqualTo(DataChannelResult.WouldBlock));
                 await cancellation.CancelAsync().ConfigureAwait(false);
                 await Assert.ThatAsync(() => waiting,
@@ -441,8 +441,9 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             Assert.That(await next.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(next.Current.Payload.Span.SequenceEqual(bytes.Span), Is.True);
             Assert.That(pair.Core.LeftCarrier.Payloads.ToArray(), Is.EqualTo([bytes, bytes]));
-            DataChannelException? tooLarge = Assert.ThrowsAsync<DataChannelException>(
-                async () => await pair.Sender.SendAsync(new byte[bytes.Length + 1]).ConfigureAwait(false));
+            DataChannelException? tooLarge = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await pair.Sender.SendAsync(new byte[bytes.Length + 1]).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(tooLarge!.Result, Is.EqualTo(DataChannelResult.TooLarge));
         }
 
@@ -457,8 +458,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using DataChannelPubSubTransport transport = CreateTransport(
                 core.Right.CarrierKind, provider, PubSubTransportDirection.Send);
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.OpenAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
@@ -480,8 +481,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send,
                 DataChannelPubSubConfigurationTests.CreateParameters(DataChannelProfiles.JsonPayload));
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.OpenAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -508,8 +509,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using DataChannelPubSubTransport transport = CreateTransport(
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send);
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.OpenAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -580,8 +581,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using DataChannelPubSubTransport transport = CreateTransport(
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send, expected);
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.OpenAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
@@ -609,8 +610,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             using DataChannelMessage? message = await receiver.ReadAsync(
                 TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
             Assert.That(message!.Length, Is.EqualTo(256));
-            DataChannelException? tooLarge = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.SendAsync(new byte[257]).ConfigureAwait(false));
+            DataChannelException? tooLarge = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.SendAsync(new byte[257]).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(tooLarge!.Result, Is.EqualTo(DataChannelResult.TooLarge));
         }
 
@@ -705,9 +706,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             Task<DataChannelPubSubFlow> first = provider.OpenAsync(
                 new DataChannelPubSubFlowRequest(DataChannelPubSubConfigurationTests.CreateConnection()),
                 cancellation.Token).AsTask();
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await provider.OpenAsync(new DataChannelPubSubFlowRequest(
-                    DataChannelPubSubConfigurationTests.CreateConnection(resource: "urn:test:pubsub:other"))).ConfigureAwait(false));
+                    DataChannelPubSubConfigurationTests.CreateConnection(resource: "urn:test:pubsub:other")))
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.WouldBlock));
 
             await cancellation.CancelAsync().ConfigureAwait(false);
@@ -829,8 +831,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using DataChannelPubSubTransport transport = CreateTransport(
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send);
 
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                async () => await transport.OpenAsync().ConfigureAwait(false));
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
@@ -907,9 +909,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
             await using var provider = new DataChannelContextPubSubFlowProvider(
                 core.Left, true, grantProvider: new FixedGrantProvider(Guid.Empty));
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await provider.OpenAsync(new DataChannelPubSubFlowRequest(
-                    DataChannelPubSubConfigurationTests.CreateConnection())).ConfigureAwait(false));
+                    DataChannelPubSubConfigurationTests.CreateConnection())).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));

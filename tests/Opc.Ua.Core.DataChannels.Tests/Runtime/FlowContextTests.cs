@@ -191,8 +191,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             await using var pair = new FlowLoopback();
             pair.InitiatorCarrier.SkipCommit = true;
-            DataChannelException? exception = Assert.ThrowsAsync<DataChannelException>(
-                pair.StartAsync);
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
+                pair.StartAsync).ConfigureAwait(false);
             Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidState));
             Assert.That(pair.Initiator.IsReady, Is.False);
             Assert.That(pair.InitiatorBudget.Usage.Contexts, Is.Zero);

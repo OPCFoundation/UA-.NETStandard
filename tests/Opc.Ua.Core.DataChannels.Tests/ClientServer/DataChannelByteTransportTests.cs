@@ -164,8 +164,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             byte[] invalid = length > 8 ? Chunk(length) : new byte[length];
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.SendChunkAsync(invalid, CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(invalid, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTooLarge));
             Assert.That(pair.InitiatorCarrier.Writes.Any(write => write.IsData), Is.False);
 
@@ -187,8 +188,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             var segments = new BufferCollection { new(Chunk(16)), new(Chunk(16)) };
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.SendChunkAsync(segments, CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(segments, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTooLarge));
             Assert.That(m_pool.Outstanding, Is.Zero);
             Assert.That(pair.InitiatorCarrier.Writes.Any(write => write.IsData), Is.False);
@@ -210,7 +212,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             await using DataChannelByteTransport transport = Create(pair, flow);
             byte[] nested = Chunk(32);
             BinaryPrimitives.WriteUInt32LittleEndian(nested, 0x464F4C46);
-            ServiceResultException? outgoing = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? outgoing = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (gathered)
                 {
@@ -221,15 +223,15 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
                 {
                     await transport.SendChunkAsync(nested, CancellationToken.None).ConfigureAwait(false);
                 }
-            });
+            }).ConfigureAwait(false);
             Assert.That(outgoing!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTypeInvalid));
             Assert.That(pair.InitiatorCarrier.Writes.Any(write => write.IsData), Is.False);
 
             int rented = m_pool.TotalRented;
             Assert.That(await flow.Remote.SendAsync(new ByteString(nested)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            ServiceResultException? incoming = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? incoming = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(incoming!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTypeInvalid));
             Assert.That(m_pool.TotalRented, Is.EqualTo(rented));
             Assert.That(pair.InitiatorBudget.Usage.Messages, Is.Zero);
@@ -272,8 +274,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
             await pair.StartAsync().ConfigureAwait(false);
-            DataChannelException? error = Assert.ThrowsAsync<DataChannelException>(
-                async () => await pair.OpenAsync(LaneParameters(field)).ConfigureAwait(false));
+            DataChannelException? error = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await pair.OpenAsync(LaneParameters(field)).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(error!.Result, Is.EqualTo(result));
             Assert.That(pair.Initiator.Channels, Is.Empty);
             Assert.That(pair.InitiatorBudget.Usage.Flows, Is.Zero);
@@ -358,8 +360,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             BinaryPrimitives.WriteUInt32LittleEndian(invalid.AsSpan(wrongType ? 0 : 4), 0xFFFFFFFFu);
             Assert.That(await flow.Remote.SendAsync(new ByteString(invalid)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(wrongType
                 ? StatusCodes.BadTcpMessageTypeInvalid : StatusCodes.BadTcpMessageTooLarge));
             Assert.That(m_pool.TotalRented, Is.Zero);
@@ -381,8 +384,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             Assert.Throws<ArgumentOutOfRangeException>(() => limits.SetReceiveBufferSize(8));
             Assert.That(await flow.Remote.SendAsync(new ByteString(Chunk(33))).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTooLarge));
             Assert.That(m_pool.TotalRented, Is.Zero);
 
@@ -412,10 +416,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             await using DataChannelByteTransport transport = Create(pair, flow);
             using var cancellation = new CancellationTokenSource();
             Task<ArraySegment<byte>> pending = transport.ReceiveChunkAsync(cancellation.Token).AsTask();
-            Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
 
             byte[] expected = Chunk(24);
@@ -447,8 +453,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             transport.Close();
             transport.Close();
             await transport.DisposeAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await pending.WaitAsync(s_timeout).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await pending.WaitAsync(s_timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(pair.Initiator.IsReady, Is.True);
             Assert.That(pair.Acceptor.IsReady, Is.True);
@@ -471,8 +477,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             await flow.Remote.ResetAsync(result).ConfigureAwait(false);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(expected));
             Assert.That(m_pool.TotalRented, Is.Zero);
         }
@@ -488,8 +495,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             Assert.That(await flow.Remote.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.ReceiveChunkAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             byte[] expected = Chunk(32);
             await transport.SendChunkAsync(expected, CancellationToken.None).ConfigureAwait(false);
@@ -508,15 +516,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             Assert.That(await flow.Local.EndAsync().ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
-            ServiceResultException? ended = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.SendChunkAsync(Chunk(32), CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? ended = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(Chunk(32), CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(ended!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             using (transport)
             {
                 Assert.That(flow.Local.GetStatus().OpenerEnded, Is.True);
             }
-            ServiceResultException? disposed = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.SendChunkAsync(Chunk(32), CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? disposed = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(Chunk(32), CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(disposed!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(pair.InitiatorCarrier.Writes.Any(write => write.IsData), Is.False);
         }
@@ -537,16 +547,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             Assert.That(transport.LocalEndpoint, Is.SameAs(local));
             Assert.That(transport.RemoteEndpoint, Is.SameAs(remote));
             Assert.That(transport.Implementation, Is.EqualTo("UA-FLOW"));
-            Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await transport.ConnectAsync(null!, CancellationToken.None).ConfigureAwait(false));
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await transport.ConnectAsync(null!, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
                 await transport.ConnectAsync(new Uri("opc.quic://localhost:4840"), CancellationToken.None)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await transport.ConnectAsync(new Uri("opc.quic://localhost:4840"), cancellation.Token)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
         }
 
@@ -590,11 +601,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             FlowPair flow = await pair.OpenAsync(LaneParameters()).ConfigureAwait(false);
             await using DataChannelByteTransport transport = Create(pair, flow);
             var buffers = new BufferCollection(new byte[length], 0, length);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transport.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transport.SendChunkAsync(buffers, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTcpMessageTooLarge));
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await transport.SendChunkAsync((BufferCollection)null!, CancellationToken.None).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await transport.SendChunkAsync((BufferCollection)null!, CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(m_pool.TotalRented, Is.Zero);
             Assert.That(pair.InitiatorCarrier.Writes.Any(write => write.IsData), Is.False);
         }
@@ -622,8 +635,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
             try
             {
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(
-                    async () => await send.WaitAsync(s_timeout).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await send.WaitAsync(s_timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(m_pool.Outstanding, Is.Zero);
                 Assert.That(pair.InitiatorCarrier.ActiveSends, Is.EqualTo(1));
             }

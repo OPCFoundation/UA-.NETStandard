@@ -326,8 +326,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await first.StartAsync().ConfigureAwait(false);
             await second.StartAsync().ConfigureAwait(false);
             FlowPair active = await first.OpenAsync().ConfigureAwait(false);
-            DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(
-                async () => await second.Initiator.OpenAsync(FlowLoopback.Parameters()).ConfigureAwait(false));
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await second.Initiator.OpenAsync(FlowLoopback.Parameters()).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.WouldBlock));

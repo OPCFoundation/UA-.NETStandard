@@ -447,8 +447,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             pair.AcceptorCarrier.Identity = new DataChannelPeerIdentity(
                 old.LocalApplicationUri, "urn:unexpected:peer",
                 old.LocalKeyThumbprint, old.PeerKeyThumbprint, old.Protection, old.IsTransportInitiator);
-            DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(
-                pair.StartAsync);
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(
+                pair.StartAsync).ConfigureAwait(false);
             Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.SecurityFailure));
             Assert.That(pair.AcceptorPolicy.Requests, Is.Empty);
             Assert.That(pair.AcceptorBudget.Usage.Contexts, Is.Zero);
@@ -460,9 +460,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
             pair.InitiatorCarrier.MaxDatagramSize = 0;
             await pair.StartAsync().ConfigureAwait(false);
-            DataChannelException? unsupported = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException? unsupported = await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await pair.Initiator.OpenAsync(FlowLoopback.Parameters(
-                    delivery: DataChannelDeliveryMode.Datagram, rate: 1000)).ConfigureAwait(false));
+                    delivery: DataChannelDeliveryMode.Datagram, rate: 1000)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(unsupported!.Result, Is.EqualTo(DataChannelResult.Unsupported));
             pair.InitiatorCarrier.MaxDatagramSize = 128;
             FlowPair flow = await pair.OpenAsync(FlowLoopback.Parameters(
@@ -483,8 +484,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             pair.AcceptorPolicy.Handler = (_, _) => new ValueTask<DataChannelAuthorization>(
                 new DataChannelAuthorization(DataChannelResult.NotAuthorized));
             await pair.StartAsync().ConfigureAwait(false);
-            DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(
-                async () => await pair.Initiator.OpenAsync(FlowLoopback.Parameters()).ConfigureAwait(false));
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await pair.Initiator.OpenAsync(FlowLoopback.Parameters()).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             Assert.That(pair.Acceptor.Channels.IsEmpty, Is.True);
             Assert.That(pair.AcceptorCarrier.Writes.Any(
