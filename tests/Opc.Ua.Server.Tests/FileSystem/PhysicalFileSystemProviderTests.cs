@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(Path.GetTempPath(), "pfsp-" + Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(AppContext.BaseDirectory, "pfsp-" + Guid.NewGuid().ToString("N"));
         }
 
         [TearDown]

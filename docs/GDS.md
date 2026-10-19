@@ -739,12 +739,36 @@ The following optional Part 12 members are **not** implemented (or only partiall
 
 ## LDS / LDS-ME (§4–5)
 
+Semaphore files are local-host liveness indicators (OPC UA Part 12). `RegisterServer`
+and `RegisterServer2` accept a non-empty `SemaphoreFilePath` only from a
+transport-observed loopback peer (including IPv4-mapped loopback). Remote peers
+and transports without peer-address evidence must omit the path and periodically
+refresh their registration. A certificate URI or a discovery URL naming localhost
+is not evidence of locality.
+
+Paths must be fully qualified native file paths. UNC paths (including mixed or
+forward slashes), Windows device/extended namespaces, drive-relative paths,
+URIs, control characters, alternate streams, reserved DOS device names, and
+ambiguous dot/space components are rejected with `BadInvalidArgument` before
+filesystem access, including offline requests. The store independently checks
+paths before registration and pruning; unsafe entries loaded or seeded into the
+store are pruned without probing their paths. The built-in store is in-memory;
+there is no registration persistence loader.
+
+Ordinary existing local semaphore files retain their liveness behavior: a missing
+file removes the registration. The filesystem can be injected through
+`RegisteredServerStore` or LDS hosting's `IFileSystem` service. Path validation is
+lexical, not a filesystem sandbox: administrators must keep semaphore directories,
+drive mappings, mounts, and links local and trusted. Local applications connecting
+through a non-loopback interface must reconnect through loopback to use semaphores.
+
 | Feature | Status | Source | Tests |
 |---------|--------|--------|-------|
 | FindServers | ✅ | `LdsServer.FindServersAsync` | `LocalDiscoveryTests.cs` |
 | GetEndpoints | ✅ | `LdsServer.GetEndpointsAsync` | `LocalDiscoveryTests.cs` |
 | RegisterServer | ✅ | `LdsServer.RegisterServerAsync` | `LocalDiscoveryTests.cs` |
 | RegisterServer2 | ✅ | `LdsServer.RegisterServer2Async` | `LocalDiscoveryTests.cs` |
+| Local semaphore path and peer validation | ✅ | `LdsServer.ValidateRegistration`, `RegisteredServerStore` | `RegistrationValidationTests.cs`, `SemaphorePathTests.cs` |
 | FindServersOnNetwork | ✅ | `LdsServer.FindServersOnNetworkAsync` | `LocalDiscoveryTests.cs`, `LdsServerStaticTests.cs` |
 | LDS-ME capability | ✅ | `ComputeServerCapabilities` | `ServerCapabilitiesTests.cs`, `ServerCapabilityTests.cs` |
 | mDNS _opcua-tcp._tcp | ✅ | `MulticastDiscovery.OpcUaServiceType` | `LdsServerStaticTests.cs` |
