@@ -712,6 +712,21 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         /// <summary>
+        /// Stores the modulus of every RSA key object with a leading zero byte,
+        /// an encoding of the same unsigned integer that some tokens use.
+        /// </summary>
+        public void PadRsaModuli()
+        {
+            for (int ii = 0; ii < m_objects.Count; ii++)
+            {
+                if (m_objects[ii].Modulus is { } modulus)
+                {
+                    m_objects[ii] = m_objects[ii] with { Modulus = [0x00, .. modulus] };
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds an EC private key object that signs with the given P-256 key and
         /// its public key object after the existing objects.
         /// </summary>

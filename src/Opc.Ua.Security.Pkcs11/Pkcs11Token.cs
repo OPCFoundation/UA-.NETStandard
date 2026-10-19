@@ -377,10 +377,12 @@ namespace Opc.Ua.Security.Pkcs11
         /// RSA key, or the point and the curve of an EC key.
         /// </summary>
         /// <remarks>
-        /// The token searches by the first attribute; the others are read back
-        /// and compared, and a key whose value of such an attribute cannot be
-        /// read does not match. The big integers CKA_MODULUS and
-        /// CKA_PUBLIC_EXPONENT are compared without leading zero bytes.
+        /// The token searches by the first attribute unless it is one of the
+        /// big integers CKA_MODULUS and CKA_PUBLIC_EXPONENT, which a token may
+        /// store with leading zero bytes; the other attributes are read back and
+        /// compared, and a key whose value of such an attribute cannot be read
+        /// does not match. The big integers are compared without leading zero
+        /// bytes.
         /// </remarks>
         /// <param name="objectClass">The class of key object to search.</param>
         /// <param name="keyType">The key type to search.</param>
@@ -397,14 +399,19 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 ThrowIfDisposed();
 
+                int compareFrom = IsUnsignedInteger(match[0].Attribute) ? 0 : 1;
                 List<IObjectAttribute> search =
                 [
                     m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, objectClass),
-                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType),
-                    m_factories.ObjectAttributeFactory.Create(match[0].Attribute, match[0].Value)
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType)
                 ];
-                var read = new List<ulong>(match.Length) { (ulong)CKA.CKA_ID };
-                for (int ii = 1; ii < match.Length; ii++)
+                if (compareFrom == 1)
+                {
+                    search.Add(m_factories.ObjectAttributeFactory.Create(match[0].Attribute, match[0].Value));
+                }
+
+                var read = new List<ulong>(match.Length + 1) { (ulong)CKA.CKA_ID };
+                for (int ii = compareFrom; ii < match.Length; ii++)
                 {
                     read.Add((ulong)match[ii].Attribute);
                 }
@@ -413,7 +420,7 @@ namespace Opc.Ua.Security.Pkcs11
                 {
                     List<IObjectAttribute> values = m_session.GetAttributeValue(handle, read);
 
-                    if (!HoldsValues(values, match))
+                    if (!HoldsValues(values, match, compareFrom))
                     {
                         continue;
                     }
@@ -635,18 +642,26 @@ namespace Opc.Ua.Security.Pkcs11
             }
         }
 
-        private static bool HoldsValues(List<IObjectAttribute> values, (CKA Attribute, byte[] Value)[] match)
+        /// <summary>
+        /// Whether the read values (the CKA_ID first, then the match attributes
+        /// from <paramref name="compareFrom"/> on) hold the match values; an
+        /// unsigned integer attribute is compared without leading zero bytes.
+        /// </summary>
+        private static bool HoldsValues(
+            List<IObjectAttribute> values,
+            (CKA Attribute, byte[] Value)[] match,
+            int compareFrom)
         {
-            for (int ii = 1; ii < match.Length; ii++)
+            for (int ii = compareFrom; ii < match.Length; ii++)
             {
-                byte[]? actual = ReadBytes(values[ii]);
+                byte[]? actual = ReadBytes(values[1 + ii - compareFrom]);
 
                 if (actual == null || actual.Length == 0)
                 {
                     return false;
                 }
 
-                bool equal = match[ii].Attribute is CKA.CKA_MODULUS or CKA.CKA_PUBLIC_EXPONENT
+                bool equal = IsUnsignedInteger(match[ii].Attribute)
                     ? TrimLeadingZeros(actual).SequenceEqual(TrimLeadingZeros(match[ii].Value))
                     : actual.AsSpan().SequenceEqual(match[ii].Value);
 
@@ -657,6 +672,11 @@ namespace Opc.Ua.Security.Pkcs11
             }
 
             return true;
+        }
+
+        private static bool IsUnsignedInteger(CKA attribute)
+        {
+            return attribute is CKA.CKA_MODULUS or CKA.CKA_PUBLIC_EXPONENT;
         }
 
         /// <summary>

@@ -820,6 +820,31 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task StoreAddLinksAnRsaCertificateToAKeyWhoseModulusHasLeadingZerosAsync()
+        {
+            using var module = new FakePkcs11Module();
+            module.PadRsaModuli();
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate previous = Certificate.FromRawData(module.RsaCertificate);
+            Assert.That(await store.DeleteAsync(previous.Thumbprint).ConfigureAwait(false), Is.True);
+            byte[] encoded = module.IssueRsaCertificate("CN=PaddedModulus");
+            using Certificate renewed = Certificate.FromRawData(encoded);
+
+            await store.AddAsync(renewed).ConfigureAwait(false);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(renewed.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(module.CertificateId(encoded), Is.EqualTo(module.RsaId));
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded!.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
         public async Task StoreAddWritesOnlyTheCertificateOfASoftwareIdentityAsync()
         {
             using var module = new FakePkcs11Module();
