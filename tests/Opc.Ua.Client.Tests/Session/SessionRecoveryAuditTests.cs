@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                Assert.ThrowsAsync<ServiceResultException>(() => connecting);
+                await Assert.ThrowsAsync<ServiceResultException>(() => connecting);
                 Assert.That(attempted.Select(endpoint => endpoint.EndpointUrl),
                     Is.EqualTo(new[] { primary.EndpointUrl }));
             }
@@ -494,8 +494,8 @@ namespace Opc.Ua.Client.Tests
                 UserIdentityTokenPolicy = SecurityPolicies.None
             });
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, channel.Channel, CancellationToken.None)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
             Assert.That(error.Message, Does.Contain("credentials"));
@@ -577,8 +577,8 @@ namespace Opc.Ua.Client.Tests
                 harness.Configuration, initial.Object, endpoint, false, false,
                 "reverse", 60000, new UserIdentity(), default, cancellation.Token).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => session.ReconnectAsync(null, null, cancellation.Token))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => session.ReconnectAsync(null, null, cancellation.Token)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
             harness.CreatedChannels[0].Mock.Verify(value => value.ReconnectAsync(
@@ -604,9 +604,9 @@ namespace Opc.Ua.Client.Tests
             connection.SetupGet(value => value.Handle).Returns(Mock.Of<IUaSCByteTransport>());
             using var cancellation = new CancellationTokenSource(s_timeout);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() => reverse
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() => reverse
                 ? session.RecreateAsync(connection.Object, cancellation.Token)
-                : session.RecreateAsync(cancellation.Token))!;
+                : session.RecreateAsync(cancellation.Token)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             registry.Verify(value => value.GetInfo(SecurityPolicies.None), Times.AtLeastOnce);
@@ -680,9 +680,9 @@ namespace Opc.Ua.Client.Tests
             {
                 await create.Entered.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(session.Reconnecting, Is.True, "CreateSession must remain inside recovery admission.");
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session.RecreateInPlaceAsync(channel: channel.Channel, ct: cancellation.Token)
-                        .WaitAsync(s_timeout).ConfigureAwait(false))!;
+                        .WaitAsync(s_timeout).ConfigureAwait(false)))!;
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 engine.Verify(value => value.PausePublishing(), Times.Once);
                 engine.Verify(value => value.ResumePublishing(), Times.Never);
@@ -805,12 +805,12 @@ namespace Opc.Ua.Client.Tests
                     Assert.That(publishing.IsSet, Is.False);
                     Assert.That(Volatile.Read(ref publishCount), Is.EqualTo(1));
                 }
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await contender.WaitAsync(s_timeout).ConfigureAwait(false))!;
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await contender.WaitAsync(s_timeout).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
                 publishUnwind.Release();
-                Assert.CatchAsync<OperationCanceledException>(
+                await Assert.CatchAsync<OperationCanceledException>(
                     async () => await owner.WaitAsync(s_timeout).ConfigureAwait(false));
                 Assert.That(attempt.Operation.IsCanceled, Is.True);
                 Assert.That(session.Reconnecting, Is.False);
@@ -878,9 +878,9 @@ namespace Opc.Ua.Client.Tests
             await using var session = new Session(
                 channel.Channel, harness.Configuration, endpoint, engineFactory: factory.Object);
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await session.RecreateInPlaceAsync(channel: channel.Channel)
-                    .WaitAsync(s_timeout).ConfigureAwait(false))!;
+                    .WaitAsync(s_timeout).ConfigureAwait(false)))!;
 
             Assert.That(error, Is.SameAs(failure));
             Assert.That(session.Reconnecting, Is.False, "A cleanup failure must still release recovery admission.");
@@ -969,7 +969,7 @@ namespace Opc.Ua.Client.Tests
                 if (cancel)
                 {
                     cancellation.Cancel();
-                    Assert.CatchAsync<OperationCanceledException>(
+                    await Assert.CatchAsync<OperationCanceledException>(
                         async () => await recreate.WaitAsync(s_timeout).ConfigureAwait(false));
                 }
                 else

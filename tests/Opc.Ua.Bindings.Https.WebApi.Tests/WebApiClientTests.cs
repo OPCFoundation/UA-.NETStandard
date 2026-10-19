@@ -275,16 +275,16 @@ namespace Opc.Ua.Client.WebApi
             }
 
             [Test]
-            public void InvokeAsyncThrowsForNullRequest()
+            public async Task InvokeAsyncThrowsForNullRequest()
             {
                 using WebApiClient client = BuildClientWithResponse(new ReadResponse());
 
-                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                     await client.InvokeAsync<ReadRequest, ReadResponse>(null!).ConfigureAwait(false));
             }
 
             [Test]
-            public void InvokeAsyncThrowsServiceResultExceptionOnNon2xxStatus()
+            public async Task InvokeAsyncThrowsServiceResultExceptionOnNon2xxStatus()
             {
                 var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError)
                 {
@@ -303,7 +303,7 @@ namespace Opc.Ua.Client.WebApi
                     NodesToRead = new ArrayOf<ReadValueId>()
                 };
 
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client
                         .InvokeAsync<ReadRequest, ReadResponse>(request)
                         .ConfigureAwait(false));
@@ -314,7 +314,7 @@ namespace Opc.Ua.Client.WebApi
             }
 
             [Test]
-            public void InvokeAsyncPropagatesCancellationToken()
+            public async Task InvokeAsyncPropagatesCancellationToken()
             {
                 using var cts = new CancellationTokenSource();
                 cts.Cancel();
@@ -332,14 +332,14 @@ namespace Opc.Ua.Client.WebApi
                     NodesToRead = new ArrayOf<ReadValueId>()
                 };
 
-                Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await client
                         .InvokeAsync<ReadRequest, ReadResponse>(request, cts.Token)
                         .ConfigureAwait(false));
             }
 
             [Test]
-            public void InvokeAsyncThrowsObjectDisposedExceptionAfterDispose()
+            public async Task InvokeAsyncThrowsObjectDisposedExceptionAfterDispose()
             {
                 using var httpClient = new HttpClient { BaseAddress = s_baseAddress };
                 var client = new WebApiClient(httpClient,
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.WebApi
 
                 var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await client
                         .InvokeAsync<ReadRequest, ReadResponse>(request)
                         .ConfigureAwait(false));
@@ -393,7 +393,7 @@ namespace Opc.Ua.Client.WebApi
             }
 
             [Test]
-            public void InvokeRouteAsyncThrowsForMismatchedRequestType()
+            public async Task InvokeRouteAsyncThrowsForMismatchedRequestType()
             {
                 using WebApiClient client = BuildClientWithResponse(new ReadResponse());
 
@@ -401,20 +401,20 @@ namespace Opc.Ua.Client.WebApi
 
                 var wrongRequest = new ReadRequest { RequestHeader = new RequestHeader() };
 
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await client
                         .InvokeRouteAsync(route, wrongRequest)
                         .ConfigureAwait(false));
             }
 
             [Test]
-            public void InvokeRouteAsyncThrowsForNullRequest()
+            public async Task InvokeRouteAsyncThrowsForNullRequest()
             {
                 using WebApiClient client = BuildClientWithResponse(new ReadResponse());
 
                 WebApiServiceRoutes.TryGetByRequestType(typeof(ReadRequest), out WebApiServiceRoute route);
 
-                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                     await client
                         .InvokeRouteAsync(route, null!)
                         .ConfigureAwait(false));

@@ -56,7 +56,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             JsonObject created = await fixture.Runtimes.CreateAsync(input).ConfigureAwait(false);
             string handle = created["handle"]!.GetValue<string>();
             JsonObject state = await fixture.Runtimes.StatusAsync(handle).ConfigureAwait(false);
-            ServiceResultException? duplicate = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? duplicate = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.CreateAsync(input).ConfigureAwait(false));
 
             Assert.That(state["isRunning"]!.GetValue<bool>(), Is.False);
@@ -77,7 +77,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 .ConfigureAwait(false);
             _ = await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input("two")).ConfigureAwait(false);
 
-            ServiceResultException? refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? refused = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input("three")).ConfigureAwait(false));
             Assert.That(refused!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(fixture.Registry.List(), Has.Count.EqualTo(2));
@@ -107,7 +107,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             {
                 string secondHandle = (await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input())
                     .ConfigureAwait(false))["handle"]!.GetValue<string>();
-                ServiceResultException? refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? refused = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Runtimes.StatusAsync(firstHandle).ConfigureAwait(false));
 
                 Assert.That(refused!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -142,7 +142,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             Assert.That(stopped["isRunning"]!.GetValue<bool>(), Is.False);
             Assert.That(fixture.Registry.List(), Has.Count.EqualTo(1));
             Assert.That(fixture.Transports.Created.Single().DisposeCalls, Is.EqualTo(1));
-            ServiceResultException? stoppedWrite = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? stoppedWrite = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.PublishAsync(handle, new PubSubPublishInput { Fields = [] })
                     .ConfigureAwait(false));
             Assert.That(stoppedWrite!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -164,7 +164,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 PubSubExpansionTestContext.Input("publisher")).ConfigureAwait(false))["handle"]!.GetValue<string>();
 
             JsonObject read = await fixture.Runtimes.ReadAsync(subscriber).ConfigureAwait(false);
-            ServiceResultException? invalid = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? invalid = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.ReadAsync(publisher).ConfigureAwait(false));
 
             Assert.That(read["running"]!.GetValue<bool>(), Is.False);
@@ -191,7 +191,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             using (fixture.Enter(PubSubExpansionTestContext.Other))
             {
-                ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await legacy.StartPublisherAsync("opc.udp://127.0.0.1:4849", 7, 1, "Other:Int32")
                         .ConfigureAwait(false));
                 Assert.That(rejected!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -213,7 +213,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             using IDisposable caller = fixture.Enter();
             PubSubRuntimeManager legacy = fixture.Services.GetRequiredService<PubSubRuntimeManager>();
 
-            ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await legacy.StartPublisherAsync("opc.udp://127.0.0.1:4849", 42, 1, "Count:Int32")
                     .ConfigureAwait(false));
 

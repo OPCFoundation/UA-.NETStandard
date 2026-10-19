@@ -396,6 +396,41 @@ namespace Opc.Ua.Core.Tests.Stack.State
         }
 
         /// <summary>
+        /// Verify that the fields of an initialized event carry the event time as their
+        /// source timestamp, so reading them does not stamp them with the current time.
+        /// </summary>
+        [Test]
+        public void InitializedEventFieldsCarryTheEventTime()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            var source = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(1000),
+                BrowseName = QualifiedName.From("Source")
+            };
+            var eventState = new BaseEventState(null);
+            eventState.Initialize(context, source, EventSeverity.Medium, new LocalizedText("message"));
+
+            DateTimeUtc time = eventState.Time!.Value;
+            Assert.That(time, Is.Not.EqualTo(DateTimeUtc.MinValue));
+            Assert.That(eventState.EventId!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.EventType!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.SourceNode!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.SourceName!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Time.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Severity!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.Message!.Timestamp, Is.EqualTo(time));
+            Assert.That(eventState.ReceiveTime!.Timestamp, Is.EqualTo(eventState.ReceiveTime.Value));
+
+            var dataValue = new DataValue();
+            ServiceResult result = eventState.Message.ReadAttribute(
+                context, Attributes.Value, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.SourceTimestamp, Is.EqualTo(time));
+        }
+
+        /// <summary>
         /// Verify that Clone works correctly for BaseEventState with null parent.
         /// </summary>
         [Test]

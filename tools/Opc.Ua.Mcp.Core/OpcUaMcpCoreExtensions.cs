@@ -230,6 +230,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.MachineTool:
                 case McpToolProfile.Gms:
                 case McpToolProfile.CranesHoists:
+                case McpToolProfile.AutoId:
                     break;
                 case McpToolProfile.Full:
                     AddFullTools(mcpServerBuilder);
@@ -377,6 +378,7 @@ namespace Opc.Ua.Mcp
                 toolProfiles.Contains(McpToolProfile.MachineTool) ||
                 toolProfiles.Contains(McpToolProfile.Gms) ||
                 toolProfiles.Contains(McpToolProfile.CranesHoists) ||
+                toolProfiles.Contains(McpToolProfile.AutoId) ||
                 toolProfiles.Contains(McpToolProfile.Full);
         }
 #pragma warning restore RCS1224

@@ -148,7 +148,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 };
                 using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
 
-                Assert.CatchAsync<Exception>(async () =>
+                await Assert.CatchAsync<Exception>(async () =>
                 {
                     await ((ISecureChannel)channel).OpenAsync(uri.Uri, settings, deadline.Token).ConfigureAwait(false);
                     await channel.SendRequestAsync(

@@ -162,7 +162,7 @@ namespace Opc.Ua.Extrusion.Tests
                 }
             }
             Assert.That(provider.Executions, Is.EqualTo(1), "Queued commands must not reach the provider at shutdown.");
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await device.ApplySnapshotAsync(new ExtrusionSnapshot(1, [])).ConfigureAwait(false));
         }
 
@@ -223,17 +223,17 @@ namespace Opc.Ua.Extrusion.Tests
                 Assert.That(first.BrowseName.Name, Is.EqualTo("JobGroup_001"));
                 Assert.That(a.BrowseName.Name, Is.EqualTo("Job_001"));
             });
-            ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "first", Job("shared")).ConfigureAwait(false))!;
+            ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "first", Job("shared")).ConfigureAwait(false)))!;
             Assert.That(duplicate.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEntryExists));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "first",
                     Job("same-sequence")).ConfigureAwait(false));
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext, ExtrusionJobOperation.StartGroup, "first")
                 .ConfigureAwait(false);
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext, ExtrusionJobOperation.StartJob, "first", "shared")
                 .ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
                     ExtrusionJobOperation.RemoveJob, "first", "shared").ConfigureAwait(false));
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
@@ -259,9 +259,9 @@ namespace Opc.Ua.Extrusion.Tests
             var authority = (JobProvider)options.Jobs!;
             var line = await m_fixture.Runtime.CreateLineAsync(options).ConfigureAwait(false);
             authority.Deny = true;
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await line.Jobs!.AddGroupAsync(m_fixture.Runtime.SystemContext,
-                    Group("denied")).ConfigureAwait(false))!;
+                    Group("denied")).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(denied.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
@@ -274,10 +274,10 @@ namespace Opc.Ua.Extrusion.Tests
             {
                 ParameterSetting = [new ParameterSettingType { Id = 1, Value = Variant.From("not a Double") }]
             };
-            ServiceResultException mismatch = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await line.Jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "valid", invalid).ConfigureAwait(false))!;
+            ServiceResultException mismatch = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await line.Jobs.AddJobAsync(m_fixture.Runtime.SystemContext, "valid", invalid).ConfigureAwait(false)))!;
             Assert.That(mismatch.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await line.Jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
                     ExtrusionJobOperation.StartJob, "valid", "missing").ConfigureAwait(false));
             Assert.That(authority.Executions, Is.EqualTo(1));
@@ -325,7 +325,7 @@ namespace Opc.Ua.Extrusion.Tests
                 Assert.That(m_fixture.Manager.FindPredefinedNode<BaseObjectTypeState>(
                     notification.EventType!.Value)!.IsAbstract, Is.False);
             }
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await jobs.ApplyProductionAsync(commit with { ActualOutput = 3 }).ConfigureAwait(false));
         }
 
@@ -355,8 +355,8 @@ namespace Opc.Ua.Extrusion.Tests
             await jobs.ApplyProductionAsync(first with { Revision = 8, FinishedLots = [] }).ConfigureAwait(false);
             ExtrusionJobProductionSnapshot duplicate = first with { Revision = 9 };
 
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await jobs.ApplyProductionAsync(duplicate).ConfigureAwait(false))!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await jobs.ApplyProductionAsync(duplicate).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -407,7 +407,7 @@ namespace Opc.Ua.Extrusion.Tests
             var good = new ExtrusionSnapshot(10,
                 [new ExtrusionValue(quality, new DataValue(Variant.From(true), StatusCodes.Good,
                     ExtrusionFixture.Timestamp))]);
-            Assert.ThrowsAsync<ServiceResultException>(() => line.ApplySnapshotAsync(good).AsTask());
+            await Assert.ThrowsAsync<ServiceResultException>(() => line.ApplySnapshotAsync(good).AsTask());
 
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
                 ExtrusionJobOperation.InterruptJob, "quality", "job").ConfigureAwait(false);
@@ -417,7 +417,7 @@ namespace Opc.Ua.Extrusion.Tests
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,
                 ExtrusionJobOperation.StartJob, "quality", "job").ConfigureAwait(false);
             Assert.That(line.Node.ProductionParameters.GoodProduct.Value, Is.False);
-            Assert.ThrowsAsync<ServiceResultException>(() =>
+            await Assert.ThrowsAsync<ServiceResultException>(() =>
                 line.ApplySnapshotAsync(good with { Revision = 11 }).AsTask());
 
             await jobs.ExecuteAsync(m_fixture.Runtime.SystemContext,

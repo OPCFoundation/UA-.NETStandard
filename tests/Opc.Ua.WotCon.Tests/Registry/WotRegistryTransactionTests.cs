@@ -100,7 +100,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
             // Arm the injected failure: the next commit throws before it persists.
             store.FailNextCommit = true;
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(TdRequest("b", "urn:b")));
 
             // Current must still be the previous generation: no partial publish.
@@ -127,7 +127,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             service.Changed += (_, _) => changedCount++;
 
             store.FailNextCommit = true;
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(TdRequest("a", "urn:a")));
             Assert.That(changedCount, Is.Zero);
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
 
                 store.FailNextCommit = true;
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await service.UpsertResourceAsync(TdRequest("b", "urn:b")));
             }
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 await service.UpsertResourceAsync(TdRequest("a", "urn:a"));
 
                 store.FailNextCommit = true;
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await service.UpsertResourceAsync(TdRequest("b", "urn:b")));
             }
 
@@ -286,7 +286,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             service.Changed += (_, _) => changedCount++;
 
             WotRegistryCommitNotCommittedException error =
-                Assert.ThrowsAsync<WotRegistryCommitNotCommittedException>(
+                await Assert.ThrowsAsync<WotRegistryCommitNotCommittedException>(
                     async () => await service.UpsertResourceAsync(
                         TdRequest("a", "urn:a")));
 
@@ -341,7 +341,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             service.Changed += (_, _) => changedCount++;
 
             WotRegistryCommitDurabilityUncertainException error =
-                Assert.ThrowsAsync<WotRegistryCommitDurabilityUncertainException>(
+                await Assert.ThrowsAsync<WotRegistryCommitDurabilityUncertainException>(
                     async () => await service.UpsertResourceAsync(
                         TdRequest("a", "urn:a")));
 
@@ -361,13 +361,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await service.InitializeAsync();
 
             WotRegistryCommitIndeterminateException error =
-                Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
+                await Assert.ThrowsAsync<WotRegistryCommitIndeterminateException>(
                     async () => await service.UpsertResourceAsync(
                         TdRequest("a", "urn:a")));
 
             Assert.That(error.IntendedGeneration, Is.EqualTo(1));
             Assert.That(service.Current, Is.SameAs(WotRegistrySnapshot.Empty));
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await service.UpsertResourceAsync(
                     TdRequest("b", "urn:b")));
 

@@ -61,8 +61,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 fixture.Recreate();
                 using var source = new MemoryStream([1]);
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await handle.WriteFromAsync(source, 1).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handle.WriteFromAsync(source, 1).ConfigureAwait(false)))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
                 Assert.That(handle.SessionId, Is.EqualTo(NodeId.Parse("s=original-session")));
             }
@@ -86,8 +86,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 Assert.That(opening.IsCompleted, Is.False);
                 fixture.Recreate();
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await opening.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await opening.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Is.Empty);
         }
@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             using var destination = new MemoryStream();
-            Assert.ThrowsAsync<IOException>(async () => await context.DownloadToStreamWithResultAsync(
+            await Assert.ThrowsAsync<IOException>(async () => await context.DownloadToStreamWithResultAsync(
                 s_file, destination, 3, 4).ConfigureAwait(false));
             Assert.That(destination.Length, Is.Zero);
             Assert.That(Methods(fixture), Is.EqualTo(
@@ -156,12 +156,12 @@ namespace Opc.Ua.Client.Tests.FileSystem
             using var source = new MemoryStream([1, 2, 3]);
             if (limit == 0)
             {
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                     async () => await context.UploadFromWithResultAsync(s_file, source, limit).ConfigureAwait(false));
             }
             else
             {
-                Assert.ThrowsAsync<IOException>(
+                await Assert.ThrowsAsync<IOException>(
                     async () => await context.UploadFromWithResultAsync(s_file, source, limit).ConfigureAwait(false));
             }
             Assert.That(fixture.Requests, Is.Empty);
@@ -179,7 +179,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             using var source = new ShortSource([1, 2, 3, 4]);
-            Assert.ThrowsAsync<IOException>(
+            await Assert.ThrowsAsync<IOException>(
                 async () => await context.UploadFromWithResultAsync(s_file, source, 3, 4).ConfigureAwait(false));
             Assert.That(Methods(fixture), Is.EqualTo(
             [
@@ -307,8 +307,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             var transfer = new TemporaryFileTransferClient(context.Session, s_transfer);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await transfer.GenerateFileForReadAsync(context).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transfer.GenerateFileForReadAsync(context).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Has.Count.EqualTo(2));
             Assert.That(fixture.Requests[0], Is.TypeOf<CallRequest>());
@@ -357,7 +357,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using SessionRequestContext other =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             var transfer = new TemporaryFileTransferClient(original.Session, s_transfer);
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await transfer.GenerateFileForWriteAsync(other).ConfigureAwait(false));
             Assert.That(fixture.Requests, Is.Empty);
         }
@@ -378,8 +378,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             SessionFileHandle handle = await transfer.GenerateFileForWriteAsync(context).ConfigureAwait(false);
             await using (handle.ConfigureAwait(false))
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await handle.CommitAsync().ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await handle.CommitAsync().ConfigureAwait(false)))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
                 Assert.That(handle.IsCommitted, Is.True);
             }

@@ -184,7 +184,7 @@ namespace Opc.Ua.GMS.Tests
         [TestCase("Handle")]
         [TestCase("Result")]
         [TestCase("Error")]
-        public void ResultProxyRejectsMalformedOutput(string malformed)
+        public async Task ResultProxyRejectsMalformedOutput(string malformed)
         {
             ServiceMessageContext context = ModelTestContext.CreateMessageContext();
             ArrayOf<Variant> output = malformed switch
@@ -199,8 +199,8 @@ namespace Opc.Ua.GMS.Tests
             var proxy = new GMSResultManagementTypeClient(
                 session.Object, new NodeId("results", 1), NUnitTelemetryContext.Create());
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await proxy.GetLatestResultAsync(0).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await proxy.GetLatestResultAsync(0).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
@@ -209,15 +209,15 @@ namespace Opc.Ua.GMS.Tests
         /// A method-level service failure is not converted into a domain error or a successful result.
         /// </summary>
         [Test]
-        public void ResultProxyPreservesBadServiceStatus()
+        public async Task ResultProxyPreservesBadServiceStatus()
         {
             ServiceMessageContext context = ModelTestContext.CreateMessageContext();
             Mock<ISessionClient> session = CreateCallSession(context, [], StatusCodes.BadUserAccessDenied);
             var proxy = new GMSResultManagementTypeClient(
                 session.Object, new NodeId("results", 1), NUnitTelemetryContext.Create());
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await proxy.GetLatestResultAsync(0).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await proxy.GetLatestResultAsync(0).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }

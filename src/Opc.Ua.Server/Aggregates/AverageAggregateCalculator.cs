@@ -108,11 +108,11 @@ namespace Opc.Ua.Server
             int count = 0;
             double total = 0;
 
-            // Part 13 §4.2.1.2: with TreatUncertainAsBad = false an Uncertain value is
-            // equivalent to Good, so it is included in the average (IsGood applies the setting).
+            // Part 13 §5.4.3.3 averages the Good values. The definition wins over §4.2.1.2, so
+            // Uncertain values are excluded whatever TreatUncertainAsBad is (Mantis 11495 ~0025874).
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (IsGood(values[ii]))
+                if (IsGoodValue(values[ii]))
                 {
                     try
                     {
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server
                 GetTimestamp(slice),
                 GetTimestamp(slice));
             value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
-            value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
+            value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode, true));
 
             // return result.
             return value;

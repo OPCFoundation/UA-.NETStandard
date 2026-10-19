@@ -183,7 +183,7 @@ namespace Opc.Ua.Extrusion.Tests
         {
             ExtrusionDeviceOptions unknown = ExtrusionFixture.Options("invalid-selection");
             unknown.Features.Include("InventedExtruderPressure");
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_fixture.Runtime.CreateExtruderAsync(unknown).ConfigureAwait(false));
             var valid = await m_fixture.Runtime.CreateExtruderAsync(ExtrusionFixture.Options("invalid-selection"))
                 .ConfigureAwait(false);
@@ -191,14 +191,14 @@ namespace Opc.Ua.Extrusion.Tests
 
             ExtrusionDeviceOptions cutter = ExtrusionFixture.Options("zero-products");
             cutter.Features.WithInstances("CuttingProducts/CuttingProduct_<Nr>", 0);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await m_fixture.Runtime.CreateCutterAsync(cutter).ConfigureAwait(false));
 
             ExtrusionDeviceOptions missing = ExtrusionFixture.Options("missing-authority");
             missing.Features.Include("Maintenance");
             missing.Common.Maintenance = null;
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_fixture.Runtime.CreateExtruderAsync(missing).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_fixture.Runtime.CreateExtruderAsync(missing).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
         }
 
@@ -237,13 +237,13 @@ namespace Opc.Ua.Extrusion.Tests
         /// A bound material catalogue without a configured DensityUnit is rejected during creation.
         /// </summary>
         [Test]
-        public void BoundMaterialListWithoutDensityUnitIsRejected()
+        public async Task BoundMaterialListWithoutDensityUnitIsRejected()
         {
             ExtrusionDeviceOptions options = ExtrusionFixture.Options("density-unit-missing", all: true);
             options.Common.MaterialDensityUnit = null;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ExtrusionFixture.CreateAsync(m_fixture.Runtime, 2, options).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ExtrusionFixture.CreateAsync(m_fixture.Runtime, 2, options).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -292,7 +292,7 @@ namespace Opc.Ua.Extrusion.Tests
             };
             try
             {
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await m_fixture.Runtime.CreateFilterAsync(ExtrusionFixture.Options("rollback"))
                         .ConfigureAwait(false));
                 Assert.That(m_fixture.Manager.FindPredefinedNode(failed), Is.Null);
@@ -310,12 +310,12 @@ namespace Opc.Ua.Extrusion.Tests
         /// Rejects cancelled creation without adding an instance.
         /// </summary>
         [Test]
-        public void CancelledCreationDoesNotPublishAnInstance()
+        public async Task CancelledCreationDoesNotPublishAnInstance()
         {
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
             int before = m_fixture.Runtime.Devices.Count;
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await m_fixture.Runtime.CreateExtruderAsync(ExtrusionFixture.Options("cancelled"),
                     cancellationToken: cancelled.Token).ConfigureAwait(false));
             Assert.That(m_fixture.Runtime.Devices.Count, Is.EqualTo(before));
@@ -352,11 +352,11 @@ namespace Opc.Ua.Extrusion.Tests
                 new ExtrusionValue(filter.Node.FiltrationFineness.NodeId,
                     new DataValue(Variant.From("wrong type"), StatusCodes.Good, ExtrusionFixture.Timestamp))
             ]);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await filter.ApplySnapshotAsync(invalid).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await filter.ApplySnapshotAsync(invalid).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTypeMismatch));
             Assert.That(filter.Node.IsPresent.Value, Is.True, "The valid prefix of an invalid update was not applied.");
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await filter.ApplySnapshotAsync(snapshot with { Revision = 0 }).ConfigureAwait(false));
         }
 
@@ -427,7 +427,7 @@ namespace Opc.Ua.Extrusion.Tests
             Assert.That(committed, Is.EqualTo(transitionTime));
             if (rejectInterveningSnapshot)
             {
-                Assert.ThrowsAsync<ServiceResultException>(() => device.State.ApplyAsync(initial with
+                await Assert.ThrowsAsync<ServiceResultException>(() => device.State.ApplyAsync(initial with
                 {
                     SourceTimestamp = (DateTimeUtc)transitionTime.ToDateTime().AddSeconds(5)
                 }).AsTask());

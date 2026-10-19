@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using var cts = new CancellationTokenSource();
             cts.Cancel();
 
-            Exception? ex = Assert.CatchAsync(
+            Exception? ex = await Assert.CatchAsync(
                 async () => await factory
                     .ConnectAsync(CreateEndpoint("opc.tcp://127.0.0.1:9"), cts.Token)
                     .ConfigureAwait(false));
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
-        public void CachedSessionAccessorRequiresStaticEndpoint()
+        public async Task CachedSessionAccessorRequiresStaticEndpoint()
         {
             var services = new ServiceCollection();
             services.AddOpcUa().AddClient(options => options.Configuration = CreateConfig());
@@ -282,8 +282,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             using ServiceProvider sp = services.BuildServiceProvider();
             Func<CancellationToken, Task<Client.ManagedSession>> factory = sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
 
-            OptionsValidationException ex = Assert.ThrowsAsync<OptionsValidationException>(
-                () => factory(CancellationToken.None))!;
+            OptionsValidationException ex = (await Assert.ThrowsAsync<OptionsValidationException>(
+                () => factory(CancellationToken.None)))!;
 
             Assert.That(ex.Failures, Does.Contain("A session endpoint is required."));
         }

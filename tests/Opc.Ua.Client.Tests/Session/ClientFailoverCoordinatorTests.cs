@@ -289,12 +289,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void TransferActiveSubscriptionsRejectsDifferentUser()
+        public async Task TransferActiveSubscriptionsRejectsDifferentUser()
         {
             Mock<ISession> session = CreateSession("backup-user");
             var coordinator = new ClientFailoverCoordinator();
 
-            Assert.ThrowsAsync<UnauthorizedAccessException>(
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
                 async () => await coordinator.TransferActiveSubscriptionsAsync(
                     session.Object,
                     new ClientRedundancyTransferOptions

@@ -140,12 +140,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void OpenBeforeCreateListenerThrowsBadInvalidState()
+        public async Task OpenBeforeCreateListenerThrowsBadInvalidState()
         {
             var host = new ReverseConnectHost(m_telemetry);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await host.OpenAsync().ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await host.OpenAsync().ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadInvalidState));
         }
@@ -216,7 +216,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void CloseFailureDisposesListener()
+        public async Task CloseFailureDisposesListener()
         {
             var closeError = new InvalidOperationException("close failed");
             var listener = new Mock<ITransportListener>();
@@ -236,8 +236,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 IgnoreConnectionWaitingAsync,
                 IgnoreConnectionStatusChanged);
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await host.CloseAsync().ConfigureAwait(false))!;
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await host.CloseAsync().ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(closeError));
             listener.Verify(l => l.DisposeAsync(), Times.Once);
@@ -522,7 +522,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             // A further open after disposal is rejected without resurrecting the
             // listener.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await host.OpenAsync().ConfigureAwait(false));
         }
 

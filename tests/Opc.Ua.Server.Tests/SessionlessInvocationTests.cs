@@ -84,18 +84,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void SessionlessRequestIsUnsupportedUnlessEnabled()
+        public async Task SessionlessRequestIsUnsupportedUnlessEnabled()
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
         }
 
         [Test]
-        public void AnUnknownSessionTokenStaysBadSessionIdInvalid(
+        public async Task AnUnknownSessionTokenStaysBadSessionIdInvalid(
             [Values] bool sessionlessEnabled)
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config);
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
                 manager.SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true };
             }
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, CreateHttpsChannel(), new NodeId(4711u)).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
@@ -117,14 +117,14 @@ namespace Opc.Ua.Server.Tests
         [TestCase(RequestType.UnregisterNodes)]
         [TestCase(RequestType.CloseSession)]
         [TestCase(RequestType.Cancel)]
-        public void ServicesOutsideTheSessionlessSetStillNeedASession(RequestType requestType)
+        public async Task ServicesOutsideTheSessionlessSetStillNeedASession(RequestType requestType)
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config)
             {
                 SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null, requestType)
                     .ConfigureAwait(false));
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void TheServiceSetLimitAppliesBeforeAValidateSessionLessRequestHandler()
+        public async Task TheServiceSetLimitAppliesBeforeAValidateSessionLessRequestHandler()
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config);
             int calls = 0;
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
                 args.Identity = new UserIdentity();
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(),
@@ -177,7 +177,7 @@ namespace Opc.Ua.Server.Tests
                 SessionlessInvocation = new SessionlessInvocationOptions()
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, CreateHttpsChannel(), NodeId.Null).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
 
@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests
                 SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, CreateTcpChannel(securityMode), NodeId.Null)
                     .ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
                 SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(secureEndpoint),
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
 
             // an endpoint that uses security asks for the certificate whatever the HTTPS setting.
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(secureEndpoint: true),
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests
                 NodeId.Null).ConfigureAwait(false);
             Assert.That(context.UserIdentity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(userTokenTypes: [UserTokenType.UserName, UserTokenType.IssuedToken]),
@@ -300,14 +300,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AnAnonymousRequestOnAnUnknownEndpointIsRejected()
+        public async Task AnAnonymousRequestOnAnUnknownEndpointIsRejected()
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config)
             {
                 SessionlessInvocation = new SessionlessInvocationOptions { AllowAnonymous = true }
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     new SecureChannelContext("unknown", endpointDescription: null, RequestEncoding.Binary),
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests
                 new NodeId(kGoodAccessToken, 0)).ConfigureAwait(false);
             Assert.That(context.UserIdentity, Is.SameAs(issued));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(),
@@ -454,14 +454,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AnAccessTokenNoAuthenticatorHandlesIsRejected()
+        public async Task AnAccessTokenNoAuthenticatorHandlesIsRejected()
         {
             using var manager = new SessionManager(m_serverMock.Object, m_config)
             {
                 SessionlessInvocation = new SessionlessInvocationOptions()
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(),
@@ -472,7 +472,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(MessageSecurityMode.None)]
         [TestCase(MessageSecurityMode.Sign)]
-        public void SessionlessAccessTokenRequiresAnEncryptedChannel(MessageSecurityMode securityMode)
+        public async Task SessionlessAccessTokenRequiresAnEncryptedChannel(MessageSecurityMode securityMode)
         {
             UseJwtAuthenticator(CreateUserNameIdentity("token-user"));
             using var manager = new SessionManager(m_serverMock.Object, m_config)
@@ -480,7 +480,7 @@ namespace Opc.Ua.Server.Tests
                 SessionlessInvocation = new SessionlessInvocationOptions()
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateTcpChannel(securityMode),
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void AccessTokensCanBeDisabled()
+        public async Task AccessTokensCanBeDisabled()
         {
             UseJwtAuthenticator(CreateUserNameIdentity("token-user"));
             using var manager = new SessionManager(m_serverMock.Object, m_config)
@@ -516,7 +516,7 @@ namespace Opc.Ua.Server.Tests
                 SessionlessInvocation = new SessionlessInvocationOptions { AcceptAccessTokens = false }
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ValidateAsync(
                     manager,
                     CreateHttpsChannel(),

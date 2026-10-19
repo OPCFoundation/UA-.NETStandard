@@ -235,9 +235,9 @@ namespace Opc.Ua.CranesHoists.Tests
                 Is.EqualTo(requested));
             Assert.That(Signal(actual, CraneSignal.SpeedLimitDirPlus).Value.WrappedValue.GetDouble(), Is.EqualTo(31.5));
             var other = new CranesHoistsClient(m_second.Session, NUnitTelemetryContext.Create());
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await other.ConfigureLimitAsync(axis, CraneSignal.SpeedLimitDirPlusSetpoint, Variant.From(25.0))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_provider.AcceptedRequests, Has.Count.EqualTo(before + 1));
             actual = await m_client.ReadElementAsync(axis).ConfigureAwait(false);
@@ -255,9 +255,9 @@ namespace Opc.Ua.CranesHoists.Tests
             CraneElementSnapshot before = await m_client.ReadElementAsync(axis).ConfigureAwait(false);
             int requests = m_provider.AcceptedRequests.Count;
             m_refuseRequests = true;
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.ConfigureLimitAsync(axis, CraneSignal.SpeedLimitDirPlusSetpoint, Variant.From(12.0))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
             CraneElementSnapshot after = await m_client.ReadElementAsync(axis).ConfigureAwait(false);
             Assert.That(Signal(after, CraneSignal.SpeedLimitDirPlusSetpoint).Value.WrappedValue,
@@ -275,12 +275,12 @@ namespace Opc.Ua.CranesHoists.Tests
         [TestCase(double.NaN)]
         [TestCase(double.PositiveInfinity)]
         [TestCase(double.NegativeInfinity)]
-        public void InvalidLimitsReturnExplicitWireErrors(double requested)
+        public async Task InvalidLimitsReturnExplicitWireErrors(double requested)
         {
             int before = m_provider.AcceptedRequests.Count;
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.ConfigureLimitAsync(m_crane.GetElement("Lift").NodeId,
-                    CraneSignal.SpeedLimitDirMinusSetpoint, Variant.From(requested)).ConfigureAwait(false))!;
+                    CraneSignal.SpeedLimitDirMinusSetpoint, Variant.From(requested)).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
             Assert.That(m_provider.AcceptedRequests, Has.Count.EqualTo(before));
         }
@@ -289,15 +289,15 @@ namespace Opc.Ua.CranesHoists.Tests
         /// The typed facade never exposes an arbitrary actuation write, and the wire rejects wrong scalar types.
         /// </summary>
         [Test]
-        public void ReadonlyAndWrongTypeRequestsCannotReachTheProvider()
+        public async Task ReadonlyAndWrongTypeRequestsCannotReachTheProvider()
         {
             int before = m_provider.AcceptedRequests.Count;
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await m_client.ConfigureLimitAsync(m_crane.NodeId, CraneSignal.SystemOn, Variant.From(false))
                     .ConfigureAwait(false));
-            ServiceResultException wrongType = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException wrongType = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.ConfigureLimitAsync(m_crane.GetElement("Lift").NodeId,
-                    CraneSignal.SpeedLimitDirMinusSetpoint, Variant.From("not a Double")).ConfigureAwait(false))!;
+                    CraneSignal.SpeedLimitDirMinusSetpoint, Variant.From("not a Double")).ConfigureAwait(false)))!;
             Assert.That(wrongType.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(m_provider.AcceptedRequests, Has.Count.EqualTo(before));
         }
@@ -387,7 +387,7 @@ namespace Opc.Ua.CranesHoists.Tests
                 await Task.Delay(20, deadline.Token).ConfigureAwait(false);
             }
             cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await operation.ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await operation.ConfigureAwait(false));
             Assert.That(manager.Count, Is.EqualTo(before));
             Assert.That(m_first.Session.Connected, Is.True);
         }
@@ -396,11 +396,11 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Failed monitored-item creation is an error, not an empty successful observation.
         /// </summary>
         [Test]
-        public void ObservationOfMissingNodeReturnsError()
+        public async Task ObservationOfMissingNodeReturnsError()
         {
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.ObserveValuesAsync([new NodeId("Missing", m_crane.NodeId.NamespaceIndex)],
-                    new CraneObservationOptions { Window = TimeSpan.FromSeconds(10) }).ConfigureAwait(false))!;
+                    new CraneObservationOptions { Window = TimeSpan.FromSeconds(10) }).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
@@ -426,9 +426,9 @@ namespace Opc.Ua.CranesHoists.Tests
                     Is.EqualTo(StatusCodes.BadNoData));
                 Assert.That(Signal(axis, CraneSignal.AxisFunction).NodeId.IsNull, Is.True);
                 Assert.That(Signal(axis, CraneSignal.SpeedLimitDirPlusSetpoint).NodeId.IsNull, Is.True);
-                ServiceResultException unsupported = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException unsupported = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_client.ConfigureLimitAsync(axis.Entry.NodeId, CraneSignal.SpeedLimitDirPlusSetpoint,
-                        Variant.From(50.0)).ConfigureAwait(false))!;
+                        Variant.From(50.0)).ConfigureAwait(false)))!;
                 Assert.That(unsupported.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }
             finally

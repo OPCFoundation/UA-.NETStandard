@@ -144,13 +144,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// Authorization failures remain exact failures, not contention or an implicit takeover.
         /// </summary>
         [Test]
-        public void UserAccessDeniedIsNotRetriedOrMaskedAsRevisionContention()
+        public async Task UserAccessDeniedIsNotRetriedOrMaskedAsRevisionContention()
         {
             m_client.Setup(client => client.ExecuteAsync(
                     It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied));
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask()))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.Rejected));
             Assert.That(m_runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -165,7 +165,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void ActualTransportLossPropagatesInsteadOfBecomingRevisionContention(bool failsDuringRead)
+        public async Task ActualTransportLossPropagatesInsteadOfBecomingRevisionContention(bool failsDuringRead)
         {
             m_connected = failsDuringRead;
             if (failsDuringRead)
@@ -173,8 +173,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 m_client.Setup(client => client.ReadSnapshotAsync(It.IsAny<CancellationToken>()))
                     .Throws(new ServiceResultException(StatusCodes.BadNoCommunication));
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask()))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.TransportUnavailable));
             m_client.Verify(client => client.ExecuteAsync(
@@ -189,7 +189,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void RequestTimeoutRemainsRecoverableDuringReadOrMembershipCommand(bool failsDuringRead)
+        public async Task RequestTimeoutRemainsRecoverableDuringReadOrMembershipCommand(bool failsDuringRead)
         {
             if (failsDuringRead)
             {
@@ -202,8 +202,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
                     .Throws(new ServiceResultException(StatusCodes.BadRequestTimeout));
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask()))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
             Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.TransportUnavailable));
             Assert.That(m_runtime.MembershipStatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
@@ -244,7 +244,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// An unrelated live owner still reaches the coordinator's unchanged authorization guard.
         /// </summary>
         [Test]
-        public void UnrelatedLiveLeaseRemainsAnExplicitAuthorizationFailure()
+        public async Task UnrelatedLiveLeaseRemainsAnExplicitAuthorizationFailure()
         {
             m_snapshot = m_snapshot with
             {
@@ -257,8 +257,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     }
                 ]
             };
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask()))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_commands, Has.Count.EqualTo(1));
             Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.Rejected));
@@ -269,13 +269,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// BadInvalidState without a changed revision/run or expired own lease is not a transient revision conflict.
         /// </summary>
         [Test]
-        public void NonRevisionInvalidStateIsNotRetriedAsContention()
+        public async Task NonRevisionInvalidStateIsNotRetriedAsContention()
         {
             m_client.Setup(client => client.ExecuteAsync(
                     It.IsAny<RecyclingCommand>(), It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(StatusCodes.BadInvalidState));
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask())!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_runtime.RefreshMembershipAsync(m_client.Object).AsTask()))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(m_runtime.MembershipState, Is.EqualTo(RecyclingMembershipState.Faulted));
             m_client.Verify(client => client.ExecuteAsync(

@@ -146,7 +146,7 @@ namespace Opc.Ua.GMS.Tests
             {
                 release.TrySetResult(true);
             }
-            Exception? failure = Assert.CatchAsync<Exception>(
+            Exception? failure = await Assert.CatchAsync<Exception>(
                 async () => await pending.WaitAsync(TimeSpan.FromSeconds(10)));
             Assert.That(failure, Is.InstanceOf<ServiceResultException>().Or.InstanceOf<OperationCanceledException>());
             var client = new GmsResultClient(second, machine.NodeId, NUnitTelemetryContext.Create());
@@ -210,7 +210,7 @@ namespace Opc.Ua.GMS.Tests
             if (cancelDuringWrite)
             {
                 using var destination = new CancelingDestination(cancellation);
-                Assert.ThrowsAsync<OperationCanceledException>(
+                await Assert.ThrowsAsync<OperationCanceledException>(
                     async () => await client.DownloadAsync("file-one", destination, cancellation.Token));
             }
             else if (bytes <= 3)
@@ -219,8 +219,8 @@ namespace Opc.Ua.GMS.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await client.DownloadAsync("file-one"))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await client.DownloadAsync("file-one")))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             var unrestricted = new GmsResultClient(session, machine.NodeId, NUnitTelemetryContext.Create());

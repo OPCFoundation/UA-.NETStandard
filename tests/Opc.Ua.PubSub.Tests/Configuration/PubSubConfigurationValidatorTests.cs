@@ -207,7 +207,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0002"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0002"));
         }
 
         [Test]
@@ -222,7 +222,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0001"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0001"));
         }
 
         [Test]
@@ -238,7 +238,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0003"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0003"));
         }
 
         [Test]
@@ -254,7 +254,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0004"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0004"));
         }
 
         [Test]
@@ -270,7 +270,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0005"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0005"));
         }
 
         [Test]
@@ -287,7 +287,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0007"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0007"));
         }
 
         [Test]
@@ -305,7 +305,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0007"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0007"));
         }
 
         [Test]
@@ -340,7 +340,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0010"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0010"));
         }
 
         [Test]
@@ -357,7 +357,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0011"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0011"));
         }
 
         [Test]
@@ -369,7 +369,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0012"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0012"));
         }
 
         [Test]
@@ -382,7 +382,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0013"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0013"));
         }
 
         [Test]
@@ -394,7 +394,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0020"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0020"));
         }
 
         [Test]
@@ -411,7 +411,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0021"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0021"));
         }
 
         [Test]
@@ -423,7 +423,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0023"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0023"));
         }
 
         [Test]
@@ -435,7 +435,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0022"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0022"));
         }
 
         [Test]
@@ -461,7 +461,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0030"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0030"));
         }
 
         [Test]
@@ -491,7 +491,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0040"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0040"));
         }
 
         [Test]
@@ -503,7 +503,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0041"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0041"));
         }
 
         [Test]
@@ -516,7 +516,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0042"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0042"));
         }
 
         [Test]
@@ -531,7 +531,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0050"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0050"));
         }
 
         [Test]
@@ -545,7 +545,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0051"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0051"));
         }
 
         [TestCase("Group1", true)]
@@ -597,7 +597,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0052"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0052"));
         }
 
         [Test]
@@ -612,7 +612,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0053"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0053"));
         }
 
         [Test]
@@ -641,7 +641,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0054"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0054"));
         }
 
         [Test]
@@ -697,7 +697,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0056"));
         }
 
         [Test]
@@ -720,7 +720,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0056"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0056"));
         }
 
         [Test]
@@ -738,7 +738,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
                 Has.None.Matches<PubSubConfigurationIssue>(
                     static i =>
-                        i.Code is "PSC0050" or
+                        i is not null && i.Code is "PSC0050" or
                         "PSC0051" or
                         "PSC0052" or
                         "PSC0053"));
@@ -758,7 +758,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0061"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0061"));
         }
 
         [Test]
@@ -771,7 +771,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0060"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0060"));
         }
 
         [Test]
@@ -795,7 +795,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = NewValidator().Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0006"));
+                Has.Some.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0006"));
         }
 
         [Test]
@@ -813,7 +813,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
             PubSubConfigurationValidationResult result = validator.Validate(config);
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0004"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0004"));
         }
 
         [Test]
@@ -852,7 +852,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0025"));
         }
 
         [Test]
@@ -979,7 +979,7 @@ namespace Opc.Ua.PubSub.Tests.Configuration
 
             Assert.That(
                 ((PubSubConfigurationIssue[]?)result.Issues) ?? [],
-                Has.None.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0025"));
+                Has.None.Matches<PubSubConfigurationIssue>(static i => i is not null && i.Code == "PSC0025"));
         }
     }
 }

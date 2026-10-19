@@ -65,13 +65,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void RejectedEndpointKeepsTheEndpointInUse()
+        public async Task RejectedEndpointKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             EndpointDescription? seenCurrent = null;
             EndpointDescription? seenRediscovered = null;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -134,11 +134,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void UncertainResultKeepsTheEndpointInUse()
+        public async Task UncertainResultKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -155,11 +155,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void NullResultKeepsTheEndpointInUse()
+        public async Task NullResultKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -175,11 +175,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ThrowingValidatorKeepsTheEndpointInUse()
+        public async Task ThrowingValidatorKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
 
-            System.InvalidOperationException exception = Assert.ThrowsAsync<System.InvalidOperationException>(
+            System.InvalidOperationException exception = await Assert.ThrowsAsync<System.InvalidOperationException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -195,12 +195,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CancelledValidatorKeepsTheEndpointInUse()
+        public async Task CancelledValidatorKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             using var cancellation = new CancellationTokenSource();
 
-            Assert.CatchAsync<System.OperationCanceledException>(
+            await Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -217,12 +217,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ValidatorThatIgnoresCancellationKeepsTheEndpointInUse()
+        public async Task ValidatorThatIgnoresCancellationKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             using var cancellation = new CancellationTokenSource();
 
-            Assert.CatchAsync<System.OperationCanceledException>(
+            await Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -238,12 +238,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FailedRefreshKeepsTheEndpointInUseWithoutCallingTheValidator()
+        public async Task FailedRefreshKeepsTheEndpointInUseWithoutCallingTheValidator()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             int calls = 0;
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -306,12 +306,12 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(true)]
         [TestCase(false)]
-        public void ChangedSecurityModeIsRejectedBeforeTheValidator(bool withValidator)
+        public async Task ChangedSecurityModeIsRejectedBeforeTheValidator(bool withValidator)
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             int calls = 0;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -332,12 +332,12 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(true)]
         [TestCase(false)]
-        public void ChangedSecurityPolicyIsRejectedBeforeTheValidator(bool withValidator)
+        public async Task ChangedSecurityPolicyIsRejectedBeforeTheValidator(bool withValidator)
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             int calls = 0;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -357,14 +357,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CancelledRefreshWithoutAValidatorKeepsTheEndpointInUse()
+        public async Task CancelledRefreshWithoutAValidatorKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
             using var cancellation = new CancellationTokenSource();
 
             // Discovery closes its client without the token, so the refresh
             // can complete normally after the reconnect was cancelled.
-            Assert.CatchAsync<System.OperationCanceledException>(
+            await Assert.CatchAsync<System.OperationCanceledException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -380,11 +380,11 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FailedRefreshWithoutAValidatorKeepsTheEndpointInUse()
+        public async Task FailedRefreshWithoutAValidatorKeepsTheEndpointInUse()
         {
             ConfiguredEndpoint endpoint = CreateEndpoint();
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => global::Opc.Ua.Client.ManagedSession.RefreshAndValidateEndpointAsync(
                     endpoint,
                     endpoint,
@@ -449,7 +449,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(endpoint.Description.ServerCertificate, Is.EqualTo(approved));
 
             firstRelease.TrySetResult(true);
-            Assert.ThrowsAsync<ServiceResultException>(() => first);
+            await Assert.ThrowsAsync<ServiceResultException>(() => first);
             secondRelease.TrySetResult(true);
             if (secondAccepts)
             {
@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.Tests
             }
             else
             {
-                Assert.ThrowsAsync<ServiceResultException>(() => second);
+                await Assert.ThrowsAsync<ServiceResultException>(() => second);
             }
 
             Assert.Multiple(() =>

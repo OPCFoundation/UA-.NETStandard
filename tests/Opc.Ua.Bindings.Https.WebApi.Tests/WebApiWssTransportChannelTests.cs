@@ -262,16 +262,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         }
 
         [Test]
-        public void SendRequestAsyncThrowsBadNotConnectedBeforeOpen()
+        public async Task SendRequestAsyncThrowsBadNotConnectedBeforeOpen()
         {
             using var channel = new WebApiWssTransportChannel(new TelemetryStub());
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
         }
 
@@ -283,14 +283,14 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             channel.Dispose();
 
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void OpenAsyncRejectsBadUriScheme()
+        public async Task OpenAsyncRejectsBadUriScheme()
         {
             // Smoke check: an unrecognised URI scheme is allowed through
             // NormalizeUrl unchanged but ClientWebSocket itself rejects
@@ -310,7 +310,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 NamespaceUris = new NamespaceTable()
             };
             // ClientWebSocket rejects 'http' scheme outright.
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await channel
                     .OpenAsync(new Uri("http://127.0.0.1:1/"), settings, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -326,10 +326,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             // After Close the channel reports as not connected on next send.
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
 
             channel.Dispose();
@@ -351,10 +351,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 NodesToRead = new ArrayOf<ReadValueId>()
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await channel
                     .SendRequestAsync(request, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed),
                 "When the server closes the WebSocket while a request is " +
                 "in flight, the channel surfaces BadConnectionClosed.");
@@ -439,7 +439,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     .ConfigureAwait(false);
                 AssertRequestUnchanged(original, originalSnapshot, originalHeader);
                 cancellation.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(
+                await Assert.CatchAsync<OperationCanceledException>(
                     async () => await oldRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
                 currentRequest = channel.SendRequestAsync(currentPayload).AsTask();
                 Task observed = await Task.WhenAny(currentReceived.Task, currentRequest)
@@ -454,10 +454,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     Is.Not.EqualTo(oldWire.RequestHeader.RequestHandle));
                 AssertRequestUnchanged(original, originalSnapshot, originalHeader);
                 AssertRequestUnchanged(currentPayload, currentSnapshot, currentHeader);
-                ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await channel.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = currentHandle } })
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(duplicate.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
 
                 sendLate.TrySetResult(true);
@@ -830,8 +830,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 202 } }).AsTask();
             try
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await rejectedRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await rejectedRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(unknownType
                     ? StatusCodes.BadDecodingError
                     : StatusCodes.BadEncodingLimitsExceeded));
@@ -897,14 +897,14 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             {
                 foreach (Task<IServiceResponse> pending in new[] { first, second })
                 {
-                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                     Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
                 }
-                ServiceResultException subsequent = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException subsequent = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await channel.SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 303 } })
-                        .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                        .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 Assert.That(subsequent.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             }
             finally
@@ -1034,8 +1034,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 }
                 foreach (Task<IServiceResponse> pending in new[] { parked, held })
                 {
-                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                     Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
                 }
 
@@ -1045,7 +1045,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 await shutdown.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 Assert.That(drained.Task.IsCompletedSuccessfully, Is.True);
                 Assert.That(operationCount.GetValue(connection), Is.Zero);
-                Assert.ThrowsAsync<ObjectDisposedException>(sendLock.WaitAsync);
+                await Assert.ThrowsAsync<ObjectDisposedException>(sendLock.WaitAsync);
             }
             finally
             {
@@ -1129,8 +1129,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     clock.Advance(TimeSpan.FromSeconds(1) - TimeSpan.FromTicks(1));
                     Assert.That(retiredRequest.IsCompleted, Is.False);
                     clock.Advance(TimeSpan.FromTicks(1));
-                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await retiredRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await retiredRequest.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                     Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
                 }
                 else
@@ -1225,15 +1225,15 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 Assert.That(probe.ResponseHeader.RequestHandle, Is.EqualTo(100));
                 Assert.That(((CancelResponse)probe).CancelCount, Is.Zero);
             }
-            ServiceResultException invalid = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(
                     new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 101 } })
-                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
             Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadUnknownResponse));
-            ServiceResultException closed = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException closed = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(
                     new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 102 } })
-                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
             Assert.That(closed.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             await channel.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);

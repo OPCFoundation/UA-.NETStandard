@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             if (termination == "cancellation")
             {
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await pending.ConfigureAwait(false));
             }
             else

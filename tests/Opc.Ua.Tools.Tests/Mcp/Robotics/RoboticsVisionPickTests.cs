@@ -157,18 +157,18 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void NoMatchFailsWithTheFilterCriteriaAndCounts()
+        public async Task NoMatchFailsWithTheFilterCriteriaAndCounts()
         {
             var transport = new CapturingRobotIntentTransport { ControllerInfo = ScopedControllerInfo() };
             VisionGuidedPickRequest request = PickRequest();
             request.ClassLabel = "wedge";
             request.MinimumConfidence = 0.75;
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
                 () => SubmitAsync(
                     transport,
                     request,
-                    Observation(Detection("d-1", "cube", 1, 0.9))))!;
+                    Observation(Detection("d-1", "cube", 1, 0.9)))))!;
 
             Assert.Multiple(() =>
             {
@@ -252,7 +252,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void UnresolvedResultIsAnExplicitFailure()
+        public async Task UnresolvedResultIsAnExplicitFailure()
         {
             var unresolved = new VisionInferenceResult
             {
@@ -261,11 +261,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Resolved = false
             };
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
                 () => VisionGuidedRoboticsManager.ResolveObservationAsync(
                     unresolved,
                     _ => Task.FromResult(DetectionSnapshot()),
-                    CancellationToken.None))!;
+                    CancellationToken.None)))!;
 
             Assert.That(exception.Message, Does.Contain("res-1"));
         }
@@ -644,15 +644,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void UnknownLocationNameIsRejectedBeforeSubmission()
+        public async Task UnknownLocationNameIsRejectedBeforeSubmission()
         {
             var transport = new CapturingRobotIntentTransport { ControllerInfo = ScopedControllerInfo() };
             VisionGuidedPickRequest request = PickRequest();
             request.Source = "NoSuchBin";
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     () => SubmitAsync(
                         transport, request, Observation(Detection("d-1", "cube", 1, 0.9))));
                 Assert.That(transport.SubmitIntentCallCount, Is.Zero);

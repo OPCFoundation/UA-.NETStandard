@@ -146,7 +146,7 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(mandatory.ConformanceUnits.ToArray()!.Any(unit => unit.Name == "GMS SensorType"), Is.False);
             await client.DisposeAsync().ConfigureAwait(false);
             Assert.That(session.Connected, Is.True);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await client.ReadSnapshotAsync(handle.NodeId).ConfigureAwait(false));
         }
 
@@ -179,13 +179,13 @@ namespace Opc.Ua.GMS.Tests
                 session, NUnitTelemetryContext.Create(), new GmsClientOptions { MaximumElements = 1 });
             for (int i = 0; i < 12; i++)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await bounded.ReadEquipmentAsync(handle.NodeId).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await bounded.ReadEquipmentAsync(handle.NodeId).ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             await using var smallPayload = new GmsClient(
                 session, NUnitTelemetryContext.Create(), new GmsClientOptions { MaximumPayloadBytes = 1 });
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await smallPayload.ReadSnapshotAsync(handle.NodeId).ConfigureAwait(false));
             await using var client = new GmsClient(session, NUnitTelemetryContext.Create());
             GmsEquipmentReadSnapshot all = await client.ReadEquipmentAsync(handle.NodeId).ConfigureAwait(false);
@@ -234,7 +234,7 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(devices[0].TypeDefinitionId, Is.EqualTo(vendor.NodeId));
             Assert.That((await client.ReadSnapshotAsync(handle.NodeId).ConfigureAwait(false)).NodeId,
                 Is.EqualTo(handle.NodeId));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadSnapshotAsync(handle.State.Equipment!.NodeId).ConfigureAwait(false));
             Assert.Throws<ArgumentException>(() => client.GetProxy(NodeId.Null));
             await handle.DisposeAsync().ConfigureAwait(false);

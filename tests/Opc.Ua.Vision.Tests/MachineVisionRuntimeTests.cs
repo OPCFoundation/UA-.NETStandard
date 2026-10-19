@@ -155,7 +155,7 @@ namespace Opc.Ua.Vision.Tests
                 ByteString.From(new byte[] { 1 })))
                 .ConfigureAwait(false);
             metadata.Id = "changed";
-            Assert.ThrowsAsync<ServiceResultException>(async () => await store.WriteAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await store.WriteAsync(
                 new MachineVisionDocument(MachineVisionDocumentKind.Result, "two", Variant.Null, default))
                 .ConfigureAwait(false));
             MachineVisionDocument? saved = await store.ReadAsync(MachineVisionDocumentKind.Result, "one")
@@ -444,7 +444,7 @@ namespace Opc.Ua.Vision.Tests
                 .AddMachineVisionSystemAsync("Inspection", Provider().Object,
                     new MachineVisionSystemOptions { Features = MachineVisionFeatures.None }).ConfigureAwait(false);
             Assert.That(system.State.SystemState, Is.Null);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await system.SetSystemStateAsync(new SystemStateDescriptionDataType()).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(system.State.SystemState, Is.Null);
@@ -537,7 +537,7 @@ namespace Opc.Ua.Vision.Tests
             MachineVisionAssetBuilder second = context.AddMachineVisionAsset("Duplicate")
                 .WithIdentification(Identification("second", "urn:vision:second"));
             MachineVisionAssetHandle published = await first.BuildAsync().ConfigureAwait(false);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await second.BuildAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
             Assert.That(context.Root.FindChild(context.Context, published.State.BrowseName),
@@ -778,7 +778,7 @@ namespace Opc.Ua.Vision.Tests
                 builder.Nodes.WithHealth(health => health.Set("Temperature", Variant.From(25.0)));
             }
             MachineVisionAssetHandle asset = await builder.BuildAsync().ConfigureAwait(false);
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UpdateAsync(nodes => nodes.WithHealth(health =>
                 {
                     health.Set("Temperature", Variant.From(26.0))
@@ -803,18 +803,18 @@ namespace Opc.Ua.Vision.Tests
             MachineVisionAssetHandle asset = await fixture.CreateBuildContext().AddMachineVisionAsset("Asset")
                 .WithIdentification(Identification("asset", "urn:vision:asset")).BuildAsync().ConfigureAwait(false);
             NodeId original = asset.State.NodeId;
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UpdateAsync(nodes =>
                     nodes.State.NodeId = new NodeId("replacement", original.NamespaceIndex))
                     .ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(asset.State.NodeId, Is.EqualTo(original));
-            failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UpdateAsync(nodes => nodes.Child("Lenses")).ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(asset.State.Lenses, Is.Null);
             await asset.DisposeAsync().ConfigureAwait(false);
-            failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UpdateAsync(nodes =>
                     nodes.WithHealth(health => health.Set("Temperature", Variant.From(25.0))))
                     .ConfigureAwait(false));
