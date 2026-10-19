@@ -261,9 +261,13 @@ These rules proved reliable on a developer machine shared with other work:
 
 - **Allocated bytes per operation** (`per-op: allocB`) are deterministic and the primary metric:
   a change of a few percent is real, also on a loaded machine.
-- **CPU per operation** (`per-op: cpuUs`) is comparable only with the server pinned:
-  `--server-affinity 0xF` and `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the
-  runtime sizes the thread pool and the GC heaps for the mask. On a hybrid CPU, choose a mask
+- **CPU per operation** (`per-op: cpuUs`) is comparable only with the server pinned. In the
+  `native-read` and `native-counters` scenarios use `--server-affinity 0xF` and
+  `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the runtime sizes the thread pool
+  and the GC heaps for the mask. The other scenarios ignore `--server-affinity`: start the
+  harness itself with the affinity (`start /affinity F` on Windows, `taskset -c 0-3` on
+  Linux), which the server child inherits at its start, keeping in mind that the in-process
+  client then shares those processors. On a hybrid CPU, choose a mask
   of one core type only (all performance or all efficiency cores): the same request costs
   measurably more CPU time on an efficiency core, so a mask that mixes them measures the
   scheduler. Measure the native scenarios at [steady state](#steady-state-parameters).

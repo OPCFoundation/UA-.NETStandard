@@ -149,7 +149,7 @@ The following settings size a single node for its hardware (see also the sizing 
 
 ### Request workers and the request queue
 
-A decoded request waits in the server's request queue until a request worker takes it. Workers are asynchronous loops on the .NET thread pool, not dedicated threads; a worker counts as busy while it executes a request and, with `DecoupleHeldPublishRequests`, is released when a `Publish` parks. With the Balanced (default) or TrustedReservations [isolation profile](ResourceIsolation.md) the queue serves the callers in weighted turns; otherwise it is one FIFO.
+A decoded request waits in the server's request queue until a request worker takes it. Workers are asynchronous loops on the .NET thread pool, not dedicated threads; a worker counts as busy while it executes a request and, with `DecoupleHeldPublishRequests`, is released when a `Publish` parks. With the FairShare, Balanced (default) or TrustedReservations [isolation profile](ResourceIsolation.md) the queue serves the callers in weighted turns; with SharedOnly it is one FIFO.
 
 | Setting | Configuration default | Current behaviour |
 |---|---|---|
@@ -162,7 +162,7 @@ Guidance:
 - **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage of the same size; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
 - **`MaxRequestThreadCount` bounds concurrent request execution, not threads.** Request handling is asynchronous, so a few busy workers per core are enough for in-memory node managers; the default 100 rarely needs raising. Raise it when node managers block a worker for I/O or locks (synchronous `CustomNodeManager2` code waiting on a device), or when `DecoupleHeldPublishRequests` is off.
 - **Keep `MinRequestThreadCount` moderate.** It pre-warms the pool for connect bursts, but because it also sets the thread pool's minimum, a value far above the processor count lets the pool run many more threads than processors under load. On shared or pinned processors, a preempted thread then delays every GC suspension until it runs again.
-- `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that the queue, not the CPU, is the limit.
+- `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that an admission limit, not the CPU, is the limit. With an isolation profile that is not necessarily the queue count: the retained request bytes, the parked-request stage or a per-owner limit reject requests the same way while queue entries are free. Check the `opcua.server.isolation.rejections` metric (its `stage` and `reason` labels) and `opcua.server.isolation.usage` before raising `MaxQueuedRequestCount`; see [transport behavior and overload signals](ResourceIsolation.md#transport-behavior-and-overload-signals).
 
 ## Scaling out
 
