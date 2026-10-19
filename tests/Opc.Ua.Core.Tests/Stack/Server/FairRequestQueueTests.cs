@@ -1841,8 +1841,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             queue.Dispose();
             Task<FairRequestQueue.Entry> parked = taken == first ? second : first;
-            Assert.CatchAsync<OperationCanceledException>(
-                async () => await parked.WaitAsync(deadline.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(
+                async () => await parked.WaitAsync(deadline.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(deadline.IsCancellationRequested, Is.False);
         }
 
@@ -1876,7 +1876,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Enqueue(queue, failed);
             Task<FairRequestQueue.Entry> faulted = await Task.WhenAny(first, second).WaitAsync(deadline.Token)
                 .ConfigureAwait(false);
-            Assert.CatchAsync<InvalidOperationException>(async () => await faulted.ConfigureAwait(false));
+            await Assert.CatchAsync<InvalidOperationException>(async () => await faulted.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failed.Status, Is.EqualTo(StatusCodes.BadInternalError));
             Assert.That(queue.ParkedReaderCount, Is.EqualTo(1));
 
@@ -1911,8 +1912,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     Assert.That(deadline.IsCancellationRequested, Is.False);
                 }
                 reader.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(
-                    async () => await wait.WaitAsync(deadline.Token).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(
+                    async () => await wait.WaitAsync(deadline.Token).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.That(queue.SpinScore, Is.Zero);
 
