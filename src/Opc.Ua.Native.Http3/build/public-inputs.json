@@ -287,7 +287,7 @@
       {
         "base": "msvc",
         "path": "lib/x64/libvcruntime.lib",
-        "sha256": "f0a898588ecb26fe4c7530b2495a6fe5e768856309a33391702a3cbcbb72b0589"
+        "sha256": "f0a898588ecb26fe4c7530b2495a6fe5e768856309a33391702a3cbcb72b0589"
       },
       {
         "base": "sdk",
