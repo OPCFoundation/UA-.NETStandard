@@ -402,10 +402,22 @@ reader types. A browse the server rejects throws `ServiceResultException` rather
 than yielding an empty list, a rejected method call throws with the server's
 status, and every asynchronous member honours cancellation. The status a device
 reports for a tag command is returned as data. `AutoIdReadOptions` narrows
-`ReadDeviceAsync`: `Default` reads everything the device publishes, `StatusOnly`
-reads two variables. Whatever the options, the snapshot carries the NodeIds of
-`DeviceStatus`, `LastScanData`, `LastScanTimestamp` and `DeviceLocation` and the
-browse names of the methods the device publishes, taken from the same browse:
+the Read of `ReadDeviceAsync`: `Default` reads everything the device publishes,
+`StatusOnly` reads `DeviceStatus` and `DeviceName`. Every `ReadDeviceAsync` call
+costs one Browse of the children of the device (and BrowseNext only when the
+server pages the result) and one Read, whatever the options. The snapshot
+carries the NodeIds of `DeviceStatus`, `LastScanData`, `LastScanTimestamp` and
+`DeviceLocation` and the browse names of the methods the device publishes, taken
+from that browse. `RefreshDeviceAsync` takes such a snapshot and reads
+`DeviceStatus`, `LastScanData`, `LastScanTimestamp` and `DeviceLocation` again
+through these NodeIds: one Read of up to four variables and no Browse. The client
+keeps no state, so a poller reads once and then refreshes the snapshot:
+
+| Call | Network cost |
+| --- | --- |
+| `ReadDeviceAsync(reader)` | One Browse, one Read of every published variable |
+| `ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly)` | One Browse, one Read of two variables |
+| `RefreshDeviceAsync(snapshot)` | One Read of up to four variables, no Browse |
 
 ```csharp
 AutoIdDeviceSnapshot device = await autoId.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly);
@@ -413,7 +425,18 @@ if (device.HasMethod(BrowseNames.ScanStart))
 {
     // monitor device.DeviceStatusId and device.LastScanDataId, then start the scan
 }
+device = await autoId.RefreshDeviceAsync(device); // poll without browsing
 ```
+
+`RefreshDeviceAsync` copies every other member of the snapshot, including
+`Methods`, and does not check the snapshot against the server. When the snapshot
+no longer matches the device (the device or one of its variables was deleted, or
+the server assigned other NodeIds after a restart), the status of the Read
+surfaces: a bad status for `DeviceStatus`, for example `BadNodeIdUnknown`, is
+thrown as `ServiceResultException`, and a bad status for `LastScanData` is
+returned in `LastScanStatus` with a null value. The caller then reads the device
+again with `ReadDeviceAsync`, which also picks up optional variables and methods
+published after the snapshot was taken.
 
 `Observe*Async` methods (scan, access, presence and log entry events) take a
 streaming subscription the caller owns; the monitored item lives as long as the

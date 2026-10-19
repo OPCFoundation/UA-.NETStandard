@@ -712,6 +712,61 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
+        public async Task ARefreshedSnapshotCarriesTheCurrentStatusAsync()
+        {
+            AutoIdReaderEntry reader = await ReaderAsync(AutoIdHostFixture.OpticalName).ConfigureAwait(false);
+            AutoIdReader hosted = m_host!.Runtime.Readers.ToArray()!
+                .Single(r => r.Name.Name == AutoIdHostFixture.OpticalName);
+            AutoIdDeviceSnapshot idle = await m_client!.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly)
+                .ConfigureAwait(false);
+            await hosted.SetFaultedAsync(true).ConfigureAwait(false);
+            try
+            {
+                AutoIdDeviceSnapshot faulty = await m_client.RefreshDeviceAsync(idle).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(idle.DeviceStatus, Is.EqualTo(DeviceStatusEnumeration.Idle));
+                    Assert.That(faulty.DeviceStatus, Is.EqualTo(DeviceStatusEnumeration.Error));
+                    Assert.That(faulty.LastScanStatus, Is.EqualTo(StatusCodes.UncertainInitialValue));
+                    Assert.That(faulty.Methods, Is.EqualTo(idle.Methods));
+                });
+            }
+            finally
+            {
+                await hosted.SetFaultedAsync(false).ConfigureAwait(false);
+            }
+            await WaitForStatusAsync(AutoIdHostFixture.OpticalName, DeviceStatusEnumeration.Idle).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ARefreshOfAStaleSnapshotSurfacesTheStatusOfTheReadAsync()
+        {
+            AutoIdReaderEntry reader = await ReaderAsync(AutoIdHostFixture.RfidName).ConfigureAwait(false);
+            AutoIdDeviceSnapshot current = await m_client!.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly)
+                .ConfigureAwait(false);
+            Assert.That(current.LastScanDataId.IsNull, Is.False);
+            // NodeIds the server does not know, as after the variables were deleted.
+            var unknown = new NodeId("NoSuchVariable", current.DeviceStatusId.NamespaceIndex);
+
+            AutoIdDeviceSnapshot staleScan = await m_client
+                .RefreshDeviceAsync(current with { LastScanDataId = unknown })
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(staleScan.DeviceStatus, Is.EqualTo(current.DeviceStatus));
+                Assert.That(staleScan.LastScanStatus, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(staleScan.LastScanData.IsNull, Is.True);
+            });
+            await Assert.ThatAsync(
+                async () => await m_client.RefreshDeviceAsync(current with { DeviceStatusId = unknown })
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property("StatusCode")
+                    .EqualTo(StatusCodes.BadNodeIdUnknown)).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task TheServerPublishesTheFacetsOfTheReadersItHostsAsync()
         {
             DataValue profileRead = await m_session!.ReadValueAsync(
