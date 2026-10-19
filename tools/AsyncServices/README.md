@@ -86,5 +86,5 @@ round trips, the original response header and diagnostics, and exclusion of the
 experimental definitions from the normal address-space initializer.
 
 See the [runtime and typed-Client guide](../../docs/AsyncServices.md) and
-[protocol reference](../../docs/AsyncServicesProtocol.md) for opt-in installation,
+[protocol reference](../../docs/AsyncServices.md#protocol-reference) for opt-in installation,
 acceptance/ACK, lifetimes, ownership and evidence boundaries.

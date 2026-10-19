@@ -305,7 +305,8 @@ The subscription guides assume the client path; the sizing guides assume
   session identity and mapping snapshots without reconnecting to a replacement peer.
 - [Recoverable Service Execution (RSE)](AsyncServices.md) — default-off OPC 10000-27
   draft prototype behind ordinary `ISession` calls, explicit acknowledgement
-  scopes, typed acceptance and a two-hop certificate demonstration.
+  scopes, typed acceptance, a [long-running/outage sample](../samples/AsyncServices/README.md)
+  and a two-hop certificate integration fixture.
 - [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 

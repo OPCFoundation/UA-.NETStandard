@@ -307,7 +307,7 @@ The stack implements this contract in two pieces:
 
 Tests and hosts that need deterministic timing can await the deferred work via `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
 
-The default-off [RSE prototype](AsyncServices.md#run-the-local-two-hop-demonstration)
+The [RSE certificate integration fixture](AsyncServices.md#run-the-local-two-hop-demonstration)
 demonstrates this flow through a gateway with stable management Sessions on both
 hops, real pending-key generation, a synthetic local CA, installed-key verification
 and UA-TCP/Binary or TLS HTTPS UA JSON. It recovers a lost CSR reply without generating

@@ -36,6 +36,12 @@
     <Compile Include="..\Common\Main.cs" />
     <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <ProjectReference Include="..\..\samples\AsyncServices\RecoverableServiceDemo\RecoverableServiceDemo.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <Compile Remove="AsyncServices\RecoverableServiceDemoTests.cs" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="ComplexTypes\ServerComplexTypesTestModel.NodeSet2.xml">
       <LogicalName>Opc.Ua.Server.Tests.ComplexTypes.ServerComplexTypesTestModel.NodeSet2.xml</LogicalName>

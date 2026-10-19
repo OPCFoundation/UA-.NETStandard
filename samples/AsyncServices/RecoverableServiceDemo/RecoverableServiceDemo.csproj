@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>RecoverableServiceDemo</RootNamespace>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Demo.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation:samples:recoverable-services</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Demo</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>RecoverableServiceDemo.Model</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+</Project>

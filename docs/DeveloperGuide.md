@@ -194,7 +194,7 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
-The default-off [recoverable Service prototype](AsyncServices.md) separates
+The [recoverable Service prototype](AsyncServices.md) separates
 codec, scripted-lifecycle, in-process endpoint and native transport evidence.
 Its native Server selection is `FullyQualifiedName~AsyncServices` in
 `tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj`; run with

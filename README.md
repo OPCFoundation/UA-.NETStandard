@@ -62,6 +62,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
   LLMs / Copilot can drive an OPC UA client.
+- **Recoverable execution and Async Services** — the experimental [RSE prototype](docs/AsyncServices.md) keeps ordinary `ISession` calls recoverable across temporary disconnections, with explicit acknowledgement for external storage or RPC coordination.
 
 For the full feature breakdown see
 **[OPC UA Profiles and Facets](docs/Profiles.md)** and the
@@ -73,12 +74,6 @@ To run a first OPC UA client and server, from NuGet packages or from the
 samples in this repository, follow **[Getting started](docs/GettingStarted.md)**.
 The **[documentation index](docs/README.md)** then leads from the core concepts
 to advanced and experimental features.
-
-The default-off [Recoverable Service Execution (RSE) prototype](docs/AsyncServices.md)
-implements the OPC 10000-27 draft with experimental Submit/Get/Control exchanges
-behind opted-in ordinary `ISession` calls, explicit acknowledgement scopes,
-and a two-hop certificate demonstration. Async Service API names are unchanged;
-the provisional contract is not an adopted OPC UA standard.
 
 The [recycling operator console](samples/Recycling/README.md#operator-console-walkthrough) demonstrates
 live browser monitoring, native companion-specification inspection, material genealogy,
