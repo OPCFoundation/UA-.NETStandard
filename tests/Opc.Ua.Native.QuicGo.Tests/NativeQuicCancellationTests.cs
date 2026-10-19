@@ -64,8 +64,8 @@ namespace Opc.Ua.Native.QuicGo.Tests
         public async Task InvalidCodeDoesNotPublishCancellationAsync(ulong errorCode)
         {
             using var cancellation = new NativeQuicCancellation();
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await cancellation.CancelAsync(errorCode).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await cancellation.CancelAsync(errorCode).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(cancellation.IsCancellationRequested, Is.False);
             Assert.That(cancellation.Token.IsCancellationRequested, Is.False);
             Assert.That(cancellation.ErrorCode, Is.Zero);
@@ -77,7 +77,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
         /// Disposal releases resources without an implicit cancellation or a replacement error.
         /// </summary>
         [Test]
-        public void DisposalDoesNotCancelOrPermitAnotherRequest()
+        public async Task DisposalDoesNotCancelOrPermitAnotherRequest()
         {
             var cancellation = new NativeQuicCancellation();
             CancellationToken token = cancellation.Token;
@@ -85,8 +85,8 @@ namespace Opc.Ua.Native.QuicGo.Tests
             cancellation.Dispose();
             Assert.That(token.IsCancellationRequested, Is.False);
             Assert.That(cancellation.IsCancellationRequested, Is.False);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await cancellation.CancelAsync(7).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await cancellation.CancelAsync(7).ConfigureAwait(false)).ConfigureAwait(false);
         }
     }
 }

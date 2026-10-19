@@ -36,12 +36,12 @@ namespace Opc.Ua.Native.QuicGo.Tests
         /// Refuses a wrong image digest before loading any Go runtime.
         /// </summary>
         [Test]
-        [Order(0)]
-        public void WrongAssetHashRefusedBeforeLoading()
+        public async Task WrongAssetHashRefusedBeforeLoadingAsync()
         {
             var backend = new NativeQuicBackend(new NativeQuicLibrary(
                 m_library.AbsolutePath, new ByteString(new byte[32])));
-            Assert.ThrowsAsync<InvalidDataException>(async () => await backend.GetCountsAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(
+                async () => await backend.GetCountsAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -51,7 +51,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
         [TestCase(true, false, 91UL)]
         [TestCase(false, true, 91UL)]
         [TestCase(false, false, 0x52e4a40fa8dbUL)]
-        [Order(1)]
+        [DependsOnTest(nameof(WrongAssetHashRefusedBeforeLoadingAsync))]
         public async Task GenericNativeScenarioUsesRealSocketsAsync(
             bool passControlToken, bool cancelLifetimeFirst, ulong lateErrorCode)
         {
@@ -67,7 +67,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
         /// DI resolves the same injectable singleton and never changes the selected native image.
         /// </summary>
         [Test]
-        [Order(2)]
+        [DependsOnTest(nameof(GenericNativeScenarioUsesRealSocketsAsync), AllowFailure = true)]
         public async Task OptionalDependencyInjectionAndSingleImageLifetimeAsync()
         {
             var services = new ServiceCollection();
@@ -80,15 +80,15 @@ namespace Opc.Ua.Native.QuicGo.Tests
             Assert.That(await first.GetCountsAsync().ConfigureAwait(false), Is.Default);
             var other = new NativeQuicBackend(new NativeQuicLibrary(
                 m_library.AbsolutePath + ".another", m_library.Sha256));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await other.GetCountsAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await other.GetCountsAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Resolves the packaged RID filename and verifies the emitted hash sidecar without PATH probing.
         /// </summary>
         [Test]
-        [Order(3)]
+        [DependsOnTest(nameof(OptionalDependencyInjectionAndSingleImageLifetimeAsync), AllowFailure = true)]
         public async Task PackagedAssetSidecarSelectsTheReviewedImageAsync()
         {
             NativeQuicLibrary selected = await NativeQuicLibrary.FromDirectoryAsync(
@@ -108,8 +108,8 @@ namespace Opc.Ua.Native.QuicGo.Tests
             var backend = new NativeQuicBackend(m_library);
             using var source = new CancellationTokenSource();
             await source.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await backend.GetCountsAsync(source.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await backend.GetCountsAsync(source.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
         }
 
@@ -126,11 +126,13 @@ namespace Opc.Ua.Native.QuicGo.Tests
                 Cancellation = control
             };
             await control.CancelAsync(51).ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await backend.StreamAsync(default, NativeQuicStreamOperation.Read, request).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await backend.StreamAsync(default, NativeQuicStreamOperation.Read, request).ConfigureAwait(false))
+                .ConfigureAwait(false);
             control.Dispose();
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await backend.StreamAsync(default, NativeQuicStreamOperation.Read, request).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await backend.StreamAsync(default, NativeQuicStreamOperation.Read, request).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
         }
 
