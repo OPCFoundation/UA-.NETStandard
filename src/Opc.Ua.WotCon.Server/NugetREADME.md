@@ -25,7 +25,7 @@ File-backed registries also expose optional prepared metadata commits using
 validated generation and immutable-content lease evidence. Projection updates
 avoid rereading independent blob content without bypassing manifest conflicts
 or content integrity; unsupported providers do not advertise isolated commits.
-See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotRegistryPreparedStore.md)
+See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoT.md#prepared-registry-store)
 for capability, platform, lifetime, and persistence-outcome contracts.
 
 ## Target frameworks

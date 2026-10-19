@@ -44,12 +44,6 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
-The model assembly consumes the reviewed **0.7.0 draft** dated 2026-09-12,
-paired with the WoT Connectivity 1.1 draft. It preserves the existing namespace,
-numeric identities and native event hierarchy, and adds origin and canonical
-capability snapshot declarations. This is a draft model input, not a published
-release or a claim of runtime support for every new declaration.
-
 ## Core concepts
 
 ### Structural identity and content lookup
@@ -522,7 +516,7 @@ Version labels does not. Repeating an identical label is a no-op; removing a mis
 
 ### Native xRegistry events
 
-The xRegistry 0.7.0 companion model includes `XRegistryEventType` and the 19 concrete registry, model,
+The xRegistry model includes `XRegistryEventType` and the 19 concrete registry, model,
 capabilities, group, resource and version event types. The model source generator emits the typed
 `*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
 Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
@@ -612,7 +606,7 @@ Providers that need an asynchronous owner acquisition can opt into
 `IXRegistryAsyncProjectedResourceFileHandleForwarder`,
 `IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
 The existing file and logical pin tables still own the handles; synchronous providers
-retain their existing paths. The stock [WoT Version lease provider](WotRegistryVersionLeases.md)
+retain their existing paths. The stock [WoT Version lease provider](WoT.md#version-leases)
 uses these capabilities without adding retention or activation options to the generic registrar.
 
 ## Server-side usage
