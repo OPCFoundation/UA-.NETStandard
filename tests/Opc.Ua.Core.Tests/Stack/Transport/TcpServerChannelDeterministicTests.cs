@@ -281,14 +281,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// The terminal error message can wait for the transport's send lock, for
         /// example while the writer still finishes the Acknowledge. Closing the
         /// transport at once would cancel it and the peer would only see the
-        /// connection drop (BadConnectionClosed instead of the reason).
+        /// connection drop (BadConnectionClosed instead of the reason). Like
+        /// TcpTransportListener, the listener disposes the channel as soon as it
+        /// is removed, so the Dispose path must wait for the send too.
         /// </summary>
         [Test]
         public async Task FaultClosesTheTransportOnlyAfterTheErrorMessageWasSentAsync()
         {
             Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            TestServerChannel? removed = null;
+            listenerMock.Setup(l => l.ChannelClosed(It.IsAny<uint>()))
+                .Callback(() => removed?.Dispose());
             var transport = new GatedSendByteTransport();
             using TestServerChannel channel = BuildChannel(listenerMock);
+            removed = channel;
             channel.SetTransport(transport);
             channel.CurrentState = TcpChannelState.Opening;
 
