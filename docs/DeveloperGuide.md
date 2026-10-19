@@ -136,6 +136,9 @@ Conventions and requirements:
   Required native CI jobs also set the test action's `require-clean-exit` input:
   a crashed test host can leave only passing counters in a partial TRX, so the
   mainline at-exit tolerance is not sufficient evidence for native qualification.
+  Native QUIC and HTTP/3 validation packages are built by the dedicated native
+  workflow and are excluded from the standard signed NuGet package set until
+  their separate production release gate is satisfied.
 
 Wire compatibility with the released 1.5 stack is covered by
 [`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both

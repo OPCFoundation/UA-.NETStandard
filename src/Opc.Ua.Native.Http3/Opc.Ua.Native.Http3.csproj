@@ -2,7 +2,8 @@
   <PropertyGroup>
     <!-- Compatibility metadata only: the package ships native assets, not this build's placeholder assembly. -->
     <TargetFramework>netstandard2.0</TargetFramework>
-    <IsPackable>true</IsPackable>
+    <IsPackable Condition="'$(NativeValidationOnly)' == 'true'">true</IsPackable>
+    <IsPackable Condition="'$(NativeValidationOnly)' != 'true'">false</IsPackable>
     <EnableDefaultItems>false</EnableDefaultItems>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <IncludeSymbols>false</IncludeSymbols>
@@ -21,9 +22,8 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <!-- Repository build/version tooling is private; the native-only nuspec ships no managed dependency. -->
-  <Target Name="RequireVerifiedNativeHttp3Inputs" BeforeTargets="Pack;GenerateNuspec">
-    <Error Condition="'$(NativeValidationOnly)' != 'true'"
-           Text="Production release evidence/signing is a separate required gate. Use Pack-Native.ps1 -ValidationOnly for a local unsigned validation package." />
+  <Target Name="RequireVerifiedNativeHttp3Inputs" BeforeTargets="Pack;GenerateNuspec"
+          Condition="'$(NativeValidationOnly)' == 'true'">
     <Error Condition="!Exists('$(NuspecFile)')"
            Text="Run Pack-Native.ps1 to verify exact native/source/export allowlists first." />
   </Target>

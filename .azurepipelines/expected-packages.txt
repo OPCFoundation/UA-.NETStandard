@@ -11,6 +11,10 @@
 # `dotnet pack` output only; the hand-authored `nuget/*.nuspec` packages are packed
 # in a later pipeline step and are not part of this check.
 #
+# Native QUIC/HTTP3 packages are validated and produced by the dedicated native
+# workflow; they require native build receipts and are not part of signed preview
+# package publication.
+#
 # To update: run `dotnet pack preview-pack.slnx` and reconcile the produced
 # package ids with this file in the same pull request that changes them.
 
@@ -88,8 +92,6 @@ OPCFoundation.NetStandard.Opc.Ua.Mcp.Workflows
 OPCFoundation.NetStandard.Opc.Ua.Mcp.WotCon
 OPCFoundation.NetStandard.Opc.Ua.Mcp.XRegistry
 OPCFoundation.NetStandard.Opc.Ua.MigrationAnalyzer
-OPCFoundation.NetStandard.Opc.Ua.Native.Http3
-OPCFoundation.NetStandard.Opc.Ua.Native.QuicGo
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Client
 OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector

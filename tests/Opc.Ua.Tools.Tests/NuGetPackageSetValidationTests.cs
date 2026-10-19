@@ -53,10 +53,10 @@ namespace Opc.Ua.Tools.Tests
     public sealed class NuGetPackageSetValidationTests
     {
         /// <summary>
-        /// Native carriers retain separate opt-in binding and backend package identities.
+        /// Native bindings publish with the standard set; backend packages use the separate native validation gate.
         /// </summary>
         [Test]
-        public async Task ExpectedPackageInventoryIncludesTheFourNativeCarrierPackagesAsync()
+        public async Task ExpectedPackageInventoryKeepsNativeBackendPackagesOutOfStandardPublishAsync()
         {
             string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
@@ -70,9 +70,7 @@ namespace Opc.Ua.Tools.Tests
             string[] expected =
             [
                 "OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic",
-                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport",
-                "OPCFoundation.NetStandard.Opc.Ua.Native.QuicGo",
-                "OPCFoundation.NetStandard.Opc.Ua.Native.Http3"
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport"
             ];
 
             Assert.That(actual, Is.EquivalentTo(expected));
