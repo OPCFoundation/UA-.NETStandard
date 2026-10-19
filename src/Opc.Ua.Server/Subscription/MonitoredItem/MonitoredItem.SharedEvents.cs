@@ -51,24 +51,27 @@ namespace Opc.Ua.Server
         /// Returns the key of the group of items that can share the evaluation of an event
         /// with this item, or <c>null</c> when the item has no event filter to group by.
         /// </summary>
+        /// <remarks>
+        /// Reads the filter and the locales without the item lock, which Publish holds: the
+        /// references are read atomically, and a key that no longer matches the item when
+        /// the event is queued is ignored there (see <see cref="SharedEventFilterKey.Matches"/>).
+        /// Only the event consumer of the item's notifier calls this.
+        /// </remarks>
         internal SharedEventFilterKey? GetSharedEventFilterKey()
         {
-            lock (m_lock)
+            if (m_eventQueueHandler == null || FilterToUse is not EventFilter filter)
             {
-                if (m_eventQueueHandler == null || FilterToUse is not EventFilter filter)
-                {
-                    return null;
-                }
-
-                string[]? preferredLocales = m_subscription?.Session?.PreferredLocales;
-                SharedEventFilterKey? key = m_sharedEventFilterKey;
-                if (key == null || !key.Matches(filter, preferredLocales))
-                {
-                    key = new SharedEventFilterKey(filter, preferredLocales);
-                    m_sharedEventFilterKey = key;
-                }
-                return key;
+                return null;
             }
+
+            string[]? preferredLocales = m_subscription?.Session?.PreferredLocales;
+            SharedEventFilterKey? key = m_sharedEventFilterKey;
+            if (key == null || !key.Matches(filter, preferredLocales))
+            {
+                key = new SharedEventFilterKey(filter, preferredLocales);
+                m_sharedEventFilterKey = key;
+            }
+            return key;
         }
 
         /// <summary>

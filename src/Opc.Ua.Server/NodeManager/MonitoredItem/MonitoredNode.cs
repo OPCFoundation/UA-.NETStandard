@@ -670,9 +670,11 @@ namespace Opc.Ua.Server
         /// The evaluations of one event, one per group of items with an equal filter.
         /// </summary>
         /// <remarks>
-        /// An item's group is looked up before its delivery first awaits, i.e. on the
-        /// consumer thread, so the dictionary is never accessed concurrently. A delivery
-        /// that completes on another thread uses the evaluation, which synchronizes itself.
+        /// An item's group is looked up before its delivery first awaits, by the loop over
+        /// the items of the event, so the dictionary is never accessed concurrently (the
+        /// loop may continue on another thread after an asynchronous permission check). A
+        /// delivery that completes on another thread uses the evaluation, which
+        /// synchronizes itself.
         /// </remarks>
         private sealed class SharedEventEvaluations
         {
@@ -727,7 +729,7 @@ namespace Opc.Ua.Server
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // looked up before the first await, on the consumer thread.
+                // looked up before the first await, by the loop over the items.
                 MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
                     monitoredItem,
                     out MonitoredItem.SharedEventFilterKey? key);
