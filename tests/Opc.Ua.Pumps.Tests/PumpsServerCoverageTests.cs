@@ -148,11 +148,11 @@ namespace Opc.Ua.Pumps.Tests
             await using var fixture = new PumpsServerFixture();
             await fixture.StartAsync();
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await fixture.Manager.CreatePumpAsync(QualifiedName.Null));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await fixture.Manager.CreatePumpAsync(
                         new QualifiedName(string.Empty, fixture.Manager.InstanceNamespaceIndex)));
             });

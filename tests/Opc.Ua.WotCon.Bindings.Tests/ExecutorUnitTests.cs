@@ -223,22 +223,22 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void ModbusWriteMultipleRegistersRejectsNullValues()
+        public async Task ModbusWriteMultipleRegistersRejectsNullValues()
         {
             using var client = new ModbusTcpClient("127.0.0.1", 502, System.TimeSpan.FromSeconds(1));
 
-            Assert.ThrowsAsync<System.ArgumentNullException>(
+            await Assert.ThrowsAsync<System.ArgumentNullException>(
                 async () => await client.WriteMultipleRegistersAsync(
                     1, 0, null!, CancellationToken.None).ConfigureAwait(false));
         }
 
         [Test]
-        public void ModbusWriteMultipleRegistersRejectsOutOfRangeValues()
+        public async Task ModbusWriteMultipleRegistersRejectsOutOfRangeValues()
         {
             using var client = new ModbusTcpClient("127.0.0.1", 502, System.TimeSpan.FromSeconds(1));
             ushort[] values = new ushort[ModbusProtocolLimits.MaxWriteRegisters + 1];
 
-            Assert.ThrowsAsync<System.ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<System.ArgumentOutOfRangeException>(
                 async () => await client.WriteMultipleRegistersAsync(
                     1, 0, values, CancellationToken.None).ConfigureAwait(false));
         }

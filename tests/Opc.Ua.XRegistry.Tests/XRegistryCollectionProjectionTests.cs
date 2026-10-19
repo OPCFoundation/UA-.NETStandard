@@ -303,8 +303,9 @@ namespace Opc.Ua.XRegistry.Tests
                         {
                             TypeDefinitionId = ObjectTypeIds.GroupType
                         })));
-            InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(
-                () => harness.Engine.ReconcileAsync(failing, null, CancellationToken.None).AsTask());
+            InvalidOperationException? failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => harness.Engine.ReconcileAsync(failing, null, CancellationToken.None).AsTask())
+                .ConfigureAwait(false));
             uint epochAfterFailure = created.Epoch!.Value;
             await harness.Engine.ReconcileAsync(
                     Generation(
@@ -573,8 +574,10 @@ namespace Opc.Ua.XRegistry.Tests
             PropertyState<uint> epoch = harness.Registry.Epoch!;
             harness.FailDelete = nodeId => nodeId == epoch.NodeId;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await harness.Engine.DetachAsync(CancellationToken.None).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
             Assert.That(harness.Registry.Epoch, Is.SameAs(epoch));
             Assert.That(harness.Live.ContainsKey(epoch.NodeId), Is.True);
@@ -657,8 +660,9 @@ namespace Opc.Ua.XRegistry.Tests
                     Groups = [new DocumentGroup("orders", [new DocumentResource("orders", "spec")])]
                 },
                 EventSnapshot(2));
-            InvalidOperationException? aliasing = Assert.ThrowsAsync<InvalidOperationException>(
-                () => harness.Engine.ReconcileAsync(CancellationToken.None).AsTask());
+            InvalidOperationException? aliasing = (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => harness.Engine.ReconcileAsync(CancellationToken.None).AsTask())
+                .ConfigureAwait(false));
 
             Assert.Multiple(() =>
             {

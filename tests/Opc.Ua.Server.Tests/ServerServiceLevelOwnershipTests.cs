@@ -86,7 +86,7 @@ namespace Opc.Ua.Server.Tests
             await new ServiceLevelStartupTask(first).OnServerStartedAsync(m_server.CurrentInstance)
                 .ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await new ServiceLevelStartupTask(second).OnServerStartedAsync(m_server.CurrentInstance)
                     .ConfigureAwait(false));
             second.SetLevel(255);

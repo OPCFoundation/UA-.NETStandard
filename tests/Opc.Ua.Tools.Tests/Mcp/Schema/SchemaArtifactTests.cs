@@ -390,7 +390,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await fixture.Tools.GenerateOpenApiAsync(
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await fixture.Tools.GenerateOpenApiAsync(
                 new SchemaOpenApiInput(), "cancelled.json", cancellation.Token).ConfigureAwait(false));
 
             Assert.That(Directory.GetFiles(fixture.Root), Is.Empty);
@@ -414,7 +414,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             });
             SchemaTools tools = WithGenerator(fixture, generator);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => await tools.GenerateAsync(
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => await tools.GenerateAsync(
                 new SchemaGenerateInput { TypeId = root.ToString() }, "cancelled.json", ct: cancellation.Token)
                 .ConfigureAwait(false));
 

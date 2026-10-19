@@ -50,9 +50,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
     public class RuntimeNodeSetLifecycleExtensionsTests
     {
         [Test]
-        public void AddRuntimeNodeSetRejectsANullLifecycle()
+        public async Task AddRuntimeNodeSetRejectsANullLifecycle()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await RuntimeNodeSetLifecycleExtensions
                     .AddRuntimeNodeSetAsync(null!, CreateOptions(), null)
                     .ConfigureAwait(false));
@@ -61,9 +61,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void AddRuntimeNodeSetRejectsNullOptions()
+        public async Task AddRuntimeNodeSetRejectsNullOptions()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .AddRuntimeNodeSetAsync(null!, null)
                     .ConfigureAwait(false));
@@ -89,9 +89,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ReloadRuntimeNodeSetRejectsANullLifecycle()
+        public async Task ReloadRuntimeNodeSetRejectsANullLifecycle()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await RuntimeNodeSetLifecycleExtensions
                     .ReloadRuntimeNodeSetAsync(
                         null!,
@@ -104,9 +104,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ReloadRuntimeNodeSetRejectsANullRegistration()
+        public async Task ReloadRuntimeNodeSetRejectsANullRegistration()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ReloadRuntimeNodeSetAsync(null!, CreateOptions(), null)
                     .ConfigureAwait(false));
@@ -115,9 +115,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ReloadRuntimeNodeSetRejectsNullReplacementOptions()
+        public async Task ReloadRuntimeNodeSetRejectsNullReplacementOptions()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ReloadRuntimeNodeSetAsync(CreateRegistration(), null!, null)
                     .ConfigureAwait(false));
@@ -144,9 +144,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ShadowReloadRuntimeNodeSetRejectsANullLifecycle()
+        public async Task ShadowReloadRuntimeNodeSetRejectsANullLifecycle()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await RuntimeNodeSetLifecycleExtensions
                     .ShadowReloadRuntimeNodeSetAsync(
                         null!,
@@ -158,9 +158,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ShadowReloadRuntimeNodeSetRejectsANullRegistration()
+        public async Task ShadowReloadRuntimeNodeSetRejectsANullRegistration()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ShadowReloadRuntimeNodeSetAsync(null!, CreateOptions())
                     .ConfigureAwait(false));
@@ -169,9 +169,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ShadowReloadRuntimeNodeSetRejectsNullReplacementOptions()
+        public async Task ShadowReloadRuntimeNodeSetRejectsNullReplacementOptions()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ShadowReloadRuntimeNodeSetAsync(CreateRegistration(), null!)
                     .ConfigureAwait(false));
@@ -197,9 +197,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ImmediateReloadRuntimeNodeSetRejectsANullLifecycle()
+        public async Task ImmediateReloadRuntimeNodeSetRejectsANullLifecycle()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await RuntimeNodeSetLifecycleExtensions
                     .ImmediateReloadRuntimeNodeSetAsync(
                         null!,
@@ -211,9 +211,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ImmediateReloadRuntimeNodeSetRejectsANullRegistration()
+        public async Task ImmediateReloadRuntimeNodeSetRejectsANullRegistration()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ImmediateReloadRuntimeNodeSetAsync(null!, CreateOptions())
                     .ConfigureAwait(false));
@@ -222,9 +222,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public void ImmediateReloadRuntimeNodeSetRejectsNullReplacementOptions()
+        public async Task ImmediateReloadRuntimeNodeSetRejectsNullReplacementOptions()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await CreateLifecycle().Object
                     .ImmediateReloadRuntimeNodeSetAsync(CreateRegistration(), null!)
                     .ConfigureAwait(false));

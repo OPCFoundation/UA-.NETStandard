@@ -55,6 +55,7 @@ Central build configuration lives at the repository root and is imported by ever
 - `UA.slnx` — the solution containing all projects.
 - `Directory.Build.props` / `Directory.Build.targets` — global MSBuild properties and targets.
 - `Directory.Packages.props` — [Central Package Management](https://learn.microsoft.com/nuget/consume-packages/central-package-management): every NuGet version is declared here.
+- `roslyn.props` pins compiler APIs and runtime assemblies to supported analyzer hosts. `Directory.Build.targets` selects newer `System.Collections.Immutable` and `System.Reflection.Metadata` versions for test and profiling hosts that require them, without changing the analyzer closure.
 - `common.props` / `targets.props` — shared properties, analyzer settings, and the target-framework matrix.
 - `.editorconfig` — the authoritative code-style and analyzer-severity rules (enforced at build time).
 
@@ -92,6 +93,8 @@ dotnet test UA.slnx
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
+- **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
@@ -397,7 +400,7 @@ packages and their Debug variants use that preview policy. The Vision,
 MachineVision, MachineTool (including bundled WMTP), and GMS model/client/server
 packages and their MCP packages follow the root version without a
 forced-preview override. The industrial MCP extensions (AMB, Machinery,
-Scales, Pumps, Device Integration, ISA-95 and Positioning), plus the WoT and
+Scales, Pumps, AutoID, Device Integration, ISA-95 and Positioning), plus the WoT and
 xRegistry MCP extensions, also follow the root release channel. Development
 versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package

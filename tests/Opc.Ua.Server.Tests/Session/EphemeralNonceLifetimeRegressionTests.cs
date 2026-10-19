@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests
             }
             if (fail)
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await Task.WhenAll(operations).ConfigureAwait(false));
             }
             else

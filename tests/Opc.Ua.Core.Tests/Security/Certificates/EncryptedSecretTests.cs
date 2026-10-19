@@ -668,7 +668,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [TestCase(false)]
         [TestCase(true)]
         [Category("EncryptedSecretCoverage")]
-        public void DecryptEccRejectsSenderCertificateTheValidatorRejects(bool asynchronous)
+        public async Task DecryptEccRejectsSenderCertificateTheValidatorRejects(bool asynchronous)
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
@@ -705,7 +705,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 validator: validator.Object);
 
             ServiceResultException ex = (asynchronous
-                ? Assert.ThrowsAsync<ServiceResultException>(async () => await decryptor.DecryptAsync(
+                ? await Assert.ThrowsAsync<ServiceResultException>(async () => await decryptor.DecryptAsync(
                     EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
                     decryptor.Context.Telemetry).ConfigureAwait(false))
                 : Assert.Throws<ServiceResultException>(() => decryptor.Decrypt(
@@ -844,7 +844,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         [Category("EncryptedSecretCoverage")]
-        public Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
+        public async Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
@@ -859,7 +859,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
             byte[] wrongNonce = [0xAA, 0xBB, 0xCC, 0xDD];
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await decryptor
                     .DecryptAsync(
                         EarliestValidSigningTime(),
@@ -872,7 +872,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadNonceInvalid));
             decryptor.SenderCertificate?.Dispose();
-            return Task.CompletedTask;
         }
 
         [Test]

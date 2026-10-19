@@ -116,7 +116,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         /// X509 018, which prefers BadUserSignatureInvalid on secure channels.
         /// </summary>
         [Test]
-        public void VerifyWithMismatchedSignatureAlgorithmYieldsBadUserSignatureInvalid()
+        public async Task VerifyWithMismatchedSignatureAlgorithmYieldsBadUserSignatureInvalid()
         {
             using Certificate cert = CertificateBuilder
                 .Create("CN=X509HandlerWrongAlg, O=OPC Foundation")
@@ -139,7 +139,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 Signature = new byte[] { 0x00 }.ToByteString()
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => handler.VerifyAsync(
                     [0x01, 0x02, 0x03, 0x04],
                     signature,

@@ -64,9 +64,9 @@ namespace Opc.Ua.Gds.Tests
             return new ConfiguredEndpoint(null, description, EndpointConfiguration.Create());
         }
 
-        private static void AssertThrowsEndpointNull(Func<Task> code)
+        private static async Task AssertThrowsEndpointNull(Func<Task> code)
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(code);
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(code);
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
@@ -231,84 +231,84 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void CreateAsyncWithNullSessionFactoryThrows()
+        public async Task CreateAsyncWithNullSessionFactoryThrows()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(
                     (ISessionFactory)null!, new ApplicationConfiguration(), CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("sessionFactory"));
         }
 
         [Test]
-        public void CreateAsyncWithNullConfigurationThrows()
+        public async Task CreateAsyncWithNullConfigurationThrows()
         {
             ISessionFactory sessionFactory = new Mock<ISessionFactory>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(sessionFactory, null!, CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("configuration"));
         }
 
         [Test]
-        public void CreateAsyncWithNullEndpointThrows()
+        public async Task CreateAsyncWithNullEndpointThrows()
         {
             ISessionFactory sessionFactory = new Mock<ISessionFactory>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(
                     sessionFactory, new ApplicationConfiguration(), null!));
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
         [Test]
-        public void CreateAsyncWithNullChannelManagerThrows()
+        public async Task CreateAsyncWithNullChannelManagerThrows()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(
                     (IClientChannelManager)null!, new ApplicationConfiguration(), CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("manager"));
         }
 
         [Test]
-        public void CreateAsyncWithChannelManagerNullConfigurationThrows()
+        public async Task CreateAsyncWithChannelManagerNullConfigurationThrows()
         {
             IClientChannelManager manager = new Mock<IClientChannelManager>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(manager, null!, CreateEndpoint()));
             Assert.That(exception.ParamName, Is.EqualTo("configuration"));
         }
 
         [Test]
-        public void CreateAsyncWithChannelManagerNullEndpointThrows()
+        public async Task CreateAsyncWithChannelManagerNullEndpointThrows()
         {
             IClientChannelManager manager = new Mock<IClientChannelManager>().Object;
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => ServerPushConfigurationClient.CreateAsync(
                     manager, new ApplicationConfiguration(), null!));
             Assert.That(exception.ParamName, Is.EqualTo("endpoint"));
         }
 
         [Test]
-        public void ConnectAsyncWithNullEndpointUrlThrows()
+        public async Task ConnectAsyncWithNullEndpointUrlThrows()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync((string)null!).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
         }
 
         [Test]
-        public void ConnectAsyncWithEmptyEndpointUrlThrows()
+        public async Task ConnectAsyncWithEmptyEndpointUrlThrows()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 () => client.ConnectAsync(string.Empty).AsTask());
             Assert.That(exception.ParamName, Is.EqualTo("endpointUrl"));
         }
 
         [Test]
-        public void ConnectAsyncWithMalformedEndpointUrlThrows()
+        public async Task ConnectAsyncWithMalformedEndpointUrlThrows()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => client.ConnectAsync("not a valid url").AsTask());
             Assert.Multiple(() =>
             {
@@ -318,54 +318,54 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void ConnectAsyncWithoutEndpointThrows()
+        public async Task ConnectAsyncWithoutEndpointThrows()
         {
             using ServerPushConfigurationClient client = CreateClient();
             ConfiguredEndpoint nullEndpoint = null!;
-            AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
+            await AssertThrowsEndpointNull(() => client.ConnectAsync(nullEndpoint).AsTask());
         }
 
         [Test]
-        public void ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
+        public async Task ConnectAsyncWithCancellationTokenAndNoEndpointThrows()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
+            await AssertThrowsEndpointNull(() => client.ConnectAsync().AsTask());
         }
 
         [Test]
-        public void CertificateManagementOperationsWithoutEndpointThrow()
+        public async Task CertificateManagementOperationsWithoutEndpointThrow()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.GetCertificatesAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.CreateSigningRequestAsync(
                     NodeId.Null, NodeId.Null, string.Empty, false, default).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.UpdateCertificateAsync(
                     NodeId.Null, NodeId.Null, default, string.Empty, default, default).AsTask());
-            AssertThrowsEndpointNull(() => client.GetRejectedListAsync().AsTask());
-            AssertThrowsEndpointNull(() => client.ApplyChangesAsync().AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.GetRejectedListAsync().AsTask());
+            await AssertThrowsEndpointNull(() => client.ApplyChangesAsync().AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.CreateSelfSignedCertificateAsync(
                     NodeId.Null, NodeId.Null, string.Empty, default, default, 0, 0).AsTask());
         }
 
         [Test]
-        public void TrustListOperationsWithoutEndpointThrow()
+        public async Task TrustListOperationsWithoutEndpointThrow()
         {
             using ServerPushConfigurationClient client = CreateClient();
-            AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
-            AssertThrowsEndpointNull(() => client.ReadTrustListAsync().AsTask());
-            AssertThrowsEndpointNull(() => client.UpdateTrustListAsync(null!).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.ReadTrustListAsync(NodeId.Null).AsTask());
+            await AssertThrowsEndpointNull(() => client.ReadTrustListAsync().AsTask());
+            await AssertThrowsEndpointNull(() => client.UpdateTrustListAsync(null!).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.UpdateTrustListAsync(null!, 0L).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(
                 () => client.UpdateTrustListAsync(NodeId.Null, null!, 0L).AsTask());
-            AssertThrowsEndpointNull(() => client.AddCertificateAsync(null!, false).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.AddCertificateAsync(null!, false).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.AddCertificateAsync(NodeId.Null, null!, false).AsTask());
-            AssertThrowsEndpointNull(() => client.RemoveCertificateAsync(string.Empty, false).AsTask());
-            AssertThrowsEndpointNull(
+            await AssertThrowsEndpointNull(() => client.RemoveCertificateAsync(string.Empty, false).AsTask());
+            await AssertThrowsEndpointNull(
                 () => client.RemoveCertificateAsync(NodeId.Null, string.Empty, false).AsTask());
         }
 

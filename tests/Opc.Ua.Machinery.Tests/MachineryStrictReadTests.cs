@@ -99,7 +99,7 @@ namespace Opc.Ua.Machinery.Tests
         /// DI registers the configured factory and validates bounds during registration.
         /// </summary>
         [Test]
-        public void StrictOptionsFlowThroughFluentAndDependencyInjectionConstruction()
+        public async Task StrictOptionsFlowThroughFluentAndDependencyInjectionConstruction()
         {
             var services = new ServiceCollection();
             IOpcUaClientBuilder builder = services.AddOpcUa().AddClient(options =>
@@ -119,8 +119,8 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(client.Session, Is.SameAs(harness.Session.Object));
             harness.Browse = _ => Page([Reference(harness, 1), Reference(harness, 2)]);
             Assert.That(
-                Assert.ThrowsAsync<MachineryReadException>(async () =>
-                    await client.DiscoverMachinesAsync().ConfigureAwait(false))!.StatusCode,
+                (await Assert.ThrowsAsync<MachineryReadException>(async () =>
+                    await client.DiscoverMachinesAsync().ConfigureAwait(false)))!.StatusCode,
                 Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -193,7 +193,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void StrictIdentificationRejectsMissingOrWrongRequiredFields(bool wrongType)
+        public async Task StrictIdentificationRejectsMissingOrWrongRequiredFields(bool wrongType)
         {
             var harness = new ReadHarness();
             NodeId identification = harness.Add(harness.Machine, [Di(harness, DiNames.Identification)]);
@@ -203,7 +203,7 @@ namespace Opc.Ua.Machinery.Tests
                 harness.Add(
                     identification, [Di(harness, DiNames.Manufacturer)], new DataValue(Variant.From("not text")));
             }
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadIdentificationAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode,
                 Is.EqualTo(wrongType ? StatusCodes.BadTypeMismatch : StatusCodes.BadNoMatch));
@@ -217,14 +217,14 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase(nameof(StatusCodes.BadNotReadable))]
         [TestCase(nameof(StatusCodes.Uncertain))]
         [TestCase(nameof(StatusCodes.BadNoMatch))]
-        public void StrictReadPreservesDeniedAndUncertainQuality(string statusName)
+        public async Task StrictReadPreservesDeniedAndUncertainQuality(string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness();
             NodeId counters = harness.Add(harness.Machine, [Di(harness, DiNames.OperationCounters)]);
             DataValue original = TimedValue(Variant.From(123.5), status);
             NodeId source = harness.Add(counters, [Di(harness, DiNames.PowerOnDuration)], original);
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadOperationCountersAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -239,7 +239,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("Float")]
         [TestCase("StatusCode")]
         [TestCase("Array")]
-        public void StrictTypeMismatchPreservesOriginalGoodValue(string kind)
+        public async Task StrictTypeMismatchPreservesOriginalGoodValue(string kind)
         {
             var harness = new ReadHarness();
             NodeId counters = harness.Add(harness.Machine, [Di(harness, DiNames.OperationCounters)]);
@@ -252,7 +252,7 @@ namespace Opc.Ua.Machinery.Tests
             };
             DataValue original = TimedValue(value, StatusCodes.Good);
             NodeId source = harness.Add(counters, [Di(harness, DiNames.PowerOnDuration)], original);
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadOperationCountersAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -265,7 +265,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase(nameof(StatusCodes.BadUserAccessDenied))]
         [TestCase(nameof(StatusCodes.BadNodeIdUnknown))]
         [TestCase(nameof(StatusCodes.Uncertain))]
-        public void StrictTranslationOnlyTreatsBadNoMatchAsAbsence(string statusName)
+        public async Task StrictTranslationOnlyTreatsBadNoMatchAsAbsence(string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness
@@ -276,7 +276,7 @@ namespace Opc.Ua.Machinery.Tests
                     Results = [new BrowsePathResult { StatusCode = status }]
                 }
             };
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ResolveMonitoringAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
             Assert.That(error.ReadValue!.StartingNodeId, Is.EqualTo(harness.Machine));
@@ -303,7 +303,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("UnknownIndex", nameof(StatusCodes.BadNodeIdUnknown))]
         [TestCase("NullNode", nameof(StatusCodes.BadNodeIdUnknown))]
         [TestCase("NoMatchWithTarget", nameof(StatusCodes.BadDecodingError))]
-        public void StrictTranslationRejectsMalformedOrForeignTargets(string kind, string statusName)
+        public async Task StrictTranslationRejectsMalformedOrForeignTargets(string kind, string statusName)
         {
             StatusCode expectedStatus = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -361,7 +361,7 @@ namespace Opc.Ua.Machinery.Tests
                     throw new ArgumentOutOfRangeException(nameof(kind));
             }
             harness.Translate = _ => kind == "MissingResponse" ? null! : response;
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ResolveMonitoringAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(error.ReadValue!.StartingNodeId, Is.EqualTo(harness.Machine));
@@ -410,7 +410,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("DeniedService", nameof(StatusCodes.BadUserAccessDenied))]
         [TestCase("UncertainService", nameof(StatusCodes.Uncertain))]
         [TestCase("NoMatchService", nameof(StatusCodes.BadNoMatch))]
-        public void StrictReadRejectsIncompleteOrFailedBatches(string kind, string statusName)
+        public async Task StrictReadRejectsIncompleteOrFailedBatches(string kind, string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -438,7 +438,7 @@ namespace Opc.Ua.Machinery.Tests
                 }
                 return Task.FromResult(kind == "MissingResponse" ? null! : response);
             };
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadOperationCountersAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(status));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -518,7 +518,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("Read")]
         [TestCase("Translate")]
         [TestCase("Browse")]
-        public void StrictServiceExceptionsKeepAttemptedSource(string operation)
+        public async Task StrictServiceExceptionsKeepAttemptedSource(string operation)
         {
             var harness = new ReadHarness();
             NodeId counters = harness.Add(harness.Machine, [Di(harness, DiNames.OperationCounters)]);
@@ -537,7 +537,7 @@ namespace Opc.Ua.Machinery.Tests
                 harness.Browse = _ => throw cause;
             }
             MachineryClient client = harness.Client();
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
             {
                 if (operation == "Browse")
                 {
@@ -560,7 +560,7 @@ namespace Opc.Ua.Machinery.Tests
         /// A short read response identifies the first missing value rather than blaming a successful one.
         /// </summary>
         [Test]
-        public void PartialReadBatchIdentifiesTheFirstMissingSource()
+        public async Task PartialReadBatchIdentifiesTheFirstMissingSource()
         {
             var harness = new ReadHarness();
             NodeId counters = harness.Add(harness.Machine, [Di(harness, DiNames.OperationCounters)]);
@@ -571,7 +571,7 @@ namespace Opc.Ua.Machinery.Tests
                 ResponseHeader = new ResponseHeader(),
                 Results = [new DataValue(1.0)]
             });
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadOperationCountersAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(missing));

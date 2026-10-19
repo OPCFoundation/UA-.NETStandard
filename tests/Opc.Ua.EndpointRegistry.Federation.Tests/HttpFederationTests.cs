@@ -100,7 +100,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
         }
 
         [Test]
-        public void HttpGroupPreloadRejectsMetadataFromAnotherRevision()
+        public async Task HttpGroupPreloadRejectsMetadataFromAnotherRevision()
         {
             const string groupManifest =
                 """{"OriginUri":"urn:test:one","Xid":"/messagegroups/g","CollectionName":"messagegroups","GroupId":"g","Epoch":4}""";
@@ -111,8 +111,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             using var client = new HttpClient(handler);
             HttpFederationProvider provider = Provider(client, source);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await provider.PreloadGroupAsync(MetadataUrl, ObservationUrl, Mapper).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await provider.PreloadGroupAsync(MetadataUrl, ObservationUrl, Mapper).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
@@ -124,7 +126,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
         [TestCase("missing-observation")]
         [TestCase("document")]
         [TestCase("native-target")]
-        public void HttpProviderRejectsUntrustedEvidenceAndRoutes(string mutation)
+        public async Task HttpProviderRejectsUntrustedEvidenceAndRoutes(string mutation)
         {
             RegistryEntityReferenceDataType source = Source(locator: MetadataUrl, ua: false);
             using var handler = new LoopbackHandler((request, _) =>
@@ -158,28 +160,34 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 return;
             }
             HttpFederationProvider provider = Provider(client, source);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source)).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () =>
+                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source))
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(handler.Calls, Is.EqualTo(1), "Rejected observation must precede metadata retrieval.");
         }
 
         [TestCase(1)]
         [TestCase(128)]
-        public void HttpProviderEnforcesAdvertisedAndStreamingSizeBounds(int limit)
+        public async Task HttpProviderEnforcesAdvertisedAndStreamingSizeBounds(int limit)
         {
             RegistryEntityReferenceDataType source = Source(locator: MetadataUrl, ua: false);
             using var handler = new LoopbackHandler((request, _) => Task.FromResult(JsonResponse(request,
                 new string(' ', 1000) + Manifest)));
             using var client = new HttpClient(handler);
             HttpFederationProvider provider = Provider(client, source, maxBytes: limit);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source)).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source))
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(handler.Calls, Is.EqualTo(1));
         }
 
         [Test]
-        public void HttpProviderHonorsCancellationAndTimeout()
+        public async Task HttpProviderHonorsCancellationAndTimeout()
         {
             RegistryEntityReferenceDataType source = Source(locator: MetadataUrl, ua: false);
             using var handler = new LoopbackHandler(async (request, ct) =>
@@ -189,11 +197,16 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             });
             using var client = new HttpClient(handler);
             HttpFederationProvider provider = Provider(client, source, timeout: TimeSpan.FromMilliseconds(20));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source)).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(
+                async () =>
+                await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source))
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false);
+            await Assert.CatchAsync<OperationCanceledException>(
+                async () =>
                 await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source),
-                    new CancellationToken(true)).ConfigureAwait(false));
+                    new CancellationToken(true)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(handler.Calls, Is.EqualTo(1));
         }
 

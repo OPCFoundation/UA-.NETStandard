@@ -119,7 +119,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             if (policy == null)
             {
                 var unsupported = new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1, 2, 3]);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await unsupported.EncryptAsync(null!, [], policyUri, context).ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
                 return;
@@ -145,7 +145,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             if (missingTokenData)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await handler.EncryptAsync(
                         receiver, nonce, policyUri, context, receiverKey, sender, chain, true).ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));

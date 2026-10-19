@@ -188,9 +188,11 @@ namespace Opc.Ua.Registry.Samples.Tests
                             MaxItems = 10
                         }, timeout.Token).ConfigureAwait(false);
                         Assert.That(isolated.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
-                        ServiceResultException absent = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        ServiceResultException absent = (await Assert.ThrowsAsync<ServiceResultException>(
+                            async () =>
                             await provider.GetRequiredService<SchemaRegistryClientFactory>().DiscoverAsync(session,
-                                timeout.Token).ConfigureAwait(false))!;
+                                timeout.Token).ConfigureAwait(false))
+                            .ConfigureAwait(false))!;
                         Assert.That(absent.StatusCode, Is.AnyOf(StatusCodes.BadNodeIdUnknown, StatusCodes.BadNoMatch));
                     }
                 }

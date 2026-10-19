@@ -102,8 +102,8 @@ namespace Opc.Ua.GMS.Tests
             ArrayOf<int> acknowledged = await client.AcknowledgeAsync(["R1", "absent"]);
             Assert.That(acknowledged[0], Is.Zero);
             Assert.That(acknowledged[1], Is.EqualTo(unchecked((int)StatusCodes.BadNotFound.Code)));
-            GmsResultDomainException absent = Assert.ThrowsAsync<GmsResultDomainException>(
-                async () => await client.GetByIdAsync("absent"))!;
+            GmsResultDomainException absent = (await Assert.ThrowsAsync<GmsResultDomainException>(
+                async () => await client.GetByIdAsync("absent")))!;
             Assert.That(absent.Error, Is.EqualTo(unchecked((int)StatusCodes.BadNotFound.Code)));
             Assert.That((await client.GetLatestAsync()).ResultMetaData!.JobId, Is.EqualTo("A"));
         }
@@ -127,11 +127,11 @@ namespace Opc.Ua.GMS.Tests
             var stranger = new GMSResultManagementTypeClient(
                 second, machine.State.ResultManagement.NodeId, NUnitTelemetryContext.Create());
             (uint handle, _, _) = await owner.GetLatestResultAsync(0);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await stranger.ReleaseResultHandleAsync(handle))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await stranger.ReleaseResultHandleAsync(handle)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            ServiceResultException full = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await stranger.GetLatestResultAsync(0))!;
+            ServiceResultException full = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await stranger.GetLatestResultAsync(0)))!;
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(await owner.ReleaseResultHandleAsync(handle), Is.Zero);
             var client = new GmsResultClient(second, machine.NodeId, NUnitTelemetryContext.Create());
@@ -153,8 +153,8 @@ namespace Opc.Ua.GMS.Tests
             await binding.CreatePublisher(machine).PublishAsync(Result("inline", "A"));
             ISession session = await fixture.ConnectAsync();
             var client = new GmsResultClient(session, machine.NodeId, NUnitTelemetryContext.Create());
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.DownloadAsync("inline"))!;
+            ServiceResultException missing = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.DownloadAsync("inline")))!;
             Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That((await client.GetLatestAsync()).ResultMetaData!.ResultId, Is.EqualTo("inline"));
         }

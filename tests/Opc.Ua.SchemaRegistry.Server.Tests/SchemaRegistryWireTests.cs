@@ -143,14 +143,16 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 Reference = Reference("JsonSchema/2020-12", "denied"),
                 Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
             };
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await readerAccess.WriteSchemaAsync(request).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await readerAccess.WriteSchemaAsync(request).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             using ISession insecure = await ConnectAsync(SecurityPolicies.None, "sysadmin", "demo")
                 .ConfigureAwait(false);
             NativeSchemaAccessTypeClient insecureAccess = await AccessAsync(insecure).ConfigureAwait(false);
-            ServiceResultException plain = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await insecureAccess.WriteSchemaAsync(request).ConfigureAwait(false))!;
+            ServiceResultException plain = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await insecureAccess.WriteSchemaAsync(request).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(plain.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
         }
 
@@ -175,13 +177,17 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(hidden.Document.Reference.SchemaId, Is.EqualTo(visible.Document.Reference.SchemaId));
             var registry = new SchemaRegistryTypeClient(admin,
                 ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, admin.NamespaceUris), m_telemetry!);
-            ServiceResultException ambiguous = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await registry.GetSchemaAsync(visible.Document.Reference.SchemaId).ConfigureAwait(false))!;
+            ServiceResultException ambiguous = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await registry.GetSchemaAsync(visible.Document.Reference.SchemaId).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(ambiguous.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             ushort ns = admin.NamespaceUris.GetIndexOrAppend(Namespaces.SchemaRegistry);
-            ServiceResultException collision = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException collision = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
                 await admin.ReadValueAsync(new NodeId(visible.Document.Reference.SchemaId, ns))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             using ISession reader = await ConnectAsync(SecurityPolicies.Basic256Sha256, "user1", "password")
                 .ConfigureAwait(false);
@@ -199,8 +205,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 new QualifiedName(kGroupId, ns), new QualifiedName(ResourceId("JsonSchema/2020-12", "hidden"), ns),
                 new QualifiedName(BrowseNames.Versions, ns), new QualifiedName("1", ns),
                 new QualifiedName(BrowseNames.NativeContent, ns)).ConfigureAwait(false);
-            ServiceResultException hiddenRead = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await reader.ReadValueAsync(nativeContent).ConfigureAwait(false))!;
+            ServiceResultException hiddenRead = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await reader.ReadValueAsync(nativeContent).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(hiddenRead.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -287,12 +295,14 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 new RegistryPathElementDataType { Kind = 0, Name = "SchemaId" }
             ]).ConfigureAwait(false);
             Assert.That(fingerprint, Is.EqualTo(current.Document.Reference.SchemaId));
-            ServiceResultException wrongKind = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException wrongKind = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
                 await client.ReadStringAsync(
                 [
                     new RegistryPathElementDataType { Kind = 0, Name = "Reference" },
                     new RegistryPathElementDataType { Kind = 0, Name = "SchemaId" }
-                ]).ConfigureAwait(false))!;
+                ]).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(wrongKind.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
@@ -353,8 +363,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             using ISession other = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
                 .ConfigureAwait(false);
             var guessed = new FileTypeClient(other, fileId, m_telemetry!);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await guessed.CloseAsync(handle).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await guessed.CloseAsync(handle).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             await file.CloseAsync(handle).ConfigureAwait(false);
             var registry = new SchemaRegistryTypeClient(session,
@@ -367,8 +379,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             (NodeId badFileId, uint badHandle) = await access.BeginSchemaUploadAsync(registration).ConfigureAwait(false);
             var badFile = new FileTypeClient(session, badFileId, m_telemetry!);
             await badFile.WriteAsync(badHandle, ByteString.From("not-json"u8.ToArray())).ConfigureAwait(false);
-            ServiceResultException invalid = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await badFile.CloseAsync(badHandle).ConfigureAwait(false))!;
+            ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await badFile.CloseAsync(badHandle).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -460,22 +474,26 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             try
             {
                 m_host!.Revoked = true;
-                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () =>
                     await access.ReadDocumentPartAsync(new RegistrySnapshotReadRequestDataType
                     {
                         SnapshotId = opened.SnapshotId,
                         Path = [],
                         MaxItems = 128,
                         MaxBytes = 65536
-                    }).ConfigureAwait(false))!;
+                    }).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             finally
             {
                 m_host!.Revoked = false;
             }
-            ServiceResultException released = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await access.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false))!;
+            ServiceResultException released = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await access.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(released.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -555,8 +573,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(format, Is.EqualTo("JsonSchema/2020-12"));
             ByteString changed = ByteString.From("""{"type":"string","x-legacy-test":true}"""u8.ToArray());
             uint writer = await file.OpenAsync((byte)(OpenFileMode.Write | OpenFileMode.EraseExisting)).ConfigureAwait(false);
-            ServiceResultException invalidMode = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.OpenAsync(0xF2).ConfigureAwait(false))!;
+            ServiceResultException invalidMode = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await file.OpenAsync(0xF2).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(invalidMode.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             await file.WriteAsync(writer, changed).ConfigureAwait(false);
             await file.CloseAsync(writer).ConfigureAwait(false);
@@ -665,8 +685,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 OpenFileMode.Read | OpenFileMode.Write | OpenFileMode.Append
             })
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await file.OpenAsync((byte)mode).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () =>
+                    await file.OpenAsync((byte)mode).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             }
             uint reader = await file.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false);

@@ -144,7 +144,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             m_observation = UaObservation(json: RemoteJson.Replace("\"epoch\":7", "\"epoch\":" + epoch,
                 StringComparison.Ordinal).Replace("all source fields", description, StringComparison.Ordinal), epoch: epoch);
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(Host.Current.Revision, Is.EqualTo(revision));
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
@@ -165,7 +167,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
 
             m_observation = UaObservation(target: new ExpandedNodeId("hostile-new-target", 0, Namespaces.EndpointRegistry));
-            Assert.ThrowsAsync<ArgumentException>(async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
             await AssertUnavailableAsync(group).ConfigureAwait(false);
@@ -201,7 +205,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 _ => UaObservation(locator: "opc.tcp://hostile.example.test:4840")
             };
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
@@ -328,8 +334,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 ]
             }).ConfigureAwait(false);
             Assert.That(changed.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
-            ServiceResultException deleteError = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await new GroupTypeClient(m_session!, group, m_telemetry!).DeleteAsync(0).ConfigureAwait(false))!;
+            ServiceResultException deleteError = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await new GroupTypeClient(m_session!, group, m_telemetry!).DeleteAsync(0).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(deleteError.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
             Assert.That(m_binding.GetVerifiedSource(LocalXid)!.Source.NativeTarget, Is.EqualTo(Target));
@@ -367,8 +375,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             await m_binding.DisposeAsync().ConfigureAwait(false);
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
             await AssertUnavailableAsync(group).ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                async () =>
+                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false);
             RegistryMutationResultDataType protectedResult = await Host.DeleteAsync(LocalXid, 0).ConfigureAwait(false);
             Assert.That(protectedResult.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
@@ -472,7 +482,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             await RestartAsync().ConfigureAwait(false);
             m_binding = new EndpointRegistryGroupFederationBinding(Registry, m_options!);
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await m_binding.StartAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_binding.StartAsync().ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
         }
@@ -483,8 +495,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             await BindAsync(UaObservation()).ConfigureAwait(false);
             await m_binding!.RefreshAsync(LocalXid).ConfigureAwait(false);
             m_observationFailure = new ServiceResultException(StatusCodes.BadNoCommunication);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
             Assert.That(m_binding.GetVerifiedSource(LocalXid), Is.Null);
@@ -567,8 +581,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             m_observation = UaObservation(json: RemoteJson.Replace("\"epoch\":7", "\"epoch\":8", StringComparison.Ordinal), epoch: 8);
             m_store!.RejectCommit = true;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(Host.Current.Revision, Is.EqualTo(2));
@@ -588,8 +604,10 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             m_observation = UaObservation(json: RemoteJson.Replace("\"epoch\":7", "\"epoch\":8", StringComparison.Ordinal), epoch: 8);
             Host.Activation = (_, _) => throw new ServiceResultException(StatusCodes.BadResourceUnavailable);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await m_binding.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.UncertainNotAllNodesAvailable));
             Assert.That(Host.Current.Revision, Is.EqualTo(3), "The shared durable commit must not be reported as a no-op.");
@@ -612,7 +630,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 "\"xid\":\"/messagegroups/g\"", "\"xid\":\"/messagegroups/another\"", StringComparison.Ordinal)))
                 .ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(async () => await m_binding!.RefreshAsync(LocalXid).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () => await m_binding!.RefreshAsync(LocalXid).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(Host.Current.Revision, Is.EqualTo(1));
             Assert.That(m_binding!.GetVerifiedSource(LocalXid), Is.Null);

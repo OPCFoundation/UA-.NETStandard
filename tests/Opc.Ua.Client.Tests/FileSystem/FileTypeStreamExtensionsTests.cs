@@ -89,11 +89,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public void UploadFromAsyncRejectsCumulativeOverflowWithoutSendingOversizedChunk()
+        public async Task UploadFromAsyncRejectsCumulativeOverflowWithoutSendingOversizedChunk()
         {
             using var source = new ShortReadStream([1, 2, 3, 4, 5, 6], maxRead: 2);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.UploadFromAsync(source, 5, 4).ConfigureAwait(false));
 
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [1, 2], [3, 4] }));
@@ -103,11 +103,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public void UploadFromAsyncRejectsSeekableOverflowBeforeOpen()
+        public async Task UploadFromAsyncRejectsSeekableOverflowBeforeOpen()
         {
             using var source = new MemoryStream([1, 2, 3, 4, 5, 6]);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.UploadFromAsync(source, 5, 4).ConfigureAwait(false));
 
             Assert.That(source.Position, Is.Zero);
@@ -144,11 +144,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public void WriteStreamAsyncFailureDoesNotCloseCallerOwnedHandle()
+        public async Task WriteStreamAsyncFailureDoesNotCloseCallerOwnedHandle()
         {
             using var source = new ShortReadStream([7, 8, 9], maxRead: 2);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.WriteStreamAsync(kHandle, source, 2, 4).ConfigureAwait(false));
 
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [7, 8] }));
@@ -224,7 +224,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [TestCaseSource(nameof(s_badCloseStatuses))]
-        public void ResultBearingUploadPreservesRefusedCloseAndOnlyPerformsHandleCleanup(StatusCode status)
+        public async Task ResultBearingUploadPreservesRefusedCloseAndOnlyPerformsHandleCleanup(StatusCode status)
         {
             using var source = new ShortReadStream([81, 82], maxRead: 2);
             using var cancellation = new CancellationTokenSource();
@@ -240,8 +240,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 }
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_file.UploadFromWithResultAsync(source, 2, 4, cancellation.Token).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_file.UploadFromWithResultAsync(source, 2, 4, cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(status));
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [81, 82] }));
@@ -308,13 +308,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void DownloadToStreamAsyncRejectsRangeOrCumulativeOverflowBeforeWrite(bool ignoredRange)
+        public async Task DownloadToStreamAsyncRejectsRangeOrCumulativeOverflowBeforeWrite(bool ignoredRange)
         {
             m_reads.Enqueue(ByteString.From([1, 2]));
             m_reads.Enqueue(ignoredRange ? ByteString.From([3, 4, 5, 6, 7]) : ByteString.From([3, 4, 5, 6]));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.DownloadToStreamAsync(destination, ignoredRange ? 20 : 5, 4).ConfigureAwait(false));
 
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 1, 2 }));
@@ -326,7 +326,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [TestCase("source")]
         [TestCase("write")]
         [TestCase("read")]
-        public void TransferFailureSurvivesCleanupFailureAndLogsExactFile(string failureAt)
+        public async Task TransferFailureSurvivesCleanupFailureAndLogsExactFile(string failureAt)
         {
             var primary = new IOException("Primary transfer failure.");
             var cleanup = new ServiceResultException(StatusCodes.BadSessionClosed);
@@ -349,7 +349,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 }
             };
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
             {
                 if (failureAt == "read")
                 {
@@ -359,7 +359,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.UploadFromAsync(source, 5, 4).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(source.IsDisposed, Is.False);
@@ -369,14 +369,14 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public void DownloadToStreamAsyncClosesHandleAfterDestinationWriteFailure()
+        public async Task DownloadToStreamAsyncClosesHandleAfterDestinationWriteFailure()
         {
             var primary = new IOException("Destination rejected the bytes.");
             using var destination = new FailingWriteStream(primary);
             m_reads.Enqueue(ByteString.From([1, 2]));
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
-                await m_file.DownloadToStreamAsync(destination, 5, 4).ConfigureAwait(false))!;
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
+                await m_file.DownloadToStreamAsync(destination, 5, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(destination.Length, Is.Zero);
@@ -386,7 +386,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransferCancellationClosesWithUncancelledTokenAndRetainsStream(bool upload)
+        public async Task TransferCancellationClosesWithUncancelledTokenAndRetainsStream(bool upload)
         {
             using var cancellation = new CancellationTokenSource();
             using var stream = new MemoryStream([1, 2]);
@@ -400,7 +400,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 }
             };
 
-            OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
             {
                 if (upload)
                 {
@@ -410,7 +410,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.DownloadToStreamAsync(stream, 5, 4, cancellation.Token).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(stream.CanRead && stream.CanWrite, Is.True);
@@ -457,7 +457,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransferOpenFailureDoesNotCloseAnUnacquiredHandle(bool upload)
+        public async Task TransferOpenFailureDoesNotCloseAnUnacquiredHandle(bool upload)
         {
             using var stream = new MemoryStream([1, 2]);
             var primary = new ServiceResultException(StatusCodes.BadUserAccessDenied);
@@ -469,7 +469,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 }
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (upload)
                 {
@@ -479,7 +479,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.DownloadToStreamAsync(stream, 2, 4).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(MethodsCalled(), Is.EqualTo(new[] { MethodIds.FileType_Open }));
@@ -488,7 +488,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public void DownloadToStreamAsyncPreservesCloseFailureWhenCleanupAlsoFails()
+        public async Task DownloadToStreamAsyncPreservesCloseFailureWhenCleanupAlsoFails()
         {
             var primary = new IOException("Initial Close failed.");
             var cleanup = new IOException("Cleanup Close failed.");
@@ -503,8 +503,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 }
             };
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
-                await m_file.DownloadToStreamAsync(destination, 2, 4).ConfigureAwait(false))!;
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
+                await m_file.DownloadToStreamAsync(destination, 2, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 101, 102 }));
@@ -516,11 +516,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransferRejectsNullFileBeforeConsumingStream(bool upload)
+        public async Task TransferRejectsNullFileBeforeConsumingStream(bool upload)
         {
             using var stream = new MemoryStream([1]);
 
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             {
                 if (upload)
                 {
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await FileTypeStreamExtensions.DownloadToStreamAsync(null!, stream, 1).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("file"));
             Assert.That(stream.Position, Is.Zero);
@@ -544,11 +544,11 @@ namespace Opc.Ua.Client.Tests.FileSystem
         [TestCase(true, 4L, -1, "chunkSize")]
         [TestCase(false, 4L, 1048577, "chunkSize")]
         [TestCase(true, 4L, 1048577, "chunkSize")]
-        public void TransferValidatesBoundsBeforeOpening(bool upload, long limit, int chunk, string parameter)
+        public async Task TransferValidatesBoundsBeforeOpening(bool upload, long limit, int chunk, string parameter)
         {
             using var stream = new MemoryStream();
 
-            ArgumentOutOfRangeException exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException exception = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             {
                 if (upload)
                 {
@@ -558,7 +558,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.DownloadToStreamAsync(stream, limit, chunk).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.ParamName, Is.EqualTo(parameter));
             Assert.That(m_calls, Is.Empty);
@@ -567,13 +567,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransferRejectsWrongStreamCapabilityBeforeOpening(bool upload)
+        public async Task TransferRejectsWrongStreamCapabilityBeforeOpening(bool upload)
         {
             using Stream stream = upload
                 ? new ShortReadStream([1], maxRead: 1, readable: false)
                 : new MemoryStream([1], writable: false);
 
-            ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException exception = (await Assert.ThrowsAsync<ArgumentException>(async () =>
             {
                 if (upload)
                 {
@@ -583,7 +583,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.DownloadToStreamAsync(stream, 5, 4).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("stream"));
             Assert.That(m_calls, Is.Empty);
@@ -591,9 +591,9 @@ namespace Opc.Ua.Client.Tests.FileSystem
 
         [TestCase(false)]
         [TestCase(true)]
-        public void TransferRejectsNullStreamBeforeOpening(bool upload)
+        public async Task TransferRejectsNullStreamBeforeOpening(bool upload)
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             {
                 if (upload)
                 {
@@ -603,16 +603,16 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 {
                     await m_file.DownloadToStreamAsync(null!, 5, 4).ConfigureAwait(false);
                 }
-            })!;
+            }))!;
             Assert.That(exception.ParamName, Is.EqualTo("stream"));
             Assert.That(m_calls, Is.Empty);
         }
 
         [Test]
-        public void CloseAfterFailureAsyncRejectsNullFile()
+        public async Task CloseAfterFailureAsyncRejectsNullFile()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await FileTypeStreamExtensions.CloseAfterFailureAsync(null!, kHandle).ConfigureAwait(false))!;
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await FileTypeStreamExtensions.CloseAfterFailureAsync(null!, kHandle).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("file"));
             Assert.That(m_calls, Is.Empty);

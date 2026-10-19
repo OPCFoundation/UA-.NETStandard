@@ -55,7 +55,6 @@ namespace Opc.Ua.Sessions.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
-    [Parallelizable(ParallelScope.Fixtures)]
     public class LoadTest : ClientTestFramework
     {
         public LoadTest(string uriScheme)
@@ -142,7 +141,6 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Explicit]
-        [Order(100)]
         [TestCase(false, TestName = "ServerSubscribeLoadTest_Classic")]
         [TestCase(true, TestName = "ServerSubscribeLoadTest_ManagedSessionV2")]
         public async Task ServerSubscribeLoadTestAsync(bool useManagedSession)
@@ -421,7 +419,6 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Explicit]
-        [Order(110)]
         public async Task ServerReadLoadTestAsync()
         {
             const int sessionCount = 50;
@@ -636,7 +633,6 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Explicit]
-        [Order(120)]
         public async Task ServerEventSubscribeLoadTestAsync()
         {
             const int sessionCount = 50;
@@ -842,7 +838,6 @@ namespace Opc.Ua.Sessions.Tests
         /// <param name="sessionCount">The number of concurrent sessions to establish.</param>
         [Test]
         [Explicit]
-        [Order(130)]
         [TestCase(500)]
         [TestCase(1000)]
         [TestCase(1500)]

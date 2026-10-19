@@ -165,6 +165,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(McpToolProfile.MachineTool)]
         [TestCase(McpToolProfile.Gms)]
         [TestCase(McpToolProfile.CranesHoists)]
+        [TestCase(McpToolProfile.AutoId)]
         public void CompanionProfilesAreAcceptedByUnselectedPackagesAndShareConnections(McpToolProfile profile)
         {
             var services = new ServiceCollection();

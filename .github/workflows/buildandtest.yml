@@ -231,7 +231,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
 
     - name: Download test results
       uses: actions/download-artifact@v8
@@ -395,7 +395,7 @@ jobs:
       AOTPROJECT_HISTORIAN: './tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj'
       AOTPROJECT_MCP: './tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj'
       AOTPROJECT_REGISTRY: './tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj'
-      DOTNET_VERSION: '10.0.401'
+      DOTNET_VERSION: '10.0.402'
       CONFIGURATION: 'Release'
 
     steps:
@@ -521,7 +521,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 10.0.401
+        dotnet-version: 10.0.402
     - name: Validate manifest and negative controls
       shell: pwsh
       run: ./fuzzing/Scripts/validate-fuzz-manifest.ps1 -SelfTest
@@ -577,7 +577,7 @@ jobs:
         dotnet-version: |
           8.0.x
           9.0.x
-          10.0.401
+          10.0.402
     - name: Run fuzz regressions
       shell: pwsh
       run: ./fuzzing/Scripts/test-fuzzing.ps1 -Framework '${{ matrix.framework }}' -ResultsDirectory '${{ runner.temp }}/fuzz-results'

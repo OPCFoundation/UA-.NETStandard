@@ -88,7 +88,7 @@ namespace Opc.Ua.MachineTool.Tests
                 cancellation.Cancel();
                 release.TrySetResult(true);
             }
-            Assert.CatchAsync<OperationCanceledException>(async () => await building.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await building.ConfigureAwait(false));
             Assert.That(Units(fixture.Context.Manager), Is.Empty);
             Assert.That((await connection.ReadAsync().ConfigureAwait(false)).Profiles, Is.Empty);
         }
@@ -290,7 +290,7 @@ namespace Opc.Ua.MachineTool.Tests
             await fixture.StartAsync().ConfigureAwait(false);
             await using Connection connection = await Connection.OpenAsync(fixture).ConfigureAwait(false);
             var equipment = new WmtpTestEquipment();
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Context.AddWirelessPeripheral("MissingProvider").WithProvider(equipment.Device.Object)
                     .WithFeatures(WmtpFeatures.Firmware).BuildAsync().ConfigureAwait(false));
             Assert.That(Units(fixture.Context.Manager), Is.Empty);
@@ -305,7 +305,7 @@ namespace Opc.Ua.MachineTool.Tests
                     ReferenceEquals(fixture.Context.Manager.FindPredefinedNode(root.NodeId), root);
                 Assert.That(Units(fixture.Context.Manager), Is.Empty);
             });
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await equipment.Builder(fixture.Context, "LateFailure").WithClock(clock)
                     .AddMeasurement(WmtpTestEquipment.Definition()).BuildAsync().ConfigureAwait(false));
             Assert.That(observedPublishedGraph, Is.True);

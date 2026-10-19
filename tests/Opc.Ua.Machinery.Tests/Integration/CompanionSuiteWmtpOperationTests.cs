@@ -119,9 +119,9 @@ namespace Opc.Ua.Machinery.Tests.Integration
                 await entered.Task.WaitAsync(window.Token).ConfigureAwait(false);
                 Assert.That(clock.GetUtcNow(), Is.EqualTo(utcBefore.AddSeconds(1)));
                 Assert.That(clock.GetTimestamp(), Is.EqualTo(ticksBefore + TimeSpan.TicksPerSecond));
-                ServiceResultException busy = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException busy = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await records.ReadAsync(new WmtpRecordQuery(), cancellationToken: window.Token)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(busy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
                 ArrayOf<WMTPOutputDataType> report = await independent.ReadAsync(
                     new WmtpRecordQuery(), cancellationToken: window.Token).ConfigureAwait(false);

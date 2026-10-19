@@ -368,7 +368,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             using var cts = new CancellationTokenSource();
             cts.CancelAfter(TimeSpan.FromMilliseconds(50));
 
-            Exception? exception = Assert.CatchAsync(() =>
+            Exception? exception = await Assert.CatchAsync(() =>
                 PacketCaptureTools.CaptureNowAsync(
                     Manager,
                     Sessions,

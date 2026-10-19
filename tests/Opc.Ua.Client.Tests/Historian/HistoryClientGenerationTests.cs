@@ -91,8 +91,8 @@ namespace Opc.Ua.Client.Tests.Historian
             await using IAsyncEnumerator<DataValue> cursor = Read(client).GetAsyncEnumerator();
             Assert.That(await cursor.MoveNextAsync().ConfigureAwait(false), Is.True);
             fixture.Recreate();
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await cursor.MoveNextAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await cursor.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Has.Count.EqualTo(1));
             Assert.That(fixture.ManagedSession.SessionId, Is.EqualTo(NodeId.Parse("s=replacement-session")));
@@ -167,8 +167,8 @@ namespace Opc.Ua.Client.Tests.Historian
                 new HistoryClientOptions { BindSessionGeneration = true });
             await using IAsyncEnumerator<DataValue> cursor = Read(client).GetAsyncEnumerator();
             Assert.That(await cursor.MoveNextAsync().ConfigureAwait(false), Is.True);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await cursor.MoveNextAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await cursor.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(failure, Is.SameAs(primary));
             RecordedLogRecord record = logs.Records.Single(value => value.EventId.Id == ClientEventIds.HistoryClient);
             Assert.That(record.Exception, Is.SameAs(cleanup));
@@ -207,14 +207,14 @@ namespace Opc.Ua.Client.Tests.Historian
             };
             var client = new HistoryClient(fixture.ManagedSession,
                 new HistoryClientOptions { BindSessionGeneration = true });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (Annotation annotation in client.ReadAnnotationsAsync(
                     new NodeId(10u, 1), s_start, s_start.AddHours(1)).ConfigureAwait(false))
                 {
                     Assert.Fail($"Unexpected annotation: {annotation.Message}");
                 }
-            })!;
+            }))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Has.Count.EqualTo(1));
             Assert.That(fixture.Requests[0], Is.TypeOf<TranslateBrowsePathsToNodeIdsRequest>());

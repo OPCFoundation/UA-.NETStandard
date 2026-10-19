@@ -51,8 +51,10 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
             try
             {
                 await Binding.RetiringAsync(CancellationToken.None).ConfigureAwait(false);
-                InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await candidate.StartAsync().ConfigureAwait(false))!;
+                InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () =>
+                    await candidate.StartAsync().ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(error.Message, Is.EqualTo(timerFailure
                     ? "Injected timer creation failure." : "Injected initial activation failure."));
                 Assert.That(schemaCalls, Is.GreaterThan(0));
@@ -65,8 +67,10 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                     .ConfigureAwait(false);
                 Assert.That(schemaCalls, Is.EqualTo(callsAfterFailure),
                     "A failed binding must not receive subsequent view activations.");
-                Assert.That(async () => await candidate.StartAsync().ConfigureAwait(false),
-                    Throws.TypeOf<ObjectDisposedException>());
+                await Assert.ThatAsync(
+                    async () => await candidate.StartAsync().ConfigureAwait(false),
+                    Throws.TypeOf<ObjectDisposedException>())
+                    .ConfigureAwait(false);
             }
             finally
             {

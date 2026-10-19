@@ -95,13 +95,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncRejectsCumulativeLimitBeforeWritingOffendingChunk()
+        public async Task ReadBytesToAsyncRejectsCumulativeLimitBeforeWritingOffendingChunk()
         {
             m_values.Enqueue(Value(1, 2, 3));
             m_values.Enqueue(Value(4, 5, 6));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await ReadAsync(destination, maxBytes: 5, chunkSize: 4).ConfigureAwait(false));
 
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3 }));
@@ -110,12 +110,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncRejectsServerIgnoringRequestedRangeBeforeWriting()
+        public async Task ReadBytesToAsyncRejectsServerIgnoringRequestedRangeBeforeWriting()
         {
             m_values.Enqueue(Value(1, 2, 3, 4, 5));
             using var destination = new MemoryStream();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await ReadAsync(destination, maxBytes: 20, chunkSize: 4).ConfigureAwait(false));
 
             Assert.That(destination.Length, Is.Zero);
@@ -157,13 +157,13 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase("string")]
         [TestCase("integer")]
-        public void ReadBytesToAsyncRejectsWrongValueType(string kind)
+        public async Task ReadBytesToAsyncRejectsWrongValueType(string kind)
         {
             m_values.Enqueue(new DataValue(kind == "string" ? Variant.From("not bytes") : Variant.From(17)));
             using var destination = new MemoryStream();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(destination.Length, Is.Zero);
@@ -172,14 +172,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [TestCaseSource(nameof(s_badValueStatuses))]
-        public void ReadBytesToAsyncPreservesBadValueStatusAndPreviouslyWrittenBytes(StatusCode status)
+        public async Task ReadBytesToAsyncPreservesBadValueStatusAndPreviouslyWrittenBytes(StatusCode status)
         {
             m_values.Enqueue(Value(41, 42));
             m_values.Enqueue(DataValue.FromStatusCode(status));
             using var destination = new MemoryStream();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(status));
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 41, 42 }));
@@ -189,7 +189,7 @@ namespace Opc.Ua.Client.Tests
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ReadBytesToAsyncRejectsMalformedResponse(bool diagnostics)
+        public async Task ReadBytesToAsyncRejectsMalformedResponse(bool diagnostics)
         {
             m_session.Setup(s => s.ReadAsync(
                     It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
@@ -203,8 +203,8 @@ namespace Opc.Ua.Client.Tests
                 }));
             using var destination = new MemoryStream();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(destination.Length, Is.Zero);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncPropagatesCancellationAndRetainsDestination()
+        public async Task ReadBytesToAsyncPropagatesCancellationAndRetainsDestination()
         {
             using var destination = new MemoryStream();
             using var cancellation = new CancellationTokenSource();
@@ -224,9 +224,9 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<ArrayOf<ReadValueId>>(), cancellation.Token))
                 .Throws(primary);
 
-            OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(
+            OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await m_session.Object.ReadBytesToAsync(
-                    new NodeId("content", 3), destination, 8, 4, cancellation.Token).ConfigureAwait(false))!;
+                    new NodeId("content", 3), destination, 8, 4, cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(destination.Length, Is.Zero);
@@ -235,7 +235,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncPreservesServiceExceptionAndRetainsDestination()
+        public async Task ReadBytesToAsyncPreservesServiceExceptionAndRetainsDestination()
         {
             var primary = new ServiceResultException(StatusCodes.BadSessionClosed);
             using var destination = new MemoryStream();
@@ -244,8 +244,8 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
                 .Throws(primary);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(destination.Length, Is.Zero);
@@ -259,12 +259,12 @@ namespace Opc.Ua.Client.Tests
         [TestCase(8L, 0, "chunkSize")]
         [TestCase(8L, -1, "chunkSize")]
         [TestCase(8L, 1048577, "chunkSize")]
-        public void ReadBytesToAsyncValidatesBoundsBeforeRead(long maxBytes, int chunkSize, string parameter)
+        public async Task ReadBytesToAsyncValidatesBoundsBeforeRead(long maxBytes, int chunkSize, string parameter)
         {
             using var destination = new MemoryStream();
 
-            ArgumentOutOfRangeException exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(
-                async () => await ReadAsync(destination, maxBytes, chunkSize).ConfigureAwait(false))!;
+            ArgumentOutOfRangeException exception = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                async () => await ReadAsync(destination, maxBytes, chunkSize).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo(parameter));
             Assert.That(destination.Length, Is.Zero);
@@ -289,12 +289,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncRejectsReadOnlyDestinationWithoutRead()
+        public async Task ReadBytesToAsyncRejectsReadOnlyDestinationWithoutRead()
         {
             using var destination = new MemoryStream([1, 2], writable: false);
 
-            ArgumentException exception = Assert.ThrowsAsync<ArgumentException>(
-                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false))!;
+            ArgumentException exception = (await Assert.ThrowsAsync<ArgumentException>(
+                async () => await ReadAsync(destination, 8, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("destination"));
             Assert.That(destination.ToArray(), Is.EqualTo(new byte[] { 1, 2 }));
@@ -303,21 +303,21 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesToAsyncRejectsNullDestinationWithoutRead()
+        public async Task ReadBytesToAsyncRejectsNullDestinationWithoutRead()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
-                async () => await ReadAsync(null!, 8, 4).ConfigureAwait(false))!;
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
+                async () => await ReadAsync(null!, 8, 4).ConfigureAwait(false)))!;
             Assert.That(exception.ParamName, Is.EqualTo("destination"));
             VerifyReads(Times.Never());
         }
 
         [Test]
-        public void ReadBytesToAsyncRejectsNullSession()
+        public async Task ReadBytesToAsyncRejectsNullSession()
         {
             using var destination = new MemoryStream();
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await SessionByteStreamExtensions.ReadBytesToAsync(
-                    null!, NodeId.Null, destination, 8).ConfigureAwait(false))!;
+                    null!, NodeId.Null, destination, 8).ConfigureAwait(false)))!;
             Assert.That(exception.ParamName, Is.EqualTo("session"));
             Assert.That(destination.Length, Is.Zero);
         }

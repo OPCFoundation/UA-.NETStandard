@@ -333,9 +333,9 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public void ResolveResourcePropagatesOtherServiceFaults()
+        public async Task ResolveResourcePropagatesOtherServiceFaults()
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 () => ResolveWithReadFaultAsync(StatusCodes.BadUserAccessDenied));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));

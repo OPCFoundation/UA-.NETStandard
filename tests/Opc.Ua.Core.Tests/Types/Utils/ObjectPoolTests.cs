@@ -194,7 +194,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             }
 
             Assert.That(Volatile.Read(ref created), Is.EqualTo(createdAfterLoad));
-            Assert.That(rented, Is.All.Matches<object>(seen.ContainsKey));
+            Assert.That(rented, Is.All.Matches<object>(item => item is not null && seen.ContainsKey(item)));
         }
 
         private sealed class Rental

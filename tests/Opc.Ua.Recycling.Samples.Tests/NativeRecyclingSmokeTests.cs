@@ -160,8 +160,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     RequestId = Guid.NewGuid().ToString("N"),
                     ExpectedRevision = projected.Revision
                 };
-                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(() =>
-                    observer.ExecuteAsync(unauthorized, timeout.Token).AsTask())!;
+                ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    observer.ExecuteAsync(unauthorized, timeout.Token).AsTask()))!;
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 TestContext.Out.WriteLine(
                     $"Native secure coordinator PID={coordinator.Id}, {selectedProcess} PID={view.Id}; " +

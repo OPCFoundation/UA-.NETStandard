@@ -188,11 +188,13 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
         }
 
         [Test]
-        public void EmptyCacheHonorsCancellationAndInvalidOriginFailsClosed()
+        public async Task EmptyCacheHonorsCancellationAndInvalidOriginFailsClosed()
         {
             var canceled = new CancellationToken(true);
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await new FederationResolutionCache().ReadMessageAsync(Source(), canceled).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () =>
+                await new FederationResolutionCache().ReadMessageAsync(Source(), canceled).ConfigureAwait(false))
+                .ConfigureAwait(false);
             var mixed = Source();
             mixed.ApplicationUri = Application;
             Assert.Throws<ArgumentException>(() => Binding(mixed));

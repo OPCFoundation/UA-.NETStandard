@@ -29,6 +29,7 @@
 
 using System;
 using System.Reflection;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -644,7 +645,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void UpdateFromServerWithNullApplicationConfigurationThrowsArgumentNullException()
+        public async Task UpdateFromServerWithNullApplicationConfigurationThrowsArgumentNullException()
         {
             var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
@@ -653,7 +654,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 SecurityPolicyUri = SecurityPolicies.None
             });
 
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await endpoint.UpdateFromServerAsync(
                     (ApplicationConfiguration)null!,
                     telemetry: null));

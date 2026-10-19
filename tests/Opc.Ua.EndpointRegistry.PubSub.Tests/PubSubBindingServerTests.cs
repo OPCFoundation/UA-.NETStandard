@@ -160,17 +160,20 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                 Assert.That(delete.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             });
             var group = new GroupTypeClient(m_session!, Server.Registry.FindCatalogObject(xid)!.NodeId, m_telemetry!);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await group.DeleteAsync(0).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await group.DeleteAsync(0).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             var root = new EndpointRegistryTypeClient(m_session!,
                 ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry, m_session!.NamespaceUris), m_telemetry!);
-            ServiceResultException directPatch = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException directPatch = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await root.CommitMetadataAsync(xid, ByteString.From("{\"description\":\"denied\"}"u8), 0)
-                    .ConfigureAwait(false))!;
-            ServiceResultException ancestorPatch = Assert.ThrowsAsync<ServiceResultException>(
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false))!;
+            ServiceResultException ancestorPatch = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await root.CommitMetadataAsync(xid, ByteString.From("{\"messages\":null}"u8), 0)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(directPatch.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(ancestorPatch.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That((await ReadNativeAsync(xid).ConfigureAwait(false)).Epoch, Is.EqualTo(epoch));

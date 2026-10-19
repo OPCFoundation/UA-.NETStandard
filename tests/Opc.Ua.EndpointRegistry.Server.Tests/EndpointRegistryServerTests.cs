@@ -197,14 +197,16 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
                 }),
                 ExpectedEpoch = 0
             };
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await TypedAccess(user).WriteDocumentAsync(request).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await TypedAccess(user).WriteDocumentAsync(request).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
 
             using ISession insecure = await ConnectAsync(SecurityPolicies.None,
                 new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
-            ServiceResultException plain = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await TypedAccess(insecure).WriteDocumentAsync(request).ConfigureAwait(false))!;
+            ServiceResultException plain = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await TypedAccess(insecure).WriteDocumentAsync(request).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(plain.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
 
             RegistryReadResultDataType read = await TypedAccess(user).ReadDocumentAsync(new RegistryReadRequestDataType
@@ -336,10 +338,12 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
                 Assert.That(after,
                     Is.EqualTo("{\"messageid\":\"m\",\"epoch\":2,\"datacontenttype\":\"application/json\"}"));
             });
-            ServiceResultException write = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException write = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
                 await session.CallAsync(file, await PathAsync(session, file,
                     new QualifiedName(Ua.BrowseNames.Open)).ConfigureAwait(false), default,
-                    new Variant((byte)2)).ConfigureAwait(false))!;
+                    new Variant((byte)2)).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(write.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 

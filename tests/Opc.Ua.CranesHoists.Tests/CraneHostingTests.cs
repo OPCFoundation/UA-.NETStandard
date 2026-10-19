@@ -257,7 +257,7 @@ namespace Opc.Ua.CranesHoists.Tests
         /// Factory validation and acquisition failure do not manufacture a connected client.
         /// </summary>
         [Test]
-        public void FactoryPreservesAcquisitionErrorsAndCancellation()
+        public async Task FactoryPreservesAcquisitionErrorsAndCancellation()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             Assert.Throws<ArgumentNullException>(() => new CranesHoistsClientFactory(null!, telemetry));
@@ -265,11 +265,11 @@ namespace Opc.Ua.CranesHoists.Tests
                 _ => Task.FromResult<ManagedSession>(null!), null!));
             var failure = new InvalidOperationException("No session available.");
             var factory = new CranesHoistsClientFactory(_ => Task.FromException<ManagedSession>(failure), telemetry);
-            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(
+            Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await factory.CreateAsync().ConfigureAwait(false)), Is.SameAs(failure));
             using var canceled = new CancellationTokenSource();
             canceled.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await factory.CreateAsync(canceled.Token).ConfigureAwait(false));
         }
 

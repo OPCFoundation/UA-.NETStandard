@@ -147,7 +147,6 @@ namespace Opc.Ua.Sessions.Tests
         /// Get endpoints using a reverse connection.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task GetEndpointsAsync()
         {
             await RequireEndpointsAsync().ConfigureAwait(false);
@@ -187,7 +186,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(GetEndpointsAsync), AllowFailure = true)]
         public async Task SelectEndpointAsync()
         {
             ApplicationConfiguration config = ClientFixture.Config;
@@ -212,7 +211,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(300)]
+        [DependsOnTest(nameof(SelectEndpointAsync), AllowFailure = true)]
         public async Task ReverseConnectAsync(
             string securityPolicy,
             TelemetryParameterizable<ISessionFactory> sessionFactory)
@@ -288,7 +287,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Creates a reverse-connect session with each endpoint-refresh and domain-check combination.
         /// </summary>
         [Theory]
-        [Order(301)]
+        [DependsOnTest(nameof(ReverseConnectAsync), AllowFailure = true)]
         public async Task ReverseConnect2Async(
             bool updateBeforeConnect,
             bool checkDomain,
@@ -355,6 +354,7 @@ namespace Opc.Ua.Sessions.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        [DependsOnTest(nameof(ReverseConnect2Async), AllowFailure = true)]
         public async Task RecreateOverReverseConnectionDoesNotNeedOutboundDiscoveryAsync(bool anonymousSign)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));

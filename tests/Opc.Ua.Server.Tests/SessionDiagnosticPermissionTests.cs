@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests
                     existingSession ? closeHeader.AuthenticationToken : NodeId.Null, requested);
                 var invalidChannel = new SecureChannelContext(
                     "wrong-channel", channel.EndpointDescription, channel.MessageEncoding);
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     using OperationContext context = await server.CurrentInstance.SessionManager.ValidateRequestAsync(
                         header, invalidChannel, RequestType.Read, RequestLifetime.None).ConfigureAwait(false);

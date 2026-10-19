@@ -216,7 +216,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 source.OriginUri = "urn:test:wrong";
             }
             var empty = new FederationResolutionCache();
-            Assert.CatchAsync<Exception>(async () => await provider.PreloadAsync(empty, source).ConfigureAwait(false));
+            await Assert.CatchAsync<Exception>(
+                async () => await provider.PreloadAsync(empty, source).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(empty.Count, Is.Zero);
         }
 
@@ -268,9 +270,11 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             Assert.That(remote.Source.NativeTarget.NamespaceIndex, Is.Zero);
             Assert.That(remote.RegistryRoot, Is.EqualTo(ObjectIds.EndpointRegistry));
             Assert.That(remote.Epoch, Is.GreaterThan(0));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(
+                async () =>
                 await Provider(second, "urn:test:second").PreloadGroupAsync("/messagegroups/g", local)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
         private async Task<ServerFixture<FederationServer>> StartServerAsync(string id, EndpointRegistryResolutionOptions resolution)
         {

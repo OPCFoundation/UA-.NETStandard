@@ -49,8 +49,10 @@ namespace Opc.Ua.XRegistry.Tests
             services.AddXRegistryStateStore();
             await using ServiceProvider provider = services.BuildServiceProvider();
             IRegistryStateStore store = provider.GetRequiredService<IRegistryStateStore>();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await store.CommitAsync(0, ByteString.FromHexString("0102")).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () =>
+                await store.CommitAsync(0, ByteString.FromHexString("0102")).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That((await store.ReadAsync().ConfigureAwait(false)).Revision, Is.Zero);
         }
@@ -137,8 +139,10 @@ namespace Opc.Ua.XRegistry.Tests
                 bytes[8] ^= 2;
                 File.WriteAllBytes(statePath, bytes);
                 await using var restored = new FileRegistryStateStore(path);
-                Assert.ThrowsAsync<InvalidDataException>(async () =>
-                    await restored.ReadAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidDataException>(
+                    async () =>
+                    await restored.ReadAsync().ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -159,13 +163,17 @@ namespace Opc.Ua.XRegistry.Tests
                 Assert.That(initialized.State.Revision, Is.EqualTo(1));
                 ByteString exactLimit = ByteString.FromHexString("010203");
                 await store.CommitAsync(1, exactLimit).ConfigureAwait(false);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await store.CommitAsync(2, ByteString.FromHexString("01020304")).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () =>
+                    await store.CommitAsync(2, ByteString.FromHexString("01020304")).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 using var cancelled = new CancellationTokenSource();
                 cancelled.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                    await store.CommitAsync(2, ByteString.Empty, cancelled.Token).ConfigureAwait(false));
+                await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () =>
+                    await store.CommitAsync(2, ByteString.Empty, cancelled.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 RegistryStoredState retained = await store.ReadAsync().ConfigureAwait(false);
                 Assert.That(retained.Revision, Is.EqualTo(2));
                 Assert.That(retained.Document, Is.EqualTo(exactLimit));
@@ -174,8 +182,10 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 await store.DisposeAsync().ConfigureAwait(false);
             }
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await store.ReadAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                async () =>
+                await store.ReadAsync().ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]

@@ -748,6 +748,83 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             });
         }
 
+        /// <summary>
+        /// A subtype that refines the DataType of an inherited structure
+        /// property to a structure subtype changes only the type argument of
+        /// the generic PropertyState class. The two classes are unrelated, so
+        /// the subtype cannot cast the supertype's child: it holds the
+        /// property in a field of its own, exposes it with the refined value
+        /// type and enumerates and removes it itself. Before, the generated
+        /// cast did not compile (CS0030), which broke the OPC 30010 AutoID
+        /// model.
+        /// </summary>
+        [Test]
+        public void DerivedStructurePropertyRefinementIsRedeclaredWithOwnField()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> files = GenerateFromModelDesign(
+                "StructurePropertyOverride.ModelDesign.xml",
+                telemetry);
+            string nodeStates = files.Single(
+                file => file.Key.EndsWith(".NodeStates.g.cs", StringComparison.Ordinal)).Value;
+            string rfidReader = ExtractClassBody(nodeStates, "RfidReaderState");
+            string verifyingReader = ExtractClassBody(nodeStates, "VerifyingReaderState");
+            const string resultsField =
+                "private global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<" +
+                "global::StructurePropertyOverride.RfidReadResult>>? m_results;";
+            const string lastResultField =
+                "private global::Opc.Ua.PropertyState<" +
+                "global::StructurePropertyOverride.RfidReadResult>? m_lastResult;";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(rfidReader, Does.Contain(resultsField));
+                Assert.That(rfidReader, Does.Contain(lastResultField));
+                Assert.That(rfidReader, Does.Not.Contain("base.Results"));
+                Assert.That(rfidReader, Does.Not.Contain("base.LastResult"));
+                Assert.That(
+                    ExtractMemberBody(rfidReader, "public override void GetChildren("),
+                    Does.Contain("children.Add(m_results);").And.Contain("children.Add(m_lastResult);"));
+                Assert.That(
+                    ExtractMemberBody(rfidReader, "protected override void RemoveExplicitlyDefinedChild("),
+                    Does.Contain("m_results = null;").And.Contain("m_lastResult = null;"));
+                Assert.That(verifyingReader, Does.Contain(
+                    "private global::Opc.Ua.PropertyState<global::Opc.Ua.ArrayOf<" +
+                    "global::StructurePropertyOverride.VerifiedReadResult>>? m_results;"));
+                Assert.That(verifyingReader, Does.Not.Contain("m_lastResult"),
+                    "A child the subtype does not override stays with the supertype.");
+            });
+
+            Assembly assembly = CompileGeneratedAssembly(files);
+            const BindingFlags declaredOnly =
+                BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly;
+            Type reader = GetGeneratedType(assembly, "ReaderState");
+            Type rfid = GetGeneratedType(assembly, "RfidReaderState");
+            Type verifying = GetGeneratedType(assembly, "VerifyingReaderState");
+            Type readResult = GetGeneratedType(assembly, "ReadResult");
+            Type rfidResult = GetGeneratedType(assembly, "RfidReadResult");
+            Type verifiedResult = GetGeneratedType(assembly, "VerifiedReadResult");
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    reader.GetProperty("Results", declaredOnly)!.PropertyType.GetGenericArguments()[0]
+                        .GetGenericArguments()[0],
+                    Is.EqualTo(readResult));
+                Assert.That(
+                    rfid.GetProperty("Results", declaredOnly)!.PropertyType.GetGenericArguments()[0]
+                        .GetGenericArguments()[0],
+                    Is.EqualTo(rfidResult));
+                Assert.That(
+                    rfid.GetProperty("LastResult", declaredOnly)!.PropertyType.GetGenericArguments()[0],
+                    Is.EqualTo(rfidResult));
+                Assert.That(
+                    verifying.GetProperty("Results", declaredOnly)!.PropertyType.GetGenericArguments()[0]
+                        .GetGenericArguments()[0],
+                    Is.EqualTo(verifiedResult));
+                Assert.That(verifying.GetProperty("LastResult", declaredOnly), Is.Null);
+            });
+        }
+
         [Test]
         public void NodeStateGeneratorCodeGeneratesCorrectMethodSignatures()
         {

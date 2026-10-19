@@ -126,7 +126,8 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
             Server.RejectCommits = true;
             try
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () =>
                 {
                     if (retainedClear)
                     {
@@ -136,7 +137,8 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                     {
                         await Binding.ExpireRemoteAsync(metadata.ExpiresAt.Value).ConfigureAwait(false);
                     }
-                })!;
+                })
+                    .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
                 Assert.That(RemotePaths(), Has.Count.EqualTo(1));
                 Assert.That((await Binding.ObserveRemoteAsync(retainedClear ? clear : metadata).ConfigureAwait(false))

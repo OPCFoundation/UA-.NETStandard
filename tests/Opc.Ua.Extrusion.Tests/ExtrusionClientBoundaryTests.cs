@@ -78,7 +78,7 @@ namespace Opc.Ua.Extrusion.Tests
             ClientVariable<bool> member = peer.Client.Extruder(ExtrusionClientPeer.DeviceId).IsPresentVariable();
             if (shape is "Repeated" or "Distinct")
             {
-                ExtrusionClientPeer.AssertFailure(async () =>
+                await ExtrusionClientPeer.AssertFailure(async () =>
                     await member.ResolveAsync(cancellation.Token).ConfigureAwait(false),
                         StatusCodes.BadBrowseNameDuplicated);
             }
@@ -123,7 +123,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else
             {
-                ExtrusionClientPeer.AssertFailure(async () =>
+                await ExtrusionClientPeer.AssertFailure(async () =>
                     await member.ResolveAsync(cancellation.Token).ConfigureAwait(false),
                     count == 1 ? status : StatusCodes.BadUnexpectedError);
             }
@@ -220,7 +220,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else
             {
-                ExtrusionClientPeer.AssertFailure(async () =>
+                await ExtrusionClientPeer.AssertFailure(async () =>
                     await member.ReadAsync(cancellation.Token).ConfigureAwait(false), shape switch
                     {
                         "Missing" => StatusCodes.BadNotFound,
@@ -301,7 +301,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else
             {
-                ExtrusionClientPeer.AssertFailure(WriteAsync, shape switch
+                await ExtrusionClientPeer.AssertFailure(WriteAsync, shape switch
                 {
                     "ReadOnly" => StatusCodes.BadNotWritable,
                     "Missing" => StatusCodes.BadNotFound,
@@ -370,7 +370,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else
             {
-                ExtrusionClientPeer.AssertFailure(async () =>
+                await ExtrusionClientPeer.AssertFailure(async () =>
                     await member.ReadEngineeringUnitsAsync(cancellation.Token).ConfigureAwait(false), shape switch
                     {
                         "MissingMember" or "MissingUnits" => StatusCodes.BadNotFound,
@@ -448,7 +448,7 @@ namespace Opc.Ua.Extrusion.Tests
         }
 
         [Test]
-        public void ExtrusionPlaceholderCancellationReachesTypeChecking()
+        public async Task ExtrusionPlaceholderCancellationReachesTypeChecking()
         {
             using var cancellation = new CancellationTokenSource();
             var peer = new ExtrusionClientPeer(token: cancellation.Token);
@@ -456,7 +456,7 @@ namespace Opc.Ua.Extrusion.Tests
             peer.ExpectBrowse(ExtrusionClientPeer.FilterId, (uint)NodeClass.Object,
                 ExtrusionClientPeer.Reference(peer.NextNode(), type, new QualifiedName("Package", 1)));
             peer.ExpectType(type, type, true, beforeReturn: cancellation.Cancel);
-            OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await ExtrusionClientPeer.CollectAsync(peer.Client.Filter(ExtrusionClientPeer.FilterId)
                     .EnumerateFilterPackageAsync(cancellation.Token)).ConfigureAwait(false));
             Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
@@ -516,7 +516,7 @@ namespace Opc.Ua.Extrusion.Tests
                     ExtrusionClientPeer.AssertReading(iterator.Current, 37.125, true, StatusCodes.Good);
                     if (ending == "GoodWrongType")
                     {
-                        ExtrusionClientPeer.AssertFailure(async () =>
+                        await ExtrusionClientPeer.AssertFailure(async () =>
                             await iterator.MoveNextAsync().ConfigureAwait(false), StatusCodes.BadTypeMismatch);
                     }
                     else if (ending == "Complete")
@@ -584,13 +584,13 @@ namespace Opc.Ua.Extrusion.Tests
             {
                 if (ending == "NoStreaming")
                 {
-                    InvalidOperationException? absent = Assert.ThrowsAsync<InvalidOperationException>(
+                    InvalidOperationException? absent = await Assert.ThrowsAsync<InvalidOperationException>(
                         async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                     Assert.That(absent!.Message, Does.Contain("Supply a streaming subscription"));
                 }
                 else if (ending == "Missing")
                 {
-                    ExtrusionClientPeer.AssertFailure(async () =>
+                    await ExtrusionClientPeer.AssertFailure(async () =>
                         await iterator.MoveNextAsync().ConfigureAwait(false), StatusCodes.BadNotFound);
                 }
                 else
@@ -599,13 +599,13 @@ namespace Opc.Ua.Extrusion.Tests
                     ExtrusionClientPeer.AssertReading(iterator.Current, "Line-East", true, StatusCodes.Good);
                     if (ending == "Failure")
                     {
-                        Assert.That(Assert.ThrowsAsync<InvalidOperationException>(
+                        Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(
                             async () => await iterator.MoveNextAsync().ConfigureAwait(false)), Is.SameAs(failure));
                     }
                     else
                     {
                         cancellation.Cancel();
-                        OperationCanceledException? cancelled = Assert.ThrowsAsync<OperationCanceledException>(
+                        OperationCanceledException? cancelled = await Assert.ThrowsAsync<OperationCanceledException>(
                             async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                         Assert.That(cancelled!.CancellationToken, Is.EqualTo(cancellation.Token));
                     }
@@ -624,7 +624,7 @@ namespace Opc.Ua.Extrusion.Tests
         [TestCase("NullVariableOwner")]
         [TestCase("NullPlaceholderOwner")]
         [TestCase("SessionClientOnly")]
-        public void ExtrusionPublicMembersRejectNullOwnersAndSessionClientOnlyProxies(string shape)
+        public async Task ExtrusionPublicMembersRejectNullOwnersAndSessionClientOnlyProxies(string shape)
         {
             var peer = new ExtrusionClientPeer();
             if (shape == "NullVariableOwner")
@@ -636,7 +636,7 @@ namespace Opc.Ua.Extrusion.Tests
             else if (shape == "NullPlaceholderOwner")
             {
                 Filter.Filter_InterfaceTypeClient proxy = null!;
-                ArgumentNullException? failure = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                     await ExtrusionClientPeer.CollectAsync(proxy.EnumerateFilterPackageAsync()).ConfigureAwait(false));
                 Assert.That(failure!.ParamName, Is.EqualTo("proxy"));
             }
@@ -645,7 +645,7 @@ namespace Opc.Ua.Extrusion.Tests
                 var service = new Mock<ISessionClient>(MockBehavior.Strict);
                 var proxy = new Extruder.Extruder_InterfaceTypeClient(service.Object, ExtrusionClientPeer.DeviceId,
                     peer.Telemetry);
-                ArgumentException? failure = Assert.ThrowsAsync<ArgumentException>(
+                ArgumentException? failure = await Assert.ThrowsAsync<ArgumentException>(
                     async () => await proxy.LineIdVariable().ResolveAsync().ConfigureAwait(false));
                 Assert.That(failure!.ParamName, Is.EqualTo("proxy"));
                 Assert.That(service.Invocations, Is.Empty);
