@@ -1358,6 +1358,11 @@ namespace Opc.Ua.Server
 
             public ISystemContext Context { get; }
 
+            /// <summary>
+            /// Gets the source emission, which a drain fence never holds.
+            /// </summary>
+            public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+
             public TaskCompletionSource<bool> Completion { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
         }

@@ -181,6 +181,8 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
+                        using PreparedSourceEmissionCutoff emissions =
+                            PrepareSourceEmissionCutoff(immediateRetirements);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (decideAsync is null)
                         {
@@ -195,7 +197,7 @@ namespace Opc.Ua.Server
                         {
                             RetainRetiredGenerationNotifications(manager);
                         }
-                        routes.Publish();
+                        emissions.Publish(routes);
                         types.Complete();
                         registrations.Complete();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
