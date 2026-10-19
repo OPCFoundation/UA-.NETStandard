@@ -875,6 +875,81 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(connectError.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
         }
 
+        /// <summary>
+        /// A disposed channel has no timer to time requests out, so it must not
+        /// admit one: a request that reaches the channel after Dispose fails at
+        /// once instead of waiting for a response that never comes.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task RequestAfterDisposeFailsInsteadOfWaitingAsync()
+        {
+            var channel = new TestClientChannel(
+                m_buffers,
+                new RecordingByteTransportFactory(),
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+            channel.Dispose();
+            // a connecting channel queues the request instead of sending it.
+            channel.CurrentState = TcpChannelState.Connecting;
+
+            Task request = channel
+                .SendRequestAsync(new GetEndpointsRequest(), 60000, CancellationToken.None)
+                .AsTask();
+
+            Assert.That(
+                await CompletesWithinAsync(request, 10).ConfigureAwait(false),
+                Is.True,
+                "the request was admitted by the disposed channel");
+            Assert.That(request.IsFaulted, Is.True);
+        }
+
+        /// <summary>
+        /// Every request that races Dispose completes: it is either rejected or
+        /// failed by Dispose, never left without a timer.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task RequestsRacingDisposeAllCompleteAsync()
+        {
+            for (int ii = 0; ii < 200; ii++)
+            {
+                var channel = new TestClientChannel(
+                    m_buffers,
+                    new RecordingByteTransportFactory(),
+                    m_quotas,
+                    null,
+                    BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                    m_telemetry,
+                    new FakeTimeProvider());
+                channel.CurrentState = TcpChannelState.Connecting;
+
+                using var start = new Barrier(2);
+                // Task.Run unwraps the request task.
+                Task request = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    return channel
+                        .SendRequestAsync(new GetEndpointsRequest(), 60000, CancellationToken.None)
+                        .AsTask();
+                });
+                Task dispose = Task.Run(() =>
+                {
+                    start.SignalAndWait();
+                    channel.Dispose();
+                });
+                await dispose.ConfigureAwait(false);
+
+                Assert.That(
+                    await CompletesWithinAsync(request, 10).ConfigureAwait(false),
+                    Is.True,
+                    $"request {ii} still waits after Dispose");
+            }
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
             Func<TestClientChannel, ValueTask<bool>> feed)
         {

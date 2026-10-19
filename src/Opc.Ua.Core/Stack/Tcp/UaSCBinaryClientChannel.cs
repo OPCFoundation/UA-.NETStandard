@@ -1700,17 +1700,28 @@ namespace Opc.Ua.Bindings
             {
                 RequestId = requestId
             };
-            if (!m_requests.TryAdd(operation.RequestId, operation))
+            lock (m_timeoutLock)
             {
-                throw ServiceResultException.Unexpected(
-                    "Could not add request {0} to list of pending operations.",
-                    operation.RequestId);
-            }
-            // added first, so that a scan that starts after the deadline is
-            // scheduled finds the operation.
-            if (deadline != long.MaxValue)
-            {
-                ScheduleTimeoutScan(deadline);
+                // Dispose fails the operations it finds after it stopped the timer;
+                // an operation added later would neither be failed nor time out.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "The channel is disposed.");
+                }
+                if (!m_requests.TryAdd(operation.RequestId, operation))
+                {
+                    throw ServiceResultException.Unexpected(
+                        "Could not add request {0} to list of pending operations.",
+                        operation.RequestId);
+                }
+                // added first, so that a scan that starts after the deadline is
+                // scheduled finds the operation.
+                if (deadline != long.MaxValue)
+                {
+                    ScheduleTimeoutScanLocked(deadline);
+                }
             }
             return operation;
         }
@@ -1726,30 +1737,38 @@ namespace Opc.Ua.Bindings
         {
             lock (m_timeoutLock)
             {
-                if (deadline >= m_nextTimeoutScan)
-                {
-                    return;
-                }
-                m_nextTimeoutScan = deadline;
+                ScheduleTimeoutScanLocked(deadline);
+            }
+        }
 
-                // rounded up: a timer that fires early finds nothing expired.
-                TimeSpan dueTime = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), deadline);
-                dueTime = dueTime > TimeSpan.Zero
-                    ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
-                    : TimeSpan.Zero;
+        /// <summary>
+        /// <see cref="ScheduleTimeoutScan"/> with <see cref="m_timeoutLock"/> held.
+        /// </summary>
+        private void ScheduleTimeoutScanLocked(long deadline)
+        {
+            if (deadline >= m_nextTimeoutScan)
+            {
+                return;
+            }
+            m_nextTimeoutScan = deadline;
 
-                if (m_timeoutTimer == null)
-                {
-                    m_timeoutTimer = TimeProvider.CreateTimer(
-                        static state => ((UaSCUaBinaryClientChannel)state!).OnTimeoutScan(),
-                        this,
-                        dueTime,
-                        Timeout.InfiniteTimeSpan);
-                }
-                else
-                {
-                    m_timeoutTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-                }
+            // rounded up: a timer that fires early finds nothing expired.
+            TimeSpan dueTime = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), deadline);
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
+
+            if (m_timeoutTimer == null)
+            {
+                m_timeoutTimer = TimeProvider.CreateTimer(
+                    static state => ((UaSCUaBinaryClientChannel)state!).OnTimeoutScan(),
+                    this,
+                    dueTime,
+                    Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                m_timeoutTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
             }
         }
 
@@ -1788,7 +1807,8 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Stops the timeout timer for good.
+        /// Stops the timeout timer for good. Operations are no longer added from
+        /// here on, so the ones pending afterwards are all the channel holds.
         /// </summary>
         private void DisposeTimeoutTimer()
         {

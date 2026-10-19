@@ -34,10 +34,6 @@ using System.Threading.Tasks;
 using System.Threading.Tasks.Sources;
 using Microsoft.Extensions.Logging;
 
-// An operation locks itself: a lock object of its own would be one more allocation
-// per request, and nothing else locks an operation.
-#pragma warning disable CA2002 // Do not lock on objects with weak identity
-
 namespace Opc.Ua.Bindings
 {
     /// <summary>
@@ -144,7 +140,7 @@ namespace Opc.Ua.Bindings
         {
             if (disposing)
             {
-                lock (this)
+                lock (m_lock)
                 {
                     m_timer?.Dispose();
                     m_timer = null;
@@ -265,7 +261,7 @@ namespace Opc.Ua.Bindings
         {
             // check if the request has already completed.
             bool mustWait;
-            lock (this)
+            lock (m_lock)
             {
                 mustWait = !m_completed;
 
@@ -287,7 +283,7 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    lock (this)
+                    lock (m_lock)
                     {
                         // Dispose the event
                         m_event?.Dispose();
@@ -297,7 +293,7 @@ namespace Opc.Ua.Bindings
             }
 
             // return the response.
-            lock (this)
+            lock (m_lock)
             {
                 if (m_error != null && throwOnError)
                 {
@@ -319,7 +315,7 @@ namespace Opc.Ua.Bindings
         {
             // check if the request has already completed.
             bool mustWait;
-            lock (this)
+            lock (m_lock)
             {
                 mustWait = !m_completed;
 
@@ -369,7 +365,7 @@ namespace Opc.Ua.Bindings
                 finally
                 {
                     cancellation.Dispose();
-                    lock (this)
+                    lock (m_lock)
                     {
                         m_tcs = null;
                     }
@@ -382,7 +378,7 @@ namespace Opc.Ua.Bindings
             }
 
             // return the response.
-            lock (this)
+            lock (m_lock)
             {
                 if (m_error != null && throwOnError)
                 {
@@ -410,7 +406,7 @@ namespace Opc.Ua.Bindings
         /// </exception>
         internal ValueTask WaitForCompletionAsync(CancellationToken ct)
         {
-            lock (this)
+            lock (m_lock)
             {
                 if (m_completed)
                 {
@@ -456,7 +452,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_waitRegistration.Dispose();
-                lock (this)
+                lock (m_lock)
                 {
                     m_waiting = false;
                 }
@@ -467,7 +463,7 @@ namespace Opc.Ua.Bindings
                 throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
             }
 
-            lock (this)
+            lock (m_lock)
             {
                 if (m_error != null)
                 {
@@ -499,7 +495,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (this)
+                lock (m_lock)
                 {
                     m_properties ??= [];
 
@@ -518,7 +514,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (this)
+                lock (m_lock)
                 {
                     return m_asyncState;
                 }
@@ -530,7 +526,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (this)
+                lock (m_lock)
                 {
                     m_event ??= new ManualResetEvent(m_completed);
 
@@ -544,7 +540,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (this)
+                lock (m_lock)
                 {
                     return m_synchronous;
                 }
@@ -556,7 +552,7 @@ namespace Opc.Ua.Bindings
         {
             get
             {
-                lock (this)
+                lock (m_lock)
                 {
                     return m_completed;
                 }
@@ -579,7 +575,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected virtual bool InternalComplete(bool doNotBlock, object? result)
         {
-            lock (this)
+            lock (m_lock)
             {
                 // ignore multiple calls (i.e. a timeout after a response or vise versa).
                 if (m_completed)
@@ -667,6 +663,7 @@ namespace Opc.Ua.Bindings
         private static readonly TimerCallback s_onTimeout =
             static state => ((ChannelAsyncOperation<T>)state!).OnTimeout(null);
         private static readonly object? s_boxedDefault = default(T);
+        private readonly Lock m_lock = new();
         private readonly AsyncCallback? m_callback;
         private readonly object? m_asyncState;
         private readonly bool m_synchronous;
