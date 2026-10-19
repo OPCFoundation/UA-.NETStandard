@@ -168,8 +168,8 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 Assert.That(pair.Client.NativeConnection.SecurityInvalidated, Is.True);
                 Assert.That(pair.Client.Context.IsReady, Is.False);
                 Assert.That(pair.Server.Context.IsReady, Is.False);
-                Assert.That(pair.Client.GetResourceUsage(), Is.Default);
-                Assert.That(pair.Server.GetResourceUsage(), Is.Default);
+                AssertHostReleased(pair.Client.GetResourceUsage());
+                AssertHostReleased(pair.Server.GetResourceUsage());
             });
             Assert.That(await source.SendAsync(new ByteString(new byte[] { 1 })).ConfigureAwait(false),
                 Is.Not.EqualTo(DataChannelResult.Good));
@@ -480,8 +480,8 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             {
                 Assert.That(pair.Client.Context.IsReady, Is.False);
                 Assert.That(pair.Server.Context.IsReady, Is.False);
-                Assert.That(pair.Client.GetResourceUsage(), Is.Default);
-                Assert.That(pair.Server.GetResourceUsage(), Is.Default);
+                AssertHostReleased(pair.Client.GetResourceUsage());
+                AssertHostReleased(pair.Server.GetResourceUsage());
                 DataChannelResourceAssertions.AreReleased(m_environment.ClientBudget.Usage);
                 DataChannelResourceAssertions.AreReleased(m_environment.ServerBudget.Usage);
                 Assert.That(remoteClose.ErrorCode, Is.EqualTo(55));
@@ -606,6 +606,23 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             using DataChannelMessage? received = await sink.ReadAsync(deadline.Token).ConfigureAwait(false);
             Assert.That(received!.Payload.Span.ToArray(), Is.EqualTo("Z"u8.ToArray()));
+        }
+
+        /// <summary>
+        /// Checks actual host and native storage without comparing padding in the snapshot.
+        /// </summary>
+        private static void AssertHostReleased(WebTransportResourceUsage usage)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(usage.HostBufferedBytes, Is.Zero);
+                Assert.That(usage.HostJobs, Is.Zero);
+                Assert.That(usage.HostSendLeases, Is.Zero);
+                Assert.That(usage.NativeQueuedBytes, Is.Zero);
+                Assert.That(usage.NativeLeasedBytes, Is.Zero);
+                Assert.That(usage.NativePendingSends, Is.Zero);
+                Assert.That(usage.NativeReservedPayload, Is.Zero);
+            });
         }
 
         /// <summary>

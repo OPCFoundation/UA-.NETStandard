@@ -251,18 +251,19 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     TestContext.CurrentContext.CancellationToken).ConfigureAwait(false),
                     Is.EqualTo(DataChannelResult.Good));
 
-                Assert.Multiple(() =>
-                {
-                    Assert.That(pair.Core.LeftCarrier.Payloads, Has.Count.EqualTo(1));
-                    Assert.That(pair.Core.LeftBudget.Usage.Messages, Is.Zero);
-                    Assert.That(pair.Core.RightBudget.Usage.Messages, Is.EqualTo(1));
-                });
+                // Application accounting also includes asynchronously released END/CREDIT records.
+                await Assert.ThatAsync(() => Task.FromResult(pair.Core.LeftBudget.Usage.Messages),
+                    Is.Zero.After(5000).PollEvery(10)).ConfigureAwait(false);
+                await Assert.ThatAsync(() => Task.FromResult(pair.Core.RightBudget.Usage.Messages),
+                    Is.EqualTo(1).After(5000).PollEvery(10)).ConfigureAwait(false);
+                Assert.That(pair.Core.LeftCarrier.Payloads, Has.Count.EqualTo(1));
             }
             finally
             {
                 await receiver.DisposeAsync().ConfigureAwait(false);
             }
-            Assert.That(pair.Core.RightBudget.Usage.Messages, Is.Zero);
+            await Assert.ThatAsync(() => Task.FromResult(pair.Core.RightBudget.Usage.Messages),
+                Is.Zero.After(5000).PollEvery(10)).ConfigureAwait(false);
         }
 
         [Test]

@@ -192,7 +192,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 }
                 await Task.Delay(20).ConfigureAwait(false);
             }
-            Assert.That(counts, Is.Default);
+            NativeQuicResourceAssertions.AreReleased(counts);
         }
 
         private INativeQuicBackend? m_backend;

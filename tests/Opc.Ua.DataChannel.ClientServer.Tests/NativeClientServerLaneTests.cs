@@ -94,7 +94,7 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                 }
                 await Task.Delay(20).ConfigureAwait(false);
             }
-            Assert.That(counts, Is.Default);
+            NativeQuicResourceAssertions.AreReleased(counts);
         }
 
         /// <summary>

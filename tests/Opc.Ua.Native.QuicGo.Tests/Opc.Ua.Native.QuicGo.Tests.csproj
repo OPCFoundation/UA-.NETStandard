@@ -14,5 +14,6 @@
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <ProjectReference Include="..\..\src\Opc.Ua.Native.QuicGo\Opc.Ua.Native.QuicGo.csproj" />
     <Compile Remove="Aot\**\*.cs" />
+    <Compile Include="..\Common\NativeQuicResourceAssertions.cs" />
   </ItemGroup>
 </Project>

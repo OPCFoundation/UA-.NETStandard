@@ -21,5 +21,6 @@
     <Compile Include="..\Opc.Ua.Bindings.WebTransport.Tests\WebTransportTestEnvironment.cs" Link="Support\WebTransportTestEnvironment.cs" />
     <Compile Include="..\Opc.Ua.Bindings.WebTransport.Tests\RecordingQuicBackend.cs" Link="Support\RecordingQuicBackend.cs" />
     <Compile Include="..\Common\DataChannelResourceAssertions.cs" />
+    <Compile Include="..\Common\NativeQuicResourceAssertions.cs" />
   </ItemGroup>
 </Project>

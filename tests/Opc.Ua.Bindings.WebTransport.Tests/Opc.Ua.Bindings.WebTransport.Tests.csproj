@@ -18,5 +18,6 @@
   <ItemGroup>
     <Compile Remove="Aot\**\*.cs" />
     <Compile Include="..\Common\DataChannelResourceAssertions.cs" />
+    <Compile Include="..\Common\NativeQuicResourceAssertions.cs" />
   </ItemGroup>
 </Project>

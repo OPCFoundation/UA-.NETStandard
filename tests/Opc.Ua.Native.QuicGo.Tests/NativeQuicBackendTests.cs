@@ -60,7 +60,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
                 cancelLifetimeFirst: cancelLifetimeFirst, lateErrorCode: lateErrorCode)
                 .ConfigureAwait(false);
             Assert.That(checks, Is.EqualTo(22));
-            Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
             INativeQuicBackend first = provider.GetRequiredService<INativeQuicBackend>();
             INativeQuicBackend second = provider.GetRequiredService<INativeQuicBackend>();
             Assert.That(first, Is.SameAs(second));
-            Assert.That(await first.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await first.GetCountsAsync().ConfigureAwait(false));
             var other = new NativeQuicBackend(new NativeQuicLibrary(
                 m_library.AbsolutePath + ".another", m_library.Sha256));
             await Assert.ThrowsAsync<InvalidOperationException>(
@@ -96,7 +96,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
             Assert.That(selected.AbsolutePath, Is.EqualTo(m_library.AbsolutePath));
             Assert.That(selected.Sha256, Is.EqualTo(m_library.Sha256));
             var backend = new NativeQuicBackend(selected);
-            Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -110,7 +110,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
             await source.CancelAsync().ConfigureAwait(false);
             await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await backend.GetCountsAsync(source.Token).ConfigureAwait(false)).ConfigureAwait(false);
-            Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
             await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await backend.StreamAsync(default, NativeQuicStreamOperation.Read, request).ConfigureAwait(false))
                 .ConfigureAwait(false);
-            Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace Opc.Ua.Native.QuicGo.Tests
             Assert.That(result.Status, Is.EqualTo(NativeQuicStatus.Invalid));
             Assert.That(result.BytesTransferred, Is.Zero);
             Assert.That(result.Stream.Value, Is.Zero);
-            Assert.That(await backend.GetCountsAsync().ConfigureAwait(false), Is.Default);
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
         }
 
         private NativeQuicLibrary m_library = null!;
