@@ -1638,20 +1638,19 @@ namespace Opc.Ua.Server
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
-            IFilterContext context,
+            FilterContext context,
             EventFilter filter,
             IFilterTarget instance)
         {
             // fetch the event fields.
             bool[] rejected = GetRejectedSelectClauses(context, filter);
-            var eventFieldValues = new List<Variant>(rejected.Length);
+            var eventFieldValues = new Variant[rejected.Length];
             for (int ii = 0; ii < rejected.Length; ii++)
             {
                 // a select clause rejected in the EventFilterResult returns a null field
                 // (Part 4 §7.22.3).
                 if (rejected[ii])
                 {
-                    eventFieldValues.Add(Variant.Null);
                     continue;
                 }
 
@@ -1665,22 +1664,16 @@ namespace Opc.Ua.Server
                     clause.AttributeId,
                     clause.ParsedIndexRange);
 
-                // add the value to the list of event fields.
+                // a missing value stays a null field.
                 if (!value.IsNull)
                 {
                     // translate any localized text (scalar or array).
                     if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
                     {
-                        value = m_server.ResourceManager.TranslateValue(Session?.PreferredLocales!, value);
+                        value = m_server.ResourceManager.TranslateValue(context.PreferredLocales, value);
                     }
 
-                    // add value.
-                    eventFieldValues.Add(value);
-                }
-                // add a dummy entry for missing values.
-                else
-                {
-                    eventFieldValues.Add(Variant.Null);
+                    eventFieldValues[ii] = value;
                 }
             }
             var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
@@ -1688,6 +1681,45 @@ namespace Opc.Ua.Server
             result.Handle = instance;
             result.EventFields = eventFieldValues;
             return result;
+        }
+
+        /// <summary>
+        /// Returns the context to evaluate the event filter with. The context only carries
+        /// the server tables and the preferred locales of the session, so it is created again
+        /// only when the session replaces its locales (or the item moves to another session).
+        /// </summary>
+        private FilterContext GetEventFilterContext()
+        {
+            string[]? preferredLocales = Session?.PreferredLocales;
+            EventFilterContext? cached = m_eventFilterContext;
+            if (cached == null || !ReferenceEquals(cached.PreferredLocales, preferredLocales))
+            {
+                cached = new EventFilterContext(
+                    preferredLocales,
+                    new FilterContext(
+                        m_server.NamespaceUris,
+                        m_server.TypeTree,
+                        preferredLocales!,
+                        m_server.Telemetry));
+                m_eventFilterContext = cached;
+            }
+            return cached.Context;
+        }
+
+        /// <summary>
+        /// The event filter context and the locales it was created for.
+        /// </summary>
+        private sealed class EventFilterContext
+        {
+            public EventFilterContext(string[]? preferredLocales, FilterContext context)
+            {
+                PreferredLocales = preferredLocales;
+                Context = context;
+            }
+
+            public string[]? PreferredLocales { get; }
+
+            public FilterContext Context { get; }
         }
 
         /// <summary>
@@ -1730,12 +1762,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // construct the context to use for the event filter.
-                var context = new FilterContext(
-                    m_server.NamespaceUris,
-                    m_server.TypeTree,
-                    Session?.PreferredLocales!,
-                    m_server.Telemetry);
+                FilterContext context = GetEventFilterContext();
 
                 // event filter must be specified.
                 if (FilterToUse is not EventFilter filter)
@@ -2971,6 +2998,7 @@ namespace Opc.Ua.Server
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
         private RejectedSelectClauses? m_rejectedSelectClauses;
+        private EventFilterContext? m_eventFilterContext;
         private bool m_isDetached;
         private bool m_isDeleted;
         private bool m_countedAsRecoverable;
