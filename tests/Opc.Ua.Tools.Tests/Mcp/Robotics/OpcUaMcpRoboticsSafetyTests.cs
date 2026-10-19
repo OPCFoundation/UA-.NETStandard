@@ -164,7 +164,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.WotRuntime,
                     McpToolProfile.MachineTool,
                     McpToolProfile.Gms,
-                    McpToolProfile.CranesHoists
+                    McpToolProfile.CranesHoists,
+                    McpToolProfile.AutoId
                 ]));
 
             foreach (McpToolProfile profile in profiles)
