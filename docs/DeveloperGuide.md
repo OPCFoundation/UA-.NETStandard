@@ -457,11 +457,13 @@ The executor fails a project when its build fails, when the TRX counters report 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 
 Ordinary projects have a 45-minute combined ceiling. `Opc.Ua.Server.Tests`
-always runs in its own batch and receives 60 minutes on net48, with an
+always runs in its own batch and receives 60 minutes on Windows net48 and macOS, with an
 80-minute job ceiling including setup. A measured passing run used over
 12 minutes for its cold build and nearly 32 minutes for its tests, leaving
-less than a minute of margin under the old limit. Other Server targets and
-all other projects retain their existing budgets. This does not extend the
+less than a minute of margin under the old limit. A subsequent macOS run
+spent 18 minutes building, leaving less time than its previously successful
+31-minute test run. Windows/Linux net10.0 Server jobs and all other projects
+retain their existing budgets. This does not extend the
 mainline 10-minute single-test hang detector, skip tests, or change category
 filters.
 

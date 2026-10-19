@@ -395,7 +395,7 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// The ceiling covers the build and test together. Every ordinary project
         /// receives at least the established 45-minute combined ceiling; the
-        /// isolated legacy Server project has its separately checked allowance.
+        /// isolated Server project has separately checked allowances on slower profiles.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -411,8 +411,8 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The Server's observed net48 cold build and healthy tests take almost 45 minutes.
-        /// Its larger combined budget must apply only to an isolated Server batch.
+        /// The Server's cold build and healthy tests approach 45 minutes on net48 and macOS.
+        /// Their larger combined budget must apply only to an isolated Server batch.
         /// </summary>
         [TestCase("pr", false, 30)]
         [TestCase("full", false, 30)]
@@ -420,7 +420,7 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("full", true, 30)]
         [TestCase("pr", false, 100)]
         [TestCase("full", false, 100)]
-        public async Task ServerBatchesHaveAnIsolatedLegacyBudgetAsync(
+        public async Task ServerBatchesHaveAnIsolatedMeasuredBudgetAsync(
             string scope, bool onlyServer, int batchTargetMinutes)
         {
             const string serverProject = "tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj";
@@ -437,9 +437,10 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(servers, Is.Not.Empty);
             Assert.That(servers.Any(entry => entry.Framework == "net48"), Is.True);
+            Assert.That(servers.Any(entry => entry.Os == "macos"), Is.True);
             foreach (MatrixEntry server in servers)
             {
-                int expectedBudget = server.Framework == "net48" ? 60 : 45;
+                int expectedBudget = server.Framework == "net48" || server.Os == "macos" ? 60 : 45;
                 Assert.Multiple(() =>
                 {
                     Assert.That(server.Projects, Is.EqualTo(serverProject), server.Id);
@@ -454,7 +455,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// A longer legacy Server budget must not relax ordinary projects or drop their scheduling.
+        /// A longer Server budget must not relax ordinary projects or drop their scheduling.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]

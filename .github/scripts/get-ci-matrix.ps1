@@ -273,12 +273,14 @@ $BatchFixedMinutes = 6
 # their established 45-minute ceiling.
 $PerProjectTimeoutMinutes = 45
 
-# The net48 Server project needs room for a cold build as well as its tests.
+# The Server project needs room for a cold build as well as its tests on slower profiles.
 # Run 39213825094 passed after 735s building + 1908s testing (44m03s); the next
 # run, 39236278891, was still progressing when 741s + 1959s reached 45 minutes.
-# Isolate that project below so its 60-minute legacy budget never widens the
-# budget of another project. The per-test hang detector is unchanged.
-$Net48ServerTestsTimeoutMinutes = 60
+# On macOS, run 39213825094 passed after 773s + 1864s. Run 39306041817 then
+# spent 1088s building, leaving only 1612s for that test workload before it was killed.
+# Isolate that project below so its 60-minute budget on net48 and macOS never
+# widens another project's budget. The per-test hang detector is unchanged.
+$ServerTestsTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -399,7 +401,7 @@ function Expand-BuildMatrix([string] $scope)
     dependencies together, and the result only depends on the list and the
     table, so a run is reproducible. A project heavier than the target is
     placed in a batch of its own rather than split or dropped. The Server
-    project always runs alone because its legacy profile has a larger ceiling;
+    project always runs alone because its slower profiles have a larger ceiling;
     keeping this rule independent of the profile preserves cross-OS batching.
 #>
 function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
@@ -497,12 +499,12 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
             $batch = $batches[$index]
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
             # This remains one combined build-and-test ceiling. Only the isolated
-            # Server batch on .NET Framework needs the larger measured allowance.
+            # Server batch on .NET Framework or macOS needs the larger measured allowance.
             $perProjectTimeout = $PerProjectTimeoutMinutes
-            if ($testProfile.framework -eq 'net48' -and
-                $testProfile.os -eq 'windows' -and
-                $batch -contains $ServerProject) {
-                $perProjectTimeout = $Net48ServerTestsTimeoutMinutes
+            if ($batch -contains $ServerProject -and
+                (($testProfile.framework -eq 'net48' -and $testProfile.os -eq 'windows') -or
+                    $testProfile.os -eq 'macos')) {
+                $perProjectTimeout = $ServerTestsTimeoutMinutes
             }
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus
             # the combined build-and-test ceiling for every project in the
