@@ -213,7 +213,7 @@ Since C1 is fixed, the CTT sends TreatUncertainAsBad = False in `003-02.js`, `00
 [11495](https://mantis.opcfoundation.org/view.php?id=11495) ~0025874 (and earlier
 [7975](https://mantis.opcfoundation.org/view.php?id=7975)) confirms the CTT for Count: non-Good values are never
 counted, but they do affect the status. By the same rule the CTT is right for the other aggregates whose
-definition says Good. Server change pending (see *Server follow-ups*).
+definition says Good. The server follows this with [#4846](https://github.com/OPCFoundation/UA-.NETStandard/pull/4846).
 
 ### U6. NumberOfTransitions with TreatUncertainAsBad = True (open)
 
@@ -223,8 +223,6 @@ CTT skips them when TreatUncertainAsBad = True (16 p06 errors). Not asked in Man
 
 ## Server follow-ups from the answers
 
-- **U5:** exclude Uncertain values from the value of Average, Count, Delta, StandardDeviation* and Variance* also
-  with TreatUncertainAsBad = False, and let them make the status `UncertainDataSubNormal`.
 - **C48/C49:** if 11427 ~0025875 is confirmed over 11426 ~0025852, return the Good extremum (not the Uncertain
   one) with `UncertainDataSubNormal`.
 - **C64:** if [11499](https://mantis.opcfoundation.org/view.php?id=11499) defines another conversion than Part 4
