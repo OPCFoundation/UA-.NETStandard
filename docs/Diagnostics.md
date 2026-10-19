@@ -1141,7 +1141,7 @@ await using (manager.ConfigureAwait(false))
     // 3. Every client that connects while the session is running has its
     //    inbound/outbound frames and channel-token key material recorded.
 
-    await manager.StopAsync(session.SessionId, ct).ConfigureAwait(false);
+    await manager.StopAsync(session.Id, ct).ConfigureAwait(false);
     // session.SessionFolder now contains capture.pcap (+ keys.uakeys.json).
 }
 ```
@@ -1248,12 +1248,13 @@ var session = await manager.StartAsync(new StartCaptureRequest
 // wrapped by the capture binding. Channel sharing means a single
 // recording stream covers every participant on the same endpoint.
 
-await manager.StopAsync(session.SessionId, ct);
+await manager.StopAsync(session.Id, ct);
 
-var bytes = await manager.GetCaptureAsync(
-    session.SessionId,
-    FormatKind.ServiceTimeline,
-    ct);
+TraceFormatterRegistry formatters = serviceProvider.GetRequiredService<TraceFormatterRegistry>();
+FormatResult timeline = await formatters
+    .Get(FormatKind.ServiceTimeline)
+    .FormatAsync(session.Source, maxFrames: null, ct);
+byte[] bytes = timeline.Bytes;
 ```
 
 ### Quick start: replay and decode an existing pcap
@@ -1271,10 +1272,10 @@ var session = await manager.StartAsync(new StartCaptureRequest
     SessionFolder = "C:/captures"
 }, ct);
 
-var timeline = await manager.GetCaptureAsync(
-    session.SessionId,
-    FormatKind.ServiceTimeline,
-    ct);
+FormatResult timeline = await serviceProvider
+    .GetRequiredService<TraceFormatterRegistry>()
+    .Get(FormatKind.ServiceTimeline)
+    .FormatAsync(session.Source, maxFrames: null, ct);
 ```
 
 ### Quick start: mock-server replay
@@ -1282,15 +1283,17 @@ var timeline = await manager.GetCaptureAsync(
 ```csharp
 services.AddPcap();
 
-CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
+ReplaySessionManager replays = serviceProvider.GetRequiredService<ReplaySessionManager>();
 
-var replay = await manager.ReplayAsync(new ReplayPcapRequest
+ReplaySession replay = await replays.StartAsync(new StartReplayRequest
 {
     PcapFilePath = "C:/captures/server-conversation.pcap",
     KeyLogFilePath = "C:/captures/server-conversation.uakeys.json",
     Mode = ReplayMode.MockServer,
-    ListenEndpointUrl = "opc.tcp://localhost:4840/CapturedServer"
+    ListenPort = 4840
 }, ct);
+
+Console.WriteLine($"Mock server listening on {replay.ListenUri}");
 ```
 
 ### Security profile coverage

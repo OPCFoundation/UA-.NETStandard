@@ -734,8 +734,8 @@ public sealed class CertificateJwtIssuer : ITokenIssuer
 }
 ```
 
-GDS hosts register the default issuer with `WithAuthorizationService(...)`
-or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
+GDS hosts register the default issuer with `AddAuthorizationService(...)`
+or a custom issuer with `AddAuthorizationService<TIssuer>(...)`; see
 [AuthorizationService](AuthorizationService.md).
 
 ### `IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation

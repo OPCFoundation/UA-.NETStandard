@@ -189,9 +189,7 @@ is overridden internally per node.
 ### Subscribing to events
 
 ```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()
-    .Build();
+EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
 await foreach (EventNotification evt in streaming
     .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
@@ -202,9 +200,11 @@ await foreach (EventNotification evt in streaming
 }
 ```
 
-`SubscribeEventsAsync` does *not* validate the filter. Use
-`AlarmEventFilterBuilder` for Part 9 events and any custom
-`SimpleAttributeOperand`-based filter for other event types.
+`SubscribeEventsAsync` does *not* validate the filter. Use the
+generated `{Type}Record.EventFilters.Build()` factories for Part 9 and
+other modelled event types, or any custom
+`SimpleAttributeOperand`-based filter; see
+[Alarms and Conditions](AlarmsAndConditions.md).
 
 ### Composing streams
 

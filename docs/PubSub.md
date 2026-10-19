@@ -405,68 +405,109 @@ returns the builder; `Build()` materialises the
 
 ### Publisher — UDP / UADP
 
+The Part 14 configuration (connections, writer groups, writers,
+published data sets) is built with `PubSubConfigurationBuilder` and
+handed to the application builder with `UseConfiguration(...)`:
+
 ```csharp
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Udp;
 
 ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+
+PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
+    .AddPublishedDataSet("Boiler", ds => ds
+        .AddField("Temperature", (byte)DataTypes.Double, DataTypeIds.Double)
+        .AddField("Pressure", (byte)DataTypes.Double, DataTypeIds.Double))
+    .AddConnection("Connection 1", connection => connection
+        .WithPublisherId(new Variant((ushort)1))
+        .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
+        .WithAddress("opc.udp://239.0.0.1:4840")
+        .AddWriterGroup("WG-1", group => group
+            .WithWriterGroupId(100)
+            .WithPublishingInterval(1000, keepAliveTimeMs: 10_000)
+            .WithTransportSettings(new DatagramWriterGroupTransportDataType())
+            .AddDataSetWriter("Writer-1", writer => writer
+                .WithDataSetWriterId(1)
+                .WithDataSetName("Boiler")
+                .WithKeyFrameCount(1))))
+    .Build();
 
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
-    .AddDataSetSource("Boiler", new SampleBoilerDataSetSource())
-    .AddUdpConnection("urn:Connection-1",
-        publisherId: PublisherId.FromUInt16(1),
-        endpointUrl: "opc.udp://239.0.0.1:4840")
-    .AddWriterGroup("WG-1", writerGroupId: 100,
-        period: TimeSpan.FromMilliseconds(1000),
-        keepAliveTime: TimeSpan.FromSeconds(10))
-    .AddDataSetWriter("Writer-1", dataSetWriterId: 1, dataSetName: "Boiler",
-        contentMask: UadpDataSetMessageContentMask.Status
-                   | UadpDataSetMessageContentMask.SequenceNumber);
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
+    // MyBoilerSource implements IPublishedDataSetSource.
+    .AddDataSetSource("Boiler", new MyBoilerSource())
+    .UseConfiguration(configuration);
 
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
 ```
 
-The `Add*` extension methods in
-`PubSubApplicationBuilderExtensions` translate transport / writer
-configuration into Part 14
-`PubSubConnectionDataType` / `WriterGroupDataType` /
-`DataSetWriterDataType` instances and append them to the inline
-configuration the builder will hand off to the runtime.
+The same builder also offers `WithMessageSettings(...)` and
+`WithSecurity(...)` on writer groups and writers;
+[PublisherConfigurationBuilder.cs](../samples/PubSub/ConsoleReferencePubSubClient/PublisherConfigurationBuilder.cs)
+shows complete UADP and JSON message settings for every transport.
 
 ### Subscriber — MQTT / JSON
 
+The broker transports are easiest to wire through dependency
+injection (see [Dependency injection / hosting](#dependency-injection--hosting)),
+which registers the MQTT client factory for you:
+
 ```csharp
-using Microsoft.Extensions.Logging;
-using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Encoding.Json;
-using Opc.Ua.PubSub.Transports;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Configuration;
 
-ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
+    .AddConnection("Connection 1", connection => connection
+        .WithPublisherId(new Variant((ushort)1))
+        .WithTransportProfile(Profiles.PubSubMqttJsonTransport)
+        .WithAddress("mqtt://localhost:1883")
+        .AddReaderGroup("RG-1", group => group
+            .AddDataSetReader("Reader-1", reader => reader
+                .WithFilter(new Variant((ushort)1), writerGroupId: 100, dataSetWriterId: 1)
+                .WithMessageSettings(new JsonDataSetReaderMessageDataType
+                {
+                    NetworkMessageContentMask = (uint)(
+                        JsonNetworkMessageContentMask.NetworkMessageHeader |
+                        JsonNetworkMessageContentMask.DataSetMessageHeader |
+                        JsonNetworkMessageContentMask.PublisherId),
+                    DataSetMessageContentMask = (uint)(
+                        JsonDataSetMessageContentMask.DataSetWriterId |
+                        JsonDataSetMessageContentMask.SequenceNumber)
+                })
+                .WithTransportSettings(new BrokerDataSetReaderTransportDataType
+                {
+                    QueueName = "Quickstarts/Reference/Simple"
+                })
+                .WithDataSetMetaData("Boiler", metaData => metaData
+                    .AddField("Temperature", (byte)DataTypes.Double, DataTypeIds.Double)
+                    .AddField("Pressure", (byte)DataTypes.Double, DataTypeIds.Double)))))
+    .Build();
 
-var pb = new PubSubApplicationBuilder(telemetry)
-    .WithApplicationId("urn:opcfoundation:Sample:Subscriber")
-    .UseAllStandardEncoders()
-    .AddTransportFactory(new MqttPubSubTransportFactory(telemetry))
-    .AddDataSetSink("Boiler", new ConsoleSink())
-    .AddMqttConnection("urn:Connection-1",
-        endpointUrl: "mqtt://localhost:1883",
-        topicFilter: "Quickstarts/Reference/+")
-    .AddReaderGroup("RG-1", readerGroupId: 200)
-    .AddDataSetReader("Reader-1", dataSetReaderId: 1, dataSetName: "Boiler",
-        publisherId: PublisherId.FromUInt16(1),
-        writerGroupId: 100, dataSetWriterId: 1,
-        encoding: JsonEncodingMode.Compact)
-    .WriteToTargetVariables(); // map to address-space variables
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
+    .AddSubscriber()
+    .AddMqttTransport()
+    // MyConsoleSink implements ISubscribedDataSetSink.
+    .AddSubscribedDataSetSink("Reader-1", new MyConsoleSink())
+    .ConfigureApplication(app => app
+        .WithApplicationId("urn:opcfoundation:Sample:Subscriber")
+        .UseConfiguration(configuration)));
 
-await using IPubSubApplication application = await pb.BuildAndStartAsync();
+await builder.Build().RunAsync();
 ```
+
+To write received fields into address-space variables instead of a
+sink, configure the reader with `WithMirrorSubscribedDataSet(...)`.
 
 ### XML configuration mode
 
@@ -479,7 +520,8 @@ hot-reload changes:
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
     .UseConfigurationFile("publisher.xml");
 
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
@@ -500,7 +542,8 @@ imperatively, hand a fully-populated
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
     .UseConfiguration(PublisherConfigurationBuilder.Build(/*...*/));
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
 ```

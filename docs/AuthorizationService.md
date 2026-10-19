@@ -97,7 +97,7 @@ if (refreshToken != null && DateTime.UtcNow >= expiresAt.AddMinutes(-5))
 
 ## Server hosting
 
-Use `WithAuthorizationService` to register the default in-box issuer and in-memory request store:
+Use `AddAuthorizationService` to register the default in-box issuer and in-memory request store:
 
 ```csharp
 services.AddOpcUa()
@@ -107,7 +107,7 @@ services.AddOpcUa()
         o.ApplicationUri = "urn:example:gds";
         o.EndpointUrls.Add("opc.tcp://localhost:58810/GDS");
     })
-    .WithAuthorizationService(o =>
+    .AddAuthorizationService(o =>
     {
         o.IssuerUri = "urn:example:gds";
         o.SigningCertificate = new CertificateIdentifier
@@ -124,7 +124,7 @@ services.AddOpcUa()
 When `SigningCertificate` is omitted in the hosted GDS, the default issuer falls back to the GDS application instance certificate. Custom deployments can replace the signer:
 
 ```csharp
-builder.WithAuthorizationService<MyTokenIssuer>(o =>
+builder.AddAuthorizationService<MyTokenIssuer>(o =>
 {
     o.IssuerUri = "https://issuer.example";
 });
@@ -139,7 +139,7 @@ dependency.
 
 ### Custom `ITokenIssuer` for cloud or HSM signing
 
-Use `WithAuthorizationService<TIssuer>()` when the signing key is not
+Use `AddAuthorizationService<TIssuer>()` when the signing key is not
 resident in the process. External signing options include:
 
 - Azure Key Vault
@@ -175,7 +175,7 @@ public sealed class CloudKmsTokenIssuer : ITokenIssuer
 
 services.AddOpcUa()
     .AddGdsServer(o => o.ApplicationUri = "urn:example:gds")
-    .WithAuthorizationService<CloudKmsTokenIssuer>(o =>
+    .AddAuthorizationService<CloudKmsTokenIssuer>(o =>
     {
         o.SigningCertificate = new CertificateIdentifier
         {

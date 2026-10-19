@@ -283,12 +283,12 @@ session-local, never shared by every client of a listener.
 
 ## Client-side usage
 
-The client API is the standard `Session` + `EndpointDescription` flow;
-the transport is selected automatically from
+The client API is the standard `ManagedSessionBuilder` flow; the
+transport is selected automatically from the endpoint URL scheme and
 `EndpointDescription.TransportProfileUri`:
 
 ```csharp
-ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.AddConsole());
 var application = new ApplicationInstance(telemetry)
 {
     ApplicationName = "MyClient",
@@ -298,17 +298,14 @@ ApplicationConfiguration configuration = await application
     .Build("urn:localhost:MyClient", "urn:localhost:product")
     .AsClient()
     .AddSecurityConfiguration("CN=MyClient")
-    .Create()
+    .CreateAsync()
     .ConfigureAwait(false);
 
-// 1) Direct connect to a known opc.wss endpoint (binary UASC):
-EndpointDescription wssEndpoint = CoreClientUtils.SelectEndpoint(
-    application,
-    "opc.wss://server.example.com:62543/MyServer",
-    useSecurity: true);
-ISession session = await Session.CreateAsync(
-    configuration, new ConfiguredEndpoint(null, wssEndpoint), false,
-    "WssSession", 60_000, null, null).ConfigureAwait(false);
+// 1) Connect to a known opc.wss endpoint (binary UASC):
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint("opc.wss://server.example.com:62543/MyServer")
+    .ConnectAsync(ct)
+    .ConfigureAwait(false);
 
 // 2) HTTPS-JSON endpoint (Security Mode None):
 var jsonEndpoint = new EndpointDescription
@@ -318,9 +315,10 @@ var jsonEndpoint = new EndpointDescription
     SecurityPolicyUri = SecurityPolicies.None,
     TransportProfileUri = Profiles.HttpsJsonTransport
 };
-ISession jsonSession = await Session.CreateAsync(
-    configuration, new ConfiguredEndpoint(null, jsonEndpoint), false,
-    "JsonSession", 60_000, null, null).ConfigureAwait(false);
+ManagedSession jsonSession = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(new ConfiguredEndpoint(null, jsonEndpoint))
+    .ConnectAsync(ct)
+    .ConfigureAwait(false);
 ```
 
 A few notes:

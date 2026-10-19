@@ -132,7 +132,7 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 | `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
 | `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
-| `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
+| `AddAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
 | `AddSessionlessInvocation(...)`               | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |

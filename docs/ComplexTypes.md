@@ -221,7 +221,7 @@ var writeValue = new WriteValue
     }
 };
 
-var writeValues = new WriteValueCollection { writeValue };
+ArrayOf<WriteValue> writeValues = [writeValue];
 var response = await session.WriteAsync(null, writeValues, CancellationToken.None);
 
 if (StatusCode.IsGood(response.Results[0]))
@@ -291,23 +291,10 @@ public class UDT_SemVer : IEncodeable
         Patch = decoder.ReadByte("Patch");
     }
 
-    public bool IsEqual(IEncodeable encodeable) =>
+    public bool IsEqual(IEncodeable? encodeable) =>
         encodeable is UDT_SemVer other &&
         Major == other.Major && Minor == other.Minor && Patch == other.Patch;
 
-    public void EncodeJson(IJsonEncoder encoder)
-    {
-        encoder.WriteByte("Major", Major);
-        encoder.WriteByte("Minor", Minor);
-        encoder.WriteByte("Patch", Patch);
-    }
-
-    public void DecodeJson(IJsonDecoder decoder)
-    {
-        Major = decoder.ReadByte("Major");
-        Minor = decoder.ReadByte("Minor");
-        Patch = decoder.ReadByte("Patch");
-    }
 
     public object Clone() => MemberwiseClone();
 }
