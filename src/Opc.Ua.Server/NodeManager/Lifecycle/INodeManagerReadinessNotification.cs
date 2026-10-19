@@ -60,4 +60,17 @@ namespace Opc.Ua.Server
         /// <param name="cancellationToken">The caller's startup or registration cancellation token.</param>
         ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default);
     }
+
+    /// <summary>
+    /// Synchronous counterpart of <see cref="INodeManagerReadinessNotification"/> for
+    /// <see cref="INodeManager"/> implementations. <see cref="AsyncNodeManagerAdapter"/> invokes it
+    /// when the wrapped manager implements it.
+    /// </summary>
+    public interface ISyncNodeManagerReadinessNotification
+    {
+        /// <summary>
+        /// Completes initialization once runtime lifecycle operations are available.
+        /// </summary>
+        void OnServerReady();
+    }
 }

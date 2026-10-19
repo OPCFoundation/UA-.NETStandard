@@ -230,26 +230,6 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Represents a suspension of monitored item binding admission that is lifted when disposed.
-    /// </summary>
-    /// <param name="resume">The callback that restores admission, or null for an empty suspension.</param>
-    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
-    {
-        /// <summary>
-        /// Gets a suspension that does nothing when disposed.
-        /// </summary>
-        internal static BindingAdmissionSuspension Empty { get; } = new(null);
-
-        /// <inheritdoc/>
-        public ValueTask DisposeAsync()
-        {
-            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
-        }
-
-        private Func<ValueTask>? m_resume = resume;
-    }
-
-    /// <summary>
     /// Carries a NodeManager and the bookkeeping a lifecycle operation needs to move it through
     /// the prepare, publish, commit, and rollback stages of <see cref="IDynamicNodeManagerHost"/>.
     /// </summary>

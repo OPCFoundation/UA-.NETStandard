@@ -45,14 +45,4 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
     }
 
-    /// <summary>
-    /// Binds a stock factory to the exact operation's prior registration before candidate construction.
-    /// </summary>
-    internal interface IRegistrationBoundNodeManagerFactory
-    {
-        /// <summary>
-        /// Gets the prior owner, or null for an initial addition.
-        /// </summary>
-        NodeManagerRegistration? ExpectedRegistration { get; }
-    }
 }

@@ -8,8 +8,8 @@
  * files (the "Software"), to deal in the Software without
  * restriction, including without limitation the rights to use,
  * copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following
+ * copies of the Software, and to permit persons to whom
+ * the Software is furnished to do so, subject to the following
  * conditions:
  *
  * The above copyright notice and this permission notice shall be
@@ -27,18 +27,29 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Synchronous counterpart of <see cref="INodeManagerReadinessNotification"/> for
-    /// <see cref="INodeManager"/> implementations. <see cref="AsyncNodeManagerAdapter"/> invokes it
-    /// when the wrapped manager implements it.
+    /// Represents a suspension of monitored item binding admission that is lifted when disposed.
     /// </summary>
-    public interface ISyncNodeManagerReadinessNotification
+    /// <param name="resume">The callback that restores admission, or null for an empty suspension.</param>
+    internal sealed class BindingAdmissionSuspension(Func<ValueTask>? resume) : IAsyncDisposable
     {
         /// <summary>
-        /// Completes initialization once runtime lifecycle operations are available.
+        /// Gets a suspension that does nothing when disposed.
         /// </summary>
-        void OnServerReady();
+        internal static BindingAdmissionSuspension Empty { get; } = new(null);
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return Interlocked.Exchange(ref m_resume, null)?.Invoke() ?? default;
+        }
+
+        private Func<ValueTask>? m_resume = resume;
     }
 }

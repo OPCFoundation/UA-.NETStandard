@@ -34,6 +34,43 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Carries the candidate routing image and callbacks for a batch publication.
+    /// </summary>
+    /// <param name="Candidates">The prepared node managers to add or replace.</param>
+    /// <param name="Removed">The node managers removed by the batch.</param>
+    /// <param name="ImmediateRetirements">The removed managers that retire without draining.</param>
+    /// <param name="RoutingRevision">The routing image the batch was prepared against.</param>
+    /// <param name="TypeTree">The candidate type tree.</param>
+    /// <param name="OriginalTypes">The type tree the batch was prepared against.</param>
+    /// <param name="TypeRevision">The revision of the original type tree.</param>
+    /// <param name="Factory">The candidate encodeable factory.</param>
+    /// <param name="OriginalFactory">The encodeable factory the batch was prepared against.</param>
+    /// <param name="FactoryRevision">The revision of the original factory.</param>
+    /// <param name="ReadImages">The read images to bind when the batch is published.</param>
+    /// <param name="DecideAsync">The callback deciding whether to publish, or null to validate only.</param>
+    /// <param name="Published">The callback invoked after the candidate has been published.</param>
+    /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
+    /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
+    /// <param name="CancellationToken">The token to cancel the operation.</param>
+    internal sealed record NodeManagerBatchContext(
+        ArrayOf<PreparedNodeManager> Candidates,
+        ArrayOf<IAsyncNodeManager> Removed,
+        ArrayOf<IAsyncNodeManager> ImmediateRetirements,
+        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
+        TypeTable TypeTree,
+        TypeTable OriginalTypes,
+        long TypeRevision,
+        EncodeableFactory Factory,
+        EncodeableFactory OriginalFactory,
+        long FactoryRevision,
+        ArrayOf<INodeManagerReadImage> ReadImages,
+        Func<CancellationToken, ValueTask>? DecideAsync,
+        Action Published,
+        Func<ValueTask> ReconcileBindingsAsync,
+        Action<Exception> ReportCleanupFailure,
+        CancellationToken CancellationToken);
+
+    /// <summary>
     /// Optional host support for a single prepared routing publication.
     /// </summary>
     internal interface IDynamicNodeManagerBatchHost
@@ -91,39 +128,8 @@ namespace Opc.Ua.Server
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.
         /// A null decision validates and releases the reservations without changing the serving image.
         /// </summary>
-        /// <param name="candidates">The prepared node managers to add or replace.</param>
-        /// <param name="removed">The node managers removed by the batch.</param>
-        /// <param name="immediateRetirements">The removed managers that retire without draining.</param>
-        /// <param name="routingRevision">The routing image the batch was prepared against.</param>
-        /// <param name="typeTree">The candidate type tree.</param>
-        /// <param name="originalTypes">The type tree the batch was prepared against.</param>
-        /// <param name="typeRevision">The revision of the type tree the batch was prepared against.</param>
-        /// <param name="factory">The candidate encodeable factory.</param>
-        /// <param name="originalFactory">The encodeable factory the batch was prepared against.</param>
-        /// <param name="factoryRevision">The revision of the factory the batch was prepared against.</param>
-        /// <param name="readImages">The read images to bind when the batch is published.</param>
-        /// <param name="decideAsync">The callback deciding whether to publish, or null to validate only.</param>
-        /// <param name="published">The callback invoked after the candidate has been published.</param>
-        /// <param name="reconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
-        /// <param name="reportCleanupFailure">The callback receiving cleanup failures.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <param name="context">The batch publication inputs and callbacks.</param>
         /// <returns>A task that completes when the batch has been validated or published.</returns>
-        ValueTask CommitBatchAsync(
-            ArrayOf<PreparedNodeManager> candidates,
-            ArrayOf<IAsyncNodeManager> removed,
-            ArrayOf<IAsyncNodeManager> immediateRetirements,
-            NodeManagerRoutingTable.RoutingSnapshot routingRevision,
-            TypeTable typeTree,
-            TypeTable originalTypes,
-            long typeRevision,
-            EncodeableFactory factory,
-            EncodeableFactory originalFactory,
-            long factoryRevision,
-            ArrayOf<INodeManagerReadImage> readImages,
-            Func<CancellationToken, ValueTask>? decideAsync,
-            Action published,
-            Func<ValueTask> reconcileBindingsAsync,
-            Action<Exception> reportCleanupFailure,
-            CancellationToken cancellationToken);
+        ValueTask CommitBatchAsync(NodeManagerBatchContext context);
     }
 }

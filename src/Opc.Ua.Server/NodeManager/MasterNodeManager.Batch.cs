@@ -91,23 +91,30 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
-            ArrayOf<PreparedNodeManager> candidates,
-            ArrayOf<IAsyncNodeManager> removed,
-            ArrayOf<IAsyncNodeManager> immediateRetirements,
-            NodeManagerRoutingTable.RoutingSnapshot routingRevision,
-            TypeTable typeTree,
-            TypeTable originalTypes,
-            long typeRevision,
-            EncodeableFactory factory,
-            EncodeableFactory originalFactory,
-            long factoryRevision,
-            ArrayOf<INodeManagerReadImage> readImages,
-            Func<CancellationToken, ValueTask>? decideAsync,
-            Action published,
-            Func<ValueTask> reconcileBindingsAsync,
-            Action<Exception> reportCleanupFailure,
-            CancellationToken cancellationToken)
+            NodeManagerBatchContext context)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            ArrayOf<PreparedNodeManager> candidates = context.Candidates;
+            ArrayOf<IAsyncNodeManager> removed = context.Removed;
+            ArrayOf<IAsyncNodeManager> immediateRetirements = context.ImmediateRetirements;
+            NodeManagerRoutingTable.RoutingSnapshot routingRevision = context.RoutingRevision;
+            TypeTable typeTree = context.TypeTree;
+            TypeTable originalTypes = context.OriginalTypes;
+            long typeRevision = context.TypeRevision;
+            EncodeableFactory factory = context.Factory;
+            EncodeableFactory originalFactory = context.OriginalFactory;
+            long factoryRevision = context.FactoryRevision;
+            ArrayOf<INodeManagerReadImage> readImages = context.ReadImages;
+            Func<CancellationToken, ValueTask>? decideAsync = context.DecideAsync;
+            Action published = context.Published;
+            Func<ValueTask> reconcileBindingsAsync = context.ReconcileBindingsAsync;
+            Action<Exception> reportCleanupFailure = context.ReportCleanupFailure;
+            CancellationToken cancellationToken = context.CancellationToken;
+
             var referenceUpdates = new List<NodeState.ReferenceUpdate>();
             bool bindingAdmissionHeld = false;
             try
