@@ -187,8 +187,11 @@ workflows finish. `-ClientTimeoutSeconds` bounds the script's client process;
 | `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
 | `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
-`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName`
+`AggregationServer` reads `endpoint`, `host` (`127.0.0.1`), `port` (`62550`), `applicationName`
 (`AggregationServer`), `pkiRoot`, and `maximumDocumentBytes` (`33554432`).
+Its numeric-loopback default keeps the anonymous aggregation demonstration
+local-only; explicit host or endpoint overrides require appropriate remote-access
+security.
 
 `AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
 `applicationName` (`AggregationClient`), `pkiRoot`, `documentsDirectory`,

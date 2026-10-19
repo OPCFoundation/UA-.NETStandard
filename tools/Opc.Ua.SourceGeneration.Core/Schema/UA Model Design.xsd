@@ -352,6 +352,7 @@
         </xs:documentation>
       </xs:annotation>
     </xs:attribute>
+    <xs:attribute name="UserWriteAccess" type="xs:unsignedInt" use="optional" />
 
     <xs:attribute name="PartNo" type="xs:unsignedInt" use="optional" default="0">
       <xs:annotation>
@@ -623,6 +624,7 @@
           <xs:element name="OutputArguments" type="ListOfArguments" minOccurs="0" />
         </xs:sequence>
         <xs:attribute name="NonExecutable" type="xs:boolean" use="optional" />
+        <xs:attribute name="UserExecutable" type="xs:boolean" use="optional" />
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -720,14 +722,15 @@
     <xs:sequence>
       <xs:element name="Permission" type="Permissions" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
-    <xs:attribute name="Role" type="xs:QName" use="required" />
+    <xs:attribute name="Role" type="xs:QName" use="optional" />
+    <xs:attribute name="RoleId" type="xs:string" use="optional" />
   </xs:complexType>
 
   <xs:complexType name="RolePermissionSet">
     <xs:sequence>
       <xs:element name="RolePermission" type="RolePermission" minOccurs="0" maxOccurs="unbounded" />
     </xs:sequence>
-    <xs:attribute name="Name" type="xs:string" use="required" />
+    <xs:attribute name="Name" type="xs:string" use="optional" />
     <xs:attribute name="DoNotInheirit" type="xs:boolean" default="false" />
   </xs:complexType>
 

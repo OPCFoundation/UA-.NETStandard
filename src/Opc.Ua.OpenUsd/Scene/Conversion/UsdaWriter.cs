@@ -31,7 +31,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
-using Opc.Ua.OpenUsd.Scene;
 
 namespace Opc.Ua.OpenUsd.Scene.Conversion
 {
@@ -50,8 +49,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
     /// </remarks>
     public static class UsdaWriter
     {
-        private static readonly HashSet<string> s_tupleGroupTypes = new HashSet<string>(
-            new[] { "color3f", "float3", "double3", "int3" }, System.StringComparer.Ordinal);
+        private static readonly HashSet<string> s_tupleGroupTypes = new(
+            ["color3f", "float3", "double3", "int3"], System.StringComparer.Ordinal);
 
         /// <summary>
         /// Serialises a stage to a <c>.usda</c> layer string.
@@ -108,7 +107,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 _ => "def",
             };
             string typ = prim.TypeName.Length > 0 ? prim.TypeName + " " : string.Empty;
-            string pad = new string(' ', 4 * indent);
+            string pad = new(' ', 4 * indent);
 
             var arcLines = new List<string>();
             foreach (UsdCompositionArc arc in prim.Composition)
@@ -207,7 +206,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         /// </summary>
         private static void EmitPrimBodyContent(UsdPrim prim, int indent, List<string> lines)
         {
-            string pad = new string(' ', 4 * indent);
+            string pad = new(' ', 4 * indent);
             string body = pad + "    ";
 
             foreach (UsdAttribute attr in prim.Attributes)
@@ -385,19 +384,22 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         /// consumes these escapes.
         /// </remarks>
         /// <param name="s">The raw value.</param>
+        /// <param name="quote">The single- or double-quote delimiter of the target literal.</param>
         /// <returns>The escaped value.</returns>
-        private static string EscapeQuoted(string s)
+        private static string EscapeQuoted(string s, char quote = '"')
         {
             var sb = new StringBuilder(s.Length);
             foreach (char c in s)
             {
+                if (c == quote)
+                {
+                    sb.Append('\\').Append(c);
+                    continue;
+                }
                 switch (c)
                 {
                     case '\\':
                         sb.Append("\\\\");
-                        break;
-                    case '"':
-                        sb.Append("\\\"");
                         break;
                     case '\n':
                         sb.Append("\\n");
@@ -533,6 +535,9 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             }
         }
 
+        /// <summary>
+        /// Renders an opaque composite without allowing its textual leaves to become authored syntax.
+        /// </summary>
         private static bool TryRenderOpaqueSequence(
             ArrayOf<UsdValue> items, bool asTuple, out string text)
         {
@@ -542,24 +547,20 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             for (int ii = 0; ii < span.Length; ii++)
             {
                 UsdValue item = span[ii];
+                if (item.TryGetText(out string leaf))
+                {
+                    parts.Add("\"" + EscapeQuoted(leaf) + "\"");
+                    continue;
+                }
                 if (!TryRenderOpaqueValue(item, out string part))
                 {
                     return false;
                 }
-                // A string leaf inside a USD tuple/array is authored quoted.
-                parts.Add(IsText(item) ? "\"" + part + "\"" : part);
+                parts.Add(part);
             }
             string joined = string.Join(", ", parts);
             text = asTuple ? "(" + joined + ")" : "[" + joined + "]";
             return true;
-        }
-
-        private static bool IsText(UsdValue value)
-        {
-            return value.Kind is UsdValueKind.String
-                or UsdValueKind.Token
-                or UsdValueKind.AssetPath
-                or UsdValueKind.PathReference;
         }
 
         private static bool IsSequence(UsdValue value)
@@ -632,7 +633,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 case UsdValueKind.AssetPath:
                 case UsdValueKind.PathReference:
                     value.TryGetText(out string s);
-                    return "\"" + s + "\"";
+                    return "\"" + EscapeQuoted(s) + "\"";
                 case UsdValueKind.Boolean:
                     value.TryGetBoolean(out bool b);
                     return b ? "true" : "false";
@@ -680,7 +681,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
             if (typeName.EndsWith("[]", System.StringComparison.Ordinal)
                 && value.TryGetItems(out ArrayOf<UsdValue> items))
             {
-                string baseType = typeName.Substring(0, typeName.Length - 2);
+                string baseType = typeName[..^2];
                 return RenderArray(items, baseType);
             }
 
@@ -746,7 +747,9 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         {
             if (x.TryGetText(out string s))
             {
-                return assetArray ? "@" + s + "@" : "\"" + s + "\"";
+                return assetArray
+                    ? "@" + EscapeAssetPath(s) + "@"
+                    : "\"" + EscapeQuoted(s) + "\"";
             }
             return PyStr(x);
         }
@@ -764,8 +767,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         }
 
         /// <summary>
-        /// Renders a scalar or tuple element with Python <c>str()</c> semantics so the output
-        /// re-parses identically (integers plain, floats keep a decimal point, tuples parenthesised).
+        /// Renders a scalar or tuple element with invariant numeric formatting and contextually
+        /// encoded text leaves so recursive composites re-parse without authoring layer syntax.
         /// </summary>
         private static string PyStr(UsdValue x)
         {
@@ -781,7 +784,7 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 case UsdValueKind.AssetPath:
                 case UsdValueKind.PathReference:
                     x.TryGetText(out string s);
-                    return "'" + s + "'";
+                    return "'" + EscapeQuoted(s, '\'') + "'";
                 case UsdValueKind.Double:
                     x.TryGetDouble(out double d);
                     return FormatDouble(d);

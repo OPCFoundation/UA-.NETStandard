@@ -27,9 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
@@ -49,6 +51,151 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistrySecurityTests
     {
+        /// <summary>
+        /// Registered and seeded documents use the same encryption policy for service reads and monitor admission.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29OpaqueReadsAndMonitoredAdmissionFollowEncryptionPolicy(
+            [Values] bool seeded,
+            [Values] bool requireEncryptionForReads,
+            [Values(MessageSecurityMode.None, MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt)]
+            MessageSecurityMode mode)
+        {
+            (AsyncCustomNodeManager owner, Mock<IServerInternal> server) =
+                await CreateOpaqueAddressSpaceAsync(seeded, requireEncryptionForReads).ConfigureAwait(false);
+            using var queues = new MonitoredItemQueueFactory(server.Object.Telemetry);
+            server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queues);
+            await using MasterNodeManager master = XRegistryServerTestHarness.CreateMasterNodeManager(server, owner);
+            NodeId nodeId = OpaqueNodeId(owner);
+            bool allowed = !requireEncryptionForReads || mode == MessageSecurityMode.SignAndEncrypt;
+            using OperationContext read = ContextWith(server, mode, requestType: RequestType.Read).OperationContext!;
+            (ArrayOf<DataValue> values, _) = await master.ReadAsync(read, 0, TimestampsToReturn.Both,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }]).ConfigureAwait(false);
+            Assert.That(values, Has.Count.EqualTo(1));
+            AssertOpaqueRead(values[0], allowed);
+
+            using OperationContext monitor = ContextWith(
+                server, mode, requestType: RequestType.CreateMonitoredItems).OperationContext!;
+            var errors = new ServiceResult[1];
+            var filters = new MonitoringFilterResult[1];
+            var items = new IMonitoredItem[1];
+            await master.CreateMonitoredItemsAsync(monitor, 1, 100, TimestampsToReturn.Both,
+                [new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        SamplingInterval = 0,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    }
+                }], errors, filters, items, false).ConfigureAwait(false);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(
+                allowed ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient));
+            if (!allowed)
+            {
+                Assert.That(items[0], Is.Null, "A denied request cannot retain a document-bearing monitored item.");
+                return;
+            }
+            Assert.That(items[0], Is.InstanceOf<MonitoredItem>());
+            var item = (MonitoredItem)items[0];
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(value => value.Session).Returns(monitor.Session);
+            subscription.SetupGet(value => value.EffectiveIdentity).Returns(monitor.UserIdentity);
+            item.SubscriptionCallback = subscription.Object;
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            item.Publish(monitor, notifications, diagnostics, 1, NullLogger.Instance);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            AssertOpaqueRead(notifications.Dequeue().Value, allowed: true);
+        }
+
+        /// <summary>
+        /// A previously permitted subscription cannot retain encrypted-read eligibility after its channel changes.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29OpaqueDeliveryRechecksSubscriberEncryption(
+            [Values] bool seeded,
+            [Values] bool requireEncryptionForReads)
+        {
+            (AsyncCustomNodeManager owner, Mock<IServerInternal> server) =
+                await CreateOpaqueAddressSpaceAsync(seeded, requireEncryptionForReads).ConfigureAwait(false);
+            await using MasterNodeManager master = XRegistryServerTestHarness.CreateMasterNodeManager(server, owner);
+            NodeState node = owner.Find(OpaqueNodeId(owner))!;
+            var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
+            var identity = new UserIdentity();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Id).Returns(new NodeId("opaque-subscriber", 1));
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            session.SetupGet(value => value.EndpointDescription).Returns(endpoint);
+            session.SetupGet(value => value.PreferredLocales).Returns([]);
+            var item = new Mock<IDataChangeMonitoredItem2>();
+            item.SetupGet(value => value.Id).Returns(1u);
+            item.SetupGet(value => value.AttributeId).Returns(Attributes.Value);
+            item.SetupGet(value => value.NodeId).Returns(node.NodeId);
+            item.SetupGet(value => value.IndexRange).Returns(NumericRange.Null);
+            item.SetupGet(value => value.DataEncoding).Returns(QualifiedName.Null);
+            item.SetupGet(value => value.Session).Returns(session.Object);
+            item.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            var delivered = new TaskCompletionSource<DataValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+            item.Setup(value => value.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
+                .Callback(new QueueValueCallback((in value, _) =>
+                    delivered.TrySetResult(value)));
+            await using var monitored = new MonitoredNode2(owner, server.Object, node);
+            monitored.Add(item.Object);
+            await monitored.OnMonitoredNodeChangedAsync(owner.SystemContext, node, NodeStateChangeMasks.Value)
+                .ConfigureAwait(false);
+            AssertOpaqueRead(await delivered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), true);
+
+            foreach (MessageSecurityMode mode in new[] { MessageSecurityMode.Sign, MessageSecurityMode.None })
+            {
+                endpoint.SecurityMode = mode;
+                delivered = new TaskCompletionSource<DataValue>(TaskCreationOptions.RunContinuationsAsynchronously);
+                await monitored.OnMonitoredNodeChangedAsync(owner.SystemContext, node, NodeStateChangeMasks.Value)
+                    .ConfigureAwait(false);
+                AssertOpaqueRead(await delivered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                    allowed: !requireEncryptionForReads);
+            }
+        }
+
+        /// <summary>
+        /// Content sharing retains the same protected document until its final independent resource is deleted.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29SharedOpaqueDocumentKeepsEncryptionPolicyUntilLastReferenceIsDeleted()
+        {
+            (XRegistryRegistrationNodeManager registry, Mock<IServerInternal> server) =
+                await CreateAddressSpaceAsync(options => options.RequireEncryptionForReads = true)
+                    .ConfigureAwait(false);
+            await using MasterNodeManager master = XRegistryServerTestHarness.CreateMasterNodeManager(server, registry);
+            ResourceState first = await RegisterOpaqueResourceAsync(registry, server, "first").ConfigureAwait(false);
+            NodeId nodeId = OpaqueNodeId(registry);
+            NodeState original = registry.Find(nodeId)!;
+            ResourceState second = await RegisterOpaqueResourceAsync(registry, server, "second").ConfigureAwait(false);
+            await registry.OnDeleteResourceAsync(first, first.Epoch!.Value).ConfigureAwait(false);
+            Assert.That(registry.Find(nodeId), Is.SameAs(original));
+            using OperationContext signed = ContextWith(
+                server, MessageSecurityMode.Sign, requestType: RequestType.Read).OperationContext!;
+            (ArrayOf<DataValue> refused, _) = await master.ReadAsync(signed, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }]).ConfigureAwait(false);
+            AssertOpaqueRead(refused[0], allowed: false);
+            using OperationContext encrypted = ContextWith(
+                server, MessageSecurityMode.SignAndEncrypt, requestType: RequestType.Read).OperationContext!;
+            (ArrayOf<DataValue> readable, _) = await master.ReadAsync(encrypted, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }]).ConfigureAwait(false);
+            AssertOpaqueRead(readable[0], allowed: true);
+            await registry.OnDeleteResourceAsync(second, second.Epoch!.Value).ConfigureAwait(false);
+            (ArrayOf<DataValue> retired, _) = await master.ReadAsync(encrypted, 0, TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }]).ConfigureAwait(false);
+            Assert.That(retired[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Assert.That(retired[0].WrappedValue.IsNull, Is.True);
+        }
+
         [Test]
         public async Task CreateGroupIsRejectedOnAChannelThatIsNotEncryptedAsync()
         {
@@ -429,7 +576,20 @@ namespace Opc.Ua.XRegistry.Tests
         private static ServerSystemContext ContextWith(
             Mock<IServerInternal> server,
             MessageSecurityMode mode,
-            NodeId? sessionId = null)
+            RequestType requestType = RequestType.Call)
+        {
+            return ContextWith(
+                server, mode, new NodeId(Utils.IncrementIdentifier(ref s_sessionCounter)), requestType);
+        }
+
+        /// <summary>
+        /// Builds a channel context with an explicitly supplied protocol session identifier.
+        /// </summary>
+        private static ServerSystemContext ContextWith(
+            Mock<IServerInternal> server,
+            MessageSecurityMode mode,
+            NodeId sessionId,
+            RequestType requestType = RequestType.Call)
         {
             var channel = new SecureChannelContext(
                 "test",
@@ -442,20 +602,108 @@ namespace Opc.Ua.XRegistry.Tests
             // OperationContext derives the SessionId from its session, so a mocked session is what
             // makes two contexts look like two distinct clients.
             var session = new Mock<ISession>();
-            session.SetupGet(s => s.Id).Returns(
-                sessionId ?? new NodeId(Utils.IncrementIdentifier(ref s_sessionCounter)));
+            session.SetupGet(s => s.Id).Returns(sessionId);
             session.SetupGet(s => s.EffectiveIdentity).Returns(new UserIdentity());
             session.SetupGet(s => s.PreferredLocales).Returns([]);
+            session.SetupGet(s => s.EndpointDescription).Returns(channel.EndpointDescription!);
 
             var operation = new OperationContext(
-                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, session.Object);
+                new RequestHeader(), channel, requestType, RequestLifetime.None, session.Object);
             return new ServerSystemContext(server.Object, operation);
+        }
+
+        /// <summary>
+        /// Publishes real registered or seeded content without starting a server or accepting a network connection.
+        /// </summary>
+        private static async Task<(AsyncCustomNodeManager Owner, Mock<IServerInternal> Server)>
+            CreateOpaqueAddressSpaceAsync(bool seeded, bool requireEncryptionForReads)
+        {
+            var options = new XRegistryServerOptions
+            {
+                ContentIdProvider = new XRegistryServerTestHarness.FakeContentIdProvider(),
+                RequireEncryptionForReads = requireEncryptionForReads,
+                PublishSeedResource = seeded,
+                SeedDocument = s_confidentialDocument
+            };
+            Mock<IServerInternal> server = XRegistryServerTestHarness.CreateServer(options.RegistryNamespaceUri);
+            AsyncCustomNodeManager owner = seeded
+                ? new XRegistryFastPathNodeManager(server.Object, null!, options)
+                : new XRegistryRegistrationNodeManager(server.Object, null!, options);
+            try
+            {
+                await owner.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+                if (owner is XRegistryRegistrationNodeManager registry)
+                {
+                    await RegisterOpaqueResourceAsync(registry, server, "first").ConfigureAwait(false);
+                }
+                return (owner, server);
+            }
+            catch
+            {
+                await owner.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Commits a document through the real encrypted registration and FileType write path.
+        /// </summary>
+        private static async Task<ResourceState> RegisterOpaqueResourceAsync(
+            XRegistryRegistrationNodeManager registry,
+            Mock<IServerInternal> server,
+            string resourceId)
+        {
+            ServerSystemContext context = ContextWith(server, MessageSecurityMode.SignAndEncrypt);
+            using OperationContext operation = context.OperationContext!;
+            GetOrCreateGroupMethodStateResult group = await registry.OnGetOrCreateGroupAsync(
+                context, null!, NodeId.Null, "schemas", CancellationToken.None).ConfigureAwait(false);
+            Assert.That(group.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            CreateResourceMethodStateResult created = await registry.OnCreateResourceAsync(
+                context, null!, group.GroupNodeId, resourceId, "1", true, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(created.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            var resource = (ResourceState)registry.Find(created.ResourceNodeId)!;
+            WriteMethodStateResult written = await resource.Write!.OnCallAsync!(
+                context, resource.Write, resource.NodeId, created.FileHandle,
+                s_confidentialDocument, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(written.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            CloseMethodStateResult closed = await resource.Close!.OnCallAsync!(
+                context, resource.Close, resource.NodeId, created.FileHandle, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(closed.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Good));
+            return resource;
+        }
+
+        /// <summary>
+        /// Uses the fake content-id provider's exact on-wire identity, not a resource's structural identifier.
+        /// </summary>
+        private static NodeId OpaqueNodeId(AsyncCustomNodeManager owner)
+        {
+            return new NodeId(s_confidentialDocument,
+                owner.SystemContext.NamespaceUris.GetIndexOrAppend(XRegistryWellKnown.XRegistryNamespaceUri));
+        }
+
+        /// <summary>
+        /// Requires exact document bytes on success and a security status without bytes on rejection.
+        /// </summary>
+        private static void AssertOpaqueRead(in DataValue value, bool allowed)
+        {
+            Assert.That(value.StatusCode, Is.EqualTo(
+                allowed ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient));
+            if (allowed)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out ByteString bytes), Is.True);
+                Assert.That(bytes.Span.ToArray(), Is.EqualTo(new byte[] { 0x11, 0x22, 0x33 }));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+            }
         }
 
         private static async Task<(
             XRegistryRegistrationNodeManager Manager,
             Mock<IServerInternal> Server)> CreateAddressSpaceAsync(
-            System.Action<XRegistryServerOptions>? configure = null)
+            Action<XRegistryServerOptions>? configure = null)
         {
             var options = new XRegistryServerOptions
             {
@@ -476,5 +724,13 @@ namespace Opc.Ua.XRegistry.Tests
         private const byte kReadMode = 1;
         private const byte kEraseExistingMode = 4;
         private static uint s_sessionCounter;
+
+        /// <summary>The document bytes used for the content-addressed read policy regressions.</summary>
+        private static readonly ByteString s_confidentialDocument = ByteString.From([0x11, 0x22, 0x33]);
+
+        /// <summary>
+        /// Captures real monitored-node deliveries without a broker, socket or polling loop.
+        /// </summary>
+        private delegate void QueueValueCallback(in DataValue value, ServiceResult? error);
     }
 }

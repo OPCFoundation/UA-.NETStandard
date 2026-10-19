@@ -437,7 +437,7 @@ namespace Opc.Ua
         {
             InternalResetValidatedCertificates();
 
-            CertificateTrustList? trustedSnapshot = CertificateTrustList.CreateSnapshot(trustedStore);
+            var trustedSnapshot = CertificateTrustList.CreateSnapshot(trustedStore);
             CertificateStoreIdentifier? trustedCertificateStore = null;
 
             // A trust list can name its certificates inline and have no store
@@ -453,7 +453,7 @@ namespace Opc.Ua
                 };
             }
 
-            CertificateTrustList? issuerSnapshot = CertificateTrustList.CreateSnapshot(issuerStore);
+            var issuerSnapshot = CertificateTrustList.CreateSnapshot(issuerStore);
             CertificateStoreIdentifier? issuerCertificateStore = null;
             if (issuerSnapshot != null && !string.IsNullOrEmpty(issuerSnapshot.StorePath))
             {
@@ -739,8 +739,7 @@ namespace Opc.Ua
         /// Validate domains in a server certificate against endpoint used for connection.
         /// </summary>
         /// <remarks>
-        /// On a client: the endpoint is only checked if the certificate is not already validated.
-        /// On a server: the endpoint is always checked but the certificate is not saved.
+        /// The endpoint is checked independently of cached certificate-chain validation.
         /// </remarks>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadCertificateHostNameInvalid"/>
@@ -752,16 +751,6 @@ namespace Opc.Ua
             bool serverValidation,
             Func<Certificate, ServiceResult, bool>? acceptError)
         {
-            if (!serverValidation &&
-                m_useValidatedCertificates &&
-                m_validatedCertificates.TryGetValue(
-                    serverCertificate.Thumbprint,
-                    out byte[]? certificate2) &&
-                Utils.IsEqual(certificate2, serverCertificate.RawData))
-            {
-                return;
-            }
-
             Uri? endpointUrl = endpoint?.EndpointUrl;
             if (endpointUrl != null && !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
             {
@@ -912,22 +901,23 @@ namespace Opc.Ua
                 // evaluates the revocation lists, so a cached certificate
                 // that has been revoked since it was first validated (e.g.
                 // by a freshly pushed CRL) is never waved through on the
-                // thumbprint alone. Only an ACTUAL revocation blocks the
-                // fast path - a certificate enters the cache after a
+                // thumbprint alone. Actual revocation or a validity-period
+                // failure blocks the fast path. A certificate enters the cache after a
                 // successful validation or an explicitly accepted
                 // suppressible error (e.g. RevocationUnknown when the CA
                 // publishes no CRL), and re-raising such an accepted error
                 // on every validation would re-fire the accept callback per
                 // connection and permanently defeat the cache for exactly
-                // the certificates it was written for. On a cache hit the
-                // expensive chain-policy build below is skipped, which is
-                // the performance intent of UseValidatedCertificates.
+                // the certificates it was written for. Time validity must
+                // still hold for the leaf and every resolved issuer. A current
+                // cache hit skips the expensive chain-policy build below.
                 if (UseValidatedCertificates &&
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
                         certificate.Thumbprint,
                         out byte[]? certificate2) &&
-                    Utils.IsEqual(certificate2, certificate.RawData))
+                    Utils.IsEqual(certificate2, certificate.RawData) &&
+                    IsChainCurrentlyTimeValid(certificate, issuers))
                 {
                     return;
                 }
@@ -1015,7 +1005,7 @@ namespace Opc.Ua
                             default:
                                 if (m_logger.IsEnabled(LogLevel.Error))
                                 {
-                                    m_logger.CertificateValidationLog6((chainStatus.Status).ToString());
+                                    m_logger.CertificateValidationLog6(chainStatus.Status.ToString());
                                 }
                                 sresult = new ServiceResult(ServiceResult.Create(
                                     StatusCodes.BadCertificateInvalid,
@@ -2128,6 +2118,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Prevents cached acceptance from outliving any certificate's validity period.
+        /// </summary>
+        private static bool IsChainCurrentlyTimeValid(
+            Certificate certificate,
+            List<CertificateIssuerReference> issuers)
+        {
+            DateTime now = DateTime.UtcNow;
+            if (!IsTimeValid(certificate, now))
+            {
+                return false;
+            }
+            foreach (CertificateIssuerReference issuer in issuers)
+            {
+                if (!IsTimeValid(issuer.Certificate, now))
+                {
+                    return false;
+                }
+            }
+            return true;
+
+            static bool IsTimeValid(Certificate candidate, DateTime time)
+            {
+                return time >= candidate.NotBefore.ToUniversalTime() &&
+                    time < candidate.NotAfter.ToUniversalTime();
+            }
+        }
+
+        /// <summary>
         /// Reports whether the issuer walk found an actual revocation
         /// (<see cref="StatusCodes.BadCertificateRevoked"/> or
         /// <see cref="StatusCodes.BadCertificateIssuerRevoked"/>) for any
@@ -2313,33 +2331,33 @@ namespace Opc.Ua
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog1(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 2, Level = LogLevel.Error,
             Message = "The domain '{Url}' is not listed in the server certificate.")]
         public static partial void CertificateValidationLog2(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::System.Uri> url);
+            RedactionWrapper<Uri> url);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 3, Level = LogLevel.Error,
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog3(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.ServiceResultException> serviceResult);
+            Certificate? certificate,
+            RedactionWrapper<ServiceResultException> serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 4, Level = LogLevel.Error,
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog4(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 5, Level = LogLevel.Error,
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog5(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.ServiceResult> serviceResult);
+            Certificate? certificate,
+            RedactionWrapper<ServiceResult> serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 6, Level = LogLevel.Error,
             Message = "Unexpected status {ChainStatus} processing certificate chain.")]
@@ -2355,34 +2373,34 @@ namespace Opc.Ua
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog8(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate,
-            global::Opc.Ua.ServiceResult serviceResult);
+            RedactionWrapper<Certificate> certificate,
+            ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 9, Level = LogLevel.Error,
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog9(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 10, Level = LogLevel.Information,
             Message = "Auto accepted certificate {Certificate}")]
         public static partial void CertificateValidationLog10(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate);
+            RedactionWrapper<Certificate> certificate);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 11, Level = LogLevel.Error,
             Message = "Certificate {Certificate} validation failed with suppressible errors but was " +
                 "rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog11(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.Security.Certificates.Certificate> certificate,
+            RedactionWrapper<Certificate> certificate,
             string serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 12, Level = LogLevel.Warning,
             Message = "Failed to open issuer store: {CertificateStore}")]
         public static partial void CertificateValidationLog12(
             this ILogger logger,
-            global::Opc.Ua.Redaction.RedactionWrapper<global::Opc.Ua.CertificateStoreIdentifier> certificateStore);
+            RedactionWrapper<CertificateStoreIdentifier> certificateStore);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 13, Level = LogLevel.Warning,
             Message = "Error suppressed: {Status}: {Information}")]

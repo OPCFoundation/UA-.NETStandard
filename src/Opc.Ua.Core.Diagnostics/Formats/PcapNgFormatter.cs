@@ -78,6 +78,33 @@ namespace Opc.Ua.Pcap.Formats
             }
 
             m_logger.FormattingCaptureAsPcapng();
+            string? path = source.GetRawPcapFilePath();
+            if (path is not null)
+            {
+                CaptureFileValidator.RejectKeyLogPath(path, source.GetKeyLogFilePath());
+                (FormatKind kind, _) = await CaptureFileValidator.ValidateFileAsync(path, ct)
+                    .ConfigureAwait(false);
+                if (kind == FormatKind.PcapNg)
+                {
+                    byte[] bytes = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+                    using MemoryStream rawStream = new(bytes, writable: false);
+                    (FormatKind snapshotKind, long frameCount) = await CaptureFileValidator.ValidateAsync(rawStream, ct)
+                        .ConfigureAwait(false);
+                    if (snapshotKind != FormatKind.PcapNg)
+                    {
+                        throw new PcapDiagnosticsException("The capture format changed during export.");
+                    }
+
+                    return new FormatResult
+                    {
+                        Kind = Kind,
+                        MimeType = MimeType,
+                        Bytes = bytes,
+                        FramesFormatted = frameCount
+                    };
+                }
+            }
+
             MemoryStream stream = new();
             PcapNgFileWriter writer = new(stream, PcapFileWriter.LinkTypeNull);
             long count = 0;

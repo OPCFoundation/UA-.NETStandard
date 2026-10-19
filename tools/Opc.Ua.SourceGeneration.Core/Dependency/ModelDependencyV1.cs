@@ -33,6 +33,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration.Dependency
 {
@@ -172,6 +173,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
     /// </summary>
     public sealed class DependencyChild
     {
+        /// <summary>
+        /// Effective security attributes, absent in legacy payloads.
+        /// </summary>
+        public DependencySecurity? Security { get; set; }
+
         /// <summary>
         /// Browse name of the child.
         /// </summary>
@@ -361,6 +367,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
     public sealed class DependencyNode
     {
         /// <summary>
+        /// Security metadata of the type declaration, absent in legacy payloads.
+        /// </summary>
+        public DependencySecurity? Security { get; set; }
+
+        /// <summary>
         /// Symbolic name.
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
@@ -505,6 +516,12 @@ namespace Opc.Ua.SourceGeneration.Dependency
         // A reader that predates this flag ignores it and keeps implying the
         // DataType default, which is what it did before.
         private const byte kNodeSetValueIsNull = 0x20;
+
+        /// <summary>
+        /// Identifies the independently versioned, length-prefixed security extension after the existing trailers.
+        /// </summary>
+        private const uint kSecurityTrailerMarker = 0x31434553;
+        private const byte kSecurityTrailerVersion = 1;
 
         /// <summary>
         /// Namespace URI that qualifies the standard reference types.
@@ -659,6 +676,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
             bool hasDeclarationTrailer = HasDeclarationTrailer();
             bool hasNestedChildrenTrailer = HasNestedChildrenTrailer();
+            bool hasSecurityTrailer = HasSecurityTrailer();
             // The structure field, value namespace, declaration and nested-child trailers
             // are written after the extended identifier trailer, which is
             // always written with them: a reader that predates them only reads
@@ -671,6 +689,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 hasValueNamespaceTrailer ||
                 hasDeclarationTrailer ||
                 hasNestedChildrenTrailer ||
+                hasSecurityTrailer ||
                 HasExtendedIdentifierTrailer();
             if (FluentAccessorsEmitted.HasValue ||
                 hasMethodIdentityTrailer ||
@@ -733,6 +752,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 if (hasNestedChildrenTrailer)
                 {
                     WriteNestedChildrenTrailer(writer);
+                }
+                if (hasSecurityTrailer)
+                {
+                    WriteSecurityTrailer(writer);
                 }
             }
         }
@@ -862,7 +885,296 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     ReadNestedChildrenTrailer(reader);
                 }
+                if (trailersReadable &&
+                    reader.BaseStream.Length - reader.BaseStream.Position >= sizeof(uint) &&
+                    reader.ReadUInt32() == kSecurityTrailerMarker)
+                {
+                    ReadSecurityTrailer(reader);
+                }
             }
+        }
+
+        /// <summary>
+        /// Determines whether the optional security extension is required.
+        /// </summary>
+        private bool HasSecurityTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                if (node.Security != null || HasChildSecurity(node.Children))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Finds security metadata in explicit descendants.
+        /// </summary>
+        private static bool HasChildSecurity(IEnumerable<DependencyChild> children)
+        {
+            foreach (DependencyChild child in children)
+            {
+                if (child.Security != null || HasChildSecurity(child.Children.ToArray() ?? []))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes security metadata after the legacy payload and its existing trailers.
+        /// </summary>
+        private void WriteSecurityTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var securityWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                securityWriter.Write(Nodes.Count);
+                int remaining = kMaxNestedChildren;
+                foreach (DependencyNode node in Nodes)
+                {
+                    WriteSecurity(securityWriter, node.Security);
+                    WriteChildSecurity(securityWriter, node.Children, 1, ref remaining);
+                }
+            }
+            writer.Write(kSecurityTrailerMarker);
+            writer.Write(kSecurityTrailerVersion);
+            writer.Write(checked((int)body.Length));
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        /// <summary>
+        /// Writes security metadata in the same declaration order as the nested-child trailer.
+        /// </summary>
+        private static void WriteChildSecurity(
+            BinaryWriter writer,
+            IReadOnlyList<DependencyChild> children,
+            int depth,
+            ref int remaining)
+        {
+            ValidateNestedChildren(children.Count, depth, ref remaining);
+            writer.Write(children.Count);
+            foreach (DependencyChild child in children)
+            {
+                WriteSecurity(writer, child.Security);
+                WriteChildSecurity(writer, child.Children.ToArray() ?? [], depth + 1, ref remaining);
+            }
+        }
+
+        /// <summary>
+        /// Writes presence separately from false and zero.
+        /// </summary>
+        private static void WriteSecurity(BinaryWriter writer, DependencySecurity? security)
+        {
+            writer.Write(security != null);
+            if (security == null)
+            {
+                return;
+            }
+            writer.Write(security.WriteAccess);
+            writer.Write(security.UserWriteAccess.HasValue);
+            if (security.UserWriteAccess.HasValue)
+            {
+                writer.Write(security.UserWriteAccess.Value);
+            }
+            WriteOptionalBoolean(writer, security.NonExecutable);
+            WriteOptionalBoolean(writer, security.UserExecutable);
+            WritePermissions(writer, security.RolePermissions);
+            WritePermissions(writer, security.DefaultRolePermissions);
+        }
+
+        /// <summary>
+        /// Writes an explicitly configured boolean.
+        /// </summary>
+        private static void WriteOptionalBoolean(BinaryWriter writer, bool? value)
+        {
+            writer.Write(value.HasValue);
+            if (value.HasValue)
+            {
+                writer.Write(value.Value);
+            }
+        }
+
+        /// <summary>
+        /// Preserves absent ACLs, empty ACLs, and every entry's independent role identity.
+        /// </summary>
+        private static void WritePermissions(BinaryWriter writer, RolePermissionSet? permissions)
+        {
+            writer.Write(permissions != null);
+            if (permissions == null)
+            {
+                return;
+            }
+            WriteNullableString(writer, permissions.Name);
+            writer.Write(permissions.DoNotInheirit);
+            writer.Write(permissions.RolePermission?.Length ?? -1);
+            foreach (RolePermission permission in permissions.RolePermission ?? [])
+            {
+                WriteNullableString(writer, permission.Role?.Name);
+                WriteNullableString(writer, permission.Role?.Namespace);
+                WriteNullableString(writer, permission.RoleId);
+                writer.Write(permission.Permission?.Length ?? -1);
+                foreach (Permissions value in permission.Permission ?? [])
+                {
+                    writer.Write((int)value);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rejects unreadable security metadata instead of treating it as an unrestricted legacy declaration.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// Malformed trailer metadata is detected and wrapped in an <see cref="InvalidOperationException"/>.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// The security metadata cannot be decoded and preserved.
+        /// </exception>
+        private void ReadSecurityTrailer(BinaryReader reader)
+        {
+            try
+            {
+                if (reader.ReadByte() != kSecurityTrailerVersion)
+                {
+                    throw new InvalidDataException("Unknown security trailer.");
+                }
+                int length = reader.ReadInt32();
+                if (length < 0 || length != reader.BaseStream.Length - reader.BaseStream.Position)
+                {
+                    throw new InvalidDataException("Invalid security trailer length.");
+                }
+                using var body = new MemoryStream(reader.ReadBytes(length), writable: false);
+                using var securityReader = new BinaryReader(body, Encoding.UTF8, leaveOpen: false);
+                if (securityReader.ReadInt32() != Nodes.Count)
+                {
+                    throw new InvalidDataException("Invalid security node count.");
+                }
+                int remaining = kMaxNestedChildren;
+                foreach (DependencyNode node in Nodes)
+                {
+                    node.Security = ReadSecurity(securityReader);
+                    ReadChildSecurity(securityReader, node.Children, 1, ref remaining);
+                }
+                if (body.Position != body.Length)
+                {
+                    throw new InvalidDataException("Unexpected security trailer data.");
+                }
+            }
+            catch (Exception ex) when (
+                ex is InvalidDataException or IOException or ArgumentException or OverflowException)
+            {
+                // ModelDependencyReference deliberately tolerates malformed legacy
+                // metadata. Security metadata must instead fail generation.
+                throw new InvalidOperationException("ModelDependencyV1: cannot preserve security metadata.", ex);
+            }
+        }
+
+        /// <summary>
+        /// Restores metadata only when its shape matches the declarations already decoded.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The encoded child count does not match the decoded declarations.
+        /// </exception>
+        private static void ReadChildSecurity(
+            BinaryReader reader,
+            IReadOnlyList<DependencyChild> children,
+            int depth,
+            ref int remaining)
+        {
+            ValidateNestedChildren(children.Count, depth, ref remaining);
+            if (reader.ReadInt32() != children.Count)
+            {
+                throw new InvalidDataException("Invalid security child count.");
+            }
+            foreach (DependencyChild child in children)
+            {
+                child.Security = ReadSecurity(reader);
+                ReadChildSecurity(reader, child.Children.ToArray() ?? [], depth + 1, ref remaining);
+            }
+        }
+
+        /// <summary>
+        /// Reads independent presence bits for user restrictions and method executability.
+        /// </summary>
+        private static DependencySecurity? ReadSecurity(BinaryReader reader)
+        {
+            if (!reader.ReadBoolean())
+            {
+                return null;
+            }
+            return new DependencySecurity
+            {
+                WriteAccess = reader.ReadUInt32(),
+                UserWriteAccess = reader.ReadBoolean() ? reader.ReadUInt32() : null,
+                NonExecutable = reader.ReadBoolean() ? reader.ReadBoolean() : null,
+                UserExecutable = reader.ReadBoolean() ? reader.ReadBoolean() : null,
+                RolePermissions = ReadPermissions(reader),
+                DefaultRolePermissions = ReadPermissions(reader)
+            };
+        }
+
+        /// <summary>
+        /// Reads ACLs without requiring generation-time role declarations.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// A permission count is outside the supported bounds, or a permission value is unknown.
+        /// </exception>
+        private static RolePermissionSet? ReadPermissions(BinaryReader reader)
+        {
+            if (!reader.ReadBoolean())
+            {
+                return null;
+            }
+            var permissions = new RolePermissionSet
+            {
+                Name = ReadNullableString(reader)!,
+                DoNotInheirit = reader.ReadBoolean()
+            };
+            int count = reader.ReadInt32();
+            if (count is < -1 or > kMaxNestedChildren)
+            {
+                throw new InvalidDataException("Invalid security permission count.");
+            }
+            if (count >= 0)
+            {
+                permissions.RolePermission = new RolePermission[count];
+                for (int index = 0; index < count; index++)
+                {
+                    string? name = ReadNullableString(reader);
+                    string? uri = ReadNullableString(reader);
+                    var permission = new RolePermission
+                    {
+                        Role = name != null ? new XmlQualifiedName(name, uri) : null!,
+                        RoleId = ReadNullableString(reader)
+                    };
+                    int permissionCount = reader.ReadInt32();
+                    if (permissionCount is < -1 or > kMaxNestedChildren)
+                    {
+                        throw new InvalidDataException("Invalid security permission value count.");
+                    }
+                    if (permissionCount >= 0)
+                    {
+                        permission.Permission = new Permissions[permissionCount];
+                        for (int value = 0; value < permissionCount; value++)
+                        {
+                            permission.Permission[value] = (Permissions)reader.ReadInt32();
+#if NET5_0_OR_GREATER
+                            if (!Enum.IsDefined(permission.Permission[value]))
+#else
+                            if (!Enum.IsDefined(typeof(Permissions), permission.Permission[value]))
+#endif
+                            {
+                                throw new InvalidDataException("Unknown security permission value.");
+                            }
+                        }
+                    }
+                    permissions.RolePermission[index] = permission;
+                }
+            }
+            return permissions;
         }
 
         private static void WriteChild(BinaryWriter writer, DependencyChild child)
@@ -1110,7 +1422,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 child.MethodDeclarationNumericId = reader.ReadUInt32();
                 child.MethodDeclarationStringId = ReadNullableString(reader);
                 int uriCount = reader.ReadInt32();
-                if (uriCount < -1 || uriCount == 0 || uriCount > ushort.MaxValue + 1)
+                if (uriCount is < -1 or 0 or > (ushort.MaxValue + 1))
                 {
                     throw new InvalidDataException(
                         "ModelDependencyV1: invalid nested value namespace count " + uriCount);
@@ -1683,7 +1995,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
             try
             {
                 using var textReader = new StringReader(value);
-                using XmlReader reader = XmlReader.Create(
+                using var reader = XmlReader.Create(
                     textReader,
                     CoreUtils.DefaultXmlReaderSettings());
                 var document = new XmlDocument();

@@ -225,7 +225,8 @@ namespace Opc.Ua.SourceGeneration
                     OpaqueId = type.OpaqueId != null
                         ? Convert.ToBase64String(type.OpaqueId)
                         : null,
-                    IsAbstract = type.IsAbstract
+                    IsAbstract = type.IsAbstract,
+                    Security = DependencySecurity.FromNode(type, m_context.ModelDesign)
                 };
                 if (type is VariableTypeDesign variableTypeDesign)
                 {
@@ -316,7 +317,10 @@ namespace Opc.Ua.SourceGeneration
                                 TypeDefinitionName = child.TypeDefinition?.Name ?? string.Empty,
                                 TypeDefinitionNamespace = child.TypeDefinition?.Namespace ?? string.Empty,
                                 ModellingRule = modellingRule,
-                                InstanceKind = instanceKind
+                                InstanceKind = instanceKind,
+                                Security = DependencySecurity.FromNode(
+                                    child.GetMergedInstance(),
+                                    m_context.ModelDesign)
                             };
                             // A child re-declared from a base type in another
                             // namespace keeps that namespace on its browse

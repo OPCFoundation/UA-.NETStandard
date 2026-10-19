@@ -736,6 +736,14 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected);
                     }
+                    if (isNewChannel &&
+                        MonitoredReadAuthorization.IsConfidential(MonitoredReadAuthorization.GetEndpoint(session)) &&
+                        !MonitoredReadAuthorization.IsConfidential(currentEndpoint))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "The new SecureChannel does not preserve the Session's transport confidentiality.");
+                    }
                     if (!session.Activated && !session.IsSecureChannelValid(channelContext.SecureChannelId))
                     {
                         throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);

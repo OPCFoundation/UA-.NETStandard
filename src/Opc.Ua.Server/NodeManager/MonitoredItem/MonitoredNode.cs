@@ -482,9 +482,11 @@ namespace Opc.Ua.Server
                 subscriberValueSnapshots = null;
             if (attributeSnapshots.TryGetValue(Attributes.Value, out DataValue reportedValue) &&
                 reportedValue.StatusCode == StatusCodes.BadUserAccessDenied &&
-                node is BaseVariableState { OnReadUserAccessLevel: not null })
+                node is BaseVariableState variable &&
+                (variable.OnReadUserAccessLevel != null ||
+                    (NodeManager is AsyncCustomNodeManager custom && custom.HasValueReadAuthorization(variable))))
             {
-                ServerSystemContext serverContext = GetSubscriberContextTemplate(context);
+                ServerSystemContext serverContext = GetSubscriberContextTemplate();
                 long generation = Volatile.Read(ref m_permissionGeneration);
                 foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                 {
@@ -494,6 +496,16 @@ namespace Opc.Ua.Server
                     }
 
                     ServerSystemContext subscriberContext = GetOrCreateContext(serverContext, kvp.Value, generation);
+                    ServiceResult authorization = await MonitoredReadAuthorization.ValidateAsync(
+                        NodeManager, node, subscriberContext, Attributes.Value, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        (subscriberValueSnapshots ??= [])[kvp.Key] = (
+                            DataValue.FromStatusCode(authorization.StatusCode),
+                            subscriberContext.OperationContext?.Session, subscriberContext.UserIdentity);
+                        continue;
+                    }
                     (_, DataValue subscriberValue) = await node.ReadAttributeAsync(
                         subscriberContext,
                         Attributes.Value,
@@ -674,9 +686,8 @@ namespace Opc.Ua.Server
         {
             if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
             {
-                if (!m_server.Auditing ||
-                    (monitoredItem.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        monitoredItem.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport))
+                EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
+                if (!m_server.Auditing || !MonitoredReadAuthorization.IsConfidential(endpoint))
                 {
                     return;
                 }
@@ -732,9 +743,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Returns the cached permission verdict for the
         /// (item, eventType, sourceNode) tuple, computing and caching it
-        /// on miss. Falls back to an uncached lookup when either NodeId
-        /// is null so events that don't carry the standard identity
-        /// fields still go through the per-event check.
+        /// on miss. A verdict is bound to the subscriber's current session,
+        /// effective identity, identity generation, and node permission version.
+        /// Falls back to an uncached lookup when either NodeId is null.
         /// </summary>
         private async ValueTask<ServiceResult> GetOrAddEventPermissionAsync(
             IEventMonitoredItem monitoredItem,
@@ -748,12 +759,12 @@ namespace Opc.Ua.Server
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                long generation = Volatile.Read(ref m_permissionGeneration);
+                MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
                 ServiceResult result;
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
-                        key, out (long Generation, ServiceResult Result) cached) &&
-                    cached.Generation == generation)
+                        key, out (MonitoredItemPermissionContext Context, ServiceResult Result) cached) &&
+                    cached.Context.Matches(authorization))
                 {
                     result = cached.Result;
                 }
@@ -764,10 +775,10 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
                     if (cacheable)
                     {
-                        m_eventPermissionCache[key] = (generation, result);
+                        m_eventPermissionCache[key] = (authorization, result);
                     }
                 }
-                if (generation == Volatile.Read(ref m_permissionGeneration))
+                if (authorization.Matches(CapturePermissionContext(monitoredItem)))
                 {
                     return result;
                 }
@@ -775,9 +786,25 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Captures the authorization inputs that may change while a monitored-item permission lookup is suspended.
+        /// </summary>
+        private MonitoredItemPermissionContext CapturePermissionContext(IMonitoredItem monitoredItem)
+        {
+            ISession? session = monitoredItem.Session;
+            return new MonitoredItemPermissionContext(
+                Volatile.Read(ref m_permissionGeneration),
+                NodeState.RolePermissionsVersion,
+                session,
+                session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity,
+                session?.CaptureIdentityRefreshSnapshot().Generation ?? 0);
+        }
+
+        /// <summary>
         /// Processes a <see cref="DataChangeSnapshot"/> from the channel.
         /// </summary>
-        private async Task ProcessDataChangeSnapshotAsync(DataChangeSnapshot snapshot, CancellationToken cancellationToken)
+        private async Task ProcessDataChangeSnapshotAsync(
+            DataChangeSnapshot snapshot,
+            CancellationToken cancellationToken)
         {
             if (DataChangeMonitoredItems == null)
             {
@@ -792,119 +819,107 @@ namespace Opc.Ua.Server
 
             foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
             {
-                IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
-
-                if (monitoredItem.AttributeId == Attributes.Value &&
-                    (snapshot.Changes & NodeStateChangeMasks.Value) != 0)
+                try
                 {
-                    (ServiceResult validationResult, ISystemContext contextToUse) =
-                        await GetDataChangePermissionAsync(
-                            snapshot, monitoredItem, PermissionType.Read, cancellationToken)
-                            .ConfigureAwait(false);
-
-                    // Part 4 5.13.2.1: denied read access is reported in the Publish response.
-                    if (ServiceResult.IsBad(validationResult))
-                    {
-                        QueueError(monitoredItem, validationResult);
-                        continue;
-                    }
-
-                    if (snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
-                    {
-                        // The snapshot was read in the reporter's context. A user dependent
-                        // UserAccessLevel is evaluated again for the subscriber (Part 3 5.6.3).
-                        if (Node is BaseVariableState variable &&
-                            variable.OnReadUserAccessLevel != null)
-                        {
-                            byte userAccessLevel = variable.UserAccessLevel;
-                            variable.OnReadUserAccessLevel(contextToUse, variable, ref userAccessLevel);
-
-                            if ((userAccessLevel & AccessLevels.CurrentRead) == 0)
-                            {
-                                QueueError(monitoredItem, new ServiceResult(StatusCodes.BadUserAccessDenied));
-                                continue;
-                            }
-
-                            // the reporter could not read the value, but the subscriber can:
-                            // use the value of this change read in the subscriber's context
-                            // when it was reported, never a later value of the node.
-                            if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied)
-                            {
-                                if (snapshot.SubscriberValueSnapshots == null ||
-                                    !snapshot.SubscriberValueSnapshots.TryGetValue(
-                                        monitoredItem.Id, out var captured) ||
-                                    !ReferenceEquals(captured.Session, monitoredItem.Session) ||
-                                    !ReferenceEquals(captured.Identity,
-                                        monitoredItem.Session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity))
-                                {
-                                    // The subscriber joined after this change was captured. Neither the
-                                    // reporter's denied value nor a later reread belongs to this notification.
-                                    continue;
-                                }
-                                snapshotValue = captured.Value;
-                            }
-                        }
-
-                        DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
-                        monitoredItem.QueueValue(valueToQueue, valueToQueue.StatusCode);
-                    }
-
-                    continue;
+                    await ProcessDataChangeForItemAsync(snapshot, kvp.Value, cancellationToken).ConfigureAwait(false);
                 }
-
-                if (monitoredItem.AttributeId != Attributes.Value &&
-                    (snapshot.Changes & NodeStateChangeMasks.NonValue) != 0)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    if (!snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
-                    {
-                        continue;
-                    }
-
-                    // Same permissions as the Read service: Browse for non-Value attributes and
-                    // ReadRolePermissions for RolePermissions.
-                    (ServiceResult validationResult, ISystemContext contextToUse) =
-                        await GetDataChangePermissionAsync(
-                            snapshot,
-                            monitoredItem,
-                            monitoredItem.AttributeId == Attributes.RolePermissions
-                                ? PermissionType.ReadRolePermissions
-                                : PermissionType.Browse,
-                            cancellationToken)
-                            .ConfigureAwait(false);
-
-                    if (ServiceResult.IsBad(validationResult))
-                    {
-                        QueueError(monitoredItem, validationResult);
-                        continue;
-                    }
-
-                    // The snapshot was read in the reporter's context; User* attributes depend on
-                    // the subscriber, so they are read again as the item's owner.
-                    if (IsUserDependentAttribute(monitoredItem.AttributeId))
-                    {
-                        ServiceResult readResult;
-                        (readResult, snapshotValue) = await Node.ReadAttributeAsync(
-                            contextToUse,
-                            monitoredItem.AttributeId,
-                            default,
-                            QualifiedName.Null,
-                            new DataValue(
-                                default,
-                                StatusCodes.Good,
-                                DateTime.MinValue,
-                                m_timeProvider.GetUtcNow().UtcDateTime),
-                            cancellationToken).ConfigureAwait(false);
-
-                        if (ServiceResult.IsBad(readResult))
-                        {
-                            QueueError(monitoredItem, readResult);
-                            continue;
-                        }
-                    }
-
-                    monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
+                    throw;
+                }
+                catch (Exception error) when (
+                    error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+                {
+                    m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(error);
                 }
             }
+        }
+
+        /// <summary>
+        /// Authorizes and delivers one subscriber's snapshot independently of other monitored items.
+        /// </summary>
+        private async Task ProcessDataChangeForItemAsync(
+            DataChangeSnapshot snapshot,
+            IDataChangeMonitoredItem2 monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            bool valueChanged = monitoredItem.AttributeId == Attributes.Value &&
+                (snapshot.Changes & NodeStateChangeMasks.Value) != 0;
+            bool attributeChanged = monitoredItem.AttributeId != Attributes.Value &&
+                (snapshot.Changes & NodeStateChangeMasks.NonValue) != 0;
+            if ((!valueChanged && !attributeChanged) ||
+                !snapshot.AttributeSnapshots.TryGetValue(monitoredItem.AttributeId, out DataValue snapshotValue))
+            {
+                return;
+            }
+
+            (ServiceResult validationResult, ServerSystemContext contextToUse) = await GetDataChangePermissionAsync(
+                snapshot, monitoredItem, MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(validationResult))
+            {
+                QueueError(monitoredItem, validationResult);
+                return;
+            }
+
+            if (valueChanged)
+            {
+                if (Node is BaseVariableState variable)
+                {
+                    if (variable.OnReadUserAccessLevel != null)
+                    {
+                        byte userAccessLevel = variable.UserAccessLevel;
+                        ServiceResult userAccess = variable.OnReadUserAccessLevel(
+                            contextToUse, variable, ref userAccessLevel);
+                        if (ServiceResult.IsBad(userAccess) || (userAccessLevel & AccessLevels.CurrentRead) == 0)
+                        {
+                            QueueError(monitoredItem, ServiceResult.IsBad(userAccess)
+                                ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied));
+                            return;
+                        }
+                    }
+
+                    if (snapshotValue.StatusCode == StatusCodes.BadUserAccessDenied &&
+                        (variable.OnReadUserAccessLevel != null ||
+                            (NodeManager is AsyncCustomNodeManager custom && custom.HasValueReadAuthorization(variable))))
+                    {
+                        if (snapshot.SubscriberValueSnapshots == null ||
+                            !snapshot.SubscriberValueSnapshots.TryGetValue(
+                                monitoredItem.Id,
+                                out (DataValue Value, ISession? Session, IUserIdentity? Identity) captured) ||
+                            !ReferenceEquals(captured.Session, monitoredItem.Session) ||
+                            !ReferenceEquals(captured.Identity,
+                                monitoredItem.Session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity))
+                        {
+                            // A later subscriber cannot inherit the reporter's value or a later reread.
+                            return;
+                        }
+                        snapshotValue = captured.Value;
+                    }
+                }
+                DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
+                monitoredItem.QueueValue(valueToQueue, valueToQueue.StatusCode);
+                return;
+            }
+
+            if (IsUserDependentAttribute(monitoredItem.AttributeId))
+            {
+                ServiceResult readResult;
+                (readResult, snapshotValue) = await Node.ReadAttributeAsync(
+                    contextToUse,
+                    monitoredItem.AttributeId,
+                    default,
+                    QualifiedName.Null,
+                    new DataValue(
+                        default, StatusCodes.Good, DateTime.MinValue, m_timeProvider.GetUtcNow().UtcDateTime),
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(readResult))
+                {
+                    QueueError(monitoredItem, readResult);
+                    return;
+                }
+            }
+            monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
         }
 
         /// <summary>
@@ -926,7 +941,7 @@ namespace Opc.Ua.Server
                 Attributes.UserRolePermissions;
         }
 
-        private async ValueTask<(ServiceResult Result, ISystemContext Context)> GetDataChangePermissionAsync(
+        private async ValueTask<(ServiceResult Result, ServerSystemContext Context)> GetDataChangePermissionAsync(
             DataChangeSnapshot snapshot,
             IDataChangeMonitoredItem2 monitoredItem,
             PermissionType permission,
@@ -935,11 +950,18 @@ namespace Opc.Ua.Server
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
-                long generation = Volatile.Read(ref m_permissionGeneration);
+                MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
+                long generation = authorization.Generation +
+                    authorization.RolePermissionsVersion +
+                    authorization.IdentityGeneration;
+                EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
+                MessageSecurityMode? securityMode = endpoint?.SecurityMode;
+                string? transport = endpoint?.TransportProfileUri;
+                AccessRestrictionType? restrictions = Node.AccessRestrictions;
                 // the subscriber's own context, also when the reporter's context is not a
                 // ServerSystemContext: every access check of the item uses its identity.
                 ServerSystemContext cachedContext = GetOrCreateContext(
-                    GetSubscriberContextTemplate(snapshot.Context), monitoredItem, generation);
+                    GetSubscriberContextTemplate(), monitoredItem, generation);
                 OperationContext operationContext = cachedContext.OperationContext!;
                 ServiceResult result;
                 if (m_permissionCache.TryGetValue(
@@ -960,7 +982,18 @@ namespace Opc.Ua.Server
                     m_permissionCache[monitoredItem.Id] = (
                         generation, operationContext.Session, cachedContext, result);
                 }
-                if (generation == Volatile.Read(ref m_permissionGeneration))
+                if (!ServiceResult.IsBad(result))
+                {
+                    result = await MonitoredReadAuthorization.ValidateAsync(
+                        NodeManager, Node, cachedContext, monitoredItem.AttributeId, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                }
+                EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
+                if (authorization.Matches(CapturePermissionContext(monitoredItem)) &&
+                    ReferenceEquals(endpoint, currentEndpoint) &&
+                    securityMode == currentEndpoint?.SecurityMode &&
+                    transport == currentEndpoint?.TransportProfileUri &&
+                    restrictions == Node.AccessRestrictions)
                 {
                     return (result, cachedContext);
                 }
@@ -976,13 +1009,27 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken = default)
         {
+            if (!ReferenceEquals(node, Node))
+            {
+                QueueError(monitoredItem, new ServiceResult(StatusCodes.BadNodeIdUnknown));
+                return;
+            }
+            var snapshot = new DataChangeSnapshot { Context = context, NodeId = node.NodeId };
+            PermissionType requested = MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId);
+            (ServiceResult authorization, ServerSystemContext subscriberContext) = await GetDataChangePermissionAsync(
+                snapshot, monitoredItem, requested, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(authorization))
+            {
+                QueueError(monitoredItem, authorization);
+                return;
+            }
             var value = new DataValue(
                 Variant.Null,
                 StatusCodes.Good,
                 DateTime.MinValue,
                 m_timeProvider.GetUtcNow().UtcDateTime);
             (ServiceResult error, value) = await node.ReadAttributeAsync(
-                context,
+                subscriberContext,
                 monitoredItem.AttributeId,
                 monitoredItem.IndexRange,
                 monitoredItem.DataEncoding,
@@ -994,6 +1041,15 @@ namespace Opc.Ua.Server
                 value = default;
             }
 
+            (authorization, ServerSystemContext currentContext) = await GetDataChangePermissionAsync(
+                snapshot, monitoredItem, requested, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(authorization) ||
+                !ReferenceEquals(subscriberContext.UserIdentity, currentContext.UserIdentity))
+            {
+                QueueError(monitoredItem, ServiceResult.IsBad(authorization)
+                    ? authorization : new ServiceResult(StatusCodes.BadUserAccessDenied));
+                return;
+            }
             monitoredItem.QueueValue(value, error);
         }
 
@@ -1052,13 +1108,15 @@ namespace Opc.Ua.Server
             {
                 // Refresh context if the owning session changed (e.g. after subscription transfer)
                 // or if the cache entry has expired.
-                // Note: identity-based invalidation is handled proactively by
-                // InvalidatePermissionCacheForSession when ActivateSession changes the identity.
                 if (cachedEntry.Generation != generation ||
                     cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
+                    !ReferenceEquals(cachedEntry.Context.UserIdentity,
+                        monitoredItem.Session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity) ||
+                    !ReferenceEquals(cachedEntry.Context.OperationContext.ChannelContext?.EndpointDescription,
+                        MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session)) ||
                     m_timeProvider.GetElapsedTime(cachedEntry.CreatedAtTimestamp) > m_cacheLifetime)
                 {
-                    operationContext = new OperationContext(monitoredItem);
+                    operationContext = MonitoredReadAuthorization.CreateContext(monitoredItem);
 
                     ServerSystemContext updatedContext = context.Copy(
                         operationContext);
@@ -1074,7 +1132,7 @@ namespace Opc.Ua.Server
             }
 
             // Create a new context and add it to the cache
-            operationContext = new OperationContext(monitoredItem);
+            operationContext = MonitoredReadAuthorization.CreateContext(monitoredItem);
             ServerSystemContext newContext = context.Copy(operationContext);
             m_contextCache.TryAdd(monitoredItemId, (generation, newContext, currentTimestamp));
             m_permissionCache.TryRemove(monitoredItemId, out _);
@@ -1146,7 +1204,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void DropEventPermissionCacheEntries(uint monitoredItemId)
         {
-            foreach (KeyValuePair<EventPermissionCacheKey, (long Generation, ServiceResult Result)> entry
+            foreach (KeyValuePair<EventPermissionCacheKey, (MonitoredItemPermissionContext Context, ServiceResult Result)>
+                entry
                 in m_eventPermissionCache)
             {
                 if (entry.Key.MonitoredItemId == monitoredItemId)
@@ -1163,7 +1222,8 @@ namespace Opc.Ua.Server
             uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result)>
             m_permissionCache = new();
 
-        private readonly ConcurrentDictionary<EventPermissionCacheKey, (long Generation, ServiceResult Result)>
+        private readonly ConcurrentDictionary<
+            EventPermissionCacheKey, (MonitoredItemPermissionContext Context, ServiceResult Result)>
             m_eventPermissionCache = new();
 
         private long m_permissionGeneration;
@@ -1171,12 +1231,12 @@ namespace Opc.Ua.Server
         private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
         /// <summary>
-        /// Returns the context subscriber contexts are copied from: the reporter's context
-        /// when it is a <see cref="ServerSystemContext"/>, else a context of the server.
+        /// Uses the owner or server template so reporter-specific authority cannot enter a subscriber's context.
         /// </summary>
-        private ServerSystemContext GetSubscriberContextTemplate(ISystemContext reporterContext)
+        private ServerSystemContext GetSubscriberContextTemplate()
         {
-            return reporterContext as ServerSystemContext ??
+            return (NodeManager as AsyncCustomNodeManager)?.SystemContext ??
+                m_server.DefaultSystemContext ??
                 LazyInitializer.EnsureInitialized(
                     ref m_subscriberContextTemplate,
                     () => new ServerSystemContext(m_server))!;
@@ -1279,6 +1339,34 @@ namespace Opc.Ua.Server
                 {
                     m_consumerCts?.Dispose();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Binds a monitored-item verdict to the effective authorization context that produced it.
+        /// </summary>
+        /// <param name="Generation">The monitored node's local invalidation generation.</param>
+        /// <param name="RolePermissionsVersion">The version of node and user role-permission attributes.</param>
+        /// <param name="Session">The subscription's current owning session.</param>
+        /// <param name="Identity">The current effective identity, not merely the principal's display name.</param>
+        /// <param name="IdentityGeneration">The session's activation and live-role refresh generation.</param>
+        private readonly record struct MonitoredItemPermissionContext(
+            long Generation,
+            long RolePermissionsVersion,
+            ISession? Session,
+            IUserIdentity? Identity,
+            long IdentityGeneration)
+        {
+            /// <summary>
+            /// Compares identity references because principal equality does not imply equal effective role grants.
+            /// </summary>
+            public bool Matches(in MonitoredItemPermissionContext other)
+            {
+                return Generation == other.Generation &&
+                    RolePermissionsVersion == other.RolePermissionsVersion &&
+                    ReferenceEquals(Session, other.Session) &&
+                    ReferenceEquals(Identity, other.Identity) &&
+                    IdentityGeneration == other.IdentityGeneration;
             }
         }
 

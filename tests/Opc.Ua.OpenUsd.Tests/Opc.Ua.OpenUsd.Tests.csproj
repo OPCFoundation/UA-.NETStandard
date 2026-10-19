@@ -40,8 +40,13 @@
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\samples\Robotics\IntentViewerClient\IntentViewerClient.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\samples\Robotics\BinPickingClient\BinPickingClient.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
     <Compile Remove="OpenUsdConnectorRunnerTests.cs" />

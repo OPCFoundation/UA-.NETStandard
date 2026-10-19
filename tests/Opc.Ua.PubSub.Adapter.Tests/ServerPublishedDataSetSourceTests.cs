@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Adapter.Publisher;
+using Opc.Ua.PubSub.Adapter.Session;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 
@@ -227,6 +228,96 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             // recovered server read re-resolves and re-emits metadata.
             builder.Verify(
                 b => b.ResolveAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// A sampling operation admitted before retirement cannot complete with withdrawn values afterward.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF40RetiredSourceRejectsInFlightSnapshotAndMetadataNotifications()
+        {
+            PublishedDataSetDataType configuration = AdapterTestHelpers.PublishedDataSet(
+                "Withdrawn", AdapterTestHelpers.Variable.Value(new NodeId(601u)));
+            var builder = new Mock<IDataSetMetaDataBuilder>();
+            builder.Setup(b => b.ResolveAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DataSetMetaDataType>(new DataSetMetaDataType()));
+            var readStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<ArrayOf<DataValue>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var strategy = new Mock<IReadStrategy>();
+            strategy.Setup(s => s.ReadAsync(
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    readStarted.TrySetResult(true);
+                    return new ValueTask<ArrayOf<DataValue>>(releaseRead.Task);
+                });
+            var source = new ServerPublishedDataSetSource(
+                configuration, strategy.Object, builder.Object, AdapterTestHelpers.Telemetry());
+            int metadataNotifications = 0;
+            source.MetaDataChanged += (_, _) => metadataNotifications++;
+            Task<PublishedDataSetSnapshot> sample = source.SampleAsync(MetaWithFields("Withdrawn")).AsTask();
+            await readStarted.Task.ConfigureAwait(false);
+
+            source.Retire();
+            builder.Raise(b => b.MetaDataChanged += null, EventArgs.Empty);
+            releaseRead.TrySetResult([new DataValue(999)]);
+
+            Assert.That(
+                () => sample,
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => source.BuildMetaData(), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(metadataNotifications, Is.Zero);
+        }
+
+        /// <summary>
+        /// Metadata shutdown drains an admitted read before disposing its gate and cannot relay late model changes.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF40MetadataRetirementDrainsInFlightRead()
+        {
+            var readStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseRead = new TaskCompletionSource<ArrayOf<DataValue>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock<IServerSession> session = AdapterTestHelpers.ConnectedSession();
+            session.Setup(s => s.ReadAsync(
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    readStarted.TrySetResult(true);
+                    return new ValueTask<ArrayOf<DataValue>>(releaseRead.Task);
+                });
+            await using IServerSession sessionScope = session.Object;
+            PublishedDataSetDataType configuration = AdapterTestHelpers.PublishedDataSet(
+                "Withdrawn", AdapterTestHelpers.Variable.Value(new NodeId(602u)));
+            await using var builder = new DataSetMetaDataBuilder(
+                configuration, session.Object, AdapterTestHelpers.Telemetry());
+            int notifications = 0;
+            builder.MetaDataChanged += (_, _) => notifications++;
+            Task<DataSetMetaDataType> resolution = builder.ResolveAsync().AsTask();
+            await readStarted.Task.ConfigureAwait(false);
+
+            Task retirement = builder.DisposeAsync().AsTask();
+            bool waitingForRead = !retirement.IsCompleted;
+            session.Raise(s => s.ModelChanged += null, EventArgs.Empty);
+            releaseRead.TrySetResult(
+            [
+                new DataValue(Variant.From(DataTypeIds.Int32)),
+                new DataValue(ValueRanks.Scalar),
+                new DataValue(Variant.From(ArrayOf<uint>.Empty))
+            ]);
+            await resolution.ConfigureAwait(false);
+            await retirement.ConfigureAwait(false);
+
+            Assert.That(waitingForRead, Is.True);
+            Assert.That(notifications, Is.Zero);
+            session.Verify(s => s.ReadAsync(
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(
+                async () => await builder.RefreshAsync().ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>());
         }
 
         [Test]

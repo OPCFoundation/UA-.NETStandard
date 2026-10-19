@@ -237,6 +237,13 @@ can still serve list, metadata, and payload-read operations. The same provider c
 also be mounted through `FileSystemNodeManager`; use the store API rather than
 editing package files directly.
 
+`FileSystemSoftwareFolder` also confines every revision, marker-derived path and
+provider-supplied entry to its canonical per-device root. Revision identifiers
+must be single nonempty path components; traversal, dot-only and normalized
+dot-segment aliases are rejected before file operations. Ordinary dotted
+revisions such as `1.2.3` remain supported. Malformed markers cannot select or
+delete a parent folder's payload or metadata.
+
 ### Seeding a package
 
 Resolve `ISoftwarePackageStore` from the host, then copy the payload into it.

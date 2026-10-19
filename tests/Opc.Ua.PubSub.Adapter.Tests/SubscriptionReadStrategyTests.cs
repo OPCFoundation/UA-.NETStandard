@@ -154,8 +154,12 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(99)));
         }
 
+        /// <summary>
+        /// A notification without a registered projection handle cannot create a whole-value export.
+        /// </summary>
         [Test]
-        public async Task DataChangedFallsBackToNodeIdWhenHandleUnknown()
+        [Category("SecurityRegression")]
+        public async Task SecurityF41UnknownHandleCannotPopulateWholeValueCache()
         {
             using var strategy = new SubscriptionReadStrategy(AdapterTestHelpers.Telemetry());
             var subscription = new FakeDataChangeSubscription();
@@ -170,7 +174,8 @@ namespace Opc.Ua.PubSub.Adapter.Tests
             ];
             ArrayOf<DataValue> values = await strategy.ReadAsync(reads.ToArrayOf()).ConfigureAwait(false);
 
-            Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(7)));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(values[0].WrappedValue.IsNull, Is.True);
         }
 
         [Test]

@@ -65,6 +65,27 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         /// <summary>
+        /// Routes real service permission checks and dispatch to the supplied in-memory registry owner.
+        /// </summary>
+        public static MasterNodeManager CreateMasterNodeManager(
+            Mock<IServerInternal> server,
+            IAsyncNodeManager owner)
+        {
+            var configuration = new Mock<IConfigurationNodeManager>();
+            var core = new Mock<ICoreNodeManager>();
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager()).Returns(configuration.Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>())).Returns(core.Object);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            server.SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+            server.SetupGet(value => value.CoreNodeManager).Returns(core.Object);
+            var master = new MasterNodeManager(server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [owner]);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
+        /// <summary>
         /// Seeds the standard base types the compiled xRegistry model derives from. A real server
         /// loads these with the core NodeSet; the type table rejects a subtype whose supertype it
         /// does not already know.

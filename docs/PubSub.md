@@ -275,7 +275,7 @@ timestamps even when Part 6 flattens `UaType` alongside `Value`.
 
 ### `IDataSetMetaDataRegistry`
 
-Pub/sub-shared registry keyed by
+The application's host-trusted registry is keyed by
 `(PublisherId, WriterGroupId, DataSetWriterId, DataSetClassId,
 MajorVersion)`
 ([§6.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.2.4)).
@@ -287,17 +287,27 @@ KeyFrame arrives. A connection configured for message security applies its
 SecurityMode to the UADP announcement, with the same keys as its
 DataSetMessages: `Sign` lets subscribers verify the announcement, and
 `SignAndEncrypt` also hides the DataSet layout from applications that do not
-hold the keys.
+hold the keys. Received announcements are retained in a connection-local
+registry with their authentication provenance, not written into another
+connection's trusted metadata.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
 DataSetWriterId
 ([§6.2.9.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.9.4)).
 It can therefore decode RawData fields without first receiving an
-announcement; a later announcement replaces the entry. A reader with a
+announcement; an eligible later announcement replaces only that connection's
+received entry. A reader with a
 wildcard filter depends on announcements for RawData. A DataSetMessage that
 omits its ConfigurationVersion is decoded with the registered metadata; one
 that carries a different MajorVersion is rejected.
+
+Target-variable mapping follows actual metadata `DataSetFieldId` values, including
+subsets, reordered fields and delta-frame metadata indices. Compatible reader
+configuration can supply trusted metadata when an announcement is absent.
+Direct sink callers using nonempty target IDs must supply typed
+`DataSetField.DataSetFieldId` values; unresolved IDs never fall back to positions
+or GUID-looking names. Empty-ID legacy mappings retain their index behavior.
 
 Subscribers can also **actively** request discovery information with
 `IPubSubApplication.RequestDiscoveryAsync(...)` (Part 14 §7.2.4.6): it sends a
@@ -774,8 +784,17 @@ are never substituted or downgraded: the profile is not registered and
 
 Peer authentication reuses the injected stack certificate validator /
 certificate stores. Certificates must be ECC/ECDSA and match the selected profile
-hash strength. DTLS records enforce sequence-number protection and anti-replay
-per RFC 9147.
+hash strength. The publisher also matches the subscriber certificate's DNS or IP
+subject alternative name against the original configured endpoint host, not a
+DNS-resolved replacement address. A trusted certificate for another application
+does not authenticate that endpoint.
+
+DTLS records enforce sequence-number protection and anti-replay per RFC 9147.
+Integrity-only profiles authenticate the full reconstructed record sequence
+number and epoch, not just the truncated wire sequence. Both peers must use this
+record authentication; implementations that authenticate only the truncated
+sequence are not wire-compatible. AEAD profile record authentication is unchanged.
+
 ### MQTT (3.1.1 / 5.0)
 
 Implemented in `Opc.Ua.PubSub.Mqtt` on top of MQTTnet. Wire profiles
@@ -845,6 +864,10 @@ fails closed on MQTTnet v4). The chain is only consulted while `ValidateServerCe
 is `true`; when no subjects are configured the transport falls back to the platform default
 trust store.
 
+Custom CA trust does not disable broker hostname, certificate-presence, validity,
+or server-authentication usage checks, including the MQTTnet v4 path on `net48`.
+Keep `ValidateServerCertificate = true` outside explicit development scenarios.
+
 ```csharp
 var options = new MqttConnectionOptions
 {
@@ -905,6 +928,11 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 **Record headers and delivery guarantees.** Every record carries the normative `content-type` header (Annex B.2): `application/opcua+uadp` for `pubsub-kafka-uadp` and `application/json` for `pubsub-kafka-json`. The record key derives from the PublisherId so a publisher's records keep partition ordering. `KafkaConnectionOptions.DeliveryGuarantee` maps to producer settings: `BestEffort` → `acks=0`; `AtMostOnce` → `acks=1`; `AtLeastOnce` and `ExactlyOnce` → `acks=all` with the idempotent producer enabled. Per-writer `RequestedDeliveryGuarantee` on the broker transport settings overrides the connection default.
 
 **SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
+
+For the Confluent backend, explicit TLS enablement upgrades `Plaintext` to `Ssl`
+and `SaslPlaintext` to `SaslSsl` in both producer and consumer configuration.
+Credential validation uses that same effective protocol; a TLS endpoint cannot be
+downgraded by a plaintext protocol setting.
 
 **NativeAOT.** The default pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) backend is validated for NativeAOT/trimming on `net10.0`. The opt-in Confluent.Kafka backend uses native librdkafka and is not NativeAOT or trimming compatible. See [Native AOT](#native-aot).
 
@@ -1274,6 +1302,13 @@ PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
 
 ## Security
 
+Effective message security includes the settings on individual `DataSetReader`
+instances as well as their groups. The strongest requested mode applies to the
+connection, and secured construction requires a usable security wrapper
+(`PSC1401` otherwise). Distinct secured `SecurityGroupId` values require separate
+connections; a mixed connection is rejected with `PSC1402` before activation
+rather than authenticating every group with one group's keys.
+
 Implemented in `Opc.Ua.PubSub.Security`. Implements
 [Part 14 §7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3)
 (send / receive flow) and
@@ -1407,6 +1442,11 @@ OPC UA Part 14 **Actions** add a request/response interaction over PubSub (the
 PubSub analogue of a Client/Server `Call`). A *requester* publishes an action
 request to an *action target*; one or more *responders* execute it and publish a
 correlated action response.
+
+A nonempty `PubSubActionTarget.ConnectionName` restricts its handler to that
+connection, including after configuration replacement or mutation. Registering a
+scoped target directly on another connection is rejected; an empty name retains
+the explicit application-wide behavior.
 
 The stack implements Actions over both encodings and transports:
 
@@ -1586,11 +1626,22 @@ builder.Services.AddOpcUa()
 
 For secured connections, provide an `ApplicationConfiguration` that uses the stack certificate manager and normal trusted issuer, trusted peer, and rejected certificate stores. The automatic fallback configuration is useful for simple hosting scenarios, but production deployments should manage the client application certificate and trust lists explicitly.
 
+The fallback does not automatically accept untrusted server certificates.
+Provision the client application certificate and the intended peer or issuer
+trust, and use a server certificate matching the original endpoint hostname.
+Supplying an explicit configuration does not weaken a later fallback connection.
+
 ### Configuration and hot reload
 
 Adapter hot reload is coordinated by `ServerAdapterReloadCoordinator`. After the host starts, the coordinator listens to both `IPubSubConfigurationStore.Changed` and named `IOptionsMonitor<ServerPublisherOptions>`, `IOptionsMonitor<ServerSubscriberOptions>`, and `IOptionsMonitor<ServerActionResponderOptions>` changes. Reloads are debounced for about 250 ms and serialized so a burst of configuration-store and options reload tokens is applied as one ordered update.
 
 The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Publisher and subscriber rewires update the mutable data-set provider layer (`MutableDataSetSourceProvider` / `MutableDataSetSinkProvider`) and then call `IPubSubApplication.ReplaceConfigurationAsync` so the core runtime observes the same configuration document. Adapter sessions are pooled by `ServerConnectionOptions` value equality (`EndpointUrl`, `SecurityMode`, `SecurityPolicyUri`, `UserName`, `SessionName`, `SessionTimeout`, `ApplicationName`); unchanged connections keep their managed session, while sessions with no remaining binding references are disposed.
+
+Subscription rewiring compares immutable dataset definitions, not only dataset
+names. Removing, remapping or reordering fields retires the previous source,
+subscription cache and metadata work before replacement. A failed replacement
+can pause publication rather than continue exporting withdrawn fields; a later
+reload can recover. Already completed or queued publications cannot be recalled.
 
 Use `AddServerAsPublisher(string name, IConfiguration configuration)`, `AddServerAsSubscriber(string name, IConfiguration configuration)`, or `AddServerAsActionResponder(string name, IConfiguration configuration)` when adapter options should be bound from reloadable configuration. The existing `Action<TOptions>` overloads still work for code-set options. Object-typed members are intentionally code-set, not `IConfiguration`-bound: `ServerConnectionOptions.ApplicationConfiguration`, `ServerConnectionOptions.UserIdentity`, `ServerActionResponderOptions.MethodMap`, and `ServerActionResponderOptions.Targets`.
 
@@ -1861,6 +1912,14 @@ Any node id in the mapping configuration — published variables (read), target 
 ### Lifecycle and resilience
 
 The adapter registrations add `ServerAdapterRuntime` and `ServerAdapterHostedService`. The runtime owns sessions and subscription coordinators. On host start, subscription-mode publisher coordinators connect the session, create the client Subscriptions, add monitored items, apply changes, and prime caches. Cyclic publishers, subscribers, and action responders connect lazily on first service call. On host shutdown, coordinators and sessions are disposed.
+
+Subscription-mode `IndexRange` applies to monitored-item creation, priming,
+cache identity and publication, preserving status and timestamps. Different
+ranges of the same source remain independent. Custom subscription providers
+implement `IRangedDataChangeSubscription` to support ranged fields; unsupported
+providers reject those fields before monitoring or reading rather than exporting
+the complete value. Source retirement and `DataSetMetaDataBuilder.DisposeAsync`
+drain admitted metadata work before releasing their resources.
 
 `ManagedSession` handles keep-alive and reconnect for the underlying client session. Adapter read, write, and call components are fail-soft for ordinary service or transport faults: publisher fields become Bad-quality values, subscriber writes return Bad field status, and action failures return Bad action status. Cancellation and disposal still propagate normally. Recoverable, fail-soft faults are logged at `Information` level (not as warnings) so a transient outage does not spam the log.
 

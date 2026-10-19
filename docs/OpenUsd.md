@@ -422,6 +422,12 @@ relationship-for-relationship (ordered targets), metadata-, variant-selection-, 
 specifier-equivalent to the input's *composed* result, and the recorded composition arc list is
 preserved.
 
+Textual, token and asset array elements, including nested composite values, are
+encoded as data in their USDA context. Quotes, delimiters and newlines in a
+writable attribute cannot introduce prims or composition arcs during export.
+The reader likewise keeps escaped strings and metadata literals separate from
+USDA structure, while retaining explicitly authored composition.
+
 It is deliberately **not** authoring-layer lossless: the input's per-layer opinion stack, sublayer
 structure and value clips are summarised as provenance under `Composition/` and
 `RootLayerIdentifier` rather than reproduced layer by layer. `UsdSceneSignature` computes the

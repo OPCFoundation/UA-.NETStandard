@@ -700,6 +700,10 @@ namespace Opc.Ua.Schema.Model {
         private bool nonExecutableField;
         
         private bool nonExecutableFieldSpecified;
+
+        private bool userExecutableField;
+
+        private bool userExecutableFieldSpecified;
         
         /// <remarks/>
         [System.Xml.Serialization.XmlArrayItemAttribute("Argument", IsNullable=false)]
@@ -742,6 +746,32 @@ namespace Opc.Ua.Schema.Model {
             }
             set {
                 this.nonExecutableFieldSpecified = value;
+            }
+        }
+
+        /// <summary>
+        /// The independently configured UserExecutable attribute.
+        /// </summary>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public bool UserExecutable {
+            get {
+                return this.userExecutableField;
+            }
+            set {
+                this.userExecutableField = value;
+            }
+        }
+
+        /// <summary>
+        /// Whether UserExecutable overrides the legacy Executable fallback.
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        public bool UserExecutableSpecified {
+            get {
+                return this.userExecutableFieldSpecified;
+            }
+            set {
+                this.userExecutableFieldSpecified = value;
             }
         }
     }
@@ -984,6 +1014,10 @@ namespace Opc.Ua.Schema.Model {
         private byte[] opaqueIdField;
         
         private uint writeAccessField;
+
+        private uint userWriteAccessField;
+
+        private bool userWriteAccessFieldSpecified;
         
         private uint partNoField;
         
@@ -1243,6 +1277,32 @@ namespace Opc.Ua.Schema.Model {
                 this.writeAccessField = value;
             }
         }
+
+        /// <summary>
+        /// The independently configured UserWriteMask.
+        /// </summary>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public uint UserWriteAccess {
+            get {
+                return this.userWriteAccessField;
+            }
+            set {
+                this.userWriteAccessField = value;
+            }
+        }
+
+        /// <summary>
+        /// Whether UserWriteAccess overrides the legacy WriteMask fallback.
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnoreAttribute()]
+        public bool UserWriteAccessSpecified {
+            get {
+                return this.userWriteAccessFieldSpecified;
+            }
+            set {
+                this.userWriteAccessFieldSpecified = value;
+            }
+        }
         
         /// <remarks/>
         [System.Xml.Serialization.XmlAttributeAttribute()]
@@ -1381,6 +1441,8 @@ namespace Opc.Ua.Schema.Model {
         private Permissions[] permissionField;
         
         private System.Xml.XmlQualifiedName roleField;
+
+        private string roleIdField;
         
         /// <remarks/>
         [System.Xml.Serialization.XmlElementAttribute("Permission")]
@@ -1401,6 +1463,20 @@ namespace Opc.Ua.Schema.Model {
             }
             set {
                 this.roleField = value;
+            }
+        }
+
+        /// <summary>
+        /// The role's namespace-qualified ExpandedNodeId, independent of a generated role declaration.
+        /// When present this wire identity takes precedence over Role.
+        /// </summary>
+        [System.Xml.Serialization.XmlAttributeAttribute()]
+        public string RoleId {
+            get {
+                return this.roleIdField;
+            }
+            set {
+                this.roleIdField = value;
             }
         }
     }

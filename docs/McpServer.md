@@ -819,6 +819,23 @@ and history continuation points to their actual UA generation. Reconnection
 must fail or invalidate the old operation, not send an old handle to a new
 session.
 
+Borrowing a host-provisioned session requires an exact `SessionNames` grant.
+Caller-created connections remain private to their caller; a session-use grant
+does not authorize replacing or disconnecting a host registration. A reused name
+does not inherit the previous registration's secret authority.
+
+Protected secret bindings include the approved registration and authenticated
+endpoint/certificate identity, not only advertised application URI and model
+NodeId. Legacy host aliases are pinned on first approved use. Caller-created or
+autoaccepted targets cannot consume those protected aliases. GDS keeps public
+resource labels and third-party audiences separate from its bound secret issuer.
+
+Local peer-trust changes also require `CertificateAdministration` before opening
+or mutating a store; listing a rejected certificate does not authorize trusting
+it. Vision file handles are opaque caller/target/registration/generation-bound
+host mappings, even though their wire type remains `uint`. A Vision file tool
+cannot use an arbitrary server handle to modify a protected TrustList.
+
 Generic mutation tools refuse unsupported session lifetimes instead of risking
 dispatch to a replacement. Custom-session embedding requirements are documented
 in the [Core package](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#generic-mutations-and-session-lifetime).
@@ -831,6 +848,16 @@ selectors and Modbus unit/function/range selectors are separate operation
 checks. UDP and Ethernet additionally require their explicit local interface,
 peer and frame selectors. No MCP tool installs a capture driver or grants OS
 privileges.
+
+Remote PubSub configuration also requires a `configure-connect` grant for every
+effective endpoint, using an empty resource selector for connection activation.
+This applies to connections without writer or reader groups: authentication,
+discovery and status traffic can still start. Separate publish/subscribe grants
+must cover every effective writer-group, per-writer and metadata queue, including
+aggregate-message fallbacks. Mutation tools authorize their actual direction and
+existing parent connection, not a caller-supplied mode or substitute endpoint.
+Unreadable parent address/transport settings fail authorization rather than
+falling back to caller-provided settings.
 
 Named runtimes default to eight per host, two per caller, five minutes of idle
 time and a thirty-minute absolute lease. Pending activation and closing

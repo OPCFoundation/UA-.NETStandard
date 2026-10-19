@@ -42,7 +42,7 @@ namespace AggregationServer
         /// <summary>
         /// Gets or sets the endpoint host.
         /// </summary>
-        public string Host { get; set; } = "localhost";
+        public string Host { get; set; } = "127.0.0.1";
 
         /// <summary>
         /// Gets or sets the endpoint port.

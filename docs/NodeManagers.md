@@ -425,6 +425,28 @@ is also revalidated at least once per second, which bounds the delay for
 permissions a node manager computes without such a change, for example through
 `OnReadRolePermissions`.
 
+For an asynchronous, caller-specific Value read policy, register
+`AsyncCustomNodeManager.RegisterValueReadAuthorization(node, authorize)` and keep
+its disposable registration for the binding's lifetime. The policy runs at
+monitored-item admission and each subscriber delivery, independently of cached
+role verdicts. It receives the subscriber's current identity and session context,
+not the context that reported a change. Endpoint access restrictions are also
+rechecked around awaited reads and authorization. An `OnReadValue` check alone
+does not authorize a shared notification snapshot.
+
+The default session retains its original endpoint contract separately from the
+last successfully accepted channel's transport evidence. Reactivation cannot
+reduce effective confidentiality merely by retaining the same UA security mode
+and policy: an HTTPS-to-plaintext-TCP downgrade is rejected before rebinding,
+protecting values already queued for Publish as well as future notifications.
+Confidential HTTPS-to-HTTPS or HTTPS-to-WSS transitions retain their supported
+behavior; this is not a blanket transport-profile equality rule.
+
+Retiring the registration denies further reads with `BadShutdown`, including
+work already awaiting the policy; a replacement registration can authorize new
+work. Binding shutdown must cancel and drain its admitted asynchronous work
+before releasing callback resources.
+
 #### Sampling interval revision
 
 When a client creates or modifies a monitored item the node manager revises the

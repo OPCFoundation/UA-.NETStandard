@@ -35,6 +35,12 @@ document entirely in memory before generation. See
 [`readme.md`](readme.md#generate-code-from-wot-thing-models--thing-descriptions)
 for details, per-file options and diagnostics.
 
+Generated factories retain explicit user write/execution restrictions and
+namespace-qualified role identifiers, including runtime-provided roles.
+Referenced-model security metadata must be produced and consumed by compatible
+generators: upgrade both sides and regenerate affected models. Invalid or
+unrepresentable security metadata fails generation rather than dropping policy.
+
 ## Target frameworks
 
 `netstandard2.0` (Roslyn analyzer host TFM).

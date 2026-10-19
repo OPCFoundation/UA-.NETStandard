@@ -652,6 +652,12 @@ Register a provider with `AddWotCredentialProvider`. Scope credentials by the re
 
 `WotEndpointPolicy` is an allow-list that decides which endpoint URIs an executor may reach. It fails closed: the default set covers only the schemes the shipped bindings use (`http`, `https`, `modbus+tcp`, `modbus`, `mqtt`, `mqtts`, `opc.tcp`, `opc.https`, `opc.wss`), and it blocks loopback, RFC1918, CGNAT, link-local (including the cloud metadata address `169.254.169.254`) and IPv6 ULA ranges.
 
+Executable MQTT and Modbus network forms require an explicit, nonempty host.
+Hostless forms do not imply localhost. Their executors validate the effective
+destination against the operation's endpoint policy before resolving credentials
+or creating a connection, including when invoked directly without registry
+activation.
+
 A custom binding almost always introduces a scheme the default set does not know about, so opening a channel fails with `BadSecurityChecksFailed` and `Endpoint scheme '<scheme>' is not in the policy's AllowedSchemes set` until the scheme is opted in:
 
 ```csharp

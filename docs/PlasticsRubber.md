@@ -315,6 +315,11 @@ Every method and value read/write is checked through
 `IPlasticsRubberAccessPolicy.AuthorizeAsync`. Temporary-file operations and
 metadata reads are also checked, not just transfer creation.
 
+Dataset status properties apply the same asynchronous policy at monitored-item
+admission and each subscriber delivery. A refresh performed by an authorized
+caller cannot lend that caller's read permission to another subscriber, and a
+later policy revocation prevents subsequent restricted notifications.
+
 The `PlasticsRubberRequestContext.SystemContext` is the original caller context.
 `TargetId` is the actual method-owning or property-owning instance, which can
 be a status object, list object, transfer object or temporary file. The provider

@@ -258,35 +258,12 @@ namespace Quickstarts
                             throw NoMatchingEndpoint(useSecurity);
                     }
 
-                    // Get the endpoint by connecting to server's discovery endpoint.
-                    // Try to find the first endopint with security.
-                    var endpointConfiguration = EndpointConfiguration.Create(m_configuration);
-                    var endpoint = new ConfiguredEndpoint(
-                        null,
+                    ISession session = await CreateSessionAsync(
+                        serverUrl,
                         endpointDescription!,
-                        endpointConfiguration);
-
-                    IUserIdentity userIdentity = await CreateUserIdentityAsync(
-                        endpointDescription!,
+                        connection,
+                        new DefaultSessionFactory(m_telemetry),
                         ct).ConfigureAwait(false);
-
-                    // Create the session factory. - we could take it as parameter or as member
-                    var sessionFactory = new DefaultSessionFactory(m_telemetry);
-
-                    // Create the session
-                    ISession session = await sessionFactory
-                        .CreateAsync(
-                            m_configuration,
-                            connection!,
-                            endpoint,
-                            connection == null,
-                            false,
-                            m_configuration.ApplicationName!,
-                            SessionLifeTime,
-                            userIdentity,
-                            default,
-                            ct)
-                        .ConfigureAwait(false);
 
                     // Assign the created session
                     if (session != null && session.Connected)
@@ -394,6 +371,69 @@ namespace Quickstarts
                 // Log Error
                 m_logger.DisconnectError(ex);
             }
+        }
+
+        /// <summary>
+        /// Establishes the selected direct or reverse session against the operator's requested host.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The requested or discovered endpoint URL is invalid, or discovery changed the requested transport.
+        /// </exception>
+        internal async Task<ISession> CreateSessionAsync(
+            string serverUrl,
+            EndpointDescription endpointDescription,
+            ITransportWaitingConnection? connection,
+            ISessionFactory sessionFactory,
+            CancellationToken ct)
+        {
+            if (!Uri.TryCreate(serverUrl, UriKind.Absolute, out Uri? requested) ||
+                string.IsNullOrEmpty(requested.Host))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The requested endpoint must have a valid absolute URL with a hostname.");
+            }
+            string? advertisedUrl = endpointDescription.EndpointUrl;
+            if (!Uri.TryCreate(advertisedUrl, UriKind.Absolute, out Uri? advertised) ||
+                string.IsNullOrEmpty(advertised.Host))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The discovered endpoint has no valid absolute URL with a hostname.");
+            }
+            if (!string.Equals(requested.Scheme, advertised.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The discovered endpoint changed the requested transport.");
+            }
+            EndpointDescription description = CoreUtils.Clone(endpointDescription)!;
+            description.EndpointUrl = new UriBuilder(advertised)
+            {
+                Host = requested.IdnHost,
+                Port = requested.Port
+            }.Uri.AbsoluteUri;
+            description.Server.DiscoveryUrls = [requested.AbsoluteUri];
+            var endpoint = new ConfiguredEndpoint(
+                null, description, EndpointConfiguration.Create(m_configuration));
+            if (description.ServerCertificate.Length > 0)
+            {
+                using var certificate = Certificate.FromRawData(description.ServerCertificate);
+                // A certificate previously validated for another host must still match this target.
+                m_configuration.CertificateManager.ValidateDomains(certificate, endpoint, serverValidation: true);
+            }
+            IUserIdentity userIdentity = await CreateUserIdentityAsync(description, ct).ConfigureAwait(false);
+            return await sessionFactory.CreateAsync(
+                m_configuration,
+                connection!,
+                endpoint,
+                updateBeforeConnect: connection == null,
+                checkDomain: true,
+                sessionName: m_configuration.ApplicationName!,
+                sessionTimeout: SessionLifeTime,
+                identity: userIdentity,
+                preferredLocales: default,
+                ct).ConfigureAwait(false);
         }
 
         /// <summary>

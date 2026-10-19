@@ -76,6 +76,10 @@ The primary client for interacting with a GDS. Manages its own
 session and exposes the full GDS directory and certificate
 management API.
 
+Both GDS and push clients validate the server certificate against the originally
+requested endpoint hostname before activating credentials. Discovery cannot
+replace that destination's identity with an advertised host or transport.
+
 ```csharp
 using Opc.Ua.Gds.Client;
 
@@ -117,6 +121,11 @@ await gdsClient.DisconnectAsync();
 
 Client for OPC 10000-12 §7.10 push certificate management on a
 target server:
+
+Private-key uploads require a confidential, generation-bound dispatch context.
+A Sign-only channel is rejected before the key is sent, and reconnection cannot
+redirect the captured operation to another channel. Certificate-only updates
+retain their non-secret path.
 
 ```csharp
 var pushClient = new ServerPushConfigurationClient(appConfig);
@@ -563,6 +572,13 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 | §7.9.9 | GetTrustList | ✅ | `OnGetTrustList` | `ClientTest.cs`, `CustomCertificateGroupIntegrationTest.cs` |
 | §7.9.10 | GetCertificateStatus | ✅ | `OnGetCertificateStatus` | `ClientTest.cs` |
 | §7.9.11 | CheckRevocationStatus | ✅ | `OnCheckRevocationStatusAsync` + ValidityTime | `GdsCertificateManagementTests.cs` |
+
+`CheckRevocationStatus` uses locally configured issuer chains and verified local
+CRLs. Caller-supplied AIA URLs do not trigger certificate or CRL downloads.
+Incomplete or untrusted chains fail validation, and unavailable revocation
+evidence is reported as unknown rather than accepted. Provision the complete
+issuer chain and applicable CRLs in the configured stores, including on `net48`,
+whose explicit-path validation does not call `X509Chain.Build`.
 
 ## Roles and Privileges (§7.2)
 

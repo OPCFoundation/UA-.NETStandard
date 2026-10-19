@@ -73,6 +73,7 @@ namespace Opc.Ua.Mcp.Tools
             "format='json' returns an array of dissection results. Provide keyLogPath, or call pubsub_load_keylog " +
             "first, to decrypt encrypted UADP frames.")]
         public static async Task<IList<ContentBlock>> DissectCaptureAsync(
+            IServiceProvider services,
             PubSubCaptureSessionManager manager,
             [Description("Output format: text | json.")] string format = "text",
             [Description("Optional PubSub JSON-lines key-log path under the MCP pcap base folder.")]
@@ -80,11 +81,13 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Maximum frames to dissect. Default = all.")] long? maxFrames = null,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(services);
             ArgumentNullException.ThrowIfNull(manager);
 
+            string allowedRoot = GetPcapAllowedRoot(services);
             IPubSubCaptureSource source = await PubSubCaptureTools.GetLastStoppedSourceAsync(manager, ct)
                 .ConfigureAwait(false);
-            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, ct)
+            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, allowedRoot, ct)
                 .ConfigureAwait(false);
             PubSubOfflineDissector dissector = CreateDissector(resolver);
             return await FormatAsync(source.ReadCapturedFramesAsync(maxFrames, ct), dissector, format, ct)
@@ -111,11 +114,7 @@ namespace Opc.Ua.Mcp.Tools
 
             string allowedRoot = GetPcapAllowedRoot(services);
             pcapPath = McpCapturePath.ResolveAndValidate(pcapPath, allowedRoot);
-            keyLogPath = string.IsNullOrWhiteSpace(keyLogPath)
-                ? null
-                : McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
-
-            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, ct)
+            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, allowedRoot, ct)
                 .ConfigureAwait(false);
             PubSubOfflineDissector dissector = CreateDissector(resolver);
             return await FormatAsync(ReadPubSubFramesFromPcapAsync(pcapPath, maxFrames, ct), dissector, format, ct)
@@ -138,7 +137,8 @@ namespace Opc.Ua.Mcp.Tools
 
             string allowedRoot = GetPcapAllowedRoot(services);
             keyLogPath = McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
-            List<PubSubKeyMaterial> keys = await ReadKeyMaterialAsync(keyLogPath, ct).ConfigureAwait(false);
+            List<PubSubKeyMaterial> keys = await ReadKeyMaterialAsync(keyLogPath, allowedRoot, ct)
+                .ConfigureAwait(false);
             await StoreLoadedKeyMaterialAsync(keys, ct).ConfigureAwait(false);
             return new PubSubKeyLogInfo
             {
@@ -174,11 +174,12 @@ namespace Opc.Ua.Mcp.Tools
 
         private static async ValueTask<CapturedKeyLogKeyResolver?> CreateKeyResolverAsync(
             string? keyLogPath,
+            string allowedRoot,
             CancellationToken ct)
         {
-            List<PubSubKeyMaterial>? keys = string.IsNullOrWhiteSpace(keyLogPath)
+            List<PubSubKeyMaterial> keys = string.IsNullOrWhiteSpace(keyLogPath)
                 ? await CopyLoadedKeyMaterialAsync(ct).ConfigureAwait(false)
-                : await ReadKeyMaterialAsync(keyLogPath!, ct).ConfigureAwait(false);
+                : await ReadKeyMaterialAsync(keyLogPath!, allowedRoot, ct).ConfigureAwait(false);
             if (keys.Count == 0)
             {
                 return null;
@@ -214,17 +215,35 @@ namespace Opc.Ua.Mcp.Tools
 
         private static async Task<List<PubSubKeyMaterial>> ReadKeyMaterialAsync(
             string keyLogPath,
+            string allowedRoot,
             CancellationToken ct)
         {
+            keyLogPath = McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
             var reader = new PubSubKeyLogReader(keyLogPath);
             List<PubSubKeyMaterial> keys = [];
-            await foreach (PubSubKeyMaterial key in reader.ReadAllAsync(ct).WithCancellation(ct).ConfigureAwait(false))
+            try
             {
-                keys.Add(CopyKeyMaterial(key));
-                key.Dispose();
-            }
+                await foreach (PubSubKeyMaterial key in reader.ReadAllAsync(ct)
+                    .WithCancellation(ct)
+                    .ConfigureAwait(false))
+                {
+                    using (key)
+                    {
+                        keys.Add(CopyKeyMaterial(key));
+                    }
+                }
 
-            return keys;
+                return keys;
+            }
+            catch
+            {
+                foreach (PubSubKeyMaterial key in keys)
+                {
+                    key.Dispose();
+                }
+
+                throw;
+            }
         }
 
         private static async ValueTask StoreLoadedKeyMaterialAsync(

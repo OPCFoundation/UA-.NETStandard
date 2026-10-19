@@ -1967,6 +1967,7 @@ namespace Opc.Ua.XRegistry.Server
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
                 UserAccessLevel = AccessLevels.CurrentRead,
+                AccessRestrictions = m_requireEncryptionForReads ? AccessRestrictionType.EncryptionRequired : null,
                 Historizing = false,
                 Value = new Variant(ByteString.From(document))
             };

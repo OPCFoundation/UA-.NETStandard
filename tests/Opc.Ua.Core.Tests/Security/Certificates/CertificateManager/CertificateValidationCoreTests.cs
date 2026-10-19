@@ -883,6 +883,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        [Category("SecurityRegression")]
         public async Task ValidateAsyncUsesValidatedCertificateFastPathAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
@@ -904,7 +905,156 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Cached acceptance cannot suppress subsequent validity errors without the current caller's approval.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedCertificatesStillRequireCurrentValidityAsync(bool expiredIssuer)
+        {
+            string trustedDir = await WriteStoreAsync(
+                [expiredIssuer ? m_expiredRootCa : m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(expiredIssuer ? m_leafUnderExpiredRoot : m_expiredLeaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            int callbacks = 0;
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain,
+                (_, _) =>
+                {
+                    callbacks++;
+                    return false;
+                },
+                null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(
+                    rejected,
+                    expiredIssuer
+                        ? StatusCodes.BadCertificateIssuerTimeInvalid
+                        : StatusCodes.BadCertificateTimeInvalid),
+                Is.True);
+            Assert.That(callbacks, Is.GreaterThan(0));
+
+            CertificateValidationResult explicitlyAccepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(explicitlyAccepted.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A currently valid leaf cannot hide an expired issuer behind cached acceptance.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The test issuer has no RSA private key.
+        /// </exception>
         [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedValidLeafDoesNotHideExpiredIssuerAsync()
+        {
+            // The normal builder clips the leaf lifetime to its issuer, hiding this independent validity boundary.
+            using var publicKey = RSA.Create(2048);
+            using RSA issuerKey = m_expiredRootCa.GetRSAPrivateKey() ??
+                throw new InvalidOperationException("The test issuer requires an RSA private key.");
+            var request = new CertificateRequest(
+                "CN=CVC Valid Leaf Under Expired Root",
+                publicKey,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature |
+                X509KeyUsageFlags.KeyEncipherment |
+                X509KeyUsageFlags.DataEncipherment,
+                true));
+            request.CertificateExtensions.Add(m_expiredRootCa.BuildAuthorityKeyIdentifier());
+            using X509Certificate2 nativeLeaf = request.Create(
+                m_expiredRootCa.SubjectName,
+                X509SignatureGenerator.CreateForRSA(issuerKey, RSASignaturePadding.Pkcs1),
+                s_leafFrom,
+                s_leafTo,
+                Guid.NewGuid().ToByteArray());
+            using var leaf = Certificate.FromRawData(nativeLeaf.RawData);
+            DateTime now = DateTime.UtcNow;
+            Assert.That(leaf.NotBefore.ToUniversalTime(), Is.LessThan(now));
+            Assert.That(leaf.NotAfter.ToUniversalTime(), Is.GreaterThan(now));
+            Assert.That(m_expiredRootCa.NotAfter.ToUniversalTime(), Is.LessThan(now));
+            string trustedDir = await WriteStoreAsync([m_expiredRootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(leaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(rejected, StatusCodes.BadCertificateIssuerTimeInvalid), Is.True);
+        }
+
+        /// <summary>
+        /// Explicit acceptance cannot turn a future-dated certificate into continuing cached authority.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedFutureCertificateStillRequiresNotBeforeAsync()
+        {
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(m_notYetValidLeaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(rejected, StatusCodes.BadCertificateTimeInvalid), Is.True);
+        }
+
+        /// <summary>
+        /// Cached chain trust cannot replace validation against the current destination hostname.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedTrustDoesNotSkipEndpointHostnameAsync()
+        {
+            string trustedDir = await WriteStoreAsync([m_selfSignedApp]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.True);
+
+            ConfiguredEndpoint endpoint = CreateEndpoint("opc.tcp://wrong-host.example:4840", "urn:wrong-host");
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => core.ValidateDomains(m_selfSignedApp, endpoint, serverValidation: false, null));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
+
+            int callbacks = 0;
+            core.ValidateDomains(m_selfSignedApp, endpoint, serverValidation: false, (_, failure) =>
+            {
+                callbacks++;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
+                return true;
+            });
+            Assert.That(callbacks, Is.EqualTo(1));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
         public async Task ValidatedCertificateFastPathDoesNotSkipRevocationAsync()
         {
             // Regression: the UseValidatedCertificates fast path must never

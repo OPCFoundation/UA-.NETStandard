@@ -175,6 +175,18 @@ provide a stable subject/issuer; it rejects `LocalCallerId` as an authority
 source. Caller-supplied tool arguments never choose the trusted principal.
 Remote permissions and security mode remain additional requirements.
 
+Host-provisioned sessions require an exact `SessionNames` ordinary-use grant.
+Caller-created sessions are private; a use grant never permits replacing or
+disconnecting another caller's or host-provisioned registration. Custom
+`IMcpOperationPolicy` implementations explicitly implement `RequireSessionAccess`;
+the additive default implementation denies access.
+
+Protected aliases bind to a strict host-approved registration and its
+authenticated endpoint/certificate identity. Legacy URI/model aliases are pinned
+on first approved use; caller-created or autoaccepted targets cannot consume
+them. Reusing a session name does not transfer its old secret authority.
+Local trust-store mutation independently requires `CertificateAdministration`.
+
 Live network rules identify an exact scheme, host, port, operation, resource
 and permitted CIDRs. Empty grants deny access. DNS is checked at actual
 connection/reconnection, and sockets use approved IPs while TLS retains the
@@ -231,6 +243,13 @@ after a response. These checks cannot make an independently mutable custom
 implementation safe; use a stack managed session for that case. Server-side
 authorization remains authoritative, and remote model changes within the same
 session are not made into an atomic server transaction.
+
+Captured views preserve immutable authority with
+`SessionInfo.WithSession(capturedSession)`. Reconstructing a new `SessionInfo`
+from its visible name, URI and authentication label does not confer the original
+registration's authority. Vision file handles similarly retain caller, target,
+registration and captured-generation provenance rather than exposing raw server
+handle numbers.
 
 ## Trimming and Native AOT
 

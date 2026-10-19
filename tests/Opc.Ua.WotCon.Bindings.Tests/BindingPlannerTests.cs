@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -27,10 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
-using System.Collections.Immutable;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.Planners;
@@ -86,7 +86,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
 
             ImmutableArray<string> operations = ops.IsDefault
-                ? (ImmutableArray<string>)["readproperty", "writeproperty"]
+                ? ["readproperty", "writeproperty"]
                 : ops;
 
             return new WotAffordanceForm(
@@ -100,32 +100,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "/properties/" + affordanceName + "/forms/0",
                 formElement,
                 affordanceElement);
-        }
-
-        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "act")
-        {
-            using var formDoc = JsonDocument.Parse(formJson);
-            JsonElement formElement = formDoc.RootElement.Clone();
-
-            string? href = null;
-            if (formElement.ValueKind == JsonValueKind.Object &&
-                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
-                hrefEl.ValueKind == JsonValueKind.String)
-            {
-                href = hrefEl.GetString();
-            }
-
-            return new WotAffordanceForm(
-                WotAffordanceKind.Action,
-                affordanceName,
-                ["invokeaction"],
-                href,
-                null,
-                null,
-                [],
-                "/actions/" + affordanceName + "/forms/0",
-                formElement,
-                default);
         }
 
         private static WotAffordanceForm MakeEventForm(string formJson, string affordanceName = "ev")
@@ -159,7 +133,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883/sensors/temp","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883/sensors/temp","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -169,12 +144,52 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Operation, Is.EqualTo(WoTBindingCapabilityEnum.ReadProperty));
         }
 
+        /// <summary>
+        /// Hostless document forms must not acquire an implicit broker during activation.
+        /// </summary>
+        [TestCase("mqtt:///private/status")]
+        [TestCase("mqtts:///private/status")]
+        [Category("SecurityRegression")]
+        public void SecurityF28HostlessMqttDocumentIsNotPlanned(string href)
+        {
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Hostless broker",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "observable": true,
+                      "forms": [{
+                        "href": "{{href}}",
+                        "op": ["readproperty", "writeproperty", "observeproperty"]
+                      }]
+                    }
+                  },
+                  "actions": {
+                    "set": {"forms": [{"href": "{{href}}", "op": "invokeaction"}]}
+                  }
+                }
+                """;
+            var registry = new WotProtocolBinderRegistry([new MqttBindingPlanner()]);
+
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "hostless", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(2));
+            Assert.That(
+                plan.Diagnostics.Count(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.EqualTo(2));
+        }
+
         [Test]
         public void MqttPlannerExtractsTopicFromHref()
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883/my/topic","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883/my/topic","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -188,7 +203,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883","mqv:topic":"custom/topic","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883","mqv:topic":"custom/topic","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -202,7 +218,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -216,7 +233,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"http://broker.example.com/topic","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"http://broker.example.com/topic","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -229,7 +247,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -244,7 +263,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883/topic","mqv:qos":3,"op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883/topic","mqv:qos":3,"op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -258,7 +278,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         public void MqttPlannerRejectsTopicExceedingMaxLength()
         {
             var planner = new MqttBindingPlanner();
-            string longTopic = new string('x', 65536);
+            string longTopic = new('x', 65536);
             WotAffordanceForm form = MakePropertyForm(
                 "{\"href\":\"mqtt://broker.example.com:1883/" + longTopic + "\",\"op\":\"readproperty\"}",
                 ops: ["readproperty"]);
@@ -292,7 +312,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883","mqv:topic":"tenant/+","op":"observeproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883","mqv:topic":"tenant/+","op":"observeproperty"}""",
                 ops: ["observeproperty"]);
             var context = new WotBindingPlanContext(bounds: new WotBindingBounds { AllowMqttWildcardTopics = true });
 
@@ -307,7 +328,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883/topic","mqv:controlPacket":"unknown","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883/topic","mqv:controlPacket":"unknown","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -323,7 +345,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtts://broker.example.com:8883/topic","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtts://broker.example.com:8883/topic","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -336,7 +359,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"mqtt://broker.example.com:1883/topic","mqv:retain":true,"op":"writeproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"mqtt://broker.example.com:1883/topic","mqv:retain":true,"op":"writeproperty"}""",
                 ops: ["writeproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -360,7 +384,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"http://example.com/p","contentType":"application/json\r\nX-Injected: pwned"}""",
+                /*lang=json,strict*/
+                                     """{"href":"http://example.com/p","contentType":"application/json\r\nX-Injected: pwned"}""",
                 ops: ["writeproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -375,7 +400,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new HttpBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"http://example.com/p","contentType":"application/json; charset=utf-8"}""",
+                /*lang=json,strict*/
+                                     """{"href":"http://example.com/p","contentType":"application/json; charset=utf-8"}""",
                 ops: ["writeproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -389,7 +415,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"coap://sensor.example.com:5683/temp","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"coap://sensor.example.com:5683/temp","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -403,7 +430,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"coaps://sensor.example.com:5684/temp","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"coaps://sensor.example.com:5684/temp","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -416,7 +444,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"http://example.com/temp","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"http://example.com/temp","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -429,7 +458,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"coap://sensor.example.com:5683/temp","cov:method":"INVALID","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"coap://sensor.example.com:5683/temp","cov:method":"INVALID","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -444,7 +474,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"coap://sensor.example.com:5683/temp","cov:method":"PUT","op":"writeproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"coap://sensor.example.com:5683/temp","cov:method":"PUT","op":"writeproperty"}""",
                 ops: ["writeproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -458,7 +489,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new CoapBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -478,7 +510,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"bacv:objectType":"analog-input","bacv:instanceNumber":1,"bacv:propertyIdentifier":"present-value"}""",
+                /*lang=json,strict*/
+                                     """{"bacv:objectType":"analog-input","bacv:instanceNumber":1,"bacv:propertyIdentifier":"present-value"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -491,7 +524,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"bacv:instanceNumber":1,"bacv:propertyIdentifier":"present-value"}""",
+                /*lang=json,strict*/
+                                     """{"bacv:instanceNumber":1,"bacv:propertyIdentifier":"present-value"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -506,7 +540,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"bacv:objectType":"analog-input","bacv:propertyIdentifier":"present-value"}""",
+                /*lang=json,strict*/
+                                     """{"bacv:objectType":"analog-input","bacv:propertyIdentifier":"present-value"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -519,7 +554,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new BacnetBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"bacv:objectType":"analog-input","bacv:instanceNumber":0}""",
+                /*lang=json,strict*/
+                                     """{"bacv:objectType":"analog-input","bacv:instanceNumber":0}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -569,7 +605,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"0102030405060708"}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"0102030405060708"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -583,7 +620,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:fPort":1}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:fPort":1}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -598,7 +636,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"ZZZZZZZZZZZZZZZZ"}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"ZZZZZZZZZZZZZZZZ"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -613,7 +652,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"01020304"}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"01020304"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -626,7 +666,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":0}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":0}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -641,7 +682,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":224}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":224}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -654,7 +696,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new LoRaWanBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":223}""",
+                /*lang=json,strict*/
+                                     """{"lorawan:DevEUI":"0102030405060708","lorawan:fPort":223}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -674,7 +717,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.tcp://server.example.com:4840","uav:id":"ns=2;i=1001","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.tcp://server.example.com:4840","uav:id":"ns=2;i=1001","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -688,7 +732,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.tcp://server.example.com:4840/ns=2;i=1002","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.tcp://server.example.com:4840/ns=2;i=1002","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -702,7 +747,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"http://server.example.com/p","uav:id":"ns=2;i=1001","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"http://server.example.com/p","uav:id":"ns=2;i=1001","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -717,7 +763,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.tcp://server.example.com:4840/somenode","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.tcp://server.example.com:4840/somenode","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -731,7 +778,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"uav:id":"ns=2;i=2000","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"uav:id":"ns=2;i=2000","op":"readproperty"}""",
                 ops: ["readproperty"]);
             var context = new WotBindingPlanContext(
                 baseUri: "opc.tcp://server.example.com:4840");
@@ -747,7 +795,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"uav:id":"ns=2;i=2000","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"uav:id":"ns=2;i=2000","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -760,7 +809,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.https://server.example.com:443","uav:id":"ns=2;i=1001","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.https://server.example.com:443","uav:id":"ns=2;i=1001","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -773,7 +823,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.wss://server.example.com:443","uav:id":"ns=2;i=1001","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.wss://server.example.com:443","uav:id":"ns=2;i=1001","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
@@ -823,7 +874,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                """{"href":"opc.tcp://server.example.com:4840?id=ns%3D2%3Bi%3D1003","op":"readproperty"}""",
+                /*lang=json,strict*/
+                                     """{"href":"opc.tcp://server.example.com:4840?id=ns%3D2%3Bi%3D1003","op":"readproperty"}""",
                 ops: ["readproperty"]);
 
             WotBindingCompilation result = planner.Compile(form, DefaultContext());

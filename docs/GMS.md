@@ -557,6 +557,11 @@ least one relative or absolute `GmsAnalogValue`. Configure the correction
 objects through `GmsResultBindingOptions.Corrections`, then update their
 observations using `system.Results.PublishCorrectionAsync(correction, ct)`.
 
+Correction values, limits, identifiers and characteristic references are
+read-only to remote clients on the published instance. Updates use the
+server-side publisher; ordinary Value writes cannot falsify an observation or
+bypass its fixed-reference checks.
+
 The configured identity, characteristic reference and optional-node shape
 remain fixed. Changing them requires rebuilding the instance, not silently
 retargeting a correction node.

@@ -751,6 +751,12 @@ namespace Opc.Ua.Server
         public EndpointDescription EndpointDescription { get; } = null!;
 
         /// <summary>
+        /// Gets the endpoint of the channel accepted by the latest activation without changing the original endpoint.
+        /// </summary>
+        internal EndpointDescription BoundEndpointDescription =>
+            Volatile.Read(ref m_boundEndpointDescription) ?? EndpointDescription;
+
+        /// <summary>
         /// Returns the session's SecureChannelId
         /// </summary>
         public string SecureChannelId
@@ -1177,6 +1183,11 @@ namespace Opc.Ua.Server
                     SecureChannelId = context.ChannelContext!.SecureChannelId;
 
                     TraceState("RE-ACTIVATION");
+                }
+
+                if (context.ChannelContext?.EndpointDescription is EndpointDescription boundEndpoint)
+                {
+                    Volatile.Write(ref m_boundEndpointDescription, boundEndpoint);
                 }
 
                 // update server nonce.
@@ -2031,6 +2042,9 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
+
+        /// <summary>The most recently accepted channel endpoint, published with activation's channel binding.</summary>
+        private EndpointDescription? m_boundEndpointDescription;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;

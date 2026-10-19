@@ -144,7 +144,7 @@ namespace Opc.Ua.GMS.Server
                     return result;
                 })
                 .WithResultProjection(PrepareProjection);
-            NodeId finalEventType = NodeId.Create(
+            var finalEventType = NodeId.Create(
                 Machinery.Result.ObjectTypes.ResultReadyEventType,
                 Machinery.Result.Namespaces.MachineryResult,
                 context.NamespaceUris);
@@ -319,11 +319,11 @@ namespace Opc.Ua.GMS.Server
                 }
                 GmsCorrection original = entry.Shape;
                 if (original.CharacteristicIdentifier != correction.CharacteristicIdentifier ||
-                    (original.RelativeValue == null) != (correction.RelativeValue == null) ||
-                    (original.AbsoluteValue == null) != (correction.AbsoluteValue == null) ||
-                    (original.LowerControlLimit == null) != (correction.LowerControlLimit == null) ||
-                    (original.UpperControlLimit == null) != (correction.UpperControlLimit == null) ||
-                    (original.ProgramName == null) != (correction.ProgramName == null) ||
+                    original.RelativeValue == null != (correction.RelativeValue == null) ||
+                    original.AbsoluteValue == null != (correction.AbsoluteValue == null) ||
+                    original.LowerControlLimit == null != (correction.LowerControlLimit == null) ||
+                    original.UpperControlLimit == null != (correction.UpperControlLimit == null) ||
+                    original.ProgramName == null != (correction.ProgramName == null) ||
                     original.Description.IsNull != correction.Description.IsNull)
                 {
                     throw ServiceResultException.Create(StatusCodes.BadInvalidArgument,
@@ -350,20 +350,39 @@ namespace Opc.Ua.GMS.Server
             {
                 CorrectionState state = context.CreateInstanceOfCorrectionType(
                     folder, new QualifiedName(correction.Identifier, m_state.NodeId.NamespaceIndex));
-                state.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                state.ReferenceTypeId = ReferenceTypeIds.HasComponent;
                 GmsMeasurementNodes.SetCorrection(context, state, correction);
+                MakeCorrectionReadOnly(context, state);
                 folder.AddChild(state);
                 m_corrections.Add(correction.Identifier, new CorrectionEntry(state, correction));
             }
             BaseDataVariableState count = context.CreateInstanceOfBaseDataVariableType(folder,
                 new QualifiedName("CorrectionCount",
                     (ushort)context.NamespaceUris.GetIndex(GmsModel.NamespaceUri)));
-            count.DataType = Opc.Ua.DataTypeIds.Integer;
-            count.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            count.DataType = Ua.DataTypeIds.Integer;
+            count.ReferenceTypeId = ReferenceTypeIds.HasComponent;
             count.Value = Variant.From((long)m_corrections.Count);
             count.AccessLevel = AccessLevels.CurrentRead;
             count.UserAccessLevel = AccessLevels.CurrentRead;
             folder.AddChild(count);
+        }
+
+        /// <summary>
+        /// Keeps published correction observations client-readonly without changing their model declarations.
+        /// </summary>
+        private static void MakeCorrectionReadOnly(ISystemContext context, NodeState node)
+        {
+            if (node is BaseVariableState variable)
+            {
+                variable.AccessLevel = AccessLevels.CurrentRead;
+                variable.UserAccessLevel = AccessLevels.CurrentRead;
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                MakeCorrectionReadOnly(context, child);
+            }
         }
 
         /// <summary>
@@ -390,7 +409,12 @@ namespace Opc.Ua.GMS.Server
         private readonly Dictionary<string, CorrectionEntry> m_corrections = new(StringComparer.Ordinal);
         private int m_active;
         private static readonly Lock s_ownershipGate = new();
-        private static readonly ConditionalWeakTable<IGmsResultStore, GmsResultBinding> s_storeOwners = new();
+        private static readonly ConditionalWeakTable<IGmsResultStore, GmsResultBinding> s_storeOwners =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
 
         /// <summary>
         /// Captures the stable node and initial optional-member shape.

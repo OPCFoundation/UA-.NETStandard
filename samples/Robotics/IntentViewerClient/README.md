@@ -17,6 +17,13 @@ With `--mcp`, the viewer client exposes the Robotics MCP profile so an LLM agent
 
 MCP hosting is compiled for `net8.0`, `net9.0`, and `net10.0`. It is unavailable on `net48`; running that leg with `--mcp` reports the limitation on stderr. Without `--mcp`, the sample continues to run on every target framework it builds for.
 
+HTTP hosting binds to loopback and accepts only `localhost`, `127.0.0.1`, or
+`[::1]` authorities on the selected port. A present `Origin` must also identify
+an approved local HTTP authority; native MCP clients without an Origin remain
+supported. These checks reject browser DNS rebinding before tool dispatch.
+They do not authenticate other local processes. Do not expose this sample through
+a remote proxy without adding caller authentication and authorization.
+
 MCP options:
 
 - `--mcp` enables MCP hosting.

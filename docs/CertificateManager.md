@@ -182,6 +182,12 @@ to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
+When `UseValidatedCertificates` is enabled, cached acceptance still checks
+revocation and the current validity period of the leaf and every resolved issuer.
+An expired or not-yet-valid chain returns through normal validation, including
+the current caller's configured error policy. Hostname validation is independent
+of the chain cache and checks each requested endpoint.
+
 Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
 re-evaluating an existing connection without adding failures to the rejected
 store. This changes only the recording side effect, not the trust decision.
@@ -328,13 +334,13 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 
 `ApplyChanges` also has to react to *TrustList* changes committed in the transaction, not just server-certificate rotation. Once the response has been delivered, `ConfigurationNodeManager` maps every committed TrustList to the certificate group it belongs to and applies the corresponding effect:
 
-- **Application group TrustList (`opc.tcp`)** validates the *peer* (client application) certificate presented in `OpenSecureChannel` against the `Peers` store. If a committed change (typically a removal of a trusted certificate or issuer) means a currently-connected peer would no longer validate, that peer's `opc.tcp` SecureChannel is forced to renegotiate; peers whose certificate is still trusted — and peers on a group whose TrustList did not change — keep their channels, Sessions and Subscriptions.
+- **Application group TrustList (`opc.tcp` and binary WSS)** validates the *peer* (client application) certificate presented in `OpenSecureChannel` against the `Peers` store. If a committed change (typically a removal of a trusted certificate or issuer) means a currently-connected peer would no longer validate, that peer's SecureChannel is forced to renegotiate; peers whose certificate is still trusted — and peers on a group whose TrustList did not change — keep their channels, Sessions and Subscriptions.
 - **HTTPS group TrustList** validates certificates used by the request-scoped UA-HTTPS transport (`Https` store). UA-HTTPS has no long-lived, per-peer SecureChannel keyed by the client application certificate. The shared validator checks any client TLS certificate (mutual TLS) against the directory-backed trust stores at the next TLS handshake. Therefore, an HTTPS-group change does **not** trigger channel renegotiation or a connection teardown. Server-certificate rotation on HTTPS is separate; `ITransportListenerCertificateRotation` handles it with a Kestrel Stop/Start cycle.
 - **User-token group TrustList** validates X.509 user identity tokens. Every active Session that authenticated with a certificate user identity is re-validated against the updated user TrustList; a Session whose user certificate is no longer trusted is closed together with its Subscriptions (§7.10.9). Anonymous / username / issued-token Sessions are never disturbed.
 
 The effect fan-out runs after the same grace/flush boundary as certificate rotation and is awaitable through `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
 
-Both TCP listeners retain the complete peer chain validated at
+Both TCP listeners and the binary WebSocket listener retain the complete peer chain validated at
 `OpenSecureChannel`, including intermediates supplied only by the client.
 Their `ITransportListenerPeerCertificateChainRotation` capability passes an
 owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The
@@ -365,8 +371,10 @@ Two seams make this behaviour injectable and testable:
    `KestrelTcpTransportListener`. Each listener revalidates tracked client
    certificates with a caller-supplied asynchronous predicate. It force-closes
    only channels whose certificates fail validation, while keeping the
-   listener socket bound. The UA-HTTPS listener does **not** implement this
-   capability (see the HTTPS bullet above). Custom transports can opt in:
+   listener socket bound. `HttpsTransportListener` also implements it for
+   binary WSS SecureChannels, including outbound reverse connections; ordinary
+   request-scoped HTTPS has no application SecureChannels to close.
+   Custom transports can opt in:
 
    ```csharp
    public sealed class MyTransportListener : ITransportListener, ITransportListenerPeerCertificateRotation

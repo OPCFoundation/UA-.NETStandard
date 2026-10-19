@@ -710,11 +710,8 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    if (m_session == null)
-                    {
-                        // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
-                        m_session = items[0].Session;
-                    }
+                    // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
+                    m_session ??= items[0].Session;
 
                     // TransferSubscriptions moves items to another session without regrouping them,
                     // so every item is read and permission-checked as its current owner.
@@ -722,11 +719,7 @@ namespace Opc.Ua.Server
                         .GroupBy(item => (object?)item.Session ?? item.EffectiveIdentity))
                     {
                         List<ISampledDataChangeMonitoredItem> ownedItems = [.. owned];
-                        ISession? session = ownedItems[0].Session;
-                        using OperationContext context = session != null
-                            ? new OperationContext(session, m_diagnosticsMask)
-                            : new OperationContext(ownedItems[0]);
-                        await SampleItemsAsync(context, ownedItems, loopCts, cancellationToken).ConfigureAwait(false);
+                        await SampleItemsAsync(ownedItems, loopCts, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -744,11 +737,11 @@ namespace Opc.Ua.Server
         /// Reads and queues the values of items owned by the session of the context.
         /// </summary>
         private async ValueTask SampleItemsAsync(
-            OperationContext context,
             List<ISampledDataChangeMonitoredItem> items,
             CancellationTokenSource? loopCts,
             CancellationToken cancellationToken)
         {
+            using OperationContext context = MonitoredReadAuthorization.CreateContext(items[0], m_diagnosticsMask);
             var itemsToRead = new List<ReadValueId>(items.Count);
             var values = new List<DataValue>(items.Count);
             var errors = new List<ServiceResult>(items.Count);
@@ -784,6 +777,9 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
+                permissionResult = await ValidateSampleReadAccessAsync(
+                    items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
+
                 // the group may have stopped while the permission check was suspended.
                 if (IsSamplingStopped(loopCts, cancellationToken))
                 {
@@ -791,6 +787,84 @@ namespace Opc.Ua.Server
                 }
 
                 QueueSample(items[ii], values[ii], errors[ii], permissionResult);
+            }
+        }
+
+        /// <summary>
+        /// Rechecks each NodeState-backed sample's current subscriber policy and endpoint before queueing its value.
+        /// </summary>
+        private async ValueTask<ServiceResult> ValidateSampleReadAccessAsync(
+            ISampledDataChangeMonitoredItem item,
+            OperationContext readContext,
+            ServiceResult permission,
+            CancellationToken cancellationToken)
+        {
+            if (ServiceResult.IsBad(permission))
+            {
+                return permission;
+            }
+            NodeState? node = item.ManagerHandle switch
+            {
+                NodeHandle handle => handle.Node,
+                NodeState state => state,
+                _ => (m_nodeManager as AsyncCustomNodeManager)?.Find(item.NodeId)
+            };
+            if (node == null)
+            {
+                // Provider-specific non-NodeState handles retain their existing Read and role validation contracts.
+                return permission;
+            }
+            try
+            {
+                while (true)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!ReferenceEquals(readContext.Session, item.Session) ||
+                        !ReferenceEquals(readContext.UserIdentity,
+                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity))
+                    {
+                        return StatusCodes.BadUserAccessDenied;
+                    }
+                    EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
+                    MessageSecurityMode? securityMode = endpoint?.SecurityMode;
+                    string? transport = endpoint?.TransportProfileUri;
+                    AccessRestrictionType? restrictions = node.AccessRestrictions;
+                    long epoch = PermissionEpoch;
+                    using OperationContext current = MonitoredReadAuthorization.CreateContext(item, m_diagnosticsMask);
+                    var systemContext = new ServerSystemContext(m_server, current);
+                    ServiceResult result = await MonitoredReadAuthorization.ValidateAsync(
+                        m_nodeManager, node, systemContext, item.AttributeId, cancellationToken).ConfigureAwait(false);
+                    EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
+                    if (ReferenceEquals(readContext.Session, item.Session) &&
+                        ReferenceEquals(readContext.UserIdentity,
+                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
+                        ReferenceEquals(endpoint, currentEndpoint) &&
+                        securityMode == currentEndpoint?.SecurityMode &&
+                        transport == currentEndpoint?.TransportProfileUri &&
+                        restrictions == node.AccessRestrictions &&
+                        epoch == PermissionEpoch)
+                    {
+                        return result;
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (ObjectDisposedException)
+            {
+                return StatusCodes.BadShutdown;
+            }
+            catch (ServiceResultException error)
+            {
+                return error.Result;
+            }
+            catch (Exception error) when (
+                error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+            {
+                return ServiceResult.Create(
+                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed.");
             }
         }
 
@@ -953,10 +1027,8 @@ namespace Opc.Ua.Server
                 // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
                 m_group.m_session ??= first.Session;
 
-                ISession? session = first.Session;
-                using OperationContext context = session != null
-                    ? new OperationContext(session, m_group.m_diagnosticsMask)
-                    : new OperationContext(first);
+                using OperationContext context = MonitoredReadAuthorization.CreateContext(
+                    first, m_group.m_diagnosticsMask);
 
                 await m_group.m_nodeManager.ReadAsync(
                     context, 0, m_readValueIds, m_values, m_errors, cancellationToken).ConfigureAwait(false);
@@ -1006,6 +1078,12 @@ namespace Opc.Ua.Server
                             permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle);
                     }
 
+                    permissionResult = await m_group.ValidateSampleReadAccessAsync(
+                        items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
+                    if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                    {
+                        return;
+                    }
                     m_group.QueueSample(items[ii], m_values[ii], m_errors[ii], permissionResult);
                 }
             }

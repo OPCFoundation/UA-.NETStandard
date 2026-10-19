@@ -97,7 +97,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using var listener = new TcpTransportListener(m_telemetry);
             bool predicateInvoked = false;
 
-            System.Collections.Generic.IReadOnlyList<string> closed = await CallCloseChannelsForUntrustedPeersAsync(
+            IReadOnlyList<string> closed = await CallCloseChannelsForUntrustedPeersAsync(
                 listener,
                 (_, _) =>
                 {
@@ -240,7 +240,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using var listener = new KestrelTcpTransportListener(m_telemetry);
             Assert.That(listener, Is.InstanceOf<ITransportListenerPeerCertificateRotation>());
             Assert.That(
-                ((ITransportListenerPeerCertificateRotation)listener).PeerCertificateTrustListScope,
+                listener.PeerCertificateTrustListScope,
                 Is.EqualTo(TrustListIdentifier.Peers));
         }
 
@@ -327,6 +327,137 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 #endif
+
+        /// <summary>
+        /// Binary WebSocket channels retain complete peer chains and revoke only affected peers.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF24WssTrustSweepPreservesChainsAndClosesOnlyRejectedPeersAsync(bool reject)
+        {
+            using Certificate issuer = CertificateBuilder.Create("CN=WSS Issuer").SetCAConstraint().CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=WSS Peer").SetIssuer(issuer).CreateForRSA();
+            using Certificate trusted = CreateSelfSigned("CN=WSS Still Trusted");
+            using var presentedChain = new CertificateCollection { leaf, issuer };
+            using RevalidationTestChannel affectedChannel = CreateOpenChannel("wss-affected", 1, leaf.AddRef());
+            using RevalidationTestChannel trustedChannel = CreateOpenChannel("wss-trusted", 2, trusted.AddRef());
+            using RevalidationTestChannel noCertificateChannel = CreateOpenChannel("wss-none", 3, null);
+            affectedChannel.RetainPeerCertificateChain(
+                new ByteString(Utils.CreateCertificateChainBlob(presentedChain)));
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeWss, m_telemetry);
+            Assert.That(listener, Is.InstanceOf<ITransportListenerPeerCertificateChainRotation>());
+            AttachWssChannel(listener, 1, affectedChannel);
+            AttachWssChannel(listener, 2, trustedChannel);
+            AttachWssChannel(listener, 3, noCertificateChannel);
+            int callbacks = 0;
+            string[] observedChain = [];
+
+            ArrayOf<string> closed = await listener.CloseChannelsForUntrustedPeerChainsAsync((chain, _) =>
+            {
+                callbacks++;
+                if (chain[0].Thumbprint != leaf.Thumbprint)
+                {
+                    return new ValueTask<bool>(true);
+                }
+                observedChain = new string[chain.Count];
+                for (int i = 0; i < chain.Count; i++)
+                {
+                    observedChain[i] = chain[i].Thumbprint;
+                }
+                return new ValueTask<bool>(!reject);
+            }).ConfigureAwait(false);
+
+            Assert.That(listener.PeerCertificateTrustListScope, Is.EqualTo(TrustListIdentifier.Peers));
+            Assert.That(callbacks, Is.EqualTo(2));
+            Assert.That(observedChain, Is.EqualTo([leaf.Thumbprint, issuer.Thumbprint]));
+            Assert.That(closed.Count, Is.EqualTo(reject ? 1 : 0));
+            Assert.That(
+                affectedChannel.CurrentState,
+                Is.EqualTo(reject ? TcpChannelState.Faulted : TcpChannelState.Open));
+            Assert.That(trustedChannel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(noCertificateChannel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            if (reject)
+            {
+                Assert.That(closed[0], Is.EqualTo(affectedChannel.GlobalChannelId));
+            }
+        }
+
+        /// <summary>
+        /// Outbound reverse WebSocket channels participate in the same complete-chain trust sweep.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF24ReverseWssTrustSweepClosesOnlyRejectedPeerAsync()
+        {
+            using Certificate issuer = CertificateBuilder.Create("CN=WSS Reverse Issuer")
+                .SetCAConstraint().CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=WSS Reverse Peer")
+                .SetIssuer(issuer).CreateForRSA();
+            using Certificate trusted = CreateSelfSigned("CN=WSS Reverse Still Trusted");
+            using var presentedChain = new CertificateCollection { leaf, issuer };
+            var channelListener = new Mock<ITcpChannelListener>();
+            channelListener.SetupGet(value => value.EndpointUrl).Returns(new Uri("opc.wss://localhost:4843"));
+            using var affectedChannel = new RevalidationServerChannel(
+                1, leaf.AddRef(), channelListener.Object, m_buffers, m_quotas, m_telemetry);
+            using var trustedChannel = new RevalidationServerChannel(
+                2, trusted.AddRef(), channelListener.Object, m_buffers, m_quotas, m_telemetry);
+            using var noCertificateChannel = new RevalidationServerChannel(
+                3, null, channelListener.Object, m_buffers, m_quotas, m_telemetry);
+            affectedChannel.RetainPeerCertificateChain(
+                new ByteString(Utils.CreateCertificateChainBlob(presentedChain)));
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeWss, m_telemetry);
+            var channels = (ConcurrentDictionary<TcpServerChannel, byte>)typeof(HttpsTransportListener)
+                .GetField("m_reverseConnectChannels", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(listener)!;
+            channels.TryAdd(affectedChannel, 0);
+            channels.TryAdd(trustedChannel, 0);
+            channels.TryAdd(noCertificateChannel, 0);
+            int callbacks = 0;
+            string[] observedChain = [];
+
+            ArrayOf<string> closed = await listener.CloseChannelsForUntrustedPeerChainsAsync((chain, _) =>
+            {
+                callbacks++;
+                if (chain[0].Thumbprint != leaf.Thumbprint)
+                {
+                    return new ValueTask<bool>(true);
+                }
+                observedChain = new string[chain.Count];
+                for (int i = 0; i < chain.Count; i++)
+                {
+                    observedChain[i] = chain[i].Thumbprint;
+                }
+                return new ValueTask<bool>(false);
+            }).ConfigureAwait(false);
+
+            Assert.That(callbacks, Is.EqualTo(2));
+            Assert.That(observedChain, Is.EqualTo([leaf.Thumbprint, issuer.Thumbprint]));
+            Assert.That(closed.ToArray(), Is.EqualTo([affectedChannel.GlobalChannelId]));
+            Assert.That(affectedChannel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            Assert.That(trustedChannel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+            Assert.That(noCertificateChannel.CurrentState, Is.EqualTo(TcpChannelState.Open));
+        }
+
+        /// <summary>
+        /// Exercises the same channel registration adapter as an accepted binary WebSocket.
+        /// </summary>
+        private static void AttachWssChannel(
+            HttpsTransportListener listener,
+            uint channelId,
+            TcpListenerChannel channel)
+        {
+            Type adapterType = typeof(HttpsTransportListener).GetNestedType(
+                "WssChannelListener", BindingFlags.NonPublic)!;
+            object adapter = Activator.CreateInstance(
+                adapterType,
+                BindingFlags.Instance | BindingFlags.NonPublic,
+                binder: null,
+                args: [listener],
+                culture: null)!;
+            adapterType.GetMethod("AttachChannel", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(adapter, [channelId, channel]);
+        }
 
         private RevalidationTestChannel CreateOpenChannel(
             string contextId,
@@ -419,7 +550,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     bufferManager,
                     quotas,
                     null!,
-                    new List<EndpointDescription>(),
+                    [],
                     telemetry)
             {
             }
@@ -442,7 +573,35 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
-        private static async Task<System.Collections.Generic.IReadOnlyList<string>>
+        /// <summary>
+        /// Stages an outbound server channel without starting a WebSocket connection.
+        /// </summary>
+        private sealed class RevalidationServerChannel : TcpServerChannel
+        {
+            /// <summary>
+            /// Creates an open channel owning the supplied peer certificate handle.
+            /// </summary>
+            public RevalidationServerChannel(
+                uint channelId,
+                Certificate? peerCertificate,
+                ITcpChannelListener listener,
+                BufferManager bufferManager,
+                ChannelQuotas quotas,
+                ITelemetryContext telemetry)
+                : base("wss-reverse", listener, bufferManager, quotas, null!, [], telemetry)
+            {
+                ChannelId = channelId;
+                ClientCertificate = peerCertificate;
+                State = TcpChannelState.Open;
+            }
+
+            /// <summary>
+            /// Gets the observable channel state after revalidation.
+            /// </summary>
+            public TcpChannelState CurrentState => State;
+        }
+
+        private static async Task<IReadOnlyList<string>>
             CallCloseChannelsForUntrustedPeersAsync(
                 ITransportListener listener,
                 Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync)

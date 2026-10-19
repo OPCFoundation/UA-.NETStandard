@@ -361,6 +361,7 @@ namespace Opc.Ua.Server
             {
                 await m_operationsDrained.Task.ConfigureAwait(false);
                 DisposeSessionClosingHandlers();
+                DisposeValueReadAuthorizations();
                 var errors = new List<Exception>();
                 lock (m_operationLifetimeLock)
                 {
@@ -3765,6 +3766,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            DisposeValueReadAuthorization(node);
             // Drop any cached component view so a later resolution does not
             // return the removed node.
             await InvalidateComponentCacheAsync(node.NodeId, cancellationToken).ConfigureAwait(false);
@@ -4195,6 +4197,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                DisposeValueReadAuthorization(node);
                 await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
                 if (node is BaseTypeState type &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
@@ -5891,7 +5894,7 @@ namespace Opc.Ua.Server
                 kept.Add(entry);
             }
 
-            return new ArrayOf<ModelChangeStructureDataType>(kept.ToArray());
+            return new ArrayOf<ModelChangeStructureDataType>([.. kept]);
         }
 
         /// <summary>
@@ -8645,6 +8648,22 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadAttributeIdInvalid, filterResult, monitoredItem);
             }
 
+            ServiceResult readAuthorization = await ValidateRolePermissionsAsync(
+                context.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(itemToCreate.ItemToMonitor.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
+            }
+            readAuthorization = await ValidateMonitoredReadAsync(
+                context, handle.Node, itemToCreate.ItemToMonitor.AttributeId, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
+            }
+
             // determine the sampling interval.
             double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
                 itemToCreate.RequestedParameters.SamplingInterval,
@@ -8966,6 +8985,18 @@ namespace Opc.Ua.Server
                             request,
                             token,
                             cancellationToken).ConfigureAwait(false);
+                    ServiceResult authorization = await ValidateRolePermissionsAsync(
+                        context.OperationContext!, handle.NodeId, PermissionType.Read, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!ServiceResult.IsBad(authorization))
+                    {
+                        authorization = await MonitoredReadAuthorization.ValidateAsync(
+                            this, handle.Node, context, Attributes.Value, cancellationToken).ConfigureAwait(false);
+                    }
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        return QueueInitialHistoryFailure(monitoredItem, utcNow, authorization);
+                    }
                     foreach (HistoricalDataValue historicalValue in page.Values)
                     {
                         // the priming window is client controlled (StartTime and
@@ -9076,7 +9107,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<InitialValueReadResult> ReadCurrentValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9088,7 +9119,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<(ServiceResult, DataValue)> ReadMonitoredValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9107,6 +9138,30 @@ namespace Opc.Ua.Server
                 initialValue,
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            ISession? session = monitoredItem.Session ?? context.OperationContext?.Session;
+            if (session != null && !ReferenceEquals(context.UserIdentity, session.EffectiveIdentity))
+            {
+                return (StatusCodes.BadUserAccessDenied, DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied));
+            }
+            using OperationContext? current = session == null ? null : MonitoredReadAuthorization.CreateContext(session);
+            ServerSystemContext subscriberContext = current != null
+                ? SystemContext.Copy(current)
+                : context;
+            ServiceResult authorization = await ValidateRolePermissionsAsync(
+                subscriberContext.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (!ServiceResult.IsBad(authorization))
+            {
+                authorization = await MonitoredReadAuthorization.ValidateAsync(
+                    this, handle.Node, subscriberContext, monitoredItem.AttributeId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (ServiceResult.IsBad(authorization))
+            {
+                return (authorization, DataValue.FromStatusCode(authorization.StatusCode));
+            }
             return (error, value);
         }
 
@@ -9146,7 +9201,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<ServiceResult> ValidateInitialValueRequestAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -10541,7 +10596,7 @@ namespace Opc.Ua.Server
         /// node manager; the caller then takes the <see cref="NodeMetadata"/> path, which has
         /// the fallbacks for that case.
         /// </returns>
-        internal async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
+        internal ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
             OperationContext context,
             object targetHandle,
             PermissionType requestedPermission,
@@ -10550,6 +10605,25 @@ namespace Opc.Ua.Server
             ILogger? logger,
             bool validateAccessRestrictions,
             CancellationToken cancellationToken = default)
+        {
+            return TryValidatePermissionsCoreAsync(
+                context, targetHandle, requestedPermission, uniqueNodesServiceAttributesCache, permissionsOnly,
+                logger, validateAccessRestrictions, validateRolePermissions: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Allows notification delivery to recheck restrictions without replacing an established virtual role verdict.
+        /// </summary>
+        private async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsCoreAsync(
+            OperationContext context,
+            object targetHandle,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            bool validateAccessRestrictions,
+            bool validateRolePermissions,
+            CancellationToken cancellationToken)
         {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
@@ -10633,11 +10707,9 @@ namespace Opc.Ua.Server
                 userRolePermissions,
                 defaultUserRolePermissions);
 
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                context,
-                permissions,
-                requestedPermission,
-                logger);
+            ServiceResult result = validateRolePermissions
+                ? MasterNodeManager.ValidateRolePermissions(context, permissions, requestedPermission, logger)
+                : ServiceResult.Good;
             return (true, validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
                 : result);

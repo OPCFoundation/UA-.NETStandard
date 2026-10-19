@@ -82,10 +82,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public async Task UnmanagedRegisteredSessionIsRefusedInsteadOfClaimingGenerationSafeDispatchAsync()
         {
             await using GdsTestContext fixture = await GdsTestContext.CreateAsync().ConfigureAwait(false);
-            using IDisposable caller = fixture.Enter();
             await fixture.Manager.RegisterExistingSessionAsync(
                 "replacement", fixture.Remote.Session.Object, "Anonymous")
                 .ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
 
             CallToolResult result = await fixture.Services.GetRequiredService<GdsDirectoryTools>().GetApplicationAsync(
                 fixture.Remote.Id("directory").ToString(), fixture.Remote.Id("app").ToString(), "replacement")

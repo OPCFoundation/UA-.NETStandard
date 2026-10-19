@@ -102,6 +102,12 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
         /// security rules described on the type.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="form"/>, <paramref name="context"/>, or <paramref name="options"/> is null.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The MQTT destination has an invalid host or scheme, or is rejected by the endpoint policy.
+        /// </exception>
         public static async ValueTask<MqttWotConnectPlan> PrepareAsync(
             WotCompiledForm form,
             WotExecutorContext context,
@@ -109,11 +115,43 @@ namespace Opc.Ua.WotCon.Bindings.Mqtt
             string clientId,
             CancellationToken cancellationToken)
         {
+            if (form is null)
+            {
+                throw new ArgumentNullException(nameof(form));
+            }
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            if (string.IsNullOrWhiteSpace(form.Endpoint.Host))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The MQTT broker host is required.");
+            }
+            if (!string.Equals(form.Endpoint.Scheme, "mqtt", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(form.Endpoint.Scheme, "mqtts", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "The MQTT endpoint scheme is invalid.");
+            }
             bool useTls = string.Equals(form.Endpoint.Scheme, "mqtts", StringComparison.OrdinalIgnoreCase);
-            string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
             int port = form.Endpoint.Port > 0
                 ? form.Endpoint.Port
                 : (useTls ? DefaultTlsPort : DefaultPlaintextPort);
+
+            // BaseUri can differ on a hand-built form; validate the actual connector destination.
+            Uri destination = new UriBuilder(form.Endpoint.Scheme, form.Endpoint.Host, port).Uri;
+            ServiceResult validation = WotEndpointValidator.Validate(
+                destination.AbsoluteUri, context.EndpointPolicy, out _);
+            if (ServiceResult.IsBad(validation))
+            {
+                throw new ServiceResultException(validation);
+            }
+            string host = WotEndpointValidator.ToAsciiHost(destination);
+            port = destination.Port;
 
             WotCredential? credential = await ResolveRequiredCredentialAsync(form, context, cancellationToken)
                 .ConfigureAwait(false);
