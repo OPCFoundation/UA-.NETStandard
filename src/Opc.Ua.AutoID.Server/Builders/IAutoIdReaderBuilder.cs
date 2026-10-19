@@ -51,9 +51,22 @@ namespace Opc.Ua.AutoID.Server.Builders
     public interface IAutoIdReaderBuilder
     {
         /// <summary>
-        /// Organizes the device below <paramref name="parent"/> instead of the DI <c>DeviceSet</c>.
+        /// Places the device below <paramref name="parent"/> (<c>HasComponent</c>) rather than
+        /// directly below the DI <c>DeviceSet</c>.
         /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OPC 10000-100 4.9 requires every <c>ComponentType</c> instance to be reachable from
+        /// <c>DeviceSet</c> through hierarchical references, and only the root of a device composed
+        /// of devices to be referenced from <c>DeviceSet</c> itself. When <c>DeviceSet</c> already
+        /// reaches <paramref name="parent"/> (for example another reader, or a device it
+        /// organizes), the reader is reached through it and gets no further reference. Otherwise
+        /// <c>DeviceSet</c> also organizes the reader (<c>Organizes</c>), so it stays a starting
+        /// point to locate the device.
+        /// </para>
+        /// </remarks>
         /// <param name="parent">The parent node, owned by the same node manager.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is null.</exception>
         IAutoIdReaderBuilder WithParent(NodeState parent);
 
         /// <summary>

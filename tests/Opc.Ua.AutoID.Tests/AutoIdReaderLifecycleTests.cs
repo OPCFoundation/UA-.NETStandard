@@ -320,6 +320,68 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(inner.Device.Parent, Is.SameAs(outer.Device));
                 Assert.That(deviceSet.FindChild(m_fixture.Context, m_fixture.Name(Unique("Inner"))), Is.Null);
+                Assert.That(OrganizedFrom(deviceSet, inner.Device), Is.False,
+                    "DeviceSet reaches the reader through its parent, the root (OPC 10000-100 4.9)");
+            });
+        }
+
+        [Test]
+        public async Task AReaderBelowAParentOutsideTheDeviceSetIsStillOrganizedByItAsync()
+        {
+            NodeState deviceSet = m_fixture!.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, m_fixture.Context.NamespaceUris))!;
+            var line = new FolderState(null)
+            {
+                SymbolicName = Unique("Line"),
+                BrowseName = m_fixture.Name(Unique("Line")),
+                DisplayName = new LocalizedText(Unique("Line")),
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType
+            };
+            line.NodeId = new NodeId(Unique("Line"), m_fixture.Manager.InstanceNamespaceIndex);
+            await m_fixture.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
+
+            AutoIdReader reader = await m_fixture.Runtime.Reader(m_fixture.Name(Unique("Portal")), new FakeProvider())
+                .WithParent(line).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Device.Parent, Is.SameAs(line));
+                Assert.That(OrganizedFrom(deviceSet, reader.Device), Is.True,
+                    "every ComponentType instance stays reachable from DeviceSet (OPC 10000-100 4.9)");
+                Assert.That(reader.Device.ReferenceExists(
+                    Opc.Ua.Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AFailedCreationBelowAnOutsideParentLeavesNoDeviceSetReferenceAsync()
+        {
+            await using AutoIdManagerFixture own = await StartOwnFixtureAsync().ConfigureAwait(false);
+            NodeState deviceSet = own.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, own.Context.NamespaceUris))!;
+            var line = new FolderState(null)
+            {
+                SymbolicName = "Line",
+                BrowseName = own.Name("Line"),
+                DisplayName = new LocalizedText("Line"),
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.FolderType,
+                NodeId = new NodeId("Line", own.Manager.InstanceNamespaceIndex)
+            };
+            await own.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
+            int before = References(own.Context, deviceSet);
+            own.Runtime.ReaderRegisteredForTest = _ => throw new InvalidOperationException("injected");
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await own.Runtime
+                .Reader(own.Name("Portal"), new FakeProvider()).WithParent(line).BuildAsync().ConfigureAwait(false));
+            own.Runtime.ReaderRegisteredForTest = null;
+            AutoIdReader retried = await own.Runtime.Reader(own.Name("Portal"), new FakeProvider())
+                .WithParent(line).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(References(own.Context, deviceSet), Is.EqualTo(before + 1),
+                    "only the retried reader is organized");
+                Assert.That(OrganizedFrom(deviceSet, retried.Device), Is.True);
             });
         }
 
@@ -464,6 +526,18 @@ namespace Opc.Ua.AutoID.Tests
         private static string Unique(string name)
         {
             return TestContext.CurrentContext.Test.Name + "_" + name;
+        }
+
+        private static bool OrganizedFrom(NodeState deviceSet, NodeState device)
+        {
+            return deviceSet.ReferenceExists(Opc.Ua.Types.ReferenceTypeIds.Organizes, false, device.NodeId);
+        }
+
+        private static int References(ISystemContext context, NodeState node)
+        {
+            var references = new System.Collections.Generic.List<IReference>();
+            node.GetReferences(context, references);
+            return references.Count;
         }
 
         private static async Task<AutoIdManagerFixture> StartOwnFixtureAsync()

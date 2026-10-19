@@ -64,6 +64,7 @@ namespace Opc.Ua.AutoID.Server
             Manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Options = (options ?? throw new ArgumentNullException(nameof(options))).Validate();
             m_logger = manager.SystemContext.Telemetry.CreateLogger<AutoIdRuntime>();
+            m_placement = new AutoIdReaderPlacement(manager);
             manager.RegisterConformanceContributor(this);
             m_sessionLease = manager.RegisterSessionClosingHandler(OnSessionClosingAsync);
         }
@@ -369,9 +370,11 @@ namespace Opc.Ua.AutoID.Server
                     "The reader '{0}' has no parent.",
                     name);
             AutoIdReader? reader = null;
+            NodeState? organizedBy = null;
             try
             {
                 applyIdentification();
+                organizedBy = KeepReachableFromDeviceSet(parentNode, device);
                 reader = new AutoIdReader(
                     this,
                     device,
@@ -400,9 +403,35 @@ namespace Opc.Ua.AutoID.Server
                     // The reader never took ownership of the provider.
                     await DisposeProviderQuietlyAsync(builder.Provider, builder.BrowseName.Name).ConfigureAwait(false);
                 }
+                if (organizedBy != null)
+                {
+                    AutoIdReaderPlacement.RemoveOrganize(organizedBy, device);
+                }
                 await RemoveUnregisteredDeviceAsync(parentNode, device).ConfigureAwait(false);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Keeps a reader placed below another parent reachable from the DI <c>DeviceSet</c>
+        /// (OPC 10000-100 4.9): when <c>DeviceSet</c> does not reach the parent, it organizes the
+        /// reader directly.
+        /// </summary>
+        /// <returns>The <c>DeviceSet</c> that now organizes the reader, else <see langword="null"/>.</returns>
+        /// <exception cref="ServiceResultException">The node manager publishes no <c>DeviceSet</c>.</exception>
+        private NodeState? KeepReachableFromDeviceSet(NodeState parent, AutoIdDeviceState device)
+        {
+            NodeState deviceSet = m_placement.FindDeviceSet() ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The node manager publishes no DeviceSet to locate the reader '{0}' from.",
+                    device.BrowseName);
+            if (m_placement.IsReachableFrom(deviceSet, parent))
+            {
+                return null;
+            }
+            AutoIdReaderPlacement.Organize(deviceSet, device);
+            return deviceSet;
         }
 
         private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceAsync<TDevice>(
@@ -603,6 +632,7 @@ namespace Opc.Ua.AutoID.Server
         }
 
         private readonly ILogger m_logger;
+        private readonly AutoIdReaderPlacement m_placement;
         private readonly Lock m_lock = new();
         private readonly List<AutoIdReader> m_readers = [];
         private readonly SemaphoreSlim m_createGate = new(1, 1);
