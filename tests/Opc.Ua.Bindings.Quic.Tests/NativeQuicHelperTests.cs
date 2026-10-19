@@ -115,7 +115,7 @@ namespace Opc.Ua.Bindings.Quic.Tests
         }
 
         /// <summary>
-        /// Local reset retains its reliable prefix; actual peer STOP can end delivery under draft-09 section 5.4.
+        /// Local reset and peer STOP preserve the established reliable prefix.
         /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
@@ -190,8 +190,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 Assert.That(local.Remote, Is.False);
                 Assert.That(local.ErrorCode, Is.EqualTo(errorCode));
                 Assert.That(local.FinalSize, Is.EqualTo(prefix.Length + body.Length));
-                Assert.That(local.ReliableSize, Is.EqualTo(peerStops ? 0 : prefix.Length));
-                Assert.That(local.ResetFrameType, Is.EqualTo(peerStops ? 0x04 : 0x24));
+                Assert.That(local.ReliableSize, Is.EqualTo(prefix.Length));
+                Assert.That(local.ResetFrameType, Is.EqualTo(0x24));
                 Assert.That(sender.IsClosed, Is.False);
                 Assert.That(recipient.IsClosed, Is.False);
             });
