@@ -546,6 +546,307 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Producers queue their responses without the channel gate, and the writer numbers
+        /// them. With more producer threads than cores, while numbered messages are queued
+        /// and tokens are activated, the wire still carries consecutive sequence numbers and
+        /// contiguous chunks, and every response exactly once.
+        /// </summary>
+        [Test]
+        [Repeat(3)]
+        public async Task ManyProducersWithNumberedMessagesAndTokenChangesKeepTheWireOrderAsync()
+        {
+            int producers = Math.Max(32, Environment.ProcessorCount * 2);
+            const int perProducer = 60;
+            const int numbered = 150;
+            const int activations = 15;
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool);
+            var transport = new RecordingTransport(asyncSendEvery: 3);
+            channel.SetTransport(transport);
+
+            await RunProducersAsync(producers + 2, async (producer, random) =>
+            {
+                if (producer == producers)
+                {
+                    for (int ii = 0; ii < numbered; ii++)
+                    {
+                        channel.QueueNumberedMessageForTest((uint)(1_000_000 + ii));
+                        if (random.Next(4) == 0)
+                        {
+                            await Task.Yield();
+                        }
+                    }
+                    return;
+                }
+
+                if (producer == producers + 1)
+                {
+                    for (uint tokenId = 2; tokenId <= activations + 1; tokenId++)
+                    {
+                        await Task.Yield();
+                        channel.ActivateTokenForTest(tokenId);
+                    }
+                    return;
+                }
+
+                for (int ii = 0; ii < perProducer; ii++)
+                {
+                    uint requestId = (uint)((producer * perProducer) + ii + 1);
+                    await channel.SendResponseAsync(requestId, CreateResponse(random)).ConfigureAwait(false);
+                    if (random.Next(8) == 0)
+                    {
+                        await Task.Yield();
+                    }
+                }
+            }).ConfigureAwait(false);
+
+            IEnumerable<uint> expected = Enumerable.Range(1, producers * perProducer).Select(id => (uint)id)
+                .Concat(Enumerable.Range(1_000_000, numbered).Select(id => (uint)id));
+            List<WireChunk> chunks = await transport
+                .WaitForFinalChunksAsync((producers * perProducer) + numbered)
+                .ConfigureAwait(false);
+            AssertWireOrder(chunks, expected);
+            Assert.That(chunks.Any(chunk => !chunk.IsFinal), Is.True, "no response was split into chunks.");
+
+            uint lastTokenId = 0;
+            foreach (WireChunk chunk in chunks)
+            {
+                Assert.That(chunk.TokenId, Is.GreaterThanOrEqualTo(lastTokenId), "a token was used after its successor.");
+                lastTokenId = chunk.TokenId;
+            }
+            Assert.That(lastTokenId, Is.GreaterThan(1u), "no message was secured with an activated token.");
+
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A producer queues each response the moment the previous one is on the wire,
+        /// which is when the writer finds its queues empty and stops. A response queued
+        /// while it stops must start it again, or be taken by it.
+        /// </summary>
+        [Test]
+        public async Task ResponsesQueuedWhileTheWriterStopsAreSentAsync()
+        {
+            // one producer: a response stranded by the writer is not taken along by the next.
+            const int producers = 1;
+            const int perProducer = 20000;
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool);
+            var transport = new RecordingTransport(asyncSendEvery: int.MaxValue);
+            channel.SetTransport(transport);
+
+            await RunProducersAsync(producers, async (producer, random) =>
+            {
+                for (int ii = 0; ii < perProducer; ii++)
+                {
+                    int sent = transport.SendCount;
+                    uint requestId = (uint)((producer * perProducer) + ii + 1);
+                    await channel.SendResponseAsync(requestId, CreateResponse(null, 0)).ConfigureAwait(false);
+
+                    // wait for a send, which the writer follows by stopping. Yielding, not
+                    // spinning: the writer was queued to this thread's local queue.
+                    DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+                    while (transport.SendCount == sent && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Yield();
+                    }
+                    Assert.That(transport.SendCount, Is.GreaterThan(sent), $"response {requestId} was not sent.");
+                }
+            }).ConfigureAwait(false);
+
+            List<WireChunk> chunks = await transport
+                .WaitForFinalChunksAsync(producers * perProducer)
+                .ConfigureAwait(false);
+            AssertWireOrder(chunks, Enumerable.Range(1, producers * perProducer).Select(id => (uint)id));
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A reconnect while producers keep queuing responses: the OpenSecureChannel
+        /// response is the first message on the new transport, and the responses
+        /// queued for the dropped transport take no sequence numbers on it.
+        /// </summary>
+        [Test]
+        [Repeat(3)]
+        public async Task AReconnectWhileProducersQueueSendsTheOpenResponseFirstAsync()
+        {
+            const int producers = 8;
+            const int perPhase = 40;
+            const uint openResponseId = 9_000_000;
+            var pool = new CountingPool();
+            using OrderServerChannel channel = OrderServerChannel.Create(pool);
+            var dropped = new RecordingTransport(asyncSendEvery: 2);
+            dropped.HoldSends();
+            channel.SetTransport(dropped);
+            var replacement = new RecordingTransport(asyncSendEvery: 2);
+
+            int reconnected = 0;
+            int beforeDone = 0;
+            using var reconnect = new SemaphoreSlim(0);
+            var afterIds = new List<uint>();
+            await RunProducersAsync(producers + 1, async (producer, random) =>
+            {
+                if (producer == producers)
+                {
+                    // reconnect while the first phase is still being queued.
+                    while (Volatile.Read(ref beforeDone) < producers / 2)
+                    {
+                        await Task.Yield();
+                    }
+                    channel.ReconnectForTest(replacement, openResponseId);
+                    Volatile.Write(ref reconnected, 1);
+                    dropped.ReleaseSends();
+                    return;
+                }
+
+                for (int phase = 0; phase < 2; phase++)
+                {
+                    for (int ii = 0; ii < perPhase; ii++)
+                    {
+                        uint requestId = (uint)((((producer * 2) + phase) * perPhase) + ii + 1);
+                        bool after = Volatile.Read(ref reconnected) == 1;
+                        await channel.SendResponseAsync(
+                            requestId,
+                            CreateResponse(random, random.Next(5) == 0 ? 20000 : null)).ConfigureAwait(false);
+                        if (after)
+                        {
+                            lock (afterIds)
+                            {
+                                afterIds.Add(requestId);
+                            }
+                        }
+                        if (random.Next(4) == 0)
+                        {
+                            await Task.Yield();
+                        }
+                    }
+
+                    if (phase == 0)
+                    {
+                        Interlocked.Increment(ref beforeDone);
+                        while (Volatile.Read(ref reconnected) == 0)
+                        {
+                            await Task.Yield();
+                        }
+                    }
+                }
+            }).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => !channel.HasQueuedWritesForTest).ConfigureAwait(false);
+
+            List<uint> onDropped = AssertContiguous(dropped.SentChunks());
+            List<WireChunk> chunks = replacement.SentChunks();
+            List<uint> onReplacement = AssertContiguous(chunks);
+            Assert.That(chunks[0].RequestId, Is.EqualTo(openResponseId), "the OpenSecureChannel response is not first.");
+            Assert.That(onReplacement, Is.SupersetOf(afterIds), "a response queued after the reconnect was lost.");
+            Assert.That(onDropped.Intersect(onReplacement), Is.Empty, "a response was sent on both transports.");
+            Assert.That(afterIds, Is.Not.Empty);
+
+            await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A message whose security fails after it took sequence numbers, with more
+        /// messages behind it in the same batch: those take no numbers and are not
+        /// sent, and neither is anything queued later.
+        /// </summary>
+        [Test]
+        public async Task ASealFailureInTheMiddleOfABatchStopsTheNumberingAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var pool = new CountingPool();
+            using SealProbe writer = SealProbe.Create(
+                SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt, telemetry, pool);
+            using SealProbe reader = SealProbe.Create(
+                SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt, telemetry, new CountingPool());
+            var transport = new RecordingTransport(asyncSendEvery: 1);
+            writer.SetTransport(transport);
+            var readerTokens = new Dictionary<uint, ChannelToken>();
+            try
+            {
+                SealProbe.Renew(writer, reader, 1, readerTokens);
+                writer.Send(1, CreateResponse(null, 10));
+                await transport.WaitForMessageCountAsync(1).ConfigureAwait(false);
+
+                // the writer waits on the second send while the next ones queue up.
+                transport.HoldSends();
+                writer.Send(2, CreateResponse(null, 10));
+                await WaitUntilAsync(() => transport.SendCount >= 2).ConfigureAwait(false);
+                for (uint requestId = 3; requestId <= 8; requestId++)
+                {
+                    writer.Send(requestId, CreateResponse(null, requestId % 2 == 0 ? 20000 : 10));
+                }
+
+                byte[]? key = writer.BreakEncryptionForTest();
+                transport.ReleaseSends();
+                await WaitUntilAsync(() => writer.TransportErrorCount > 0).ConfigureAwait(false);
+                await WaitUntilAsync(() => !writer.HasPendingWritesForTest).ConfigureAwait(false);
+
+                writer.RestoreEncryptionForTest(key);
+                writer.Send(9, CreateResponse(null, 10));
+                await WaitUntilAsync(() => !writer.HasPendingWritesForTest).ConfigureAwait(false);
+
+                List<WireChunk> chunks = await transport.WaitForMessageCountAsync(2).ConfigureAwait(false);
+                Assert.That(chunks, Has.Count.EqualTo(2), "a message was sent after the failed one.");
+                Assert.That(writer.TransportErrorCount, Is.EqualTo(1));
+                await AssertBuffersReturnedAsync(pool).ConfigureAwait(false);
+            }
+            finally
+            {
+                reader.ReleaseTokens();
+                foreach (ChannelToken token in readerTokens.Values)
+                {
+                    token.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks that the chunks carry consecutive sequence numbers, that the chunks
+        /// of a message are contiguous and that no message is complete twice, and
+        /// returns the messages in wire order.
+        /// </summary>
+        private static List<uint> AssertContiguous(List<WireChunk> chunks)
+        {
+            var completed = new List<uint>();
+            if (chunks.Count == 0)
+            {
+                return completed;
+            }
+
+            var seen = new HashSet<uint>();
+            uint? open = null;
+            for (int ii = 0; ii < chunks.Count; ii++)
+            {
+                WireChunk chunk = chunks[ii];
+                if (ii > 0)
+                {
+                    Assert.That(
+                        chunk.SequenceNumber,
+                        Is.EqualTo(chunks[ii - 1].SequenceNumber + 1),
+                        $"chunk {ii} (request {chunk.RequestId}) is out of sequence.");
+                }
+                if (open != null)
+                {
+                    Assert.That(chunk.RequestId, Is.EqualTo(open.Value), $"chunk {ii} interleaves request {chunk.RequestId}.");
+                }
+                if (chunk.IsFinal || chunk.IsAbort)
+                {
+                    Assert.That(seen.Add(chunk.RequestId), Is.True, $"request {chunk.RequestId} was sent twice.");
+                    completed.Add(chunk.RequestId);
+                    open = null;
+                }
+                else
+                {
+                    open = chunk.RequestId;
+                }
+            }
+
+            Assert.That(open, Is.Null, "the last message is incomplete.");
+            return completed;
+        }
+
+        /// <summary>
         /// Checks that the chunks carry consecutive sequence numbers, that the chunks
         /// of a message are contiguous, and that every expected message is complete
         /// exactly once.
@@ -757,18 +1058,48 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// </summary>
             public void QueueNumberedMessageForTest(uint requestId)
             {
-                const int size = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
                 using (SendOrder.Enter())
                 {
-                    byte[] buffer = BufferManager.TakeBuffer(size, nameof(QueueNumberedMessageForTest));
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(0), TcpMessageType.Message | TcpMessageType.Final);
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4), size);
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(8), ChannelId);
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(12), CurrentToken!.TokenId);
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(16), GetNewSequenceNumber());
-                    BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(20), requestId);
-                    BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
+                    QueueNumberedMessage(requestId);
                 }
+            }
+
+            /// <summary>
+            /// Attaches a new transport and queues the OpenSecureChannel response on it
+            /// under one hold of the send order lock, as a reconnect does.
+            /// </summary>
+            public void ReconnectForTest(IUaSCByteTransport transport, uint openResponseId)
+            {
+                using (SendOrder.Enter())
+                {
+                    Transport = transport;
+                    QueueNumberedMessage(openResponseId);
+                }
+            }
+
+            /// <summary>
+            /// Activates a new token as the receive loop does when a request secured
+            /// with a renewed token arrives.
+            /// </summary>
+            public void ActivateTokenForTest(uint tokenId)
+            {
+                using (Gate.Enter())
+                {
+                    ActivateToken(NewToken(tokenId));
+                }
+            }
+
+            private void QueueNumberedMessage(uint requestId)
+            {
+                const int size = TcpMessageLimits.SymmetricHeaderSize + TcpMessageLimits.SequenceHeaderSize;
+                byte[] buffer = BufferManager.TakeBuffer(size, nameof(QueueNumberedMessageForTest));
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(0), TcpMessageType.Message | TcpMessageType.Final);
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(4), size);
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(8), ChannelId);
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(12), CurrentToken!.TokenId);
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(16), GetNewSequenceNumber());
+                BinaryPrimitives.WriteUInt32LittleEndian(buffer.AsSpan(20), requestId);
+                BeginWriteMessage(new ArraySegment<byte>(buffer, 0, size), null);
             }
 
             /// <summary>
@@ -1028,6 +1359,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public int ReceiveCalls => Volatile.Read(ref m_receiveCalls);
 
+            /// <summary>
+            /// The number of sends started.
+            /// </summary>
+            public int SendCount => Volatile.Read(ref m_recorded);
+
+            /// <summary>
+            /// The chunks sent so far, with clear headers.
+            /// </summary>
+            public List<WireChunk> SentChunks()
+            {
+                return Parse(clearHeaders: true);
+            }
+
             public void HoldSends()
             {
                 m_hold = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1187,6 +1531,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     m_sent.AddRange(bytes);
                 }
+                Interlocked.Increment(ref m_recorded);
                 m_firstSendStarted.TrySetResult(true);
             }
 
@@ -1218,6 +1563,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private TaskCompletionSource<bool>? m_hold;
             private int m_sends;
+            private int m_recorded;
             private int m_receiveCalls;
         }
 
