@@ -358,6 +358,14 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The state machine of a request is pooled, so the returned task must be awaited
+        /// once, like any value task.
+        /// </remarks>
+#if NET6_0_OR_GREATER
+        [System.Runtime.CompilerServices.AsyncMethodBuilder(
+            typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             int timeout,
