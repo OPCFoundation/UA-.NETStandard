@@ -60,14 +60,8 @@ namespace Opc.Ua.Bindings
             object? asyncState,
             ILogger logger,
             TimeProvider? timeProvider)
+            : this(callback, asyncState, logger, timeProvider, long.MaxValue)
         {
-            m_callback = callback;
-            m_asyncState = asyncState;
-            m_synchronous = false;
-            m_completed = false;
-            m_logger = logger;
-            m_timeProvider = timeProvider ?? TimeProvider.System;
-
             if (timeout is > 0 and not int.MaxValue)
             {
                 m_timer = m_timeProvider.CreateTimer(
@@ -76,6 +70,57 @@ namespace Opc.Ua.Bindings
                     TimeSpan.FromMilliseconds(timeout),
                     Timeout.InfiniteTimeSpan);
             }
+        }
+
+        /// <summary>
+        /// Initializes the object without a timer of its own: the owner times
+        /// the operation out with <see cref="TimeOutIfExpired"/> once
+        /// <paramref name="timeoutDeadline"/> has passed.
+        /// </summary>
+        /// <param name="callback">Called when the operation completes.</param>
+        /// <param name="asyncState">The state passed to the callback.</param>
+        /// <param name="logger">Logs errors of the callback.</param>
+        /// <param name="timeProvider">The clock of the deadline.</param>
+        /// <param name="timeoutDeadline">
+        /// The <see cref="TimeProvider.GetTimestamp"/> at which the operation
+        /// times out, or <see cref="long.MaxValue"/> for none.
+        /// </param>
+        private protected ChannelAsyncOperation(
+            AsyncCallback? callback,
+            object? asyncState,
+            ILogger logger,
+            TimeProvider? timeProvider,
+            long timeoutDeadline)
+        {
+            m_callback = callback;
+            m_asyncState = asyncState;
+            m_synchronous = false;
+            m_completed = false;
+            m_logger = logger;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeoutDeadline = timeoutDeadline;
+        }
+
+        /// <summary>
+        /// The timestamp at which the owner times the operation out, or
+        /// <see cref="long.MaxValue"/> when the operation has a timer of its
+        /// own or no timeout.
+        /// </summary>
+        internal long TimeoutDeadline { get; }
+
+        /// <summary>
+        /// Completes the operation with BadRequestTimeout if
+        /// <see cref="TimeoutDeadline"/> is at or before <paramref name="now"/>.
+        /// </summary>
+        /// <returns><see langword="true"/> if the deadline has passed.</returns>
+        internal bool TimeOutIfExpired(long now)
+        {
+            if (now < TimeoutDeadline)
+            {
+                return false;
+            }
+            InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
+            return true;
         }
 
         /// <summary>

@@ -180,7 +180,15 @@ namespace Opc.Ua.Bindings
                 m_handshakeTimer = null;
                 m_requestedToken?.Dispose();
                 m_requestedToken = null;
-                m_requests?.Clear();
+                DisposeTimeoutTimer();
+
+                // the operations have no timers of their own: without the
+                // channel's timer a pending operation would wait forever.
+                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
+                {
+                    operation.Value.Fault(StatusCodes.BadSecureChannelClosed);
+                }
+                m_requests.Clear();
                 m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
                 ServerCertificate?.Dispose();
@@ -1674,7 +1682,13 @@ namespace Opc.Ua.Bindings
             {
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
-            var operation = new WriteOperation(timeout, callback, state, m_logger, TimeProvider)
+            long deadline = long.MaxValue;
+            if (timeout is > 0 and not int.MaxValue)
+            {
+                deadline = TimeProvider.GetTimestamp() +
+                    (timeout * TimeProvider.TimestampFrequency / 1000);
+            }
+            var operation = new WriteOperation(callback, state, m_logger, TimeProvider, deadline)
             {
                 RequestId = requestId
             };
@@ -1684,7 +1698,98 @@ namespace Opc.Ua.Bindings
                     "Could not add request {0} to list of pending operations.",
                     operation.RequestId);
             }
+            // added first, so that a scan that starts after the deadline is
+            // scheduled finds the operation.
+            if (deadline != long.MaxValue)
+            {
+                ScheduleTimeoutScan(deadline);
+            }
             return operation;
+        }
+
+        /// <summary>
+        /// Arms the timeout timer for <paramref name="deadline"/> unless it is
+        /// already armed for an earlier or the same time. One timer per channel
+        /// times out all pending operations instead of a timer per operation;
+        /// with equal timeouts a new deadline is never the earliest, so a
+        /// request usually only reads the scheduled time.
+        /// </summary>
+        private void ScheduleTimeoutScan(long deadline)
+        {
+            lock (m_timeoutLock)
+            {
+                if (deadline >= m_nextTimeoutScan)
+                {
+                    return;
+                }
+                m_nextTimeoutScan = deadline;
+
+                // rounded up: a timer that fires early finds nothing expired.
+                TimeSpan dueTime = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), deadline);
+                dueTime = dueTime > TimeSpan.Zero
+                    ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                    : TimeSpan.Zero;
+
+                if (m_timeoutTimer == null)
+                {
+                    m_timeoutTimer = TimeProvider.CreateTimer(
+                        static state => ((UaSCUaBinaryClientChannel)state!).OnTimeoutScan(),
+                        this,
+                        dueTime,
+                        Timeout.InfiniteTimeSpan);
+                }
+                else
+                {
+                    m_timeoutTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Times out the pending operations whose deadline has passed and arms
+        /// the timer for the earliest remaining deadline.
+        /// </summary>
+        private void OnTimeoutScan()
+        {
+            lock (m_timeoutLock)
+            {
+                // disposed.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    return;
+                }
+                // an operation added from here on schedules its own deadline.
+                m_nextTimeoutScan = long.MaxValue;
+            }
+
+            long now = TimeProvider.GetTimestamp();
+            long next = long.MaxValue;
+            foreach (KeyValuePair<uint, WriteOperation> entry in m_requests)
+            {
+                WriteOperation operation = entry.Value;
+                if (!operation.TimeOutIfExpired(now) && operation.TimeoutDeadline < next)
+                {
+                    next = operation.TimeoutDeadline;
+                }
+            }
+
+            if (next != long.MaxValue)
+            {
+                ScheduleTimeoutScan(next);
+            }
+        }
+
+        /// <summary>
+        /// Stops the timeout timer for good.
+        /// </summary>
+        private void DisposeTimeoutTimer()
+        {
+            lock (m_timeoutLock)
+            {
+                m_nextTimeoutScan = long.MinValue;
+                m_timeoutTimer?.Dispose();
+                m_timeoutTimer = null;
+            }
         }
 
         /// <summary>
@@ -2000,6 +2105,9 @@ namespace Opc.Ua.Bindings
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;
         private ITimer? m_handshakeTimer;
+        private readonly Lock m_timeoutLock = new();
+        private ITimer? m_timeoutTimer;
+        private long m_nextTimeoutScan = long.MaxValue;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IUaSCByteTransportFactory m_transportFactory;

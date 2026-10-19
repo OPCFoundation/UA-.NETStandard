@@ -815,6 +815,66 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.DuplicateReturns, Is.Zero);
         }
 
+        /// <summary>
+        /// The channel times out pending operations with one timer: each operation
+        /// fails with BadRequestTimeout once its own deadline passes, a shorter
+        /// timeout first, and not before.
+        /// </summary>
+        [Test]
+        public async Task PendingOperationsTimeOutAtTheirOwnDeadlinesAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            var transport = new RecordingByteTransport();
+            var factory = new RecordingByteTransportFactory(transport);
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                timeProvider);
+            channel.SetupReverseTransport(transport);
+
+            Task connectTask = channel
+                .ConnectAsync(new Uri("opc.tcp://localhost:4840"), 5000, CancellationToken.None)
+                .AsTask();
+            Assert.That(
+                await CompletesWithinAsync(transport.FirstSendTask, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never sent the Hello message");
+
+            // queued until the channel is connected.
+            Task requestTask = channel
+                .SendRequestAsync(new GetEndpointsRequest(), 1000, CancellationToken.None)
+                .AsTask();
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(999));
+            Assert.That(requestTask.IsCompleted, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(2));
+            Assert.That(
+                await CompletesWithinAsync(requestTask, 30).ConfigureAwait(false),
+                Is.True,
+                "the request did not time out");
+            ServiceResultException requestError = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await requestTask.ConfigureAwait(false))!;
+            Assert.That(requestError.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
+            Assert.That(connectTask.IsCompleted, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(3998));
+            Assert.That(connectTask.IsCompleted, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(2));
+            Assert.That(
+                await CompletesWithinAsync(connectTask, 30).ConfigureAwait(false),
+                Is.True,
+                "the connect did not time out");
+            ServiceResultException connectError = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await connectTask.ConfigureAwait(false))!;
+            Assert.That(connectError.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
+        }
+
         private async Task<ServiceResultException> RunHandshakeToFaultAsync(
             Func<TestClientChannel, ValueTask<bool>> feed)
         {

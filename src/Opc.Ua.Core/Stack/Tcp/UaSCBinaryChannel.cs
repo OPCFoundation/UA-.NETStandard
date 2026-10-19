@@ -2607,6 +2607,20 @@ namespace Opc.Ua.Bindings
             }
 
             /// <summary>
+            /// Initializes the object without a timer of its own: the channel
+            /// times it out once <paramref name="timeoutDeadline"/> has passed.
+            /// </summary>
+            internal WriteOperation(
+                AsyncCallback? callback,
+                object? asyncState,
+                ILogger logger,
+                TimeProvider timeProvider,
+                long timeoutDeadline)
+                : base(callback, asyncState, logger, timeProvider, timeoutDeadline)
+            {
+            }
+
+            /// <summary>
             /// The request id associated with the operation.
             /// </summary>
             public uint RequestId { get; set; }
