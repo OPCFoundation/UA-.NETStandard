@@ -141,7 +141,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             SchemaDefinitionSnapshot snapshot = fixture.Snapshot();
             if (failure)
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await snapshot.LoadAsync(null, [root], CancellationToken.None).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(snapshot.Count, Is.EqualTo(512));
@@ -194,7 +194,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             SchemaDefinitionSnapshot snapshot = fixture.Snapshot();
             if (failure)
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await snapshot.LoadAsync(null, [child], CancellationToken.None).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
@@ -239,7 +239,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             NodeId root = fixture.Register("Root", SchemaTestContext.Structure(
                 SchemaTestContext.Field("Direct", shared), SchemaTestContext.Field("Longer", branch)));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Snapshot().LoadAsync(null, [root], CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             NodeId root = fixture.Register("Broken",
                 SchemaTestContext.Structure(SchemaTestContext.Field("Value", missing)));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Snapshot().LoadAsync(null, [root], CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDataTypeIdUnknown));
@@ -331,7 +331,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await snapshot.LoadAsync(null, [root], cancellation.Token).ConfigureAwait(false));
 
             Assert.That(snapshot.Count, Is.Zero);

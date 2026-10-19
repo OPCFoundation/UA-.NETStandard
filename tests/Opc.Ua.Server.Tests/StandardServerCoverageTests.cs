@@ -192,11 +192,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
+        public async Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
         {
             using TestableStandardServer server = CreateServer();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await server
                     .ValidateRequestInScopePublicAsync()
                     .ConfigureAwait(false));
@@ -204,7 +204,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadServerHalted));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -306,7 +305,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase("opc.https://localhost:62540/TestServer", "AddHttpsTransport")]
         [TestCase("opc.quic://localhost:62540/TestServer", "AddQuicTransport")]
-        public void InitializeServiceHostsThrowsForUnregisteredScheme(
+        public async Task InitializeServiceHostsThrowsForUnregisteredScheme(
             string endpointUrl,
             string registrationMethod)
         {
@@ -314,9 +313,9 @@ namespace Opc.Ua.Server.Tests
             ApplicationConfiguration configuration = CreateConfiguration(endpointUrl);
             var registry = new DefaultTransportBindingRegistry();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.Message, Does.Contain(new Uri(endpointUrl).Scheme));
             Assert.That(ex.Message, Does.Contain(registrationMethod));

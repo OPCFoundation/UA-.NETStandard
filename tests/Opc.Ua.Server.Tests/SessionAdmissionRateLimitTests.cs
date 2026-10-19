@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSessionRejectedWithBadServerTooBusy()
+        public async Task CreateSessionRejectedWithBadServerTooBusy()
         {
             m_server.RateLimiterProvider = new AlwaysRejectProvider(TimeSpan.FromMilliseconds(2000));
 
@@ -83,7 +83,7 @@ namespace Opc.Ua.Server.Tests
             EndpointDescription endpoint = FindTcpEndpoint(m_server.GetEndpoints());
             SecureChannelContext context = CreateSecureChannelContext(sessionName, endpoint);
 
-            ServiceResultException exception = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.CatchAsync<ServiceResultException>(
                 async () => await m_server.CreateSessionAsync(
                     context,
                     new RequestHeader(),
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
             // before the identity token is even processed.
             m_server.RateLimiterProvider = new AlwaysRejectProvider(retryAfter: null);
 
-            ServiceResultException exception = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.CatchAsync<ServiceResultException>(
                 async () => await m_server.ActivateSessionAsync(
                     context,
                     requestHeader,

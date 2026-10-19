@@ -356,7 +356,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await processing.Task.ConfigureAwait(false);
             await closing.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             closing.Dispose();
-            Assert.CatchAsync(async () => await abandoned.ConfigureAwait(false));
+            await Assert.CatchAsync(async () => await abandoned.ConfigureAwait(false));
 
             source.SetResult(Respond(CreateReadRequest(1)));
 

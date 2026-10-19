@@ -977,7 +977,7 @@ namespace Opc.Ua.Core.Security.Tests
                 expired: false, slug: "notyetvalid");
         }
 
-        private Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
+        private async Task AssertExpiredOrNotYetValidCertRejectedAsync(bool expired, string slug)
         {
             string appUri = NewTestApplicationUri(slug);
             // Use a subject without DC=localhost so SecurityConfiguration.Validate's
@@ -991,7 +991,7 @@ namespace Opc.Ua.Core.Security.Tests
                 : TestCertificateFactory.CreateNotYetValidAppInstanceCert(subject, appUri);
 #pragma warning restore CA2000
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await OpenSessionWithClientCertAsync(cert, appUri).ConfigureAwait(false));
 
             // These certificates fail the time-validity check, which the server
@@ -1005,7 +1005,6 @@ namespace Opc.Ua.Core.Security.Tests
                     StatusCodes.BadCertificateTimeInvalid,
                     StatusCodes.BadCertificateIssuerTimeInvalid),
                 $"Got: {ex.StatusCode}");
-            return Task.CompletedTask;
         }
 
         [Test]

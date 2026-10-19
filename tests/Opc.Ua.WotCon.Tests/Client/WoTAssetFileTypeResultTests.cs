@@ -110,13 +110,13 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [TestCaseSource(nameof(s_badStatuses))]
-        public void UploadAndUpdateWithResultAsyncRefusalPreservesStatusAndDoesNotRetryCommit(StatusCode status)
+        public async Task UploadAndUpdateWithResultAsyncRefusalPreservesStatusAndDoesNotRetryCommit(StatusCode status)
         {
             m_status = status;
             using var source = new NonSeekableUploadSource([21, 22]);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(status));
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [21, 22] }));
@@ -131,7 +131,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void UploadAndUpdateWithResultAsyncWriteFailureSurvivesCleanupFailure()
+        public async Task UploadAndUpdateWithResultAsyncWriteFailureSurvivesCleanupFailure()
         {
             var primary = new IOException("Write failed.");
             var cleanup = new ServiceResultException(StatusCodes.BadSessionClosed);
@@ -148,8 +148,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 }
             };
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
-                await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false))!;
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
+                await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(m_calls.Select(c => c.Request.MethodId),
@@ -189,11 +189,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void UploadAndUpdateWithResultAsyncRejectsNonSeekableOverflowWithoutCommit()
+        public async Task UploadAndUpdateWithResultAsyncRejectsNonSeekableOverflowWithoutCommit()
         {
             using var source = new NonSeekableUploadSource([51, 52, 53]);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false));
 
             Assert.That(WrittenChunks(), Is.EqualTo(new byte[][] { [51, 52] }));
@@ -203,11 +203,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void UploadAndUpdateWithResultAsyncRejectsSeekableOverflowBeforeOpen()
+        public async Task UploadAndUpdateWithResultAsyncRejectsSeekableOverflowBeforeOpen()
         {
             using var source = new MemoryStream([51, 52, 53]);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await m_file.UploadAndUpdateWithResultAsync(source, 2, 4).ConfigureAwait(false));
 
             Assert.That(source.Position, Is.Zero);
@@ -220,12 +220,12 @@ namespace Opc.Ua.WotCon.Tests.Client
         [TestCase(8L, 0, "chunkSize")]
         [TestCase(8L, -1, "chunkSize")]
         [TestCase(8L, 1048577, "chunkSize")]
-        public void UploadAndUpdateWithResultAsyncValidatesLimitsBeforeOpen(long limit, int chunk, string parameter)
+        public async Task UploadAndUpdateWithResultAsyncValidatesLimitsBeforeOpen(long limit, int chunk, string parameter)
         {
             using var source = new NonSeekableUploadSource([61]);
 
-            ArgumentOutOfRangeException exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await m_file.UploadAndUpdateWithResultAsync(source, limit, chunk).ConfigureAwait(false))!;
+            ArgumentOutOfRangeException exception = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await m_file.UploadAndUpdateWithResultAsync(source, limit, chunk).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo(parameter));
             Assert.That(source.ReadCalls, Is.Zero);
@@ -234,25 +234,25 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void UploadAndUpdateWithResultAsyncRejectsNullSourceBeforeOpen()
+        public async Task UploadAndUpdateWithResultAsyncRejectsNullSourceBeforeOpen()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await m_file.UploadAndUpdateWithResultAsync(null!, 8, 4).ConfigureAwait(false))!;
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await m_file.UploadAndUpdateWithResultAsync(null!, 8, 4).ConfigureAwait(false)))!;
             Assert.That(exception.ParamName, Is.EqualTo("source"));
             Assert.That(m_calls, Is.Empty);
         }
 
         [Test]
-        public void UploadAndUpdateWithResultAsyncRejectsNullFileAndUnreadableSourceBeforeOpen()
+        public async Task UploadAndUpdateWithResultAsyncRejectsNullFileAndUnreadableSourceBeforeOpen()
         {
             using var source = new NonSeekableUploadSource([71]);
             using Stream unreadable = new Mock<Stream>().Object;
 
-            ArgumentNullException fileException = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException fileException = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WoTAssetFileTypeClientExtensions.UploadAndUpdateWithResultAsync(
-                    null!, source, 8).ConfigureAwait(false))!;
-            ArgumentException streamException = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await m_file.UploadAndUpdateWithResultAsync(unreadable, 8).ConfigureAwait(false))!;
+                    null!, source, 8).ConfigureAwait(false)))!;
+            ArgumentException streamException = (await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_file.UploadAndUpdateWithResultAsync(unreadable, 8).ConfigureAwait(false)))!;
 
             Assert.That(fileException.ParamName, Is.EqualTo("file"));
             Assert.That(streamException.ParamName, Is.EqualTo("source"));

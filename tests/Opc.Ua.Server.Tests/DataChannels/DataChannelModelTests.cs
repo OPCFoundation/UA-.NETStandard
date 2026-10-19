@@ -175,10 +175,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             uint count = ServerSession.ReadDiagnostics(diagnostics => diagnostics.CallCount.TotalCount);
             var proxy = new DataChannelManagerTypeClient(
                 m_session, ObjectIds.DataChannelManager, m_telemetry);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await proxy.OpenDataChannelAsync(
                     id, new NodeId("unknown-source", SourceId.NamespaceIndex), Binding(pair),
-                    DataChannelControlTestContext.Parameters()).ConfigureAwait(false))!;
+                    DataChannelControlTestContext.Parameters()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.Multiple(() =>
             {
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -243,8 +243,9 @@ namespace Opc.Ua.Server.Tests.DataChannels
                     Is.True);
                 Assert.That(hidden, Is.Empty);
                 var otherProxy = new DataChannelManagerTypeClient(other, ObjectIds.DataChannelManager, m_telemetry);
-                ServiceResultException forbidden = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await otherProxy.CloseDataChannelAsync(opened.ChannelId, true).ConfigureAwait(false))!;
+                ServiceResultException forbidden = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await otherProxy.CloseDataChannelAsync(opened.ChannelId, true).ConfigureAwait(false))
+                        .ConfigureAwait(false))!;
                 Assert.That(forbidden.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             }
             finally

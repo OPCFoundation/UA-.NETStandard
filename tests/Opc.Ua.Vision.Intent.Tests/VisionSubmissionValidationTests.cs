@@ -81,12 +81,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionDataType detection = BuildBaseline();
             detection.ClassLabel = "NotAPart";
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "An unknown class label must be refused with Bad_InvalidArgument.");
         }
@@ -101,12 +101,12 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionDataType detection = BuildBaseline();
             detection.Confidence = 1.5;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A confidence outside [0, 1] must be refused with Bad_InvalidArgument.");
         }
@@ -128,12 +128,12 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Rotation = 0.0
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A bounding box entirely outside the image must be refused with Bad_InvalidArgument.");
         }
@@ -154,12 +154,12 @@ namespace Opc.Ua.Vision.Intent.Tests
                 Covariance = []
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     new[] { detection }.ToArrayOf(),
                     BuildFrameReference(),
-                    ByteString.Empty).ConfigureAwait(false))!;
+                    ByteString.Empty).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument),
                 "A zero-norm quaternion must be refused with Bad_InvalidArgument.");
         }
@@ -173,7 +173,7 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionPipelineClient pipeline = context.Vision.Pipeline(pipelineNodeId);
             VisionFeedbackClient feedback = (await pipeline.OpenFeedbackAsync().ConfigureAwait(false))!;
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Reconciliation,
                     [],
@@ -221,7 +221,7 @@ namespace Opc.Ua.Vision.Intent.Tests
             VisionDetectionResultSnapshot published = await context.Vision
                 .Result(results[0].NodeId).ReadDetectionAsync().ConfigureAwait(false);
             Assert.That(published.ResultId, Is.Not.Null.And.Not.Empty);
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await feedback.SubmitCorrectionAsync(
                     published.ResultId!,
                     VisionFeedbackPurposeEnum.Reconciliation,

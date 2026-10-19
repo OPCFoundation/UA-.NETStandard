@@ -113,9 +113,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(outgoing.ChannelId, Is.EqualTo(1));
                 Assert.That(connection.Services, Is.Null);
-                DataChannelException refusal = Assert.ThrowsAsync<DataChannelException>(async () =>
+                DataChannelException refusal = (await Assert.ThrowsAsync<DataChannelException>(async () =>
                     await connection.Context.OpenAsync(Parameters(), cancellationToken: harness.Token)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(refusal.Result, Is.EqualTo(DataChannelResult.InvalidState));
             }
             else
@@ -177,8 +177,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             else
             {
                 cancelled.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(async () =>
-                    await blocked.WaitAsync(harness.Token).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await blocked.WaitAsync(harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.That(connection.Context.IsReady, Is.True);
             Assert.That(held.Payload, Is.EqualTo(fullWindow));
@@ -193,8 +193,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 DataChannelCarrierKind.DedicatedUasc,
                 trustServer: false).ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.CatchAsync<ServiceResultException>(async () =>
-                await harness.ConnectAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.CatchAsync<ServiceResultException>(async () =>
+                await harness.ConnectAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.Not.EqualTo(StatusCodes.Good));
             Assert.That(harness.ClientFactory.Contexts, Is.Empty);
@@ -208,8 +208,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using SocketHarness harness = await SocketHarness.StartAsync(
                 CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc).ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.CatchAsync<ServiceResultException>(async () =>
-                await harness.ConnectAsync("urn:opcfoundation:tests:wrong-server").ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.CatchAsync<ServiceResultException>(async () =>
+                await harness.ConnectAsync("urn:opcfoundation:tests:wrong-server").ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.Not.EqualTo(StatusCodes.Good));
             Assert.That(harness.ClientFactory.Contexts, Is.Empty);
@@ -302,9 +303,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             DataChannelParametersDataType parameters = Parameters();
             parameters.ResourceUri = "urn:opcfoundation:tests:not-authorized";
 
-            DataChannelException refusal = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException refusal = (await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await connection.Context.OpenAsync(parameters, cancellationToken: harness.Token)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(refusal.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             Assert.That(connection.Context.Channels.IsEmpty, Is.True);
@@ -451,10 +452,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using SocketHarness harness = await SocketHarness.StartAsync(
                 CarrierTransport.Wss, DataChannelCarrierKind.DedicatedUasc).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<WebSocketException>(async () =>
+            await Assert.ThrowsAsync<WebSocketException>(async () =>
             {
                 using RawWebSocket connection = await harness.OpenRawWebSocketAsync(protocol).ConfigureAwait(false);
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(harness.ServerFactory.Contexts, Is.Empty);
             Assert.That(harness.ServiceRequests, Is.Zero);
@@ -614,8 +615,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using ProbeClientChannel client = await harness.ConnectProbeAsync(confirmProfile: false)
                 .ConfigureAwait(false);
 
-            ServiceResultException error = Assert.CatchAsync<ServiceResultException>(async () =>
-                await client.SendRequestAsync(Read(1), 10000, harness.Token).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.CatchAsync<ServiceResultException>(async () =>
+                await client.SendRequestAsync(Read(1), 10000, harness.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.Not.EqualTo(StatusCodes.Good));
             Assert.That(harness.ServiceRequests, Is.Zero);
@@ -629,11 +631,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using SocketHarness harness = await SocketHarness.StartAsync(CarrierTransport.Tcp, kind)
                 .ConfigureAwait(false);
 
-            ServiceResultException error = Assert.CatchAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.CatchAsync<ServiceResultException>(async () =>
             {
                 using ProbeClientChannel client = await harness.ConnectProbeAsync(
                     confirmProfile: false, requestedMode: MessageSecurityMode.None).ConfigureAwait(false);
-            })!;
+            }).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.Not.EqualTo(StatusCodes.Good));
             Assert.That(harness.ServerFactory.Contexts, Is.Empty);
@@ -897,8 +899,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(barrier.Buffer, Is.Not.Null);
                 Assert.That(pool.Owns(barrier.Buffer!), Is.True);
                 cancellation.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(async () =>
-                    await sending.WaitAsync(harness.Token).ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await sending.WaitAsync(harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(pool.Owns(barrier.Buffer!), Is.True,
                     "Abandoning the caller wait must not return a numbered socket buffer to the pool.");
                 Task<IServiceResponse>? following = kind == DataChannelCarrierKind.SharedUasc

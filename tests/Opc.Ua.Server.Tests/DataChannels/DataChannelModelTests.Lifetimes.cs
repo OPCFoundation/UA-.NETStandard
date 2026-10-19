@@ -31,9 +31,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             uint first = pair.Client.ReserveChannelId();
             DataChannelGrantDataType grant = await proxy.OpenDataChannelAsync(
                 first, SourceId, Binding(pair), DataChannelControlTestContext.Parameters()).ConfigureAwait(false);
-            DataChannelException unbound = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException unbound = (await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await pair.Client.OpenAsync(DataChannelControlTestContext.Parameters(),
-                    DataChannelAuthorizationMode.Session, grant.GrantId, first).ConfigureAwait(false))!;
+                    DataChannelAuthorizationMode.Session, grant.GrantId, first).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(unbound.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             var control = new DataChannelSessionControl(m_session, authorizer, TimeProvider.System);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));

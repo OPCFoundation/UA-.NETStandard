@@ -172,8 +172,8 @@ namespace Opc.Ua.MachineTool.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await client.GetCapabilitiesAsync(runtime.NodeId).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await client.GetCapabilitiesAsync(runtime.NodeId).ConfigureAwait(false)))!;
                 StatusCode expected = scenario switch
                 {
                     2 => StatusCodes.BadUserAccessDenied,

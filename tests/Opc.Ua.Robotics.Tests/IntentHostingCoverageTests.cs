@@ -422,10 +422,10 @@ namespace Opc.Ua.Robotics.Tests
                 gateHeld = false;
                 if (cleanupFails)
                 {
-                    AggregateException error = Assert.ThrowsAsync<AggregateException>(async () =>
-                        await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
-                    AggregateException repeated = Assert.ThrowsAsync<AggregateException>(async () =>
-                        await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                    AggregateException error = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                        await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
+                    AggregateException repeated = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                        await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                     Assert.That(error.InnerExceptions, Is.EqualTo(new[] { failure }));
                     Assert.That(repeated, Is.SameAs(error));
                 }
@@ -630,9 +630,9 @@ namespace Opc.Ua.Robotics.Tests
             await using IntentServerFixture duplicateFixture = new IntentServerFixture();
             var duplicateRunner = new DuplicateControllerSetupRunner();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await duplicateFixture.StartAsync(new RobotIntentServerOptions(), duplicateRunner)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameDuplicated));
         }
@@ -769,8 +769,8 @@ namespace Opc.Ua.Robotics.Tests
                 return new object[] { builder };
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await fixture.StartAsync(new RobotIntentServerOptions(), runner).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await fixture.StartAsync(new RobotIntentServerOptions(), runner).ConfigureAwait(false)))!;
 
             Assert.That(
                 exception.StatusCode,

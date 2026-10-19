@@ -406,12 +406,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WoTDocumentKindEnum.ThingDescription);
             long generation = service.Current.Generation;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "case-collision",
                     "v1@prod",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {
@@ -438,8 +438,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 TestMaterialization.Td("urn:case-collision", "second"));
             collision.VersionId = "v1@prod";
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await service.UpsertResourceAsync(collision))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await service.UpsertResourceAsync(collision)))!;
 
             Assert.Multiple(() =>
             {
@@ -456,31 +456,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("invalid/version")]
         [TestCase("invalid version")]
         [TestCase("é")]
-        public void MalformedExplicitVersionIdIsRejected(string versionId)
+        public async Task MalformedExplicitVersionIdIsRejected(string versionId)
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     versionId,
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
-        public void OverlongExplicitVersionIdIsRejected()
+        public async Task OverlongExplicitVersionIdIsRejected()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "invalid",
                     new string('a', 129),
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -829,7 +829,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             // Implicitly creating a placeholder in a new group would exceed
             // MaxGroups and must be rejected identically to the explicit
             // group-create APIs (BadTooManyOperations).
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.GetOrCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(service.Current.FindGroup("sensors"), Is.Null,
@@ -843,7 +843,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             using var service = new WotRegistryService(bounds: bounds);
             await service.UpsertResourceAsync(TdRequest("a", TestMaterialization.Td("urn:a")));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.TryCreateResourceAsync("sensors", "r", WoTDocumentKindEnum.ThingDescription));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(service.Current.FindGroup("sensors"), Is.Null);
@@ -1105,12 +1105,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await SetActiveVersionAsync(service, "protected", "v1");
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.GetOrCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "protected",
                     "v2",
-                    WoTDocumentKindEnum.ThingDescription))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {

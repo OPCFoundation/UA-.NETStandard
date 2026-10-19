@@ -611,8 +611,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 TcpMessageType.Error,
                 new ArraySegment<byte>(BuildErrorChunk((uint)StatusCodes.BadServerHalted)));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await connectTask.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await connectTask.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
         }
 
@@ -795,8 +795,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             byte[] errorBody = BuildErrorBody((uint)StatusCodes.BadEncodingLimitsExceeded, "Aborted by peer");
             await channel.FeedPooledReplyAsync(requestId, 2, TcpMessageType.Abort, errorBody).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await request.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo((uint)StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Open));
 

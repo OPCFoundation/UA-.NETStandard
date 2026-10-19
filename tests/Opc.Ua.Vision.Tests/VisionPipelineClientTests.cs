@@ -118,7 +118,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public Task StartContinuousDoesNotThrowOnGoodCall()
+        public async Task StartContinuousDoesNotThrowOnGoodCall()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -127,13 +127,12 @@ namespace Opc.Ua.Vision.Tests
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await pipeline.StartContinuousAsync().ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
-        public Task StopDoesNotThrowOnGoodCall()
+        public async Task StopDoesNotThrowOnGoodCall()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -142,9 +141,8 @@ namespace Opc.Ua.Vision.Tests
 
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await pipeline.StopAsync().ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -245,7 +243,7 @@ namespace Opc.Ua.Vision.Tests
             // Part 9.5 pairs the array with the flag: an empty array without
             // SceneIsEmpty is a lost payload rather than an observation, so the
             // wrapper refuses it before the call leaves the client.
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
                     [],
@@ -260,7 +258,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     new[] { new VisionDetectionDataType { ClassLabel = "Part" } }.ToArrayOf(),
@@ -276,7 +274,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     "r-1",
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
@@ -295,7 +293,7 @@ namespace Opc.Ua.Vision.Tests
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
             var characteristics = new List<VisionCharacteristicDataType> { new() }.ToArrayOf();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitInspectionResultAsync(
                     string.Empty,
                     VisionResultEvaluationEnum.Ok,
@@ -309,7 +307,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitInspectionResultAsync(
                     "r-1",
                     VisionResultEvaluationEnum.Ok,
@@ -324,7 +322,7 @@ namespace Opc.Ua.Vision.Tests
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
             var detections = new List<VisionDetectionDataType> { new() }.ToArrayOf();
 
-            ArgumentException? ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException? ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     string.Empty,
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
@@ -343,7 +341,7 @@ namespace Opc.Ua.Vision.Tests
             var detections = new List<VisionDetectionDataType> { new() }.ToArrayOf();
             var characteristics = new List<VisionCharacteristicDataType> { new() }.ToArrayOf();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     "r-1",
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
@@ -358,7 +356,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await feedback.SubmitCorrectionAsync(
                     "r-1",
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
@@ -373,7 +371,7 @@ namespace Opc.Ua.Vision.Tests
         {
             VisionFeedbackClient feedback = await BuildFeedbackAsync().ConfigureAwait(false);
 
-            ArgumentNullException? ex = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException? ex = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await feedback.SubmitImageReferenceAsync(
                     VisionFeedbackPurposeEnum.GroundTruthLabel,
                     null!,
@@ -398,7 +396,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(feedback, Is.Not.Null);
             var detections = new List<VisionDetectionDataType> { new() }.ToArrayOf();
 
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await feedback!.SubmitDetectionsAsync(
                     VisionFeedbackPurposeEnum.Overlay,
                     detections,

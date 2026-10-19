@@ -54,15 +54,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         [TestCase("/flow/v1/dedicated", Profiles.UaTcpTransport)]
         [TestCase("/flow/v1/shared/extra", DataChannelProfiles.SharedUasc)]
         [TestCase("/flow/v1/shared?fallback=true", DataChannelProfiles.SharedUasc)]
-        public void MismatchedProfileAndResourceAreRejectedBeforeTransportCreation(string resource, string profile)
+        public async Task MismatchedProfileAndResourceAreRejectedBeforeTransportCreation(
+            string resource,
+            string profile)
         {
             var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
             var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
             var endpoint = new Uri("opc.tcp://localhost:4840" + resource);
             TransportChannelSettings settings = CreateSettings(endpoint, profile);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             registry.VerifyNoOtherCalls();
@@ -70,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [TestCase(MessageSecurityMode.None)]
         [TestCase(MessageSecurityMode.Sign)]
-        public void UnprotectedOrImplicitIntegrityIsRejectedBeforeTransportCreation(MessageSecurityMode mode)
+        public async Task UnprotectedOrImplicitIntegrityIsRejectedBeforeTransportCreation(MessageSecurityMode mode)
         {
             var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
             var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
@@ -78,15 +80,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             TransportChannelSettings settings = CreateSettings(endpoint, DataChannelProfiles.DedicatedUasc);
             settings.Description!.SecurityMode = mode;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
             registry.VerifyNoOtherCalls();
         }
 
         [Test]
-        public void MissingContextFactoryCannotOpenAFlowEndpoint()
+        public async Task MissingContextFactoryCannotOpenAFlowEndpoint()
         {
             var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
             var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
@@ -94,15 +96,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             TransportChannelSettings settings = CreateSettings(endpoint, DataChannelProfiles.SharedUasc);
             settings.DataChannels = null;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.ConnectAsync(endpoint, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             registry.VerifyNoOtherCalls();
         }
 
         [Test]
-        public void AnOrdinaryRegisteredBindingIsNotTreatedAsAFlowTransport()
+        public async Task AnOrdinaryRegisteredBindingIsNotTreatedAsAFlowTransport()
         {
             var registry = new Mock<ITransportBindingRegistry>();
             var ordinary = new Mock<ITransportChannel>();
@@ -111,16 +113,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
             var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ConnectAsync(endpoint, CreateSettings(endpoint, DataChannelProfiles.SharedUasc))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             ordinary.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
-        public void AnOpenedTransportWithoutAConfirmedContextIsNotReportedAsConnected()
+        public async Task AnOpenedTransportWithoutAConfirmedContextIsNotReportedAsConnected()
         {
             var registry = new Mock<ITransportBindingRegistry>();
             var transport = new Mock<IDataChannelTransportChannel>();
@@ -132,16 +134,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
             var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ConnectAsync(endpoint, CreateSettings(endpoint, DataChannelProfiles.SharedUasc))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             transport.Verify(value => value.Dispose(), Times.Once);
         }
 
         [Test]
-        public void DependencyInjectionKeepsTransportRegistriesIsolatedBetweenHosts()
+        public async Task DependencyInjectionKeepsTransportRegistriesIsolatedBetweenHosts()
         {
             var firstRegistry = new Mock<ITransportBindingRegistry>();
             var secondRegistry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
@@ -159,9 +161,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             IUascDataChannelClient secondClient = second.GetRequiredService<IUascDataChannelClient>();
             var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await firstClient.ConnectAsync(endpoint, CreateSettings(endpoint, DataChannelProfiles.SharedUasc))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.That(firstClient, Is.Not.SameAs(secondClient));
             firstRegistry.Verify(value => value.CreateChannel(
@@ -179,8 +181,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using var connection =
                 new UascDataChannelConnection(transport.Object, DataChannelCarrierKind.SharedUasc);
 
-            ObjectDisposedException failure = Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await connection.CloseAsync().ConfigureAwait(false))!;
+            ObjectDisposedException failure = (await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await connection.CloseAsync().ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.ObjectName, Is.EqualTo("unrelated-component"));
             transport.Verify(value => value.Dispose(), Times.Once);

@@ -161,10 +161,11 @@ namespace Opc.Ua.Server.Tests.DataChannels
                     TransportProfileUri = DataChannelProfiles.DedicatedUasc
                 }
             };
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await server.CreateServiceHostEndpointAsync(
                     new Uri(endpoints[0].EndpointUrl!), endpoints, new EndpointConfiguration(),
-                    listener.Object, Mock.Of<ICertificateValidatorEx>()).ConfigureAwait(false))!;
+                    listener.Object, Mock.Of<ICertificateValidatorEx>()).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             listener.Verify(value => value.DisposeAsync(), Times.Once);
             listener.Verify(value => value.OpenAsync(It.IsAny<Uri>(), It.IsAny<TransportListenerSettings>(),

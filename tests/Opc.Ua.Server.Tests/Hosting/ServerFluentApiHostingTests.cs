@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
 
             Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
-                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+                rule is not null && rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
         /// <summary>
@@ -501,7 +501,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             RoleEntry entry = roleManager.GetRole(ObjectIds.WellKnownRole_Observer)!;
 
             Assert.That(entry.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
-                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
+                rule is not null && rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "operator"));
         }
 
         /// <summary>

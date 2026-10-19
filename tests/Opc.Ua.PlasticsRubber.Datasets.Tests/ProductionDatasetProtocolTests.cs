@@ -171,36 +171,36 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             TemporaryFileTransferClient transfer = await fixture.Client.GetTransferClientAsync().ConfigureAwait(false);
             foreach (int storage in new[] { 0, 3, 5, 6, 7, 8, -1 })
             {
-                AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
+                await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
                     Variant.FromStructure(ReadOptions((StorageEnumeration)storage))).ConfigureAwait(false));
             }
             foreach (StorageEnumeration storage in new[] { StorageEnumeration.PRODUCTION,
                 StorageEnumeration.PREPARATION })
             {
-                AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
+                await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
                     Variant.FromStructure(ReadOptions(storage, "not-empty"))).ConfigureAwait(false));
             }
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
                 Variant.FromStructure(ReadOptions(StorageEnumeration.FILE_SYSTEM))).ConfigureAwait(false));
             foreach (int storage in new[] { 0, 8, 9, -1 })
             {
-                AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
+                await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
                     Variant.FromStructure(WriteOptions((StorageEnumeration)storage, "invalid"))).ConfigureAwait(false));
             }
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
                 Variant.FromStructure(WriteOptions(StorageEnumeration.PRODUCTION,
                     string.Empty))).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForWriteAsync(
                 Variant.FromStructure(new ProductionDatasetWriteOptionsType
                 {
                     Name = "invalid-components", Storage = StorageEnumeration.FILE_SYSTEM, Components = [1]
                 })).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadOutOfRange, async () => await transfer.Proxy.GenerateFileForWriteAsync(
+            await AssertStatus(StatusCodes.BadOutOfRange, async () => await transfer.Proxy.GenerateFileForWriteAsync(
                 Variant.FromStructure(new ProductionDatasetWriteOptionsType
                 {
                     Name = "invalid-code", Storage = StorageEnumeration.PRODUCTION, Components = [16]
                 })).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await transfer.Proxy.GenerateFileForReadAsync(
                 Variant.FromStructure(WriteOptions(StorageEnumeration.FILE_SYSTEM,
                     "wrong-type"))).ConfigureAwait(false));
             CallResponse mismatch = await fixture.Session.CallAsync(null,
@@ -238,16 +238,16 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 await fixture.Client.SetFrozenAsync(StorageEnumeration.PRODUCTION, true).ConfigureAwait(false);
                 Assert.That(await
                     fixture.Client.ReadFrozenAsync(StorageEnumeration.PRODUCTION).ConfigureAwait(false), Is.True);
-                AssertStatus(StatusCodes.BadInvalidState, async () =>
+                await AssertStatus(StatusCodes.BadInvalidState, async () =>
                     await fixture.Client.LoadAsync(StorageEnumeration.PRODUCTION, "initial", []).ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadInvalidState, async () =>
+                await AssertStatus(StatusCodes.BadInvalidState, async () =>
                     await fixture.Client.SaveAsync(StorageEnumeration.PRODUCTION, "saved").ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadInvalidState, async () =>
+                await AssertStatus(StatusCodes.BadInvalidState, async () =>
                     await fixture.Client.OpenWriteAsync(WriteOptions(StorageEnumeration.PRODUCTION, "new"))
                         .ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadInvalidState, async () =>
+                await AssertStatus(StatusCodes.BadInvalidState, async () =>
                     await WriteByteAsync(pending.Stream, 3).ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadInvalidState, async ()
+                await AssertStatus(StatusCodes.BadInvalidState, async ()
                     => await pending.CommitAsync().ConfigureAwait(false));
                 await fixture.Client.LoadAsync(StorageEnumeration.PREPARATION, "initial", []).ConfigureAwait(false);
                 using var readable = new MemoryStream();
@@ -312,20 +312,20 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             Opc.Ua.Client.ISession foreign = await fixture.ConnectSessionAsync().ConfigureAwait(false);
             var foreignClient = new ProductionDatasetClient(foreign, fixture.Binding.Node.NodeId);
             var foreignFile = new FileTypeClient(foreign, firstId, foreign.MessageContext.Telemetry);
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await foreignClient.GetInformationAsync(first).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await foreignFile.ReadAsync(first, 1).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                 await firstFile.ReadAsync(second, 1).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidState, async () => await firstFile.OpenAsync(1).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+            await AssertStatus(StatusCodes.BadInvalidState, async () => await firstFile.OpenAsync(1).ConfigureAwait(false));
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                 await transfers.Proxy.CloseAndCommitAsync(first).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                 await fixture.Client.SendInformationAsync(first, new ProductionDatasetInformationType { Name = "one" })
                     .ConfigureAwait(false));
             await firstFile.CloseAsync(first).ConfigureAwait(false);
-            AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                 await fixture.Client.GetInformationAsync(first).ConfigureAwait(false));
             Assert.That((await secondFile.ReadAsync(second, 1).ConfigureAwait(false)).ToArray(),
                 Is.EqualTo(new byte[] { 1 }));
@@ -335,13 +335,13 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 WriteOptions(StorageEnumeration.FILE_SYSTEM, "writer")).ConfigureAwait(false);
             await using (writer.ConfigureAwait(false))
             {
-                AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+                await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                     await fixture.Client.GetInformationAsync(writer.Handle).ConfigureAwait(false));
-                AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+                await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                     await foreignClient.SendInformationAsync(
                         writer.Handle, new ProductionDatasetInformationType { Name = "writer" }).ConfigureAwait(false));
             }
-            AssertStatus(StatusCodes.BadInvalidArgument, async () =>
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () =>
                 await fixture.Client.SendInformationAsync(
                     writer.Handle, new ProductionDatasetInformationType { Name = "writer" }).ConfigureAwait(false));
         }
@@ -365,14 +365,14 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     Is.EqualTo(fixture.Binding.Node.ProductionDatasetTransfer!.NodeId));
             });
             fixture.Policy.DeniedMember = fixture.Binding.Node.ActiveProductionDatasetStatus!.Frozen!.NodeId;
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await fixture.Client.SetFrozenAsync(StorageEnumeration.PRODUCTION, true).ConfigureAwait(false));
             fixture.Policy.DenyAll = true;
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await fixture.Client.ReadInformationAsync(StorageEnumeration.PRODUCTION).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await fixture.Client.GetListAsync().ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
+            await AssertStatus(StatusCodes.BadUserAccessDenied, async () =>
                 await fixture.Client.OpenReadAsync(ReadOptions(StorageEnumeration.PRODUCTION)).ConfigureAwait(false));
         }
 
@@ -417,9 +417,9 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// <summary>
         /// Asserts the original UA failure status rather than merely expecting any exception.
         /// </summary>
-        private static void AssertStatus(StatusCode status, Func<Task> action)
+        private static async Task AssertStatus(StatusCode status, Func<Task> action)
         {
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(action);
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(action);
             Assert.That(exception!.StatusCode, Is.EqualTo(status));
         }
 

@@ -353,7 +353,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 await adapter.ConnectAsync(options, CancellationToken.None)
                     .ConfigureAwait(false);
 
-                Assert.ThrowsAsync<ArgumentException>(async () => await adapter.PublishAsync(
+                await Assert.ThrowsAsync<ArgumentException>(async () => await adapter.PublishAsync(
                     new MqttMessage(string.Empty, Array.Empty<byte>(),
                         MqttQualityOfService.AtMostOnce, false, null, null),
                     CancellationToken.None).ConfigureAwait(false));
@@ -373,7 +373,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
                 .ConnectAsync(null!, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -385,7 +385,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
                 .SubscribeAsync(null!, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -397,7 +397,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                 new MqttConnectionOptions { Endpoint = "mqtt://127.0.0.1:1883" },
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await adapter
                 .UnsubscribeAsync(null!, CancellationToken.None).ConfigureAwait(false));
         }
 

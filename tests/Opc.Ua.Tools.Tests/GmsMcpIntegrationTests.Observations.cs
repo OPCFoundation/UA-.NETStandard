@@ -240,7 +240,7 @@ namespace Opc.Ua.Tools.Tests
             Task<CallToolResult> pending = ObserveAsync(kind, 30);
             await m_fixture.WaitForObservationAsync(unrelated).ConfigureAwait(false);
             await m_mcp.CancelLastRequestAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
             await WaitForSubscriptionCountAsync(subscriptions).ConfigureAwait(false);
             Assert.That(m_mcp.LastRequestToken.IsCancellationRequested, Is.True);
@@ -266,8 +266,8 @@ namespace Opc.Ua.Tools.Tests
                 maximumNotifications: 100, ct: cancellation.Token);
             await m_fixture.WaitForObservationAsync(unrelated).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
-            OperationCanceledException error = Assert.CatchAsync<OperationCanceledException>(async () =>
-                await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+            OperationCanceledException error = (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await pending.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(m_fixture.Subscriptions.Count, Is.EqualTo(subscriptions));
             Assert.That(m_fixture.Subscriptions.Items, Does.Contain(unrelated));

@@ -83,8 +83,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.ManagedSession, s_transfer);
             using var destination = new MemoryStream();
 
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(failure.InnerExceptions, Has.All.TypeOf<ServiceResultException>()
@@ -138,8 +138,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 Assert.That(fixture.Requests, Has.Count.EqualTo(2));
                 release.TrySetResult(true);
 
-                AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                    async () => await copying.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                    async () => await copying.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
 
                 Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
                 Assert.That(failure.InnerExceptions, Has.All.TypeOf<ServiceResultException>()
@@ -277,8 +277,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.InnerSession, s_transfer);
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(status));
             Assert.That(script.Methods, Is.EqualTo(new[] { s_generateMethod, MethodIds.FileType_Close }));
@@ -306,8 +306,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.InnerSession, s_transfer);
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(script.Methods, Is.EqualTo(new[] { s_generateMethod, MethodIds.FileType_Close }));
@@ -329,8 +329,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.InnerSession, s_transfer);
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode,
                 Is.EqualTo(uncertain ? StatusCodes.Uncertain : StatusCodes.BadUnexpectedError));
@@ -352,8 +352,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.InnerSession, s_transfer);
             using var destination = new MemoryStream();
 
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(failure.InnerExceptions[0], Is.TypeOf<ServiceResultException>()
@@ -380,8 +380,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             var client = new TemporaryFileTransferClient(fixture.InnerSession, s_transfer);
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await client.CopyToAsync(default, destination, 3).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
             Assert.That(script.Methods, Is.EqualTo(new[] { s_generateMethod, s_readMethod, MethodIds.FileType_Close }));

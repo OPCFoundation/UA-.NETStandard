@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests.Location
             Task<bool> pending = watch.MoveNextAsync().AsTask();
             try
             {
-                AssertMissing(provider);
+                await AssertMissing(provider);
                 Assert.That(pending.IsCompleted, Is.False);
                 GeoLocationSample expected = GeoLocationSample.Good(
                     new GeoPosition(48, 8), new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc));
@@ -85,7 +85,7 @@ namespace Opc.Ua.Server.Tests.Location
             Task<bool> pending = watch.MoveNextAsync().AsTask();
             cancellation.Cancel();
             Assert.That(await pending.ConfigureAwait(false), Is.False);
-            AssertMissing(provider);
+            await AssertMissing(provider);
         }
 
         /// <summary>
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests.Location
             {
                 var failure = new InvalidOperationException("location unavailable");
                 provider.Fault("new", failure);
-                InvalidOperationException actual = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                InvalidOperationException actual = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await provider.ReadAsync("new").ConfigureAwait(false));
                 Assert.That(actual, Is.SameAs(failure));
 
@@ -127,9 +127,9 @@ namespace Opc.Ua.Server.Tests.Location
         /// <summary>
         /// Verifies that the watched source remains absent from readable geolocation state.
         /// </summary>
-        private static void AssertMissing(InMemoryGeoLocationProvider provider)
+        private static async Task AssertMissing(InMemoryGeoLocationProvider provider)
         {
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await provider.ReadAsync("new").ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
         }

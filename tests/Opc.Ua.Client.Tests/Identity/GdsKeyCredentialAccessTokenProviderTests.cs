@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void MissingAudienceIsRejectedBeforeAcquiringCredential()
+        public async Task MissingAudienceIsRejectedBeforeAcquiringCredential()
         {
             int acquisitions = 0;
             using var provider = new GdsKeyCredentialAccessTokenProvider(
@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests.Identity
                         new GdsIssuedKeyCredential("credential", [1], DateTime.MaxValue));
                 }, "urn:authority");
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await provider.AcquireAsync(new AuthorizationServerMetadata { AuthorityUri = "urn:authority" })
                     .ConfigureAwait(false));
 

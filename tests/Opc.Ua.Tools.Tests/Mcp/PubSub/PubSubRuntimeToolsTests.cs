@@ -123,7 +123,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             await using PubSubRuntimeManager manager = scope.NewManager();
             int otherPort = scope.Port == ushort.MaxValue ? scope.Port - 1 : scope.Port + 1;
 
-            ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await PubSubRuntimeTools.StartPublisherAsync(
                     manager, $"opc.udp://127.0.0.1:{otherPort}", 1, 2, "Value:Int32").ConfigureAwait(false));
 

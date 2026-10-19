@@ -34,7 +34,7 @@ namespace Opc.Ua.Server.Tests
                 MinimumCertificateKeySize = 1024
             };
 
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () =>
                     await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         newCertificate,
@@ -62,7 +62,7 @@ namespace Opc.Ua.Server.Tests
                 MinimumCertificateKeySize = 2048
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () =>
                     await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         newCertificate,

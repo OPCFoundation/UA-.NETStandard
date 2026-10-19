@@ -358,6 +358,11 @@ foreach ($project in $projectList) {
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
         $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
 
+        if ($test.TimedOut) {
+            throw ("The test exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
+                'which the build and the test share.')
+        }
+
         $results = Measure-TestResults $projectResults
         $record.total = $results.Total
         $record.passed = $results.Passed

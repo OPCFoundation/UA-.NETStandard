@@ -313,16 +313,15 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public Task ReadIntrinsicCalibrationThrowsForNullNodeId()
+        public async Task ReadIntrinsicCalibrationThrowsForNullNodeId()
         {
             var harness = new VisionSessionHarness();
             harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
-            Assert.ThrowsAsync<System.ArgumentException>(async () =>
+            await Assert.ThrowsAsync<System.ArgumentException>(async () =>
                 await sensor.ReadIntrinsicCalibrationAsync(NodeId.Null)
                     .ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -357,16 +356,15 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public Task ReadExtrinsicCalibrationThrowsForNullNodeId()
+        public async Task ReadExtrinsicCalibrationThrowsForNullNodeId()
         {
             var harness = new VisionSessionHarness();
             harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
 
-            Assert.ThrowsAsync<System.ArgumentException>(async () =>
+            await Assert.ThrowsAsync<System.ArgumentException>(async () =>
                 await sensor.ReadExtrinsicCalibrationAsync(NodeId.Null)
                     .ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]

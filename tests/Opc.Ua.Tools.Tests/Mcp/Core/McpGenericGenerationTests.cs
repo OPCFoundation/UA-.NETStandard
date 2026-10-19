@@ -115,11 +115,11 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             Assert.That(read.Results[0].WrappedValue.TryGetValue(out int value), Is.True);
             Assert.That(value, Is.EqualTo(17));
             fixture.RecreateAsProtectedModel();
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await operation.Access.Session.WriteAsync(
                     null,
                     [new WriteValue { NodeId = new NodeId(100u, 1), Value = new DataValue(Variant.From(18)) }],
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Mutations, Is.Empty);
         }

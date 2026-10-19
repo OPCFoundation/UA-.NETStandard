@@ -29,10 +29,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             DataChannelGrantDataType grant = await control.GetGrantAsync(
                 pair.Client, id, SourceId, DataChannelControlTestContext.Parameters()).ConfigureAwait(false);
             Assert.That(grant.GrantId, Is.Not.EqualTo(Uuid.Empty));
-            DataChannelException denied = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException denied = (await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await pair.Client.OpenAsync(
                     DataChannelControlTestContext.Parameters(), DataChannelAuthorizationMode.Session,
-                    grant.GrantId, id).ConfigureAwait(false))!;
+                    grant.GrantId, id).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(denied.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             Assert.That(pair.Server.Channels, Is.Empty);
         }
@@ -62,9 +62,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 await pair.Client.OpenAsync(
                     DataChannelControlTestContext.Parameters(), DataChannelAuthorizationMode.Session,
                     grant.GrantId, id, deadline.Token).ConfigureAwait(false);
-                Assert.ThrowsAsync<ServiceResultException>(async () => await proxy.OpenDataChannelAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await proxy.OpenDataChannelAsync(
                     pair.Client.ReserveChannelId(), new NodeId("missing-source", SourceId.NamespaceIndex),
-                    Binding(pair), DataChannelControlTestContext.Parameters(), deadline.Token).ConfigureAwait(false));
+                    Binding(pair), DataChannelControlTestContext.Parameters(), deadline.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 bool sawState = false;
                 bool sawGoodAudit = false;
                 bool sawDeniedAudit = false;

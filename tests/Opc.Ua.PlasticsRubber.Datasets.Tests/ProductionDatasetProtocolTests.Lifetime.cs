@@ -59,7 +59,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 await fixture.Client.SendInformationAsync(file.Handle,
                     new ProductionDatasetInformationType { Name = "new", Components = [0] }).ConfigureAwait(false);
                 fixture.Provider.BeforeCommit = (_, _) => throw new ServiceResultException(StatusCodes.BadOutOfService);
-                AssertStatus(StatusCodes.BadOutOfService, async () => await file.CommitAsync().ConfigureAwait(false));
+                await AssertStatus(StatusCodes.BadOutOfService, async () => await file.CommitAsync().ConfigureAwait(false));
                 Assert.That((await fixture.Client.ReadInformationAsync(StorageEnumeration.PRODUCTION)
                     .ConfigureAwait(false)).Name, Is.EqualTo("old"));
                 Assert.That((await fixture.Client.GetListAsync("new").ConfigureAwait(false)).IsEmpty, Is.True);
@@ -70,7 +70,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     .ConfigureAwait(false)).Name, Is.EqualTo("new"));
                 Assert.That((await fixture.Client.GetListAsync("new").ConfigureAwait(false)).Count, Is.EqualTo(1));
             }
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await fixture.Client.SendInformationAsync(
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await fixture.Client.SendInformationAsync(
                 file.Handle, new ProductionDatasetInformationType { Name = "new" }).ConfigureAwait(false));
         }
 
@@ -126,7 +126,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             await WriteByteAsync(expired.Stream, 9).ConfigureAwait(false);
             fixture.Clock.Advance(TimeSpan.FromSeconds(11));
             await fixture.Binding.ReclaimExpiredAsync().ConfigureAwait(false);
-            AssertStatus(StatusCodes.BadInvalidArgument, async () => await expired.CommitAsync().ConfigureAwait(false));
+            await AssertStatus(StatusCodes.BadInvalidArgument, async () => await expired.CommitAsync().ConfigureAwait(false));
             await expired.DisposeAsync().ConfigureAwait(false);
             Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(expired.FileNodeId), Is.Null);
             Assert.That((await fixture.Client.GetListAsync().ConfigureAwait(false)).IsEmpty, Is.True);
@@ -158,11 +158,11 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     files.Add(await fixture.Client.OpenWriteAsync(
                         WriteOptions(StorageEnumeration.FILE_SYSTEM, "pending-" + i)).ConfigureAwait(false));
                 }
-                AssertStatus(StatusCodes.BadTooManyOperations, async () => await fixture.Client.OpenWriteAsync(
+                await AssertStatus(StatusCodes.BadTooManyOperations, async () => await fixture.Client.OpenWriteAsync(
                     WriteOptions(StorageEnumeration.FILE_SYSTEM, "overflow")).ConfigureAwait(false));
                 var file = new FileTypeClient(
                     fixture.Session, files[0].FileNodeId, fixture.Session.MessageContext.Telemetry);
-                AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
+                await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () =>
                     await file.WriteAsync(files[0].Handle, ByteString.From(new byte[1025])).ConfigureAwait(false));
                 await files[0].DisposeAsync().ConfigureAwait(false);
                 files.Add(await fixture.Client.OpenWriteAsync(
@@ -189,13 +189,13 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             var client = new ProductionDatasetClient(fixture.Session, fixture.Binding.Node.NodeId,
                 new ProductionDatasetClientOptions { MaximumFileBytes = 3, ChunkSize = 2 });
             using var input = new MemoryStream([1, 2, 3, 4]);
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await client.UploadAsync(
+            await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await client.UploadAsync(
                 WriteOptions(StorageEnumeration.FILE_SYSTEM, "oversized"), input).ConfigureAwait(false));
             Assert.That((await fixture.Client.GetListAsync("oversized").ConfigureAwait(false)).IsEmpty, Is.True);
             await UploadAsync(fixture, "large", StorageEnumeration.FILE_SYSTEM, [1, 2, 3, 4], [0, 1, 1, 2])
                 .ConfigureAwait(false);
             using var destination = new MemoryStream();
-            AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await client.DownloadContentAsync(
+            await AssertStatus(StatusCodes.BadEncodingLimitsExceeded, async () => await client.DownloadContentAsync(
                 ReadOptions(StorageEnumeration.FILE_SYSTEM, "large"), destination).ConfigureAwait(false));
             await fixture.Binding.ReclaimExpiredAsync().ConfigureAwait(false);
             var children = new List<BaseInstanceState>();
@@ -228,7 +228,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 }
             };
             using var content = new MemoryStream([1]);
-            AssertStatus(StatusCodes.BadTimeout, async () => await fixture.Client.UploadAsync(
+            await AssertStatus(StatusCodes.BadTimeout, async () => await fixture.Client.UploadAsync(
                 WriteOptions(StorageEnumeration.FILE_SYSTEM, "deadline"), content).ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -268,8 +268,8 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             Task first = fixture.Binding.DisposeAsync().AsTask();
             Task second = fixture.Binding.DisposeAsync().AsTask();
             await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            AssertStatus(StatusCodes.BadShutdown, async () => await commit.ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadShutdown, async () => await read.ConfigureAwait(false));
+            await AssertStatus(StatusCodes.BadShutdown, async () => await commit.ConfigureAwait(false));
+            await AssertStatus(StatusCodes.BadShutdown, async () => await read.ConfigureAwait(false));
             Assert.Multiple(() =>
             {
                 Assert.That(fixture.Provider.CommitCount, Is.Zero);
@@ -295,13 +295,13 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             await fixture.Client.DownloadContentAsync(ReadOptions(StorageEnumeration.PRODUCTION), output)
                 .ConfigureAwait(false);
             Assert.That(output.ToArray(), Is.EqualTo(new byte[] { 4 }));
-            AssertStatus(StatusCodes.BadNotSupported, async ()
+            await AssertStatus(StatusCodes.BadNotSupported, async ()
                 => await fixture.Client.GetListAsync().ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadNotSupported, async () =>
+            await AssertStatus(StatusCodes.BadNotSupported, async () =>
                 await fixture.Client.ReadFrozenAsync(StorageEnumeration.PRODUCTION).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadNotSupported, async () => await fixture.Client.OpenReadAsync(
+            await AssertStatus(StatusCodes.BadNotSupported, async () => await fixture.Client.OpenReadAsync(
                 ReadOptions(StorageEnumeration.PREPARATION)).ConfigureAwait(false));
-            AssertStatus(StatusCodes.BadNotSupported, async () => await fixture.Client.OpenWriteAsync(
+            await AssertStatus(StatusCodes.BadNotSupported, async () => await fixture.Client.OpenWriteAsync(
                 WriteOptions(StorageEnumeration.PREPARATION | StorageEnumeration.FILE_SYSTEM, "unsupported"))
                 .ConfigureAwait(false));
             Assert.That(fixture.Binding.Node.ProductionDatasetInPreparationStatus, Is.Null);
@@ -341,7 +341,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             await fixture.Client.SetFrozenAsync(StorageEnumeration.PRODUCTION, true).ConfigureAwait(false);
             Assert.That(await fixture.Client.ReadFrozenAsync(StorageEnumeration.PRODUCTION).ConfigureAwait(false),
                 Is.True);
-            AssertStatus(StatusCodes.BadNotSupported, async () =>
+            await AssertStatus(StatusCodes.BadNotSupported, async () =>
                 await fixture.Client.ReadFrozenAsync(StorageEnumeration.PREPARATION).ConfigureAwait(false));
         }
     }

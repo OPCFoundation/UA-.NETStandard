@@ -219,7 +219,7 @@ namespace Opc.Ua.MachineTool.Tests
                 Production = new MachineToolProductionObservation { Jobs = [job] }
             };
             await controller.InitializeAsync(initial).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await controller.ApplyAsync(initial with
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await controller.ApplyAsync(initial with
             {
                 Revision = 1,
                 Production = initial.Production with { Jobs = [job, job with { Identifier = "B" }] }

@@ -81,9 +81,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(acceptor.Revision, Is.EqualTo(before + 1));
             });
             proposed.Priority++;
-            ServiceResultException reused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException reused = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.ModifyAsync(
-                    test.Session.Object, opener.ChannelId, 9, before + 1, proposed).ConfigureAwait(false))!;
+                    test.Session.Object, opener.ChannelId, 9, before + 1, proposed).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(reused.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -95,9 +96,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             (DataChannel opener, _) = await OpenSessionFlowAsync(test).ConfigureAwait(false);
             DataChannelParametersDataType changed = DataChannelControlTestContext.Parameters();
             changed.Protocol = DataChannelProfiles.JsonPayload;
-            ServiceResultException immutable = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException immutable = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.ModifyAsync(
-                    test.Session.Object, opener.ChannelId, 1, opener.Revision + 1, changed).ConfigureAwait(false))!;
+                    test.Session.Object, opener.ChannelId, 1, opener.Revision + 1, changed).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(immutable.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             changed = DataChannelControlTestContext.Parameters();
             changed.MaxMessageSize = 512;
@@ -126,10 +128,12 @@ namespace Opc.Ua.Server.Tests.DataChannels
             other.SetupGet(value => value.Id).Returns(new NodeId(200u, 1));
             other.SetupGet(value => value.Activated).Returns(true);
             test.Sessions.Setup(value => value.GetSessions()).Returns([test.Session.Object, other.Object]);
-            ServiceResultException inaccessible = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.Provider.CloseAsync(other.Object, opener.ChannelId, true).ConfigureAwait(false))!;
-            ServiceResultException unknown = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.Provider.CloseAsync(other.Object, 999, true).ConfigureAwait(false))!;
+            ServiceResultException inaccessible = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.Provider.CloseAsync(other.Object, opener.ChannelId, true).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
+            ServiceResultException unknown = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.Provider.CloseAsync(other.Object, 999, true).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.Multiple(() =>
             {
                 Assert.That(inaccessible.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -154,10 +158,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             binding.ContextId = other.Server.Identity.ContextId;
             binding.Generation = other.Server.Identity.Generation;
             binding.Challenge = other.Server.Identity.LocalChallenge;
-            ServiceResultException conflict = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException conflict = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.OpenAsync(
                     test.Session.Object, duplicate, test.SourceNodeId, binding,
-                    DataChannelControlTestContext.Parameters()).ConfigureAwait(false))!;
+                    DataChannelControlTestContext.Parameters()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(conflict.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -302,15 +306,17 @@ namespace Opc.Ua.Server.Tests.DataChannels
             await using DataChannelControlTestPair duplicate = await DataChannelControlTestPair.CreateAsync(
                 test.Provider, test.Options, test.Clock, test.Telemetry, "urn:control-tests:server",
                 "urn:control-tests:client", test.PeerKey, test.PeerKey).ConfigureAwait(false);
-            DataChannelException ambiguous = Assert.ThrowsAsync<DataChannelException>(async () =>
+            DataChannelException ambiguous = (await Assert.ThrowsAsync<DataChannelException>(async () =>
                 await test.Provider.WaitForContextAsync(
-                    "urn:control-tests:client", DataChannelCarrierKind.SharedUasc).ConfigureAwait(false))!;
+                    "urn:control-tests:client", DataChannelCarrierKind.SharedUasc).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(ambiguous.Result, Is.EqualTo(DataChannelResult.InvalidState));
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await test.Provider.WaitForContextAsync(
-                    "urn:other:client", DataChannelCarrierKind.SharedUasc, cancellation.Token).ConfigureAwait(false));
+                    "urn:other:client", DataChannelCarrierKind.SharedUasc, cancellation.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
         }
 
         [Test]
@@ -331,9 +337,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(staged.Revision, Is.EqualTo(revision));
                 test.Clock.Advance(test.Options.UpdateTimeout);
             }
-            ServiceResultException evicted = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException evicted = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.ModifyAsync(
-                    test.Session.Object, opener.ChannelId, 1, revision + 1, proposed).ConfigureAwait(false))!;
+                    test.Session.Object, opener.ChannelId, 1, revision + 1, proposed).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             DataChannelStatusDataType recent = await test.Provider.ModifyAsync(
                 test.Session.Object, opener.ChannelId, 65, revision + 1, proposed).ConfigureAwait(false);
             Assert.Multiple(() =>

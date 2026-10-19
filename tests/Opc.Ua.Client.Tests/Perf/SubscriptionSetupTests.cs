@@ -89,7 +89,7 @@ namespace Opc.Ua.Client.Tests.Perf
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void RejectedMonitoredItemFailsSetup(bool created)
+        public async Task RejectedMonitoredItemFailsSetup(bool created)
         {
             var setup = new SubscriptionSetup();
             Mock<IMonitoredItem> rejected = CreateItem(created);
@@ -98,8 +98,8 @@ namespace Opc.Ua.Client.Tests.Perf
                 true, CreateItem(false).Object, rejected.Object);
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => setup.WaitForReadyAsync(subscription.Object, guard.Token))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => setup.WaitForReadyAsync(subscription.Object, guard.Token)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
             Assert.That(exception.Message, Does.Contain("item"));
@@ -110,15 +110,15 @@ namespace Opc.Ua.Client.Tests.Perf
         /// </summary>
         [TestCase(ManagedSubscriptionState.Error)]
         [TestCase(ManagedSubscriptionState.Deleted)]
-        public void FailedSubscriptionStateFailsSetup(ManagedSubscriptionState state)
+        public async Task FailedSubscriptionStateFailsSetup(ManagedSubscriptionState state)
         {
             var setup = new SubscriptionSetup();
             Mock<ManagedSubscription> subscription = CreateSubscription(false, CreateItem(false).Object);
             setup.OnStateChanged(state);
             using var guard = new CancellationTokenSource(TimeSpan.FromSeconds(2));
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                () => setup.WaitForReadyAsync(subscription.Object, guard.Token))!;
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => setup.WaitForReadyAsync(subscription.Object, guard.Token)))!;
 
             Assert.That(exception.Message, Does.Contain(state.ToString()));
         }
@@ -127,7 +127,7 @@ namespace Opc.Ua.Client.Tests.Perf
         /// An error delivered while polling remains visible even if the engine starts recovering.
         /// </summary>
         [Test]
-        public void ErrorDuringSetupIsNotLostDuringRecovery()
+        public async Task ErrorDuringSetupIsNotLostDuringRecovery()
         {
             var clock = new FakeTimeProvider();
             var setup = new SubscriptionSetup(clock);
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests.Perf
             setup.OnStateChanged(ManagedSubscriptionState.Opened);
             clock.Advance(TimeSpan.FromMilliseconds(50));
 
-            Assert.ThrowsAsync<InvalidOperationException>(() => wait);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => wait);
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.Tests.Perf
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void SetupHasAFiniteDeadline(bool subscriptionCreated)
+        public async Task SetupHasAFiniteDeadline(bool subscriptionCreated)
         {
             var clock = new FakeTimeProvider();
             var setup = new SubscriptionSetup(clock);
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests.Perf
 
             clock.Advance(TimeSpan.FromMinutes(1));
 
-            TimeoutException exception = Assert.ThrowsAsync<TimeoutException>(() => wait)!;
+            TimeoutException exception = (await Assert.ThrowsAsync<TimeoutException>(() => wait))!;
             Assert.That(exception.Message, Does.Contain("subscription"));
         }
 
@@ -167,14 +167,14 @@ namespace Opc.Ua.Client.Tests.Perf
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void CallerCancellationInterruptsSetup(bool ready)
+        public async Task CallerCancellationInterruptsSetup(bool ready)
         {
             var setup = new SubscriptionSetup();
             Mock<ManagedSubscription> subscription = CreateSubscription(ready, CreateItem(ready).Object);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 () => setup.WaitForReadyAsync(subscription.Object, cancellation.Token));
         }
 

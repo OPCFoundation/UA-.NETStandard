@@ -120,7 +120,7 @@ namespace Opc.Ua.CranesHoists.Tests
             ArrayOf<QualifiedName> before = fixture.Manager.ConformanceUnits;
             CraneMotionDeviceSystemState? failed = null;
             var name = new QualifiedName("RetryCrane", robotics.InstanceNamespaceIndex);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await robotics.AddMotionDeviceSystemAsync(
                     name,
                     static (context, parent, browseName) =>
@@ -133,7 +133,7 @@ namespace Opc.Ua.CranesHoists.Tests
                             failed,
                             machine => machine.WithIdentification(failed.Identification!, Identify)));
                         system.WithRegistrationParticipant(new FailingParticipant(fixture.Manager, failed));
-                    }).ConfigureAwait(false))!;
+                    }).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
             Assert.That(fixture.Manager.FindPredefinedNode(failed!.NodeId), Is.Null);
@@ -173,7 +173,7 @@ namespace Opc.Ua.CranesHoists.Tests
             IMachineryBuildContext machinery = fixture.MachineryContext();
             var name = new QualifiedName("InvalidCrane", robotics.InstanceNamespaceIndex);
             ArrayOf<QualifiedName> before = fixture.Manager.ConformanceUnits;
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await robotics.AddMotionDeviceSystemAsync(
                     name,
                     static (context, parent, browseName) =>
@@ -186,7 +186,7 @@ namespace Opc.Ua.CranesHoists.Tests
                             crane,
                             machine => machine.WithIdentification(crane.Identification!, data =>
                                 data.SerialNumber = "MissingManufacturer")));
-                    }).ConfigureAwait(false))!;
+                    }).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(fixture.ReservedCount, Is.Zero);
@@ -257,7 +257,7 @@ namespace Opc.Ua.CranesHoists.Tests
             ArrayOf<QualifiedName> before = fixture.Manager.ConformanceUnits;
             var name = new QualifiedName("CancelledCrane", robotics.InstanceNamespaceIndex);
             CraneMotionDeviceSystemState? failed = null;
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await robotics.AddMotionDeviceSystemAsync(
                     name,
                     static (context, parent, browseName) =>
@@ -307,7 +307,7 @@ namespace Opc.Ua.CranesHoists.Tests
                 robotics.DeviceSet, new QualifiedName("Existing", robotics.InstanceNamespaceIndex));
             robotics.DeviceSet.AddChild(existing);
             await fixture.Manager.AddPredefinedNodeAsync(existing).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await robotics.AddMotionDeviceSystemAsync(
                     new QualifiedName("ConflictingCrane", robotics.InstanceNamespaceIndex),
                     (context, parent, name) =>
@@ -323,7 +323,7 @@ namespace Opc.Ua.CranesHoists.Tests
                         var crane = (CraneMotionDeviceSystemState)system.State;
                         system.WithRegistrationParticipant(machinery.BindMachine(
                             crane, machine => machine.WithIdentification(crane.Identification!, Identify)));
-                    }).ConfigureAwait(false))!;
+                    }).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(fixture.Manager.FindPredefinedNode(existing.NodeId), Is.SameAs(existing));
             var children = new List<BaseInstanceState>();
@@ -345,7 +345,7 @@ namespace Opc.Ua.CranesHoists.Tests
                 builder.WithIdentification(data => data.SerialNumber = "Incomplete"));
             await builder.AbortAsync().ConfigureAwait(false);
             Assert.That(fixture.ReservedCount, Is.Zero);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
             IMachineHandle<BaseObjectState> retry = await machinery.AddMachine(new QualifiedName("Abandoned"))
                 .WithIdentification(Identify).BuildAsync().ConfigureAwait(false);
             Assert.That(fixture.Manager.FindPredefinedNode(retry.NodeId), Is.SameAs(retry.State));
@@ -395,7 +395,7 @@ namespace Opc.Ua.CranesHoists.Tests
 
             if (fail)
             {
-                Assert.ThrowsAsync<ServiceResultException>(BuildAsync);
+                await Assert.ThrowsAsync<ServiceResultException>(BuildAsync);
             }
             else
             {

@@ -137,11 +137,11 @@ namespace Opc.Ua.MachineTool.Tests
             large.Definition = new string('D', 400);
             await store.AppendAsync(large).ConfigureAwait(false);
             await store.AppendAsync(Record(2)).ConfigureAwait(false);
-            ServiceResultException limit = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await store.ReadAsync(new WmtpRecordQuery()).ConfigureAwait(false))!;
+            ServiceResultException limit = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await store.ReadAsync(new WmtpRecordQuery()).ConfigureAwait(false)))!;
             Assert.That(limit.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
-            ServiceResultException capacity = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await store.AppendAsync(Record(3)).ConfigureAwait(false))!;
+            ServiceResultException capacity = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await store.AppendAsync(Record(3)).ConfigureAwait(false)))!;
             Assert.That(capacity.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
             Assert.That(await store.CountAsync(new WmtpRecordQuery()).ConfigureAwait(false), Is.EqualTo(2));
             ArrayOf<WMTPOutputDataType> small = await store.ReadAsync(
@@ -184,13 +184,13 @@ namespace Opc.Ua.MachineTool.Tests
                 await store.AppendAsync(Record(3)).ConfigureAwait(false);
                 using var cancellation = new CancellationTokenSource();
                 cancellation.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await store.AppendAsync(Record(4), cancellation.Token).ConfigureAwait(false));
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await store.DeleteAsync(new WmtpRecordQuery(), cancellation.Token).ConfigureAwait(false));
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await store.ReadAsync(new WmtpRecordQuery(), cancellation.Token).ConfigureAwait(false));
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await store.CountAsync(new WmtpRecordQuery(), cancellation.Token).ConfigureAwait(false));
                 foreach (WmtpRecordQuery query in new WmtpRecordQuery[]
                 {
@@ -204,12 +204,12 @@ namespace Opc.Ua.MachineTool.Tests
                     }
                 })
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await store.DeleteAsync(query).ConfigureAwait(false));
                 }
                 Assert.That(await store.CountAsync(new WmtpRecordQuery()).ConfigureAwait(false), Is.EqualTo(1));
             }
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await store.CountAsync(new WmtpRecordQuery()).ConfigureAwait(false));
             await store.DisposeAsync().ConfigureAwait(false);
         }
@@ -240,7 +240,7 @@ namespace Opc.Ua.MachineTool.Tests
                 }
             })
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await store.AppendAsync(invalid).ConfigureAwait(false));
             }
             Assert.That(await store.CountAsync(new WmtpRecordQuery()).ConfigureAwait(false), Is.EqualTo(1));

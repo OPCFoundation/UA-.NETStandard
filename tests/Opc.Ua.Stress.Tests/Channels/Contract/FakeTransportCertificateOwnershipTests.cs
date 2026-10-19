@@ -77,7 +77,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
         /// Verifies a failed open leaves the server certificate owned and usable by the caller.
         /// </summary>
         [Test]
-        public void FailedOpenLeavesServerCertificateWithCaller()
+        public async Task FailedOpenLeavesServerCertificateWithCaller()
         {
             using Certificate certificate = CreateCertificate("fake-server-open-failed");
             string thumbprint = certificate.Thumbprint;
@@ -85,7 +85,7 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             transport.ConfigureFault(FaultMode.OpenFails);
             var settings = new TransportChannelSettings { ServerCertificate = certificate };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.OpenAsync(new Uri(DefaultEndpointUrl), settings, CancellationToken.None)
                     .ConfigureAwait(false));
             transport.Dispose();

@@ -131,7 +131,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                             ? [Variant.From(ByteString.From(new byte[] { 1, 2, 3, 4 }))]
                             : call.MethodId == release ? [Variant.From(0)] : []
             };
-            ServiceResultException? tooLarge = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? tooLarge = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await VisionMachineTools.DownloadResultAsync(
                     harness.Accessor, harness.SystemId.ToString(), "result", maximumBytes: 3).ConfigureAwait(false));
             Assert.That(tooLarge!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -296,7 +296,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Is.EqualTo(new NodeId(Objects.FileTransferStateMachineType_Idle).ToString()));
             harness.Readings[(stateId, Attributes.Value)] =
                 new DataValue(Variant.From(ObjectIds.FileTransferStateMachineType_Error));
-            Assert.ThrowsAsync<System.IO.IOException>(async () =>
+            await Assert.ThrowsAsync<System.IO.IOException>(async () =>
                 await VisionMachineTools.FileAsync(harness.Accessor, completion.ToString(), "WaitForCompletion")
                     .ConfigureAwait(false));
             Assert.That(harness.Calls, Is.Empty, "Completion inspection must never commit or retry the transfer.");

@@ -7,6 +7,8 @@
   measurements and record/configuration workflows.
 - [GMS](GMS/) — native systems, environmental warnings and result/characteristic
   workflows with explicitly simulated providers.
+- [AutoID](AutoID/) — a simulated OPC 30010 RFID reader: synchronous and
+  asynchronous scans, tag memory access and presence events.
 - [Cranes and Hoists](CranesHoists/) — observed crane topology and authorized
   simulated limit requests, never physical motion commands.
 - [Combined companion suite](CompanionSuite/) — MachineTool, WMTP, GMS,

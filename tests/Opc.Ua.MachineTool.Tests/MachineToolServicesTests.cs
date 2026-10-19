@@ -114,8 +114,8 @@ namespace Opc.Ua.MachineTool.Tests
                 })
                 .WithJobManagement(new MachineToolJobManagementOptions { Receiver = jobs });
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(created, Is.False);

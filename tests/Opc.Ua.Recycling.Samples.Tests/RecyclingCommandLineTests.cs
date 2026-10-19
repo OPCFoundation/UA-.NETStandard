@@ -62,7 +62,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     : ["--role", "coordinator", "--identities", identities, "--view-poll-ms", period];
                 if (!valid)
                 {
-                    Assert.ThrowsAsync<ArgumentException>(() => RecyclingCommandLine.LoadAsync(arguments).AsTask());
+                    await Assert.ThrowsAsync<ArgumentException>(() => RecyclingCommandLine.LoadAsync(arguments).AsTask());
                     return;
                 }
                 RecyclingHostOptions options = await RecyclingCommandLine.LoadAsync(arguments).ConfigureAwait(false);
@@ -133,7 +133,7 @@ namespace Opc.Ua.Recycling.Samples.Tests
         public async Task ScenarioOverridesRejectInvalidDocumentsAsync(string json)
         {
             await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            Assert.ThrowsAsync<JsonException>(() => RecyclingCommandLine.LoadScenarioAsync(stream).AsTask());
+            await Assert.ThrowsAsync<JsonException>(() => RecyclingCommandLine.LoadScenarioAsync(stream).AsTask());
         }
 
         /// <summary>
@@ -141,11 +141,11 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void MissingSelectorProducesTheRoleValidationError(bool includeOtherOption)
+        public async Task MissingSelectorProducesTheRoleValidationError(bool includeOtherOption)
         {
             ArrayOf<string> arguments = includeOtherOption ? ["--line-id", "line-1"] : [];
-            ArgumentException failure = Assert.ThrowsAsync<ArgumentException>(() =>
-                RecyclingCommandLine.LoadAsync(arguments).AsTask())!;
+            ArgumentException failure = (await Assert.ThrowsAsync<ArgumentException>(() =>
+                RecyclingCommandLine.LoadAsync(arguments).AsTask()))!;
 
             Assert.That(failure.Message, Does.Contain("Select exactly --role coordinator or --process"));
         }
@@ -155,13 +155,13 @@ namespace Opc.Ua.Recycling.Samples.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void InvalidSelectorCombinationProducesTheRoleValidationError(bool both)
+        public async Task InvalidSelectorCombinationProducesTheRoleValidationError(bool both)
         {
             ArrayOf<string> arguments = both
                 ? ["--role", "coordinator", "--process", "collection"]
                 : ["--role", "worker"];
-            ArgumentException failure = Assert.ThrowsAsync<ArgumentException>(() =>
-                RecyclingCommandLine.LoadAsync(arguments).AsTask())!;
+            ArgumentException failure = (await Assert.ThrowsAsync<ArgumentException>(() =>
+                RecyclingCommandLine.LoadAsync(arguments).AsTask()))!;
 
             Assert.That(failure.Message, Does.Contain("Select exactly --role coordinator or --process"));
         }

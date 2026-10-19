@@ -243,9 +243,9 @@ namespace Opc.Ua.Server.Tests.Programs
         {
             await using Fixture fixture = await Fixture.CreateAsync().ConfigureAwait(false);
             await fixture.CallAsync(ProgramControlMethod.Start, ProgramState.Running).ConfigureAwait(false);
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await ProgramRuntime.AttachAsync(fixture.Runtime.Node, fixture.Runtime.Definition,
-                    fixture.Context, TimeProvider.System).ConfigureAwait(false))!;
+                    fixture.Context, TimeProvider.System).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(fixture.Runtime.Node.CurrentState!.Number!.Value, Is.EqualTo((uint)ProgramState.Running));
             Assert.That(fixture.Execution.Disposed, Is.False);
@@ -394,8 +394,8 @@ namespace Opc.Ua.Server.Tests.Programs
             fixture.Execution.OnObservationStarting =
                 () => throw new InvalidOperationException("Observer setup failed.");
 
-            InvalidOperationException exception = Assert.ThrowsAsync<InvalidOperationException>(
-                () => fixture.Runtime.ActivateAsync().AsTask())!;
+            InvalidOperationException exception = (await Assert.ThrowsAsync<InvalidOperationException>(
+                () => fixture.Runtime.ActivateAsync().AsTask()))!;
 
             Assert.That(exception.Message, Is.EqualTo("Observer setup failed."));
             MethodInvocationResult start = await fixture.Runtime.ControlAsync(
@@ -411,7 +411,7 @@ namespace Opc.Ua.Server.Tests.Programs
             using var cancellation = new CancellationTokenSource();
             fixture.Execution.OnObservationStarting = cancellation.Cancel;
 
-            Assert.ThrowsAsync<TaskCanceledException>(
+            await Assert.ThrowsAsync<TaskCanceledException>(
                 () => fixture.Runtime.ActivateAsync(cancellation.Token).AsTask());
 
             await fixture.Runtime.DisposeAsync().ConfigureAwait(false);

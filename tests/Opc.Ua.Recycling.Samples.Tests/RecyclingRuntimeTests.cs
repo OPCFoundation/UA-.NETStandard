@@ -328,8 +328,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                     services, clock, telemetry);
                 await runtime.StartAsync(CancellationToken.None).ConfigureAwait(false);
 
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                    runtime.RefreshMembershipAsync(client.Object).AsTask())!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    runtime.RefreshMembershipAsync(client.Object).AsTask()))!;
 
                 Assert.Multiple(() =>
                 {
@@ -493,8 +493,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
                 Assert.That(incompatible.SourceTimestampUtc, Is.GreaterThan(committed.SourceTimestampUtc));
                 Assert.That(incompatible.ConfigurationId, Is.Not.EqualTo(committed.ConfigurationId));
 
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(() =>
-                    runtime.ApplyProjectionAsync(incompatible, available: true).AsTask())!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                    runtime.ApplyProjectionAsync(incompatible, available: true).AsTask()))!;
 
                 Assert.Multiple(() =>
                 {

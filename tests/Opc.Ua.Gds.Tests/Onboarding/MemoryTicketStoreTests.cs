@@ -99,14 +99,14 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
-        public void AddRejectsNullArgs()
+        public async Task AddRejectsNullArgs()
         {
             var store = new MemoryTicketStore();
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await store.AddAsync(string.Empty, [], Metadata()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync("t1", null!, Metadata()).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync("t1", [], null!).ConfigureAwait(false));
         }
 

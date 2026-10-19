@@ -48,7 +48,6 @@ namespace Opc.Ua.Features.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [TestFixtureSource(nameof(AsyncFixtureArgs))]
-    [Parallelizable(ParallelScope.Fixtures)]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class NodeCacheAsyncTest : ClientTestFramework
@@ -134,7 +133,6 @@ namespace Opc.Ua.Features.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task NodeCacheBrowseAllVariablesAsync()
         {
             var result = new List<INode>();
@@ -182,7 +180,7 @@ namespace Opc.Ua.Features.Tests
         /// Browse all variables in the objects folder.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(NodeCacheBrowseAllVariablesAsync), AllowFailure = true)]
         public async Task NodeCacheBrowseAllVariablesMultipleNodesAsync()
         {
             var result = new List<INode>();
@@ -228,7 +226,7 @@ namespace Opc.Ua.Features.Tests
         /// Load Ua types in node cache.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(NodeCacheBrowseAllVariablesMultipleNodesAsync), AllowFailure = true)]
         public async Task NodeCacheReferencesAsync()
         {
             INodeCache nodeCache = Session.NodeCache;
@@ -278,7 +276,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(720)]
+        [DependsOnTest(nameof(NodeCacheReferencesAsync), AllowFailure = true)]
         public async Task NodeCacheFindAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -296,7 +294,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(730)]
+        [DependsOnTest(nameof(NodeCacheFindAsync), AllowFailure = true)]
         public async Task NodeCacheFetchNodeAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -314,7 +312,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(740)]
+        [DependsOnTest(nameof(NodeCacheFetchNodeAsync), AllowFailure = true)]
         public async Task NodeCacheFetchNodesAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -333,7 +331,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(750)]
+        [DependsOnTest(nameof(NodeCacheFetchNodesAsync), AllowFailure = true)]
         public async Task NodeCacheFindReferencesAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -358,7 +356,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(900)]
+        [DependsOnTest(nameof(NodeCacheFindReferencesAsync), AllowFailure = true)]
         public async Task FetchTypeTreeAsync()
         {
             await Session
@@ -368,7 +366,7 @@ namespace Opc.Ua.Features.Tests
         }
 
         [Test]
-        [Order(910)]
+        [DependsOnTest(nameof(FetchTypeTreeAsync), AllowFailure = true)]
         public async Task FetchAllReferenceTypesAsync()
         {
             IEnumerable<ExpandedNodeId> fieldValues = ReferenceTypeIds.Identifiers
@@ -381,7 +379,7 @@ namespace Opc.Ua.Features.Tests
         /// Test concurrent access of FetchNodes.
         /// </summary>
         [Test]
-        [Order(1000)]
+        [DependsOnTest(nameof(FetchAllReferenceTypesAsync), AllowFailure = true)]
         public async Task NodeCacheFetchNodesConcurrentAsync()
         {
             // 10-way concurrent HTTPS sessions are not reliable on the CI
@@ -420,7 +418,7 @@ namespace Opc.Ua.Features.Tests
         /// Test concurrent access of Find.
         /// </summary>
         [Test]
-        [Order(1100)]
+        [DependsOnTest(nameof(NodeCacheFetchNodesConcurrentAsync), AllowFailure = true)]
         public async Task NodeCacheFindNodesConcurrentAsync()
         {
             if (UriScheme != Utils.UriSchemeOpcTcp)
@@ -455,7 +453,7 @@ namespace Opc.Ua.Features.Tests
         /// Test concurrent access of FindReferences.
         /// </summary>
         [Test]
-        [Order(1200)]
+        [DependsOnTest(nameof(NodeCacheFindNodesConcurrentAsync), AllowFailure = true)]
         public async Task NodeCacheFindReferencesConcurrentAsync()
         {
             if (UriScheme != Utils.UriSchemeOpcTcp)
@@ -495,7 +493,7 @@ namespace Opc.Ua.Features.Tests
         /// Test concurrent access of many methods in INodecache interface
         /// </summary>
         [Test]
-        [Order(1300)]
+        [DependsOnTest(nameof(NodeCacheFindReferencesConcurrentAsync), AllowFailure = true)]
         public async Task NodeCacheTestAllMethodsConcurrentlyAsync()
         {
             if (UriScheme != Utils.UriSchemeOpcTcp)

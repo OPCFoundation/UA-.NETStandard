@@ -78,7 +78,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             ListToolsResult tools = await fixture.CatalogueAsync().ConfigureAwait(false);
             JsonObject validated = fixture.Runtimes.Validate(PubSubExpansionTestContext.Input());
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input()).ConfigureAwait(false));
 
             Assert.That(tools.Tools.Select(tool => tool.Name), Does.Contain("pubsub_capabilities"));

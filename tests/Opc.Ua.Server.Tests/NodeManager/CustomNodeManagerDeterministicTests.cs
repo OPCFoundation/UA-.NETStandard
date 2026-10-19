@@ -199,7 +199,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 removed,
                 Has.Some.Matches<LocalReference>(
-                    r => r.SourceId == externalTarget && r.TargetId == node.NodeId));
+                    r => r is not null && r.SourceId == externalTarget && r.TargetId == node.NodeId));
 
             h.Manager.ClearRemovedExternalReferences();
 

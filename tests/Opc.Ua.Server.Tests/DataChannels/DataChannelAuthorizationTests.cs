@@ -47,10 +47,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
                     binding.PeerKeyThumbprint = ByteString.From(new byte[32]);
                     break;
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.OpenAsync(
                     test.Session.Object, id, test.SourceNodeId, binding, DataChannelControlTestContext.Parameters())
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             DataChannelGrantDataType grant = await test.GrantAsync(id).ConfigureAwait(false);
             Assert.That(grant.ChannelId, Is.EqualTo(id));
@@ -74,8 +74,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(first.SourceNodeId, Is.EqualTo(test.Source.SourceNodeId));
                 Assert.That(replay.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             });
-            ServiceResultException reissue = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.GrantAsync(grant.ChannelId).ConfigureAwait(false))!;
+            ServiceResultException reissue = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.GrantAsync(grant.ChannelId).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(reissue.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
@@ -177,10 +177,11 @@ namespace Opc.Ua.Server.Tests.DataChannels
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await test.Provider.OpenAsync(
                         test.Session.Object, id, test.SourceNodeId, test.Binding(),
-                        DataChannelControlTestContext.Parameters(direction)).ConfigureAwait(false))!;
+                        DataChannelControlTestContext.Parameters(direction)).ConfigureAwait(false))
+                        .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
         }
@@ -199,8 +200,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
             {
                 test.HasSource = false;
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -261,8 +262,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
             await using DataChannelControlTestContext test =
                 await DataChannelControlTestContext.CreateAsync().ConfigureAwait(false);
             test.Metadata!.NodeClass = NodeClass.Variable;
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -285,8 +286,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
                     ClientCertificateProvenance.SetValidated(test.Session.Object, false);
                     break;
             }
-            ServiceResultException mismatchError = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false))!;
+            ServiceResultException mismatchError = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(mismatchError.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
@@ -302,9 +303,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             binding.ContextId = otherApplication.Server.Identity.ContextId;
             binding.Generation = otherApplication.Server.Identity.Generation;
             binding.Challenge = otherApplication.Server.Identity.LocalChallenge;
-            ServiceResultException thirdParty = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException thirdParty = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await test.Provider.OpenAsync(test.Session.Object, otherApplication.Client.ReserveChannelId(),
-                    test.SourceNodeId, binding, DataChannelControlTestContext.Parameters()).ConfigureAwait(false))!;
+                    test.SourceNodeId, binding, DataChannelControlTestContext.Parameters()).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
             Assert.That(thirdParty.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
@@ -319,8 +321,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
                     .ConfigureAwait(false);
                 Assert.That(grant.GrantId, Is.Not.EqualTo(Uuid.Empty));
             }
-            ServiceResultException full = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false))!;
+            ServiceResultException full = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.GrantAsync(test.Pair.Client.ReserveChannelId()).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(full.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             test.Clock.Advance(test.Options.GrantLifetime);
             DataChannelGrantDataType afterExpiry = await test.GrantAsync(test.Pair.Client.ReserveChannelId())

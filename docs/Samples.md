@@ -120,6 +120,8 @@ their READMEs; there is no alternate-carrier fallback.
   modern production, remote files, measurement configuration and record workflows.
 - [GMS server and client](../samples/GMS/) — native systems, qualification,
   environmental conditions and typed result/characteristic/correction workflows.
+- [AutoID server and client](../samples/AutoID/) — a simulated OPC 30010 RFID
+  reader with scans, tag memory access and scan/presence events.
 - [Cranes and Hoists](../samples/CranesHoists/) — Robotics-derived topology,
   acquisition quality and authorized simulated limit requests.
 - [Combined companion suite](../samples/CompanionSuite/) — MachineTool, WMTP,
