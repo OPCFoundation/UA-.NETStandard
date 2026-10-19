@@ -408,8 +408,19 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
 
         private static JsonElement EventField(JsonElement fields, string name)
         {
+            JsonProperty[] exactMatches = fields.EnumerateObject()
+                .Where(field => field.Name == name)
+                .ToArray();
+            if (exactMatches.Length > 1)
+            {
+                throw new InvalidOperationException($"Multiple exact event fields match '{name}'.");
+            }
+            if (exactMatches.Length == 1)
+            {
+                return exactMatches[0].Value;
+            }
             return fields.EnumerateObject().Single(field =>
-                field.Name == name || field.Name.EndsWith(":" + name, StringComparison.Ordinal)).Value;
+                field.Name.EndsWith(":" + name, StringComparison.Ordinal)).Value;
         }
 
         private string? m_root;
