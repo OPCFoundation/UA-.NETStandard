@@ -378,6 +378,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that generation activation rejects a required action when no executor is available.
+        /// </summary>
         [Test]
         public async Task RequiredActionWithoutExecutorFailsGenerationActivation()
         {
@@ -461,6 +464,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             new TestCaseData(StatusCodes.BadInvalidArgument)
         ];
 
+        /// <summary>
+        /// Creates a compiled test action form with a selectable alternative and executability flag.
+        /// </summary>
+        /// <param name="name">The name assigned to the node or field used by the operation.</param>
+        /// <param name="alternative">The zero-based form alternative to include in the compiled action.</param>
+        /// <param name="executable">Whether the compiled action form can be executed.</param>
         internal static WotCompiledForm ActionForm(string name, int alternative = 0, bool executable = true)
         {
             return new WotCompiledForm(

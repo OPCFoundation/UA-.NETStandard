@@ -39,11 +39,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class WotProjectedEventState : BaseEventState
     {
+        /// <summary>
+        /// Creates a projected event state without an address-space parent.
+        /// </summary>
         public WotProjectedEventState()
             : base(null)
         {
         }
 
+        /// <summary>
+        /// Adds a captured event-field value under its qualified browse path.
+        /// </summary>
+        /// <param name="path">The qualified browse path identifying the captured event field.</param>
+        /// <param name="value">The captured value to associate with the event field path.</param>
         public void AddField(ArrayOf<QualifiedName> path, in DataValue value)
         {
             m_fields.Add((path, value));

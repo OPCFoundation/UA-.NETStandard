@@ -64,6 +64,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private WotMaterializationCoordinator m_coordinator = null!;
         private PreparedWotTestRuntime? m_runtime;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -75,6 +78,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, m_runtime.Observe(m_host.RecordCommitted), documentConverter: m_converter);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

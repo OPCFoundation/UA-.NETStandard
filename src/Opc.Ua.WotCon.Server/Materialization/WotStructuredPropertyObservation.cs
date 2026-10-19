@@ -110,6 +110,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return observation;
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             lock (m_sync)

@@ -44,6 +44,9 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
+    /// <summary>
+    /// Owns a running server and prepared registry storage for materialization tests.
+    /// </summary>
     internal sealed class PreparedWotTestRuntime : IAsyncDisposable
     {
         private PreparedWotTestRuntime(
@@ -76,6 +79,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Gets the port for <c>PreparedWotTestRuntime</c>.
         /// </summary>
         public int Port => m_fixture.Port;
+
+        /// <summary>
+        /// Gets the configured registry storage directory within the test runtime.
+        /// </summary>
         public string StorageFolder => Path.Combine(m_root, "configured-registry");
 
         /// <summary>
@@ -121,6 +128,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return registry;
         }
 
+        /// <summary>
+        /// Wraps the projection host with callbacks that observe preparation, validation, publication, and caller
+        /// context.
+        /// </summary>
+        /// <param name="published">The callback observing committed projection changes.</param>
+        /// <param name="validate">The optional callback observing publication validation.</param>
+        /// <param name="prepare">The optional callback observing prepared projection changes.</param>
+        /// <param name="contextObserved">
+        /// The optional callback observing the caller context in each publication phase.
+        /// </param>
         public IWotInvocationProjectionHost Observe(
             Action<ArrayOf<WotProjectionChange>> published,
             Action<ArrayOf<WotProjectionChange>>? validate = null,
@@ -130,6 +147,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new ObservedHost(Host, published, validate, prepare, contextObserved);
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             try

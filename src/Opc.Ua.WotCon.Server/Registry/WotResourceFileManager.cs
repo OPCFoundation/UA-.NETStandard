@@ -35,8 +35,16 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
+    /// <summary>
+    /// Carries the service status and optional resource version produced by a FileType commit.
+    /// </summary>
     internal readonly struct WotResourceCommitResult
     {
+        /// <summary>
+        /// Captures the FileType commit status and the resulting resource version.
+        /// </summary>
+        /// <param name="serviceResult">The service status returned by the content commit.</param>
+        /// <param name="version">The resource version resulting from the commit, if available.</param>
         public WotResourceCommitResult(
             ServiceResult serviceResult,
             WotResourceVersion? version)
@@ -45,8 +53,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             Version = version;
         }
 
+        /// <summary>
+        /// Gets the service result of the content commit.
+        /// </summary>
         public ServiceResult ServiceResult { get; }
 
+        /// <summary>
+        /// Gets the resource version returned by the commit, if available.
+        /// </summary>
         public WotResourceVersion? Version { get; }
     }
 
@@ -78,6 +92,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         IDisposable,
         XRegistry.Server.IXRegistryAsyncProjectedResourceFileHandleForwarder
     {
+        /// <summary>
+        /// Initializes bounded FileType access with write authorization, content loading, and a commit callback.
+        /// </summary>
+        /// <param name="file">The FileType node managed by this instance.</param>
+        /// <param name="maxOpenHandles">The maximum number of concurrent FileType handles.</param>
+        /// <param name="maxDocumentSize">The maximum accepted document size in bytes.</param>
+        /// <param name="authorizeWrite">The callback that authorizes a FileType write operation.</param>
+        /// <param name="onCommit">The callback that commits the uploaded content.</param>
         public WotResourceFileManager(
             FileState file,
             int maxOpenHandles,
@@ -96,6 +118,15 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
         }
 
+        /// <summary>
+        /// Initializes bounded FileType access with write authorization, content loading, and a commit callback.
+        /// </summary>
+        /// <param name="file">The FileType node managed by this instance.</param>
+        /// <param name="maxOpenHandles">The maximum number of concurrent FileType handles.</param>
+        /// <param name="maxDocumentSize">The maximum accepted document size in bytes.</param>
+        /// <param name="authorizeWrite">The callback that authorizes a FileType write operation.</param>
+        /// <param name="readContent">The callback used to read captured resource version content.</param>
+        /// <param name="onCommit">The callback that commits the uploaded content.</param>
         public WotResourceFileManager(
             FileState file,
             int maxOpenHandles,
@@ -115,6 +146,15 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
         }
 
+        /// <summary>
+        /// Initializes bounded FileType access with write authorization, content loading, and a commit callback.
+        /// </summary>
+        /// <param name="file">The FileType node managed by this instance.</param>
+        /// <param name="maxOpenHandles">The maximum number of concurrent FileType handles.</param>
+        /// <param name="maxDocumentSize">The maximum accepted document size in bytes.</param>
+        /// <param name="authorizeWrite">The callback that authorizes a FileType write operation.</param>
+        /// <param name="readContent">The callback used to read captured resource version content.</param>
+        /// <param name="onCommit">The callback that commits the uploaded content.</param>
         public WotResourceFileManager(
             FileState file,
             int maxOpenHandles,
@@ -495,6 +535,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             return OnSetPosition(context, method, objectId, fileHandle, position);
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             lock (m_handlesLock)
@@ -1282,7 +1323,14 @@ namespace Opc.Ua.WotCon.Server.Registry
             private IWotRegistryVersionLease? m_lease;
         }
 
+        /// <summary>
+        /// The FileType open-mode flag for read access.
+        /// </summary>
         public const byte ReadMode = 1;
+
+        /// <summary>
+        /// The FileType open-mode flags for writing after erasing the existing content.
+        /// </summary>
         public const byte WriteEraseMode = 6;
 
         private readonly FileState m_file;

@@ -90,6 +90,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private WotMaterializationCoordinator m_coordinator = null!;
         private WotRegistryServerOptions m_options = null!;
 
+        /// <summary>
+        /// Starts the test server and initializes the session and registry fixtures used by the tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -136,6 +139,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .AddAsync(factory, callerContext: null).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Closes client sessions, stops the test server, and releases the registry fixtures and files.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

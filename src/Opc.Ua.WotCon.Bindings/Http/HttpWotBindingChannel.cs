@@ -82,6 +82,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             m_baseTarget = form.Addressing.Target;
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.Form"/>
         public WotCompiledForm Form { get; }
 
         /// <summary>
@@ -109,6 +110,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
                 new DataValue(decoded.Value, StatusCodes.Good, DateTimeUtc.Now, DateTimeUtc.Now));
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.WriteAsync"/>
         public async ValueTask<WotWriteResult> WriteAsync(
             DataValue value, CancellationToken cancellationToken = default)
         {
@@ -242,6 +244,7 @@ namespace Opc.Ua.WotCon.Bindings.Http
             }, onEvent, cancellationToken);
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             PollingWotSubscription[] subscriptions;

@@ -57,6 +57,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed partial class WotProjectedEventRuntimeTests
     {
+        /// <summary>
+        /// Verifies that a shared event source preserves distinct conditions and routes acknowledgment and
+        /// confirmation.
+        /// </summary>
         [Test]
         public async Task SharedSourceReportsDistinctConditionsAndRoutesAcknowledgeAndConfirm()
         {
@@ -181,6 +185,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(upstream.Channel.SubscribeEventCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that the last consumer stops source subscription while routes and channels remain until generation
+        /// disposal.
+        /// </summary>
         [Test]
         public async Task LastConsumerStopsSubscriptionButRetainsRoutesAndChannelUntilGenerationDisposal()
         {
@@ -286,6 +294,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Verifies that an incomplete event notification faults its stream and disposes the source subscription.
+        /// </summary>
         [Test]
         public async Task IncompleteNotificationFaultsTheStreamAndDisposesItsSubscription()
         {
@@ -306,6 +317,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(upstream.Stopped, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that subscription failure propagates without releasing the generation-owned channel.
+        /// </summary>
         [Test]
         public async Task SubscriptionFailurePropagatesAndItsChannelRemainsGenerationOwned()
         {
@@ -340,6 +354,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channel.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that equal empty base URIs do not allow condition actions to select a different endpoint.
+        /// </summary>
+        /// <param name="host">The endpoint host used by the test case.</param>
+        /// <param name="port">The endpoint port used by the test case.</param>
         [TestCase("source-b", 4840)]
         [TestCase("source-a", 4841)]
         public async Task ConditionActionWithEqualEmptyBaseUriCannotSelectAnotherEndpoint(string host, int port)
@@ -376,6 +395,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.Nodes.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that equal upstream event identifiers from different sources cannot be routed across sources.
+        /// </summary>
         [Test]
         public async Task IdenticalUpstreamEventIdsFromDifferentSourcesCannotCrossRoute()
         {
@@ -416,6 +438,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(sourceB.Channel.SubscribeEventCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that retiring event routes remain available until their owning generation is disposed.
+        /// </summary>
         [Test]
         public async Task RetiringGenerationRoutesRemainAvailableUntilThatGenerationDisposes()
         {
@@ -464,6 +489,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(current.Invokes["aAcknowledge"].InvokeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that an ancestor notifier receives each event once and controls activation of its leaf event
+        /// source.
+        /// </summary>
         [Test]
         public async Task DeclaredAncestorNotifierReceivesOneEventAndGatesTheLeafSource()
         {

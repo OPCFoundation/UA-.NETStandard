@@ -80,6 +80,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 m_sourceHost is IWotInvocationProjectionHost source
                 ? [.. source.SupportedAtomicities] : [];
 
+        /// <summary>
+        /// Occurs when the coordinator's observable refresh state changes.
+        /// </summary>
         internal event EventHandler? RefreshStateChanged;
 
         private Dictionary<string, ClosureState> ClosureStates => m_preparing?.Closures ?? m_closures;

@@ -35,8 +35,16 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server.Fluent
 {
+    /// <summary>
+    /// Tracks monitored value sources and their registrations for a fluent node manager.
+    /// </summary>
     internal sealed class MonitoredSourceRegistry : IDisposable
     {
+        /// <summary>
+        /// Initializes monitored-source tracking with the owner's time provider and lifetime.
+        /// </summary>
+        /// <param name="owner">The fluent node manager that owns the source registry.</param>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         public MonitoredSourceRegistry(
             FluentNodeManagerBase owner,
             ILogger logger)
@@ -49,6 +57,10 @@ namespace Opc.Ua.Server.Fluent
             m_managerCts = new CancellationTokenSource();
         }
 
+        /// <summary>
+        /// Gets or creates the monitored-source registration for the specified node.
+        /// </summary>
+        /// <param name="node">The source node associated with the registration or view check.</param>
         public MonitoredSourceRegistration Register(NodeState node)
         {
             if (node == null)
@@ -74,6 +86,10 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Gets or creates the monitored-source registration template for the specified virtual-node family.
+        /// </summary>
+        /// <param name="virtualNodes">The virtual-node family whose source registration is required.</param>
         public MonitoredSourceRegistration Register(
             VirtualNodeRegistration virtualNodes)
         {
@@ -100,6 +116,14 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Adds a newly created monitored item to its value-source registration.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public ValueTask OnCreatedAsync(
             ISystemContext context,
             NodeState source,
@@ -152,6 +176,14 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Reconciles a value-source registration after monitored-item settings change.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public ValueTask OnModifiedAsync(
             ISystemContext context,
             NodeState source,
@@ -160,6 +192,14 @@ namespace Opc.Ua.Server.Fluent
             return UpdateRegistrationAsync(context, source, monitoredItem, monitoredItem.MonitoringMode);
         }
 
+        /// <summary>
+        /// Removes a monitored item and retires an empty virtual-node source registration.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public async ValueTask OnDeletedAsync(
             ISystemContext context,
             NodeState source,
@@ -186,6 +226,15 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Reconciles the value source with the monitored item's requested monitoring mode.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
+        /// <param name="monitoringMode">The monitoring mode to apply to the item.</param>
         public ValueTask OnMonitoringModeChangedAsync(
             ISystemContext context,
             NodeState source,
@@ -268,6 +317,7 @@ namespace Opc.Ua.Server.Fluent
             return registrations;
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             List<MonitoredSourceRegistration> registrations;
@@ -401,11 +451,16 @@ namespace Opc.Ua.Server.Fluent
     /// </summary>
     internal sealed class MonitoredSourceLifetime : IAsyncDisposable
     {
+        /// <summary>
+        /// Associates monitored-source release with the owning node manager lifetime.
+        /// </summary>
+        /// <param name="registry">The source registry whose lifetime is being managed.</param>
         public MonitoredSourceLifetime(MonitoredSourceRegistry registry)
         {
             m_registry = registry;
         }
 
+        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             return m_registry.ReleaseAsync();
@@ -414,10 +469,20 @@ namespace Opc.Ua.Server.Fluent
         private readonly MonitoredSourceRegistry m_registry;
     }
 
+    /// <summary>
+    /// Coordinates subscribers, polling, and resource acquisition for one monitored value source.
+    /// </summary>
     internal sealed class MonitoredSourceRegistration :
         IDisposable,
         IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a monitored value-source registration with its node identity, clock, and owner lifetime.
+        /// </summary>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
+        /// <param name="timeProvider">The clock used to schedule source polling.</param>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="managerToken">The cancellation token for the owning node manager lifetime.</param>
         public MonitoredSourceRegistration(
             NodeId nodeId,
             TimeProvider timeProvider,
@@ -525,6 +590,11 @@ namespace Opc.Ua.Server.Fluent
             m_lastSubscriber = handler;
         }
 
+        /// <summary>
+        /// Configures the source poller and its positive minimum sampling period, rejecting duplicate configuration.
+        /// </summary>
+        /// <param name="poller">The poller that samples the monitored source.</param>
+        /// <param name="minimumPeriod">The positive lower bound on the polling period.</param>
         public void SetPoller(IMonitoredValuePoller poller, TimeSpan minimumPeriod)
         {
             if (poller == null)
@@ -569,8 +639,14 @@ namespace Opc.Ua.Server.Fluent
             return registration;
         }
 
+        /// <summary>
+        /// Gets whether the registration is being released or has begun disposal.
+        /// </summary>
         public bool IsRetiring => Volatile.Read(ref m_releasing) || Volatile.Read(ref m_disposeStarted) != 0;
 
+        /// <summary>
+        /// Attempts to mark an empty, non-retiring registration for retirement.
+        /// </summary>
         public async ValueTask<bool> TryBeginRetireAsync()
         {
             if (!TryEnterUpdate())
@@ -600,6 +676,15 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <summary>
+        /// Updates a monitored item's source registration and reports whether the caller can avoid retrying.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
+        /// <param name="monitoringMode">The monitoring mode to apply to the item.</param>
         public async ValueTask<bool> TryUpdateAsync(
             ISystemContext context,
             NodeState source,
@@ -610,6 +695,14 @@ namespace Opc.Ua.Server.Fluent
                 .ConfigureAwait(false)).Retry;
         }
 
+        /// <summary>
+        /// Adds the monitored item and reconciles source activity with its monitoring mode.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public async ValueTask OnCreatedAsync(
             ISystemContext context,
             NodeState source,
@@ -623,6 +716,14 @@ namespace Opc.Ua.Server.Fluent
                 remove: false).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Updates the monitored item and reconciles source activity with its revised settings.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public async ValueTask OnModifiedAsync(
             ISystemContext context,
             NodeState source,
@@ -636,6 +737,14 @@ namespace Opc.Ua.Server.Fluent
                 remove: false).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Removes the monitored item and reports whether the source registration is empty.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         public async ValueTask<bool> OnDeletedAsync(
             ISystemContext context,
             NodeState source,
@@ -649,6 +758,15 @@ namespace Opc.Ua.Server.Fluent
                 remove: true).ConfigureAwait(false)).Empty;
         }
 
+        /// <summary>
+        /// Updates source activity for the monitored item's new monitoring mode.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
+        /// <param name="monitoringMode">The monitoring mode to apply to the item.</param>
         public async ValueTask OnMonitoringModeChangedAsync(
             ISystemContext context,
             NodeState source,
@@ -663,6 +781,7 @@ namespace Opc.Ua.Server.Fluent
                 remove: false).ConfigureAwait(false);
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             StartDisposal();
@@ -731,6 +850,7 @@ namespace Opc.Ua.Server.Fluent
             await callback.ConfigureAwait(false);
         }
 
+        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             StartDisposal();
@@ -1304,24 +1424,45 @@ namespace Opc.Ua.Server.Fluent
         }
     }
 
+    /// <summary>
+    /// Samples a monitored variable and creates independent pollers for virtual-node instances.
+    /// </summary>
     internal interface IMonitoredValuePoller
     {
+        /// <summary>
+        /// Creates a poller with independent sampling state for another source instance.
+        /// </summary>
         IMonitoredValuePoller Clone();
 
+        /// <summary>
+        /// Samples the source and applies a changed value to the monitored variable.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         ValueTask SampleAsync(
             ISystemContext context,
             NodeState source,
             CancellationToken cancellationToken);
     }
 
+    /// <summary>
+    /// Applies values produced by a typed sampling delegate when the sampled value changes.
+    /// </summary>
+    /// <typeparam name="TValue">The sampled value type.</typeparam>
     internal sealed class MonitoredValuePoller<TValue> : IMonitoredValuePoller
     {
+        /// <summary>
+        /// Initializes a poller with the delegate used to sample source values.
+        /// </summary>
+        /// <param name="sample">The asynchronous delegate that samples the source value.</param>
         public MonitoredValuePoller(
             Func<ISystemContext, NodeState, CancellationToken, ValueTask<TValue>> sample)
         {
             m_sample = sample ?? throw new ArgumentNullException(nameof(sample));
         }
 
+        /// <inheritdoc cref="IMonitoredValuePoller.SampleAsync"/>
         public async ValueTask SampleAsync(
             ISystemContext context,
             NodeState source,
@@ -1356,6 +1497,7 @@ namespace Opc.Ua.Server.Fluent
             }
         }
 
+        /// <inheritdoc cref="IMonitoredValuePoller.Clone"/>
         public IMonitoredValuePoller Clone()
         {
             return new MonitoredValuePoller<TValue>(m_sample);
@@ -1373,8 +1515,16 @@ namespace Opc.Ua.Server.Fluent
         private bool m_hasValue;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for monitored source registry.
+    /// </summary>
     internal static partial class MonitoredSourceRegistryLog
     {
+        /// <summary>
+        /// Logs failure to release a monitored value source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
         [LoggerMessage(
             EventId = ServerEventIds.MonitoredSourceRegistry + 20,
             Level = LogLevel.Warning,
@@ -1383,6 +1533,12 @@ namespace Opc.Ua.Server.Fluent
             this ILogger logger,
             Exception exception);
 
+        /// <summary>
+        /// Logs failure to reconcile a node's monitored value source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(
             EventId = ServerEventIds.MonitoredSourceRegistry + 0,
             Level = LogLevel.Error,
@@ -1392,6 +1548,12 @@ namespace Opc.Ua.Server.Fluent
             Exception exception,
             string nodeId);
 
+        /// <summary>
+        /// Logs a sampling failure for a monitored value source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(
             EventId = ServerEventIds.MonitoredSourceRegistry + 1,
             Level = LogLevel.Error,
@@ -1401,6 +1563,13 @@ namespace Opc.Ua.Server.Fluent
             Exception exception,
             string nodeId);
 
+        /// <summary>
+        /// Logs a failing monitored-source lifecycle callback.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="callback">The lifecycle callback that failed.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(
             EventId = ServerEventIds.MonitoredSourceRegistry + 2,
             Level = LogLevel.Error,

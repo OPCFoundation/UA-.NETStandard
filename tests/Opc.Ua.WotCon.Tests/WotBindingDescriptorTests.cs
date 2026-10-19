@@ -65,6 +65,9 @@ namespace Opc.Ua.WotCon.Tests
     [NonParallelizable]
     public sealed class WotBindingDescriptorTests
     {
+        /// <summary>
+        /// Records the process and runtime identities used by binding descriptor tests.
+        /// </summary>
         [SetUp]
         public void RecordExecutionRuntime()
         {

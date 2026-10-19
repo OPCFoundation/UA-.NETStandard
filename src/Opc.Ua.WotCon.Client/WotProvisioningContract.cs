@@ -35,6 +35,9 @@ using Opc.Ua.Client;
 
 namespace Opc.Ua.WotCon.Client
 {
+    /// <summary>
+    /// Defines the registry contract used when provisioning WoT documents through the client.
+    /// </summary>
     internal static class WotProvisioningContract
     {
         /// <summary>

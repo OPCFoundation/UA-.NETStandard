@@ -214,6 +214,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         }
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for OPC UA WoT binding channel.
+    /// </summary>
     internal static partial class OpcUaWotBindingChannelLog
     {
         /// <summary>

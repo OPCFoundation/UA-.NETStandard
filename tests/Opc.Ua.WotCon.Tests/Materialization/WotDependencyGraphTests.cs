@@ -661,6 +661,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(metadata.DefinedNodeIds[0], Is.EqualTo("nsu=urn:r30:explicit-types;i=3000"));
         }
 
+        /// <summary>
+        /// Verifies that fragments referring to definitions in the same document do not introduce dependency cycles.
+        /// </summary>
+        /// <param name="reference">The reference to check against the requested view or asset parent.</param>
         [TestCase("#/schemaDefinitions/Event")]
         [TestCase("self#/schemaDefinitions/Event")]
         [TestCase("urn:self#/schemaDefinitions/Event")]
@@ -690,6 +694,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Dependencies, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that cycle diagnostics identify the cycle rather than listing every dependent resource.
+        /// </summary>
         [Test]
         public async Task CycleDiagnosticsDescribeTheCycleRatherThanEveryDependentResource()
         {
@@ -717,6 +724,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Diagnostics.Single(), Does.Not.Contain("dependent-"));
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes tm:extends relations in document links.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsTmExtendsLinks()
         {
@@ -806,6 +816,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "definition is materialized before the document that names it.");
         }
 
+        /// <summary>
+        /// Verifies that resources sharing a Thing Model form one closure with the model ordered first.
+        /// </summary>
         [Test]
         public async Task BuildClosuresSharedModelYieldsSingleClosureTmFirst()
         {
@@ -829,6 +842,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(s_tmTdResourceIds));
         }
 
+        /// <summary>
+        /// Verifies that independent resources produce separate dependency closures.
+        /// </summary>
         [Test]
         public async Task BuildClosuresIndependentResourcesYieldSeparateClosures()
         {
@@ -848,6 +864,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures.All(c => c.OrderedResources.Length == 1), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a dependency closure records missing dependencies.
+        /// </summary>
         [Test]
         public async Task BuildClosuresMissingDependencyIsFlagged()
         {
@@ -868,6 +887,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].IsProjectable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that closure construction detects dependency cycles.
+        /// </summary>
         [Test]
         public async Task BuildClosuresCycleIsDetected()
         {

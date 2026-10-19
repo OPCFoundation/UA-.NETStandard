@@ -57,6 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         public ConcurrentQueue<WotProjectionDocument> Documents { get; } = new();
 
+        /// <inheritdoc />
         public IWotProjectionPublicationCapture CapturePublication()
         {
             return new Capture(inner.CapturePublication(), this);
@@ -119,6 +120,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return inner.RemoveAsync(handle, cancellationToken);
         }
 
+        /// <summary>
+        /// Arms a barrier that pauses the next projection activation.
+        /// </summary>
         public void BlockNextActivation()
         {
             lock (m_gate)
@@ -128,6 +132,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Waits for activation to reach the armed barrier and fails if activation completes first.
+        /// </summary>
+        /// <param name="activation">The activation task that must reach the armed barrier.</param>
         public async Task WaitUntilBlockedAsync(Task activation)
         {
             Task entered;
@@ -156,6 +164,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Releases the paused projection activation.
+        /// </summary>
         public void ReleaseActivation()
         {
             lock (m_gate)

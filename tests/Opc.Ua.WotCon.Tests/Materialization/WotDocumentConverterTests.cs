@@ -53,6 +53,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Parallelizable(ParallelScope.All)]
     public sealed class WotDocumentConverterTests
     {
+        /// <summary>
+        /// Verifies that failed conversion output reports failure and preserves its diagnostics.
+        /// </summary>
         [Test]
         public void FailureOutputSucceededIsFalse()
         {
@@ -64,6 +67,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output.Errors[0], Does.Contain("Something went wrong."));
         }
 
+        /// <summary>
+        /// Verifies that conversion failures preserve all supplied error diagnostics.
+        /// </summary>
         [Test]
         public void FailureOutputWithMultipleErrors()
         {
@@ -72,6 +78,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output.Errors, Has.Length.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that successful conversion output retains the NodeSet and has no errors.
+        /// </summary>
         [Test]
         public void SuccessOutputSucceededIsTrue()
         {
@@ -83,6 +92,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output.Errors, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that a default diagnostic array is exposed as an empty error collection.
+        /// </summary>
         [Test]
         public void ConstructorWithDefaultErrorsIsEmpty()
         {
@@ -92,6 +104,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output.Succeeded, Is.False);
         }
 
+        /// <summary>
+        /// Exercises conversion of a valid Thing Model through the production NodeSet document converter.
+        /// </summary>
         [Test]
         public async Task NodeSetDocumentConverterConvertsValidThingModel()
         {
@@ -128,6 +143,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that the NodeSet document converter reports errors for invalid JSON.
+        /// </summary>
         [Test]
         public async Task NodeSetDocumentConverterFailsOnInvalidJson()
         {
@@ -310,6 +328,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(sent, Is.EqualTo(17));
         }
 
+        /// <summary>
+        /// Verifies that the NodeSet document converter can use its default options.
+        /// </summary>
         [Test]
         public void NodeSetDocumentConverterCanBeInstantiatedWithoutOptions()
         {
@@ -317,6 +338,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(converter, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that the NodeSet document converter accepts explicit options.
+        /// </summary>
         [Test]
         public void NodeSetDocumentConverterCanBeInstantiatedWithOptions()
         {
@@ -325,6 +349,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(converter, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Checks the success state of a conversion output constructed with explicit diagnostics.
+        /// </summary>
         [Test]
         public void SuccessOutputFromConstructorWithNonDefaultErrors()
         {
@@ -336,6 +363,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(output.Errors, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that failed conversion output has no projected root node identifier.
+        /// </summary>
         [Test]
         public void FailureOutputRootNodeIdIsNull()
         {

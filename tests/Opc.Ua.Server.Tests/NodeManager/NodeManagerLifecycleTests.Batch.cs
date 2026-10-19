@@ -216,7 +216,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri));
             m_server.CurrentInstance.TypeTree.AddSubtype(unrelated, Ua.ObjectTypeIds.BaseObjectType);
             int decisions = 0;
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await prepared.CommitAsync(_ =>
                 {
                     decisions++;
@@ -693,7 +693,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null);
                 int decisions = 0;
 
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 {
                     await prepared.CommitAsync(_ =>
                     {
@@ -748,7 +748,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue), null);
             int decisions = 0;
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await prepared.CommitAsync(_ =>
                 {
@@ -787,7 +787,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CreateOptions(kSecondModelNamespaceUri, 404)))
                 ], null);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
             {
                 await prepared.CommitAsync(_ => throw new IOException("Confirmed decision noncommit."));
             });
@@ -822,7 +822,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 first, CreateOptions(kModelNamespaceUri, 505));
             int decisions = 0;
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await prepared.CommitAsync(_ =>
                 {
@@ -854,7 +854,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             cancellation.Cancel();
             int decisions = 0;
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
             {
                 await prepared.CommitAsync(_ =>
                 {

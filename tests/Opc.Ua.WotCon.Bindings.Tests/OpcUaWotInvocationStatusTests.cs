@@ -38,6 +38,9 @@ using Opc.Ua.WotCon.Bindings.OpcUa;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
+    /// <summary>
+    /// Tests status propagation for OPC UA WoT action invocations.
+    /// </summary>
     [TestFixture]
     public sealed class OpcUaWotInvocationStatusTests
     {

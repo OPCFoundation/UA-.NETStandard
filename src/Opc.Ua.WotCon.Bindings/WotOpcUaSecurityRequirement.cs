@@ -146,6 +146,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         public WotCredentialReference? IssueTokenReference { get; }
 
+        /// <summary>
+        /// Gets whether the security mode, policy, and minimum security requirement are mutually compatible.
+        /// </summary>
         internal bool IsConsistent =>
             (!SecurityMode.HasValue || SecurityPolicyUri is null ||
              ((SecurityMode == MessageSecurityMode.None) ==

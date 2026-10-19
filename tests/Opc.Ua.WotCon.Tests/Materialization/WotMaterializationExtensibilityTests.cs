@@ -50,6 +50,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WotCon")]
     public sealed class WotMaterializationExtensibilityTests
     {
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -60,6 +63,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_converter = new FakeWotDocumentConverter();
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

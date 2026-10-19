@@ -485,6 +485,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies the MQTT planner identity exposed to binding selection.
+        /// </summary>
         [Test]
         public void MqttPlannerIdentity()
         {
@@ -635,6 +638,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a compiled CoAP form is not marked executable.
+        /// </summary>
         [Test]
         public void CoapPlannerIsNotExecutable()
         {
@@ -712,6 +718,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the BACnet planner rejects a write priority outside the supported range.
+        /// </summary>
         [Test]
         public void BacnetPlannerRejectsUsePriorityOutOfRange()
         {
@@ -728,6 +737,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the BACnet planner accepts write priorities at the supported range boundaries.
+        /// </summary>
         [Test]
         public void BacnetPlannerAcceptsUsePriorityAtBoundary()
         {
@@ -742,6 +754,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a compiled BACnet form is not marked executable.
+        /// </summary>
         [Test]
         public void BacnetPlannerIsNotExecutable()
         {
@@ -875,6 +890,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a compiled LoRaWAN form is not marked executable.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerIsNotExecutable()
         {
@@ -1026,6 +1044,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the OPC UA planner carries the component-of target into compiled metadata.
+        /// </summary>
         [Test]
         public void OpcUaPlannerAddsComponentOfToMetadata()
         {
@@ -1124,6 +1145,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that legacy event fields are compiled onto the documented default event selection.
+        /// </summary>
         [Test]
         public void OpcUaPlannerCompilesLegacyEventFieldsOntoTheDocumentedDefault()
         {
@@ -1163,6 +1187,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Does.Contain("ns=2"));
         }
 
+        /// <summary>
+        /// Verifies the OPC UA planner identifier exposed to binding selection.
+        /// </summary>
         [Test]
         public void OpcUaPlannerIdentityId()
         {

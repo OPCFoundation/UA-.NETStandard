@@ -50,6 +50,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotBindingCoordinatorTests
     {
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -57,6 +60,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Disposes the prepared runtime and clears its test reference.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

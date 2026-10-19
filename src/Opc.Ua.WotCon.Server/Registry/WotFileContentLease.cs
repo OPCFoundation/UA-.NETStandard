@@ -58,6 +58,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         public long ContentLength { get; }
 
         // POSIX advisory sharing is not an authoritative lease against other filesystem writers.
+        /// <summary>
+        /// Gets whether the platform supports this file-content leasing implementation.
+        /// </summary>
         internal static bool IsSupported => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         /// <summary>
@@ -120,6 +123,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             if (Interlocked.Exchange(ref m_disposed, 1) == 0)

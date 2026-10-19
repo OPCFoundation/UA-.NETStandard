@@ -40,6 +40,9 @@ using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
+    /// <summary>
+    /// Tests preservation of condition invocation arguments.
+    /// </summary>
     [TestFixture]
     public sealed class WotConditionInvocationTests
     {
@@ -197,6 +200,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that supplied comment and malformed argument counts are preserved.
+        /// </summary>
         [Test]
         public void SuppliedCommentAndMalformedArgumentCountsArePreserved()
         {

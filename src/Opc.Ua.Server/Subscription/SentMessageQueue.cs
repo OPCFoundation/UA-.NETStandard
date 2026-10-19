@@ -637,6 +637,10 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class SentMessageView : IReadOnlyList<NotificationMessage>
     {
+        /// <summary>
+        /// Creates a message view backed by retained notification-message leases.
+        /// </summary>
+        /// <param name="leases">The notification-message leases backing the view.</param>
         public SentMessageView(List<NotificationMessageLease> leases)
         {
             m_leases = leases;
@@ -671,6 +675,13 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SentMessageQueueLog
     {
+        /// <summary>
+        /// Logs notification-message loss caused by the sent-message queue reaching its configured bound.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
+        /// <param name="subscriptionId">The identifier of the owning subscription.</param>
+        /// <param name="maxMessageCount">The configured maximum sent-message queue size.</param>
         [LoggerMessage(EventId = ServerEventIds.SentMessageQueue + 0, Level = LogLevel.Warning,
             Message = "QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. " +
                 "SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}")]

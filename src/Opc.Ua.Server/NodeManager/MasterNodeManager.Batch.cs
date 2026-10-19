@@ -35,6 +35,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Coordinates atomic node-manager batches and captured read images.
+    /// </summary>
     public partial class MasterNodeManager : IDynamicNodeManagerBatchHost, INodeManagerReadImageSource
     {
         /// <inheritdoc/>

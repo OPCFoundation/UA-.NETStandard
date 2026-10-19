@@ -669,6 +669,9 @@ namespace Opc.Ua.WotCon.Server.Assets
         }
     }
 
+    /// <summary>
+    /// Retains a prepared native asset graph for the legacy publication path.
+    /// </summary>
     internal sealed class WotLegacyPreparedGraph
     {
         /// <summary>

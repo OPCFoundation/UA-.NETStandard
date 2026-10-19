@@ -359,6 +359,10 @@ namespace Opc.Ua.WotCon.Bindings
             }
         }
 
+        /// <summary>
+        /// Converts supported array variants into their individual variant elements.
+        /// </summary>
+        /// <param name="value">The array variant whose individual elements are requested.</param>
         internal static ArrayOf<Variant> Elements(in Variant value)
         {
             if (value.TryGetValue(out ArrayOf<NodeId> nodes))

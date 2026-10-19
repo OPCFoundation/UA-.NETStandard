@@ -408,6 +408,9 @@ namespace Opc.Ua.WotCon.Bindings
             };
         }
 
+        /// <summary>
+        /// Gets the captured action schema or constructs it from the input and output argument layouts.
+        /// </summary>
         internal WotPayloadSchema GetActionSchema()
         {
             if (Schema is { } captured)

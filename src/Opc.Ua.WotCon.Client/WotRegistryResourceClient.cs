@@ -650,6 +650,9 @@ namespace Opc.Ua.WotCon.Client
                 : new ThingDescriptionFileTypeClient(Session, nodeId, Telemetry);
         }
 
+        /// <summary>
+        /// Marks the client resource as awaiting structural-version content.
+        /// </summary>
         internal void MarkPendingStructuralVersion()
         {
             m_pendingStructuralVersion = true;
@@ -678,6 +681,11 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryUploadResult
     {
+        /// <summary>
+        /// Captures the resource node and version created or updated by an upload.
+        /// </summary>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
+        /// <param name="versionId">The uploaded resource version identifier.</param>
         internal WotRegistryUploadResult(NodeId resourceNodeId, string versionId)
         {
             ResourceNodeId = resourceNodeId;

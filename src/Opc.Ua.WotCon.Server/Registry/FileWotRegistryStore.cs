@@ -3168,6 +3168,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             public DependencySnapshotDto? LastDependencyAttempt { get; set; }
         }
 
+        /// <summary>
+        /// Represents a resource dependency snapshot in the persisted registry manifest.
+        /// </summary>
         internal sealed class DependencySnapshotDto
         {
             /// <summary>
@@ -3216,6 +3219,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             public DependencyTargetDto[]? Targets { get; set; }
         }
 
+        /// <summary>
+        /// Represents a serialized dependency edge in a registry snapshot.
+        /// </summary>
         internal sealed class DependencyEdgeDto
         {
             /// <summary>
@@ -3244,6 +3250,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             public bool Resolved { get; set; }
         }
 
+        /// <summary>
+        /// Represents a serialized pinned target of a registry dependency.
+        /// </summary>
         internal sealed class DependencyTargetDto
         {
             /// <summary>
@@ -3277,6 +3286,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? ContentDigest { get; set; }
         }
 
+        /// <summary>
+        /// Represents the serialized origin identity of a registry.
+        /// </summary>
         internal sealed class RegistryOriginDto
         {
             /// <summary>

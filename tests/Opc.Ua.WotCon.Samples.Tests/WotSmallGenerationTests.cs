@@ -258,7 +258,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             if (change != 0)
             {
                 Assert.That(((ISessionBinding)pinned).IsCurrent, Is.False);
-                ServiceResultException? rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await pinned.ReadAsync(null, 0, TimestampsToReturn.Neither,
                         new ReadValueId[]
                         {

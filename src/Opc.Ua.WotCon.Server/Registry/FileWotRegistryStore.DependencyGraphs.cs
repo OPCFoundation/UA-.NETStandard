@@ -43,6 +43,9 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed partial class FileWotRegistryStore
     {
+        /// <summary>
+        /// Represents a serialized canonical dependency graph in the registry store.
+        /// </summary>
         internal sealed class DependencyGraphDto
         {
             /// <summary>

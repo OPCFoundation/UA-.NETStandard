@@ -378,7 +378,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await cancellation.CancelAsync().ConfigureAwait(false);
             int callbacks = 0;
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await channel.SubscribeEventAsync(_ => Interlocked.Increment(ref callbacks), cancellation.Token)
                     .ConfigureAwait(false));
 
@@ -401,8 +401,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 harness.DefaultForm("application/x-event")).ConfigureAwait(false);
             int callbacks = 0;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await channel.SubscribeEventAsync(_ => Interlocked.Increment(ref callbacks)).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await channel.SubscribeEventAsync(_ => Interlocked.Increment(ref callbacks)).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(harness.SendCount, Is.Zero);
@@ -500,7 +500,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             if (disposeChannel)
             {
                 await channel.DisposeAsync().ConfigureAwait(false);
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await channel.SubscribeEventAsync(_ => Interlocked.Increment(ref callbacks)).ConfigureAwait(false));
             }
             else

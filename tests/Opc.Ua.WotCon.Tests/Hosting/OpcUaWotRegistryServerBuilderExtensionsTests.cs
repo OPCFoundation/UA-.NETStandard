@@ -265,6 +265,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     .With.Message.EqualTo("The registered registry does not support Version leases."));
         }
 
+        /// <summary>
+        /// Verifies that registering the registry before binders exposes one singleton through both service interfaces.
+        /// </summary>
         [Test]
         public void RegistryThenBindersExposesTheSameSingletonForBothInterfaces()
         {
@@ -283,6 +286,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(channelFactory, Is.SameAs(concrete));
         }
 
+        /// <summary>
+        /// Verifies that registering binders before the registry exposes one singleton through both service interfaces.
+        /// </summary>
         [Test]
         public void BindersThenRegistryExposesTheSameSingletonForBothInterfaces()
         {
@@ -301,6 +307,9 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(channelFactory, Is.SameAs(concrete));
         }
 
+        /// <summary>
+        /// Verifies that registry registration alone provides both registry services and a usable channel factory.
+        /// </summary>
         [Test]
         public void RegistryOnlyStillExposesAWorkingRegistryAndChannelFactory()
         {

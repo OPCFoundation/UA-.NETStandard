@@ -224,6 +224,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotRegistryMutationResult
     {
+        /// <summary>
+        /// Captures a registry mutation outcome, affected resource, generation, and diagnostics.
+        /// </summary>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="resource">The registry resource to classify or return in the result.</param>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
+        /// <param name="diagnostics">The diagnostics associated with the result.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         internal WotRegistryMutationResult(
             WoTOutcomeEnum outcome,
             WotResource? resource,
@@ -461,6 +469,10 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         internal ArrayOf<WotResource> CommittedInputs { get; init; }
 
+        /// <summary>
+        /// Copies the projection state with the resolution inputs retained by its committed publication.
+        /// </summary>
+        /// <param name="inputs">The captured resource versions required to resolve the active publication.</param>
         internal WotResourceProjection WithCommittedInputs(ArrayOf<WotResource> inputs)
         {
             return new WotResourceProjection(

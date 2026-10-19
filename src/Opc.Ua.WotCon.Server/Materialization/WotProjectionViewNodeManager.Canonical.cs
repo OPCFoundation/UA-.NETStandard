@@ -298,6 +298,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return m_canonicalMembershipDigests.TryGetValue(resourceNodeId, out digest);
         }
 
+        /// <inheritdoc />
         protected override void ValidateViewDescription(ServerSystemContext context, ViewDescription view)
         {
             if (m_canonicalState is null || ViewDescription.IsDefault(view))
@@ -319,6 +320,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <inheritdoc />
         protected override bool IsNodeInView(ServerSystemContext context, NodeId viewId, NodeState node)
         {
             return m_canonicalState is null
@@ -326,6 +328,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 : m_canonicalMembership.TryGetValue(viewId, out HashSet<NodeId>? members) && members.Contains(node.NodeId);
         }
 
+        /// <inheritdoc />
         protected override bool IsReferenceInView(
             ServerSystemContext context, ContinuationPoint continuationPoint, IReference reference)
         {

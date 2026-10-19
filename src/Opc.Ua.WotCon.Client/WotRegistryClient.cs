@@ -731,6 +731,13 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryDocumentLoadOutcome
     {
+        /// <summary>
+        /// Captures the uploaded document, resource identity, version, and resource-creation outcome.
+        /// </summary>
+        /// <param name="document">The WoT document associated with the operation.</param>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
+        /// <param name="versionId">The uploaded resource version identifier.</param>
+        /// <param name="created">Whether the upload created the registry resource.</param>
         internal WotRegistryDocumentLoadOutcome(
             WotRegistryDocument document,
             NodeId resourceNodeId,
@@ -769,6 +776,11 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryBulkLoadResult
     {
+        /// <summary>
+        /// Captures document upload outcomes and the optional refresh result for a bulk load.
+        /// </summary>
+        /// <param name="uploaded">The document upload outcomes collected by the bulk load.</param>
+        /// <param name="refresh">The optional refresh result produced after uploading documents.</param>
         internal WotRegistryBulkLoadResult(
             ArrayOf<WotRegistryDocumentLoadOutcome> uploaded,
             WotRegistryRefreshResult? refresh)
@@ -796,6 +808,13 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryRefreshResult
     {
+        /// <summary>
+        /// Captures the refresh summary, resource outcomes, generation, and method status.
+        /// </summary>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="newGeneration">The registry generation resulting from the refresh.</param>
+        /// <param name="methodStatus">The OPC UA status returned by the refresh method.</param>
         internal WotRegistryRefreshResult(
             WoTRefreshSummaryDataType summary,
             ArrayOf<WoTResourceLoadResultDataType> results,

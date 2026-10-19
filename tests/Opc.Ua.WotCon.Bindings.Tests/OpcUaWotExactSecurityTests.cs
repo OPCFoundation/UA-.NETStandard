@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that exact channel requirement rejects mismatching session without a floor.
         /// </summary>
         [Test]
-        public void ExactChannelRequirementRejectsMismatchingSessionWithoutAFloor()
+        public async Task ExactChannelRequirementRejectsMismatchingSessionWithoutAFloor()
         {
             Mock<ISession> session = CreateSession(MessageSecurityMode.None, SecurityPolicies.None);
             var registry = new WotProtocolBinderRegistry(
@@ -66,7 +66,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 }
                 """, "channel");
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
@@ -192,7 +192,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
             else
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
             }
@@ -288,7 +288,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
             else
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
             }
@@ -467,7 +467,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that exact requirements require a constraint aware factory before connecting.
         /// </summary>
         [Test]
-        public void ExactRequirementsRequireAConstraintAwareFactoryBeforeConnecting()
+        public async Task ExactRequirementsRequireAConstraintAwareFactoryBeforeConnecting()
         {
             bool connected = false;
             var registry = new WotProtocolBinderRegistry(
@@ -488,7 +488,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 }
                 """, "channel");
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -499,7 +499,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that a session cannot mix the channel and identity of different alternatives.
         /// </summary>
         [Test]
-        public void ASessionCannotMixTheChannelAndIdentityOfDifferentAlternatives()
+        public async Task ASessionCannotMixTheChannelAndIdentityOfDifferentAlternatives()
         {
             Mock<ISession> session = CreateSession(
                 MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Aes256_Sha256_RsaPss, UserTokenType.UserName);
@@ -525,7 +525,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "root": { "scheme": "combo", "oneOf": ["first", "second"] }
                 """, "root");
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));

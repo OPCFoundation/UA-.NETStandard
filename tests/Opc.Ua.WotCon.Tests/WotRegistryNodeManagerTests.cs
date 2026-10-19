@@ -38,6 +38,9 @@ using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Tests
 {
+    /// <summary>
+    /// Tests WoT registry node-manager options, initialization, and namespace registration.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     public sealed class WotRegistryNodeManagerTests
@@ -226,6 +229,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that reconcile queue preserves create then delete while occupied.
+        /// </summary>
         [Test]
         public async Task ReconcileQueuePreservesCreateThenDeleteWhileOccupied()
         {
@@ -276,6 +282,10 @@ namespace Opc.Ua.WotCon.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that reconcile queue restarts after worker failure.
+        /// </summary>
+        /// <param name="canceled">Whether the test operation starts with cancellation requested.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ReconcileQueueRestartsAfterWorkerFailure(bool canceled)
@@ -318,6 +328,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(generations, Is.EqualTo(s_expectedRestartedGenerations));
         }
 
+        /// <summary>
+        /// Verifies that reconcile queue drains pending changes after worker failure.
+        /// </summary>
+        /// <param name="completing">Whether the operation is completing the tested lifecycle transition.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task ReconcileQueueDrainsPendingChangesAfterWorkerFailure(bool completing)

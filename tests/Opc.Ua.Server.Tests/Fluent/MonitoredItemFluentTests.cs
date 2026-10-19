@@ -46,6 +46,9 @@ namespace Opc.Ua.Server.Tests.Fluent
     [Category("Fluent")]
     public sealed class MonitoredItemFluentTests
     {
+        /// <summary>
+        /// Verifies that a monitored-item pre-creation handler can reject a creation request.
+        /// </summary>
         [Test]
         public async Task PreCreationHandlerCanRefuseRequestsAsync()
         {
@@ -105,6 +108,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that custom monitored items participate in stack lifecycle callbacks and batch hooks.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomItemUsesStackLifecycleAndBatchHooksAsync(
@@ -196,6 +203,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that monitored polling follows active subscriber counts and the fastest requested sampling
+        /// interval.
+        /// </summary>
         [Test]
         public async Task PollWhileMonitoredTracksActiveItemsAndFastestIntervalAsync()
         {
@@ -285,6 +296,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(lastSubscribers, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a monitored source releases its acquired resource when the last subscriber leaves.
+        /// </summary>
         [Test]
         public async Task AcquireWhileMonitoredReleasesOnLastSubscriberAsync()
         {
@@ -319,6 +333,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(released, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that shutdown releases acquired source resources even when a subscription is still active.
+        /// </summary>
         [Test]
         public async Task AcquireWhileMonitoredReleasesAtShutdownWithALiveSubscriptionAsync()
         {
@@ -346,6 +363,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "a resource held by a live subscription must be released at shutdown");
         }
 
+        /// <summary>
+        /// Verifies that the last-subscriber callback receives a usable cancellation token during shutdown.
+        /// </summary>
         [Test]
         public async Task RawLastSubscriberReceivesUsableShutdownTokenAsync()
         {
@@ -458,6 +478,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             private readonly Action m_onRelease;
         }
 
+        /// <summary>
+        /// Verifies that first-subscriber callbacks can reenter monitored-item operations.
+        /// </summary>
         [Test]
         public async Task FirstSubscriberCanReenterMonitoringOperationsAsync()
         {
@@ -517,6 +540,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
+        /// <summary>
+        /// Verifies that a failing custom monitored-item factory rolls back its registration.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomFactoryFailureRollsBackRegistrationAsync(
@@ -544,6 +571,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that a custom monitored item can request initial-value queuing.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomItemCanQueueInitialValueAsync(
@@ -574,6 +605,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             await harness.DeleteAsync(item!).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a fatal initial read removes the custom monitored item and its registration.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FatalInitialReadRollsBackCustomItemAsync(
@@ -642,9 +677,9 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// <param name="attributeId">The attribute ID used by this test case.</param>
         [TestCase(0u)]
         [TestCase(28u)]
-        public void SubscriberLifecycleRejectsUnknownAttributes(uint attributeId)
+        public async Task SubscriberLifecycleRejectsUnknownAttributes(uint attributeId)
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             {
                 using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
                     builder => builder.Node("Value").OnFirstSubscriber(attributeId, (_, _, _) => default))
@@ -656,9 +691,9 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// Verifies that subscriber lifecycle rejects mismatched first and last attributes.
         /// </summary>
         [Test]
-        public void SubscriberLifecycleRejectsMismatchedFirstAndLastAttributes()
+        public async Task SubscriberLifecycleRejectsMismatchedFirstAndLastAttributes()
         {
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
                     builder => builder.Node("Value")

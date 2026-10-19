@@ -141,6 +141,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(value, Is.EqualTo("ready"));
         }
 
+        /// <summary>
+        /// Verifies that an unsuccessful HTTP read maps its response status to an OPC UA status code.
+        /// </summary>
         [Test]
         public async Task HttpChannelReadNon2xxStatusReturnsMappedStatusCode()
         {
@@ -162,6 +165,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies OPC UA status mapping for HTTP server errors during a property read.
+        /// </summary>
         [Test]
         public async Task HttpChannelReadServerErrorStatusReturnsMappedStatusCode()
         {
@@ -182,6 +188,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an oversized HTTP response body returns BadEncodingLimitsExceeded.
+        /// </summary>
         [Test]
         public async Task HttpChannelReadBodyTooLargeReturnsBadEncodingLimitsExceeded()
         {
@@ -206,6 +215,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an undecodable HTTP response body returns BadDecodingError.
+        /// </summary>
         [Test]
         public async Task HttpChannelReadBadDecodeReturnsBadDecodingError()
         {
@@ -228,6 +240,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a successful HTTP property write returns a good status.
+        /// </summary>
         [Test]
         public async Task HttpChannelWriteReturnsGoodOnSuccess()
         {
@@ -254,6 +269,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies OPC UA status mapping for unsuccessful HTTP property writes.
+        /// </summary>
         [Test]
         public async Task HttpChannelWriteNon2xxReturnsMappedStatusCode()
         {
@@ -275,6 +293,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a successful HTTP action with no response body has no output value.
+        /// </summary>
         [Test]
         public async Task HttpChannelInvokeWithEmptyResponseBodyReturnsGoodWithNoOutput()
         {
@@ -432,6 +453,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(body.RootElement.GetProperty("Minimum").GetInt64(), Is.EqualTo(-7L));
         }
 
+        /// <summary>
+        /// Verifies that HTTP property observation creates a polling subscription.
+        /// </summary>
         [Test]
         public async Task HttpChannelObserveAsyncCreatesPollingSubscription()
         {

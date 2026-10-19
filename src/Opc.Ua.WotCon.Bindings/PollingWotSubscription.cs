@@ -127,6 +127,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         internal Task Completion => m_loop;
 
+        /// <summary>
+        /// Gets whether disposal of the polling subscription has begun.
+        /// </summary>
         internal bool IsDisposed => Volatile.Read(ref m_disposed) != 0;
 
         /// <inheritdoc/>
@@ -255,8 +258,16 @@ namespace Opc.Ua.WotCon.Bindings
         private int m_disposed;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for polling WoT subscription.
+    /// </summary>
     internal static partial class PollingWotSubscriptionLog
     {
+        /// <summary>
+        /// Logs a residual polling-loop exception ignored during subscription disposal.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
         [LoggerMessage(
             EventId = WotConBindingsEventIds.PollingWotSubscription + 0,
             Level = LogLevel.Warning,

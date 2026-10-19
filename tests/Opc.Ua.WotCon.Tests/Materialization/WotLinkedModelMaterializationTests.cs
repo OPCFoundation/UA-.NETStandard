@@ -40,6 +40,9 @@ using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
+    /// <summary>
+    /// Tests materialization of resources linked to shared WoT models.
+    /// </summary>
     [TestFixture]
     public sealed class WotLinkedModelMaterializationTests
     {

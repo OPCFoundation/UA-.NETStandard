@@ -262,6 +262,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Verifies that containment brings the model ancestor into the dependency closure before its child.
+        /// </summary>
         [Test]
         public async Task ContainmentAddsTheModelAncestorToTheClosureBeforeItsChild()
         {
@@ -289,6 +292,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(s_expectedOrder));
         }
 
+        /// <summary>
+        /// Verifies that declaration methods remain present without synthesizing runtime action bindings.
+        /// </summary>
         [Test]
         public async Task DeclarationMethodsStayPresentWithoutInventedRuntimeBindings()
         {
@@ -317,6 +323,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that declaration context allows absent forms but does not ignore malformed forms.
+        /// </summary>
+        /// <param name="malformed">The malformed input supplied by the test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void DeclarationContextAllowsAbsentFormsButDoesNotIgnoreMalformedForms(bool malformed)
@@ -341,6 +351,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(malformed ? 1 : 0));
         }
 
+        /// <summary>
+        /// Verifies that portable node IDs do not become missing document dependencies.
+        /// </summary>
+        /// <param name="relation">The relation name or URI to classify.</param>
         [TestCase("uav:componentOf")]
         [TestCase("ua:HasTypeDefinition")]
         public void PortableNodeIdsDoNotBecomeMissingDocumentDependencies(string relation)
@@ -517,6 +531,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that available native partitions provide ownership evidence across separate document closures.
+        /// </summary>
         [Test]
         public async Task AvailableNativePartitionsProvideOwnershipAcrossSeparateDocumentClosures()
         {
@@ -603,6 +620,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(context.ContainsNode("first", new ExpandedNodeId(201u, otherNamespace)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that native ownership walk is bounded and does not follow type definition or forward edges.
+        /// </summary>
         [Test]
         public void NativeOwnershipWalkIsBoundedAndDoesNotFollowTypeDefinitionOrForwardEdges()
         {

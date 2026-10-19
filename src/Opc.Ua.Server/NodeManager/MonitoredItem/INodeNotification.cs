@@ -36,6 +36,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal interface INodeNotification
     {
+        /// <summary>
+        /// Gets the system context captured for processing the notification.
+        /// </summary>
         ISystemContext Context { get; }
 
         /// <summary>
@@ -49,13 +52,22 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class DataChangeSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
         /// </summary>
         public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the identifier of the node whose changes were captured.
+        /// </summary>
         public NodeId NodeId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the node-state changes represented by this snapshot.
+        /// </summary>
         public NodeStateChangeMasks Changes { get; set; }
 
         /// <summary>
@@ -84,6 +96,7 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class CutOffRetirementNotification : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
 
         /// <summary>
@@ -102,12 +115,17 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class EventSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the source emission for <c>EventSnapshot</c>.
         /// </summary>
         public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the captured event fields used when evaluating event filters.
+        /// </summary>
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
     }
 }

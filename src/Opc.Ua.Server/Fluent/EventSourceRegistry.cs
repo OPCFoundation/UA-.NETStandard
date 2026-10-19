@@ -62,6 +62,11 @@ namespace Opc.Ua.Server.Fluent
     /// </remarks>
     internal sealed class EventSourceRegistry : IDisposable
     {
+        /// <summary>
+        /// Starts event-source reconciliation for the owning fluent node manager.
+        /// </summary>
+        /// <param name="owner">The fluent node manager that owns the source registry.</param>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         public EventSourceRegistry(
             FluentNodeManagerBase owner,
             ILogger logger)
@@ -1201,11 +1206,16 @@ namespace Opc.Ua.Server.Fluent
     /// </summary>
     internal sealed class EventSourceLifetime : IAsyncDisposable
     {
+        /// <summary>
+        /// Associates event-source release with the owning node manager lifetime.
+        /// </summary>
+        /// <param name="registry">The source registry whose lifetime is being managed.</param>
         public EventSourceLifetime(EventSourceRegistry registry)
         {
             m_registry = registry;
         }
 
+        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             return m_registry.ReleaseAsync();
@@ -1214,8 +1224,17 @@ namespace Opc.Ua.Server.Fluent
         private readonly EventSourceRegistry m_registry;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for event source registry.
+    /// </summary>
     internal static partial class EventSourceRegistryLog
     {
+        /// <summary>
+        /// Logs promotion of a node's event-notifier flags to permit event subscriptions.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 0, Level = LogLevel.Debug,
             Message = "Publish: promoted EventNotifier of '{Browse}' (id '{NodeId}') to include SubscribeToEvents.")]
         public static partial void PublishPromotedEventNotifierOfBrowseIdNodeId(
@@ -1223,6 +1242,12 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs registration of a published event source as a root notifier.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 1, Level = LogLevel.Debug,
             Message = "Publish: registered '{Browse}' (id '{NodeId}') as a root notifier " +
                 "(RegisterAsRootNotifier=true).")]
@@ -1231,6 +1256,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs failure to reconcile a node's published event source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 2, Level = LogLevel.Error,
             Message = "Publish: reconcile pass failed for '{Browse}' (id '{NodeId}').")]
         public static partial void PublishReconcilePassFailedForBrowseId(
@@ -1239,6 +1271,12 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs activation of a node's published event source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 3, Level = LogLevel.Debug,
             Message = "Publish: activated source for '{Browse}' (id '{NodeId}').")]
         public static partial void PublishActivatedSourceForBrowseIdNodeId(
@@ -1246,6 +1284,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an event source cancellation timeout after which further events are discarded.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
+        /// <param name="timeout">The timeout applied to the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 4, Level = LogLevel.Warning,
             Message = "Publish: source for '{Browse}' (id '{NodeId}') did not honor cancellation within " +
                 "{Timeout}; further yielded events will be discarded.")]
@@ -1255,6 +1300,12 @@ namespace Opc.Ua.Server.Fluent
             NodeId nodeId,
             TimeSpan timeout);
 
+        /// <summary>
+        /// Logs teardown of a published event source during disposal.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 5, Level = LogLevel.Debug,
             Message = "Publish: tore down source for '{Browse}' (id '{NodeId}') on dispose.")]
         public static partial void PublishToreDownSourceForBrowseId(
@@ -1262,6 +1313,12 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs deactivation of a node's published event source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 6, Level = LogLevel.Debug,
             Message = "Publish: deactivated source for '{Browse}' (id '{NodeId}').")]
         public static partial void PublishDeactivatedSourceForBrowseIdNodeId(
@@ -1269,6 +1326,12 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an event-source factory returning a null stream.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 7, Level = LogLevel.Error,
             Message = "Publish: factory for '{Browse}' (id '{NodeId}') returned a null stream.")]
         public static partial void PublishFactoryForBrowseIdNodeIdReturned(
@@ -1276,6 +1339,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an exception thrown while invoking an event-source factory.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 8, Level = LogLevel.Error,
             Message = "Publish: factory invocation for '{Browse}' (id '{NodeId}') threw.")]
         public static partial void PublishFactoryInvocationForBrowseIdNodeId(
@@ -1284,6 +1354,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an iterator failure that stops only the affected event source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 9, Level = LogLevel.Error,
             Message = "Publish: iterator for '{Browse}' (id '{NodeId}') threw â stopping that source only.")]
         public static partial void PublishIteratorForBrowseIdNodeIdThrew(
@@ -1292,6 +1369,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs an event reporting failure that drops the current event but leaves the source running.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 10, Level = LogLevel.Error,
             Message = "Publish: ReportEvent for '{Browse}' (id '{NodeId}') threw â dropping this event and " +
                 "continuing iterator.")]
@@ -1301,6 +1385,13 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs failure to release a node's published event source.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 11, Level = LogLevel.Warning,
             Message = "Publish: failed to release '{Browse}' (id '{NodeId}').")]
         public static partial void PublishReleaseFailedForBrowseIdNodeId(
@@ -1309,6 +1400,13 @@ namespace Opc.Ua.Server.Fluent
             NodeId nodeId,
             Exception ex);
 
+        /// <summary>
+        /// Logs failure of a published event source's error callback.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="browse">The browse name of the affected event source.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 12, Level = LogLevel.Error,
             Message = "Publish: error callback for '{Browse}' (id '{NodeId}') failed.")]
         public static partial void PublishErrorCallbackFailed(
@@ -1317,6 +1415,11 @@ namespace Opc.Ua.Server.Fluent
             QualifiedName browse,
             NodeId nodeId);
 
+        /// <summary>
+        /// Logs failure during event-source registry shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.EventSourceRegistry + 13, Level = LogLevel.Error,
             Message = "Publish: event-source registry shutdown failed.")]
         public static partial void PublishRegistryShutdownFailed(this ILogger logger, Exception exception);

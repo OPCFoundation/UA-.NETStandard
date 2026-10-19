@@ -50,6 +50,9 @@ namespace Opc.Ua.WotCon.Tests.Client
     /// </summary>
     internal sealed class WotRegistrySessionMock
     {
+        /// <summary>
+        /// Initializes a strict session mock with WoT and XRegistry namespaces and registry resource state.
+        /// </summary>
         public WotRegistrySessionMock()
         {
             var telemetryMock = new Mock<ITelemetryContext>();
@@ -185,12 +188,24 @@ namespace Opc.Ua.WotCon.Tests.Client
             m_methods[new NodeId(Ua.Methods.FileType_Read, 0)] = OnRead;
         }
 
+        /// <summary>
+        /// Gets the mocked session exposed to registry clients.
+        /// </summary>
         public ISession Session => m_sessionMock.Object;
 
+        /// <summary>
+        /// Gets the namespace index assigned to the WoT connectivity model.
+        /// </summary>
         public ushort WotConNs { get; }
 
+        /// <summary>
+        /// Gets the namespace index assigned to the XRegistry model.
+        /// </summary>
         public ushort XRegistryNs { get; }
 
+        /// <summary>
+        /// Gets the node identifier of the mocked WoT registry.
+        /// </summary>
         public NodeId RegistryNodeId { get; }
 
         /// <summary>
@@ -263,6 +278,10 @@ namespace Opc.Ua.WotCon.Tests.Client
             return ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris);
         }
 
+        /// <summary>
+        /// Gets the stored content of the resource identified by its registry node.
+        /// </summary>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
         public ByteString ContentFor(NodeId resourceNodeId)
         {
             (_, ResourceState resource) = FindResource(resourceNodeId);

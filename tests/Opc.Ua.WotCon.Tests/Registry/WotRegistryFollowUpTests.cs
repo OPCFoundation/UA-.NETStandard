@@ -871,6 +871,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that versioned interface exposes atomic projected delete.
+        /// </summary>
         [Test]
         public void VersionedInterfaceExposesAtomicProjectedDelete()
         {
@@ -908,6 +911,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that expected version incarnation remains internal.
+        /// </summary>
         [Test]
         public void ExpectedVersionIncarnationRemainsInternal()
         {

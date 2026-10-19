@@ -126,6 +126,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return WotPortableIdentity.CanonicalNodeId(portable);
         }
 
+        /// <summary>
+        /// Rejects a graph-context value that is not a well-formed absolute URI.
+        /// </summary>
+        /// <param name="value">The value supplied to the operation.</param>
+        /// <param name="parameter">The parameter name to include when URI validation fails.</param>
         internal static void RequireUri(string value, string parameter)
         {
             if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) || !uri.IsWellFormedOriginalString())

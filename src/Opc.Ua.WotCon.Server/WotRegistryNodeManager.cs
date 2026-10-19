@@ -892,6 +892,12 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
+        /// <summary>
+        /// Checks registry management access against the caller's channel security and configured identity
+        /// requirements.
+        /// </summary>
+        /// <param name="context">The system context used for the operation.</param>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         internal ServiceResult CheckManagementAccess(ISystemContext context, string operation)
         {
             if (context is not SessionSystemContext { OperationContext: OperationContext operationContext })
@@ -959,8 +965,15 @@ namespace Opc.Ua.WotCon.Server
         private IDisposable? m_lifecycleCoordinatorRegistration;
     }
 
+    /// <summary>
+    /// Serializes registry reconciliation work and supports waiting for queued operations to drain.
+    /// </summary>
     internal sealed class WotRegistryReconcileQueue : IDisposable
     {
+        /// <summary>
+        /// Initializes the queue with the callback used to reconcile registry changes.
+        /// </summary>
+        /// <param name="reconcile">The callback that reconciles a registry change.</param>
         public WotRegistryReconcileQueue(
             Func<WotRegistryChangedEventArgs, Task> reconcile)
         {
@@ -976,6 +989,10 @@ namespace Opc.Ua.WotCon.Server
             Enqueue(() => m_reconcile(change));
         }
 
+        /// <summary>
+        /// Queues an asynchronous reconciliation operation for serialized execution.
+        /// </summary>
+        /// <param name="operation">The asynchronous reconciliation work to enqueue.</param>
         public void Enqueue(Func<Task> operation)
         {
             if (operation is null)
@@ -1042,6 +1059,10 @@ namespace Opc.Ua.WotCon.Server
             }
         }
 
+        /// <summary>
+        /// Stops accepting queued work and waits for existing reconciliation operations to finish.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
         {
             lock (m_lock)
@@ -1051,6 +1072,7 @@ namespace Opc.Ua.WotCon.Server
             await WhenIdleAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             lock (m_lock)

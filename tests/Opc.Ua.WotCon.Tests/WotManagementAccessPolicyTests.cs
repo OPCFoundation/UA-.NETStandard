@@ -72,6 +72,9 @@ namespace Opc.Ua.WotCon.Tests
 
         private string _tempFolder = null!;
 
+        /// <summary>
+        /// Creates an isolated storage directory for the registry tests.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -81,6 +84,9 @@ namespace Opc.Ua.WotCon.Tests
             Directory.CreateDirectory(_tempFolder);
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -96,6 +102,10 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an anonymous management call returns BadUserAccessDenied.
+        /// </summary>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         [TestCase("CreateAsset")]
         [TestCase("DeleteAsset")]
         [TestCase("DiscoverAssets")]
@@ -115,6 +125,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that management access without channel security returns BadUserAccessDenied.
+        /// </summary>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         [TestCase("CreateAsset")]
         [TestCase("DeleteAsset")]
         [TestCase("DiscoverAssets")]
@@ -134,6 +148,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that sign-only channel security does not satisfy the default management policy.
+        /// </summary>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         [TestCase("CreateAsset")]
         [TestCase("DeleteAsset")]
         [TestCase("DiscoverAssets")]
@@ -153,6 +171,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that management access without the required administrator role is denied.
+        /// </summary>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         [TestCase("CreateAsset")]
         [TestCase("DeleteAsset")]
         [TestCase("DiscoverAssets")]
@@ -173,6 +195,10 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that a security administrator can manage the registry over a signed and encrypted channel.
+        /// </summary>
+        /// <param name="operation">The name of the management operation being authorized.</param>
         [TestCase("CreateAsset")]
         [TestCase("DeleteAsset")]
         [TestCase("DiscoverAssets")]
@@ -191,6 +217,9 @@ namespace Opc.Ua.WotCon.Tests
                 () => harness.Manager.EnforceManagementAccess(context, operation));
         }
 
+        /// <summary>
+        /// Verifies that internal calls without an operation context are exempt from session management checks.
+        /// </summary>
         [Test]
         public void InternalCallWithoutOperationContextIsExempt()
         {
@@ -207,6 +236,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a custom management role authorizes its members and rejects other identities.
+        /// </summary>
         [Test]
         public void CustomRoleAllowsCustomRoleDeniesOthers()
         {
@@ -233,6 +265,9 @@ namespace Opc.Ua.WotCon.Tests
                     withConfigureAdmin, "CreateAsset"));
         }
 
+        /// <summary>
+        /// Verifies that stronger channel security satisfies a lowered minimum security mode.
+        /// </summary>
         [Test]
         public void LoweredMinimumSecurityModeAcceptsStrongerChannels()
         {
@@ -267,6 +302,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
+        /// <summary>
+        /// Verifies that an anonymous caller is accepted when the policy permits it and channel security is sufficient.
+        /// </summary>
         [Test]
         public void AllowAnonymousPolicyAcceptsAnonymousWhenSecure()
         {

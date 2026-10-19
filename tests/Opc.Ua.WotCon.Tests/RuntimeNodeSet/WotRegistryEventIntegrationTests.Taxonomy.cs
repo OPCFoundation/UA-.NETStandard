@@ -61,6 +61,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     /// </summary>
     public sealed partial class WotRegistryEventIntegrationTests
     {
+        /// <summary>
+        /// Records the process and runtime identities used by registry event integration tests.
+        /// </summary>
         [SetUp]
         public void RecordEventExecutionRuntime()
         {

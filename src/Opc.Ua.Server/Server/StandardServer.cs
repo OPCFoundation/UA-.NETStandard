@@ -4934,6 +4934,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Registers a user-token authenticator immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="authenticator">The provider that authenticates user tokens.</param>
         internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
         {
             if (authenticator == null)
@@ -4950,6 +4954,10 @@ namespace Opc.Ua.Server
             m_preStartAuthenticators.Add(authenticator);
         }
 
+        /// <summary>
+        /// Registers an identity augmenter immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="augmenter">The provider that augments authenticated identities.</param>
         internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
         {
             if (augmenter == null)

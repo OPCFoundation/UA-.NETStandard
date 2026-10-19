@@ -54,6 +54,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
     [SetUICulture("en-us")]
     public sealed class WotAggregationDocumentGeneratorTests
     {
+        /// <summary>
+        /// Verifies that manifest rejects missing logical dependencies.
+        /// </summary>
+        /// <param name="referenceTerm">The dependency reference term selected by the test case.</param>
         [TestCase("tm:ref")]
         [TestCase("uav:componentOf")]
         [TestCase("href")]
@@ -70,6 +74,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "'dependent' references missing sample document 'missing'."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects dependency cycles.
+        /// </summary>
         [Test]
         public void ManifestRejectsDependencyCycles()
         {
@@ -89,6 +96,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Cyclic sample document dependency at 'a': a -> b -> c -> a."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects duplicate resources even when their paths and kinds differ.
+        /// </summary>
         [Test]
         public void ManifestRejectsDuplicateResourcesEvenWhenTheirPathsAndKindsDiffer()
         {
@@ -104,6 +114,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Duplicate sample resource 'duplicate'."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects duplicate document paths.
+        /// </summary>
         [Test]
         public void ManifestRejectsDuplicateDocumentPaths()
         {
@@ -155,6 +168,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest uses nested logical references but not transport addresses or self references.
+        /// </summary>
         [Test]
         public void ManifestUsesNestedLogicalReferencesButNotTransportAddressesOrSelfReferences()
         {
@@ -197,6 +213,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the generated manifest preserves logical identities, URI paths, document kinds, and groups.
+        /// </summary>
+        /// <param name="kind">The Thing Description affordance kind being skipped.</param>
+        /// <param name="group">The registry group selected by the test case.</param>
         [TestCase(WoTDocumentKindEnum.ThingModel, "thingmodels")]
         [TestCase(WoTDocumentKindEnum.ThingDescription, "thingdescriptions")]
         public void ManifestPreservesLogicalIdsUriPathsKindsAndGroups(WoTDocumentKindEnum kind, string group)
@@ -240,6 +261,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(Encoding.UTF8.GetString(generated.ToArray()), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that generated filenames normalize hyphens without altering resource identifiers.
+        /// </summary>
+        /// <param name="browseName">The browse name used by the operation.</param>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="fileName">The file name used by the test case.</param>
         [TestCase("<CPIdentifier>", "sample-pump--cpidentifier", "sample-pump-cpidentifier.json")]
         [TestCase("Pump--Controller", "sample-pump-pump--controller", "sample-pump-pump-controller.json")]
         [TestCase("Pump-", "sample-pump-pump", "sample-pump-pump.json")]
@@ -274,6 +301,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(json.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:sample;i=2"));
         }
 
+        /// <summary>
+        /// Verifies that manifest maps portable type references to their actual documents.
+        /// </summary>
         [Test]
         public void ManifestMapsPortableTypeReferencesToTheirActualDocuments()
         {
@@ -322,6 +352,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entry.DependsOn.ToList(), Does.Not.Contain("model-header").And.Not.Contain("transport-only"));
         }
 
+        /// <summary>
+        /// Verifies that manifest resolves qualified model type and reference names.
+        /// </summary>
         [Test]
         public void ManifestResolvesQualifiedModelTypeAndReferenceNames()
         {
@@ -348,6 +381,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(s_namedDependencies));
         }
 
+        /// <summary>
+        /// Verifies that manifest uses definitive reference pins or rejects ambiguous names.
+        /// </summary>
+        /// <param name="pinned">Whether the test case uses a pinned resource version.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ManifestUsesDefinitiveReferencePinsOrRejectsAmbiguousNames(bool pinned)
@@ -381,6 +418,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest does not turn forward object references into parent dependency cycles.
+        /// </summary>
         [Test]
         public void ManifestDoesNotTurnForwardObjectReferencesIntoParentDependencyCycles()
         {
@@ -407,6 +447,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn.ToList(), Is.EqualTo(s_parentDependency));
         }
 
+        /// <summary>
+        /// Verifies that manifest does not treat an inverse interface edge as a type prerequisite.
+        /// </summary>
         [Test]
         public void ManifestDoesNotTreatAnInverseInterfaceEdgeAsATypePrerequisite()
         {
@@ -441,6 +484,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn[0], Is.EqualTo("interface"));
         }
 
+        /// <summary>
+        /// Verifies that manifest does not depend on data types already declared in the document.
+        /// </summary>
         [Test]
         public void ManifestDoesNotDependOnDataTypesAlreadyDeclaredInTheDocument()
         {
@@ -484,6 +530,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest preserves hash characters in node IDs and logical document identities.
+        /// </summary>
         [Test]
         public void ManifestPreservesHashCharactersInNodeIdsAndLogicalDocumentIdentities()
         {
@@ -505,6 +554,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(s_hashIdentityDependencies));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects a referenced type without an owner.
+        /// </summary>
         [Test]
         public void ManifestRejectsAReferencedTypeWithoutAnOwner()
         {
@@ -519,6 +571,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "'consumer' references node 'nsu=urn:missing;i=42' without a document owner."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects multiple roots claiming one node.
+        /// </summary>
         [Test]
         public void ManifestRejectsMultipleRootsClaimingOneNode()
         {
@@ -534,6 +589,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Multiple root documents own the local node 'nsu=urn:model;i=1001'."));
         }
 
+        /// <summary>
+        /// Verifies that affordance references use local identities and escape nested JSON pointer tokens.
+        /// </summary>
         [Test]
         public void AffordanceReferenceUsesLocalIdentityAndEscapesNestedJsonPointerTokens()
         {
@@ -605,6 +663,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     $"Expected exactly one '{mapName}' declaration for '{nodeId}'; found {declarations}."));
         }
 
+        /// <summary>
+        /// Verifies that generated pump root titles retain the display names of their source nodes.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="displayName">The display name used by the operation.</param>
         [TestCase("Pump1", "sample-pump", "Pump #1")]
         [TestCase("Pump2", "sample-pump-pump-2", "Pump #2")]
         public async Task GeneratedPumpRootTitlesPreserveSourceDisplayNames(
@@ -646,6 +710,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that generated pump source files use LF line endings.
+        /// </summary>
         [Test]
         public void GeneratedPumpSourceUsesLfLineEndings()
         {
@@ -839,6 +906,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     owner)).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that enriching verified pump bindings retains every native projection partition.
+        /// </summary>
         [Test]
         public async Task VerifiedPumpBindingsPreserveEveryNativePartition()
         {
@@ -866,6 +936,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(nativePartitions, Is.GreaterThan(1));
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment rejects readable members missing from their native partition.
+        /// </summary>
         [Test]
         public async Task BindingEnrichmentRejectsReadableMembersMissingFromTheirNativePartition()
         {
@@ -958,6 +1031,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     $"'detached-condition' does not contain its '{eventName}' Condition event.")).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that projections never synthesize missing source declarations.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="mapName">The authored target-mapping term selected by the test case.</param>
+        /// <param name="localPath">The local path used by the test case.</param>
         [TestCase("Pump1", "properties", "Identification.SerialNumber")]
         [TestCase("Pump2", "properties", "Operational.Measurements.MassFlow")]
         [TestCase("Pump1", "actions", "SourceBStop")]

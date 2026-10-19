@@ -34,8 +34,15 @@ using System.Text.Json;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
+    /// <summary>
+    /// Validates absolute authority URIs and registry group or resource identifiers.
+    /// </summary>
     internal static class WotRegistryIdentity
     {
+        /// <summary>
+        /// Determines whether a value is an unambiguous, well-formed absolute URI.
+        /// </summary>
+        /// <param name="value">The authority URI or registry identifier to validate.</param>
         public static bool IsAbsoluteUri(string? value)
         {
             if (string.IsNullOrEmpty(value))
@@ -52,6 +59,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             return Uri.TryCreate(value, UriKind.Absolute, out Uri? uri) && uri.IsWellFormedOriginalString();
         }
 
+        /// <summary>
+        /// Rejects a source authority that is not an unambiguous absolute URI.
+        /// </summary>
+        /// <param name="value">The authority URI or registry identifier to validate.</param>
         public static void RequireUri(string? value)
         {
             if (!IsAbsoluteUri(value))
@@ -61,6 +72,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
         }
 
+        /// <summary>
+        /// Determines whether a value meets the registry identifier character, prefix, and length restrictions.
+        /// </summary>
+        /// <param name="value">The authority URI or registry identifier to validate.</param>
         public static bool IsIdentifier(string? value)
         {
             if (string.IsNullOrEmpty(value) || value!.Length > 128 || value[0] is '.' or '-')

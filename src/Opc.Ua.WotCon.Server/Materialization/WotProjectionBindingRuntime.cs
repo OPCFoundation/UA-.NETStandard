@@ -49,6 +49,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed partial class WotProjectionBindingRuntime : IAsyncDisposable, IWotPublishedProjectionRuntime
     {
+        /// <summary>
+        /// Initializes projection bindings with injectable channel, target, event, and condition services.
+        /// </summary>
+        /// <param name="builder">The fluent builder used to configure projected nodes.</param>
+        /// <param name="channelFactory">The factory used to open compiled protocol binding channels.</param>
+        /// <param name="resolver">The resolver used to locate target variables for projected bindings.</param>
+        /// <param name="eventPublisher">The publisher used to report projected events.</param>
+        /// <param name="conditionFactory">The factory used to create projected condition state.</param>
+        /// <param name="options">The bounds and behavior options for projected bindings.</param>
+        /// <param name="eventRoutes">The registry shared by projected event binding generations.</param>
         internal WotProjectionBindingRuntime(
             INodeManagerBuilder builder,
             IWotBindingChannelFactory channelFactory,

@@ -46,6 +46,9 @@ using FlatTagServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Owns the source and aggregation hosts, client options, and files used by sample integration tests.
+    /// </summary>
     internal sealed class WotSampleEnvironment : IAsyncDisposable
     {
         private WotSampleEnvironment(
@@ -72,24 +75,54 @@ namespace Opc.Ua.WotCon.Samples.Tests
             m_contentStore = contentStore;
         }
 
+        /// <summary>
+        /// Gets the root directory containing this environment's isolated test state.
+        /// </summary>
         public string Root { get; }
 
+        /// <summary>
+        /// Gets the host for sample source server A.
+        /// </summary>
         public IHost SourceAHost { get; }
 
+        /// <summary>
+        /// Gets the host for sample source server B.
+        /// </summary>
         public IHost SourceBHost { get; }
 
+        /// <summary>
+        /// Gets the host for the sample aggregation server.
+        /// </summary>
         public IHost AggregationHost { get; }
 
+        /// <summary>
+        /// Gets the default client endpoints and configuration for this environment.
+        /// </summary>
         public AggregationClientOptions ClientOptions { get; }
 
+        /// <summary>
+        /// Gets the mutable values for the first pump on source server A.
+        /// </summary>
         public FlatTagValues SourceAValues { get; }
 
+        /// <summary>
+        /// Gets the mutable values for the first pump on source server B.
+        /// </summary>
         public FlatTagValues SourceBValues { get; }
 
+        /// <summary>
+        /// Gets the mutable values for the second pump on source server A.
+        /// </summary>
         public FlatTagValues SourceAPump2Values { get; }
 
+        /// <summary>
+        /// Gets the mutable values for the second pump on source server B.
+        /// </summary>
         public FlatTagValues SourceBPump2Values { get; }
 
+        /// <summary>
+        /// Gets the repository directory containing the aggregation sample documents.
+        /// </summary>
         public string DocumentsDirectory => FindDocumentsDirectory();
 
         /// <summary>
@@ -233,6 +266,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Creates isolated client state using the supplied document directory and optional source endpoints.
+        /// </summary>
+        /// <param name="documentsDirectory">The directory containing the aggregation client documents.</param>
+        /// <param name="sourceAEndpoint">The optional replacement endpoint for source server A.</param>
+        /// <param name="sourceBEndpoint">The optional replacement endpoint for source server B.</param>
         public AggregationClientOptions CreateClientOptions(
             string documentsDirectory,
             string? sourceAEndpoint = null,
@@ -249,6 +288,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             };
         }
 
+        /// <summary>
+        /// Connects a WoT registry client to the aggregation server with isolated client configuration.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public Task<WotClientConnection> ConnectAsync(
             CancellationToken cancellationToken)
         {
@@ -256,6 +299,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return WotClientConnection.CreateAsync(options, cancellationToken);
         }
 
+        /// <summary>
+        /// Connects an OPC UA client to sample source server A.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public Task<OpcUaClientConnection> ConnectSourceAAsync(
             CancellationToken cancellationToken)
         {
@@ -266,6 +313,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Connects an OPC UA client to sample source server B.
+        /// </summary>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public Task<OpcUaClientConnection> ConnectSourceBAsync(
             CancellationToken cancellationToken)
         {
@@ -276,6 +327,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 cancellationToken);
         }
 
+        /// <summary>
+        /// Copies the sample document tree to an isolated directory for a test to modify.
+        /// </summary>
         public string CreateDocumentsCopy()
         {
             string target = Path.Combine(Root, "Documents", Guid.NewGuid().ToString("N"));
@@ -289,6 +343,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             return target;
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             await StopHostAsync(AggregationHost).ConfigureAwait(false);
@@ -371,6 +426,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Locates the aggregation documents through the configured repository root or an ancestor checkout.
+        /// </summary>
         internal static string FindDocumentsDirectory()
         {
             string? repositoryRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
@@ -411,6 +469,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private readonly RecordingLeasedResourceStore? m_contentStore;
     }
 
+    /// <summary>
+    /// Owns a hosted OPC UA client and its connected managed session for sample tests.
+    /// </summary>
     internal sealed class OpcUaClientConnection : IAsyncDisposable
     {
         private OpcUaClientConnection(IHost host, ManagedSession session)
@@ -419,10 +480,23 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Session = session;
         }
 
+        /// <summary>
+        /// Gets the host that owns the client services and configuration.
+        /// </summary>
         public IHost Host { get; }
 
+        /// <summary>
+        /// Gets the connected managed OPC UA session.
+        /// </summary>
         public ManagedSession Session { get; }
 
+        /// <summary>
+        /// Starts a client host, connects its managed session, and loads namespace tables.
+        /// </summary>
+        /// <param name="root">The root directory used for the test client configuration.</param>
+        /// <param name="endpointUrl">The endpoint URL used to connect the client.</param>
+        /// <param name="applicationName">The application name used by the test client.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public static async Task<OpcUaClientConnection> CreateAsync(
             string root,
             string endpointUrl,
@@ -449,6 +523,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             try
@@ -500,6 +575,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
     }
 
+    /// <summary>
+    /// Owns a hosted OPC UA session and WoT registry client for aggregation sample tests.
+    /// </summary>
     internal sealed class WotClientConnection : IAsyncDisposable
     {
         private WotClientConnection(IHost host, ManagedSession session, WotRegistryClient registry)
@@ -509,10 +587,19 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Registry = registry;
         }
 
+        /// <summary>
+        /// Gets the host that owns the aggregation client services.
+        /// </summary>
         public IHost Host { get; }
 
+        /// <summary>
+        /// Gets the managed session connected to the aggregation server.
+        /// </summary>
         public ManagedSession Session { get; }
 
+        /// <summary>
+        /// Gets the WoT registry client using the aggregation session.
+        /// </summary>
         public WotRegistryClient Registry { get; }
 
         /// <summary>
@@ -550,6 +637,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             }
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             try

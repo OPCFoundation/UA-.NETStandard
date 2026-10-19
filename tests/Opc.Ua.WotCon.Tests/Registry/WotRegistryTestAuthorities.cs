@@ -33,8 +33,15 @@ using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
+    /// <summary>
+    /// Creates deterministic identity bindings for registry groups and test resource aliases.
+    /// </summary>
     internal static class WotRegistryTestAuthorities
     {
+        /// <summary>
+        /// Creates group and resource identity bindings for each supplied alias.
+        /// </summary>
+        /// <param name="aliases">The resource aliases to bind to deterministic test authorities.</param>
         public static WotRegistryIdentityBindings ForResources(params string[] aliases)
         {
             return new WotRegistryIdentityBindings

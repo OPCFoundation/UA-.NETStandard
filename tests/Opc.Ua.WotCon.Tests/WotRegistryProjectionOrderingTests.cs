@@ -44,6 +44,9 @@ using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.WotCon.Tests
 {
+    /// <summary>
+    /// Tests ordering of registry projection reconciliation.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     public sealed class WotRegistryProjectionOrderingTests

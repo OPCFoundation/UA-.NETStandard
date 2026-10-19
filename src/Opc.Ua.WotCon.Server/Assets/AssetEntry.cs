@@ -49,8 +49,14 @@ namespace Opc.Ua.WotCon.Server.Assets
             UnboundTypeDefinitionId = asset.TypeDefinitionId;
         }
 
+        /// <summary>
+        /// Gets the registry name of the asset.
+        /// </summary>
         public string Name { get; }
 
+        /// <summary>
+        /// Gets the asset state exposed in the server address space.
+        /// </summary>
         public IWoTAssetState Asset { get; }
 
         /// <summary>
@@ -63,8 +69,14 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// </summary>
         public WotLegacyPreparedGraph? NativeGraph { get; set; }
 
+        /// <summary>
+        /// Gets or sets the FileType manager serving the asset's content.
+        /// </summary>
         public WotAssetFileManager? FileManager { get; set; }
 
+        /// <summary>
+        /// Gets or sets the provider responsible for the asset's source content.
+        /// </summary>
         public IWotAssetProvider? Provider { get; set; }
 
         /// <summary>

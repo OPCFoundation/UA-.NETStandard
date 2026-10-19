@@ -42,6 +42,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [Category("WotCon")]
     public sealed class WotRegistryServiceCrudTests
     {
+        /// <summary>
+        /// Verifies that group creation succeeds once and rejects a duplicate identity.
+        /// </summary>
         [Test]
         public async Task TryCreateGroupCreatesThenFailsOnDuplicate()
         {
@@ -57,6 +60,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(second, Is.Null, "A second CreateGroup with the same id must fail.");
         }
 
+        /// <summary>
+        /// Verifies that deleting a group also removes its resources.
+        /// </summary>
         [Test]
         public async Task DeleteGroupRemovesGroupAndResources()
         {
@@ -76,6 +82,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.FindResource("sensors", "a"), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that group deletion rejects a stale epoch.
+        /// </summary>
         [Test]
         public async Task DeleteGroupWithWrongEpochRejected()
         {
@@ -90,6 +99,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.FindGroup("sensors"), Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that resource lookup creates a placeholder only when the resource is absent.
+        /// </summary>
         [Test]
         public async Task GetOrCreateResourceCreatesPlaceholderThenReturnsExisting()
         {
@@ -107,6 +119,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fetched.ResourceId, Is.EqualTo("a"));
         }
 
+        /// <summary>
+        /// Verifies that resource creation rejects an existing resource identity.
+        /// </summary>
         [Test]
         public async Task TryCreateResourceFailsWhenResourceExists()
         {
@@ -144,6 +159,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(resource.Validation!.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
         }
 
+        /// <summary>
+        /// Verifies that invalid document content produces a validation failure.
+        /// </summary>
         [Test]
         public async Task ValidateInvalidDocumentReportsFailure()
         {
@@ -161,6 +179,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 
+        /// <summary>
+        /// Verifies that validation rejects a resource without a default version.
+        /// </summary>
         [Test]
         public async Task ValidateNoDefaultVersionThrows()
         {

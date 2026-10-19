@@ -50,6 +50,9 @@ using Pumps;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Compares projected WoT pump address spaces with the sample source servers.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]

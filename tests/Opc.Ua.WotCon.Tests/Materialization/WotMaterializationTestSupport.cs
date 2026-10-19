@@ -47,15 +47,45 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class FakeWotProjectionHost : IWotProjectionHost
     {
+        /// <summary>
+        /// Gets the recorded projection host operations in execution order.
+        /// </summary>
         public List<HostOperation> Operations { get; } = new();
 
+        /// <summary>
+        /// Gets the number of recorded projection additions.
+        /// </summary>
         public int AddCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of recorded shadow reloads.
+        /// </summary>
         public int ShadowCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of recorded immediate reloads.
+        /// </summary>
         public int ImmediateCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of recorded projection removals.
+        /// </summary>
         public int RemoveCount { get; private set; }
+
+        /// <summary>
+        /// Gets or sets the warning injected into the next replacement publication or reload.
+        /// </summary>
         public string NextReloadWarning { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets whether the next reload attempt fails.
+        /// </summary>
         public bool FailNextReload { get; set; }
 
+        /// <summary>
+        /// Records committed projection changes and updates the corresponding operation counters.
+        /// </summary>
+        /// <param name="changes">The committed projection changes to record.</param>
         public void RecordCommitted(ArrayOf<WotProjectionChange> changes)
         {
             bool replaced = false;
@@ -94,6 +124,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <inheritdoc cref="IWotProjectionHost.AddAsync"/>
         public ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document, CancellationToken cancellationToken = default)
         {
@@ -102,6 +133,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new ValueTask<WotProjectionHandle>(MakeHandle(document));
         }
 
+        /// <inheritdoc cref="IWotProjectionHost.ShadowReloadAsync"/>
         public ValueTask<WotProjectionHandle> ShadowReloadAsync(
             WotProjectionHandle current, WotProjectionDocument document,
             CancellationToken cancellationToken = default)
@@ -119,6 +151,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new ValueTask<WotProjectionHandle>(MakeHandle(document, gen, warning));
         }
 
+        /// <inheritdoc cref="IWotProjectionHost.ImmediateReloadAsync"/>
         public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
             WotProjectionHandle current, WotProjectionDocument document,
             CancellationToken cancellationToken = default)
@@ -136,6 +169,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new ValueTask<WotProjectionHandle>(MakeHandle(document, gen, warning));
         }
 
+        /// <inheritdoc cref="IWotProjectionHost.RemoveAsync"/>
         public ValueTask RemoveAsync(
             WotProjectionHandle handle, CancellationToken cancellationToken = default)
         {
@@ -164,8 +198,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
     }
 
+    /// <summary>
+    /// Records a projection operation, its document, and the affected closure identity.
+    /// </summary>
     internal sealed class HostOperation
     {
+        /// <summary>
+        /// Captures a projection operation and derives its closure identity from the document when present.
+        /// </summary>
+        /// <param name="op">The projection operation name to record.</param>
+        /// <param name="document">The WoT document associated with the operation.</param>
+        /// <param name="closureKey">The closure identity used when no document is supplied.</param>
         public HostOperation(string op, WotProjectionDocument? document, string closureKey = "")
         {
             Op = op;
@@ -173,10 +216,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ClosureKey = document?.ClosureKey ?? closureKey;
         }
 
+        /// <summary>
+        /// Gets the recorded projection operation name.
+        /// </summary>
         public string Op { get; }
+
+        /// <summary>
+        /// Gets the projection document supplied to the operation, if any.
+        /// </summary>
         public WotProjectionDocument? Document { get; }
+
+        /// <summary>
+        /// Gets the dependency closure identity affected by the operation.
+        /// </summary>
         public string ClosureKey { get; }
 
+        /// <summary>
+        /// Gets the names of source partitions in the recorded projection document.
+        /// </summary>
         public IReadOnlyList<string> SourceNames
         {
             get
@@ -205,16 +262,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private readonly HashSet<string> m_invalid = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_projectionInvalid = new(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Sets the number of nodes returned when converting the specified resource.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="nodeCount">The number of nodes to generate for the test resource.</param>
         public void SetNodeCount(string resourceId, int nodeCount)
             => m_nodeCounts[resourceId] = nodeCount;
 
+        /// <summary>
+        /// Sets the projected root node identifier returned for the specified resource.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="rootNodeId">The projected root node identifier to return for the resource.</param>
         public void SetRootNodeId(string resourceId, ExpandedNodeId rootNodeId)
             => m_rootNodeIds[resourceId] = rootNodeId;
 
+        /// <summary>
+        /// Configures the specified resource to fail document conversion.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
         public void MarkInvalid(string resourceId) => m_invalid.Add(resourceId);
 
+        /// <summary>
+        /// Configures the specified resource to fail in the projection phase.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
         public void MarkProjectionInvalid(string resourceId) => m_projectionInvalid.Add(resourceId);
 
+        /// <summary>
+        /// Removes an injected document-conversion failure for the specified resource.
+        /// </summary>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
         public void ClearInvalid(string resourceId) => m_invalid.Remove(resourceId);
 
         /// <summary>
@@ -223,6 +302,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         public string? RequiredNamespace { get; set; }
 
+        /// <inheritdoc cref="IWotDocumentConverter.ConvertAsync"/>
         public ValueTask<WotConversionOutput> ConvertAsync(
             WotResource resource,
             ByteString content,
@@ -255,13 +335,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
     }
 
+    /// <summary>
+    /// Creates small deterministic NodeSets for materialization tests.
+    /// </summary>
     internal static class TestNodeSets
     {
+        /// <summary>
+        /// Encodes a test NodeSet as UTF-8 XML with an optional required model namespace.
+        /// </summary>
+        /// <param name="modelUri">The model URI assigned to the generated test NodeSet.</param>
+        /// <param name="requiredNamespace">The optional required model namespace in the test NodeSet.</param>
         public static byte[] XmlBytes(string modelUri, string? requiredNamespace = null)
         {
             return Encoding.UTF8.GetBytes(Xml(modelUri, requiredNamespace));
         }
 
+        /// <summary>
+        /// Creates a test NodeSet with the requested model URI, node count, and optional required namespace.
+        /// </summary>
+        /// <param name="modelUri">The model URI assigned to the generated test NodeSet.</param>
+        /// <param name="nodeCount">The number of nodes to generate for the test resource.</param>
+        /// <param name="requiredNamespace">The optional required model namespace in the test NodeSet.</param>
         public static UANodeSet Make(
             string modelUri, int nodeCount, string? requiredNamespace = null)
         {

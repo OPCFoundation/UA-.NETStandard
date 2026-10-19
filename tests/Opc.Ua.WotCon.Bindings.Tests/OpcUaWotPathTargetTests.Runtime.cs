@@ -187,7 +187,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await using IWotBindingChannel channel = await registry.OpenChannelAsync(plan.CompiledForms[0])
                 .ConfigureAwait(false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await channel.ReadAsync(new CancellationToken(canceled: true)).ConfigureAwait(false));
 
             session.Verify(value => value.TranslateBrowsePathsToNodeIdsAsync(
@@ -254,9 +254,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 .ConfigureAwait(false);
 
             ServiceResultException? error = events
-                ? Assert.ThrowsAsync<ServiceResultException>(
+                ? await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await channel.SubscribeEventAsync(_ => { }).ConfigureAwait(false))
-                : Assert.ThrowsAsync<ServiceResultException>(
+                : await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await channel.ObserveAsync(_ => { }).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNodeClassInvalid));

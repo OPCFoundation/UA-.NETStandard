@@ -649,6 +649,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "placeholder")!.DefaultVersion!.HasContent, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that version capability interface is public and optional.
+        /// </summary>
         [Test]
         public void VersionCapabilityInterfaceIsPublicAndOptional()
         {

@@ -42,6 +42,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [TestFixture]
     public sealed class FileWotRegistryIdentityTests
     {
+        /// <summary>
+        /// Creates an isolated storage directory for the registry tests.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -49,6 +52,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Directory.CreateDirectory(m_root);
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {

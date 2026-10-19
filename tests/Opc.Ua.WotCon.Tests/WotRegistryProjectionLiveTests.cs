@@ -70,6 +70,9 @@ namespace Opc.Ua.WotCon.Tests
     [NonParallelizable]
     public sealed partial class WotRegistryProjectionLiveTests
     {
+        /// <summary>
+        /// Starts the test server and initializes the session and registry fixtures used by the tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -130,6 +133,9 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Closes client sessions, stops the test server, and releases the registry fixtures and files.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

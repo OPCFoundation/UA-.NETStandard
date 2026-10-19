@@ -947,6 +947,9 @@ namespace Opc.Ua.Server
         /// </summary>
         public bool AlwaysReportUpdates { get; set; }
 
+        /// <summary>
+        /// Gets or initializes whether values are supplied by an external source instead of stack sampling.
+        /// </summary>
         internal bool UsesExternalValueSource
         {
             get => (MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;

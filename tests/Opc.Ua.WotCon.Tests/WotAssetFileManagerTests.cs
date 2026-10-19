@@ -75,6 +75,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(handle, Is.Zero, "No handle is allocated for a rejected mode.");
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for reading.
+        /// </summary>
         [Test]
         public void OpenWithReadModeSucceeds()
         {
@@ -87,6 +90,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for writing with content erasure.
+        /// </summary>
         [Test]
         public void OpenWithWriteEraseModeSucceeds()
         {
@@ -161,6 +167,9 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(reopened);
         }
 
+        /// <summary>
+        /// Verifies that opening beyond the FileType handle bound returns BadTooManyOperations.
+        /// </summary>
         [Test]
         public void OpenBeyondMaxHandlesReturnsBadTooManyOperations()
         {
@@ -234,6 +243,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(downloaded, Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that reading an empty file returns no bytes.
+        /// </summary>
         [Test]
         public void ReadOnEmptyFileReturnsEmpty()
         {
@@ -248,6 +260,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a read handle supports querying and changing its position.
+        /// </summary>
         [Test]
         public void GetPositionAndSetPositionWorkOnReadHandle()
         {
@@ -298,6 +313,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that reading through a write-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public void ReadOnWriteHandleReturnsBadInvalidState()
         {
@@ -317,6 +335,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that writing through a read-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public void WriteOnReadHandleReturnsBadInvalidState()
         {
@@ -335,6 +356,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a write exceeding the file size bound returns BadOutOfMemory.
+        /// </summary>
         [Test]
         public void WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
@@ -354,6 +378,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that operations on unknown FileType handles return BadInvalidArgument.
+        /// </summary>
         [Test]
         public void OperationsOnUnknownHandleReturnBadInvalidArgument()
         {

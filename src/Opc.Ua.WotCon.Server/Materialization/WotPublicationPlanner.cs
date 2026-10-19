@@ -52,6 +52,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     internal sealed record WotPublicationFootprint(
         ArrayOf<string> ActivationXids, ArrayOf<string> InputXids);
 
+    /// <summary>
+    /// Plans publication changes from captured refresh inputs and prepared projection state.
+    /// </summary>
     internal static class WotPublicationPlanner
     {
         /// <summary>

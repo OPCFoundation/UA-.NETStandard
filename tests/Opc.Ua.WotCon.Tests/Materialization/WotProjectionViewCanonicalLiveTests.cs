@@ -1926,8 +1926,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Creates a source node manager whose validation can be paused to test publication boundaries.
+        /// </summary>
         internal sealed class BlockingSourceFactory : IAsyncNodeManagerFactory
         {
+            /// <inheritdoc cref="IAsyncNodeManagerFactory.NamespacesUris"/>
             public ArrayOf<string> NamespacesUris => ["urn:c2:blocked-source"];
 
             /// <summary>
@@ -1948,6 +1952,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Provides a controllable node-validation barrier for canonical-view integration tests.
+        /// </summary>
         internal sealed class BlockingSource : AsyncCustomNodeManager
         {
             /// <summary>
@@ -1965,16 +1972,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// </summary>
             public Task Entered => m_entered.Task;
 
+            /// <summary>
+            /// Creates a node identifier in the source node manager's namespace.
+            /// </summary>
+            /// <param name="name">The name assigned to the node or field used by the operation.</param>
             public NodeId Identity(string name)
             {
                 return new NodeId(name, NamespaceIndex);
             }
 
+            /// <summary>
+            /// Arms the barrier for the next node validation call.
+            /// </summary>
             public void BlockNextValidation()
             {
                 Interlocked.Exchange(ref m_block, 1);
             }
 
+            /// <summary>
+            /// Releases the paused node validation call.
+            /// </summary>
             public void Resume()
             {
                 m_resume.TrySetResult(true);
@@ -2007,6 +2024,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
             }
 
+            /// <inheritdoc />
             protected override async ValueTask<NodeState> ValidateNodeAsync(
                 ServerSystemContext context, NodeHandle handle, IDictionary<NodeId, NodeState> cache,
                 CancellationToken cancellationToken = default)

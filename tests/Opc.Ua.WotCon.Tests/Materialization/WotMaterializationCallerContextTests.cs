@@ -56,6 +56,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private PreparedWotTestRuntime? m_runtime;
         private IDisposable? m_lifecycleRegistration;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -78,6 +81,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_lifecycleRegistration = m_registry.RegisterLifecycleCoordinator(m_coordinator);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

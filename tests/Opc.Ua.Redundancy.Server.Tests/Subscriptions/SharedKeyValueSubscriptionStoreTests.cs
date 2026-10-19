@@ -86,6 +86,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        /// <summary>
+        /// Verifies that a snapshot cannot replay the same subscription identifier from an older generation.
+        /// </summary>
         [Test]
         public async Task SubscriptionSnapshotCannotReplaySameIdFromOlderGenerationAsync()
         {
@@ -123,6 +126,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 restored.Subscriptions!.Single().PublishingInterval, Is.EqualTo(replacement.PublishingInterval));
         }
 
+        /// <summary>
+        /// Verifies that subscription manifests reject an empty persistence context.
+        /// </summary>
         [Test]
         public async Task SubscriptionManifestRejectsEmptyContextAsync()
         {
@@ -144,6 +150,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that retransmission state and messages cannot be loaded under different persistence keys.
+        /// </summary>
         [Test]
         public async Task RetransmissionStateAndMessagesRejectDifferentKeysAsync()
         {

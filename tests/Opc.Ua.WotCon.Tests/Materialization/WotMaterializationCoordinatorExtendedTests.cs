@@ -56,6 +56,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -68,6 +71,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -102,6 +108,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).AsTask();
         }
 
+        /// <summary>
+        /// Verifies that cyclic Thing Models are not projected and generate load-failure events.
+        /// </summary>
         [Test]
         public async Task CyclicTmsAreNotProjectedAndEmitLoadFailureEvent()
         {
@@ -143,6 +152,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations));
         }
 
+        /// <summary>
+        /// Verifies that a forced refresh reprocesses content whose digest has not changed.
+        /// </summary>
         [Test]
         public async Task ForceRefreshReprocessesUnchangedContent()
         {
@@ -162,6 +174,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.Not.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
+        /// <summary>
+        /// Verifies that selection filter limits results to selected resources.
+        /// </summary>
         [Test]
         public async Task SelectionFilterLimitsResultsToSelectedResources()
         {
@@ -185,6 +200,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Results.Single().Xid, Is.EqualTo(tdAXid));
         }
 
+        /// <summary>
+        /// Verifies that refreshing an empty registry returns no resource outcomes.
+        /// </summary>
         [Test]
         public async Task RefreshAllEmptyResourceRegistryReturnsEmptyResults()
         {
@@ -194,6 +212,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
+        /// <summary>
+        /// Verifies that refresh generation increments.
+        /// </summary>
         [Test]
         public async Task RefreshGenerationIncrements()
         {
@@ -205,6 +226,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_coordinator.Generation, Is.GreaterThan(before));
         }
 
+        /// <summary>
+        /// Verifies that a completed refresh raises its completion event.
+        /// </summary>
         [Test]
         public async Task RefreshCompletedEventIsRaisedAfterRefresh()
         {
@@ -219,6 +243,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A RefreshCompleted event must be raised after every refresh.");
         }
 
+        /// <summary>
+        /// Verifies that invalid document content raises a validation-failure event.
+        /// </summary>
         [Test]
         public async Task ValidationFailureEventIsRaisedForInvalidContent()
         {
@@ -234,6 +261,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A ValidationFailure event must be raised for invalid content.");
         }
 
+        /// <summary>
+        /// Verifies that a missing document dependency raises a load-failure event.
+        /// </summary>
         [Test]
         public async Task LoadFailureEventIsRaisedForMissingDependency()
         {
@@ -249,6 +279,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A LoadFailure event must be raised for each resource in an unresolvable closure.");
         }
 
+        /// <summary>
+        /// Verifies that independent dependency closures produce separate projection registrations.
+        /// </summary>
         [Test]
         public async Task TwoIndependentClosuresProjectAsTwoSeparateRegistrations()
         {
@@ -262,6 +295,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Results, Has.Length.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that successful resource projection raises its resource event.
+        /// </summary>
         [Test]
         public async Task ResourceEventIsRaisedAfterSuccessfulProjection()
         {
@@ -371,6 +407,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private readonly Func<string, Stream?> m_resolve;
         }
 
+        /// <summary>
+        /// Verifies that binding capabilities are available even when no binders are registered.
+        /// </summary>
         [Test]
         public void BindingCapabilitiesIsNonNullEvenWithNoBinders()
         {
@@ -378,12 +417,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_coordinator.BindingCapabilities, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that remove all on empty coordinator does not throw.
+        /// </summary>
         [Test]
         public async Task RemoveAllAsyncOnEmptyCoordinatorDoesNotThrow()
         {
             await m_coordinator.RemoveAllAsync();
         }
 
+        /// <summary>
+        /// Verifies that a cyclic dependency closure reports a load failure for every member.
+        /// </summary>
         [Test]
         public async Task CyclicClosureEmitsLoadFailureForEachMember()
         {

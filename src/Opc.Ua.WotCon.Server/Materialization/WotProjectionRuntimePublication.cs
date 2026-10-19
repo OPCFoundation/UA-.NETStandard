@@ -32,11 +32,21 @@ using Opc.Ua.Server.RuntimeNodeSet;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
+    /// <summary>
+    /// Receives the committed generation after a prepared projection runtime is published.
+    /// </summary>
     internal interface IWotPublishedProjectionRuntime
     {
+        /// <summary>
+        /// Records the generation assigned to the published projection runtime.
+        /// </summary>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
         void SetPublishedGeneration(long generation);
     }
 
+    /// <summary>
+    /// Forwards committed generation notifications to a projection runtime that supports publication tracking.
+    /// </summary>
     internal sealed class WotProjectionRuntimePublication
     {
         /// <summary>
@@ -60,6 +70,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Notifies the captured runtime that its projection has been published in the supplied generation.
+        /// </summary>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
         public void Publish(long generation)
         {
             m_runtime?.SetPublishedGeneration(generation);

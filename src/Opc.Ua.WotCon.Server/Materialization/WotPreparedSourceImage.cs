@@ -36,6 +36,9 @@ using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
+    /// <summary>
+    /// Allows a prepared view to receive the captured image of its candidate source owners.
+    /// </summary>
     internal interface IWotPreparedViewSourceConsumer
     {
         /// <summary>
@@ -45,6 +48,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         void BindSourceImage(WotPreparedSourceImage sources);
     }
 
+    /// <summary>
+    /// Captures candidate source owners and verifies their node-manager registrations before publication.
+    /// </summary>
     internal sealed class WotPreparedSourceImage
     {
         /// <summary>
@@ -65,6 +71,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new SourceFactory(this, factory);
         }
 
+        /// <summary>
+        /// Verifies that each prepared source registration matches its captured candidate owner.
+        /// </summary>
+        /// <param name="registrations">
+        /// The node-manager registrations corresponding to the captured source owners.
+        /// </param>
         internal void BindRegistrations(ArrayOf<NodeManagerRegistration> registrations)
         {
             if (registrations.Count != m_candidates.Count)
@@ -83,6 +95,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_bound = true;
         }
 
+        /// <summary>
+        /// Rejects use of the source image until all candidate owner registrations have been verified.
+        /// </summary>
         internal void RequireBound()
         {
             if (!m_bound)

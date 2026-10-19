@@ -110,6 +110,9 @@ namespace Opc.Ua.WotCon.Bindings
         /// </summary>
         internal ISessionClient Client => m_binding;
 
+        /// <summary>
+        /// Rejects access when the captured event-source binding is no longer current.
+        /// </summary>
         internal void Validate()
         {
             if (!IsCurrent)
@@ -129,6 +132,9 @@ namespace Opc.Ua.WotCon.Bindings
             return ServerUri == other.ServerUri && CertificateDigest == other.CertificateDigest;
         }
 
+        /// <summary>
+        /// Releases the captured event-source binding.
+        /// </summary>
         internal void DisposeBinding()
         {
             m_binding.Dispose();

@@ -31,6 +31,9 @@ using System;
 
 namespace Opc.Ua.WotCon
 {
+    /// <summary>
+    /// Centralizes the supported WoT document-kind identifiers.
+    /// </summary>
     internal static class WotDocumentKinds
     {
         /// <summary>

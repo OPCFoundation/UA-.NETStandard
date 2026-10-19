@@ -48,6 +48,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [TestFixture]
     public sealed class WotCanonicalGraphStoreTests
     {
+        /// <summary>
+        /// Selects an isolated storage root for the registry test fixtures.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -57,6 +60,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Guid.NewGuid().ToString("N"));
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {

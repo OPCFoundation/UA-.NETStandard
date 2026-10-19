@@ -49,6 +49,9 @@ using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests
 {
+    /// <summary>
+    /// Tests registry projection compatibility against a running OPC UA server.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]

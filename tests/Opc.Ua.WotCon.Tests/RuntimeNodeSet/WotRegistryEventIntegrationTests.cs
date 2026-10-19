@@ -77,6 +77,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         private Registry.PreparedWotTestStorage m_storage = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
+        /// <summary>
+        /// Starts the test server and initializes the session and registry fixtures used by the tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -129,6 +132,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_eventManager = (WotRegistryNodeManager)registration.NodeManager;
         }
 
+        /// <summary>
+        /// Closes client sessions, stops the test server, and releases the registry fixtures and files.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -157,6 +163,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
+        /// <summary>
+        /// Verifies that refresh completed event delivers populated summary fields through notifier chain.
+        /// </summary>
         [Test]
         public async Task RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain()
         {
@@ -255,6 +264,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that validation failure event delivers validation outcome through notifier chain.
+        /// </summary>
         [Test]
         public async Task ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain()
         {
@@ -297,6 +309,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that generic XRegistry events and specialized WoT events share the registry notifier.
+        /// </summary>
         [Test]
         public async Task GenericXRegistryAndWotEventsCoexistOnTheRegistryNotifier()
         {
@@ -337,6 +352,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that structural placeholder still emits version created event.
+        /// </summary>
         [Test]
         public async Task StructuralPlaceholderStillEmitsVersionCreatedEvent()
         {
@@ -371,6 +389,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that placeholder default switch does not invent optional changed attributes.
+        /// </summary>
         [Test]
         public async Task PlaceholderDefaultSwitchDoesNotInventOptionalChangedAttributes()
         {
@@ -467,6 +488,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that resource metadata changes include name and description.
+        /// </summary>
         [Test]
         public async Task ResourceMetadataChangesIncludeNameAndDescription()
         {

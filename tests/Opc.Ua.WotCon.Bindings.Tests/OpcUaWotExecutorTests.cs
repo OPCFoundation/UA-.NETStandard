@@ -93,6 +93,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private WotProtocolBinderRegistry m_registry = null!;
         private WotBindingPlan m_plan = null!;
 
+        /// <summary>
+        /// Starts a reference server and connects the OPC UA session used by executor integration tests.
+        /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -135,6 +138,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 string.Join("; ", m_plan.Diagnostics.Where(d => d.IsError).Select(d => d.Message)));
         }
 
+        /// <summary>
+        /// Closes the OPC UA session and stops the reference server after the executor tests.
+        /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
@@ -149,6 +155,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a bound property read returns the value from the running source server.
+        /// </summary>
         [Test]
         public async Task ReadPropertyReturnsRealServerValueAsync()
         {
@@ -164,6 +173,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that writing a read-only source node preserves its bad status.
+        /// </summary>
         [Test]
         public async Task WritePropertyReadOnlyNodeMapsBadStatusAsync()
         {
@@ -179,6 +191,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies property write and readback using a namespace-portable source node identifier.
+        /// </summary>
         [Test]
         public async Task WritePropertyWithReadbackRoundTripsThroughPortableNodeIdAsync()
         {
@@ -209,6 +224,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation delivers changes through a native OPC UA subscription.
+        /// </summary>
         [Test]
         public async Task ObservePropertyDeliversNotificationViaNativeSubscriptionAsync()
         {
@@ -259,6 +277,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a running source event notifier delivers the selected event fields.
+        /// </summary>
         [Test]
         public async Task SubscribeEventRealEventNotifierDeliversSelectedFieldsAsync()
         {

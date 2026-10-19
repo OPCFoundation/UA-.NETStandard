@@ -969,7 +969,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await channel.InvokeAsync([], cancellation.Token).ConfigureAwait(false));
 
             Assert.That(harness.SendCount, Is.Zero);
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             else
             {
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await invocation.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
                 Assert.That(invocation.IsCanceled, Is.True);
             }

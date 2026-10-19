@@ -49,6 +49,9 @@ namespace Opc.Ua.Server.Tests.Fluent
     [NonParallelizable]
     public sealed class EventMonitoredItemReadinessTests
     {
+        /// <summary>
+        /// Starts a server and creates the session and subscription used by event-readiness tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -70,6 +73,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             m_subscriptionId = subscription.SubscriptionId;
         }
 
+        /// <summary>
+        /// Closes the test session, stops the server, and removes its PKI directory.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

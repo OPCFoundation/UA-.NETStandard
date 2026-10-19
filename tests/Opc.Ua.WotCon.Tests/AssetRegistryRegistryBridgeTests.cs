@@ -53,6 +53,9 @@ namespace Opc.Ua.WotCon.Tests
     [Category("WotCon")]
     public sealed class AssetRegistryRegistryBridgeTests
     {
+        /// <summary>
+        /// Creates an isolated storage directory for the registry tests.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -62,6 +65,9 @@ namespace Opc.Ua.WotCon.Tests
             Directory.CreateDirectory(m_tempFolder);
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -80,6 +86,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that rebuilding an asset mirrors its newly created Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task RebuildMirrorsCreatedThingDescriptionToRegistry()
         {
@@ -100,6 +109,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[0], WotRegistryGroups.ThingDescriptions, "asset-001", td);
         }
 
+        /// <summary>
+        /// Verifies that rebuilding an asset mirrors an updated Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task RebuildMirrorsUpdatedThingDescriptionToRegistry()
         {
@@ -128,6 +140,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[1], WotRegistryGroups.ThingDescriptions, "asset-001", updated);
         }
 
+        /// <summary>
+        /// Verifies that deleting an asset removes its mirrored Thing Description from the registry.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesMirroredThingDescriptionFromRegistry()
         {
@@ -578,6 +593,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(store.CommitCount, Is.EqualTo(commits + 1));
         }
 
+        /// <summary>
+        /// Verifies that rebuilding without persistence still mirrors the Thing Description into the registry.
+        /// </summary>
         [Test]
         public async Task NonPersistedRebuildMirrorsThingDescriptionToRegistry()
         {
@@ -598,6 +616,9 @@ namespace Opc.Ua.WotCon.Tests
             AssertUpsertRequest(requests[0], WotRegistryGroups.ThingDescriptions, "asset-001", td);
         }
 
+        /// <summary>
+        /// Verifies that <see langword="null"/> registry bridge performs no registry calls.
+        /// </summary>
         [Test]
         public async Task NullRegistryBridgePerformsNoRegistryCalls()
         {
@@ -618,6 +639,9 @@ namespace Opc.Ua.WotCon.Tests
             bridge.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that registry rejection does not fail asset rebuild.
+        /// </summary>
         [Test]
         public async Task RegistryRejectionDoesNotFailAssetRebuild()
         {
@@ -649,6 +673,9 @@ namespace Opc.Ua.WotCon.Tests
             bridge.VerifyNoOtherCalls();
         }
 
+        /// <summary>
+        /// Verifies that registry exception does not fail asset rebuild.
+        /// </summary>
         [Test]
         public async Task RegistryExceptionDoesNotFailAssetRebuild()
         {

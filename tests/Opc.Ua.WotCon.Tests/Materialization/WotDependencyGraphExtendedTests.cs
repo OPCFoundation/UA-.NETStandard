@@ -122,6 +122,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (version, _) => new ValueTask<ByteString>(byDigest[version.DigestHex]));
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution returns no resource when the registry snapshot is null.
+        /// </summary>
         [Test]
         public void ResolveWithNullSnapshotReturnsNull()
         {
@@ -129,6 +132,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution returns no resource for a null reference.
+        /// </summary>
         [Test]
         public async Task ResolveWithNullHrefReturnsNull()
         {
@@ -139,6 +145,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution returns no resource for an empty reference.
+        /// </summary>
         [Test]
         public async Task ResolveWithEmptyHrefReturnsNull()
         {
@@ -149,6 +158,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution returns no resource for a whitespace-only reference.
+        /// </summary>
         [Test]
         public async Task ResolveWithWhitespaceHrefReturnsNull()
         {
@@ -159,6 +171,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution finds a resource by its Thing identifier.
+        /// </summary>
         [Test]
         public async Task ResolveByThingIdFindsResource()
         {
@@ -170,6 +185,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result!.ResourceId, Is.EqualTo("tm-res"));
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution finds a resource by its registry XID.
+        /// </summary>
         [Test]
         public async Task ResolveByXidFindsResource()
         {
@@ -183,6 +201,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result!.ResourceId, Is.EqualTo("my-tm"));
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution finds a resource by its resource identifier.
+        /// </summary>
         [Test]
         public async Task ResolveByResourceIdFindsResource()
         {
@@ -195,6 +216,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result!.ResourceId, Is.EqualTo("my-td"));
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution removes a fragment before resolving the resource.
+        /// </summary>
         [Test]
         public async Task ResolveWithFragmentTrimsFragment()
         {
@@ -207,6 +231,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result!.ResourceId, Is.EqualTo("tm-frag"));
         }
 
+        /// <summary>
+        /// Verifies that dependency resolution finds a resource by its registry URI.
+        /// </summary>
         [Test]
         public async Task ResolveByRegistryUriFindsResource()
         {
@@ -252,6 +279,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Verifies that reference extraction returns no references for invalid JSON.
+        /// </summary>
         [Test]
         public void ExtractReferencesReturnsEmptyForInvalidJson()
         {
@@ -260,6 +290,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction ignores JSON values that are not objects.
+        /// </summary>
         [Test]
         public void ExtractReferencesReturnsEmptyForNonObjectJson()
         {
@@ -269,6 +302,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes type relations in document links.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsLinksRelType()
         {
@@ -279,6 +315,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs.Any(r => r.Href == "urn:tm-base" && r.RefType == "type"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes Thing Model submodel relations in document links.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsLinksRelTmSubmodel()
         {
@@ -289,6 +328,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs.Any(r => r.Href == "urn:sub" && r.RefType == "tm:submodel"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction ignores links with unrecognized relation terms.
+        /// </summary>
         [Test]
         public void ExtractReferencesIgnoresLinksWithUnrecognizedRel()
         {
@@ -299,6 +341,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction ignores links without a target reference.
+        /// </summary>
         [Test]
         public void ExtractReferencesIgnoresLinksWithoutHref()
         {
@@ -309,6 +354,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes authored tm:ref dependencies.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsTmRef()
         {
@@ -319,6 +367,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs.Any(r => r.RefType == "tm:ref"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes tm:extends dependencies authored as an array.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsTmExtendsArray()
         {
@@ -329,6 +380,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs.Count(r => r.RefType == "tm:extends"), Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that reference extraction recognizes an object-valued tm:extends dependency with an href.
+        /// </summary>
         [Test]
         public void ExtractReferencesFindsTmExtendsObjectWithHref()
         {
@@ -339,6 +393,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(refs.Any(r => r.Href == "urn:obj-base"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closure construction returns no closures for an empty selection.
+        /// </summary>
         [Test]
         public async Task BuildClosuresEmptySelectionReturnsEmpty()
         {
@@ -352,6 +409,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that closure diagnostics describe missing dependencies.
+        /// </summary>
         [Test]
         public async Task BuildClosuresDiagnosticsIncludesMissingDependencyMessage()
         {
@@ -373,6 +433,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closure.Diagnostics.Any(d => d.Contains("urn:nonexistent", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closure diagnostics describe detected dependency cycles.
+        /// </summary>
         [Test]
         public async Task BuildClosuresDiagnosticsIncludesCycleMessage()
         {
@@ -396,6 +459,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closure.Diagnostics.Any(d => d.Contains("cycle", StringComparison.Ordinal)), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closure keys join resource XIDs in sorted order.
+        /// </summary>
         [Test]
         public async Task BuildClosuresClosureKeyIsJoinedSortedXids()
         {
@@ -419,6 +485,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closure.Key, Is.EqualTo(expectedKey));
         }
 
+        /// <summary>
+        /// Verifies that constructed closures retain their dependency edges.
+        /// </summary>
         [Test]
         public async Task BuildClosuresDependenciesAreRecorded()
         {
@@ -444,6 +513,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(dep.RefType, Is.EqualTo("tm:extends"));
         }
 
+        /// <summary>
+        /// Verifies that a diamond-shaped dependency graph produces one shared closure.
+        /// </summary>
         [Test]
         public async Task BuildClosuresDiamondPatternYieldsSingleClosure()
         {
@@ -479,6 +551,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(closures[0].Members, Has.Length.EqualTo(4));
         }
 
+        /// <summary>
+        /// Verifies that a resolved dependency retains its source, target, reference type, and resolution state.
+        /// </summary>
         [Test]
         public void WotDependencyPropertiesAreCorrect()
         {
@@ -496,6 +571,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(dep.Resolved, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an unresolved dependency has no target XID and is not marked resolved.
+        /// </summary>
         [Test]
         public void WotDependencyUnresolvedPropertiesAreCorrect()
         {

@@ -184,6 +184,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a read with a malformed node identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task ReadAsyncWithMalformedNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -201,6 +204,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that reading a nonexistent node preserves the server's bad status.
+        /// </summary>
         [Test]
         public async Task ReadAsyncWithNonExistentNodeIdPreservesServerBadStatusAsync()
         {
@@ -218,6 +224,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a write with a malformed node identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task WriteAsyncWithMalformedNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -263,6 +272,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an invalid action parent identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithInvalidComponentOfNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -281,6 +293,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an invalid action method identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithInvalidMethodNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -299,6 +314,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that null action inputs become empty arguments and server invocation errors are mapped.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithNullInputsPassesEmptyArgumentsAndMapsServerErrorAsync()
         {
@@ -318,6 +336,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation rejects a null callback with ArgumentNullException.
+        /// </summary>
         [Test]
         public async Task ObserveAsyncWithNullCallbackThrowsArgumentNullExceptionAsync()
         {
@@ -333,6 +354,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation rejects a malformed node identifier with ServiceResultException.
+        /// </summary>
         [Test]
         public async Task ObserveAsyncWithMalformedNodeIdThrowsServiceResultExceptionAsync()
         {
@@ -348,6 +372,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscription rejects a null callback with ArgumentNullException.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithNullCallbackThrowsArgumentNullExceptionAsync()
         {
@@ -363,6 +390,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscription rejects a malformed node identifier with ServiceResultException.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithMalformedNodeIdThrowsServiceResultExceptionAsync()
         {
@@ -378,6 +408,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that explicitly selected extra event fields are present in the notification.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithExtraEventFieldsIncludesFieldInNotificationAsync()
         {
@@ -422,6 +455,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscriptions select exactly the clauses authored by the document.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncSelectsExactlyTheAuthoredSelectClausesAsync()
         {

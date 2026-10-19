@@ -141,6 +141,7 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try

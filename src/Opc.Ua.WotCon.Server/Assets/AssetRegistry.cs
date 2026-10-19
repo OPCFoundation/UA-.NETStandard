@@ -2025,6 +2025,9 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = [];
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for asset registry.
+    /// </summary>
     internal static partial class AssetRegistryLog
     {
         /// <summary>
@@ -2038,28 +2041,65 @@ namespace Opc.Ua.WotCon.Server.Assets
         public static partial void NativePreparationRejected(
             this ILogger logger, Exception exception, string assetName);
 
+        /// <summary>
+        /// Logs an asset event skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 37, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD event '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdEvent(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs failure to subscribe to an asset event.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="eventName">The asset event name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 38, Level = LogLevel.Warning,
             Message = "Failed to subscribe asset {AssetName} event '{EventName}'.")]
         public static partial void EventSubscribeFailed(
             this ILogger logger, Exception exception, string assetName, string eventName);
 
+        /// <summary>
+        /// Logs failure to unsubscribe from an asset event.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="eventName">The asset event name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 39, Level = LogLevel.Warning,
             Message = "Failed to unsubscribe asset {AssetName} event '{EventName}'.")]
         public static partial void EventUnsubscribeFailed(
             this ILogger logger, Exception exception, string assetName, string eventName);
 
+        /// <summary>
+        /// Logs an asset provider exception during disposal.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 0, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on disposal")]
         public static partial void ProviderForAssetThrewOnDisposal(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs asset endpoint creation rejected by the configured endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 1, Level = LogLevel.Warning,
             Message = "CreateAssetForEndpoint rejected by AssetEndpointPolicy: {Status}")]
         public static partial void CreateAssetForEndpointRejected(this ILogger logger, StatusCode status);
 
+        /// <summary>
+        /// Logs an endpoint rejected by the asset provider during asset creation.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 2, Level = LogLevel.Error,
             Message = "CreateAssetForEndpoint failed for asset {AssetName}: provider rejected the endpoint")]
         public static partial void CreateAssetForEndpointProviderRejected(
@@ -2067,6 +2107,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             Exception ex,
             string assetName);
 
+        /// <summary>
+        /// Logs timeout of asset creation for an endpoint.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="timeout">The timeout applied to the operation.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 3, Level = LogLevel.Warning,
             Message = "CreateAssetForEndpoint timed out after {Timeout} for {AssetName}")]
         public static partial void CreateAssetForEndpointTimedOut(
@@ -2075,45 +2122,99 @@ namespace Opc.Ua.WotCon.Server.Assets
             TimeSpan timeout,
             string assetName);
 
+        /// <summary>
+        /// Logs failure to create an asset for an endpoint.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 4, Level = LogLevel.Error,
             Message = "CreateAssetForEndpoint failed for asset {AssetName}")]
         public static partial void CreateAssetForEndpointFailed(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs that the configured provider does not support asset discovery.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 5, Level = LogLevel.Warning,
             Message = "DiscoverAssets not supported by configured provider")]
         public static partial void DiscoverAssetsNotSupported(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs an asset discovery failure.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 6, Level = LogLevel.Error,
             Message = "DiscoverAssets failed")]
         public static partial void DiscoverAssetsFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of discovered endpoints withheld by the asset endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 35, Level = LogLevel.Warning,
             Message = "DiscoverAssets withheld {Count} endpoint(s) the asset endpoint policy forbids")]
         public static partial void DiscoveredEndpointsFilteredByPolicy(
             this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs a generated Thing Description rejected before materialization because format validation failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 36, Level = LogLevel.Warning,
             Message = "Thing description generated for asset {AssetName} failed format validation " +
                 "and materialized nothing")]
         public static partial void GeneratedThingDescriptionFailedFormatValidation(
             this ILogger logger, string assetName);
 
+        /// <summary>
+        /// Logs a connection test rejected by the asset endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 7, Level = LogLevel.Warning,
             Message = "ConnectionTest rejected by AssetEndpointPolicy: {Status}")]
         public static partial void ConnectionTestRejected(this ILogger logger, StatusCode status);
 
+        /// <summary>
+        /// Logs that the configured provider does not support connection testing.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 8, Level = LogLevel.Warning,
             Message = "ConnectionTest not supported by configured provider")]
         public static partial void ConnectionTestNotSupported(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs failure of a client-requested endpoint connection test.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 9, Level = LogLevel.Error,
             Message = "ConnectionTest failed for endpoint provided by client")]
         public static partial void ConnectionTestFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a connection test exceeding its timeout.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="timeout">The timeout applied to the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 10, Level = LogLevel.Warning,
             Message = "ConnectionTest timed out after {Timeout}")]
         public static partial void ConnectionTestTimedOut(this ILogger logger, Exception ex, TimeSpan timeout);
 
+        /// <summary>
+        /// Logs a binding factory failing to connect an asset.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="factory">The binding factory involved in the operation.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 11, Level = LogLevel.Error,
             Message = "Binding factory {Factory} failed to connect asset {AssetName}")]
         public static partial void BindingFactoryFailedToConnectAsset(
@@ -2122,18 +2223,44 @@ namespace Opc.Ua.WotCon.Server.Assets
             string factory,
             string assetName);
 
+        /// <summary>
+        /// Logs disposal failure of a replaced asset provider.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 12, Level = LogLevel.Warning,
             Message = "Previous provider for {AssetName} threw on disposal")]
         public static partial void PreviousProviderThrewOnDisposal(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs an asset property skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 13, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD property '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdProperty(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs an asset action skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 14, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD action '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdAction(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs a Thing Description affordance skipped with a supplied reason.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="kind">The Thing Description affordance kind being skipped.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="reason">The reason the affordance was skipped.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 15, Level = LogLevel.Warning,
             Message = "Skipping TD {Kind} '{ChildName}' on asset {AssetName}: {Reason}")]
         public static partial void SkippingTd(
@@ -2143,53 +2270,128 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             string? reason);
 
+        /// <summary>
+        /// Logs failure to read an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 16, Level = LogLevel.Warning,
             Message = "Read failed for asset {AssetName} property {Property}")]
         public static partial void ReadFailed(this ILogger logger, Exception ex, string assetName, string property);
 
+        /// <summary>
+        /// Logs failure to write an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 17, Level = LogLevel.Warning,
             Message = "Write failed for asset {AssetName} property {Property}")]
         public static partial void WriteFailed(this ILogger logger, Exception ex, string assetName, string property);
 
+        /// <summary>
+        /// Logs an exception thrown by an asset action.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="action">The asset action name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 18, Level = LogLevel.Warning,
             Message = "Action {Action} on asset {AssetName} threw")]
         public static partial void ActionThrew(this ILogger logger, Exception ex, string action, string assetName);
 
+        /// <summary>
+        /// Logs refusal to persist a Thing Description whose asset name does not resolve to a safe path.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 19, Level = LogLevel.Warning,
             Message = "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
         public static partial void RefusingToPersistTd(this ILogger logger, string assetName, string folder);
 
+        /// <summary>
+        /// Logs failure to persist an asset's Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 20, Level = LogLevel.Warning,
             Message = "Failed to persist TD for asset {AssetName}")]
         public static partial void FailedToPersistTd(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs refusal to delete a Thing Description whose asset name does not resolve to a safe path.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 21, Level = LogLevel.Warning,
             Message = "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
         public static partial void RefusingToDeleteTd(this ILogger logger, string assetName, string folder);
 
+        /// <summary>
+        /// Logs failure to delete a persisted Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 22, Level = LogLevel.Warning,
             Message = "Failed to delete TD for asset {AssetName}")]
         public static partial void FailedToDeleteTd(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs that the configured file limit disables loading persisted Thing Descriptions.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 23, Level = LogLevel.Information,
             Message = "MaxPersistedThingDescriptionFiles is {Limit}; no persisted TDs will be loaded from {Folder}.")]
         public static partial void NoPersistedTdsLoaded(this ILogger logger, int limit, string folder);
 
+        /// <summary>
+        /// Logs that the persisted Thing Description loading limit has been reached.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 24, Level = LogLevel.Warning,
             Message = "Reached MaxPersistedThingDescriptionFiles ({Limit}); skipping the remaining " +
                 "persisted TDs in {Folder}.")]
         public static partial void MaxPersistedTdFilesReached(this ILogger logger, int limit, string folder);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because its asset name is invalid.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 25, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: name does not pass asset-name validation.")]
         public static partial void SkippingPersistedTdNameValidation(this ILogger logger, string file);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because its file metadata cannot be read.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 26, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: file metadata could not be read.")]
         public static partial void SkippingPersistedTdMetadata(this ILogger logger, Exception ex, string file);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because it exceeds the document size limit.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
+        /// <param name="bytes">The content size reported by the operation.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 27, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: size {Bytes} exceeds MaxThingDescriptionSize ({Limit}).")]
         public static partial void SkippingPersistedTdTooLarge(
@@ -2198,6 +2400,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             long bytes,
             long limit);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because JSON deserialization failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
+        /// <param name="depth">The configured maximum JSON nesting depth.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 28, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: JSON deserialization failed (likely exceeds " +
                 "MaxThingDescriptionJsonDepth={Depth} or is otherwise malformed).")]
@@ -2207,14 +2416,33 @@ namespace Opc.Ua.WotCon.Server.Assets
             string file,
             int depth);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because reading its file failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 29, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: I/O failure while reading.")]
         public static partial void SkippingPersistedTdIoFailure(this ILogger logger, Exception ex, string file);
 
+        /// <summary>
+        /// Logs an asset provider exception during shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 30, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on shutdown")]
         public static partial void ProviderForAssetThrewOnShutdown(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs a registry rejection when mirroring an asset's Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 31, Level = LogLevel.Warning,
             Message = "Registry bridge rejected mirrored Thing Description for asset {AssetName}: {Outcome} {Message}")]
         public static partial void RegistryBridgeMirrorRejected(
@@ -2223,10 +2451,23 @@ namespace Opc.Ua.WotCon.Server.Assets
             WoTOutcomeEnum outcome,
             string message);
 
+        /// <summary>
+        /// Logs failure to mirror an asset's Thing Description into the registry.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 32, Level = LogLevel.Warning,
             Message = "Registry bridge failed to mirror Thing Description for asset {AssetName}")]
         public static partial void RegistryBridgeMirrorFailed(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs a registry rejection when deleting a mirrored asset resource.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 33, Level = LogLevel.Warning,
             Message = "Registry bridge rejected resource delete for asset {AssetName}: {Outcome} {Message}")]
         public static partial void RegistryBridgeDeleteRejected(
@@ -2235,6 +2476,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             WoTOutcomeEnum outcome,
             string message);
 
+        /// <summary>
+        /// Logs failure to delete a mirrored asset resource from the registry.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 34, Level = LogLevel.Warning,
             Message = "Registry bridge failed to delete resource for asset {AssetName}")]
         public static partial void RegistryBridgeDeleteFailed(this ILogger logger, Exception ex, string assetName);

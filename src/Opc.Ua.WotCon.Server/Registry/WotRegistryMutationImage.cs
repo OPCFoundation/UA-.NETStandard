@@ -34,6 +34,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
+    /// <summary>
+    /// Captures the registry state to be installed by a prepared mutation publication.
+    /// </summary>
     internal sealed class WotRegistryMutationImage
     {
         /// <summary>
@@ -101,6 +104,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
     }
 
+    /// <summary>
+    /// Exposes the mutation image associated with a prepared registry publication.
+    /// </summary>
     internal interface IWotRegistryMutationPublication : IWotRegistryPublication
     {
         /// <summary>

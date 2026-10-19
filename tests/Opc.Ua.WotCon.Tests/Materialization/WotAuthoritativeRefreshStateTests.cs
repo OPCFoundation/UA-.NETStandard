@@ -45,6 +45,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Platform("Win")]
     public sealed class WotAuthoritativeRefreshStateTests
     {
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -60,6 +63,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator.Event += (_, change) => m_events.Add(change);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

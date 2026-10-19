@@ -45,6 +45,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class OpcUaWotBindingExecutorUnitTests
     {
+        /// <summary>
+        /// Verifies that activation constructs an endpoint from host and port when no base URI is supplied.
+        /// </summary>
+        /// <param name="scheme">The security or addressing scheme selected by the test case.</param>
+        /// <param name="port">The endpoint port used by the test case.</param>
+        /// <param name="expected">The expected result for this test case.</param>
         [TestCase("opc.tcp", 4841, "opc.tcp://example.test:4841")]
         [TestCase("opc.tcp", 4840, "opc.tcp://example.test")]
         [TestCase("opc.https", 443, "opc.https://example.test")]
@@ -69,6 +75,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(capturedEndpoint, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that activation preserves an explicitly supplied base URI.
+        /// </summary>
         [Test]
         public async Task ActivateAsyncPreservesExplicitBaseUriAsync()
         {

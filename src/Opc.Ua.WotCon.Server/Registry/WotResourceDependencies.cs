@@ -202,6 +202,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         internal const int CurrentIndexVersion = 2;
     }
 
+    /// <summary>
+    /// Selects the registry lookup strategy for resolving a resource reference.
+    /// </summary>
     internal enum WotResourceReferenceLookup
     {
         /// <summary>

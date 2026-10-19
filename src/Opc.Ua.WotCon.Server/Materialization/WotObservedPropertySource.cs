@@ -114,6 +114,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_delivery = DeliverAsync();
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             Task pending = Task.CompletedTask;

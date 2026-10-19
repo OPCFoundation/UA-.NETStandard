@@ -79,6 +79,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotRefreshResult
     {
+        /// <summary>
+        /// Captures the summary, per-resource outcomes, and generation produced by a refresh.
+        /// </summary>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="newGeneration">The registry generation resulting from the refresh.</param>
         internal WotRefreshResult(
             WoTRefreshSummaryDataType summary,
             ImmutableArray<WoTResourceLoadResultDataType> results,
@@ -151,6 +157,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotDeleteOutcome
     {
+        /// <summary>
+        /// Captures the deletion result together with refresh outcomes and the resulting generation.
+        /// </summary>
+        /// <param name="delete">The registry deletion result.</param>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
         internal WotDeleteOutcome(
             WotDeleteResult delete,
             WoTRefreshSummaryDataType summary,
@@ -224,6 +237,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotMaterializationEventArgs : EventArgs
     {
+        /// <summary>
+        /// Creates event arguments identifying the materialization event kind.
+        /// </summary>
+        /// <param name="kind">The materialization event kind to report.</param>
         internal WotMaterializationEventArgs(WotMaterializationEventKind kind)
         {
             Kind = kind;

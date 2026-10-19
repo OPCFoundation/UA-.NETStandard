@@ -408,6 +408,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             Inputs.Dispose();
         }
 
+        /// <summary>
+        /// Creates a publication capture using the selected closures while retaining captured registry and version
+        /// identities.
+        /// </summary>
+        /// <param name="closures">The dependency closures selected for publication.</param>
         internal WotRefreshCapture ForPublication(ArrayOf<WotDependencyClosure> closures)
         {
             var inputs = new WotMaterializationSnapshot(

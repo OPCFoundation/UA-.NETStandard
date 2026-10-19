@@ -54,6 +54,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private const byte ModeRead = WotResourceFileManager.ReadMode;
         private const byte ModeWriteErase = WotResourceFileManager.WriteEraseMode;
 
+        /// <summary>
+        /// Verifies that an unsupported FileType open mode returns BadNotSupported.
+        /// </summary>
+        /// <param name="mode">The operating mode selected by the test case.</param>
         [TestCase((byte)0)]
         [TestCase((byte)2)]
         [TestCase((byte)3)]
@@ -72,6 +76,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for reading.
+        /// </summary>
         [Test]
         public void OpenWithReadModeSucceeds()
         {
@@ -84,6 +91,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for writing with content erasure.
+        /// </summary>
         [Test]
         public void OpenWithWriteEraseModeSucceeds()
         {
@@ -95,6 +105,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.GreaterThan(0u));
         }
 
+        /// <summary>
+        /// Verifies that opening a write handle invokes write authorization.
+        /// </summary>
         [Test]
         public void OpenWriteModeCallsAuthorizeWrite()
         {
@@ -110,6 +123,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(called, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that opening a write handle propagates write authorization failure.
+        /// </summary>
         [Test]
         public void OpenWriteModeWhenAuthorizeFailsReturnsBadResult()
         {
@@ -122,6 +138,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(handle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that opening a read handle does not invoke write authorization.
+        /// </summary>
         [Test]
         public void OpenReadModeDoesNotCallAuthorizeWrite()
         {
@@ -137,6 +156,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(called, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a second writer is rejected while the first write handle remains open.
+        /// </summary>
         [Test]
         public void OpenSecondWriterWhileFirstOpenReturnsBadNotWritable()
         {
@@ -174,6 +196,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that opening beyond the FileType handle bound returns BadTooManyOperations.
+        /// </summary>
         [Test]
         public void OpenBeyondMaxHandlesReturnsBadTooManyOperations()
         {
@@ -188,6 +213,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
+        /// <summary>
+        /// Verifies that the FileType open count tracks handle creation and closure.
+        /// </summary>
         [Test]
         public async Task OpenCountIncreasesAndDecreasesWithHandles()
         {
@@ -204,6 +232,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a valid read handle returns the stored file content.
+        /// </summary>
         [Test]
         public async Task ReadOnValidReadHandleReturnsContent()
         {
@@ -422,6 +453,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that reading past the end of a file succeeds with no bytes.
+        /// </summary>
         [Test]
         public async Task ReadPastEndOfFileReturnsEmptyAndSuccess()
         {
@@ -438,6 +472,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that reading through a write-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public async Task ReadOnWriteHandleReturnsBadInvalidState()
         {
@@ -450,6 +487,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
+        /// <summary>
+        /// Verifies that reading through an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task ReadWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -459,6 +499,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that writing through a valid write handle succeeds.
+        /// </summary>
         [Test]
         public async Task WriteOnValidWriteHandleSucceeds()
         {
@@ -471,6 +514,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that writing through a read-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public async Task WriteOnReadHandleReturnsBadInvalidState()
         {
@@ -483,6 +529,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
+        /// <summary>
+        /// Verifies that writing through an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public void WriteWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -492,6 +541,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that a write exceeding the file size bound returns BadOutOfMemory.
+        /// </summary>
         [Test]
         public async Task WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
@@ -515,6 +567,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that seeking backward permits in-place writes even when the file is at its size bound.
+        /// </summary>
         [Test]
         public async Task WriteAfterSeekingBackOverwritesInPlaceAtMaxSize()
         {
@@ -543,6 +598,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that write empty byte string is no-op.
+        /// </summary>
         [Test]
         public async Task WriteEmptyByteStringIsNoOp()
         {
@@ -564,6 +622,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that byte identical close does not invoke commit.
+        /// </summary>
         [Test]
         public async Task ByteIdenticalCloseDoesNotInvokeCommit()
         {
@@ -588,6 +649,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that write when authorize fails returns bad result.
+        /// </summary>
         [Test]
         public async Task WriteWhenAuthorizeFailsReturnsBadResult()
         {
@@ -608,6 +672,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that get position on read handle returns zero initially.
+        /// </summary>
         [Test]
         public async Task GetPositionOnReadHandleReturnsZeroInitially()
         {
@@ -623,6 +690,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(position, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that get position with invalid handle returns bad invalid argument.
+        /// </summary>
         [Test]
         public void GetPositionWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -633,6 +703,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that the reported file position advances with the current read offset.
+        /// </summary>
         [Test]
         public async Task GetPositionReflectsCurrentReadOffset()
         {
@@ -649,6 +722,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(position, Is.EqualTo(3ul));
         }
 
+        /// <summary>
+        /// Verifies that set position on read handle within bounds succeeds.
+        /// </summary>
         [Test]
         public async Task SetPositionOnReadHandleWithinBoundsSucceeds()
         {
@@ -697,6 +773,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that set position with invalid handle returns bad invalid argument.
+        /// </summary>
         [Test]
         public void SetPositionWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -706,6 +785,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that seeking a write handle invokes write authorization.
+        /// </summary>
         [Test]
         public async Task SetPositionOnWriteHandleCallsAuthorizeWrite()
         {
@@ -728,6 +810,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(setPosAuthCalled, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that set position on write handle when authorize fails returns bad result.
+        /// </summary>
         [Test]
         public async Task SetPositionOnWriteHandleWhenAuthorizeFailsReturnsBadResult()
         {
@@ -749,6 +834,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that close read handle succeeds without commit.
+        /// </summary>
         [Test]
         public async Task CloseReadHandleSucceedsWithoutCommit()
         {
@@ -766,6 +854,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(commitCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle with changed content invokes the commit callback.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWithContentInvokesCommitCallback()
         {
@@ -785,6 +876,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(committed, Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle waits for its asynchronous commit callback.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleAwaitsCommitCallbackAsync()
         {
@@ -812,6 +906,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle without content does not commit a version.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWithoutContentIsNoOp()
         {
@@ -829,6 +926,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(commitCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that closing an unknown handle returns BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task CloseWithInvalidHandleReturnsBadInvalidArgument()
         {
@@ -838,6 +938,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that closing a write handle propagates commit failure.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWhenCommitFailsReturnsBadResult()
         {
@@ -852,6 +955,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ServiceResult.IsBad(result), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that closing authorization failure still removes the write handle.
+        /// </summary>
         [Test]
         public async Task CloseWriteHandleWhenCloseAuthorizeFailsRemovesHandle()
         {
@@ -878,6 +984,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "Handle must be removed even when close-authorize fails.");
         }
 
+        /// <summary>
+        /// Verifies that a direct request to open a write handle succeeds.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleSucceeds()
         {
@@ -1085,6 +1194,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that direct write-handle creation enforces the concurrent handle bound.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleWhenMaxHandlesExceededReturnsBadTooManyOperations()
         {
@@ -1098,6 +1210,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that direct write-handle creation rejects a competing writer.
+        /// </summary>
         [Test]
         public void TryOpenWriteHandleWhenWriterAlreadyOpenReturnsBadNotWritable()
         {
@@ -1110,6 +1225,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that update persisted content sets the content key and file size.
+        /// </summary>
         [Test]
         public void UpdatePersistedContentSetsTheContentKeyAndFileSize()
         {
@@ -1126,6 +1244,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(harness.File.Size!.Value, Is.EqualTo((ulong)3));
         }
 
+        /// <summary>
+        /// Verifies that write then read round trips content.
+        /// </summary>
         [Test]
         public async Task WriteThenReadRoundTripsContent()
         {
@@ -1146,6 +1267,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that write handle passes stable baseline incarnation to commit.
+        /// </summary>
         [Test]
         public async Task WriteHandlePassesStableBaselineIncarnationToCommit()
         {
@@ -1192,6 +1316,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that second writer immediately uses committed content and incarnation.
+        /// </summary>
         [Test]
         public async Task SecondWriterImmediatelyUsesCommittedContentAndIncarnation()
         {
@@ -1249,6 +1376,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that disposing the file manager closes handles and resets its open count.
+        /// </summary>
         [Test]
         public async Task DisposeClosesAllOpenHandlesAndResetsState()
         {
@@ -1278,6 +1408,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             harness.Dispose();
         }
 
+        /// <summary>
+        /// Verifies that disposing the file manager twice has no additional effect.
+        /// </summary>
         [Test]
         public void SecondDisposeIsIdempotent()
         {
@@ -1287,6 +1420,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(() => harness.Dispose(), Throws.Nothing);
         }
 
+        /// <summary>
+        /// Verifies that operations on unknown FileType handles return BadInvalidArgument.
+        /// </summary>
         [Test]
         public async Task OperationsOnUnknownHandleReturnBadInvalidArgument()
         {
@@ -1332,6 +1468,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(forwarded, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that direct open conflicts with forwarded writer on same manager.
+        /// </summary>
         [Test]
         public void DirectOpenConflictsWithForwardedWriterOnSameManager()
         {
@@ -1347,6 +1486,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(direct, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that forwarded write then forwarded close commits and direct read sees it.
+        /// </summary>
         [Test]
         public async Task ForwardedWriteThenForwardedCloseCommitsAndDirectReadSeesIt()
         {
@@ -1386,6 +1528,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
+        /// <summary>
+        /// Verifies that forwarded read returns same content as direct read.
+        /// </summary>
         [Test]
         public async Task ForwardedReadReturnsSameContentAsDirectRead()
         {
@@ -1406,6 +1551,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(data.Span.ToArray(), Is.EqualTo(content));
         }
 
+        /// <summary>
+        /// Verifies that forwarded get position and set position operate on shared handle state.
+        /// </summary>
         [Test]
         public void ForwardedGetPositionAndSetPositionOperateOnSharedHandleState()
         {

@@ -57,6 +57,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
         private string m_root = null!;
 
+        /// <summary>
+        /// Creates an isolated storage directory for the registry tests.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -66,6 +69,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Directory.CreateDirectory(m_root);
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
@@ -915,6 +921,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that an injected resource store is required when the overload is used.
+        /// </summary>
         [Test]
         public void AnInjectedResourceStoreIsRequiredWhenTheOverloadIsUsed()
         {
@@ -1285,6 +1294,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             AssertDataFilesEqual(expected);
         }
 
+        /// <summary>
+        /// Verifies that duplicate group identifiers are rejected without modifying persisted files.
+        /// </summary>
         [Test]
         public Task DuplicateGroupIdsFailClosedWithoutChangingFiles()
         {
@@ -1320,6 +1332,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "document kind");
         }
 
+        /// <summary>
+        /// Verifies that duplicate resource identifiers are rejected without modifying persisted files.
+        /// </summary>
         [Test]
         public Task DuplicateResourceIdsFailClosedWithoutChangingFiles()
         {
@@ -1333,6 +1348,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "resource id");
         }
 
+        /// <summary>
+        /// Verifies that duplicate version identifiers are rejected without modifying persisted files.
+        /// </summary>
         [Test]
         public Task DuplicateVersionIdsFailClosedWithoutChangingFiles()
         {
@@ -1347,6 +1365,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "version id");
         }
 
+        /// <summary>
+        /// Verifies that case-colliding version identifiers are rejected without modifying persisted files.
+        /// </summary>
         [Test]
         public Task CaseCollidingVersionIdsFailClosedWithoutChangingFiles()
         {
@@ -1441,6 +1462,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             });
         }
 
+        /// <summary>
+        /// Verifies that cross-group resource spoof that duplicates node ID fails closed.
+        /// </summary>
         [Test]
         public Task CrossGroupResourceSpoofThatDuplicatesNodeIdFailsClosed()
         {
@@ -1456,6 +1480,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "spoofed-container");
         }
 
+        /// <summary>
+        /// Verifies that group and resource path identity collision fails segment safety.
+        /// </summary>
         [Test]
         public Task GroupAndResourcePathIdentityCollisionFailsSegmentSafety()
         {
@@ -1474,6 +1501,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "not segment-safe");
         }
 
+        /// <summary>
+        /// Verifies that cross-group resource path identity collision fails segment safety.
+        /// </summary>
         [Test]
         public Task CrossGroupResourcePathIdentityCollisionFailsSegmentSafety()
         {
@@ -1493,6 +1523,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "not segment-safe");
         }
 
+        /// <summary>
+        /// Verifies that public snapshot group ownership mismatch fails before disk mutation.
+        /// </summary>
         [Test]
         public Task PublicSnapshotGroupOwnershipMismatchFailsBeforeDiskMutation()
         {
@@ -1514,6 +1547,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WotRegistryGroups.ThingDescriptions);
         }
 
+        /// <summary>
+        /// Verifies that duplicate version identifiers in a public snapshot fail before any disk mutation.
+        /// </summary>
         [Test]
         public Task PublicSnapshotDuplicateVersionIdsFailBeforeDiskMutation()
         {
@@ -1578,6 +1614,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "is missing");
         }
 
+        /// <summary>
+        /// Verifies that public snapshot unsafe group identity fails before disk mutation.
+        /// </summary>
         [Test]
         public Task PublicSnapshotUnsafeGroupIdentityFailsBeforeDiskMutation()
         {
@@ -1609,6 +1648,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "not segment-safe");
         }
 
+        /// <summary>
+        /// Verifies that public snapshot unsafe resource ID fails before disk mutation.
+        /// </summary>
         [Test]
         public Task PublicSnapshotUnsafeResourceIdFailsBeforeDiskMutation()
         {
@@ -1633,6 +1675,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "not segment-safe");
         }
 
+        /// <summary>
+        /// Verifies that public snapshot unsafe version ID fails before disk mutation.
+        /// </summary>
         [Test]
         public Task PublicSnapshotUnsafeVersionIdFailsBeforeDiskMutation()
         {
@@ -2110,6 +2155,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             AssertDataFilesEqual(retained);
         }
 
+        /// <summary>
+        /// Verifies that a blob-directory synchronization failure leaves the primary registry generation readable.
+        /// </summary>
         [Test]
         public Task BlobDirectorySyncFailureLeavesPrimaryGenerationReadable()
         {
@@ -2117,6 +2165,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 FileWotRegistryStore.DirectorySyncPhase.BlobsBeforeManifest);
         }
 
+        /// <summary>
+        /// Verifies that root-directory synchronization failure before manifest publication leaves the primary
+        /// generation readable.
+        /// </summary>
         [Test]
         public Task RootBeforeManifestSyncFailureLeavesPrimaryGenerationReadable()
         {

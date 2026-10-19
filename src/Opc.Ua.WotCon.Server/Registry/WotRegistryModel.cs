@@ -245,6 +245,9 @@ namespace Opc.Ua.WotCon.Server.Registry
             init => m_validation = (WoTValidationOutcomeDataType?)value?.Clone();
         }
 
+        /// <summary>
+        /// Gets whether format or compatibility validation failed or rejected this version.
+        /// </summary>
         internal bool HasValidationFailure =>
             m_validation?.FormatOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected ||
             m_validation?.CompatibilityOutcome is WoTOutcomeEnum.Failed or WoTOutcomeEnum.Rejected;
@@ -654,6 +657,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         internal ArrayOf<WotResource> CommittedInputs { get; private set; }
 
+        /// <summary>
+        /// Gets current versions and versions retained by the committed publication and its resolution inputs.
+        /// </summary>
         internal IEnumerable<WotResourceVersion> RetainedVersions
         {
             get
@@ -878,6 +884,10 @@ namespace Opc.Ua.WotCon.Server.Registry
             return updated;
         }
 
+        /// <summary>
+        /// Copies the resource with validated, content-bearing resolution inputs retained for its active publication.
+        /// </summary>
+        /// <param name="inputs">The captured resource versions required to resolve the active publication.</param>
         internal WotResource WithCommittedInputs(ArrayOf<WotResource> inputs)
         {
             if (!inputs.IsNull && (ActiveVersionId is null || CommittedVersion is null))

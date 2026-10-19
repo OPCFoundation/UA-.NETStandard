@@ -58,6 +58,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -70,6 +73,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -814,6 +820,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(failure.FailedNodeId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that failure event data can retain a concrete failed node identifier.
+        /// </summary>
         [Test]
         public void FailedNodeIdCanCarryConcreteNodeId()
         {

@@ -442,7 +442,7 @@ namespace Opc.Ua.Tools.Tests
                 !entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) &&
                 !entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) &&
                 !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)),
-                Is.All.Matches<MatrixEntry>(entry => entry.PerProjectTimeout == 45));
+                Is.All.Matches<MatrixEntry>(entry => entry != null && entry.PerProjectTimeout == 45));
         }
 
         /// <summary>

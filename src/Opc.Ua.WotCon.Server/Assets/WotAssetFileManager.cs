@@ -120,6 +120,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             m_file.LastModifiedTime?.Value = DateTime.UtcNow;
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             lock (m_gate)
@@ -616,16 +617,33 @@ namespace Opc.Ua.WotCon.Server.Assets
         private uint m_writingHandle;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for WoT asset file manager.
+    /// </summary>
     internal static partial class WotAssetFileManagerLog
     {
+        /// <summary>
+        /// Logs a Thing Description rejected because its JSON cannot be parsed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 0, Level = LogLevel.Warning,
             Message = "Thing description JSON could not be parsed")]
         public static partial void ThingDescriptionJsonCouldNotBeParsed(this ILogger logger, JsonException ex);
 
+        /// <summary>
+        /// Logs an uploaded document rejected before materialization because format validation failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 1, Level = LogLevel.Warning,
             Message = "Uploaded document failed format validation and materialized nothing")]
         public static partial void ThingDescriptionFailedFormatValidation(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a valid JSON upload rejected because it is not a Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotAssetFileManager + 2, Level = LogLevel.Warning,
             Message = "Uploaded document is well formed JSON but is not a Thing Description " +
                 "and materialized nothing")]

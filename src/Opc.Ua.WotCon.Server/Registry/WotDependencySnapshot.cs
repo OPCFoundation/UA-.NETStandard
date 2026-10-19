@@ -160,6 +160,9 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         public ByteString ContentDigest => ByteString.From(m_contentDigest.Span.ToArray());
 
+        /// <summary>
+        /// Converts the pinned dependency target to its OPC UA data representation, including an origin when present.
+        /// </summary>
         internal WoTResolvedDependencyTargetDataType ToDataType()
         {
             var result = new WoTResolvedDependencyTargetDataType
@@ -325,6 +328,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private readonly ByteString m_effectiveInputDigest;
 
+        /// <summary>
+        /// Holds the validated canonical graph associated with a dependency snapshot.
+        /// </summary>
         internal sealed class ValidatedGraph
         {
             /// <summary>

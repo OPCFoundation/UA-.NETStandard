@@ -55,6 +55,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [Category("WoT")]
     public sealed class WotProjectionViewCoordinatorTests
     {
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -94,6 +97,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

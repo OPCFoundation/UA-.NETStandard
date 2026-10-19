@@ -187,6 +187,11 @@ namespace Opc.Ua.WotCon.Server
             m_engine.Dispose();
         }
 
+        /// <summary>
+        /// Links projected method argument properties using the XRegistry projection implementation.
+        /// </summary>
+        /// <param name="node">The source node associated with the registration or view check.</param>
+        /// <param name="context">The system context used for the operation.</param>
         internal static void LinkMethodArguments(NodeState? node, ISystemContext context)
         {
             XRegistryProjectionEngine.LinkMethodArguments(node, context);

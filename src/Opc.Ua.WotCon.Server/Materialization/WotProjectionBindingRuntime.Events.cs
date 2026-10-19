@@ -41,6 +41,9 @@ using Opc.Ua.WotCon.Bindings;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
+    /// <summary>
+    /// Connects projected property, action, and event affordances to their compiled protocol bindings.
+    /// </summary>
     public sealed partial class WotProjectionBindingRuntime
     {
         private async ValueTask WireProjectedEventsAsync(

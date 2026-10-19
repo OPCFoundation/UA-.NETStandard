@@ -691,6 +691,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(actual[2], Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that forms without target mapping are ignored.
+        /// </summary>
         [Test]
         public async Task FormsWithoutTargetMappingAreIgnored()
         {
@@ -862,6 +865,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that non-executable forms are ignored.
+        /// </summary>
         [Test]
         public async Task NonExecutableFormsAreIgnored()
         {
@@ -940,6 +946,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects conflicting direct and structured-field target mappings.
+        /// </summary>
         [Test]
         public async Task ConflictingDirectAndFieldMappingThrowsDuringWire()
         {
@@ -961,6 +970,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate read mappings.
+        /// </summary>
         [Test]
         public async Task DuplicateReadMappingThrowsDuringWire()
         {
@@ -982,6 +994,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate write mappings.
+        /// </summary>
         [Test]
         public async Task DuplicateWriteMappingThrowsDuringWire()
         {
@@ -1003,6 +1018,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects an unsupported binding operation.
+        /// </summary>
         [Test]
         public async Task UnsupportedOperationThrowsDuringWire()
         {
@@ -1019,6 +1037,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that concurrent first use opens a lazy binding channel only once.
+        /// </summary>
         [Test]
         public async Task LazyOpenConcurrentFirstUseOpensChannelOnce()
         {
@@ -1050,6 +1071,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Concurrent first use must open the shared channel exactly once.");
         }
 
+        /// <summary>
+        /// Verifies that a failed channel open is evicted so a later attempt can succeed.
+        /// </summary>
         [Test]
         public async Task FailedOpenIsEvictedRetrySucceeds()
         {
@@ -1091,6 +1115,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(attempt, Is.EqualTo(2), "The faulted open must be evicted so the retry opens again.");
         }
 
+        /// <summary>
+        /// Verifies that runtime disposal releases every opened channel and aggregates disposal failures.
+        /// </summary>
         [Test]
         public async Task DisposeDisposesOpenedChannelsAggregatesFailures()
         {
@@ -1130,6 +1157,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(writeChannel.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that separate runtime generations own independent channels and disposal lifetimes.
+        /// </summary>
         [Test]
         public async Task GenerationIsolationTwoRuntimesHaveIndependentChannelsAndDisposal()
         {
@@ -1172,6 +1202,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channel2.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a structured read composes the directly mapped field values.
+        /// </summary>
         [Test]
         public async Task StructuredOneLevelReadComposesFields()
         {
@@ -1202,6 +1235,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(root.A, Is.EqualTo(11));
         }
 
+        /// <summary>
+        /// Verifies that a structured write extracts the directly mapped field values.
+        /// </summary>
         [Test]
         public async Task StructuredOneLevelWriteExtractsFields()
         {
@@ -1235,6 +1271,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a structured read composes nested field values.
+        /// </summary>
         [Test]
         public async Task StructuredNestedReadComposesNestedStructure()
         {
@@ -1268,6 +1307,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(child.X, Is.EqualTo(99));
         }
 
+        /// <summary>
+        /// Verifies that a structured write extracts a nested field value.
+        /// </summary>
         [Test]
         public async Task StructuredNestedWriteExtractsNestedField()
         {
@@ -1302,6 +1344,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int x) && x == 77, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the first structured read deterministically rejects an unknown field.
+        /// </summary>
         [Test]
         public async Task StructuredUnknownFieldFirstReadFailsDeterministically()
         {
@@ -1324,6 +1369,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that the first structured read rejects a path through an array-valued intermediate field.
+        /// </summary>
         [Test]
         public async Task StructuredArrayValuedIntermediateFieldFirstReadFailsDeterministically()
         {
@@ -1344,6 +1392,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that the first structured read rejects a path containing an empty segment.
+        /// </summary>
         [Test]
         public async Task StructuredEmptyPathSegmentFirstReadFailsDeterministically()
         {
@@ -1364,6 +1415,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that an unregistered structure type fails the first read but can be retried after registration.
+        /// </summary>
         [Test]
         public async Task StructuredUnregisteredTypeFirstReadFailsDeterministicallyThenRetrySucceedsAfterRegistration()
         {
@@ -1416,6 +1470,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(((TestRootStructure)encodeable!).A, Is.EqualTo(11));
         }
 
+        /// <summary>
+        /// Verifies that an unregistered structure type fails the first write but can be retried after registration.
+        /// </summary>
         [Test]
         public async Task StructuredUnregisteredTypeFirstWriteFailsDeterministicallyThenRetrySucceedsAfterRegistration()
         {
@@ -1463,6 +1520,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a partial structured read failure produces a bad aggregate status.
+        /// </summary>
         [Test]
         public async Task StructuredPartialReadFailureReturnsBadStatus()
         {
@@ -1500,6 +1560,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A single failing field must fail the whole structured read.");
         }
 
+        /// <summary>
+        /// Verifies that a partial structured read preserves the failing field status and available timestamp.
+        /// </summary>
         [Test]
         public async Task StructuredPartialReadFailureReturnsFailedFieldStatusAndTimestampWhenAvailable()
         {
@@ -1541,6 +1604,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(value.SourceTimestamp, Is.EqualTo(staleTimestamp));
         }
 
+        /// <summary>
+        /// Verifies that a structured read preserves a non-default good status and the oldest source timestamp.
+        /// </summary>
         [Test]
         public async Task StructuredReadPreservesNonDefaultGoodStatusAndUsesOldestSourceTimestamp()
         {
@@ -1690,6 +1756,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channelChildX.WriteCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate structured-field mappings.
+        /// </summary>
         [Test]
         public async Task StructuredDuplicateFieldMappingThrowsDuringWire()
         {

@@ -54,6 +54,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Registers a binding generation under its resource identity and event-affordance pointer.
+        /// </summary>
+        /// <param name="binding">The projected event binding to register.</param>
         public void Add(WotProjectedEventBinding binding)
         {
             lock (m_gate)
@@ -89,6 +93,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Resolves a projected event identifier across compatible generations of the requesting binding.
+        /// </summary>
+        /// <param name="requester">The binding requesting resolution of a projected event identifier.</param>
+        /// <param name="eventId">The projected event identifier to resolve.</param>
+        /// <param name="originalEventId">The source event identifier when resolution succeeds.</param>
         public ServiceResult Resolve(
             WotProjectedEventBinding requester, ByteString eventId, out ByteString originalEventId)
         {

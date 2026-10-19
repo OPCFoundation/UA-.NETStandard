@@ -293,7 +293,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 original.OperationInfo, payload, original.Security, original.IsExecutable);
             if (conflicting)
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     await using IWotBindingChannel channel = await harness.OpenAsync(form).ConfigureAwait(false);
                 });

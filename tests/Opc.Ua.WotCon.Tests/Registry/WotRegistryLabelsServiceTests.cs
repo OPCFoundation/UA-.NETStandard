@@ -49,6 +49,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static readonly string[] s_alphaZebraLabels = ["alpha", "zebra"];
         private static readonly string[] s_zebraLabel = ["zebra"];
 
+        /// <summary>
+        /// Verifies that adding a resource label creates the key and later updates its value.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelAddsThenUpdatesValue()
         {
@@ -71,6 +74,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(resource.Labels["site"], Is.EqualTo("portland"));
         }
 
+        /// <summary>
+        /// Verifies that removing a resource label removes its key.
+        /// </summary>
         [Test]
         public async Task RemoveResourceLabelRemovesKey()
         {
@@ -87,6 +93,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(resource!.Labels.ContainsKey("site"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that removing an unknown resource label fails.
+        /// </summary>
         [Test]
         public async Task RemoveResourceLabelUnknownKeyFails()
         {
@@ -100,6 +109,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(removed.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update rejects a mismatched epoch.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelEpochMismatchRejected()
         {
@@ -116,6 +128,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a resource label update succeeds with the current epoch.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelCorrectEpochSucceeds()
         {
@@ -129,6 +144,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update rejects a missing key.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelMissingKeyThrows()
         {
@@ -138,6 +156,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update rejects invalid and reserved keys.
+        /// </summary>
+        /// <param name="key">The content lookup key.</param>
         [TestCase("Add\u0007Attribute")] // control character
         [TestCase("a/b")]                // path separator
         [TestCase("a\u202Eb")]           // BIDI override
@@ -150,6 +172,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 async () => await service.AddResourceLabelAsync("sensors", "a", key, "x"));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update enforces the key length bound.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelKeyTooLongThrows()
         {
@@ -161,6 +186,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update enforces the value length bound.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelValueTooLongThrows()
         {
@@ -172,6 +200,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that a resource label update enforces the per-entity label count bound.
+        /// </summary>
         [Test]
         public async Task AddResourceLabelExceedsMaxLabelsPerEntityThrows()
         {
@@ -192,6 +223,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(update.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
         }
 
+        /// <summary>
+        /// Verifies group label creation, replacement, removal, epoch checks, and ordering.
+        /// </summary>
         [Test]
         public async Task GroupLabelsAddUpdateRemoveEpochAndOrdering()
         {
@@ -217,6 +251,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Is.EqualTo(s_zebraLabel));
         }
 
+        /// <summary>
+        /// Verifies that adding a label to an unknown registry group fails.
+        /// </summary>
         [Test]
         public async Task AddGroupLabelUnknownGroupFails()
         {
@@ -227,6 +264,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
         }
 
+        /// <summary>
+        /// Verifies that registry label mutations use the captured snapshot generation as their epoch.
+        /// </summary>
         [Test]
         public async Task RegistryLabelsAddUpdateRemoveUsesSnapshotGenerationAsEpoch()
         {
@@ -248,6 +288,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(service.Current.Labels.ContainsKey("environment"), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that label mutations are projection-only and do not change resource content.
+        /// </summary>
         [Test]
         public async Task LabelMutationsAreProjectionOnlyAndDoNotChangeResourceContent()
         {
@@ -270,6 +313,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "Label-only mutations must not re-trigger materialization.");
         }
 
+        /// <summary>
+        /// Verifies that version label mutations are projection-only but content mutations are not.
+        /// </summary>
         [Test]
         public async Task VersionLabelMutationsAreProjectionOnlyButContentMutationsAreNot()
         {

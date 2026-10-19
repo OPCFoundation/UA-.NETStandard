@@ -83,6 +83,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.Form"/>
         public WotCompiledForm Form { get; }
 
         /// <summary>
@@ -235,6 +236,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 onEvent, WotCapturedEvent.GetRequiredSelectClauses(coreEventType), cancellationToken);
         }
 
+        /// <inheritdoc />
         public ValueTask DisposeAsync()
         {
             m_eventSource?.DisposeBinding();
@@ -1046,8 +1048,18 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         private readonly WotEventSource? m_eventSource;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for OPC UA WoT binding channel.
+    /// </summary>
     internal static partial class OpcUaWotBindingChannelLog
     {
+        /// <summary>
+        /// Logs event select clauses that attempt to populate the same WoT data member.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="memberPath">The WoT event data member receiving more than one selected field.</param>
+        /// <param name="typeDefinitionId">The type definition selected by the event select clause.</param>
+        /// <param name="browsePath">The qualified path selected from the source event.</param>
         [LoggerMessage(
             EventId = WotConBindingsEventIds.OpcUaWotBindingChannel + 0,
             Level = LogLevel.Error,

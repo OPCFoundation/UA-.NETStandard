@@ -45,6 +45,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class WotProjectionDeclarationContext
     {
+        /// <summary>
+        /// Initializes declaration classification from the captured registry and content reader.
+        /// </summary>
+        /// <param name="snapshot">The captured registry snapshot used for declaration classification.</param>
+        /// <param name="maxJsonDepth">The maximum accepted JSON nesting depth.</param>
+        /// <param name="readContent">The callback used to read captured resource version content.</param>
+        /// <param name="maxNodes">The maximum number of nodes retained in the native ownership index.</param>
         public WotProjectionDeclarationContext(
             WotRegistrySnapshot snapshot,
             int maxJsonDepth,
@@ -82,6 +89,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_declarations.Clear();
         }
 
+        /// <summary>
+        /// Indexes available native projection partitions from enabled registry resources within configured bounds.
+        /// </summary>
+        /// <param name="contents">The captured content indexed by digest.</param>
+        /// <param name="options">The conversion limits and projection compatibility settings.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public void AddAvailableNativePartitions(
             IReadOnlyDictionary<string, ByteString> contents,
             WotNodeSetConverterOptions options,
@@ -124,6 +137,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Adds a dependency NodeSet to the native ownership index and invalidates cached classifications.
+        /// </summary>
+        /// <param name="nodeSet">The dependency NodeSet to add to the ownership index.</param>
         public void AddDependencyNodeSet(UANodeSet nodeSet)
         {
             m_native.Add(nodeSet, null, ExpandedNodeId.Null);
@@ -163,6 +180,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 : [];
         }
 
+        /// <summary>
+        /// Classifies a resource through declaration containment, rejecting cycles in the containment graph.
+        /// </summary>
+        /// <param name="resource">The registry resource to classify or return in the result.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public async ValueTask<bool> IsDeclarationAsync(
             WotResource resource, CancellationToken cancellationToken)
         {

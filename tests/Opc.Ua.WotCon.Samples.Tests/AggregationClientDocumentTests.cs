@@ -36,6 +36,9 @@ using AggregationClient;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Tests endpoint substitution in aggregation client documents.
+    /// </summary>
     [TestFixture]
     public sealed class AggregationClientDocumentTests
     {
@@ -128,6 +131,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("source"));
         }
 
+        /// <summary>
+        /// Verifies that substitution targets only root and affordance forms.
+        /// </summary>
         [Test]
         public void SubstitutionTargetsOnlyRootAndAffordanceForms()
         {
@@ -167,6 +173,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("${SOURCE_B_ENDPOINT}"));
         }
 
+        /// <summary>
+        /// Verifies that substitution does not interpret forms in opaque content.
+        /// </summary>
+        /// <param name="name">The name assigned to the node or field used by the operation.</param>
         [TestCase("uav:nodes")]
         [TestCase("uav:nodeSet")]
         [TestCase("uav:metadata")]
@@ -191,6 +201,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 .GetProperty("forms")[0].GetProperty("href").GetString(), Is.EqualTo("${SOURCE_B_ENDPOINT}"));
         }
 
+        /// <summary>
+        /// Verifies that documents without substitutable forms keep their original bytes.
+        /// </summary>
+        /// <param name="input">The input value supplied by the test case.</param>
         [TestCase("{ \"x-vendor\": { \"href\": \"${SOURCE_A_ENDPOINT}\" } }\r\n")]
         [TestCase("{ \"forms\": [{ \"href\": \"${SOURCE_A_ENDPOINT}/suffix\" }] }\r\n")]
         [TestCase("{ \"title\": \"No placeholders\", \"value\": 1.00 }\r\n")]

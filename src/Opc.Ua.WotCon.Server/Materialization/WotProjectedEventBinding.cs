@@ -145,12 +145,24 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Gets the source subscription shared by this projected event binding.
+        /// </summary>
         public WotProjectedEventSource Source { get; }
 
+        /// <summary>
+        /// Gets the local notifier used to publish projected events.
+        /// </summary>
         public BaseObjectState Notifier { get; }
 
+        /// <summary>
+        /// Gets the local event type used by this binding.
+        /// </summary>
         public NodeId EventTypeId { get; }
 
+        /// <summary>
+        /// Gets the projected condition state, when the binding represents a condition.
+        /// </summary>
         public ConditionState? Condition { get; }
 
         /// <summary>
@@ -158,8 +170,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public bool IsCondition { get; }
 
+        /// <summary>
+        /// Gets the registry resource identity associated with the event affordance.
+        /// </summary>
         public string ResourceXid { get; }
 
+        /// <summary>
+        /// Gets the document pointer identifying the event affordance.
+        /// </summary>
         public string JsonPointer { get; }
 
         /// <summary>
@@ -172,6 +190,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public WoTEventIdentityModeEnum IdentityMode { get; }
 
+        /// <summary>
+        /// Gets whether the binding currently has a bad failure status.
+        /// </summary>
         public bool IsFaulted
         {
             get
@@ -183,6 +204,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Rejects operations when the projected event binding is unavailable.
+        /// </summary>
         public void EnsureAvailable()
         {
             lock (m_gate)
@@ -247,6 +271,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Resolves a local projected event identifier to its original source event identifier.
+        /// </summary>
+        /// <param name="localEventId">The local event identifier issued by the projected binding.</param>
+        /// <param name="originalEventId">The source event identifier when resolution succeeds.</param>
         public ServiceResult ResolveEventId(ByteString localEventId, out ByteString originalEventId)
         {
             return m_routeRegistry.Resolve(this, localEventId, out originalEventId);
@@ -347,6 +376,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return false;
         }
 
+        /// <summary>
+        /// Retires the binding and clears retained event routes, conditions, actions, and identity reservations.
+        /// </summary>
         public void Clear()
         {
             lock (m_gate)
@@ -1079,6 +1111,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Converts a captured node identifier to a namespace-portable identifier, rejecting remote server references.
+        /// </summary>
+        /// <param name="value">The captured source node identifier to make namespace-portable.</param>
+        /// <param name="namespaces">The captured namespace table used to interpret node identifiers.</param>
         internal static ExpandedNodeId ReadPortableNodeId(Variant value, ArrayOf<string> namespaces)
         {
             if (value.IsNull)

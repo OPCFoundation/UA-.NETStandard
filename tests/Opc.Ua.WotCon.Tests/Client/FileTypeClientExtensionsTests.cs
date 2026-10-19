@@ -47,6 +47,9 @@ namespace Opc.Ua.WotCon.Tests.Client
     [Parallelizable(ParallelScope.All)]
     public class FileTypeClientExtensionsTests
     {
+        /// <summary>
+        /// Verifies that chunked upload preserves every byte and its order for a seekable stream.
+        /// </summary>
         [Test]
         public async Task CopyStreamInChunksSeekableStreamWritesAllBytesInOrderAsync()
         {
@@ -73,6 +76,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(chunks[0], Has.Length.EqualTo(1024));
         }
 
+        /// <summary>
+        /// Verifies that chunked upload preserves every byte and its order for a non-seekable stream.
+        /// </summary>
         [Test]
         public async Task CopyStreamInChunksNonSeekableStreamWritesAllBytesInOrderAsync()
         {
@@ -96,6 +102,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(Flatten(chunks), Is.EqualTo(data));
         }
 
+        /// <summary>
+        /// Verifies that an empty stream produces no chunk write calls.
+        /// </summary>
         [Test]
         public async Task CopyStreamInChunksEmptyStreamMakesNoWriteCallsAsync()
         {
@@ -114,6 +123,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(writes, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies the chunk count when stream length is an exact multiple of the configured chunk size.
+        /// </summary>
         [Test]
         public async Task CopyStreamInChunksExactMultipleEmitsExpectedChunkCountAsync()
         {
@@ -133,6 +145,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(writes, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that chunked stream upload observes cancellation.
+        /// </summary>
         [Test]
         public void CopyStreamInChunksHonorsCancellation()
         {
@@ -146,6 +161,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                     cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that downloaded chunks are appended to the destination stream in order.
+        /// </summary>
         [Test]
         public async Task CopyChunksToStreamAccumulatesAllChunksInOrderAsync()
         {
@@ -221,6 +239,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(closed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that copying downloaded chunks observes cancellation.
+        /// </summary>
         [Test]
         public void CopyChunksToStreamHonorsCancellation()
         {
@@ -234,6 +255,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                     cts.Token).ConfigureAwait(false), Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that stream upload writes all bytes and closes the remote file handle.
+        /// </summary>
         [Test]
         public async Task UploadStreamEndToEndWritesAllBytesAndClosesAsync()
         {
@@ -333,6 +357,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(closed, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that stream upload rejects a null FileType client.
+        /// </summary>
         [Test]
         public void UploadStreamNullFileThrows()
         {
@@ -340,6 +367,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await ((FileTypeClient)null!).UploadAsync(source).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that stream upload rejects a null input stream.
+        /// </summary>
         [Test]
         public void UploadStreamNullStreamThrows()
         {
@@ -348,6 +378,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.UploadAsync((Stream)null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that stream upload rejects an unreadable input stream.
+        /// </summary>
         [Test]
         public void UploadStreamNonReadableThrows()
         {
@@ -358,6 +391,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.UploadAsync(writeOnly).ConfigureAwait(false), Throws.ArgumentException);
         }
 
+        /// <summary>
+        /// Verifies that stream upload rejects an invalid chunk size.
+        /// </summary>
         [Test]
         public void UploadStreamInvalidChunkSizeThrows()
         {
@@ -367,6 +403,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.UploadAsync(source, chunkSize: 0).ConfigureAwait(false), Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
+        /// <summary>
+        /// Verifies that stream download rejects a null FileType client.
+        /// </summary>
         [Test]
         public void DownloadToStreamNullFileThrows()
         {
@@ -374,6 +413,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await ((FileTypeClient)null!).DownloadToAsync(dest).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that stream download rejects a null destination stream.
+        /// </summary>
         [Test]
         public void DownloadToStreamNullDestinationThrows()
         {
@@ -382,6 +424,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.DownloadToAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that stream download rejects an unwritable destination stream.
+        /// </summary>
         [Test]
         public void DownloadToStreamNonWritableThrows()
         {
@@ -391,6 +436,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.DownloadToAsync(readOnly).ConfigureAwait(false), Throws.ArgumentException);
         }
 
+        /// <summary>
+        /// Verifies that stream download rejects an invalid chunk size.
+        /// </summary>
         [Test]
         public void DownloadToStreamInvalidChunkSizeThrows()
         {
@@ -400,6 +448,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(async () => await file.DownloadToAsync(dest, chunkSize: -1).ConfigureAwait(false), Throws.InstanceOf<ArgumentOutOfRangeException>());
         }
 
+        /// <summary>
+        /// Verifies that uploading an empty stream still opens and closes the remote file handle.
+        /// </summary>
         [Test]
         public async Task UploadStreamEmptyStreamStillOpensAndClosesAsync()
         {
@@ -424,6 +475,9 @@ namespace Opc.Ua.WotCon.Tests.Client
             Assert.That(writes, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a failed stream write still closes the remote file handle.
+        /// </summary>
         [Test]
         public async Task UploadStreamCloseCalledEvenWhenWriteFailsAsync()
         {

@@ -720,6 +720,9 @@ namespace Opc.Ua.Server
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
 
+        /// <summary>
+        /// Gets whether the monitored-item manager and all current items support source-emission cutoff.
+        /// </summary>
         internal bool SupportsSourceEmissionCutoff =>
             (m_monitoredItemManager.GetType() == typeof(MonitoredNodeMonitoredItemManager) ||
                 m_monitoredItemManager.GetType() == typeof(SamplingGroupMonitoredItemManager)) &&
@@ -7877,6 +7880,10 @@ namespace Opc.Ua.Server
             return !nodeId.IsNull && RootNotifiers.TryGetValue(nodeId, out _);
         }
 
+        /// <summary>
+        /// Removes an alarm root notifier only if the registered notifier is the same node instance.
+        /// </summary>
+        /// <param name="notifier">The alarm root notifier to remove if it is still registered.</param>
         internal ValueTask RemoveAlarmRootNotifierAsync(NodeState notifier)
         {
             return RootNotifiers.TryGetValue(notifier.NodeId, out NodeState? current) &&
@@ -11151,6 +11158,7 @@ namespace Opc.Ua.Server
         /// Counts admitted operations until their semaphore work and deferred callbacks finish.
         /// </summary>
         private int m_operationCount;
+
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>
@@ -11171,6 +11179,7 @@ namespace Opc.Ua.Server
         /// monitored items. A single channel reader still preserves notification order.
         /// </summary>
         internal NodeIdDictionary<bool> MultiConsumerNodeIds { get; } = [];
+
         /// <summary>
         /// Assigns NodeIds to nodes created at runtime.
         /// </summary>
@@ -11224,6 +11233,12 @@ namespace Opc.Ua.Server
             Message = "Could not restore monitored item for node {NodeId}.")]
         public static partial void MonitoredItemRestoreFailed(this ILogger logger, Exception exception, NodeId nodeId);
 
+        /// <summary>
+        /// Logs a reference target resolution failure while remaining references continue to be processed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="targetId">The identifier of the reference target that could not be resolved.</param>
         [LoggerMessage(EventId = ServerEventIds.AsyncCustomNodeManager + 2, Level = LogLevel.Warning,
             Message = "Could not resolve referenced target {TargetId}; continuing with the remaining references.")]
         public static partial void ReferenceTargetResolutionFailed(

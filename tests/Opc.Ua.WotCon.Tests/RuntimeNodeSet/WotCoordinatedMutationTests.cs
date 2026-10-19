@@ -59,6 +59,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
     [NonParallelizable]
     public sealed class WotCoordinatedMutationTests : IAsyncDisposable
     {
+        /// <summary>
+        /// Creates leased registry storage and initializes the server fixtures for coordinated mutation tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -132,6 +135,9 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             }
         }
 
+        /// <summary>
+        /// Disposes the coordinated mutation server and registry fixtures.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

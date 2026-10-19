@@ -74,6 +74,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 m_root, directorySyncFailureInjector, manifestReplace, resourceStore: m_content);
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             m_content?.Dispose();

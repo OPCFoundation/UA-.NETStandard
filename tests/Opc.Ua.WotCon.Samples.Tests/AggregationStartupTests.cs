@@ -39,11 +39,17 @@ using AggregationServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Tests aggregation sample target frameworks and protocol executor registration.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Samples")]
     public sealed class AggregationStartupTests
     {
+        /// <summary>
+        /// Verifies that sample targets only executable aggregation frameworks.
+        /// </summary>
         [Test]
         public void SampleTargetsOnlyExecutableAggregationFrameworks()
         {
@@ -63,6 +69,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 Is.EqualTo("$(AppTargetFrameworks)"));
         }
 
+        /// <summary>
+        /// Verifies that the aggregation host registers an OPC UA binding executor.
+        /// </summary>
         [Test]
         public void AggregationHostRegistersOpcUaExecutor()
         {

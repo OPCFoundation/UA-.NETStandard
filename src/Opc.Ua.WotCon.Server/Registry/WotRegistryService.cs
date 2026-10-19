@@ -3324,6 +3324,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ? resourceId : NormalizeSegment(resourceId, nameof(resourceId));
         }
 
+        /// <summary>
+        /// Determines whether an explicit version identifier meets the supported character and length restrictions.
+        /// </summary>
+        /// <param name="value">The value supplied to the operation.</param>
         internal static bool IsValidExplicitVersionId(string value)
         {
             if (string.IsNullOrEmpty(value) || value.Length > 128)

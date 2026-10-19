@@ -266,6 +266,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an HTTP not-found response maps to BadNodeIdUnknown.
+        /// </summary>
         [Test]
         public async Task HttpNotFoundMapsToBadNodeIdUnknown()
         {

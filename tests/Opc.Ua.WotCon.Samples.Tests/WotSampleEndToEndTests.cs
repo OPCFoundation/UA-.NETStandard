@@ -46,6 +46,9 @@ using FlatTagServer;
 
 namespace Opc.Ua.WotCon.Samples.Tests
 {
+    /// <summary>
+    /// Tests document loading and dependency validation through the running aggregation samples.
+    /// </summary>
     [TestFixture]
     [Category("WotCon")]
     [Category("Integration")]
@@ -486,6 +489,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 connection.Session, sourceA.Session, sourceB.Session, timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that invalid document fails through real loader.
+        /// </summary>
         [Test]
         public async Task InvalidDocumentFailsThroughRealLoaderAsync()
         {
@@ -520,6 +526,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
         }
 
+        /// <summary>
+        /// Verifies that missing manifest dependency fails before upload.
+        /// </summary>
         [Test]
         public async Task MissingManifestDependencyFailsBeforeUploadAsync()
         {

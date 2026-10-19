@@ -64,6 +64,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private const string PumpsNamespace = "http://opcfoundation.org/UA/Pumps/";
         private const string PumpInstanceNamespace = "urn:opcfoundation.org:UA:WotAggregation:PumpInstance";
 
+        /// <summary>
+        /// Verifies that checked-in Thing Models match formatted converter output.
+        /// </summary>
         [Test]
         public void ThingModelsMatchFormattedConverterRegeneration()
         {
@@ -107,6 +110,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that the checked-in pump Thing Description matches formatted regeneration.
+        /// </summary>
         [Test]
         public void PumpThingDescriptionMatchesFormattedRegeneration()
         {
@@ -138,6 +144,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             TestContext.Out.WriteLine($"SamplePump.td.json: {regenerated.Length} bytes");
         }
 
+        /// <summary>
+        /// Verifies that checked-in pump asset projection documents match formatted regeneration.
+        /// </summary>
         [Test]
         public void PumpAssetProjectionDocumentsMatchFormattedRegeneration()
         {
@@ -182,6 +191,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Regenerates the asset projection documents used by the aggregation samples.
+        /// </summary>
         [Test]
         [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
         public async Task WriteAssetProjectionDocuments()
@@ -196,6 +208,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest documents match regeneration of the complete aggregation document set.
+        /// </summary>
         [Test]
         public async Task ManifestDocumentsMatchCompleteAsyncRegeneration()
         {
@@ -222,6 +237,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(File.ReadAllBytes(DocumentPath("documents.json"))));
         }
 
+        /// <summary>
+        /// Regenerates the complete aggregation document set.
+        /// </summary>
         [Test]
         [Explicit("Rewrites the complete sample manifest and its generated documents.")]
         public async Task WriteCompleteAggregationDocumentsAsync()
@@ -232,6 +250,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 DocumentPath(string.Empty), documents).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that checked-in JSON sample documents use indented serialization.
+        /// </summary>
         [Test]
         public void CheckedInJsonDocumentsUseIndentedSerialization()
         {
@@ -584,6 +605,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Select(form => form.EventSelection!.Origin), Is.All.EqualTo(WotEventSelectionOrigin.Standard));
         }
 
+        /// <summary>
+        /// Verifies that each model document owns the namespaces it declares.
+        /// </summary>
         [Test]
         public void ModelDocumentsOwnTheirDeclaredNamespaces()
         {
@@ -1064,6 +1088,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump NodeSet has required model dependencies and type definition.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetHasRequiredModelDependenciesAndTypeDefinition(string pumpName)
@@ -1110,6 +1138,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump NodeSet has stable required hierarchy.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetHasStableRequiredHierarchy(string pumpName)
@@ -1142,6 +1174,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that cloning a pump preserves its complete graph without introducing references to another pump.
+        /// </summary>
         [Test]
         public void PumpNodeSetClonesTheCompleteGraphWithoutCrossPumpReferences()
         {
@@ -1328,6 +1363,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump NodeSet uses qualified parent node IDs.
+        /// </summary>
         [Test]
         public void PumpNodeSetUsesQualifiedParentNodeIds()
         {
@@ -1345,6 +1383,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump analog measurements carry engineering unit metadata.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpAnalogMeasurementsCarryEngineeringUnitMetadata(string pumpName)
@@ -1506,6 +1548,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that live alarm signals are not constrained to their initial value.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="path">The qualified browse path identifying the captured event field.</param>
         [TestCase("Pump1", "Events.SupervisionProcessFluid.Cavitation")]
         [TestCase("Pump1", "Events.SupervisionPumpOperation.MotorOverheat")]
         [TestCase("Pump2", "Events.SupervisionProcessFluid.Cavitation")]
@@ -1521,6 +1568,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Does.Contain("readproperty").And.Contain("observeproperty"));
         }
 
+        /// <summary>
+        /// Verifies that pump controls have one form owned by exactly one source.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpControlsHaveOneFormOwnedByExactlyOneSource(string pumpName)
@@ -1550,6 +1601,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump condition actions use occurrence arguments and their same document event.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpConditionActionsUseOccurrenceArgumentsAndTheirSameDocumentEvent(string pumpName)
@@ -1751,6 +1806,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Select(form => form.OpToken), Is.All.EqualTo("subscribeevent"));
         }
 
+        /// <summary>
+        /// Verifies that structured mapping example is dedicated and compiles after endpoint substitution.
+        /// </summary>
         [Test]
         public void StructuredMappingExampleIsDedicatedAndCompilesAfterEndpointSubstitution()
         {

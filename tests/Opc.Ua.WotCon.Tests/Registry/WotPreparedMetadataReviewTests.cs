@@ -46,6 +46,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [Platform("Win")]
     public sealed class WotPreparedMetadataReviewTests
     {
+        /// <summary>
+        /// Selects an isolated storage root for the registry test fixtures.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -56,6 +59,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 $"ServerGC={GCSettings.IsServerGC}; Assembly={typeof(WotRegistryService).Assembly.Location}");
         }
 
+        /// <summary>
+        /// Removes the isolated registry storage directory after the test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {

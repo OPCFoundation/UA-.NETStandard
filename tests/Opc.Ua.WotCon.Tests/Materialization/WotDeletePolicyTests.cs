@@ -59,6 +59,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -79,6 +82,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -125,6 +131,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// Verifies that logical deletion of a projected resource applies the reject policy.
+        /// </summary>
         [Test]
         public async Task ProjectedLogicalDeleteUsesRejectPolicy()
         {
@@ -382,6 +391,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
         }
 
+        /// <summary>
+        /// Verifies that an unknown resource fails without touching the registry.
+        /// </summary>
         [Test]
         public async Task AnUnknownResourceFailsWithoutTouchingTheRegistry()
         {
@@ -399,6 +411,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// Verifies that an epoch mismatch is rejected without touching the registry.
+        /// </summary>
         [Test]
         public async Task AnEpochMismatchIsRejectedWithoutTouchingTheRegistry()
         {
@@ -776,6 +791,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
         }
 
+        /// <summary>
+        /// Verifies that the coordinator rejects a <see langword="null"/> request.
+        /// </summary>
         [Test]
         public void TheCoordinatorRejectsANullRequest()
         {

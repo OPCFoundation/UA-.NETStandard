@@ -39,6 +39,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class WotNativeOwnershipIndex
     {
+        /// <summary>
+        /// Initializes a native ownership index with bounded node and edge capacity.
+        /// </summary>
+        /// <param name="maxNodes">The maximum number of nodes retained in the native ownership index.</param>
         public WotNativeOwnershipIndex(int maxNodes)
         {
             if (maxNodes <= 0)
@@ -137,6 +141,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 : identities.Resolve(rootIdentifier);
         }
 
+        /// <summary>
+        /// Determines whether a node belongs to an object-type or variable-type declaration through ownership edges.
+        /// </summary>
+        /// <param name="root">The root node to classify through native ownership edges.</param>
         public bool IsDeclaration(ExpandedNodeId root)
         {
             if (root.IsNull)

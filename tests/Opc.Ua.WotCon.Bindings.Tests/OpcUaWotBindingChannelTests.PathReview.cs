@@ -82,7 +82,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             IWotSubscription? lifetime = null;
             try
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     lifetime = await channel.ObserveAsync(_ => Interlocked.Increment(ref notifications))
                         .ConfigureAwait(false));
 

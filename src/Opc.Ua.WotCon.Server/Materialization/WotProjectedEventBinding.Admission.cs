@@ -73,6 +73,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_preparedSource = source;
         }
 
+        /// <summary>
+        /// Validates the captured prepared source and its identity admission before publication.
+        /// </summary>
         public void ValidatePreparedSource()
         {
             if (m_preparedSource is not null)

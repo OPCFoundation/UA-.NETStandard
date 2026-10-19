@@ -54,6 +54,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [NonParallelizable]
     public sealed partial class WotAtomicPublicationNativeTests : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes native publication storage, failure injection, and server fixtures for the test.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -113,6 +116,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Disposes the native publication fixtures created for the test.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {

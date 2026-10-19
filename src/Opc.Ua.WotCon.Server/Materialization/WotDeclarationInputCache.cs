@@ -37,8 +37,13 @@ using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
+    /// <summary>
+    /// Caches parsed declaration documents from captured content and releases them on disposal.
+    /// </summary>
+    /// <param name="contents">The captured content indexed by digest.</param>
     internal sealed class WotDeclarationInputCache(IReadOnlyDictionary<string, ByteString> contents) : IDisposable
     {
+        /// <inheritdoc />
         public void Dispose()
         {
             lock (m_gate)
@@ -159,12 +164,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
         ArrayOf<WotResource> members,
         bool ownsResolutionDefinitions) : IReadOnlyDictionary<string, ByteString>, IWotDocumentConversionContext
     {
+        /// <inheritdoc />
         public ByteString this[string key] => contents[key];
 
         /// <summary>
         /// Gets the keys for <c>WotDocumentConversionContents</c>.
         /// </summary>
         public IEnumerable<string> Keys => contents.Keys;
+
+        /// <inheritdoc />
         public IEnumerable<ByteString> Values => contents.Values;
 
         /// <summary>
@@ -183,6 +191,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return declarations.GetDefinitions(source, members, ownsResolutionDefinitions, options, cancellationToken);
         }
 
+        /// <inheritdoc />
         public bool ContainsKey(string key)
         {
             return contents.ContainsKey(key);
@@ -198,6 +207,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return contents.TryGetValue(key, out value);
         }
 
+        /// <inheritdoc />
         public IEnumerator<KeyValuePair<string, ByteString>> GetEnumerator()
         {
             return contents.GetEnumerator();

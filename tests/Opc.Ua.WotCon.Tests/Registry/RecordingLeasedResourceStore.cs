@@ -37,6 +37,9 @@ using Opc.Ua.XRegistry.Server;
 
 namespace Opc.Ua.WotCon.Tests.Registry
 {
+    /// <summary>
+    /// Records content reads and outstanding leases for registry content-lifetime tests.
+    /// </summary>
     internal sealed class RecordingLeasedResourceStore : IWotRegistryContentLeaseProvider, IDisposable
     {
         /// <summary>
@@ -59,6 +62,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// </summary>
         public Action<string>? ReadObserved { get; set; }
 
+        /// <summary>
+        /// Gets the total number of outstanding content leases across all resources.
+        /// </summary>
         public int ActiveLeaseCount
         {
             get
@@ -195,6 +201,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <summary>
+        /// Gets the number of recorded content reads for the specified storage key.
+        /// </summary>
+        /// <param name="key">The content lookup key.</param>
         public int ReadsFor(string key)
         {
             lock (m_lock)
@@ -203,6 +213,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <summary>
+        /// Clears the recorded per-key content read counts.
+        /// </summary>
         public void ClearReads()
         {
             lock (m_lock)
@@ -211,6 +224,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        /// <inheritdoc />
         public void Dispose()
         {
             m_gate.Dispose();

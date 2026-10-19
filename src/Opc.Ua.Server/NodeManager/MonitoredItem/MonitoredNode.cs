@@ -1373,28 +1373,56 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class MonitoredNodeLog
     {
+        /// <summary>
+        /// Logs a notification processing error in a monitored-node consumer.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 0, Level = LogLevel.Warning,
             Message = "MonitoredNode2 consumer encountered an error processing a notification.")]
         public static partial void MonitoredNode2ConsumerEncounteredAnErrorProcessing(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs unexpected termination of a monitored-node consumer.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 1, Level = LogLevel.Error,
             Message = "MonitoredNode2 consumer terminated unexpectedly.")]
         public static partial void MonitoredNode2ConsumerTerminatedUnexpectedly(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a drain timeout that forces cancellation of additional monitored-node consumers.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 2, Level = LogLevel.Warning,
             Message = "MonitoredNode2 additional consumers did not drain within 5 s; cancelling forcibly.")]
         public static partial void MonitoredNode2AdditionalConsumersDidNotDrainWithin(this ILogger logger);
 
+        /// <summary>
+        /// Logs failures of additional monitored-node consumers during shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 3, Level = LogLevel.Warning,
             Message = "MonitoredNode2 additional consumers faulted during shutdown.")]
         public static partial void MonitoredNode2AdditionalConsumersFaultedDuring(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a drain timeout that forces cancellation of the monitored-node consumer.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 4, Level = LogLevel.Warning,
             Message = "MonitoredNode2 consumer did not drain within 5 s; cancelling forcibly.")]
         public static partial void MonitoredNode2ConsumerDidNotDrainWithin5(this ILogger logger);
 
+        /// <summary>
+        /// Logs a monitored-node consumer failure during shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MonitoredNode + 5, Level = LogLevel.Warning,
             Message = "MonitoredNode2 consumer faulted during shutdown.")]
         public static partial void MonitoredNode2ConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);

@@ -130,6 +130,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <summary>
+        /// Records the committed generation and updates the published binding descriptor.
+        /// </summary>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
         public void SetPublishedGeneration(long generation)
         {
             uint actual = checked((uint)generation);

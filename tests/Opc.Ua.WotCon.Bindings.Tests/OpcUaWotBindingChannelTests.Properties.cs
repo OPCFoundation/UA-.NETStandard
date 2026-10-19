@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
             else
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
             }

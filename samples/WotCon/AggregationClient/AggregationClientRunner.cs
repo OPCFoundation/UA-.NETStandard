@@ -160,6 +160,11 @@ namespace AggregationClient
             }
         }
 
+        /// <summary>
+        /// Replaces endpoint placeholders in root and affordance forms while preserving opaque document content.
+        /// </summary>
+        /// <param name="content">The JSON document whose form endpoints are substituted.</param>
+        /// <param name="options">The source endpoint URLs used to replace the placeholders.</param>
         internal static byte[] SubstituteEndpoints(string content, AggregationClientOptions options)
         {
             if (content.IndexOf("${SOURCE_A_ENDPOINT}", StringComparison.Ordinal) < 0 &&

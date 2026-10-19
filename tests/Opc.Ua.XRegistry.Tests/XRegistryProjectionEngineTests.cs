@@ -52,6 +52,9 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryProjectionEngineTests
     {
+        /// <summary>
+        /// Records the process and runtime identities used by XRegistry projection tests.
+        /// </summary>
         [SetUp]
         public void RecordProjectionExecutionRuntime()
         {
@@ -62,6 +65,9 @@ namespace Opc.Ua.XRegistry.Tests
                 $"core={typeof(object).Assembly.Location}");
         }
 
+        /// <summary>
+        /// Verifies that current projection reconciliation uses the optional dispatcher.
+        /// </summary>
         [Test]
         public async Task CurrentProjectionReconciliationUsesTheOptionalDispatcher()
         {
@@ -96,6 +102,9 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that supplied projection transitions do not reenter the dispatcher.
+        /// </summary>
         [Test]
         public async Task SuppliedProjectionTransitionsDoNotReenterTheDispatcher()
         {
@@ -112,6 +121,9 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
         }
 
+        /// <summary>
+        /// Verifies that dispatched reconciliation cannot observe later snapshot removal.
+        /// </summary>
         [Test]
         public async Task DispatchedReconciliationCannotObserveLaterSnapshotRemoval()
         {
@@ -221,6 +233,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(registry.Epoch.Value, Is.EqualTo(4u));
         }
 
+        /// <summary>
+        /// Verifies that registry epoch is indexed and tracks only current projection generations.
+        /// </summary>
         [Test]
         public async Task RegistryEpochIsIndexedAndTracksOnlyCurrentProjectionGenerations()
         {
@@ -240,6 +255,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
         }
 
+        /// <summary>
+        /// Verifies that reconcile creates stable group and resource node IDs.
+        /// </summary>
         [Test]
         public async Task ReconcileCreatesStableGroupAndResourceNodeIdsAsync()
         {
@@ -274,6 +292,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that session discard reports unsupported for an existing provider without the optional capability.
+        /// </summary>
         [Test]
         public async Task SessionDiscardReportsUnsupportedForAnExistingProviderWithoutTheOptionalCapability()
         {
@@ -289,6 +310,9 @@ namespace Opc.Ua.XRegistry.Tests
                     .EqualTo(StatusCodes.BadNotSupported)).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that session discard rejects a <see langword="null"/> session ID.
+        /// </summary>
         [Test]
         public async Task SessionDiscardRejectsANullSessionId()
         {
@@ -301,6 +325,9 @@ namespace Opc.Ua.XRegistry.Tests
                 Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that reconcile removes nodes that left the snapshot.
+        /// </summary>
         [Test]
         public async Task ReconcileRemovesNodesThatLeftTheSnapshotAsync()
         {
@@ -323,6 +350,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Deleted, Does.Contain(new NodeId("TestRegistry/groups/schemas", 1)));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile is silent initially and suppresses duplicate snapshots.
+        /// </summary>
         [Test]
         public async Task EventReconcileIsSilentInitiallyAndSuppressesDuplicateSnapshotsAsync()
         {
@@ -378,6 +408,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Events, Has.Count.EqualTo(count));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile detects out-of-band version update once.
+        /// </summary>
         [Test]
         public async Task EventReconcileDetectsOutOfBandVersionUpdateOnceAsync()
         {
@@ -406,6 +439,9 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
         }
 
+        /// <summary>
+        /// Verifies that six-parameter projection context constructor remains available.
+        /// </summary>
         [Test]
         public void SixParameterProjectionContextConstructorRemainsAvailable()
         {
@@ -423,6 +459,11 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that version-aware create honors explicit and assigned version IDs.
+        /// </summary>
+        /// <param name="requestedVersionId">The version identifier requested by the test case.</param>
+        /// <param name="expectedVersionId">The version identifier expected by the test case.</param>
         [TestCase("v7", "v7")]
         [TestCase("", "generated-1")]
         public async Task VersionAwareCreateHonorsExplicitAndAssignedVersionIdsAsync(
@@ -516,6 +557,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that duplicate create can atomically claim only a contentless version.
+        /// </summary>
         [Test]
         public async Task DuplicateCreateCanAtomicallyClaimOnlyAContentlessVersionAsync()
         {
@@ -629,6 +673,9 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes logical role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesLogicalRoleAndEpochToAtomicStrategyAsync()
         {
@@ -674,6 +721,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for version and logical delete.
+        /// </summary>
         [Test]
         public async Task ContextualDeleteCapabilityReceivesTheSameContextForVersionAndLogicalDeleteAsync()
         {
@@ -706,6 +756,9 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for group delete.
+        /// </summary>
         [Test]
         public async Task ContextualDeleteCapabilityReceivesTheSameContextForGroupDeleteAsync()
         {
@@ -733,6 +786,9 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that legacy context-free strategy still receives group delete.
+        /// </summary>
         [Test]
         public async Task LegacyContextFreeStrategyStillReceivesGroupDeleteAsync()
         {
@@ -757,6 +813,9 @@ namespace Opc.Ua.XRegistry.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses logical role without event metadata.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalRoleWithoutEventMetadataAsync()
         {
@@ -801,6 +860,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes version role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesVersionRoleAndEpochToAtomicStrategyAsync()
         {
@@ -844,6 +906,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses logical XID mapping when browse names collide.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalXidMappingWhenBrowseNamesCollideAsync()
         {
@@ -910,6 +975,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes stale non-default role and service rejects.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesStaleNonDefaultRoleAndServiceRejectsAsync()
         {
@@ -959,6 +1027,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses reconciled logical role for new default.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesReconciledLogicalRoleForNewDefaultAsync()
         {
@@ -1012,6 +1083,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that delete on non-versioned resource still uses logical resource route.
+        /// </summary>
         [Test]
         public async Task DeleteOnNonVersionedResourceStillUsesLogicalResourceRouteAsync()
         {
@@ -1045,6 +1119,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that generation capture cannot mix projection and event snapshots.
+        /// </summary>
         [Test]
         public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
         {
@@ -1096,6 +1173,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that supplied projection transitions emit intermediate creation and deletion events.
+        /// </summary>
         [Test]
         public async Task SuppliedTransitionsEmitIntermediateCreateAndDeleteAsync()
         {
@@ -1143,6 +1223,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated group emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedGroupEmitsSpecializedLifecycleEventAsync()
         {
@@ -1172,6 +1255,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating normal group does not emit group deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalGroupDoesNotEmitGroupDeprecatedAsync()
         {
@@ -1195,6 +1281,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that projection-only reconcile leaves fifo transitions as event authority.
+        /// </summary>
         [Test]
         public async Task ProjectionOnlyReconcileLeavesFifoTransitionsAsEventAuthorityAsync()
         {
@@ -1256,6 +1345,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that changing deprecation metadata emits both specialized lifecycle and update events.
+        /// </summary>
         [Test]
         public async Task DeprecatedObjectValueChangesEmitSpecializedAndUpdatedEventsAsync()
         {
@@ -1301,6 +1393,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that resource deprecated object uses create change and removal errata.
+        /// </summary>
         [Test]
         public async Task ResourceDeprecatedObjectUsesCreateChangeAndRemovalErrataAsync()
         {
@@ -1334,6 +1429,9 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated resource emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedResourceEmitsSpecializedLifecycleEventAsync()
         {
@@ -1365,6 +1463,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating normal resource does not emit resource deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalResourceDoesNotEmitResourceDeprecatedAsync()
         {
@@ -1390,6 +1491,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that resource name change includes canonical name and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameChangeIncludesCanonicalNameAndMetaEpochAsync()
         {
@@ -1401,6 +1505,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource description change includes canonical description and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceDescriptionChangeIncludesCanonicalDescriptionAndMetaEpochAsync()
         {
@@ -1412,6 +1519,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource name and description change includes both and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameAndDescriptionChangeIncludesBothAndMetaEpochAsync()
         {
@@ -1423,6 +1533,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameAndDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that version sources meta and default switch are diffed independently.
+        /// </summary>
         [Test]
         public async Task VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync()
         {
@@ -1494,6 +1607,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that default switch includes all present version attributes without version update.
+        /// </summary>
         [Test]
         public async Task DefaultSwitchIncludesAllPresentVersionAttributesWithoutVersionUpdateAsync()
         {
@@ -1545,6 +1661,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that logical resource event source is mapped when generic events are disabled.
+        /// </summary>
         [Test]
         public async Task LogicalResourceEventSourceIsMappedWhenGenericEventsAreDisabled()
         {

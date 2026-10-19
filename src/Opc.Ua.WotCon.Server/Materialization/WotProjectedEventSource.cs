@@ -44,12 +44,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class WotProjectedEventSource : IAsyncDisposable
     {
+        /// <summary>
+        /// Initializes a projected event source with its compiled form and channel slot.
+        /// </summary>
+        /// <param name="form">The compiled form defining the protocol binding.</param>
+        /// <param name="slot">The channel slot used to obtain the event subscription.</param>
         public WotProjectedEventSource(WotCompiledForm form, WotBindingChannelSlot slot)
         {
             Form = form;
             m_slot = slot;
         }
 
+        /// <summary>
+        /// Gets the compiled form defining the event source endpoint and security requirements.
+        /// </summary>
         public WotCompiledForm Form { get; }
 
         /// <summary>
@@ -156,6 +164,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             Task operations;
@@ -207,6 +216,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     form.EventSelection ?? WotEventSelection.Default);
         }
 
+        /// <summary>
+        /// Compares endpoint addressing, binding identity, and security requirements for two compiled forms.
+        /// </summary>
+        /// <param name="left">The first compiled form to compare.</param>
+        /// <param name="right">The second compiled form to compare.</param>
         public static bool SameEndpoint(WotCompiledForm left, WotCompiledForm right)
         {
             return left.Binding.Key == right.Binding.Key &&

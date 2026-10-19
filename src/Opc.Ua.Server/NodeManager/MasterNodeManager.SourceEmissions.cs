@@ -199,6 +199,7 @@ namespace Opc.Ua.Server
             MasterNodeManager owner,
             NotificationDispatchLease? previous) : IDisposable
         {
+            /// <inheritdoc />
             public void Dispose()
             {
                 owner.m_currentSourceEmission.Value = previous;

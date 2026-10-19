@@ -427,6 +427,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
     internal sealed record CanonicalReferenceDto(
         string SourceId, string ReferenceTypeId, string TargetId, bool IsInverse);
 
+    /// <summary>
+    /// Provides source-generated JSON metadata for persisted canonical view graphs.
+    /// </summary>
     [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, MaxDepth = 128)]
     [JsonSerializable(typeof(CanonicalGraphDto))]
     internal sealed partial class WotCanonicalViewJsonContext : JsonSerializerContext

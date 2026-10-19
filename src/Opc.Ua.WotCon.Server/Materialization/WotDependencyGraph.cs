@@ -223,6 +223,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         public bool IsProjectable => !HasCycle && !HasMissingDependency && AcquisitionFailures.IsEmpty;
 
+        /// <summary>
+        /// Copies the closure with the supplied acquisition failures while retaining its activation members.
+        /// </summary>
+        /// <param name="failures">The content acquisition failures to attach to the closure.</param>
         internal WotDependencyClosure WithAcquisitionFailures(ArrayOf<WotResourceAcquisitionFailure> failures)
         {
             return new WotDependencyClosure(
@@ -247,6 +251,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </remarks>
     public sealed class WotDependentSet
     {
+        /// <summary>
+        /// Captures resolved dependents and resources whose dependency information could not be read.
+        /// </summary>
+        /// <param name="dependents">The resources resolved as dependents.</param>
+        /// <param name="unreadable">The resources whose dependency information could not be read.</param>
         internal WotDependentSet(
             ImmutableArray<WotDependent> dependents,
             ImmutableArray<string> unreadable)
@@ -583,6 +592,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         defined => string.Equals(defined, reference.LookupUri, StringComparison.Ordinal));
         }
 
+        /// <summary>
+        /// Determines whether a relation denotes OPC UA component or property containment.
+        /// </summary>
+        /// <param name="relation">The relation name or URI to classify.</param>
         internal static bool IsContainmentRelation(string relation)
         {
             return relation is "uav:componentOf" or "ua:ComponentOf" or "ua:PropertyOf" or
@@ -1076,6 +1089,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .Where(failure => required.Contains(failure.Resource.Xid)).ToArrayOf());
         }
 
+        /// <summary>
+        /// Combines publication closures into a deduplicated dependency graph and activation set.
+        /// </summary>
+        /// <param name="closures">The dependency closures selected for publication.</param>
         internal static WotDependencyClosure CombinePublicationClosures(
             IReadOnlyCollection<WotDependencyClosure> closures)
         {
@@ -1100,6 +1117,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 .ToArrayOf());
         }
 
+        /// <summary>
+        /// Groups resources into strongly connected components using resolved dependency edges.
+        /// </summary>
+        /// <param name="members">The registry resources included in the dependency graph.</param>
+        /// <param name="dependencies">The resolved and unresolved dependency edges.</param>
+        /// <param name="ordered">The resource ordering computed for the dependency closure.</param>
         internal static ArrayOf<WotDependencyComponent> BuildStronglyConnectedComponents(
             ImmutableArray<WotResource> members,
             ImmutableArray<WotDependency> dependencies,
