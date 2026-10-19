@@ -612,12 +612,28 @@ namespace Opc.Ua.Client
                 IMonitoredItemContext context,
                 ITelemetryContext telemetry)
             {
+                // One logger for all items of the subscription instead of
+                // one per item; the logger is stateless.
+                ItemLogger? itemLogger = Volatile.Read(ref m_itemLogger);
+                if (itemLogger == null ||
+                    !ReferenceEquals(itemLogger.Telemetry, telemetry))
+                {
+                    itemLogger = new ItemLogger(telemetry,
+                        telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    Volatile.Write(ref m_itemLogger, itemLogger);
+                }
                 return new DefaultMonitoredItem(
                     context,
                     name,
                     options,
-                    telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    itemLogger.Logger);
             }
+
+            private sealed record class ItemLogger(
+                ITelemetryContext Telemetry,
+                ILogger Logger);
+
+            private ItemLogger? m_itemLogger;
         }
 
         /// <summary>
