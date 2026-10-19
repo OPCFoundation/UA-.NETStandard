@@ -60,6 +60,10 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
+        /// <remarks>The queue changes its events only through the base members.</remarks>
+        internal override bool IndexesRecentEvents => true;
+
+        /// <inheritdoc/>
         public override void Enqueue(EventFieldList value)
         {
             base.Enqueue(value);

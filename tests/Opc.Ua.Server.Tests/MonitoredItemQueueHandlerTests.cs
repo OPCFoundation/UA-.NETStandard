@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -150,6 +152,45 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.IsEventContainedInQueue(queued), Is.True);
             Assert.That(queue.Dequeue(out _), Is.True);
             Assert.That(queue.IsEventContainedInQueue(added), Is.False);
+
+            // an entry replaced in place leaves the count unchanged.
+            var replacement = new AuditSessionEventState(null);
+            queue.ReplaceNewest(new EventFieldList { EventFields = [new Variant(5)], Handle = replacement });
+            Assert.That(queue.IsEventContainedInQueue(replacement), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(queued), Is.False);
+        }
+
+        [Test]
+        public void EventQueueReleasesEventsAfterResizeAndDrain()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(10, true);
+            WeakReference released = EnqueueUnreferencedEvent(queue);
+
+            queue.SetQueueSize(10, true);
+            DequeueAndDrop(queue);
+            Assert.That(queue.ItemsInQueue, Is.Zero);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Assert.That(released.IsAlive, Is.False);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference EnqueueUnreferencedEvent(EventMonitoredItemQueue queue)
+        {
+            var handle = new AuditSessionEventState(null);
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(1)], Handle = handle });
+            Assert.That(queue.IsEventContainedInQueue(handle), Is.True);
+            return new WeakReference(handle);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DequeueAndDrop(EventMonitoredItemQueue queue)
+        {
+            Assert.That(queue.Dequeue(out _), Is.True);
         }
 
         private sealed class DirectlyFilledEventQueue : EventMonitoredItemQueue
@@ -162,6 +203,11 @@ namespace Opc.Ua.Server.Tests
             public void AddDirectly(EventFieldList value)
             {
                 m_events.Add(value);
+            }
+
+            public void ReplaceNewest(EventFieldList value)
+            {
+                m_events[m_events.Count - 1] = value;
             }
         }
 
