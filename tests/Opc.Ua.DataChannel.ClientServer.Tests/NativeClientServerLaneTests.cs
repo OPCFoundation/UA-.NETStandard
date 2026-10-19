@@ -163,9 +163,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
             {
                 Assert.That(endpoints.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
                 Assert.That(endpoints.Endpoints.ToArray(), Has.Some.Matches<EndpointDescription>(endpoint =>
-                    endpoint.EndpointUrl == harness.ServiceEndpoint.AbsoluteUri &&
+                    endpoint?.EndpointUrl == harness.ServiceEndpoint.AbsoluteUri &&
                     endpoint.SecurityMode == mode &&
-                    endpoint.Server.ApplicationUri == WebTransportTestEnvironment.ServerUri));
+                    endpoint.Server?.ApplicationUri == WebTransportTestEnvironment.ServerUri));
             });
             using (ISession session = await harness.OpenSessionAsync(lane).ConfigureAwait(false))
             {
@@ -300,7 +300,8 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                 harness.Token).ConfigureAwait(false);
             Assert.That(opening.IsCompleted, Is.False, "The ordinary UASC handshake must await its ACK.");
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Exception? failure = Assert.CatchAsync(async () => await opening.ConfigureAwait(false));
+            Exception? failure = await Assert.CatchAsync(async () => await opening.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(IsCancellation(failure), Is.True, $"Unexpected cancellation result: {failure}");
             await WaitUntilAsync(
                 () => harness.Environment.ClientBudget.Usage.Flows == 1 &&
@@ -326,9 +327,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
         {
             m_harness = await NativeLaneHarness.CreateAsync(m_backend!, m_http3!, carrier).ConfigureAwait(false);
             NativeLaneHarness harness = m_harness;
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.OpenLaneAsync(expectedApplicationUri: "urn:opcfoundation:forwarded-application")
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUriInvalid));
@@ -394,8 +395,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                 Factory = context.Factory,
                 NamespaceUris = context.NamespaceUris
             };
-            ServiceResultException? failure = Assert.CatchAsync<ServiceResultException>(async () =>
-                await uasc.OpenAsync(harness.ServiceEndpoint, settings, harness.Token).ConfigureAwait(false));
+            ServiceResultException? failure = await Assert.CatchAsync<ServiceResultException>(async () =>
+                await uasc.OpenAsync(harness.ServiceEndpoint, settings, harness.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.StatusCode,
                 Is.EqualTo(StatusCodes.BadSecurityChecksFailed).Or.EqualTo(StatusCodes.BadCertificateUriInvalid)
                     .Or.EqualTo(StatusCodes.BadConnectionClosed));
@@ -441,9 +443,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                     SecurityPolicyUri = SecurityPolicies.None
                 }
             };
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Client.ConnectAsync(harness.ClientContext, harness.ServiceEndpoint, settings, harness.Token)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
@@ -468,8 +470,9 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
             (DataChannel survivor, DataChannel survivorPeer) = await harness.OpenIndependentAsync().ConfigureAwait(false);
             await using DataChannel survivorLifetime = survivor;
             await using DataChannel survivorPeerLifetime = survivorPeer;
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await harness.Listener.AcceptAsync(ordinaryPeer, harness.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await harness.Listener.AcceptAsync(ordinaryPeer, harness.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(UacpChunks(harness.Environment.ServerBackend.Writes), Is.Empty);
             Assert.That(harness.ServerContext.IsReady, Is.True);
             await AssertIndependentPayloadAsync(survivor, survivorPeer, [7, 0, 21], harness.Token).ConfigureAwait(false);
@@ -513,12 +516,12 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                 m_backend!, m_http3!, carrier, options: options).ConfigureAwait(false);
             NativeLaneHarness harness = m_harness;
             await using DataChannelClientServerConnection first = await harness.OpenLaneAsync().ConfigureAwait(false);
-            ServiceResultException? local = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await harness.OpenLaneAsync().ConfigureAwait(false));
+            ServiceResultException? local = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await harness.OpenLaneAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(local!.StatusCode, Is.EqualTo(StatusCodes.BadTcpNotEnoughResources));
             var secondClient = new DataChannelClientServerClient(harness.Environment.Telemetry, options, harness.Buffers);
-            Exception? remote = Assert.CatchAsync(async () =>
-                await harness.OpenLaneAsync(client: secondClient).ConfigureAwait(false));
+            Exception? remote = await Assert.CatchAsync(async () =>
+                await harness.OpenLaneAsync(client: secondClient).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(remote, Is.Not.Null, "A second client instance cannot bypass listener admission.");
             IServiceResponse response = await first.Services.SendRequestAsync(new FindServersRequest
             {
@@ -562,7 +565,7 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
             Assert.That(harness.NativeClient.Completion.IsCompleted, Is.False);
             await AssertIndependentPayloadAsync(independent, peer, [12, 0, 34], harness.Token).ConfigureAwait(false);
             Assert.That(harness.ClientContext.Channels.ToArray(), Has.All.Matches<DataChannel>(channel =>
-                channel.Parameters.ResourceUri != DataChannelProfiles.ClientServerResource));
+                channel?.Parameters?.ResourceUri != DataChannelProfiles.ClientServerResource));
             Task<DataChannelClientServerLane?> acceptedReplacement = harness.Listener
                 .AcceptAsync(harness.Provider, harness.Token).AsTask();
             Task<DataChannelClientServerConnection> openedReplacement = harness.OpenLaneAsync();
@@ -587,27 +590,27 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
             Assert.Throws<ArgumentOutOfRangeException>(() => lane.Services.OperationTimeout = 0);
             lane.Services.OperationTimeout = 2000;
             Assert.That(lane.Services.OperationTimeout, Is.EqualTo(2000));
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await lane.SendRequestAsync(null!, harness.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await lane.Services.ReconnectAsync(ct: harness.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await lane.SendRequestAsync(null!, harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await lane.Services.ReconnectAsync(ct: harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await lane.Services.ReconnectAsync(ct: cancelled.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await lane.Services.ReconnectAsync(ct: cancelled.Token).ConfigureAwait(false)).ConfigureAwait(false);
             var request = new FindServersRequest
             {
                 RequestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, RequestHandle = 678 },
                 EndpointUrl = harness.ServiceEndpoint.AbsoluteUri
             };
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await lane.SendRequestAsync(request, cancelled.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await lane.SendRequestAsync(request, cancelled.Token).ConfigureAwait(false)).ConfigureAwait(false);
             IServiceResponse response = await lane.SendRequestAsync(request, harness.Token).ConfigureAwait(false);
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(678));
             lane.Services.Dispose();
             await lane.Completion.WaitAsync(harness.Token).ConfigureAwait(false);
-            ServiceResultException? closed = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await lane.SendRequestAsync(request, harness.Token).ConfigureAwait(false));
+            ServiceResultException? closed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await lane.SendRequestAsync(request, harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(closed!.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(harness.ClientContext.IsReady, Is.True,
                 $"Client context termination: {string.Join(",", harness.ClientClosures)}; " +
@@ -714,7 +717,7 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                 () => UacpChunks(harness.Environment.ClientBackend.Writes).Count(chunk => Type(chunk) == "MSG") > before,
                 harness.Token).ConfigureAwait(false);
             Assert.That(held.IsCompleted, Is.False);
-            ServiceResultException? bounded = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? bounded = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lane.Services.SendRequestAsync(new ReadRequest
                 {
                     RequestHeader = new RequestHeader { Timestamp = DateTime.UtcNow, RequestHandle = 999 },
@@ -726,10 +729,11 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
                             AttributeId = Attributes.Value
                         }
                     ]
-                }, harness.Token).ConfigureAwait(false));
+                }, harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(bounded!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Exception? cancelled = Assert.CatchAsync(async () => await held.ConfigureAwait(false));
+            Exception? cancelled = await Assert.CatchAsync(async () => await held.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(IsCancellation(cancelled), Is.True, $"Unexpected Service cancellation result: {cancelled}");
             ReadResponse read = await session.ReadAsync(null, 0, TimestampsToReturn.Both,
             [

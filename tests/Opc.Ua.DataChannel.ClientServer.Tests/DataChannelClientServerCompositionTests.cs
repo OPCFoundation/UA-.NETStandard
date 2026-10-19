@@ -255,13 +255,15 @@ namespace Opc.Ua.DataChannels.ClientServer.Tests
 
             if (nested == "factory")
             {
-                Assert.ThrowsAsync<ArgumentException>(async () =>
-                    await listener.OpenAsync(endpoint, settings, callback.Object).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
+                    await listener.OpenAsync(endpoint, settings, callback.Object).ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             else
             {
-                ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await listener.OpenAsync(endpoint, settings, callback.Object).ConfigureAwait(false));
+                ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await listener.OpenAsync(endpoint, settings, callback.Object).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }
             factory.VerifyNoOtherCalls();

@@ -110,7 +110,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             Task<DataChannelMessage?> reset = firstPeer.ReadAsync(timeout.Token).AsTask();
             Assert.That((await stream!.SendAsync(FlowRecordCodec.Encode(in wrong, limits)).ConfigureAwait(false))!.Status,
                 Is.EqualTo(NativeQuicStatus.Success));
-            Assert.ThrowsAsync<DataChannelException>(async () => await reset.ConfigureAwait(false));
+            await Assert.ThrowsAsync<DataChannelException>(async () => await reset.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(await second.SendAsync(Bytes(38)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? valid = await secondPeer.ReadAsync(timeout.Token).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -153,8 +154,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
         [TestCase("opc.quic://user@localhost:4840")]
         public async Task InvalidNativeEndpointIsRejectedBeforeNetworkAdmission(string endpoint)
         {
-            Assert.ThrowsAsync<ArgumentException>(async () =>
-                await m_environment!.CreateClient().ConnectAsync(new Uri(endpoint)).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await m_environment!.CreateClient().ConnectAsync(new Uri(endpoint)).ConfigureAwait(false))
+                .ConfigureAwait(false);
             await NativeFlowTestEnvironment.AssertNoNativeOwnershipAsync(m_backend!).ConfigureAwait(false);
         }
 

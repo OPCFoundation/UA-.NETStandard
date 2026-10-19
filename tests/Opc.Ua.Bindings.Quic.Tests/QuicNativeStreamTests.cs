@@ -160,8 +160,10 @@ namespace Opc.Ua.Bindings.Quic.Tests
             Task<DataChannelMessage?> localClosed = invalid.ReadAsync(timeout.Token).AsTask();
             NativeQuicCompletion? sent = await stream!.SendAsync(Bytes(0, 0, 0, 0)).ConfigureAwait(false);
             Assert.That(sent!.Status, Is.EqualTo(NativeQuicStatus.Success));
-            Assert.ThrowsAsync<DataChannelException>(async () => await closed.ConfigureAwait(false));
-            Assert.ThrowsAsync<DataChannelException>(async () => await localClosed.ConfigureAwait(false));
+            await Assert.ThrowsAsync<DataChannelException>(async () => await closed.ConfigureAwait(false))
+                .ConfigureAwait(false);
+            await Assert.ThrowsAsync<DataChannelException>(async () => await localClosed.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(await survivor.SendAsync(Bytes(17)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await survivorPeer.ReadAsync(timeout.Token).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -281,8 +283,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             Assert.That(sink.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
             Assert.That((await stream!.ResetSendAsync((ulong)DataChannelResult.InvalidState).ConfigureAwait(false)).Status,
                 Is.EqualTo(NativeQuicStatus.Success));
-            DataChannelException? reset = Assert.ThrowsAsync<DataChannelException>(async () =>
-                await sink.ReadAsync(timeout.Token).ConfigureAwait(false));
+            DataChannelException? reset = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                await sink.ReadAsync(timeout.Token).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(reset!.Result, Is.EqualTo(DataChannelResult.InvalidState));
             Assert.That(await survivor.SendAsync(Bytes(31)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? other = await survivorPeer.ReadAsync(timeout.Token).ConfigureAwait(false);

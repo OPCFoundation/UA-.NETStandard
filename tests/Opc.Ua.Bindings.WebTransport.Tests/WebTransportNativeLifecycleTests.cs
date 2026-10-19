@@ -342,9 +342,10 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             int writes = m_environment.ClientBackend.Writes.Count(value => value.StreamId == stream);
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(() =>
+            await Assert.CatchAsync<OperationCanceledException>(() =>
                 source.SendAsync(
-                    new ByteString("34"u8.ToArray()), cancellationToken: cancellation.Token).AsTask());
+                    new ByteString("34"u8.ToArray()), cancellationToken: cancellation.Token).AsTask())
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(m_environment.ClientBackend.Writes.Count(value => value.StreamId == stream),
@@ -373,8 +374,9 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 }
             };
             byte[] payload = [81, 82, 0, 83, 255];
-            Assert.CatchAsync<OperationCanceledException>(() =>
-                source.SendAsync(new ByteString(payload), cancellationToken: cancellation.Token).AsTask());
+            await Assert.CatchAsync<OperationCanceledException>(() =>
+                source.SendAsync(new ByteString(payload), cancellationToken: cancellation.Token).AsTask())
+                .ConfigureAwait(false);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             using DataChannelMessage? received = await sink.ReadAsync(deadline.Token).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -498,8 +500,8 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             parameters.ResourceUri = DataChannelProfiles.ClientServerResource;
             await using (WebTransportPair denied = await m_environment!.ConnectPairAsync().ConfigureAwait(false))
             {
-                DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(() =>
-                    denied.Client.Context.OpenAsync(parameters).AsTask());
+                DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(() =>
+                    denied.Client.Context.OpenAsync(parameters).AsTask()).ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
                     Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));

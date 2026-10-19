@@ -1,6 +1,7 @@
 // Copyright (c) OPC Foundation. Licensed under the OPC Foundation MIT License 1.00.
 
 using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
@@ -217,7 +218,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         /// The listener refuses to create a socket without an explicit CONNECT authorization provider.
         /// </summary>
         [Test]
-        public void ListenerCannotDefaultToAllowConnect()
+        public async Task ListenerCannotDefaultToAllowConnectAsync()
         {
             var backend = new Mock<INativeQuicBackend>(MockBehavior.Strict);
             var transport = new WebTransportDataChannelTransport(
@@ -227,8 +228,9 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 Mock.Of<INativeQuicCredentialProvider>(), Mock.Of<IDataChannelContextFactory>(),
                 new DataChannelApplicationBudget(),
                 new WebTransportDataChannelOptions(WebTransportOriginPolicy.AbsentOnly));
-            Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await transport.ListenAsync(new Uri("opc.wt://127.0.0.1:0/flow")).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await transport.ListenAsync(new Uri("opc.wt://127.0.0.1:0/flow")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             backend.VerifyNoOtherCalls();
         }
     }

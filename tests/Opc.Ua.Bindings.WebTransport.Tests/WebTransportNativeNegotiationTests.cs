@@ -287,9 +287,10 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 DataChannelProfiles.QuicAlpn, m_environment.Options.Native, cancellationToken: deadline.Token)
                 .ConfigureAwait(false);
             var factory = new CountingFactory(m_environment.ClientFactory);
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(() =>
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(() =>
                 m_environment.Client(factory: factory)
-                    .ConnectAsync(new Uri("opc.wt://" + listener.Address + "/flow/v1"), deadline.Token).AsTask());
+                    .ConnectAsync(new Uri("opc.wt://" + listener.Address + "/flow/v1"), deadline.Token).AsTask())
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(failure!.Completion, Is.Not.Null);

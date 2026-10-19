@@ -29,8 +29,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
             using NativeQuicCertificateProvider provider = m_environment.CreateCredentials(true, [wrong]);
             await using QuicDataChannelListener listener = await m_environment.CreateServer()
                 .ListenAsync(new Uri("opc.quic://127.0.0.1:0")).ConfigureAwait(false);
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
-                await m_environment.CreateClient(provider).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false));
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+                await m_environment.CreateClient(provider).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.Completion!.Status, Is.EqualTo(NativeQuicStatus.Authentication));
             Assert.That(m_environment.ClientBudget.Usage.Contexts, Is.Zero);
         }
@@ -44,11 +45,11 @@ namespace Opc.Ua.Bindings.Quic.Tests
             await using NativeQuicListener listener = await NativeQuicListener.ListenAsync(
                 m_backend!, m_environment!.ServerCredentials, "127.0.0.1:0",
                 DataChannelProfiles.QuicAlpn, m_environment.BindingOptions.Native).ConfigureAwait(false);
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
                 await NativeQuicConnection.ConnectAsync(
                     m_backend!, m_environment.ClientCredentials, listener.Address,
                     DataChannelProfiles.QuicAlpn, "not-the-certificate.example",
-                    m_environment.BindingOptions.Native).ConfigureAwait(false));
+                    m_environment.BindingOptions.Native).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(failure!.Completion!.Status, Is.EqualTo(NativeQuicStatus.Authentication));
         }
 
@@ -74,8 +75,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 true, [m_environment.ServerPeer], wrongList);
             await using QuicDataChannelListener listener = await m_environment.CreateServer()
                 .ListenAsync(new Uri("opc.quic://127.0.0.1:0")).ConfigureAwait(false);
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
-                await m_environment.CreateClient(provider).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false));
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+                await m_environment.CreateClient(provider).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.Completion!.Status, Is.EqualTo(NativeQuicStatus.Authentication));
         }
 
@@ -88,9 +90,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
             await using NativeQuicListener listener = await NativeQuicListener.ListenAsync(
                 m_backend!, m_environment!.ServerCredentials, "127.0.0.1:0",
                 DataChannelProfiles.WebTransportAlpn, m_environment.BindingOptions.Native).ConfigureAwait(false);
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
                 await m_environment.CreateClient().ConnectAsync(new Uri("opc.quic://" + listener.Address))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(failure!.Completion!.Status, Is.EqualTo(NativeQuicStatus.Authentication));
             Assert.That(m_environment.ClientBudget.Usage.Contexts, Is.Zero);
         }
@@ -110,8 +112,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 .ListenAsync(new Uri("opc.quic://127.0.0.1:0")).ConfigureAwait(false);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             Task<QuicDataChannelConnection> accepted = listener.AcceptAsync(timeout.Token).AsTask();
-            NativeQuicTransportException? failure = Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
-                await m_environment.CreateClient().ConnectAsync(listener.EndpointUrl, timeout.Token).ConfigureAwait(false));
+            NativeQuicTransportException? failure = await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+                await m_environment.CreateClient().ConnectAsync(listener.EndpointUrl, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(failure!.Completion!.Status, Is.EqualTo(NativeQuicStatus.Authentication));
             timeout.Cancel();
             await RequireRejectedAcceptAsync(accepted).ConfigureAwait(false);
@@ -132,8 +135,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
             var factory = new CountingContextFactory(m_environment.ClientFactory);
             await using QuicDataChannelListener listener = await m_environment.CreateServer()
                 .ListenAsync(new Uri("opc.quic://127.0.0.1:0")).ConfigureAwait(false);
-            Assert.ThrowsAsync<AuthenticationException>(async () =>
-                await m_environment.CreateClient(rejecting, factory).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false));
+            await Assert.ThrowsAsync<AuthenticationException>(async () =>
+                await m_environment.CreateClient(rejecting, factory).ConnectAsync(listener.EndpointUrl).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(rejecting.ValidatedPeer, Is.True);
@@ -206,7 +210,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 m_environment!.ClientManager,
                 new NativeQuicCertificateOptions(
                     NativeFlowTestEnvironment.ClientUri, new NodeId(999999u), [m_environment.ServerPeer]));
-            Assert.ThrowsAsync<AuthenticationException>(async () => await provider.AcquireAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<AuthenticationException>(async () =>
+                await provider.AcquireAsync().ConfigureAwait(false)).ConfigureAwait(false);
             await NativeFlowTestEnvironment.AssertNoNativeOwnershipAsync(m_backend!).ConfigureAwait(false);
         }
 
@@ -234,11 +239,11 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 NativeQuicPeerEvidence evidence = await m_backend.GetPeerEvidenceAsync(handle).ConfigureAwait(false);
                 if (!evidence.HandshakeConfirmed || !evidence.MutualTlsAuthenticated)
                 {
-                    Assert.ThrowsAsync<AuthenticationException>(async () =>
+                    await Assert.ThrowsAsync<AuthenticationException>(async () =>
                         await NativeQuicConnection.AuthenticateAsync(
                             m_backend, m_environment.ClientCredentials, credentials, handle,
                             DataChannelProfiles.QuicAlpn, true, m_environment.BindingOptions.Native,
-                            TimeProvider.System, CancellationToken.None).ConfigureAwait(false));
+                            TimeProvider.System, CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
                     Assert.That(m_environment.ClientBudget.Usage.Contexts, Is.Zero);
                 }
                 else
@@ -282,8 +287,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             using var issuers = new CertificateCollection { m_environment.Root };
             await m_environment.ClientManager.UpdateApplicationCertificateAsync(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType, unsupported, issuers).ConfigureAwait(false);
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await m_environment.ClientCredentials.AcquireAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await m_environment.ClientCredentials.AcquireAsync().ConfigureAwait(false)).ConfigureAwait(false);
             await NativeFlowTestEnvironment.AssertNoNativeOwnershipAsync(m_backend!).ConfigureAwait(false);
         }
 
@@ -304,7 +309,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             NativeQuicCounts active = await m_backend!.GetCountsAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(active.Connections, Is.GreaterThanOrEqualTo(1));
             timeout.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await connecting.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await connecting.ConfigureAwait(false))
+                .ConfigureAwait(false);
             await listener.DisposeAsync().ConfigureAwait(false);
             await NativeFlowTestEnvironment.AssertNoNativeOwnershipAsync(m_backend!).ConfigureAwait(false);
             Assert.That(m_environment.ClientBudget.Usage.Contexts, Is.Zero);

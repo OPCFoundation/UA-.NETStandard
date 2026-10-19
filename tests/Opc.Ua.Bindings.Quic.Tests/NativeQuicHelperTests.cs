@@ -280,8 +280,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             await using NativeQuicStream first = await pair.Client.OpenStreamAsync().ConfigureAwait(false);
             await using NativeQuicStream second = await pair.Client.OpenStreamAsync().ConfigureAwait(false);
             NativeQuicCounts before = await m_backend!.GetCountsAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
-                await pair.Client.OpenStreamAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+                await pair.Client.OpenStreamAsync().ConfigureAwait(false)).ConfigureAwait(false);
             NativeQuicCounts after = await m_backend.GetCountsAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
@@ -312,8 +312,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 third.ReadAsync(cancellation.Token).AsTask()
             ];
             NativeQuicCounts before = await m_backend!.GetCountsAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
-                await pair.Client.ReceiveDatagramAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<NativeQuicTransportException>(async () =>
+                await pair.Client.ReceiveDatagramAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That((await m_backend.GetCountsAsync().ConfigureAwait(false)).Operations, Is.EqualTo(before.Operations));
             await cancellation.CancelAsync().ConfigureAwait(false);
             NativeQuicCompletion[] cancelled = await Task.WhenAll(reads).ConfigureAwait(false);
@@ -338,8 +338,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 hardware.Object, ownsPrivateKey: false);
             await m_environment.ClientManager.UpdateApplicationCertificateAsync(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType, nonExportable, current.IssuerChain).ConfigureAwait(false);
-            NotSupportedException? exception = Assert.ThrowsAsync<NotSupportedException>(async () =>
-                await m_environment.ClientCredentials.AcquireAsync().ConfigureAwait(false));
+            NotSupportedException? exception = await Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await m_environment.ClientCredentials.AcquireAsync().ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(exception!.InnerException, Is.TypeOf<CryptographicException>());
             await NativeFlowTestEnvironment.AssertNoNativeOwnershipAsync(m_backend!).ConfigureAwait(false);
         }
@@ -386,8 +386,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 new PassthroughConfiguredAuthorizer(), m_environment!.Options, budget,
                 TimeProvider.System, m_environment.Telemetry);
             await using NativeFlowPair first = await m_environment.ConnectPairAsync(clientFactory: factory).ConfigureAwait(false);
-            DataChannelException? rejected = Assert.ThrowsAsync<DataChannelException>(async () =>
-                await m_environment.ConnectPairAsync(clientFactory: factory).ConfigureAwait(false));
+            DataChannelException? rejected = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                await m_environment.ConnectPairAsync(clientFactory: factory).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(rejected!.Result, Is.EqualTo(DataChannelResult.WouldBlock));
@@ -454,8 +454,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
             var transport = new QuicDataChannelTransport(
                 m_backend!, m_environment!.ClientCredentials, m_environment.ClientFactory,
                 m_environment.BindingOptions, applicationBudget: budget);
-            DataChannelException? failure = Assert.ThrowsAsync<DataChannelException>(async () =>
-                await transport.ConnectAsync(new Uri("opc.quic://127.0.0.1:4840")).ConfigureAwait(false));
+            DataChannelException? failure = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                await transport.ConnectAsync(new Uri("opc.quic://127.0.0.1:4840")).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.Multiple(() =>
             {
                 Assert.That(failure!.Result, Is.EqualTo(DataChannelResult.WouldBlock));
@@ -473,10 +474,10 @@ namespace Opc.Ua.Bindings.Quic.Tests
             await using NativePeerPair pair = await NativePeerPair.CreateAsync(m_environment!).ConfigureAwait(false);
             await using NativeQuicStream stream = await pair.Client.OpenStreamAsync().ConfigureAwait(false);
             ByteString payload = new(new byte[65537]);
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await stream.SendAsync(payload).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                await pair.Client.SendDatagramAsync(payload).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await stream.SendAsync(payload).ConfigureAwait(false)).ConfigureAwait(false);
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await pair.Client.SendDatagramAsync(payload).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That((await stream.SendAsync(Bytes(17)).ConfigureAwait(false))!.Status,
                 Is.EqualTo(NativeQuicStatus.Success));
             await using NativeQuicStream peer = await pair.Server.AcceptStreamAsync().ConfigureAwait(false);
@@ -512,13 +513,13 @@ namespace Opc.Ua.Bindings.Quic.Tests
             await using NativeQuicStream source = await pair.Client.OpenStreamAsync().ConfigureAwait(false);
             if (closeStream)
             {
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                    await source.CloseAsync(1UL << 62).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                    await source.CloseAsync(1UL << 62).ConfigureAwait(false)).ConfigureAwait(false);
             }
             else
             {
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
-                    await pair.Client.CloseAsync(1UL << 62).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                    await pair.Client.CloseAsync(1UL << 62).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.Multiple(() =>
             {
@@ -660,7 +661,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             {
                 authorizer.Release.TrySetResult();
                 await disposing.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.ThrowsAsync<DataChannelException>(async () => await opening.ConfigureAwait(false));
+                await Assert.ThrowsAsync<DataChannelException>(async () => await opening.ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             DataChannelResourceAssertions.AreReleased(m_environment.ServerBudget.Usage);
         }

@@ -232,7 +232,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             Task<DataChannelMessage?> pending = resetPeer.ReadAsync(timeout.Token).AsTask();
             await reset.ResetAsync(DataChannelResult.InvalidState, timeout.Token).ConfigureAwait(false);
-            DataChannelException? error = Assert.ThrowsAsync<DataChannelException>(async () => await pending.ConfigureAwait(false));
+            DataChannelException? error = await Assert.ThrowsAsync<DataChannelException>(
+                async () => await pending.ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(error!.Result, Is.EqualTo(DataChannelResult.InvalidState));
             Assert.That(await source.EndAsync(timeout.Token).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             Assert.That(await sink.ReadAsync(timeout.Token).ConfigureAwait(false), Is.Null);
@@ -270,8 +271,9 @@ namespace Opc.Ua.Bindings.Quic.Tests
             (DataChannel source, DataChannel sink) = await pair.OpenAsync().ConfigureAwait(false);
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await source.SendAsync(Bytes(99), cancellationToken: cancelled.Token).ConfigureAwait(false));
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await source.SendAsync(Bytes(99), cancellationToken: cancelled.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(await source.SendAsync(Bytes(1)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             using DataChannelMessage? message = await sink.ReadAsync(timeout.Token).ConfigureAwait(false);
@@ -294,7 +296,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             Task<DataChannelMessage?> pending = sink.ReadAsync(timeout.Token).AsTask();
             await pair.Client.NativeConnection.CloseAsync((ulong)DataChannelResult.Closed).ConfigureAwait(false);
-            Assert.ThrowsAsync<DataChannelException>(async () => await pending.ConfigureAwait(false));
+            await Assert.ThrowsAsync<DataChannelException>(async () => await pending.ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(await source.SendAsync(Bytes(1)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Closed));
         }
 
@@ -315,7 +318,8 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 DataChannelResourceAssertions.AreReleased(m_environment.ClientBudget.Usage);
                 DataChannelResourceAssertions.AreReleased(m_environment.ServerBudget.Usage);
             });
-            Assert.ThrowsAsync<ObjectDisposedException>(async () => await pair.Client.OpenStreamAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(
+                async () => await pair.Client.OpenStreamAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         /// <summary>
