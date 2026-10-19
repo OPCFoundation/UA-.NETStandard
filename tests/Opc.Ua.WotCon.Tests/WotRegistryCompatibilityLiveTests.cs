@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Tests
             using var clientFixture = new ClientFixture(false, false, telemetry);
             await clientFixture.LoadClientConfigurationAsync(pkiRoot).ConfigureAwait(false);
             string url = $"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}";
-            ISession session = await clientFixture
+            Opc.Ua.Client.ISession session = await clientFixture
                 .ConnectAsync(new Uri(url), SecurityPolicies.None)
                 .ConfigureAwait(false);
             try

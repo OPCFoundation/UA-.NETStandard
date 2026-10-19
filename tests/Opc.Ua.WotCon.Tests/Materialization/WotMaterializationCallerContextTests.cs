@@ -304,7 +304,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ClearObserved();
         }
 
-        private IReadOnlyList<IOperationContext?> Phases(string phase)
+        private List<IOperationContext?> Phases(string phase)
         {
             lock (m_observed)
             {
