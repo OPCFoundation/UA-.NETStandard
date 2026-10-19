@@ -1262,6 +1262,12 @@ namespace Opc.Ua
                 }
                 else if (TypeInfo.IsArray)
                 {
+                    // an empty array has no element a caller could change: share it.
+                    if (m_value is IElementContainer { IsEmpty: true })
+                    {
+                        return this;
+                    }
+
                     switch (TypeInfo.BuiltInType)
                     {
                         case BuiltInType.ExtensionObject:
@@ -2516,6 +2522,11 @@ namespace Opc.Ua
             {
                 // Preserve the difference between a null and an empty array.
                 value = default;
+                return true;
+            }
+            if (v.Count == 0)
+            {
+                value = ArrayOf.Empty<T>();
                 return true;
             }
             var buffer = new T[v.Count];

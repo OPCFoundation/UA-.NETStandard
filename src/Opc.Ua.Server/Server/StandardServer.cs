@@ -1523,10 +1523,9 @@ namespace Opc.Ua.Server
                     m_logger,
                     "Session/CloseSession");
 
-                return new CloseSessionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context)
-                };
+                var response = new CloseSessionResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1568,9 +1567,9 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     CancelCount = cancelCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -1621,12 +1620,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseResponse
+                var response = new BrowseResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1674,12 +1674,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseNextResponse
+                var response = new BrowseNextResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1732,12 +1733,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddNodesResponse
+                var response = new AddNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1796,12 +1798,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteNodesResponse
+                var response = new DeleteNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1860,12 +1863,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddReferencesResponse
+                var response = new AddReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -1924,12 +1928,13 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteReferencesResponse
+                var response = new DeleteReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2017,9 +2022,9 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     RegisteredNodeIds = registeredNodeIds
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2064,10 +2069,8 @@ namespace Opc.Ua.Server
 
                 ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                response = new UnregisterNodesResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context)
-                };
+                response = new UnregisterNodesResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2118,12 +2121,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new TranslateBrowsePathsToNodeIdsResponse
+                var response = new TranslateBrowsePathsToNodeIdsResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2172,12 +2176,13 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new ReadResponse
+                var response = new ReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2242,12 +2247,13 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new HistoryReadResponse
+                var response = new HistoryReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2293,12 +2299,13 @@ namespace Opc.Ua.Server
                         .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new WriteResponse
+                var response = new WriteResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2344,12 +2351,13 @@ namespace Opc.Ua.Server
                         historyUpdateDetails,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new HistoryUpdateResponse
+                var response = new HistoryUpdateResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -2638,9 +2646,9 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context),
                     NotificationMessage = notificationMessage
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2700,9 +2708,9 @@ namespace Opc.Ua.Server
                 {
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2754,9 +2762,9 @@ namespace Opc.Ua.Server
                 response = new SetPublishingModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -2825,9 +2833,9 @@ namespace Opc.Ua.Server
                     AddResults = addResults,
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
-                    RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    RemoveDiagnosticInfos = removeDiagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
@@ -3034,12 +3042,13 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new SetMonitoringModeResponse
+                var response = new SetMonitoringModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -3082,12 +3091,13 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new CallResponse
+                var response = new CallResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
@@ -3417,18 +3427,25 @@ namespace Opc.Ua.Server
         /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
         /// strings to it, or throws, keeps it, and a response created during the call
         /// (re-entrantly) gets a table of its own.
+        /// A service that just constructed its response passes the response's default
+        /// header as <paramref name="responseHeaderToFill"/>; the base implementation fills
+        /// it instead of allocating another header (see
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable, ResponseHeader)"/>).
         /// </remarks>
-        internal ResponseHeader CreateResponse(RequestHeader? requestHeader, OperationContext context)
+        internal ResponseHeader CreateResponse(
+            RequestHeader? requestHeader,
+            OperationContext context,
+            ResponseHeader? responseHeaderToFill = null)
         {
             StringTable? strings = context.CreatedStringTable;
             if (strings != null)
             {
-                return CreateResponse(requestHeader!, strings);
+                return CreateResponse(requestHeader!, strings, responseHeaderToFill);
             }
 
             strings = t_noStrings ?? new StringTable();
             t_noStrings = null;
-            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings);
+            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings, responseHeaderToFill);
             if (strings.Count == 0)
             {
                 t_noStrings = strings;
@@ -3654,7 +3671,7 @@ namespace Opc.Ua.Server
 
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
-            context.AttachRequestScope(requestManager.EnterRequestScope(context));
+            requestManager.AttachRequestScope(context);
 
             // A close that started after the Session admitted this request, but before the
             // request was registered, did not see it when it aborted the Session's outstanding
@@ -4476,6 +4493,10 @@ namespace Opc.Ua.Server
                 lifecycle.PrepareForStartup();
             }
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // The managers belong to the datastore once registered with it; until then a
+            // failed startup must release them itself.
+            ISessionManager? unregisteredSessionManager = null;
+            ISubscriptionManager? unregisteredSubscriptionManager = null;
             try
             {
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
@@ -4615,6 +4636,7 @@ namespace Opc.Ua.Server
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSessionManager = sessionManager;
                 await sessionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
@@ -4656,11 +4678,14 @@ namespace Opc.Ua.Server
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSubscriptionManager = subscriptionManager;
                 await subscriptionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                unregisteredSessionManager = null;
+                unregisteredSubscriptionManager = null;
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4755,6 +4780,9 @@ namespace Opc.Ua.Server
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
             {
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 throw;
@@ -4763,6 +4791,9 @@ namespace Opc.Ua.Server
             {
                 const string message = "Unexpected error starting application";
                 m_logger.Message(e, message);
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
@@ -4823,6 +4854,52 @@ namespace Opc.Ua.Server
                 // and transport listeners pick up cert hot-updates.
                 m_certManagerSubscription = CertificateManager.CertificateChanges
                     .Subscribe(new CertificateManagerChangeObserver(this, m_logger));
+            }
+        }
+
+        /// <summary>
+        /// Releases the session and subscription managers that a failed startup
+        /// created but did not register with the datastore. The session manager
+        /// is shut down so its monitor stops; the subscription manager is only
+        /// disposed, so nothing is stored.
+        /// </summary>
+        private async ValueTask DisposeUnregisteredManagersAsync(
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager)
+        {
+            try
+            {
+                if (sessionManager != null)
+                {
+                    try
+                    {
+                        await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        sessionManager.Dispose();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+            }
+
+            try
+            {
+                if (subscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+                {
+                    await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    subscriptionManager?.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
             }
         }
 
@@ -6258,5 +6335,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        /// <summary>
+        /// Logs a failure to release a manager created by a failed startup.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 39, Level = LogLevel.Warning,
+            Message = "Server - releasing a manager created by the failed startup failed.")]
+        public static partial void ReleasingManagerOfFailedStartupFailed(this ILogger logger, Exception ex);
     }
 }

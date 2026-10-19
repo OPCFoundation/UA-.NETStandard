@@ -252,7 +252,9 @@ namespace Opc.Ua.Client.Tests
             factory.SetupGet(value => value.SubscriptionEngineFactory)
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             factory.Setup(value => value.CreateAsync(
-                    ClientFixture.Config, endpoint, It.IsAny<bool>(), false,
+                    ClientFixture.Config,
+                    It.Is<ConfiguredEndpoint>(candidate => candidate.EndpointUrl == endpoint.EndpointUrl),
+                    It.IsAny<bool>(), false,
                     It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<IUserIdentity>(),
                     It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(inner);

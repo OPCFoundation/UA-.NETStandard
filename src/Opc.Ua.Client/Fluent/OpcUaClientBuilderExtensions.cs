@@ -585,8 +585,14 @@ namespace Microsoft.Extensions.DependencyInjection
                 {
                     EndpointDescription endpoint = await SelectDiscoveredEndpointAsync(
                         discovery, options, ct).ConfigureAwait(false);
+                    OpcUaClientOptions client = sp.GetRequiredService<OpcUaClientOptions>();
+                    ApplicationConfiguration application = client.ConfigurationProvider != null
+                        ? await client.ConfigurationProvider.GetAsync(ct).ConfigureAwait(false)
+                        : client.Configuration ??
+                            throw new InvalidOperationException("OPC UA client configuration is required.");
                     return await factory.ConnectAsync(
-                        new ConfiguredEndpoint(null, endpoint, null), ct).ConfigureAwait(false);
+                        new ConfiguredEndpoint(null, endpoint, EndpointConfiguration.Create(application)), ct)
+                        .ConfigureAwait(false);
                 };
             });
             return builder;
@@ -1397,6 +1403,14 @@ namespace Microsoft.Extensions.DependencyInjection
             if (connectGate != null)
             {
                 builder.WithConnectRateLimiter(connectGate);
+            }
+
+            RediscoveredEndpointValidator? endpointValidator =
+                sessionOptions.ValidateRediscoveredEndpoint ??
+                sp.GetService<RediscoveredEndpointValidator>();
+            if (endpointValidator != null)
+            {
+                builder.WithRediscoveredEndpointValidator(endpointValidator);
             }
         }
 

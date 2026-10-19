@@ -30,10 +30,12 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Opc.Ua.Wot
 {
@@ -42,13 +44,19 @@ namespace Opc.Ua.Wot
     /// </summary>
     public enum WotDocumentKind
     {
-        /// <summary>The document kind could not be determined.</summary>
+        /// <summary>
+        /// The document kind could not be determined.
+        /// </summary>
         Unknown,
 
-        /// <summary>A class-level Thing Model (an OPC UA type projection).</summary>
+        /// <summary>
+        /// A class-level Thing Model (an OPC UA type projection).
+        /// </summary>
         ThingModel,
 
-        /// <summary>An instance-level Thing Description (an OPC UA Object projection).</summary>
+        /// <summary>
+        /// An instance-level Thing Description (an OPC UA Object projection).
+        /// </summary>
         ThingDescription
     }
 
@@ -60,25 +68,34 @@ namespace Opc.Ua.Wot
     /// The original UTF-8 representation is retained so unknown JSON-LD terms
     /// can be written back byte-for-byte without a lossy object-model
     /// projection. Typed access is exposed over the parsed
-    /// <see cref="System.Text.Json.JsonElement"/> tree rather than one POCO per
+    /// <see cref="JsonElement"/> tree rather than one POCO per
     /// W3C class, so members the binding does not model are still reachable and
     /// preserved. A separate deterministic canonical writer is provided.
     /// </remarks>
     public sealed class WotDocument : IDisposable
     {
-        /// <summary>The JSON-LD prefix bound to the OPC UA WoT Binding namespace.</summary>
+        /// <summary>
+        /// The JSON-LD prefix bound to the OPC UA WoT Binding namespace.
+        /// </summary>
         public const string UavPrefix = "uav:";
 
         private WotDocument(byte[] utf8Json, JsonDocument document)
         {
             m_utf8Json = utf8Json;
             m_document = document;
+            ElementComparer = new WotJsonElementComparer([document.RootElement]);
+            m_payloadSchemas = new(new PayloadSchemaKeyComparer(ElementComparer));
         }
 
         /// <summary>
         /// Gets the parsed document root.
         /// </summary>
         public JsonElement RootElement => m_document.RootElement;
+
+        /// <summary>
+        /// Gets identity hashing for elements of this live document.
+        /// </summary>
+        internal IEqualityComparer<JsonElement> ElementComparer { get; }
 
         /// <summary>
         /// Gets the original UTF-8 document bytes.
@@ -103,7 +120,10 @@ namespace Opc.Ua.Wot
                 }
                 foreach (string token in TypeTokens)
                 {
-                    if (string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
+                    if (string.Equals(token, "Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, "td:Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, "https://www.w3.org/2019/wot/td#Thing", StringComparison.Ordinal) ||
+                        string.Equals(token, UavPrefix + "object", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "variable", StringComparison.Ordinal) ||
                         string.Equals(token, UavPrefix + "method", StringComparison.Ordinal))
                     {
@@ -121,15 +141,19 @@ namespace Opc.Ua.Wot
         {
             get
             {
-                m_typeTokens ??= ReadStringTokens("@type");
+                m_typeTokens ??= ReadStringTokens(RootElement, "@type");
                 return m_typeTokens;
             }
         }
 
-        /// <summary>Gets the document <c>title</c>, if present.</summary>
+        /// <summary>
+        /// Gets the document <c>title</c>, if present.
+        /// </summary>
         public string? Title => GetRootString("title");
 
-        /// <summary>Gets the document <c>id</c>, if present.</summary>
+        /// <summary>
+        /// Gets the document <c>id</c>, if present.
+        /// </summary>
         public string? Id => GetRootString("id");
 
         /// <summary>
@@ -148,44 +172,680 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <param name="prefix">The prefix, without the colon.</param>
         /// <param name="namespaceUri">The namespace it is bound to.</param>
+        /// <param name="carryingNode">The carrying object, or the document root when omitted.</param>
         /// <returns><c>true</c> when the document binds the prefix.</returns>
-        internal bool TryGetContextPrefix(string prefix, out string namespaceUri)
+        public bool TryGetContextPrefix(
+            string prefix,
+            out string namespaceUri,
+            JsonElement carryingNode = default)
         {
-            if (TryGetContext(out JsonElement context))
+            _ = prefix ?? throw new ArgumentNullException(nameof(prefix));
+            if (TryGetContextTerm(prefix, out JsonElement definition, carryingNode))
             {
-                return TryGetContextPrefix(context, prefix, out namespaceUri);
+                namespaceUri = ReadContextPrefix(definition);
+                return namespaceUri.Length != 0;
             }
-            namespaceUri = string.Empty;
+            namespaceUri = ReadImplicitContextPrefix(prefix);
+            return namespaceUri.Length != 0;
+        }
+
+        /// <summary>
+        /// Looks up a term in the carrying object's original active context.
+        /// A present null definition is returned rather than replaced by a fallback.
+        /// </summary>
+        /// <param name="term">The context term.</param>
+        /// <param name="definition">The JSON element.</param>
+        /// <param name="carryingNode">The carrying node.</param>
+        public bool TryGetContextTerm(
+            string term,
+            out JsonElement definition,
+            JsonElement carryingNode = default)
+        {
+            _ = term ?? throw new ArgumentNullException(nameof(term));
+            m_contextScopes ??= CreateContextScopes();
+            if (carryingNode.ValueKind == JsonValueKind.Undefined)
+            {
+                carryingNode = RootElement;
+            }
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return TryFindContextTerm(scope, term, out definition);
+            }
+            definition = default;
             return false;
         }
 
-        private static bool TryGetContextPrefix(
+        /// <summary>
+        /// Gets the ordered context entries that apply to a node.
+        /// </summary>
+        /// <param name="carryingNode">The carrying node.</param>
+        internal ArrayOf<JsonElement> GetContextSequence(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (!m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                throw new ArgumentException(
+                    "The context owner must be an original semantic object.", nameof(carryingNode));
+            }
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Gets the context binding scope that applies to a node.
+        /// </summary>
+        /// <param name="carryingNode">The carrying node.</param>
+        internal ContextBindingScope? GetContextBindings(JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return scope?.Bindings;
+            }
+            throw new ArgumentException(
+                "The context owner must be an original semantic object.", nameof(carryingNode));
+        }
+
+        /// <summary>
+        /// Gets the ordered context entries of a binding scope and its parents.
+        /// </summary>
+        /// <param name="scope">The context binding scope.</param>
+        internal static ArrayOf<JsonElement> GetContextSequence(ContextBindingScope? scope)
+        {
+            var contexts = new List<JsonElement>();
+            for (; scope is not null; scope = scope.Parent)
+            {
+                contexts.Add(scope.Context);
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Attempts to find the known definition of a context term for a node.
+        /// </summary>
+        /// <param name="term">The context term.</param>
+        /// <param name="definition">The JSON element.</param>
+        /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
+        /// <param name="carryingNode">The carrying node.</param>
+        internal bool TryGetKnownContextTerm(
+            string term, out JsonElement definition, out bool uncertain, JsonElement carryingNode)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                return TryFindKnownContextTerm(scope, term, out definition, out uncertain);
+            }
+            definition = default;
+            uncertain = false;
+            return false;
+        }
+
+        /// <summary>
+        /// Attempts to find the known definition of a context term in a binding scope.
+        /// </summary>
+        /// <param name="scope">The context binding scope.</param>
+        /// <param name="term">The context term.</param>
+        /// <param name="definition">The JSON element.</param>
+        /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
+        /// <param name="definedAt">The defined at.</param>
+        internal static bool TryGetKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            ContextTermState state = FindKnownContextTerm(scope, term, out definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            return state == ContextTermState.Defined;
+        }
+
+        /// <summary>
+        /// Attempts to find the known namespace of a context prefix in a binding scope.
+        /// </summary>
+        /// <param name="scope">The context binding scope.</param>
+        /// <param name="prefix">The context prefix.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        /// <param name="uncertain">The uncertain flag supplied by the caller.</param>
+        /// <param name="definedAt">The defined at.</param>
+        internal static bool TryGetKnownContextPrefix(
+            ContextBindingScope? scope, string prefix, out string namespaceUri, out bool uncertain,
+            out ContextBindingScope? definedAt)
+        {
+            ContextTermState state = FindKnownContextTerm(scope, prefix, out JsonElement definition, out definedAt);
+            uncertain = state == ContextTermState.Unknown;
+            namespaceUri = state switch
+            {
+                ContextTermState.Defined => ReadContextPrefix(definition),
+                ContextTermState.Absent => ReadImplicitContextPrefix(prefix),
+                _ => string.Empty
+            };
+            return namespaceUri.Length != 0;
+        }
+
+        /// <summary>
+        /// Determines whether a context term is defined as an index map for a node.
+        /// </summary>
+        /// <param name="term">The context term.</param>
+        /// <param name="carryingNode">The carrying node.</param>
+        internal bool IsContextIndexMap(string term, JsonElement carryingNode)
+        {
+            return IsStandardIndexMap(term) ||
+                (TryGetContextTerm(term, out JsonElement definition, carryingNode) &&
+                    definition.ValueKind == JsonValueKind.Object &&
+                    definition.TryGetProperty("@container", out JsonElement container) &&
+                    IsIndexContainer(container));
+        }
+
+        private static bool IsStandardIndexMap(string term)
+        {
+            return s_tdScopedTerms.TryGetProperty(term, out JsonElement definition) &&
+                definition.TryGetProperty("@container", out JsonElement container) &&
+                IsIndexContainer(container);
+        }
+
+        private static bool TryFindContextTerm(
+            ContextScope? scope, string term, out JsonElement definition)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (TryReadContextTerm(scope.Context, term, out definition))
+                {
+                    return true;
+                }
+            }
+            definition = default;
+            return false;
+        }
+
+        private static bool TryFindKnownContextTerm(
+            ContextScope? scope, string term, out JsonElement definition, out bool uncertain)
+        {
+            return TryGetKnownContextTerm(scope?.Bindings, term, out definition, out uncertain, out _);
+        }
+
+        private static ContextTermState FindKnownContextTerm(
+            ContextBindingScope? scope, string term, out JsonElement definition, out ContextBindingScope? definedAt)
+        {
+            for (; scope is not null; scope = scope.Parent)
+            {
+                if (!scope.IsKnown)
+                {
+                    definition = default;
+                    definedAt = null;
+                    return ContextTermState.Unknown;
+                }
+                ContextTermState state = ReadKnownContextTerm(scope.Context, term, out definition);
+                if (state != ContextTermState.Absent)
+                {
+                    definedAt = state == ContextTermState.Defined ? scope : null;
+                    return state;
+                }
+            }
+            definition = default;
+            definedAt = null;
+            return ContextTermState.Absent;
+        }
+
+        private static ContextBindingScope? CreateContextBindings(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            if (isKnown && context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    parent = CreateContextBindings(entry, parent, isKnown);
+                }
+                return parent;
+            }
+            return new ContextBindingScope(context, parent, isKnown);
+        }
+
+        private static ContextTermState ReadKnownContextTerm(
+            JsonElement context, string term, out JsonElement definition)
+        {
+            definition = default;
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                for (int index = context.GetArrayLength() - 1; index >= 0; index--)
+                {
+                    ContextTermState state = ReadKnownContextTerm(context[index], term, out definition);
+                    if (state != ContextTermState.Absent)
+                    {
+                        return state;
+                    }
+                }
+                return ContextTermState.Absent;
+            }
+            if (context.ValueKind == JsonValueKind.Null)
+            {
+                return ContextTermState.Reset;
+            }
+            if (TryReadContextTerm(context, term, out definition))
+            {
+                return ContextTermState.Defined;
+            }
+            if ((context.ValueKind == JsonValueKind.String &&
+                    context.GetString() is not (WotVocabulary.WotContext or WotVocabulary.BindingContext)) ||
+                (context.ValueKind == JsonValueKind.Object && context.TryGetProperty("@import", out _)))
+            {
+                return ContextTermState.Unknown;
+            }
+            return ContextTermState.Absent;
+        }
+
+        /// <summary>
+        /// Attempts to find the namespace that a context declares for a prefix.
+        /// </summary>
+        /// <param name="context">The JSON element.</param>
+        /// <param name="prefix">The context prefix.</param>
+        /// <param name="namespaceUri">The namespace URI.</param>
+        internal static bool TryGetContextPrefix(
             JsonElement context,
             string prefix,
             out string namespaceUri)
         {
-            if (context.ValueKind == JsonValueKind.Object &&
-                context.TryGetProperty(prefix, out JsonElement value) &&
-                value.ValueKind == JsonValueKind.String)
+            namespaceUri = TryReadContextTerm(context, prefix, out JsonElement definition)
+                ? ReadContextPrefix(definition)
+                : string.Empty;
+            return namespaceUri.Length != 0;
+        }
+
+        /// <summary>
+        /// Gets the carrying object's active contexts in outermost-first order.
+        /// Relative base declarations compose in this order rather than replacing one another.
+        /// </summary>
+        /// <param name="carryingNode">The carrying node.</param>
+        public ArrayOf<JsonElement> GetActiveContexts(JsonElement carryingNode = default)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            if (carryingNode.ValueKind == JsonValueKind.Undefined)
             {
-                namespaceUri = value.GetString()!;
+                carryingNode = RootElement;
+            }
+            var contexts = new List<JsonElement>();
+            if (m_contextScopes.TryGetValue(carryingNode, out ContextScope? scope))
+            {
+                for (; scope is not null; scope = scope.Parent)
+                {
+                    contexts.Add(scope.Context);
+                }
+            }
+            contexts.Reverse();
+            return contexts.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Attempts to find the definition that a context declares for a term.
+        /// </summary>
+        /// <param name="context">The JSON element.</param>
+        /// <param name="term">The context term.</param>
+        /// <param name="definition">The JSON element.</param>
+        internal static bool TryGetLocalContextTerm(JsonElement context, string term, out JsonElement definition)
+        {
+            return TryReadContextTerm(context, term, out definition);
+        }
+
+        private static string ReadContextPrefix(JsonElement definition)
+        {
+            if (definition.ValueKind == JsonValueKind.String)
+            {
+                return definition.GetString()!;
+            }
+            if (definition.ValueKind == JsonValueKind.Object &&
+                (!definition.TryGetProperty("@prefix", out JsonElement flag) ||
+                    flag.ValueKind == JsonValueKind.True) &&
+                definition.TryGetProperty("@id", out JsonElement identity) &&
+                identity.ValueKind == JsonValueKind.String)
+            {
+                return identity.GetString()!;
+            }
+            return string.Empty;
+        }
+
+        private static string ReadImplicitContextPrefix(string prefix)
+        {
+            return prefix switch
+            {
+                "ua" => WotVocabulary.OpcUaNamespace,
+                "uav" => WotVocabulary.VocabularyNamespace,
+                _ => string.Empty
+            };
+        }
+
+        private static bool TryReadContextTerm(
+            JsonElement context,
+            string term,
+            out JsonElement definition)
+        {
+            if (context.ValueKind == JsonValueKind.String &&
+                context.GetString() == WotVocabulary.WotContext &&
+                s_tdScopedTerms.TryGetProperty(term, out definition))
+            {
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.String &&
+                context.GetString() == WotVocabulary.BindingContext &&
+                term == WotNodeSetConverter.EngineeringUnitsTerm)
+            {
+                definition = s_unitScopedTerm;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Null)
+            {
+                definition = context;
+                return true;
+            }
+            if (context.ValueKind == JsonValueKind.Object &&
+                context.TryGetProperty(term, out definition))
+            {
                 return true;
             }
             if (context.ValueKind == JsonValueKind.Array)
             {
-                foreach (JsonElement entry in context.EnumerateArray())
+                for (int index = context.GetArrayLength() - 1; index >= 0; index--)
                 {
-                    if (TryGetContextPrefix(entry, prefix, out namespaceUri))
+                    if (TryReadContextTerm(context[index], term, out definition))
                     {
                         return true;
                     }
                 }
             }
-            namespaceUri = string.Empty;
+            definition = default;
             return false;
         }
 
-        /// <summary>Gets the <c>properties</c> affordance map (name to schema).</summary>
+        private Dictionary<JsonElement, ContextScope?> CreateContextScopes()
+        {
+            var scopes = new Dictionary<JsonElement, ContextScope?>(ElementComparer);
+            AddContextScopes(RootElement, null, scopes);
+            return scopes;
+        }
+
+        /// <summary>
+        /// Records the affordances that are carried only as structural support.
+        /// </summary>
+        /// <param name="supportOnly">The support-only affordances by kind and name.</param>
+        internal void MarkSupportOnly(IEnumerable<(WotAffordanceKind Kind, string Name)> supportOnly)
+        {
+            foreach ((WotAffordanceKind kind, string name) in supportOnly)
+            {
+                (m_supportOnly ??= []).Add((kind, name));
+            }
+        }
+
+        /// <summary>
+        /// Determines whether the element belongs to this document.
+        /// </summary>
+        /// <param name="element">The JSON element.</param>
+        internal bool Owns(JsonElement element)
+        {
+            m_contextScopes ??= CreateContextScopes();
+            return m_contextScopes.ContainsKey(element);
+        }
+
+        /// <summary>
+        /// Attempts to get the payload schema recorded for an affordance.
+        /// </summary>
+        /// <param name="kind">The WoT affordance kind.</param>
+        /// <param name="affordance">The JSON element.</param>
+        /// <param name="schema">The WoT payload schema.</param>
+        internal bool TryGetPayloadSchema(
+            WotAffordanceKind kind,
+            JsonElement affordance,
+            [NotNullWhen(true)] out WotPayloadSchema? schema)
+        {
+            return m_payloadSchemas.TryGetValue((kind, affordance), out schema);
+        }
+
+        /// <summary>
+        /// Records the payload schema of an affordance.
+        /// </summary>
+        /// <param name="kind">The WoT affordance kind.</param>
+        /// <param name="affordance">The JSON element.</param>
+        /// <param name="schema">The WoT payload schema.</param>
+        internal void SetPayloadSchema(WotAffordanceKind kind, JsonElement affordance, WotPayloadSchema schema)
+        {
+            m_payloadSchemas[(kind, affordance)] = schema;
+        }
+
+        private static void AddContextScopes(
+            JsonElement element,
+            ContextScope? scope,
+            Dictionary<JsonElement, ContextScope?> scopes,
+            bool indexMap = false)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                if (!indexMap && element.TryGetProperty("@context", out JsonElement context))
+                {
+                    scope = new ContextScope(context, scope);
+                }
+                scopes[element] = scope;
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (indexMap)
+                    {
+                        AddContextScopes(member.Value, scope, scopes);
+                        continue;
+                    }
+                    if (!IsSemanticBoundary(member.Name))
+                    {
+                        ContextScope? childScope = scope;
+                        bool childIndexMap = IsStandardIndexMap(member.Name);
+                        if (TryFindContextTerm(scope, member.Name, out JsonElement definition) &&
+                            definition.ValueKind == JsonValueKind.Object)
+                        {
+                            if (definition.TryGetProperty("@context", out JsonElement propertyContext))
+                            {
+                                bool known = TryFindKnownContextTerm(scope, member.Name, out _, out _);
+                                childScope = new ContextScope(propertyContext, scope, known);
+                            }
+                            if (definition.TryGetProperty("@container", out JsonElement container))
+                            {
+                                childIndexMap |= IsIndexContainer(container);
+                            }
+                        }
+                        AddContextScopes(member.Value, childScope, scopes, childIndexMap);
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    AddContextScopes(item, scope, scopes);
+                }
+            }
+        }
+
+        private static bool IsIndexContainer(JsonElement container)
+        {
+            if (container.ValueKind == JsonValueKind.String)
+            {
+                return container.GetString() is "@index" or "@id" or "@type" or "@language";
+            }
+            if (container.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement member in container.EnumerateArray())
+                {
+                    if (IsIndexContainer(member))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static JsonElement CreateTdScopedTerms()
+        {
+            // TD 1.1 resets these terms inside its DataSchema scopes, after any enclosing override.
+            JsonNode schema = JsonNode.Parse(
+                """
+                {
+                  "@vocab": "https://www.w3.org/2019/wot/json-schema#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "schema": "http://schema.org/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                  "title": {"@id": "https://www.w3.org/2019/wot/td#title", "@language": "en"},
+                  "description": {"@id": "https://www.w3.org/2019/wot/td#description", "@language": "en"},
+                  "titles": {"@container": "@language"},
+                  "descriptions": {"@container": "@language"},
+                  "properties": {"@container": "@index"}
+                }
+                """)!;
+            var terms = new JsonObject
+            {
+                ["@vocab"] = "https://www.w3.org/2019/wot/td#",
+                ["td"] = "https://www.w3.org/2019/wot/td#",
+                ["jsonschema"] = "https://www.w3.org/2019/wot/json-schema#",
+                ["wotsec"] = "https://www.w3.org/2019/wot/security#",
+                ["hctl"] = "https://www.w3.org/2019/wot/hypermedia#",
+                ["rdfs"] = "http://www.w3.org/2000/01/rdf-schema#",
+                ["xsd"] = "http://www.w3.org/2001/XMLSchema#",
+                ["dct"] = "http://purl.org/dc/terms/",
+                ["htv"] = "http://www.w3.org/2011/http#",
+                ["tm"] = "https://www.w3.org/2019/wot/tm#"
+            };
+            foreach (string name in new[]
+            {
+                "properties", "input", "output", "data", "dataResponse", "subscription", "cancellation"
+            })
+            {
+                var definition = new JsonObject { ["@context"] = schema.DeepClone() };
+                if (name == "properties")
+                {
+                    definition["@container"] = "@index";
+                }
+                terms[name] = definition;
+            }
+            foreach (string name in new[]
+            {
+                "actions", "events", "schemaDefinitions", "uriVariables", "securityDefinitions"
+            })
+            {
+                terms[name] = new JsonObject { ["@container"] = "@index" };
+            }
+            terms["forms"] = JsonNode.Parse(
+                """
+                {
+                  "@context": {
+                    "@vocab": "https://www.w3.org/2019/wot/hypermedia#",
+                    "td": "https://www.w3.org/2019/wot/td#",
+                    "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                    "wotsec": "https://www.w3.org/2019/wot/security#",
+                    "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                    "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+                    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+                    "xsd": "http://www.w3.org/2001/XMLSchema#"
+                  }
+                }
+                """);
+            terms["securityDefinitions"]!["@context"] = JsonNode.Parse(
+                """
+                {
+                  "@vocab": "https://www.w3.org/2019/wot/security#",
+                  "td": "https://www.w3.org/2019/wot/td#",
+                  "jsonschema": "https://www.w3.org/2019/wot/json-schema#",
+                  "wotsec": "https://www.w3.org/2019/wot/security#",
+                  "hctl": "https://www.w3.org/2019/wot/hypermedia#",
+                  "dct": "http://purl.org/dc/terms/",
+                  "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+                }
+                """);
+            using var document = JsonDocument.Parse(terms.ToJsonString());
+            return document.RootElement.Clone();
+        }
+
+        private static JsonElement CreateUnitScopedTerm()
+        {
+            using var document = JsonDocument.Parse(
+                """
+                {
+                  "@context": {
+                    "displayName": "uav:unitDisplayName",
+                    "description": "uav:unitDescription",
+                    "displayNames": {"@container": "@language"},
+                    "descriptions": {"@container": "@language"}
+                  }
+                }
+                """);
+            return document.RootElement.Clone();
+        }
+
+        internal static bool IsSemanticBoundary(string name)
+        {
+            if (name is "@context" or "uav:nodes" or "uav:nodeSet")
+            {
+                return true;
+            }
+            foreach (string opaque in WotBindingConformance.OpaqueMembers)
+            {
+                if (string.Equals(name, opaque, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        internal IEnumerable<JsonElement> EnumerateLinks()
+        {
+            return EnumerateLinks(RootElement);
+        }
+
+        private static IEnumerable<JsonElement> EnumerateLinks(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in element.EnumerateObject())
+                {
+                    if (IsSemanticBoundary(member.Name))
+                    {
+                        continue;
+                    }
+                    if (member.Name == "links" && member.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (JsonElement link in member.Value.EnumerateArray())
+                        {
+                            if (link.ValueKind == JsonValueKind.Object)
+                            {
+                                yield return link;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (JsonElement link in EnumerateLinks(member.Value))
+                        {
+                            yield return link;
+                        }
+                    }
+                }
+            }
+            else if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    foreach (JsonElement link in EnumerateLinks(item))
+                    {
+                        yield return link;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the <c>properties</c> affordance map (name to schema).
+        /// </summary>
         public IReadOnlyDictionary<string, JsonElement> Properties
         {
             get
@@ -195,7 +855,9 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>Gets the <c>actions</c> affordance map (name to affordance).</summary>
+        /// <summary>
+        /// Gets the <c>actions</c> affordance map (name to affordance).
+        /// </summary>
         public IReadOnlyDictionary<string, JsonElement> Actions
         {
             get
@@ -205,7 +867,9 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>Gets the <c>events</c> affordance map (name to affordance).</summary>
+        /// <summary>
+        /// Gets the <c>events</c> affordance map (name to affordance).
+        /// </summary>
         public IReadOnlyDictionary<string, JsonElement> Events
         {
             get
@@ -215,7 +879,9 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>Gets the <c>securityDefinitions</c> map, if present.</summary>
+        /// <summary>
+        /// Gets the <c>securityDefinitions</c> map, if present.
+        /// </summary>
         public IReadOnlyDictionary<string, JsonElement> SecurityDefinitions
         {
             get
@@ -225,7 +891,9 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>Gets the <c>schemaDefinitions</c> map, if present.</summary>
+        /// <summary>
+        /// Gets the <c>schemaDefinitions</c> map, if present.
+        /// </summary>
         public IReadOnlyDictionary<string, JsonElement> SchemaDefinitions
         {
             get
@@ -235,24 +903,54 @@ namespace Opc.Ua.Wot
             }
         }
 
-        /// <summary>Gets the top-level <c>links</c> array elements.</summary>
+        /// <summary>
+        /// Gets the top-level <c>links</c> array elements.
+        /// </summary>
         public IReadOnlyList<JsonElement> Links
         {
             get
             {
-                m_links ??= ReadArray("links");
+                m_links ??= ReadArray(RootElement, "links");
                 return m_links;
             }
         }
 
-        /// <summary>Gets the top-level <c>forms</c> array elements.</summary>
+        /// <summary>
+        /// Gets the top-level <c>forms</c> array elements.
+        /// </summary>
         public IReadOnlyList<JsonElement> Forms
         {
             get
             {
-                m_forms ??= ReadArray("forms");
+                m_forms ??= ReadArray(RootElement, "forms");
                 return m_forms;
             }
+        }
+
+        /// <summary>
+        /// Determines whether an affordance of this document only exists as structural support for
+        /// another affordance of the same document.
+        /// </summary>
+        /// <remarks>
+        /// A resolved projection carries the affordances that a selected affordance depends on, for
+        /// example the unit property named by <c>uav:unitProperty</c>, so the resolved document
+        /// stays self-contained. Such a dependency was not selected by the projection itself.
+        /// An affordance that the projection selects explicitly is never support-only, even when
+        /// another selected affordance also depends on it. The state is not part of the JSON
+        /// document, is set only by the projection resolver and is always <c>false</c> for
+        /// documents that were not produced by one.
+        /// </remarks>
+        /// <param name="kind">The WoT affordance kind.</param>
+        /// <param name="name">The affordance name within its kind.</param>
+        /// <returns><c>true</c> when the affordance is carried only as a dependency.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <c>null</c>.</exception>
+        public bool IsSupportOnly(WotAffordanceKind kind, string name)
+        {
+            if (name is null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+            return m_supportOnly != null && m_supportOnly.Contains((kind, name));
         }
 
         /// <summary>
@@ -283,6 +981,7 @@ namespace Opc.Ua.Wot
         /// <param name="localName">The local term name without the prefix.</param>
         /// <param name="value">The member value on success.</param>
         /// <returns><c>true</c> when the member is present.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="localName"/> is <c>null</c>.</exception>
         public bool TryGetUav(string localName, out JsonElement value)
         {
             if (localName is null)
@@ -298,6 +997,7 @@ namespace Opc.Ua.Wot
         /// <param name="pointer">The JSON Pointer (empty string addresses the root).</param>
         /// <param name="value">The addressed element on success.</param>
         /// <returns><c>true</c> when the pointer resolves.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pointer"/> is <c>null</c>.</exception>
         public bool TryEvaluatePointer(string pointer, out JsonElement value)
         {
             if (pointer is null)
@@ -314,6 +1014,7 @@ namespace Opc.Ua.Wot
         /// <param name="pointer">The JSON Pointer (empty string addresses <paramref name="root"/>).</param>
         /// <param name="value">The addressed element on success.</param>
         /// <returns><c>true</c> when the pointer resolves.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="pointer"/> is <c>null</c>.</exception>
         public static bool TryEvaluatePointer(JsonElement root, string pointer, out JsonElement value)
         {
             if (pointer is null)
@@ -341,7 +1042,7 @@ namespace Opc.Ua.Wot
                 {
                     next = pointer.Length;
                 }
-                string token = UnescapePointerToken(pointer.Substring(index, next - index));
+                string token = UnescapePointerToken(pointer[index..next]);
                 index = next + 1;
 
                 switch (current.ValueKind)
@@ -373,6 +1074,10 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Parses a UTF-8 WoT document while preserving its original bytes.
         /// </summary>
+        /// <remarks>
+        /// A single leading UTF-8 byte-order mark is retained and counts toward the byte limit,
+        /// but is not part of the parsed JSON value.
+        /// </remarks>
         /// <param name="utf8Json">The UTF-8 encoded document.</param>
         /// <param name="options">Resource limits; defaults are used when omitted.</param>
         /// <returns>The parsed, byte-preserving document.</returns>
@@ -393,23 +1098,14 @@ namespace Opc.Ua.Wot
                     $"WoT document exceeds the configured {options.MaxJsonDocumentSize} byte limit.");
             }
 
-            byte[] copy = utf8Json.ToArray();
-            ThrowIfNotUnicode(copy, options.MaxJsonDepth);
-            JsonDocument document = JsonDocument.Parse(
-                copy,
-                new JsonDocumentOptions
-                {
-                    AllowTrailingCommas = false,
-                    CommentHandling = JsonCommentHandling.Disallow,
-                    MaxDepth = options.MaxJsonDepth
-                });
-            return new WotDocument(copy, document);
+            return FromOwnedBytes(utf8Json.ToArray(), options);
         }
 
         /// <summary>
         /// Writes the original UTF-8 document bytes to <paramref name="stream"/>.
         /// </summary>
         /// <param name="stream">The destination stream.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
         public void Write(Stream stream)
         {
             if (stream is null)
@@ -437,6 +1133,7 @@ namespace Opc.Ua.Wot
         /// domain of RFC 8259 Section 6, which RFC 8785 cannot canonicalize
         /// without changing the value.
         /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="stream"/> is <c>null</c>.</exception>
         public void WriteCanonical(Stream stream)
         {
             if (stream is null)
@@ -547,13 +1244,24 @@ namespace Opc.Ua.Wot
             m_document.Dispose();
         }
 
+        /// <summary>
+        /// Creates a document that takes ownership of the UTF-8 JSON bytes.
+        /// </summary>
+        /// <param name="utf8Json">The utf 8 JSON.</param>
+        /// <param name="options">The WoT node set converter options.</param>
         internal static WotDocument FromOwnedBytes(
             byte[] utf8Json,
             WotNodeSetConverterOptions options)
         {
+            ReadOnlyMemory<byte> json = utf8Json;
+            ReadOnlySpan<byte> preamble = [0xEF, 0xBB, 0xBF];
+            if (json.Span.StartsWith(preamble))
+            {
+                json = json.Slice(3);
+            }
             ThrowIfNotUnicode(utf8Json, options.MaxJsonDepth);
-            JsonDocument document = JsonDocument.Parse(
-                utf8Json,
+            var document = JsonDocument.Parse(
+                json,
                 new JsonDocumentOptions
                 {
                     AllowTrailingCommas = false,
@@ -592,7 +1300,12 @@ namespace Opc.Ua.Wot
             }
 
             // Only an escape can still produce a lone surrogate.
-            var text = new ReadOnlySpan<byte>(utf8Json);
+            ReadOnlySpan<byte> text = utf8Json;
+            ReadOnlySpan<byte> preamble = [0xEF, 0xBB, 0xBF];
+            if (text.StartsWith(preamble))
+            {
+                text = text.Slice(3);
+            }
             if (text.IndexOf((byte)'\\') < 0)
             {
                 return;
@@ -711,10 +1424,16 @@ namespace Opc.Ua.Wot
                 : null;
         }
 
-        private List<string> ReadStringTokens(string name)
+        /// <summary>
+        /// Reads a property that holds one string or an array of strings.
+        /// </summary>
+        /// <param name="element">The JSON element.</param>
+        /// <param name="name">The property name.</param>
+        internal static List<string> ReadStringTokens(JsonElement element, string name)
         {
             var tokens = new List<string>();
-            if (TryGetRootProperty(name, out JsonElement value))
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(name, out JsonElement value))
             {
                 if (value.ValueKind == JsonValueKind.String)
                 {
@@ -742,6 +1461,76 @@ namespace Opc.Ua.Wot
             return tokens;
         }
 
+        /// <summary>
+        /// Gets the namespace-qualified identity segment allocated to a root declaration.
+        /// Authored BrowseNames and explicit NodeIds are not rewritten.
+        /// </summary>
+        /// <param name="member">The JSON element.</param>
+        /// <param name="modelUri">The model URI.</param>
+        /// <param name="fallback">The WoT browse path element.</param>
+        internal WotBrowsePathElement GetAllocatedMemberPathElement(
+            JsonElement member,
+            string modelUri,
+            WotBrowsePathElement fallback)
+        {
+            MemberPathAllocation? allocation = m_memberPathAllocation;
+            if (allocation is null || allocation.ModelUri != modelUri)
+            {
+                allocation = CreateMemberPathAllocation(modelUri);
+                m_memberPathAllocation = allocation;
+            }
+            return allocation.Elements.TryGetValue(member, out WotBrowsePathElement allocated)
+                ? allocated
+                : fallback;
+        }
+
+        private MemberPathAllocation CreateMemberPathAllocation(string modelUri)
+        {
+            var elements = new Dictionary<JsonElement, WotBrowsePathElement>(ElementComparer);
+            var namesByNamespace = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            AddMap(Properties);
+            AddMap(Actions);
+            AddMap(Events);
+            foreach (JsonElement link in Links)
+            {
+                if (link.ValueKind == JsonValueKind.Object &&
+                    link.TryGetProperty("uav:declaration", out JsonElement declaration) &&
+                    declaration.ValueKind == JsonValueKind.Object)
+                {
+                    Add(declaration, "member");
+                }
+            }
+            return new MemberPathAllocation(modelUri, elements);
+
+            void AddMap(IReadOnlyDictionary<string, JsonElement> map)
+            {
+                foreach (KeyValuePair<string, JsonElement> member in map)
+                {
+                    Add(member.Value, member.Key);
+                }
+            }
+
+            void Add(JsonElement member, string key)
+            {
+                WotBrowsePathElement element = member.ValueKind == JsonValueKind.Object &&
+                    member.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+                    browseName.ValueKind == JsonValueKind.String &&
+                    WotPortableIdentity.TryResolveQualifiedName(
+                        browseName.GetString(), this, member, out WotBrowsePathElement qualified)
+                    ? qualified
+                    : new WotBrowsePathElement(modelUri, WotPortableIdentity.AffordanceName(member, key));
+                string namespaceUri = string.IsNullOrEmpty(element.NamespaceUri)
+                    ? WotVocabulary.OpcUaNamespace
+                    : element.NamespaceUri!;
+                if (!namesByNamespace.TryGetValue(namespaceUri, out HashSet<string>? names))
+                {
+                    names = new HashSet<string>(StringComparer.Ordinal);
+                    namesByNamespace.Add(namespaceUri, names);
+                }
+                elements[member] = element with { Name = WotPortableIdentity.AllocateName(element.Name, names) };
+            }
+        }
+
         private Dictionary<string, JsonElement> ReadObjectMap(string name)
         {
             var map = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -756,16 +1545,19 @@ namespace Opc.Ua.Wot
             return map;
         }
 
-        private List<JsonElement> ReadArray(string name)
+        /// <summary>
+        /// Reads a property that holds one value or an array of values.
+        /// </summary>
+        /// <param name="element">The JSON element.</param>
+        /// <param name="name">The property name.</param>
+        internal static List<JsonElement> ReadArray(JsonElement element, string name)
         {
             var items = new List<JsonElement>();
-            if (TryGetRootProperty(name, out JsonElement value) &&
+            if (element.ValueKind == JsonValueKind.Object &&
+                element.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.Array)
             {
-                foreach (JsonElement item in value.EnumerateArray())
-                {
-                    items.Add(item);
-                }
+                items.AddRange(value.EnumerateArray());
             }
             return items;
         }
@@ -781,9 +1573,14 @@ namespace Opc.Ua.Wot
             MaxDepth = int.MaxValue
         };
 
+        private static readonly JsonElement s_tdScopedTerms = CreateTdScopedTerms();
+        private static readonly JsonElement s_unitScopedTerm = CreateUnitScopedTerm();
         private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
+        private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
+            m_payloadSchemas;
+        private HashSet<(WotAffordanceKind Kind, string Name)>? m_supportOnly;
         private IReadOnlyList<string>? m_typeTokens;
         private IReadOnlyDictionary<string, JsonElement>? m_properties;
         private IReadOnlyDictionary<string, JsonElement>? m_actions;
@@ -792,5 +1589,104 @@ namespace Opc.Ua.Wot
         private IReadOnlyDictionary<string, JsonElement>? m_schemaDefinitions;
         private IReadOnlyList<JsonElement>? m_links;
         private IReadOnlyList<JsonElement>? m_forms;
+        private Dictionary<JsonElement, ContextScope?>? m_contextScopes;
+        private MemberPathAllocation? m_memberPathAllocation;
+
+        private sealed class PayloadSchemaKeyComparer(IEqualityComparer<JsonElement> elements)
+            : IEqualityComparer<(WotAffordanceKind Kind, JsonElement Affordance)>
+        {
+            public bool Equals(
+                (WotAffordanceKind Kind, JsonElement Affordance) x,
+                (WotAffordanceKind Kind, JsonElement Affordance) y)
+            {
+                return x.Kind == y.Kind && elements.Equals(x.Affordance, y.Affordance);
+            }
+
+            public int GetHashCode((WotAffordanceKind Kind, JsonElement Affordance) key)
+            {
+                return HashCode.Combine((int)key.Kind, elements.GetHashCode(key.Affordance));
+            }
+        }
+
+        private sealed class MemberPathAllocation(
+            string modelUri,
+            Dictionary<JsonElement, WotBrowsePathElement> elements)
+        {
+            /// <summary>
+            /// Gets the model URI for <c>MemberPathAllocation</c>.
+            /// </summary>
+            public string ModelUri { get; } = modelUri;
+
+            /// <summary>
+            /// Gets the elements for <c>MemberPathAllocation</c>.
+            /// </summary>
+            public Dictionary<JsonElement, WotBrowsePathElement> Elements { get; } = elements;
+        }
+
+        private sealed class ContextScope(JsonElement context, ContextScope? parent, bool isKnown = true)
+        {
+            /// <summary>
+            /// Gets the JSON element for <c>ContextScope</c>.
+            /// </summary>
+            public JsonElement Context { get; } = context;
+
+            /// <summary>
+            /// Gets the parent for <c>ContextScope</c>.
+            /// </summary>
+            public ContextScope? Parent { get; } = parent;
+
+            /// <summary>
+            /// Gets the bindings for <c>ContextScope</c>.
+            /// </summary>
+            public ContextBindingScope? Bindings { get; } = CreateContextBindings(context, parent?.Bindings, isKnown);
+        }
+
+        /// <summary>
+        /// Holds the JSON-LD context binding state of one scope.
+        /// </summary>
+        /// <param name="context">The JSON element.</param>
+        /// <param name="parent">The context binding scope.</param>
+        /// <param name="isKnown">The known flag supplied by the caller.</param>
+        internal sealed class ContextBindingScope(
+            JsonElement context, ContextBindingScope? parent, bool isKnown)
+        {
+            /// <summary>
+            /// Gets the JSON element for <c>ContextBindingScope</c>.
+            /// </summary>
+            public JsonElement Context { get; } = context;
+
+            /// <summary>
+            /// Gets the parent for <c>ContextBindingScope</c>.
+            /// </summary>
+            public ContextBindingScope? Parent { get; } = parent;
+
+            /// <summary>
+            /// Gets the is known for <c>ContextBindingScope</c>.
+            /// </summary>
+            public bool IsKnown { get; } = isKnown;
+        }
+
+        private enum ContextTermState
+        {
+            /// <summary>
+            /// The absent value of <c>ContextTermState</c>.
+            /// </summary>
+            Absent,
+
+            /// <summary>
+            /// The defined value of <c>ContextTermState</c>.
+            /// </summary>
+            Defined,
+
+            /// <summary>
+            /// The reset value of <c>ContextTermState</c>.
+            /// </summary>
+            Reset,
+
+            /// <summary>
+            /// The unknown value of <c>ContextTermState</c>.
+            /// </summary>
+            Unknown
+        }
     }
 }

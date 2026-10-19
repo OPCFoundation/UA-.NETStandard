@@ -51,6 +51,27 @@ namespace Microsoft.Extensions.DependencyInjection
         public static IOpcUaClientBuilder AddMachineryClient(
             this IOpcUaClientBuilder builder)
         {
+            return AddMachineryClientCore(builder, null);
+        }
+
+        /// <summary>
+        /// Registers Machinery clients with bounded discovery and strict, evidenced reads.
+        /// </summary>
+        /// <param name="builder">The builder returned by AddClient.</param>
+        /// <param name="options">Positive limits, validated and copied during registration.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaClientBuilder AddMachineryClient(
+            this IOpcUaClientBuilder builder,
+            MachineryClientOptions options)
+        {
+            return AddMachineryClientCore(
+                builder, (options ?? throw new ArgumentNullException(nameof(options))).CopyAndValidate());
+        }
+
+        private static IOpcUaClientBuilder AddMachineryClientCore(
+            IOpcUaClientBuilder builder,
+            MachineryClientOptions? options)
+        {
             builder.ThrowIfNull(nameof(builder));
 
             builder.AddOpcUaDi();
@@ -61,7 +82,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     throw new InvalidOperationException(
                         "AddMachineryClient requires AddClient to be called first.");
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
-                return new MachineryClientFactory(sessionFactory, telemetry);
+                return options is null
+                    ? new MachineryClientFactory(sessionFactory, telemetry)
+                    : new MachineryClientFactory(sessionFactory, telemetry, options);
             });
 
             builder.Services.TryAddSingleton<

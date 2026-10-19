@@ -85,7 +85,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] actual = Observe(builder => RegisterSet(builder, module, profiles, diagnosticsToolsEnabled));
             bool ownsConnections = module == "Core" && s_coreUnownedSessionProfiles.Contains(profile);
 
-            AssertCatalogue(actual, ownsConnections ? s_connectionNames : [], ownsConnections ? 4 : 0,
+            AssertCatalogue(actual, ownsConnections ? s_connectionNames : [], ownsConnections ? 5 : 0,
                 ownsConnections ? 1 : 0);
         }
 
@@ -405,7 +405,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             string[] actual = Observe(builder => builder.WithOpcUaWotConTools(profiles));
 
-            AssertCatalogue(actual, ExpectedNames("WotFull", 1), 25, 1);
+            AssertCatalogue(actual, ExpectedNames("WotFull", 1), 26, 1);
         }
 
         [TestCase(1)]
@@ -415,7 +415,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         {
             string[] actual = Observe(builder => RegisterConnections(builder, repetitions));
 
-            AssertCatalogue(actual, s_connectionNames, 4, 1);
+            AssertCatalogue(actual, s_connectionNames, 5, 1);
         }
 
         [TestCaseSource(nameof(CompositionCases))]
@@ -442,7 +442,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             string[] actual = Observe(builder => RegisterComposition(builder, registration, reverseOrder,
                 true, true, helperPlacement));
 
-            AssertCatalogue(actual, CombinedExpectedNames(true, true), 366, 1);
+            AssertCatalogue(actual, CombinedExpectedNames(true, true), 367, 1);
         }
 
         [Test]
@@ -457,7 +457,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             first.WithOpcUaConnectionTools();
             second.WithOpcUaConnectionTools();
 
-            AssertCatalogue(ReadNames(services), s_connectionNames, 4, 1);
+            AssertCatalogue(ReadNames(services), s_connectionNames, 5, 1);
         }
 
         [TestCase("HelperOnly", "Composed")]
@@ -480,10 +480,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 AssertCatalogue(first,
                     firstConfiguration == "HelperOnly" ? s_connectionNames : CombinedExpectedNames(true, true),
-                    firstConfiguration == "HelperOnly" ? 4 : 366, 1);
+                    firstConfiguration == "HelperOnly" ? 5 : 367, 1);
                 AssertCatalogue(second,
                     secondConfiguration == "HelperOnly" ? s_connectionNames : CombinedExpectedNames(true, true),
-                    secondConfiguration == "HelperOnly" ? 4 : 366, 1);
+                    secondConfiguration == "HelperOnly" ? 5 : 367, 1);
             }
         }
 
@@ -630,7 +630,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
                     bool pubSub = module == "PubSub";
                     yield return new TestCaseData(module, new McpToolProfileSet(s_appendedProfiles), gate,
-                        pubSub ? "PubSubExpanded" : "None", pubSub ? 56 : 0, pubSub ? 1 : 0)
+                        pubSub ? "PubSubExpanded" : "None", pubSub ? 57 : 0, pubSub ? 1 : 0)
                         .SetName($"{{m}}({module},AllAppended,Gate{gate})");
                 }
             }
@@ -664,7 +664,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 {
                     bool legacy = selection.Profile is McpToolProfile.PubSub or McpToolProfile.Full;
                     catalogue = legacy ? "PubSubFull" : "PubSubExpanded";
-                    expectedCount = legacy ? 70 : 56;
+                    expectedCount = legacy ? 71 : 57;
                     connections = 1;
                 }
                 yield return new TestCaseData(selection.Module, profiles, selection.Gate, catalogue,
@@ -685,7 +685,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.PubSubBridge,
                     McpToolProfile.PubSubSecurity
                 ]),
-                false, "PubSubFull", 70, 1)
+                false, "PubSubFull", 71, 1)
                 .SetName("{m}(PubSubWithAllFourNewPubSubProfiles)");
             yield return new TestCaseData("Core",
                 new McpToolProfileSet(
@@ -694,7 +694,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.PubSubSecurity,
                     McpToolProfile.WotRuntime
                 ]),
-                false, "Core", 15, 1)
+                false, "Core", 16, 1)
                 .SetName("{m}(CoreWithBothHighProfiles)");
         }
 
@@ -721,7 +721,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         var profiles = new McpToolProfileSet([profile, .. s_appendedProfiles]);
                         int connections = module == "Core" && profile == McpToolProfile.Diagnostics ? 1 : 0;
                         string catalogue = module == "PubSub" ? "PubSubExpanded" : "None";
-                        int expectedCount = module == "PubSub" ? 56 : connections * 4;
+                        int expectedCount = module == "PubSub" ? 57 : connections * 5;
                         if (module == "PubSub")
                         {
                             connections = 1;
@@ -814,15 +814,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
         private static IEnumerable<TestCaseData> CoreCombinedCases()
         {
             yield return new TestCaseData(
-                new McpToolProfileSet([McpToolProfile.Core, McpToolProfile.Services]), "Services", 47, false)
+                new McpToolProfileSet([McpToolProfile.Core, McpToolProfile.Services]), "Services", 48, false)
                 .SetName("{m}(CoreAndServices)");
             yield return new TestCaseData(
                 new McpToolProfileSet([McpToolProfile.Core, McpToolProfile.Administration]),
-                "CoreAdministration", 21, false)
+                "CoreAdministration", 22, false)
                 .SetName("{m}(CoreAndAdministration)");
             yield return new TestCaseData(
                 new McpToolProfileSet([McpToolProfile.Services, McpToolProfile.Administration]),
-                "CoreBounded", 53, false)
+                "CoreBounded", 54, false)
                 .SetName("{m}(ServicesAndAdministration)");
             yield return new TestCaseData(
                 new McpToolProfileSet(
@@ -831,16 +831,16 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Services,
                     McpToolProfile.Administration
                 ]),
-                "CoreBounded", 53, false)
+                "CoreBounded", 54, false)
                 .SetName("{m}(AllThreeBoundedSelections)");
             yield return new TestCaseData(
-                new McpToolProfileSet([McpToolProfile.Core, McpToolProfile.Full]), "CoreFull", 54, true)
+                new McpToolProfileSet([McpToolProfile.Core, McpToolProfile.Full]), "CoreFull", 55, true)
                 .SetName("{m}(CoreAndFull)");
             yield return new TestCaseData(
-                new McpToolProfileSet([McpToolProfile.Services, McpToolProfile.Full]), "CoreFull", 54, true)
+                new McpToolProfileSet([McpToolProfile.Services, McpToolProfile.Full]), "CoreFull", 55, true)
                 .SetName("{m}(ServicesAndFull)");
             yield return new TestCaseData(
-                new McpToolProfileSet([McpToolProfile.Administration, McpToolProfile.Full]), "CoreFull", 54, true)
+                new McpToolProfileSet([McpToolProfile.Administration, McpToolProfile.Full]), "CoreFull", 55, true)
                 .SetName("{m}(AdministrationAndFull)");
             yield return new TestCaseData(
                 new McpToolProfileSet(
@@ -850,7 +850,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Administration,
                     McpToolProfile.Full
                 ]),
-                "CoreFull", 54, true)
+                "CoreFull", 55, true)
                 .SetName("{m}(AllThreeBoundedSelectionsAndFull)");
             yield return new TestCaseData(
                 new McpToolProfileSet(
@@ -860,7 +860,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                     McpToolProfile.Administration,
                     .. s_appendedProfiles
                 ]),
-                "CoreBounded", 53, false)
+                "CoreBounded", 54, false)
                 .SetName("{m}(AllThreeBoundedSelectionsAndAllAppendedWithoutFull)");
         }
 
@@ -898,10 +898,10 @@ namespace Opc.Ua.Tools.Tests.Mcp
                         {
                             int count = (diagnosticsGate, pubSubGate) switch
                             {
-                                (false, false) => 356,
-                                (true, false) => 363,
-                                (false, true) => 359,
-                                (true, true) => 366
+                                (false, false) => 357,
+                                (true, false) => 364,
+                                (false, true) => 360,
+                                (true, true) => 367
                             };
                             yield return new TestCaseData(reverseOrder, registration,
                                 diagnosticsGate, pubSubGate, count);
@@ -1350,57 +1350,58 @@ namespace Opc.Ua.Tools.Tests.Mcp
         /// </summary>
         private static readonly Selection[] s_selections =
         [
-            new("Core", McpToolProfile.Core, false, "Core", 15, 1, 15, 1),
-            new("Core", McpToolProfile.Services, false, "Services", 47, 1, 47, 1),
-            new("Core", McpToolProfile.Administration, false, "Administration", 14, 1, 14, 1),
-            new("Core", McpToolProfile.Full, false, "CoreFull", 54, 1, 54, 1),
-            new("Diagnostics", McpToolProfile.Diagnostics, false, "DiagnosticsCapture", 10, 1, 6, 0),
-            new("Diagnostics", McpToolProfile.Diagnostics, true, "DiagnosticsEnabled", 17, 1, 13, 0),
+            new("Core", McpToolProfile.Core, false, "Core", 16, 1, 16, 1),
+            new("Core", McpToolProfile.Services, false, "Services", 48, 1, 48, 1),
+            new("Core", McpToolProfile.Administration, false, "Administration", 15, 1, 15, 1),
+            new("Core", McpToolProfile.Full, false, "CoreFull", 55, 1, 55, 1),
+            new("Diagnostics", McpToolProfile.Diagnostics, false, "DiagnosticsCapture", 11, 1, 6, 0),
+            new("Diagnostics", McpToolProfile.Diagnostics, true, "DiagnosticsEnabled", 18, 1, 13, 0),
             new("Diagnostics", McpToolProfile.Full, false, "DiagnosticsCapture", 6, 0, 6, 0),
             new("Diagnostics", McpToolProfile.Full, true, "DiagnosticsEnabled", 13, 0, 13, 0),
             // Approved PubSub ownership: legacy 14; runtime 10; configuration 20; bridge/adapter 10; security 12.
-            // Only configuration, bridge, security and their Full union also own the four connection tools.
+            // Only configuration, bridge, security and their Full union also own the five connection tools.
             new("PubSub", McpToolProfile.PubSub, false, "PubSub", 14, 0, 14, 0),
             new("PubSub", McpToolProfile.PubSubRuntime, false, "PubSubRuntime", 10, 0, 10, 0),
-            new("PubSub", McpToolProfile.PubSubConfiguration, false, "PubSubConfiguration", 24, 1, 24, 1),
-            new("PubSub", McpToolProfile.PubSubBridge, false, "PubSubBridge", 14, 1, 14, 1),
-            new("PubSub", McpToolProfile.PubSubSecurity, false, "PubSubSecurity", 16, 1, 16, 1),
-            new("PubSub", McpToolProfile.Full, false, "PubSubFull", 70, 1, 70, 1),
+            new("PubSub", McpToolProfile.PubSubConfiguration, false, "PubSubConfiguration", 25, 1, 25, 1),
+            new("PubSub", McpToolProfile.PubSubBridge, false, "PubSubBridge", 15, 1, 15, 1),
+            new("PubSub", McpToolProfile.PubSubSecurity, false, "PubSubSecurity", 17, 1, 17, 1),
+            new("PubSub", McpToolProfile.Full, false, "PubSubFull", 71, 1, 71, 1),
             new("PubSub.Diagnostics", McpToolProfile.PubSub, false, "PubSubCapture", 4, 0, 4, 0),
             new("PubSub.Diagnostics", McpToolProfile.PubSub, true, "PubSubEnabled", 7, 0, 7, 0),
             new("PubSub.Diagnostics", McpToolProfile.Full, false, "PubSubCapture", 4, 0, 4, 0),
             new("PubSub.Diagnostics", McpToolProfile.Full, true, "PubSubEnabled", 7, 0, 7, 0),
-            new("Di", McpToolProfile.Di, false, "Di", 28, 1, 28, 1),
-            new("Di", McpToolProfile.Full, false, "Di", 28, 1, 28, 1),
-            new("Amb", McpToolProfile.Amb, false, "Amb", 16, 1, 16, 1),
-            new("Amb", McpToolProfile.Full, false, "Amb", 16, 1, 16, 1),
-            new("Isa95", McpToolProfile.Isa95, false, "Isa95", 24, 1, 24, 1),
-            new("Isa95", McpToolProfile.Full, false, "Isa95", 24, 1, 24, 1),
-            new("Machinery", McpToolProfile.Machinery, false, "Machinery", 23, 1, 23, 1),
-            new("Machinery", McpToolProfile.Full, false, "Machinery", 23, 1, 23, 1),
-            new("Positioning", McpToolProfile.Positioning, false, "Positioning", 11, 1, 11, 1),
-            new("Positioning", McpToolProfile.Full, false, "Positioning", 7, 0, 11, 1),
-            new("Pumps", McpToolProfile.Pumps, false, "Pumps", 12, 1, 12, 1),
-            new("Pumps", McpToolProfile.Full, false, "Pumps", 12, 1, 12, 1),
-            new("Robotics", McpToolProfile.Robotics, false, "Robotics", 42, 1, 38, 0),
+            new("Di", McpToolProfile.Di, false, "Di", 29, 1, 29, 1),
+            new("Di", McpToolProfile.Full, false, "Di", 29, 1, 29, 1),
+            new("Amb", McpToolProfile.Amb, false, "Amb", 17, 1, 17, 1),
+            new("Amb", McpToolProfile.Full, false, "Amb", 17, 1, 17, 1),
+            new("Isa95", McpToolProfile.Isa95, false, "Isa95", 25, 1, 25, 1),
+            new("Isa95", McpToolProfile.Full, false, "Isa95", 25, 1, 25, 1),
+            new("Machinery", McpToolProfile.Machinery, false, "Machinery", 24, 1, 24, 1),
+            new("Machinery", McpToolProfile.Full, false, "Machinery", 24, 1, 24, 1),
+            new("Positioning", McpToolProfile.Positioning, false, "Positioning", 12, 1, 12, 1),
+            new("Positioning", McpToolProfile.Full, false, "Positioning", 7, 0, 12, 1),
+            new("Pumps", McpToolProfile.Pumps, false, "Pumps", 13, 1, 13, 1),
+            new("Pumps", McpToolProfile.Full, false, "Pumps", 13, 1, 13, 1),
+            new("Robotics", McpToolProfile.Robotics, false, "Robotics", 43, 1, 38, 0),
             new("Robotics", McpToolProfile.Full, false, "Robotics", 38, 0, 38, 0),
-            new("Scales", McpToolProfile.Scales, false, "Scales", 28, 1, 28, 1),
-            new("Scales", McpToolProfile.Full, false, "Scales", 24, 0, 28, 1),
-            new("Vision", McpToolProfile.Vision, false, "Vision", 43, 1, 39, 0),
+            new("Scales", McpToolProfile.Scales, false, "Scales", 29, 1, 29, 1),
+            new("Scales", McpToolProfile.Full, false, "Scales", 24, 0, 29, 1),
+            new("Vision", McpToolProfile.Vision, false, "Vision", 44, 1, 39, 0),
             new("Vision", McpToolProfile.Full, false, "Vision", 39, 0, 39, 0),
-            new("WotCon", McpToolProfile.Wot, false, "WotManagement", 20, 1, 20, 1),
+            new("WotCon", McpToolProfile.Wot, false, "WotManagement", 21, 1, 21, 1),
             new("WotCon", McpToolProfile.WotDocuments, false, "WotDocuments", 5, 0, 5, 0),
-            new("WotCon", McpToolProfile.Full, false, "WotFull", 25, 1, 25, 1),
-            new("XRegistry", McpToolProfile.XRegistry, false, "XRegistry", 18, 1, 18, 1),
-            new("XRegistry", McpToolProfile.Full, false, "XRegistry", 18, 1, 18, 1)
+            new("WotCon", McpToolProfile.Full, false, "WotFull", 26, 1, 26, 1),
+            new("XRegistry", McpToolProfile.XRegistry, false, "XRegistry", 19, 1, 19, 1),
+            new("XRegistry", McpToolProfile.Full, false, "XRegistry", 19, 1, 19, 1)
         ];
 
         /// <summary>
-        /// All 366 distinct names below are literal catalogue oracles, independent of registration.
+        /// All 367 distinct names below are literal catalogue oracles, independent of registration.
         /// </summary>
         private static readonly string[] s_connectionNames =
         [
             "Connect",
+            "ConnectCertificate",
             "Disconnect",
             "GetEndpoints",
             "GetConnectionStatus"
