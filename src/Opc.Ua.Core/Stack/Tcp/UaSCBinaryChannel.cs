@@ -821,6 +821,32 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether a final chunk is a whole message by itself, which most are: no
+        /// chunks of the message are saved, the partial message is not closed and
+        /// the chunk is within the message limits. The caller then processes the
+        /// chunk directly instead of passing it to <see cref="GetSavedChunks"/>,
+        /// and keeps owning its buffer.
+        /// </summary>
+        /// <param name="chunk">The body of the final chunk.</param>
+        /// <param name="isServerContext">Whether the chunk is part of a request.</param>
+        protected bool IsSingleChunkMessage(ArraySegment<byte> chunk, bool isServerContext)
+        {
+            if (chunk.Array == null)
+            {
+                return false;
+            }
+            lock (m_partialMessageLock)
+            {
+                if (m_partialMessageClosed || m_partialMessageChunks != null)
+                {
+                    return false;
+                }
+            }
+            // a chunk over the limits takes the path that reports them.
+            return !MessageLimitsExceeded(isServerContext, chunk.Count, 1);
+        }
+
+        /// <summary>
         /// Detaches the chunks saved so far without offering another one. Used
         /// where the final chunk has already been saved and only the collection
         /// is needed; passing it to <see cref="GetSavedChunks"/> a second time

@@ -2033,6 +2033,7 @@ namespace Opc.Ua.Bindings
             }
 
             BufferCollection? chunksToProcess = null;
+            ArraySegment<byte> singleChunk = default;
             try
             {
                 // check for an abort.
@@ -2062,11 +2063,18 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
-
-                // get response.
-                operation.MessageBody = ParseResponse(chunksToProcess);
+                // get response: a response in one chunk, which most are, is decoded
+                // from that chunk without a collection of the chunks.
+                if (IsSingleChunkMessage(messageBody, isServerContext: false))
+                {
+                    singleChunk = messageBody;
+                    operation.MessageBody = DecodeMessage<IServiceResponse>(singleChunk, Quotas.MessageContext);
+                }
+                else
+                {
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
+                    operation.MessageBody = ParseResponse(chunksToProcess);
+                }
 
                 if (operation.MessageBody == null)
                 {
@@ -2095,6 +2103,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
+                ReturnBuffer(singleChunk, "ProcessResponseMessage");
             }
         }
 
