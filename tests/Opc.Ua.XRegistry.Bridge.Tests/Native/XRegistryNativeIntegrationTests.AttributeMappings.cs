@@ -151,7 +151,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 if (!canonical)
                 {
                     var extended = new XRegistryOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await extended.ExecuteAsync(
                             Request(XRegistryAction.Merge, "/schemagroups/g", """{"score":40000}"""))
                             .ConfigureAwait(false));
@@ -255,8 +255,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 AttributesTypeClient labels = await m_generic.GetGroup(group).GetLabelsAsync(m_telemetry)
                     .ConfigureAwait(false) ??
                     throw new AssertionException("Group labels are absent.");
-                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await labels.AddAttributeAsync("Count", "12", 0).ConfigureAwait(false));
+                ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await labels.AddAttributeAsync("Count", "12", 0).ConfigureAwait(false)))!;
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
                 XRegistryResponse unchanged = await m_forwarder.Inner.ExecuteAsync(
                     Request(XRegistryAction.Read, "/schemagroups/g")).ConfigureAwait(false);
@@ -306,8 +306,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                             StatusCodes.BadUserAccessDenied, Variant.From((short)7)));
                 }
                 var reader = new XRegistryBaseOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g")).ConfigureAwait(false));
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g")).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(
                     failure == "denied" ? StatusCodes.BadUserAccessDenied : StatusCodes.BadTypeMismatch));
             }).ConfigureAwait(false);
@@ -358,9 +358,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 var reader = new XRegistryBaseOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
                 if (required)
                 {
-                    ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g"))
-                            .ConfigureAwait(false));
+                            .ConfigureAwait(false)))!;
                     Assert.That(rejected.StatusCode,
                         Is.EqualTo(missing ? StatusCodes.BadNodeIdUnknown : StatusCodes.BadNoData));
                 }
@@ -397,7 +397,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await WithMappedManagerAsync(options, async manager =>
             {
                 var native = new XRegistryOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await native.ExecuteAsync(Request(XRegistryAction.Merge, "/schemagroups/g",
                         """{"labels":{"count":"user"}}""")).ConfigureAwait(false));
                 XRegistryResponse unchanged = await m_forwarder.Inner.ExecuteAsync(
@@ -427,9 +427,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await WithMappedManagerAsync(options, async manager =>
             {
                 var native = new XRegistryOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await native.ExecuteAsync(Request(XRegistryAction.Replace, "/schemagroups/b", """{"score":8}"""))
-                        .ConfigureAwait(false));
+                        .ConfigureAwait(false)))!;
                 XRegistryResponse unchanged = await m_forwarder.Inner.ExecuteAsync(
                     Request(XRegistryAction.Read, "/schemagroups/a")).ConfigureAwait(false);
                 XRegistryResponse absent = await m_forwarder.Inner.ExecuteAsync(

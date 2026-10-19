@@ -393,6 +393,17 @@ namespace Opc.Ua.Bindings
             try
             {
                 await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                // SemaphoreSlim can still grant a waiter whose token was cancelled when a
+                // release reaches it before the cancellation removes it. A sender queued
+                // across Close would then write to the aborted socket and fail with the
+                // socket's own error, so it gives the lock back and fails as closed.
+                if (Volatile.Read(ref m_closed) != 0)
+                {
+                    m_sendLock.Release();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The WebSocket transport is closed.");
+                }
                 return linkedCts;
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)

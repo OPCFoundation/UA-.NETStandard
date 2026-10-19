@@ -54,7 +54,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 ByteString.From(new byte[] { 8 }), ByteString.From(new byte[] { 9 })).ConfigureAwait(false);
             bool replacement = await store.CommitAsync(
                 ByteString.Empty, ByteString.From(new byte[] { 1, 2, 3 })).ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await store.CommitAsync(ByteString.From(new byte[] { 1, 2, 3 }), default).ConfigureAwait(false));
             ByteString actual = await store.LoadAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -79,9 +79,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Is.True);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await store.LoadAsync(cancellation.Token).ConfigureAwait(false));
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await store.CommitAsync(ByteString.From(new byte[] { 1 }), ByteString.From(new byte[] { 2 }),
                     cancellation.Token).ConfigureAwait(false));
             ByteString actual = await store.LoadAsync().ConfigureAwait(false);
@@ -101,10 +101,10 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                     ByteString.From(new byte[] { 3, 2, 1 }), ByteString.From(new byte[] { 4 })).ConfigureAwait(false);
                 bool staleNull = await store.CommitAsync(default, ByteString.From(new byte[] { 4 }))
                     .ConfigureAwait(false);
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await store.CommitAsync(ByteString.From(new byte[] { 1, 2, 3 }),
                         ByteString.From(new byte[] { 1, 2, 3, 4 })).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await store.CommitAsync(ByteString.From(new byte[] { 1, 2, 3 }), default).ConfigureAwait(false));
                 ByteString actual = await store.LoadAsync().ConfigureAwait(false);
                 Assert.Multiple(() =>
@@ -137,8 +137,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 }
                 File.Delete(Path.Combine(directory, artifact));
                 using var reopened = new FileXRegistryTransactionStore(directory);
-                Assert.ThrowsAsync<InvalidDataException>(async () => await reopened.LoadAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await Assert.ThrowsAsync<InvalidDataException>(async () => await reopened.LoadAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidDataException>(async () =>
                     await reopened.CommitAsync(default, ByteString.From(new byte[] { 4 })).ConfigureAwait(false));
                 Assert.That(File.Exists(Path.Combine(directory, artifact)), Is.False);
             }
@@ -169,7 +169,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                     await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
 #endif
                 }
-                Assert.ThrowsAsync<InvalidDataException>(async () => await store.LoadAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidDataException>(async () => await store.LoadAsync().ConfigureAwait(false));
                 using var source = new FileStream(
                     path, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
                 using var copy = new MemoryStream();
@@ -219,15 +219,15 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                         .ConfigureAwait(false), Is.True);
                     using var cancellation = new CancellationTokenSource();
                     cancellation.Cancel();
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await store.LoadAsync(cancellation.Token).ConfigureAwait(false));
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await store.CommitAsync(ByteString.From(new byte[] { 1 }),
                             ByteString.From(new byte[] { 2 }), cancellation.Token).ConfigureAwait(false));
                     store.Dispose();
-                    Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                         await store.LoadAsync().ConfigureAwait(false));
-                    Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                         await store.CommitAsync(ByteString.From(new byte[] { 1 }), ByteString.From(new byte[] { 3 }))
                             .ConfigureAwait(false));
                 }

@@ -305,9 +305,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             using var endpoint = new XRegistryTransactionalEndpoint(XRegistryProviderCoverage.Options(), store);
             for (int attempt = 0; attempt < 2; attempt++)
             {
-                Assert.ThrowsAsync<InvalidDataException>(async () => await seed.ExecuteAsync(
+                await Assert.ThrowsAsync<InvalidDataException>(async () => await seed.ExecuteAsync(
                     XRegistryProviderCoverage.Request(XRegistryAction.Read, k_version)).ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ExecuteAsync(
+                await Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ExecuteAsync(
                     XRegistryProviderCoverage.Request(XRegistryAction.Read, k_version)).ConfigureAwait(false));
             }
             Assert.That(await store.LoadAsync().ConfigureAwait(false), Is.EqualTo(corrupt));

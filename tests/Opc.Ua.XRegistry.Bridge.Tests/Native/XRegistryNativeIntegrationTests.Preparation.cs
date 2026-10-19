@@ -68,7 +68,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(after.Metadata.GetProperty("epoch").GetInt32(), Is.EqualTo(1));
                 Assert.That(m_forwarder.Mutations, Has.Count.EqualTo(1));
             });
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await operation.CommitAsync().ConfigureAwait(false));
         }
 
@@ -119,8 +119,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"expired"}""")).ConfigureAwait(false);
             m_clock.Advance(m_options.FileLifetime);
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CommitAsync().ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CommitAsync().ConfigureAwait(false)))!;
             await operation.DisposeAsync().ConfigureAwait(false);
             XRegistryResponse root = await m_native.ExecuteAsync(Request(XRegistryAction.Read,
                 "/")).ConfigureAwait(false);
@@ -139,8 +139,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"revoked"}""")).ConfigureAwait(false);
             m_denyWrites = true;
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CommitAsync().ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CommitAsync().ConfigureAwait(false)))!;
             await operation.DisposeAsync().ConfigureAwait(false);
             XRegistryResponse root = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
                 .ConfigureAwait(false);
@@ -164,10 +164,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             var endpoint = new XRegistryOpcUaEndpoint(m_session, factory.Manager!.RegistryNodeId, options, m_telemetry);
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await endpoint.ExecuteAsync(Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"no-response-space"}"""))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             XRegistryResponse root = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -193,8 +193,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await ReadTransferAsync(bridge, preview, previewHandle).ConfigureAwait(false);
             ManagedSession other = await ConnectAsync().ConfigureAwait(false);
             await using ConfiguredAsyncDisposable otherLifetime = other.ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await Bridge(other).CommitPreparedRequestAsync(ticket).ConfigureAwait(false));
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Bridge(other).CommitPreparedRequestAsync(ticket).ConfigureAwait(false)))!;
             await bridge.AbortRequestAsync(ticket).ConfigureAwait(false);
             Assert.Multiple(() =>
             {

@@ -76,13 +76,13 @@ namespace Opc.Ua.XRegistry.Http.Tests
         [TestCase("{}")]
         [TestCase("{\"xid\":\"/_s/2\"}")]
         [TestCase("{\"xid\":17}")]
-        public void MalformedAliasMetadataCannotInventACanonicalAddress(string json)
+        public async Task MalformedAliasMetadataCannotInventACanonicalAddress(string json)
         {
             using RecordingHttpHandler handler = Handler(json);
             using var client = new HttpClient(handler);
             var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot,
                 HttpTestData.Qualified with { ShortLinkPrefix = "/_s" });
-            Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ResolveAddressAsync(
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ResolveAddressAsync(
                 new XRegistryRequest(XRegistryAction.Read, "/_s/1")).ConfigureAwait(false));
             Assert.That(handler.Requests, Has.Count.EqualTo(4));
         }
@@ -108,13 +108,13 @@ namespace Opc.Ua.XRegistry.Http.Tests
 
         [TestCase("{\"xid\":\"/schemagroups/g/records/r\"}")]
         [TestCase("{\"xid\":17}")]
-        public void RetargetedSuccessfulAliasResponseCannotBeAcceptedAsTheResolvedEntity(string response)
+        public async Task RetargetedSuccessfulAliasResponseCannotBeAcceptedAsTheResolvedEntity(string response)
         {
             using RecordingHttpHandler handler = Handler(actual: response);
             using var client = new HttpClient(handler);
             var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot,
                 HttpTestData.Qualified with { ShortLinkPrefix = "/_s" });
-            Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ExecuteAsync(
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await endpoint.ExecuteAsync(
                 new XRegistryRequest(XRegistryAction.Read, "/_s/1") { View = XRegistryView.Metadata })
                 .ConfigureAwait(false));
             Assert.That(handler.Requests.All(value => value.Method == "GET"), Is.True);
@@ -133,13 +133,13 @@ namespace Opc.Ua.XRegistry.Http.Tests
         }
 
         [Test]
-        public void AliasMountCannotShadowAModelCollection()
+        public async Task AliasMountCannotShadowAModelCollection()
         {
             using RecordingHttpHandler handler = Handler();
             using var client = new HttpClient(handler);
             var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot,
                 HttpTestData.Qualified with { ShortLinkPrefix = "/schemagroups" });
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await endpoint.InspectAsync(XRegistryCallContext.Anonymous).ConfigureAwait(false));
             Assert.That(handler.Requests, Has.Count.EqualTo(3));
         }

@@ -69,8 +69,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(value, Is.False);
                 Assert.That(created.Metadata.GetProperty("schemaid").GetString(), Is.EqualTo("alias"));
             });
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.OpenAsync(6).ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.OpenAsync(6).ConfigureAwait(false)))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
         }
 

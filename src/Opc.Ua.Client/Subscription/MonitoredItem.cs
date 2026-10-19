@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -62,7 +61,16 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         public bool Created => ServerId != 0;
 
         /// <inheritdoc/>
-        public bool HasPendingChanges => !m_pendingChanges.IsEmpty;
+        public bool HasPendingChanges
+        {
+            get
+            {
+                lock (m_pendingChangesLock)
+                {
+                    return m_pendingChanges != null;
+                }
+            }
+        }
 
         /// <inheritdoc/>
         public ServiceResult Error { get; private set; }
@@ -578,7 +586,25 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool TryGetPendingChange([NotNullWhen(true)] out Change? change)
         {
-            return m_pendingChanges.TryPeek(out change);
+            lock (m_pendingChangesLock)
+            {
+                if (m_pendingChanges != null)
+                {
+                    change = m_pendingChanges.Peek();
+                    return true;
+                }
+            }
+            change = null;
+            return false;
+        }
+
+        /// <summary>
+        /// Enqueue a change, the caller holds <see cref="m_pendingChangesLock"/>.
+        /// </summary>
+        /// <param name="change"></param>
+        private void EnqueuePendingChangeLocked(Change change)
+        {
+            (m_pendingChanges ??= new Queue<Change>(1)).Enqueue(change);
         }
 
         /// <summary>
@@ -632,7 +658,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     {
                         continue;
                     }
-                    m_pendingChanges.Enqueue(refresh);
+                    EnqueuePendingChangeLocked(refresh);
                     m_refreshParametersAfterTransfer = false;
                 }
             }
@@ -770,7 +796,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var change = new Change(this, options, currentOptions);
             lock (m_pendingChangesLock)
             {
-                m_pendingChanges.Enqueue(change);
+                EnqueuePendingChangeLocked(change);
             }
         }
 
@@ -847,8 +873,20 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         /// <returns></returns>
         internal bool CompleteChange(Change change)
         {
-            return m_pendingChanges.TryDequeue(out Change? completed) &&
-                change == completed;
+            lock (m_pendingChangesLock)
+            {
+                if (m_pendingChanges == null)
+                {
+                    return false;
+                }
+                Change completed = m_pendingChanges.Dequeue();
+                if (m_pendingChanges.Count == 0)
+                {
+                    // Most items stay idle once applied, drop the queue
+                    m_pendingChanges = null;
+                }
+                return change == completed;
+            }
         }
 
         /// <summary>
@@ -875,7 +913,11 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             {
                 return false;
             }
-            m_pendingChanges.Enqueue(new Change(this, options, null));
+            var change = new Change(this, options, null);
+            lock (m_pendingChangesLock)
+            {
+                EnqueuePendingChangeLocked(change);
+            }
             return true;
         }
 
@@ -1297,8 +1339,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 #pragma warning disable CA2213 // Disposed in DisposeAsync(bool)
         private IDisposable? m_changeTracking;
 #pragma warning restore CA2213
-        private readonly ConcurrentQueue<Change> m_pendingChanges = new();
-        /// <summary>Orders option-change enqueueing with transfer-refresh validation and enqueueing.</summary>
+        /// <summary>Pending changes, null while empty, guarded by <see cref="m_pendingChangesLock"/>.</summary>
+        private Queue<Change>? m_pendingChanges;
+        /// <summary>Guards the pending change queue; orders option-change enqueueing with transfer-refresh validation and enqueueing.</summary>
         private readonly Lock m_pendingChangesLock = new();
         private readonly ILogger m_logger;
         internal static uint GlobalClientHandleUint;

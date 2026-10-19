@@ -163,7 +163,7 @@ namespace Opc.Ua.WotCon.Tests
                 .AsTask();
             cts.Cancel();
 
-            Assert.ThrowsAsync(Is.AssignableTo<OperationCanceledException>(), async () =>
+            await Assert.ThrowsAsync(Is.AssignableTo<OperationCanceledException>(), async () =>
                 await call.ConfigureAwait(false));
         }
 

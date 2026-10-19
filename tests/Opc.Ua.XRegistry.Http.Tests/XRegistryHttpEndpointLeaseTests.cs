@@ -65,7 +65,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
             logger.Setup(value => value.Log(
                 It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
                 It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
-                .Callback(new InvocationAction(call => messages.Enqueue(call.Arguments[2].ToString()!)));
+                .Callback(new InvocationAction(call => messages.Enqueue(call.Arguments[2]?.ToString() ?? string.Empty)));
 #pragma warning restore CA1873
             var factory = new Mock<ILoggerFactory>();
             factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);

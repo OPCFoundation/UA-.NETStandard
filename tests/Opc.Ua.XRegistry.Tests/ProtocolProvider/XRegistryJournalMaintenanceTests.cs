@@ -83,9 +83,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             XRegistryRequest request = Request(XRegistryAction.Merge, "/", "{}") with { OperationId = "retained" };
             Assert.That((await endpoint.ExecuteAsync(request).ConfigureAwait(false)).StatusCode, Is.EqualTo(200));
             ByteString before = await store.LoadAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await endpoint.RetireOutcomesAsync(["retained", "unknown"], Writer).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await endpoint.RetireOutcomesAsync(["retained"], XRegistryCallContext.Anonymous).ConfigureAwait(false));
             Assert.That(await store.LoadAsync().ConfigureAwait(false), Is.EqualTo(before));
             XRegistryOperationOutcome retained = await endpoint.GetOperationOutcomeAsync("retained", Writer)
@@ -102,7 +102,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .ConfigureAwait(false);
             await using (operation.ConfigureAwait(false))
             {
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await endpoint.RetireOutcomesAsync([], Writer).ConfigureAwait(false));
                 Assert.That((await operation.CommitAsync().ConfigureAwait(false)).StatusCode, Is.EqualTo(200));
             }

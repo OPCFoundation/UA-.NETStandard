@@ -65,7 +65,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(stored.IsNull, Is.True);
                 Assert.That(outcome.State, Is.EqualTo(XRegistryOperationState.Unknown));
             });
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await operation.CommitAsync().ConfigureAwait(false));
         }
 
@@ -84,7 +84,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(read.Metadata.GetRawText(), Is.EqualTo(committed.Metadata.GetRawText()));
                 Assert.That(read.Metadata.GetProperty("epoch").GetUInt64(), Is.EqualTo(1));
             });
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await operation.CommitAsync().ConfigureAwait(false));
         }
 
@@ -161,7 +161,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await operation.CommitAsync(cancellation.Token).ConfigureAwait(false));
             await operation.DisposeAsync().ConfigureAwait(false);
             XRegistryResponse read = await endpoint.ExecuteAsync(Read()).ConfigureAwait(false);

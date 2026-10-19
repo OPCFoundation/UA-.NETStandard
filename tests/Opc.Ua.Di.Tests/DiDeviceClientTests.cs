@@ -203,7 +203,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void ForDeviceAsyncThrowsBadNodeIdUnknownWhenReadStatusBad()
+        public async Task ForDeviceAsyncThrowsBadNodeIdUnknownWhenReadStatusBad()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             SetupReadReturns(sessionMock,
@@ -212,11 +212,11 @@ namespace Opc.Ua.Di.Tests
                 , StatusCodes.BadNodeIdUnknown)
             ]);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
                     sessionMock.Object,
                     new NodeId("dev-1", 2),
-                    NullTelemetry()).ConfigureAwait(false))!;
+                    NullTelemetry()).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNodeIdUnknown));
         }
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void BrowseFunctionalGroupsAsyncPropagatesAFailedBrowseCall()
+        public async Task BrowseFunctionalGroupsAsyncPropagatesAFailedBrowseCall()
         {
             Mock<ISession> sessionMock = CreateSessionMock();
             sessionMock
@@ -397,12 +397,12 @@ namespace Opc.Ua.Di.Tests
             var client = new DiDeviceClient(
                 sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (FunctionalGroupEntry _ in client.BrowseFunctionalGroupsAsync())
                 {
                 }
-            })!;
+            }))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
@@ -435,21 +435,21 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void ForDeviceAsyncThrowsOnNullSession()
+        public async Task ForDeviceAsyncThrowsOnNullSession()
         {
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException ex = (await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    null!, new NodeId("dev-1", 2), NullTelemetry()).ConfigureAwait(false))!;
+                    null!, new NodeId("dev-1", 2), NullTelemetry()).ConfigureAwait(false)))!;
             Assert.That(ex.ParamName, Is.EqualTo("session"));
         }
 
         [Test]
-        public void ForDeviceAsyncThrowsOnNullDeviceNodeId()
+        public async Task ForDeviceAsyncThrowsOnNullDeviceNodeId()
         {
             ISession session = CreateSessionMock().Object;
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException ex = (await Assert.ThrowsAsync<ArgumentException>(
                 async () => await DiDeviceClient.ForDeviceAsync(
-                    session, NodeId.Null, NullTelemetry()).ConfigureAwait(false))!;
+                    session, NodeId.Null, NullTelemetry()).ConfigureAwait(false)))!;
             Assert.That(ex.ParamName, Is.EqualTo("deviceNodeId"));
         }
 

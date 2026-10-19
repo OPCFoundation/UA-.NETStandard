@@ -143,7 +143,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             }).ConfigureAwait(false);
             var client = new DiagnosticsTypeClient(
                 fixture.Session, binding!.Node.NodeId, fixture.Session.MessageContext.Telemetry);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.RunDiagnosticsAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(binding.Node.Status!.Value, Is.EqualTo(DiagnosticsStatusEnumeration.OFF));

@@ -123,14 +123,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else if (failureKind == "cancelled")
                 {
-                    OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    OperationCanceledException failure = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false)))!;
                     Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
                 }
                 else
                 {
-                    InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false))!;
+                    InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await manager.AddNodeAsync(context, request, cancellation.Token).ConfigureAwait(false)))!;
                     Assert.That(failure, Is.SameAs(injectedFailure));
                 }
 
@@ -237,12 +237,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else if (failureKind == "cancelled")
                 {
-                    Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                         await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
                 }
                 else
                 {
-                    Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                         await manager.AddNodeAsync(context, item, cancellation.Token).ConfigureAwait(false));
                 }
 
@@ -444,8 +444,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 if (output == "repeated")
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await manager.AddNodeAsync(context, item).ConfigureAwait(false))!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await manager.AddNodeAsync(context, item).ConfigureAwait(false)))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 }
                 else
@@ -548,8 +548,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                         else
                         {
-                            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false))!;
+                            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                                await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                             Assert.That(error, Is.SameAs(failure));
                         }
                     }

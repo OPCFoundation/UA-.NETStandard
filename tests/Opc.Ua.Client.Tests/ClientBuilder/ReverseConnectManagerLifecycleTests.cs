@@ -117,8 +117,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 TransportBindings = harness.Registry
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.StartServiceAsync(ConfigFor(url)))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.StartServiceAsync(ConfigFor(url))))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(exception.Message, Does.Contain(url.ToString()));
@@ -127,7 +127,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
-        public void StartServiceAsyncInvalidEndpointThrowsBadTcpEndpointUrlInvalid()
+        public async Task StartServiceAsyncInvalidEndpointThrowsBadTcpEndpointUrlInvalid()
         {
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
@@ -144,8 +144,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     })
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.StartServiceAsync(configuration))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.StartServiceAsync(configuration)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
         }
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await manager.DisposeAsync().ConfigureAwait(false);
 
             Assert.That(harness.Listeners[0].CloseCount, Is.GreaterThanOrEqualTo(1));
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => manager.StartServiceAsync(ConfigFor(Url(20041))));
         }
 
@@ -416,8 +416,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Preparing"));
 
             // A truly overlapping second start must reject immediately.
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.StartServiceAsync(ConfigFor(Url(20121))))!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.StartServiceAsync(ConfigFor(Url(20121)))))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
             release.SetResult(true);
@@ -534,10 +534,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             // Both first-use callers observe the same real failure (it is not
             // swallowed) because the shared startup task faulted.
-            ServiceResultException firstError = Assert.ThrowsAsync<ServiceResultException>(
-                () => firstWait)!;
-            ServiceResultException secondError = Assert.ThrowsAsync<ServiceResultException>(
-                () => secondWait)!;
+            ServiceResultException firstError = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => firstWait))!;
+            ServiceResultException secondError = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => secondWait))!;
             Assert.That(firstError.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(secondError.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
         }
@@ -566,7 +566,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // Preparing state, so the failure must be finalized to the
             // retryable Faulted state (not stranded in Preparing) and mapped to
             // a ServiceResultException.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => manager.EnsureStartedAsync());
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
             Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
@@ -756,7 +756,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // A factory cancellation after ReserveStartLocked must finalize the
             // owned Preparing state to Faulted so a later start can retry; the
             // OperationCanceledException is surfaced unmapped.
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 () => manager.EnsureStartedAsync());
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Faulted"));
             Assert.That(harness.Listeners.Any(l => l.IsOpen), Is.False);
@@ -836,10 +836,10 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             // The explicit start fails to bind and both callers observe the
             // same real failure (it is not swallowed).
-            ServiceResultException fromStart = Assert.ThrowsAsync<ServiceResultException>(
-                () => explicitStart)!;
-            ServiceResultException fromEnsure = Assert.ThrowsAsync<ServiceResultException>(
-                () => ensure)!;
+            ServiceResultException fromStart = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => explicitStart))!;
+            ServiceResultException fromEnsure = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => ensure))!;
             Assert.That(fromStart.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             Assert.That(fromEnsure.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
         }
@@ -871,7 +871,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
 
             release.SetResult(true);
-            Exception? error = Assert.CatchAsync(
+            Exception? error = await Assert.CatchAsync(
                 async () => await lazyStart.ConfigureAwait(false));
 
             Assert.That(
@@ -908,7 +908,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             release.SetResult(true);
             await dispose.ConfigureAwait(false);
 
-            Exception? error = Assert.CatchAsync(
+            Exception? error = await Assert.CatchAsync(
                 async () => await lazyStart.ConfigureAwait(false));
 
             Assert.That(
@@ -920,7 +920,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
-        public void WaitForConnectionAsyncNullEndpointThrowsWithoutStarting()
+        public async Task WaitForConnectionAsyncNullEndpointThrowsWithoutStarting()
         {
             ITelemetryContext telemetry = CreateTelemetry();
             var harness = new FakeListenerHarness(Scheme);
@@ -935,7 +935,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // The null endpoint is rejected before any lazy startup side
             // effect: the configuration provider is never invoked and no
             // listener is bound.
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 () => manager.WaitForConnectionAsync(null!, null));
 
             Assert.That(provider.LastInput, Is.Null);
@@ -1109,7 +1109,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // Release a possibly-entered provider; the superseded start must
             // never open a listener.
             release.TrySetResult(true);
-            Exception? error = Assert.CatchAsync(
+            Exception? error = await Assert.CatchAsync(
                 async () => await lazyStart.ConfigureAwait(false));
             Assert.That(
                 error,
@@ -1442,8 +1442,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await manager.StopServiceAsync().ConfigureAwait(false);
             release.SetResult(true);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => register)!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => register))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -1812,7 +1812,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await manager.DisposeAsync().ConfigureAwait(false);
 
             // The first post-disposal async registration is rejected.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => manager.RegisterWaitingConnectionAsync(
                     url,
                     null,
@@ -1820,7 +1820,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     ReverseConnectManager.ReverseConnectStrategy.Once));
 
             // A repeated post-disposal async registration is also rejected.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => manager.RegisterWaitingConnectionAsync(
                     url,
                     null,
@@ -1836,7 +1836,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     ReverseConnectManager.ReverseConnectStrategy.Once));
 
             // WaitForConnectionAsync must also reject after disposal.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => manager.WaitForConnectionAsync(url, null));
         }
 
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             await Task.WhenAll(tasks.Append(dispose)).ConfigureAwait(false);
 
             // After disposal completes every registration is rejected.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 () => manager.RegisterWaitingConnectionAsync(
                     url,
                     null,
@@ -3464,8 +3464,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // A Wait racing the in-flight stop must reject deterministically
             // rather than returning success and registering an inert waiter
             // against a listener that is being closed.
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.WaitForConnectionAsync(url, null))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.WaitForConnectionAsync(url, null)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -3504,12 +3504,12 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             // An async registration racing the in-flight stop must reject
             // deterministically and add no registration.
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 () => manager.RegisterWaitingConnectionAsync(
                     url,
                     null,
                     (sender, e) => { },
-                    ReverseConnectManager.ReverseConnectStrategy.Once))!;
+                    ReverseConnectManager.ReverseConnectStrategy.Once)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -3563,8 +3563,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // Resuming the registration must observe the committed stop and
             // reject deterministically rather than inserting an inert waiter.
             release.SetResult(true);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => register)!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => register))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -3634,7 +3634,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 TransportBindings = harness.Registry
             };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => manager.StartServiceAsync(ConfigFor(url)));
 
             Assert.That(harness.Listeners, Has.Count.EqualTo(1));
@@ -4004,8 +4004,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             // The queued B was completed by the committed stop without applying,
             // so its awaiter never hangs.
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(
-                () => reloadB)!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => reloadB))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
             // Release A: its activation observes the superseding stop and never
@@ -4645,8 +4645,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             await manager.StopServiceAsync().ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await wait.ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await wait.ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(manager.CurrentStateForTest, Is.EqualTo("Stopped"));
             Assert.That(manager.WaitingConnectionCountForTest, Is.Zero);
@@ -4673,8 +4673,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
 
             await manager.DisposeAsync().ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await wait.ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await wait.ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -4695,8 +4695,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // A wait against a committed-stop manager (no lazy restart seed) is
             // rejected and inserts no registration - the state verification and
             // insertion are atomic under the registrations lock.
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => manager.WaitForConnectionAsync(url, null))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => manager.WaitForConnectionAsync(url, null)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -4925,8 +4925,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 e.Accepted,
                 Is.False,
                 "a lost claim must leave the transport unaccepted so the listener closes it");
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await tcs.Task.ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await tcs.Task.ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
                 manager.WaitingConnectionCountForTest,
@@ -5006,7 +5006,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             // The second configured endpoint's listener creation fails
             // (unsupported scheme) after the first host was already created;
             // the discarded first host must be disposed, not merely closed.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 () => manager.StartServiceAsync(ConfigFor(valid, unsupported)));
 
             Assert.That(harness.Listeners, Has.Count.EqualTo(1));

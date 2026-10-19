@@ -52,7 +52,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await WithMappedManagerAsync(options, async manager =>
             {
                 var native = new XRegistryOpcUaEndpoint(m_session, manager.RegistryNodeId, options, m_telemetry);
-                Assert.ThrowsAsync<ServiceResultException>(async () => await native.ExecuteAsync(Request(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await native.ExecuteAsync(Request(
                     XRegistryAction.Replace, "/schemagroups/g", "{\"config\":" + config + "}"))
                     .ConfigureAwait(false));
                 XRegistryResponse after = await m_forwarder.Inner.ExecuteAsync(
@@ -84,13 +84,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                         ["config", "ready"], [new(k_mappingNamespace, "Ready")])
                 ]
             };
-            await WithMappedManagerAsync(complete, manager =>
+            await WithMappedManagerAsync(complete, async manager =>
             {
                 var reader = new XRegistryBaseOpcUaEndpoint(m_session, manager.RegistryNodeId, incomplete, m_telemetry);
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g")).ConfigureAwait(false));
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g")).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-                return Task.CompletedTask;
             }).ConfigureAwait(false);
         }
 
@@ -132,9 +131,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 });
                 var partialReader = new XRegistryBaseOpcUaEndpoint(
                     m_session, manager.RegistryNodeId, incomplete, m_telemetry);
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await partialReader.ExecuteAsync(Request(
-                        XRegistryAction.Read, "/schemagroups/g/schemas/r/meta")).ConfigureAwait(false));
+                        XRegistryAction.Read, "/schemagroups/g/schemas/r/meta")).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             }).ConfigureAwait(false);
         }
@@ -232,9 +231,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 }
                 else
                 {
-                    ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await reader.ExecuteAsync(Request(XRegistryAction.Read, "/schemagroups/g"))
-                            .ConfigureAwait(false));
+                            .ConfigureAwait(false)))!;
                     Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
                 }
             }).ConfigureAwait(false);

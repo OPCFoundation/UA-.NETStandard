@@ -210,7 +210,7 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync().ConfigureAwait(false);
 
             await fixture.DisposeAsync().ConfigureAwait(false);
-            Assert.DoesNotThrowAsync(async () => await fixture.DisposeAsync().ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await fixture.DisposeAsync().ConfigureAwait(false));
         }
     }
 }

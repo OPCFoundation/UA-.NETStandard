@@ -64,9 +64,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                     ByteString contents = await first.MaterializeAsync(CancellationToken.None).ConfigureAwait(false);
                     Assert.That(Encoding.UTF8.GetString(contents.ToArray()), Is.EqualTo("1x3456"));
                     using var rejected = new XRegistryNativeSpool(options, budget);
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await rejected.WriteAsync(ByteString.From("12345"u8), CancellationToken.None).ConfigureAwait(
-                            false));
+                            false)))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
                     Assert.That(Directory.GetFiles(root, "*.spool"), Has.Length.EqualTo(1));
                 }
@@ -102,8 +102,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 await Assert.ThatAsync(async () =>
                     await spool.WriteAsync(ByteString.From("not-published"u8), canceled.Token).ConfigureAwait(false),
                     Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await spool.MaterializeAsync(CancellationToken.None).ConfigureAwait(false));
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await spool.MaterializeAsync(CancellationToken.None).ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(Directory.GetFiles(root, "*.spool"), Is.Empty);
             }

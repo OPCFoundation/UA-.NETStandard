@@ -111,7 +111,7 @@ namespace Opc.Ua.Client.Tests
         /// Verifies a cancelled certificate load never acquires a reference from the active registry.
         /// </summary>
         [Test]
-        public void CancelledCertificateLoadDoesNotAcquireARegistryEntry()
+        public async Task CancelledCertificateLoadDoesNotAcquireARegistryEntry()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var manager = new Mock<ICertificateManager>();
@@ -122,7 +122,7 @@ namespace Opc.Ua.Client.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(() => Session.LoadInstanceCertificateEntryAsync(
+            await Assert.ThrowsAsync<OperationCanceledException>(() => Session.LoadInstanceCertificateEntryAsync(
                 configuration,
                 SecurityPolicies.Basic256Sha256,
                 telemetry,
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.Tests
         /// Verifies an absent registry entry and configured certificate produce BadConfigurationError.
         /// </summary>
         [Test]
-        public void MissingRegistryAndConfiguredCertificateIsAnExplicitConfigurationError()
+        public async Task MissingRegistryAndConfiguredCertificateIsAnExplicitConfigurationError()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var manager = new Mock<ICertificateManager>();
@@ -144,12 +144,12 @@ namespace Opc.Ua.Client.Tests
                 CertificateManager = manager.Object
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 () => Session.LoadInstanceCertificateEntryAsync(
                     configuration,
                     SecurityPolicies.Basic256Sha256,
                     telemetry,
-                    useCertificateRegistry: true))!;
+                    useCertificateRegistry: true)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests
         /// Verifies an active public-only certificate is rejected with an explicit missing-private-key error.
         /// </summary>
         [Test]
-        public void ActiveRegistryCertificateWithoutAPrivateKeyIsRejectedExplicitly()
+        public async Task ActiveRegistryCertificateWithoutAPrivateKeyIsRejectedExplicitly()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using Certificate owner = CertificateBuilder.Create("CN=PublicSessionCertificate").CreateForRSA();
@@ -176,12 +176,12 @@ namespace Opc.Ua.Client.Tests
                 CertificateManager = manager.Object
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 () => Session.LoadInstanceCertificateEntryAsync(
                     configuration,
                     SecurityPolicies.Basic256Sha256,
                     telemetry,
-                    useCertificateRegistry: true))!;
+                    useCertificateRegistry: true)))!;
 
             Assert.Multiple(() =>
             {

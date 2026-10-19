@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(() => active!.Certificate.AddRef());
             using Harness harness = await CreateHarnessAsync(pending.Object, generator.Object).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 harness.Node.CreateSigningRequest!.OnCallAsync!(
                     m_context, harness.Node.CreateSigningRequest, harness.Node.NodeId,
                     ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(await store.DeleteAsync(harness.Identifier.Thumbprint!).ConfigureAwait(false), Is.True);
             ServerConfigurationState node = harness.Node;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
                 node.CreateSigningRequest!.OnCallAsync!(
                     m_context, node.CreateSigningRequest, node.NodeId,
                     ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
@@ -421,7 +421,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 ServerConfigurationState node = harness.Node;
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
                     node.CreateSigningRequest!.OnCallAsync!(
                         m_context, node.CreateSigningRequest, node.NodeId,
                         context.CertificateGroupId, context.CertificateTypeId,

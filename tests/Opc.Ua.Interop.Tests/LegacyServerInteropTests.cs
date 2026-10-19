@@ -134,7 +134,6 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(100)]
         public void GetEndpointsReturnsLegacyEndpoints()
         {
             Assert.That(m_endpoints.Count, Is.GreaterThanOrEqualTo(SecurityCases.Length - 1));
@@ -153,8 +152,8 @@ namespace Opc.Ua.Interop.Tests
         /// state and closes the session.
         /// </summary>
         [Test]
-        [Order(110)]
         [TestCaseSource(nameof(SecurityCases))]
+        [DependsOnTest(nameof(GetEndpointsReturnsLegacyEndpoints), AllowFailure = true)]
         public async Task ConnectReadAndCloseAsync(
             string securityPolicyUri,
             MessageSecurityMode securityMode,
@@ -185,11 +184,11 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(120)]
-        public void ConnectWithWrongPasswordIsRejected()
+        [DependsOnTest(nameof(ConnectReadAndCloseAsync), AllowFailure = true)]
+        public async Task ConnectWithWrongPasswordIsRejected()
         {
             var identity = new UserIdentity(kUserName, System.Text.Encoding.UTF8.GetBytes("wrong"));
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 () => ConnectAsync(SecurityPolicies.Basic256Sha256, MessageSecurityMode.SignAndEncrypt, identity));
             Assert.That(
                 sre.StatusCode.Code,
@@ -198,7 +197,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(ConnectWithWrongPasswordIsRejected), AllowFailure = true)]
         public async Task ReadServerStatusStructureAsync()
         {
             DataValue value = await m_session.ReadValueAsync(VariableIds.Server_ServerStatus)
@@ -217,7 +216,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(210)]
+        [DependsOnTest(nameof(ReadServerStatusStructureAsync), AllowFailure = true)]
         public async Task BrowseInteropFolderAsync()
         {
             ArrayOf<BrowseDescription> nodesToBrowse =
@@ -244,7 +243,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(220)]
+        [DependsOnTest(nameof(BrowseInteropFolderAsync), AllowFailure = true)]
         public async Task TranslateBrowsePathAsync()
         {
             ArrayOf<BrowsePath> paths =
@@ -282,7 +281,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(TranslateBrowsePathAsync), AllowFailure = true)]
         public async Task ReadBuiltInTypesAsync()
         {
             DataValue[] values = await ReadValuesAsync(
@@ -318,7 +317,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(310)]
+        [DependsOnTest(nameof(ReadBuiltInTypesAsync), AllowFailure = true)]
         public async Task ReadStructureAsync()
         {
             DataValue[] values = await ReadValuesAsync("Range").ConfigureAwait(false);
@@ -329,7 +328,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(320)]
+        [DependsOnTest(nameof(ReadStructureAsync), AllowFailure = true)]
         public async Task ReadNodeAttributesAsync()
         {
             var nodeId = new NodeId("Int32", m_ns);
@@ -358,7 +357,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ReadNodeAttributesAsync), AllowFailure = true)]
         public async Task WriteAndReadBackAsync()
         {
             ArrayOf<WriteValue> nodesToWrite =
@@ -390,7 +389,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(410)]
+        [DependsOnTest(nameof(WriteAndReadBackAsync), AllowFailure = true)]
         public async Task WriteWithWrongTypeIsRejectedAsync()
         {
             ArrayOf<WriteValue> nodesToWrite = [Write("Int32", new Variant("not a number"))];
@@ -401,7 +400,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(WriteWithWrongTypeIsRejectedAsync), AllowFailure = true)]
         public async Task CallMethodAsync()
         {
             ArrayOf<CallMethodRequest> requests =
@@ -424,7 +423,7 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(510)]
+        [DependsOnTest(nameof(CallMethodAsync), AllowFailure = true)]
         public async Task CallMethodWithBadArgumentsIsRejectedAsync()
         {
             ArrayOf<CallMethodRequest> requests =
@@ -443,8 +442,8 @@ namespace Opc.Ua.Interop.Tests
         }
 
         [Test]
-        [Order(600)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(CallMethodWithBadArgumentsIsRejectedAsync), AllowFailure = true)]
         public async Task SubscribeToDataChangesAsync(CancellationToken ct)
         {
             var subscription = new Subscription(m_session.DefaultSubscription)
@@ -496,7 +495,7 @@ namespace Opc.Ua.Interop.Tests
         /// below the server's MaxArrayLength of 100 000.
         /// </summary>
         [Test]
-        [Order(700)]
+        [DependsOnTest(nameof(SubscribeToDataChangesAsync), AllowFailure = true)]
         public async Task LargeArrayRoundTripAsync()
         {
             int[] values = [.. Enumerable.Range(0, 90_000).Select(i => (i * 7919) ^ 0x5A5A)];
@@ -507,7 +506,7 @@ namespace Opc.Ua.Interop.Tests
         /// A ByteString of 900 kB below the server's MaxByteStringLength of 1 MB.
         /// </summary>
         [Test]
-        [Order(710)]
+        [DependsOnTest(nameof(LargeArrayRoundTripAsync), AllowFailure = true)]
         public async Task LargeByteStringRoundTripAsync()
         {
             byte[] value = new byte[900 * 1024];
@@ -524,7 +523,7 @@ namespace Opc.Ua.Interop.Tests
         /// code, and the session stays usable.
         /// </summary>
         [Test]
-        [Order(720)]
+        [DependsOnTest(nameof(LargeByteStringRoundTripAsync), AllowFailure = true)]
         public async Task ValueAboveServerLimitIsRejectedAsync(
             [Values("Int32Array", "ByteString")] string variable)
         {
@@ -560,7 +559,7 @@ namespace Opc.Ua.Interop.Tests
         /// response the client cannot receive, and the session stays usable.
         /// </summary>
         [Test]
-        [Order(730)]
+        [DependsOnTest(nameof(ValueAboveServerLimitIsRejectedAsync), AllowFailure = true)]
         public async Task ResponseAboveClientLimitIsRejectedAsync()
         {
             byte[] value = new byte[900 * 1024];
@@ -608,7 +607,7 @@ namespace Opc.Ua.Interop.Tests
         /// open continuation point.
         /// </summary>
         [Test]
-        [Order(740)]
+        [DependsOnTest(nameof(ResponseAboveClientLimitIsRejectedAsync), AllowFailure = true)]
         public async Task BrowseWithContinuationPointsAsync()
         {
             var folder = new NodeId("Interop", m_ns);
@@ -647,7 +646,7 @@ namespace Opc.Ua.Interop.Tests
         /// BadTooManyOperations.
         /// </summary>
         [Test]
-        [Order(750)]
+        [DependsOnTest(nameof(BrowseWithContinuationPointsAsync), AllowFailure = true)]
         public async Task ReadAboveOperationLimitAsync()
         {
             Assert.That(m_session.OperationLimits.MaxNodesPerRead, Is.EqualTo(100u),
@@ -693,8 +692,8 @@ namespace Opc.Ua.Interop.Tests
         /// client renews at 75 %, so this runs about a minute.
         /// </summary>
         [Test]
-        [Order(800)]
         [CancelAfter(180_000)]
+        [DependsOnTest(nameof(ReadAboveOperationLimitAsync), AllowFailure = true)]
         public async Task ReadThroughTokenRenewalAsync(CancellationToken ct)
         {
             await using var client = new ClientFixture(telemetry: m_telemetry);

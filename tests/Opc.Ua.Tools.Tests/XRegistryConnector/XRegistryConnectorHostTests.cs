@@ -735,12 +735,12 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
         }
 
         [Test]
-        public void CompletedHostCleanupFailureIsNotMisreportedAsDeferredWork()
+        public async Task CompletedHostCleanupFailureIsNotMisreportedAsDeferredWork()
         {
             var failure = new IOException("completed cleanup failure");
-            Assert.That(Assert.ThrowsAsync<IOException>(async () =>
+            Assert.That((await Assert.ThrowsAsync<IOException>(async () =>
                 await XRegistryConnectorHost.ReleaseWhenIdleAsync(null, () => Task.FromException(failure))
-                    .ConfigureAwait(false)), Is.SameAs(failure));
+                    .ConfigureAwait(false)))!, Is.SameAs(failure));
         }
 
         private static async Task<(long Generation, string OperationId)> SeedVerifiedIntentAsync(string directory)

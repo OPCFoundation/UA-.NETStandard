@@ -219,7 +219,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             await using (pending.ConfigureAwait(false))
             {
                 Assert.That(pending.Response.StatusCode, Is.EqualTo(201), pending.Response.Error?.Detail);
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await endpoint.InitializeShortLinksAsync(Writer).ConfigureAwait(false));
                 var candidate = (IXRegistryPreparedSnapshot)pending;
                 XRegistryResponse view = await candidate.ReadCandidateAsync(Request(
@@ -254,7 +254,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             using (var changedRoot = new XRegistryTransactionalEndpoint(
                 AliasOptions() with { PublicRoot = new Uri("https://different.example/") }, store))
             {
-                Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await Assert.ThrowsAsync<InvalidDataException>(async () =>
                     await changedRoot.InspectAsync(Writer).ConfigureAwait(false));
             }
             ByteString saved = await store.LoadAsync().ConfigureAwait(false);
@@ -264,7 +264,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .ConfigureAwait(false),
                 Is.True);
             using var corrupted = new XRegistryTransactionalEndpoint(AliasOptions(), store);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await corrupted.InspectAsync(Writer).ConfigureAwait(false));
         }
 

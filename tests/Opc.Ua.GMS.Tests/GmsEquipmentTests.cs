@@ -316,7 +316,7 @@ namespace Opc.Ua.GMS.Tests
                 Sensors = [first, second],
                 ToolMonitoring = initial.ToolMonitoring with { ActiveSensorKeys = ["Missing"] }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await handle.RefreshAsync().ConfigureAwait(false));
             Assert.That(handle.Observation, Is.SameAs(initial));
             Assert.That(handle.TryGetSensor("Second", out _), Is.False);
             Assert.That(handle.State.Equipment.Tools!.GetNodeVersionProperty()!.Value, Is.EqualTo(initialVersion));

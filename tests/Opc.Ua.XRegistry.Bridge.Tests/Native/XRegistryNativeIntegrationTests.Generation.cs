@@ -70,12 +70,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
 
         [TestCase(false)]
         [TestCase(true)]
-        public void NativeGenerationGuardsRequireAdvertisedSupportBeforeStaging(bool prepare)
+        public async Task NativeGenerationGuardsRequireAdvertisedSupportBeforeStaging(bool prepare)
         {
             m_forwarder.AdvertiseGenerations = false;
             XRegistryRequest request =
                 Request(XRegistryAction.Merge, "/", "{}") with { ExpectedGeneration = "required" };
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (prepare)
                 {
@@ -86,7 +86,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 {
                     await m_native.ExecuteAsync(request).ConfigureAwait(false);
                 }
-            });
+            }))!;
             Assert.Multiple(() =>
             {
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -119,8 +119,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                     Assert.That(edited.StatusCode, Is.EqualTo(200));
                 }
             };
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_manager.RefreshAsync().ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_manager.RefreshAsync().ConfigureAwait(false)))!;
             m_forwarder.AfterReadAsync = null;
             XRegistryResponse after = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
                 .ConfigureAwait(false);

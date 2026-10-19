@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                 Task completed = await Task.WhenAny(activate, Task.Delay(s_callTimeout)).ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(activate),
                     "ActivateSession on an expired session must not deadlock the session manager.");
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(() => activate)!;
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(() => activate))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
 
                 Assert.That(
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests
 
                     foreach (Task<ActivateSessionResponse> activation in activations)
                     {
-                        ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(() => activation)!;
+                        ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(() => activation))!;
                         Assert.That(
                             ex.StatusCode,
                             Is.EqualTo(StatusCodes.BadSessionClosed).Or.EqualTo(StatusCodes.BadSessionIdInvalid));

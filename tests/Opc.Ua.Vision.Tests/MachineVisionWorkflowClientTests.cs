@@ -119,7 +119,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void CapabilityAccessDenialCannotMasqueradeAsAnAbsentOptionalInterface()
+        public async Task CapabilityAccessDenialCannotMasqueradeAsAnAbsentOptionalInterface()
         {
             var harness = new VisionSessionHarness(false);
             AddNamespace(harness, MachineVisionModels.ControlNamespaceUri);
@@ -131,7 +131,7 @@ namespace Opc.Ua.Vision.Tests
                         Results = paths.ToArray()!.Select(_ =>
                             new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }).ToArrayOf()
                     }));
-            ServiceResultException? denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await harness.Client.MachineVision().ReadCapabilitiesAsync(new NodeId("system", 2))
                     .ConfigureAwait(false));
             Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -185,7 +185,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RelationshipFailuresRetainPrimaryAndCleanupErrors()
+        public async Task RelationshipFailuresRetainPrimaryAndCleanupErrors()
         {
             var harness = new VisionSessionHarness(false);
             SetBrowse(harness, new BrowseResult
@@ -197,7 +197,7 @@ namespace Opc.Ua.Vision.Tests
             harness.Session.Setup(s => s.BrowseNextAsync(It.IsAny<RequestHeader>(), true,
                 It.IsAny<ArrayOf<ByteString>>(), It.IsAny<CancellationToken>()))
                 .Throws(cleanup);
-            AggregateException? failure = Assert.ThrowsAsync<AggregateException>(async () =>
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
                 await harness.Client.MachineVision().ReadRelationshipsAsync(
                     new NodeId("root", 2), MachineVisionRelationship.SameEntity).ConfigureAwait(false));
             Assert.That(failure!.InnerExceptions.Count, Is.EqualTo(2));
@@ -209,10 +209,10 @@ namespace Opc.Ua.Vision.Tests
         [TestCase(0u, 0u)]
         [TestCase(101u, 0u)]
         [TestCase(1u, 10001u)]
-        public void RelationshipBoundsFailBeforeBrowse(uint size, uint offset)
+        public async Task RelationshipBoundsFailBeforeBrowse(uint size, uint offset)
         {
             var harness = new VisionSessionHarness(false);
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await harness.Client.MachineVision().ReadRelationshipsAsync(new NodeId("root", 2),
                     MachineVisionRelationship.SameEntity, maximumResults: size, startIndex: offset)
                         .ConfigureAwait(false));
@@ -221,19 +221,19 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RelationshipRejectsMissingNamespaceAndUnknownDiscriminators()
+        public async Task RelationshipRejectsMissingNamespaceAndUnknownDiscriminators()
         {
             MachineVisionClient client = new VisionSessionHarness(false).Client.MachineVision();
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await client.ReadRelationshipsAsync(NodeId.Null, MachineVisionRelationship.SameEntity)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await client.ReadRelationshipsAsync(new NodeId("root", 2), (MachineVisionRelationship)100)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await client.ReadRelationshipsAsync(new NodeId("root", 2), MachineVisionRelationship.SameEntity,
                     (BrowseDirection)100).ConfigureAwait(false));
-            ServiceResultException? missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? missing = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadRelationshipsAsync(new NodeId("root", 2), MachineVisionRelationship.OpticalPath)
                     .ConfigureAwait(false));
             Assert.That(missing!.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
@@ -241,10 +241,10 @@ namespace Opc.Ua.Vision.Tests
 
         [TestCase(0)]
         [TestCase(101)]
-        public void ObservationRejectsInvalidCountBeforeCreatingResources(int maximum)
+        public async Task ObservationRejectsInvalidCountBeforeCreatingResources(int maximum)
         {
             var harness = new VisionSessionHarness(false);
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await harness.Client.MachineVision().ObserveAsync(new NodeId("notifier", 2),
                     new MachineVisionObservationOptions { MaximumNotifications = maximum }).ConfigureAwait(false));
             harness.Session.Verify(s => s.TryGetSubscriptionManager(out It.Ref<ISubscriptionManager?>.IsAny),
@@ -319,7 +319,7 @@ namespace Opc.Ua.Vision.Tests
             Task<MachineVisionObservation> task = harness.Client.ObserveAsync(
                 new NodeId("notifier", 2), cancellationToken: cancellation.Token).AsTask();
             await cancellation.CancelAsync().ConfigureAwait(false);
-            OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(async () => await task
+            OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(async () => await task
                 .ConfigureAwait(false));
             Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
             harness.Subscription.Verify(s => s.DisposeAsync(), Times.Once);
@@ -334,7 +334,7 @@ namespace Opc.Ua.Vision.Tests
             harness.Item.SetupGet(i => i.Error).Returns(new ServiceResult(StatusCodes.BadUserAccessDenied));
             var cleanup = new InvalidOperationException("dispose failure");
             harness.Subscription.Setup(s => s.DisposeAsync()).Returns(new ValueTask(Task.FromException(cleanup)));
-            AggregateException? failure = Assert.ThrowsAsync<AggregateException>(async () =>
+            AggregateException? failure = await Assert.ThrowsAsync<AggregateException>(async () =>
                 await harness.Client.ObserveAsync(new NodeId("notifier", 2)).ConfigureAwait(false));
             Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(((ServiceResultException)failure.InnerExceptions[0]).StatusCode,
@@ -351,7 +351,7 @@ namespace Opc.Ua.Vision.Tests
             harness.Item.SetupGet(i => i.Error).Returns(ServiceResult.Good);
             Task<MachineVisionObservation> task = harness.Client.ObserveAsync(new NodeId("notifier", 2)).AsTask();
             harness.Clock.Advance(TimeSpan.FromSeconds(5));
-            Assert.ThrowsAsync<TimeoutException>(async () => await task.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TimeoutException>(async () => await task.ConfigureAwait(false));
             harness.Subscription.Verify(s => s.DisposeAsync(), Times.Once);
             await Task.CompletedTask.ConfigureAwait(false);
         }
@@ -363,7 +363,7 @@ namespace Opc.Ua.Vision.Tests
             Task<MachineVisionObservation> task = harness.Client.ObserveAsync(new NodeId("notifier", 2)).AsTask();
             await harness.EmitAsync(ObjectTypeIds.BaseEventType, default, default,
                 new string('x', 1024 * 1024)).ConfigureAwait(false);
-            ServiceResultException? tooLarge = Assert.ThrowsAsync<ServiceResultException>(async () => await task
+            ServiceResultException? tooLarge = await Assert.ThrowsAsync<ServiceResultException>(async () => await task
                 .ConfigureAwait(false));
             Assert.That(tooLarge!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             harness.Subscription.Verify(s => s.DisposeAsync(), Times.Once);
@@ -377,7 +377,7 @@ namespace Opc.Ua.Vision.Tests
             harness.Subscription.Setup(s => s.DisposeAsync()).Returns(new ValueTask(Task.FromException(cleanup)));
             Task<MachineVisionObservation> task = harness.Client.ObserveAsync(new NodeId("notifier", 2)).AsTask();
             harness.Clock.Advance(TimeSpan.FromSeconds(5));
-            InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(async () => await task
+            InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(async () => await task
                 .ConfigureAwait(false));
             Assert.That(failure, Is.SameAs(cleanup));
             await Task.CompletedTask.ConfigureAwait(false);

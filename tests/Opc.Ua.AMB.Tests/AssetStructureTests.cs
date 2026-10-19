@@ -290,8 +290,8 @@ namespace Opc.Ua.AMB.Tests
                             context.CancellationToken).ConfigureAwait(false);
                     })).ConfigureAwait(false);
 
-            ServiceResultException refused = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await bare!.IncrementRevisionCounterAsync().ConfigureAwait(false))!;
+            ServiceResultException refused = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await bare!.IncrementRevisionCounterAsync().ConfigureAwait(false)))!;
             int next = await software!.IncrementRevisionCounterAsync().ConfigureAwait(false);
             ushort di = (ushort)server.Server.NamespaceUris.GetIndex(Opc.Ua.Di.Namespaces.OpcUaDi);
             BaseObjectState firmware = softwareNode!.Node;
@@ -669,15 +669,15 @@ namespace Opc.Ua.AMB.Tests
                 builder => builder.AddOpcUaDi().AddAssetManagement()).ConfigureAwait(false);
             var builder = new AssetBuilder();
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
+                await Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
                     .DefineLocationAsync(AssetLocationKind.Digital, "Somewhere")
                     .ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
+                await Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
                     .DefineLocationAsync(AssetLocationKind.Hierarchical, "Plant1//Line2")
                     .ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
+                await Assert.ThrowsAsync<ArgumentException>(async () => await server.AssetManagement
                     .DefineLocationAsync(AssetLocationKind.Operational, " ")
                     .ConfigureAwait(false));
                 Assert.Throws<ArgumentException>(() => builder.LocatedIn(AssetLocationKind.Digital, "Somewhere"));
@@ -693,7 +693,7 @@ namespace Opc.Ua.AMB.Tests
                     .Add("A", Variant.From(2))));
                 Assert.Throws<ArgumentException>(() => builder.WithCapabilities(entries => entries
                     .Add(string.Empty, Variant.From(1))));
-                Assert.ThrowsAsync<ServiceResultException>(async () => await new AssetManagement()
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await new AssetManagement()
                     .DefineLocationAsync(AssetLocationKind.Hierarchical, "Plant1")
                     .ConfigureAwait(false));
             });

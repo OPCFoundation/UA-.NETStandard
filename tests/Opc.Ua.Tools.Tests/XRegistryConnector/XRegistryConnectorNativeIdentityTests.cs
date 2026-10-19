@@ -66,7 +66,7 @@ namespace Opc.Ua.Tools.Tests.XRegistryConnector
             Assert.That(await policy.IsCurrentAsync(identity, CancellationToken.None).ConfigureAwait(false), Is.True);
             current = Guid.NewGuid().ToString("N");
             Assert.That(await policy.IsCurrentAsync(identity, CancellationToken.None).ConfigureAwait(false), Is.False);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await policy.VerifyUserAsync(token, CancellationToken.None).ConfigureAwait(false));
             var renewedToken = new UserNameIdentityTokenHandler("registry-reader", Encoding.UTF8.GetBytes(current));
             IUserIdentity renewed =

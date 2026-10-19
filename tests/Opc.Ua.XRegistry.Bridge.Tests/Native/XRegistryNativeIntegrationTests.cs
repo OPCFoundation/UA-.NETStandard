@@ -240,13 +240,13 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await WriteChunksAsync(file, handle, m_codec.EncodeRequest(request)).ConfigureAwait(false);
             await file.CloseAsync(handle).ConfigureAwait(false);
             Assert.That(m_forwarder.Mutations, Is.Empty, "File Close must only seal the transport upload.");
-            ServiceResultException badDigest = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await bridge.CommitRequestAsync(upload, string.Empty, new string('0', 64)).ConfigureAwait(false));
+            ServiceResultException badDigest = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await bridge.CommitRequestAsync(upload, string.Empty, new string('0', 64)).ConfigureAwait(false)))!;
             Assert.That(badDigest.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(m_forwarder.Mutations, Is.Empty);
-            ServiceResultException badIdentity = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException badIdentity = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, "another-operation", m_codec.ComputeRequestDigest(request))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.That(badIdentity.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(m_forwarder.Mutations, Is.Empty);
             (NodeId responseFile, uint responseHandle) = await bridge.CommitRequestAsync(
@@ -259,9 +259,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(result.Metadata.GetProperty("epoch").GetUInt32(), Is.EqualTo(1));
                 Assert.That(m_forwarder.Mutations, Has.Count.EqualTo(1));
             });
-            ServiceResultException repeated = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException repeated = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, string.Empty, m_codec.ComputeRequestDigest(request))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.That(repeated.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
         }
@@ -272,15 +272,15 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             RegistryBridgeTypeClient bridge = Bridge(m_session);
             (NodeId upload, uint handle) = await bridge.BeginRequestAsync().ConfigureAwait(false);
             await using ManagedSession other = await ConnectAsync().ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await new FileTypeClient(other, upload, m_telemetry).WriteAsync(handle, ByteString.Empty)
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            ServiceResultException abortDenied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await Bridge(other).AbortRequestAsync(upload).ConfigureAwait(false));
+            ServiceResultException abortDenied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Bridge(other).AbortRequestAsync(upload).ConfigureAwait(false)))!;
             Assert.That(abortDenied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, string.Empty, "unused").ConfigureAwait(false));
             Assert.That(m_forwarder.Mutations, Is.Empty);
         }
@@ -324,8 +324,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             XRegistryEndpointDescription description = await m_native.InspectAsync(s_writer).ConfigureAwait(false);
             XRegistryResponse rejected = await m_native.ExecuteAsync(
                 request with { OperationId = "not-durable" }).ConfigureAwait(false);
-            ServiceResultException unsupported = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_native.GetOperationOutcomeAsync("not-durable", s_writer).ConfigureAwait(false));
+            ServiceResultException unsupported = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_native.GetOperationOutcomeAsync("not-durable", s_writer).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(description.SupportsOperationReplay, Is.False);
@@ -511,8 +511,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 Document = ByteString.From(Encoding.UTF8.GetBytes("fresh"))
             }).ConfigureAwait(false);
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await resource.CloseAsync(handle).ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await resource.CloseAsync(handle).ConfigureAwait(false)))!;
             XRegistryResponse current = await m_forwarder.Inner.ExecuteAsync(
                 Request(XRegistryAction.Read, "/schemagroups/g/schemas/r/versions/v1") with
                 {
@@ -543,8 +543,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await SeedAsync(path,
                 /*lang=json,strict*/ """{"versionid":"v1","schema":"replacement"}""").ConfigureAwait(false);
             uint newHandle = await file.OpenAsync(1).ConfigureAwait(false);
-            ServiceResultException retired = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.ReadAsync(oldHandle, 256).ConfigureAwait(false));
+            ServiceResultException retired = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.ReadAsync(oldHandle, 256).ConfigureAwait(false)))!;
             ByteString current = await file.ReadAsync(newHandle, 256).ConfigureAwait(false);
             await file.CloseAsync(newHandle).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -629,11 +629,11 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(rightId.WrappedValue.TryGetValue(out string rightValue) ? rightValue : null,
                     Is.EqualTo("same"));
             });
-            ServiceResultException ambiguous = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_generic.CreateGroupAsync(m_manager.RegistryNodeId, "new").ConfigureAwait(false));
+            ServiceResultException ambiguous = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_generic.CreateGroupAsync(m_manager.RegistryNodeId, "new").ConfigureAwait(false)))!;
             Assert.That(ambiguous.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-            ServiceResultException ambiguousResource = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_generic.GetGroup(left).CreateResourceAsync("new", "v1", false).ConfigureAwait(false));
+            ServiceResultException ambiguousResource = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_generic.GetGroup(left).CreateResourceAsync("new", "v1", false).ConfigureAwait(false)))!;
             Assert.That(ambiguousResource.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             XRegistryResponse exact = await m_native.ExecuteAsync(
                 Request(XRegistryAction.Read, "/right/same/docs/r/versions/a%20b") with
@@ -679,7 +679,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
         }
 
         [Test]
-        public void CommunicationFailureIsNotLegacyDiscovery()
+        public async Task CommunicationFailureIsNotLegacyDiscovery()
         {
             var namespaces = new NamespaceTable();
             ushort ns = namespaces.GetIndexOrAppend("urn:unreachable-registry");
@@ -689,8 +689,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 It.IsAny<uint>(), It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadNoCommunication));
             var native = new XRegistryOpcUaEndpoint(session.Object, new NodeId("root", ns), m_options, m_telemetry);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await native.InspectAsync(s_writer).ConfigureAwait(false));
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await native.InspectAsync(s_writer).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             session.Verify(value => value.ReadAsync(It.IsAny<RequestHeader>(), It.IsAny<double>(),
                 It.IsAny<TimestampsToReturn>(), It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()),
@@ -765,16 +765,16 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             RegistryBridgeTypeClient bridge = Bridge(m_session);
             XRegistryRequest request = Request(XRegistryAction.Merge, "/", /*lang=json,strict*/ """{"name":"never"}""");
             (NodeId upload, uint handle) = await bridge.BeginRequestAsync().ConfigureAwait(false);
-            ServiceResultException unsealed = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException unsealed = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, string.Empty, m_codec.ComputeRequestDigest(request))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.That(unsealed.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             var file = new FileTypeClient(m_session, upload, m_telemetry);
             await file.WriteAsync(handle, ByteString.From(Encoding.UTF8.GetBytes(malformedEnvelope)))
                 .ConfigureAwait(false);
             await file.CloseAsync(handle).ConfigureAwait(false);
-            ServiceResultException malformed = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await bridge.CommitRequestAsync(upload, string.Empty, "unused").ConfigureAwait(false));
+            ServiceResultException malformed = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await bridge.CommitRequestAsync(upload, string.Empty, "unused").ConfigureAwait(false)))!;
             Assert.That(malformed.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
             (upload, handle) = await bridge.BeginRequestAsync().ConfigureAwait(false);
@@ -782,9 +782,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await WriteChunksAsync(file, handle, m_codec.EncodeRequest(request)).ConfigureAwait(false);
             await file.CloseAsync(handle).ConfigureAwait(false);
             m_clock.Advance(m_options.FileLifetime);
-            ServiceResultException expired = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException expired = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, string.Empty, m_codec.ComputeRequestDigest(request))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -828,8 +828,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 .ConfigureAwait(false);
             Assert.That(before.StatusCode, Is.EqualTo(200));
             m_forwarder.FailReads = true;
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_native.ExecuteAsync(Request(XRegistryAction.Read, "/")).ConfigureAwait(false));
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_native.ExecuteAsync(Request(XRegistryAction.Read, "/")).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
             m_forwarder.FailReads = false;
             XRegistryResponse after = await m_native.ExecuteAsync(Request(XRegistryAction.Read, "/"))
@@ -851,8 +851,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 .ConfigureAwait(false);
             NodeId logical = await FindChildEntityAsync(group, "/schemagroups/g/schemas/r").ConfigureAwait(false);
             ResourceTypeClient file = m_generic.GetResource(logical);
-            ServiceResultException unavailable = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.OpenAsync(2).ConfigureAwait(false));
+            ServiceResultException unavailable = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.OpenAsync(2).ConfigureAwait(false)))!;
             Assert.That(unavailable.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             XRegistryResponse model = await m_native.ExecuteAsync(Request(XRegistryAction.Merge, "/modelsource",
                                      /*lang=json,strict*/
@@ -908,10 +908,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
         {
             await using ManagedSession insecure = await ConnectInsecureAsync().ConfigureAwait(false);
             var native = new XRegistryOpcUaEndpoint(insecure, m_manager.RegistryNodeId, m_options, m_telemetry);
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await native.ExecuteAsync(Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"insecure"}"""))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));

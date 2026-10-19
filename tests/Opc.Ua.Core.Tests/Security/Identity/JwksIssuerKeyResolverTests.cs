@@ -234,7 +234,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             Assert.That(FindKey(retained, "ec").VerifySignature(data, ecSignature), Is.True);
             Assert.That(FindKey(current, "rsa").VerifySignature(data, rsaSignature), Is.True);
             Assert.That(FindKey(current, "ec").VerifySignature(data, ecSignature), Is.True);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await resolver.GetKeysAsync(null).ConfigureAwait(false));
         }
 
@@ -258,7 +258,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 handler.Release.TrySetResult(true);
             }
 
-            ObjectDisposedException error = Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            ObjectDisposedException error = await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await pending.ConfigureAwait(false));
             Assert.That(error.ObjectName, Is.EqualTo(nameof(JwksIssuerKeyResolver)));
         }

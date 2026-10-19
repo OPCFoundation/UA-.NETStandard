@@ -220,7 +220,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 {
                     manager.UpdateClientCertificate(
                         original.AddRef(), includeChain ? [original] : null);
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(GetAsync)!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(GetAsync))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
                     AssertStoredPrivateKeyWorks(original);
                     failOpen = false;

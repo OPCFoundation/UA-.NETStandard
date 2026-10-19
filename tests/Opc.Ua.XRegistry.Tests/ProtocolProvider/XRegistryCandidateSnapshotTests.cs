@@ -76,7 +76,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(committed.StatusCode, Is.EqualTo(concurrentChange ? 409 : 201));
                 Assert.That(candidate.HasCandidate, Is.False);
             });
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await candidate.InspectCandidateAsync().ConfigureAwait(false));
         }
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 Assert.That(first.StatusCode, Is.EqualTo(200));
                 Assert.That(denied.StatusCode, Is.EqualTo(403));
             });
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await candidate.InspectCandidateAsync().ConfigureAwait(false));
         }
 

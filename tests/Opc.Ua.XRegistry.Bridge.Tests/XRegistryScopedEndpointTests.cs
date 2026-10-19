@@ -123,7 +123,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                 {
                     await revoked.CancelAsync().ConfigureAwait(false);
                 }
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                     await operation.CommitAsync().ConfigureAwait(false));
             }
             XRegistryResponse root = await provider.ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/"))

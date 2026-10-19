@@ -93,7 +93,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 upload, string.Empty, m_codec.ComputeRequestDigest(request)).ConfigureAwait(false);
             await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
             await AssertFullTransferCapacityAsync(bridge).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await new FileTypeClient(m_session, preview, m_telemetry).ReadAsync(handle, 32).ConfigureAwait(false));
             Assert.That(m_forwarder.Mutations, Is.Empty);
         }
@@ -115,8 +115,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 m_authorizationRelease.TrySetResult(true);
             }
-            ServiceResultException revoked = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await commit.ConfigureAwait(false));
+            ServiceResultException revoked = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await commit.ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(revoked.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -136,7 +136,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             m_clock.Advance(m_options.FileLifetime);
             try
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await bridge.BeginRequestAsync().ConfigureAwait(false));
             }
             finally
@@ -199,8 +199,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 clock.Advance(TimeSpan.FromSeconds(1));
-                ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await prepare.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await prepare.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
                 Assert.That(m_forwarder.DisposeCompleted.Task.IsCompleted, Is.False);
                 await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
@@ -229,7 +229,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             m_forwarder.FailDisposal = true;
             try
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await bridge.AbortRequestAsync(upload).ConfigureAwait(false));
             }
             finally
@@ -238,8 +238,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             }
             await AssertFullTransferCapacityAsync(bridge).ConfigureAwait(false);
             Assert.That(m_forwarder.Mutations, Is.Empty);
-            ServiceResultException absent = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await bridge.CommitPreparedRequestAsync(upload).ConfigureAwait(false));
+            ServiceResultException absent = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await bridge.CommitPreparedRequestAsync(upload).ConfigureAwait(false)))!;
             Assert.That(absent.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -264,8 +264,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 await m_forwarder.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 clock.Advance(TimeSpan.FromSeconds(1));
-                ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await commit.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await commit.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 Assert.Multiple(() =>
                 {
                     Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
@@ -313,8 +313,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 await m_forwarder.DisposeEntered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 clock.Advance(TimeSpan.FromSeconds(1));
-                ServiceResultException timeout = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await abort.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
+                ServiceResultException timeout = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await abort.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false)))!;
                 Assert.That(timeout.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
                 await AssertFullTransferCapacityAsync(bridge).ConfigureAwait(false);
                 Assert.That(m_forwarder.Mutations, Is.Empty);
@@ -336,7 +336,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             clock.Fail = true;
             try
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await bridge.AbortRequestAsync(upload).ConfigureAwait(false));
                 await m_forwarder.DisposeCompleted.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
             }
@@ -362,9 +362,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             ServiceResultException? denied;
             try
             {
-                denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await bridge.PrepareRequestAsync(upload, string.Empty, m_codec.ComputeRequestDigest(request))
-                        .ConfigureAwait(false));
+                        .ConfigureAwait(false)))!;
             }
             finally
             {
@@ -410,8 +410,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 release.TrySetResult(true);
                 m_forwarder.AfterPrepareAsync = null;
             }
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await preparing.ConfigureAwait(false));
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await preparing.ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             await AssertFullTransferCapacityAsync(bridge).ConfigureAwait(false);
             Assert.That(m_forwarder.Mutations, Is.Empty);

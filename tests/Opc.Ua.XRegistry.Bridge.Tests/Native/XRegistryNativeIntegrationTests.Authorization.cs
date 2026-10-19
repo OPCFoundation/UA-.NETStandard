@@ -64,7 +64,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             while (m_forwarder.Mutations.TryDequeue(out _))
             {
             }
-            ServiceResultException rejection = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException rejection = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 var file = new ResourceTypeClient(denied, resource, m_telemetry);
                 switch (operation)
@@ -105,7 +105,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                     default:
                         throw new InvalidOperationException("Unexpected mutation.");
                 }
-            });
+            }))!;
             Assert.Multiple(() =>
             {
                 Assert.That(profile.SupportsAtomicMutations, Is.False);
@@ -129,10 +129,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             var native = new XRegistryOpcUaEndpoint(m_session, factory.Manager!.RegistryNodeId, options, m_telemetry);
             XRegistryEndpointDescription profile = await native.InspectAsync(s_writer).ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await native.ExecuteAsync(Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"denied"}"""))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(profile.SupportsAtomicMutations, Is.False);
@@ -146,10 +146,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
         {
             await using ManagedSession observer = await ConnectAsync(m_roleDeniedUser).ConfigureAwait(false);
             var native = new XRegistryOpcUaEndpoint(observer, m_manager.RegistryNodeId, m_options, m_telemetry);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await native.ExecuteAsync(Request(XRegistryAction.Merge, "/",
                     /*lang=json,strict*/ """{"name":"denied"}"""))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(observer.Identity.DisplayName, Is.EqualTo(m_roleDeniedUser));
@@ -164,8 +164,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await using ManagedSession anonymous = await ConnectAsync(anonymous: true).ConfigureAwait(false);
             var native = new XRegistryOpcUaEndpoint(anonymous, m_manager.RegistryNodeId, m_options, m_telemetry);
             int mappedBefore = Volatile.Read(ref m_mappingCalls);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await native.InspectAsync(s_writer).ConfigureAwait(false));
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await native.InspectAsync(s_writer).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -185,9 +185,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             var file = new FileTypeClient(insecure, upload, m_telemetry);
             await WriteChunksAsync(file, handle, m_codec.EncodeRequest(request)).ConfigureAwait(false);
             await file.CloseAsync(handle).ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await bridge.CommitRequestAsync(upload, string.Empty, m_codec.ComputeRequestDigest(request))
-                    .ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
             await bridge.AbortRequestAsync(upload).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
@@ -212,11 +212,11 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
             }
             m_denyWrites = true;
-            ServiceResultException write = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException write = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await file.WriteAsync(handle, ByteString.From(Encoding.UTF8.GetBytes("denied")))
-                    .ConfigureAwait(false));
-            ServiceResultException close = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.CloseAsync(handle).ConfigureAwait(false));
+                    .ConfigureAwait(false)))!;
+            ServiceResultException close = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.CloseAsync(handle).ConfigureAwait(false)))!;
             XRegistryResponse actual = await m_forwarder.Inner.ExecuteAsync(Request(
                 XRegistryAction.Read, "/schemagroups/g/schemas/r/versions/v1") with
             { View = XRegistryView.Default })
@@ -242,8 +242,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             ResourceTypeClient file = m_generic.GetResource(node);
             uint handle = await file.OpenAsync(1).ConfigureAwait(false);
             m_denyReads = true;
-            ServiceResultException read = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.ReadAsync(handle, 256).ConfigureAwait(false));
+            ServiceResultException read = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.ReadAsync(handle, 256).ConfigureAwait(false)))!;
             m_denyReads = false;
             await file.CloseAsync(handle).ConfigureAwait(false);
             Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -263,8 +263,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(m_forwarder.Mutations, Is.Empty);
             });
             m_authorizationRelease.SetResult(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.ConfigureAwait(false));
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));

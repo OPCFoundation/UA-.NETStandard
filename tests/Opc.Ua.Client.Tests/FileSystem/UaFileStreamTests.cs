@@ -114,7 +114,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             await using (stream.ConfigureAwait(false))
             {
                 byte[] initial = new byte[8];
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     () => stream.ReadAsync(initial, 0, initial.Length, CancellationToken.None));
                 Assert.That(exception, Is.SameAs(lostReply));
                 int completedBytes = (failedChunk - 1) * 4;
@@ -158,7 +158,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             UaFileStream stream = NewStream(UaFileMode.Write, length: 0);
             await using (stream.ConfigureAwait(false))
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     () => stream.WriteAsync(payload, 0, payload.Length, CancellationToken.None));
                 Assert.That(exception, Is.SameAs(lostReply));
                 int completedBytes = (failedChunk - 1) * 4;
@@ -387,7 +387,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             UaFileStream stream = NewStream(UaFileMode.Read);
             await stream.DisposeAsync().ConfigureAwait(false);
             byte[] buffer = new byte[1];
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await stream
                     .ReadAsync(buffer, 0, 1, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -399,7 +399,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             UaFileStream stream = NewStream(UaFileMode.Read);
             await using (stream.ConfigureAwait(false))
             {
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await stream
                         .WriteAsync(new byte[1], 0, 1, CancellationToken.None)
                         .ConfigureAwait(false));
@@ -412,7 +412,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             UaFileStream stream = NewStream(UaFileMode.Write);
             await using (stream.ConfigureAwait(false))
             {
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await stream
                         .ReadAsync(new byte[1], 0, 1, CancellationToken.None)
                         .ConfigureAwait(false));

@@ -95,7 +95,7 @@ namespace Opc.Ua.XRegistry.Tests
                 batch.Dispose();
             }
             Assert.That(reports, Is.EqualTo(report ? 1 : 0));
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await batch.ReportAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await batch.ReportAsync().ConfigureAwait(false));
         }
 
         [Test]

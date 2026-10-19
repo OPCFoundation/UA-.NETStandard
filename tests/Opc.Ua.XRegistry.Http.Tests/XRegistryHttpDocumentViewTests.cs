@@ -86,7 +86,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
         [TestCase("-1")]
         [TestCase("18446744073709551616")]
         [TestCase("2;count=3")]
-        public void MalformedHttpPaginationCountIsRejected(string count)
+        public async Task MalformedHttpPaginationCountIsRejected(string count)
         {
             using var handler = new RecordingHttpHandler(_ =>
             {
@@ -97,7 +97,7 @@ namespace Opc.Ua.XRegistry.Http.Tests
             });
             using var client = new HttpClient(handler);
             var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await endpoint.ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/model")).ConfigureAwait(
                     false));
         }

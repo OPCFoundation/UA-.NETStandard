@@ -222,7 +222,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(result.IsError, Is.False);
             fixture.Remote.AssertCall(fixture.Remote.Id("key-service"), GdsMethods.KeyCredentialServiceType_Revoke,
                 Variant.From("credential-17"));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(
                     reference.Reference, "urn:resource", McpCapability.CredentialIssuance)
                     .ConfigureAwait(false));
@@ -379,7 +379,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             fixture.Remote.AssertCall(fixture.Remote.Id("auth-service"),
                 GdsMethods.AuthorizationServiceType_RefreshToken,
                 Variant.From("urn:resource"), Variant.From("old-refresh-sensitive"));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(old.Reference, "urn:resource", McpCapability.CredentialIssuance)
                     .ConfigureAwait(false));
         }

@@ -50,15 +50,15 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             IXRegistrySyncStateSession writer = await store.OpenAsync().ConfigureAwait(false);
             ByteString pristine = await writer.ReadAsync().ConfigureAwait(false);
             Assert.That(pristine.IsNull, Is.True);
-            Assert.ThrowsAsync<IOException>(async () => await store.OpenAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<IOException>(async () => await store.OpenAsync().ConfigureAwait(false));
             await writer.CommitAsync(ByteString.From("12345"u8)).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await writer.CommitAsync(ByteString.From("123456"u8)).ConfigureAwait(false));
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await writer.CommitAsync(ByteString.Empty).ConfigureAwait(false));
             IXRegistrySyncStateSession reader = await store.OpenAsync(readOnly: true).ConfigureAwait(false);
             ByteString actual = await reader.ReadAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await reader.CommitAsync(ByteString.From("other"u8)).ConfigureAwait(false));
             await reader.DisposeAsync().ConfigureAwait(false);
             await writer.DisposeAsync().ConfigureAwait(false);
@@ -117,7 +117,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await using var store = new FileXRegistrySyncStateStore(
                 fs, directory, durability: new SyncRecordingDurability());
             await using var fixture = new XRegistrySyncFixture();
-            Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(store).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(store).ConfigureAwait(false));
             XRegistrySyncReport report = await fixture.Engine(store).RunOnceAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
             {
@@ -223,14 +223,14 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             var store = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
             IXRegistrySyncStateSession writer = await store.OpenAsync().ConfigureAwait(false);
             await writer.ReadAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await writer.CommitAsync(ByteString.From("complete-state"u8)).ConfigureAwait(false));
-            Assert.ThrowsAsync<IOException>(async () => await writer.ReadAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<IOException>(async () => await writer.ReadAsync().ConfigureAwait(false));
             await writer.DisposeAsync().ConfigureAwait(false);
             await store.DisposeAsync().ConfigureAwait(false);
             durability.FailDirectoryFlush = 0;
             await using var restarted = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await ReadStateAsync(restarted).ConfigureAwait(false));
             Assert.That(fs.Exists(Path.Combine(directory, "sync.pending")), Is.True);
         }
@@ -246,7 +246,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await writer.ReadAsync().ConfigureAwait(false);
             await writer.CommitAsync(ByteString.From("previous"u8)).ConfigureAwait(false);
             fs.FailStagingWrite = true;
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await writer.CommitAsync(ByteString.From("replacement"u8)).ConfigureAwait(false));
             await writer.DisposeAsync().ConfigureAwait(false);
             await store.DisposeAsync().ConfigureAwait(false);
@@ -258,7 +258,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
                 Assert.That(fs.Exists(Path.Combine(directory, "sync.pending")), Is.True);
             });
             await using var next = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
-            Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(next).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(next).ConfigureAwait(false));
         }
 
         [TestCase(false)]
@@ -274,7 +274,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await writer.CommitAsync(ByteString.From("previous"u8)).ConfigureAwait(false);
             fs.FailBeforeReplace = !published;
             fs.FailAfterReplace = published;
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await writer.CommitAsync(ByteString.From("replacement"u8)).ConfigureAwait(false));
             await writer.DisposeAsync().ConfigureAwait(false);
             await store.DisposeAsync().ConfigureAwait(false);
@@ -285,7 +285,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
                 Assert.That(fs.Exists(Path.Combine(directory, "sync.pending")), Is.True);
             });
             await using var restarted = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
-            Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(restarted).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await ReadStateAsync(restarted).ConfigureAwait(false));
         }
 
         [Test]
@@ -297,7 +297,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await using var first = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
             await using var second = new FileXRegistrySyncStateStore(fs, directory, durability: durability);
             IXRegistrySyncStateSession writer = await first.OpenAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<IOException>(async () => await second.OpenAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<IOException>(async () => await second.OpenAsync().ConfigureAwait(false));
             ByteString empty = await ReadStateAsync(second).ConfigureAwait(false);
             Assert.That(empty.IsNull, Is.True);
             await writer.DisposeAsync().ConfigureAwait(false);
@@ -347,7 +347,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
                 var first = new FileXRegistrySyncStateStore(LocalFileSystem.Instance, directory);
                 IXRegistrySyncStateSession writer = await first.OpenAsync().ConfigureAwait(false);
                 await using var competing = new FileXRegistrySyncStateStore(LocalFileSystem.Instance, directory);
-                Assert.ThrowsAsync<IOException>(async () => await competing.OpenAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<IOException>(async () => await competing.OpenAsync().ConfigureAwait(false));
                 await writer.ReadAsync().ConfigureAwait(false);
                 await writer.CommitAsync(ByteString.From("durable-state"u8)).ConfigureAwait(false);
                 await writer.DisposeAsync().ConfigureAwait(false);

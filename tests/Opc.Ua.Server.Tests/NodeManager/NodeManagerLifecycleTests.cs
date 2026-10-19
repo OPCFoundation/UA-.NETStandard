@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -67,7 +68,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class NodeManagerLifecycleTests
+    public sealed partial class NodeManagerLifecycleTests
     {
         private const double kMaxAge = 10000;
 
@@ -94,6 +95,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
         private HashSet<Guid> m_startupRegistrationIds;
+        private ArrayOf<NodeManagerRegistration> m_startupRegistrations;
 
         /// <summary>
         /// Shared by every Session the fixture activates. A subscription transfer between
@@ -124,7 +126,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<NodeManagerLifecycleTests>();
             m_startupRegistrationIds = [];
-            m_server.NodeManagerLifecycle.Registrations.ForEach(
+            m_startupRegistrations = m_server.NodeManagerLifecycle.Registrations;
+            m_startupRegistrations.ForEach(
                 registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
@@ -1800,7 +1803,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(
                     modifyResponse.Results[0].StatusCode,
-                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    Is.EqualTo(StatusCodes.Good));
 
                 header = m_requestHeader;
                 header.Timestamp = DateTimeUtc.Now;
@@ -2517,7 +2520,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await removeTask.ConfigureAwait(false));
             Assert.That(
                 exception.Message,
@@ -2638,7 +2641,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await reloadTask.ConfigureAwait(false));
             Assert.That(
                 exception.Message,
@@ -4025,7 +4028,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             firstManager!.DeleteAddressSpaceFailuresRemaining = 1;
             lastManager!.DeleteAddressSpaceFailuresRemaining = 1;
             IServerInternal server = m_server.CurrentInstance;
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+            AggregateException failure = await Assert.ThrowsAsync<AggregateException>(
                 async () => await server.NodeManager.ShutdownAsync().ConfigureAwait(false));
 
             Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
@@ -4115,7 +4118,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 requestScope.Dispose();
                 requestScope = null!;
 
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await removeTask.ConfigureAwait(false));
                 await shutdownTask
                     .WaitAsync(TimeSpan.FromSeconds(10))
@@ -4212,7 +4215,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 requestScope.Dispose();
                 requestScope = null!;
                 NodeManagerReloadCommittedException exception =
-                    Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                    await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                         async () => await reloadTask.ConfigureAwait(false));
                 Assert.That(exception.InnerException, Is.TypeOf<ObjectDisposedException>());
                 await shutdownTask
@@ -4619,7 +4622,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ShadowReloadAsync(
                             originalRegistration,
@@ -5041,7 +5044,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public Task AddAsyncWhenPreparationAndCleanupFailReportsEveryFailureAsync()
+        public async Task AddAsyncWhenPreparationAndCleanupFailReportsEveryFailureAsync()
         {
             const string NamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:PreparationCleanupFailure";
@@ -5072,7 +5075,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(nodeManager.Object);
 
-            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                 async () => await m_server.NodeManagerLifecycle
                     .AddAsync(factory.Object, null)
                     .ConfigureAwait(false));
@@ -5101,7 +5104,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken.None),
                 Times.Once);
             disposable.Verify(manager => manager.Dispose(), Times.Once);
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -5281,7 +5283,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             failRetiredSessionClosing = true;
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(original, replacementFactory.Object, null)
                         .ConfigureAwait(false));
@@ -5430,7 +5432,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(retainedManager.Object);
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
                         .AddAsync(retainedFactory.Object, null)
                         .ConfigureAwait(false));
@@ -5612,7 +5614,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(
                             originalRegistration,
@@ -5811,7 +5813,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             try
             {
-                AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+                AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                     async () => await host
                         .CommitAsync(
                             replacement,
@@ -5874,7 +5876,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public Task LifecycleArgumentGuardsRejectNullInputsAsync()
+        public async Task LifecycleArgumentGuardsRejectNullInputsAsync()
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IAsyncNodeManagerFactory asyncFactory =
@@ -5882,19 +5884,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
 
             ArgumentNullException exception =
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await lifecycle
                         .AddAsync((IAsyncNodeManagerFactory)null!, null)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .AddAsync((INodeManagerFactory)null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
@@ -5902,7 +5904,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
@@ -5910,19 +5912,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(null!, asyncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(null!, syncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(
                         null!,
@@ -5930,7 +5932,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(
                         null!,
@@ -5938,36 +5940,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(null!, asyncFactory)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(null!, syncFactory)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .RemoveAsync(null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .BeginShutdownAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("server"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .CompleteShutdownAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("server"));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -6023,7 +6024,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             await host.PublishAsync(prepared).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await host
                     .CommitAsync(prepared, null, null, null)
                     .ConfigureAwait(false));
@@ -6034,7 +6035,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // dynamic-reference table directly: it rejects a NodeManager that is
             // already recorded there.
             var probe = new PreparedNodeManager(candidate.Object, []);
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await host.PublishAsync(probe).ConfigureAwait(false),
                 "The rolled-back NodeManager must not still be recorded as registered.");
         }
@@ -6052,37 +6053,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 []);
 
             ArgumentNullException exception =
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await host
                         .PrepareAsync(null!)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .PublishAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("prepared"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .ReplaceAsync(null!, prepared)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("current"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .UnpublishAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .DestroyAddressSpaceAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .RemoveDestroyedExternalReferencesAsync(null!)
                     .ConfigureAwait(false));
@@ -6758,7 +6759,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<InvalidOperationException>()
                     .And
                     .Matches<InvalidOperationException>(
-                        exception => exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
+                        exception => exception is not null && exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
         }
 
         private static async Task WaitForRetiredNotificationsSuspendedAsync(
@@ -7547,6 +7548,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
         }
 
+        private ArrayOf<NodeManagerRegistration> GetBranchRegistrations(INodeManagerLifecycle? lifecycle = null)
+        {
+            lifecycle ??= m_server.NodeManagerLifecycle;
+            ArrayOf<NodeManagerRegistration> registrations = lifecycle.Registrations;
+            if (ReferenceEquals(lifecycle, m_server.NodeManagerLifecycle) && !lifecycle.IsShuttingDown)
+            {
+                foreach (NodeManagerRegistration startup in m_startupRegistrations)
+                {
+                    Assert.That(registrations.Find(registration => registration.Id == startup.Id),
+                        Is.SameAs(startup), "Runtime publication must retain each adopted startup registration.");
+                }
+            }
+            return registrations.ToList().Where(registration => !m_startupRegistrationIds.Contains(registration.Id))
+                .ToArrayOf();
+        }
+
+        private NodeManagerRegistration GetBranchRegistration(INodeManagerLifecycle lifecycle, Guid id)
+        {
+            return RequireLifecycleValue(GetBranchRegistrations(lifecycle).Find(registration => registration.Id == id));
+        }
+
         private static int IndexOfReference(
             IReadOnlyList<IAsyncNodeManager> managers,
             IAsyncNodeManager target)
@@ -7822,7 +7844,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private sealed class TrackingLifecycleNodeManager :
+        private sealed partial class TrackingLifecycleNodeManager :
             NodeManagementLifecycleNodeManager
         {
             private int m_sessionActivatedCount;
@@ -7862,6 +7884,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public int SessionActivatedCount =>
                 Volatile.Read(ref m_sessionActivatedCount);
+
+            public ArrayOf<NodeId> ActivatedSessionIds => [.. m_activatedSessionIds];
+
+            public ArrayOf<NodeId> ClosedSessionIds => [.. m_closedSessionIds];
+
+            public ArrayOf<uint> SubscribedAllEventIds => [.. m_subscribedAllEventIds];
+
+            public ArrayOf<uint> UnsubscribedAllEventIds => [.. m_unsubscribedAllEventIds];
+
+            public ServiceResult AllEventsSubscribeResult { get; set; } = ServiceResult.Good;
+
+            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
 
             /// <summary>
             /// Gets the number of all-events subscriptions dispatched to this generation.
@@ -7905,11 +7939,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Task DisposalCompleted => m_disposalCompleted.Task;
 
             /// <summary>
-            /// Gets or sets the result returned after a successful all-events unsubscribe to simulate cleanup failure.
-            /// </summary>
-            public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
-
-            /// <summary>
             /// Gets or sets how many address-space deletion attempts must fail before cleanup succeeds.
             /// </summary>
             public int DeleteAddressSpaceFailuresRemaining
@@ -7949,6 +7978,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Func<CancellationToken, ValueTask> SessionActivatedCallback { get; set; } = null!;
 
             /// <summary>
+            /// Gets or sets a callback that receives the operation context of a session activation.
+            /// </summary>
+            public Func<OperationContext, CancellationToken, ValueTask> SessionActivatedContextCallback
+            { get; set; } = null!;
+
+            /// <summary>
+            /// Gets or sets a callback that receives the operation context of an all-events subscription change.
+            /// </summary>
+            public Func<OperationContext, bool, CancellationToken, ValueTask> AllEventsContextCallback
+            { get; set; } = null!;
+            /// <summary>
             /// Gets or sets a callback observing or delaying the condition-refresh item batch.
             /// </summary>
             public Func<
@@ -7962,6 +8002,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public Func<CancellationToken, ValueTask> ReadCallback { get; set; } = null!;
 
+            public NodeId ReadCallbackNodeId { get; set; }
+
+            public Func<NodeId, CancellationToken, ValueTask> ValidateNodeCallback { get; set; } = null!;
+
+            public async ValueTask AddContinuationChildrenAsync(
+                string prefix,
+                CancellationToken cancellationToken)
+            {
+                ushort namespaceIndex = NamespaceIndexes[0];
+                BaseObjectState root = RequireLifecycleValue(
+                    Find(new NodeId(kRootNodeId, namespaceIndex)) as BaseObjectState);
+                for (uint index = 0; index < 2; index++)
+                {
+                    string name = prefix + (index == 0 ? "First" : "Second");
+                    var child = new BaseDataVariableState(root)
+                    {
+                        NodeId = new NodeId(8010 + index, namespaceIndex),
+                        BrowseName = new QualifiedName(name, namespaceIndex),
+                        DisplayName = LocalizedText.From(name),
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        AccessLevel = AccessLevels.CurrentRead,
+                        UserAccessLevel = AccessLevels.CurrentRead,
+                        Value = 42
+                    };
+                    root.AddChild(child);
+                    await AddPredefinedNodeAsync(SystemContext, child, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             /// <summary>
             /// Counts reads and runs the configured observation callback before normal node-manager dispatch.
             /// </summary>
@@ -7974,7 +8045,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_readCount);
-                if (ReadCallback is not null)
+                if (ReadCallback is not null &&
+                    (ReadCallbackNodeId.IsNull || nodesToRead.Contains(node => node.NodeId == ReadCallbackNodeId)))
                 {
                     await ReadCallback(cancellationToken).ConfigureAwait(false);
                 }
@@ -7997,6 +8069,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref m_sessionActivatedCount);
+                m_activatedSessionIds.Enqueue(sessionId);
+                if (SessionActivatedContextCallback is not null)
+                {
+                    await SessionActivatedContextCallback(context, cancellationToken).ConfigureAwait(false);
+                }
                 if (SessionActivatedCallback is not null)
                 {
                     await SessionActivatedCallback(cancellationToken).ConfigureAwait(false);
@@ -8006,6 +8083,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         sessionId,
                         cancellationToken)
                     .ConfigureAwait(false);
+            }
+
+            public override ValueTask SessionClosingAsync(
+                OperationContext context,
+                NodeId sessionId,
+                bool deleteSubscriptions,
+                CancellationToken cancellationToken = default)
+            {
+                m_closedSessionIds.Enqueue(sessionId);
+                return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
             }
 
             /// <summary>
@@ -8021,18 +8108,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (unsubscribe)
                 {
                     Interlocked.Increment(ref m_allEventsUnsubscribeCount);
+                    m_unsubscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
                 else
                 {
                     Interlocked.Increment(ref m_allEventsSubscribeCount);
+                    m_subscribedAllEventIds.Enqueue(monitoredItem.Id);
                 }
 
+                if (AllEventsContextCallback is not null)
+                {
+                    await AllEventsContextCallback(context, unsubscribe, cancellationToken).ConfigureAwait(false);
+                }
                 if (AllEventsCallback is not null)
                 {
                     await AllEventsCallback(
                         monitoredItem,
                         unsubscribe,
                         cancellationToken).ConfigureAwait(false);
+                }
+                if (!unsubscribe && ServiceResult.IsBad(AllEventsSubscribeResult))
+                {
+                    return AllEventsSubscribeResult;
+                }
+                if (unsubscribe && ServiceResult.IsBad(AllEventsUnsubscribeResult))
+                {
+                    return AllEventsUnsubscribeResult;
                 }
 
                 ServiceResult result = await base
@@ -8085,6 +8186,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }
 
+            protected override async ValueTask<NodeState> ValidateNodeAsync(
+                ServerSystemContext context,
+                NodeHandle handle,
+                IDictionary<NodeId, NodeState> cache,
+                CancellationToken cancellationToken = default)
+            {
+                if (ValidateNodeCallback is not null)
+                {
+                    await ValidateNodeCallback(handle.NodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
+            }
+
             /// <summary>
             /// Completes base disposal before signaling that the retired generation has released its resources.
             /// </summary>
@@ -8124,6 +8238,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 return false;
             }
+
+            private readonly ConcurrentQueue<NodeId> m_activatedSessionIds = new();
+            private readonly ConcurrentQueue<NodeId> m_closedSessionIds = new();
+            private readonly ConcurrentQueue<uint> m_subscribedAllEventIds = new();
+            private readonly ConcurrentQueue<uint> m_unsubscribedAllEventIds = new();
 
             /// <summary>
             /// Signals when asynchronous disposal has completed for deterministic retirement assertions.

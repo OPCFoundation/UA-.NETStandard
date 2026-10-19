@@ -326,7 +326,7 @@ namespace Opc.Ua.Gds.Tests
                 .SetIssuer(authCert!)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
-            ServiceResultException exc = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exc = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await certificateGroup.RevokeCertificateAsync(authCert).ConfigureAwait(false));
             Assert.That(exc.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
             Assert.That(exc.Message.Contains("Cannot revoke", StringComparison.Ordinal));

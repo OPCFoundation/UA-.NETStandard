@@ -102,7 +102,7 @@ namespace Opc.Ua.Extrusion.Tests
                 Assert.That(values[0].Record, Is.Null);
             }
             AssertOriginalFields(values[0], stream);
-            Assert.That(peer.Cache.Invocations.Select(call => (NodeId)call.Arguments[0]), Is.EqualTo(queried));
+            Assert.That(peer.Cache.Invocations.Select(call => (NodeId)call.Arguments[0]!), Is.EqualTo(queried));
             Assert.That(stream.Produced, Is.EqualTo(1));
             Assert.That(stream.Disposed, Is.EqualTo(1));
             stream.Verify();
@@ -141,13 +141,13 @@ namespace Opc.Ua.Extrusion.Tests
             {
                 if (ending == "PreCancelled")
                 {
-                    OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(
+                    OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(
                         async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                     Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
                 }
                 else if (ending == "SupertypeFailure")
                 {
-                    Assert.That(Assert.ThrowsAsync<ServiceResultException>(
+                    Assert.That(await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await iterator.MoveNextAsync().ConfigureAwait(false)), Is.SameAs(cacheFailure));
                     Assert.That(cacheFailure.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
                 }
@@ -168,13 +168,13 @@ namespace Opc.Ua.Extrusion.Tests
                             Assert.That(await iterator.MoveNextAsync().ConfigureAwait(false), Is.False);
                             break;
                         case "Failure":
-                            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(
+                            Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(
                                 async () => await iterator.MoveNextAsync().ConfigureAwait(false)),
                                     Is.SameAs(streamFailure));
                             break;
                         case "Cancel":
                             cancellation.Cancel();
-                            OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(
+                            OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(
                                 async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                             Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
                             break;
@@ -204,13 +204,13 @@ namespace Opc.Ua.Extrusion.Tests
             {
                 if (invalid == "NullNotifier")
                 {
-                    ArgumentNullException? failure = Assert.ThrowsAsync<ArgumentNullException>(
+                    ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(
                         async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                     Assert.That(failure!.ParamName, Is.EqualTo("node"));
                 }
                 else
                 {
-                    InvalidOperationException? failure = Assert.ThrowsAsync<InvalidOperationException>(
+                    InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
                         async () => await iterator.MoveNextAsync().ConfigureAwait(false));
                     Assert.That(failure!.Message, Does.Contain("Supply a streaming subscription"));
                 }

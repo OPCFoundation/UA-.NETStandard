@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
             };
 
-            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException actual = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.InitializeAsync().ConfigureAwait(false));
 
             Assert.That(actual, Is.SameAs(failure));
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
             };
 
-            IOException actual = Assert.ThrowsAsync<IOException>(
+            IOException actual = await Assert.ThrowsAsync<IOException>(
                 async () => await harness.InitializeAsync().ConfigureAwait(false));
 
             Assert.That(actual, Is.SameAs(failure));
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                     Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
             };
 
-            ServiceResultException actual = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException actual = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.InitializeAsync(cancellation.Token).ConfigureAwait(false));
 
             Assert.That(actual, Is.SameAs(failure));
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 new ValueTask<IReadOnlyList<AliasNameVerboseDataType>>(
                     Task.FromException<IReadOnlyList<AliasNameVerboseDataType>>(failure));
 
-            Exception actual = Assert.ThrowsAsync(failure.GetType(), async () =>
+            Exception actual = await Assert.ThrowsAsync(failure.GetType(), async () =>
                 await harness.Materializer.RefreshCategoryAsync(
                     harness.Store.Object, harness.CategoryId, materializeAliasNodes: true)
                     .ConfigureAwait(false));

@@ -66,7 +66,7 @@ namespace Opc.Ua.XRegistry.Tests
             });
             harness.Strategy.Snapshot = new TestSnapshot(
                 [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false));
             Assert.That(failed, Is.True);
             harness.Strategy.Snapshot = new TestSnapshot([]);

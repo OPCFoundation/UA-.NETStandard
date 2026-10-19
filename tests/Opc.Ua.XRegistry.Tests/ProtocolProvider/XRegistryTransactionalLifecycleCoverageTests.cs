@@ -205,9 +205,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             }, store.Object);
             XRegistryResponse denied = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/")).ConfigureAwait(false);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await endpoint.InspectAsync(XRegistryProviderCoverage.Writer).ConfigureAwait(false));
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await endpoint.GetOperationOutcomeAsync("denied", XRegistryProviderCoverage.Writer)
                     .ConfigureAwait(false));
             Assert.Multiple(() =>
@@ -221,12 +221,12 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
         [TestCase("")]
         [TestCase(" ")]
         [TestCase("oversized")]
-        public void InvalidOperationIdentityIsRejectedBeforeLoadingStorage(string identity)
+        public async Task InvalidOperationIdentityIsRejectedBeforeLoadingStorage(string identity)
         {
             var store = new Mock<IXRegistryTransactionStore>(MockBehavior.Strict);
             using var endpoint = new XRegistryTransactionalEndpoint(XRegistryProviderCoverage.Options(), store.Object);
             string operationId = identity == "oversized" ? new string('x', 257) : identity;
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await endpoint.GetOperationOutcomeAsync(operationId, XRegistryProviderCoverage.Writer)
                     .ConfigureAwait(false));
             store.VerifyNoOtherCalls();
@@ -298,9 +298,9 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                     XRegistryProviderCoverage.Request(XRegistryAction.Merge, "/", """{"name":"also-unpublished"}"""))
                     .ConfigureAwait(false);
                 await using var secondLifetime = second.ConfigureAwait(false);
-                Assert.ThrowsAsync<IOException>(async () => await first.CommitAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<IOException>(async () => await second.CommitAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () => await first.CommitAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<IOException>(async () => await second.CommitAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<IOException>(async () =>
                     await endpoint.InspectAsync(XRegistryProviderCoverage.Writer).ConfigureAwait(false));
             }
             ByteString saved = await durable.LoadAsync().ConfigureAwait(false);
@@ -331,7 +331,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 .Returns(new ValueTask<ByteString>(default(ByteString)));
             using var endpoint = new XRegistryTransactionalEndpoint(
                 XRegistryProviderCoverage.Options(), store.Object, new XRegistryProviderCoverageTimeProvider());
-            Assert.ThrowsAsync<IOException>(async () => await endpoint.ExecuteAsync(
+            await Assert.ThrowsAsync<IOException>(async () => await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/")).ConfigureAwait(false));
             XRegistryResponse retry = await endpoint.ExecuteAsync(
                 XRegistryProviderCoverage.Request(XRegistryAction.Read, "/")).ConfigureAwait(false);
@@ -466,7 +466,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             var store = new InMemoryXRegistryTransactionStore();
             Assert.That(await store.CommitAsync(default, fixture).ConfigureAwait(false), Is.True);
             using var endpoint = new XRegistryTransactionalEndpoint(XRegistryProviderCoverage.Options(), store);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await endpoint.InspectAsync(XRegistryProviderCoverage.Writer).ConfigureAwait(false));
             ByteString retained = await store.LoadAsync().ConfigureAwait(false);
             Assert.That(retained.ToArray(), Is.EqualTo(fixture.ToArray()));
@@ -497,7 +497,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 _ => throw new ArgumentOutOfRangeException(nameof(bound))
             };
             using var reopened = new XRegistryTransactionalEndpoint(options, store);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await reopened.InspectAsync(XRegistryProviderCoverage.Writer).ConfigureAwait(false));
             ByteString after = await store.LoadAsync().ConfigureAwait(false);
             Assert.That(after.ToArray(), Is.EqualTo(before.ToArray()));

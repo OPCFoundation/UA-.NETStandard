@@ -52,6 +52,7 @@
     <ProjectReference Include="..\Opc.Ua.Mcp.CranesHoists\Opc.Ua.Mcp.CranesHoists.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.MachineTool\Opc.Ua.Mcp.MachineTool.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.GMS\Opc.Ua.Mcp.GMS.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Mcp.AutoID\Opc.Ua.Mcp.AutoID.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Vision\Opc.Ua.Mcp.Vision.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.AMB\Opc.Ua.Mcp.AMB.csproj" />
     <ProjectReference Include="..\Opc.Ua.Mcp.Machinery\Opc.Ua.Mcp.Machinery.csproj" />

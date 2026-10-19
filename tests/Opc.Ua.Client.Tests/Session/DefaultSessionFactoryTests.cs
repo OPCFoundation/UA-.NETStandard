@@ -203,39 +203,39 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void RecreateAsyncThrowsWhenSessionIsNotSessionType()
+        public async Task RecreateAsyncThrowsWhenSessionIsNotSessionType()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object).ConfigureAwait(false));
         }
 
         [Test]
-        public void RecreateAsyncWithConnectionThrowsWhenSessionIsNotSessionType()
+        public async Task RecreateAsyncWithConnectionThrowsWhenSessionIsNotSessionType()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockConnection.Object).ConfigureAwait(false));
         }
 
         [Test]
-        public void RecreateAsyncWithChannelThrowsWhenSessionIsNotSessionType()
+        public async Task RecreateAsyncWithChannelThrowsWhenSessionIsNotSessionType()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockChannel.Object).ConfigureAwait(false));
         }
 
         [Test]
-        public void CreateAsyncWithNullReverseConnectManagerForwardsToSimpleOverload()
+        public async Task CreateAsyncWithNullReverseConnectManagerForwardsToSimpleOverload()
         {
             var factory = new Mock<DefaultSessionFactory>(m_telemetry) { CallBase = true };
 
@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.Tests
                 default,
                 CancellationToken.None);
 
-            Assert.DoesNotThrowAsync(async () => await task.ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await task.ConfigureAwait(false));
             factory.Verify();
         }
 
@@ -336,38 +336,38 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void RecreateAsyncThrowsWithCorrectParameterName()
+        public async Task RecreateAsyncThrowsWithCorrectParameterName()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
 
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object).ConfigureAwait(false));
 
             Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
         }
 
         [Test]
-        public void RecreateAsyncWithConnectionThrowsWithCorrectParameterName()
+        public async Task RecreateAsyncWithConnectionThrowsWithCorrectParameterName()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockConnection = new Mock<ITransportWaitingConnection>();
 
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockConnection.Object).ConfigureAwait(false));
 
             Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
         }
 
         [Test]
-        public void RecreateAsyncWithChannelThrowsWithCorrectParameterName()
+        public async Task RecreateAsyncWithChannelThrowsWithCorrectParameterName()
         {
             var factory = new DefaultSessionFactory(m_telemetry);
             var mockSession = new Mock<ISession>();
             var mockChannel = new Mock<ITransportChannel>();
 
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(async () =>
+            ArgumentException ex = await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await factory.RecreateAsync(mockSession.Object, mockChannel.Object).ConfigureAwait(false));
 
             Assert.That(ex.ParamName, Is.EqualTo("sessionTemplate"));
@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CreateAsyncOverloadWithConnectionForwardsThroughChain()
+        public async Task CreateAsyncOverloadWithConnectionForwardsThroughChain()
         {
             var factory = new Mock<DefaultSessionFactory>(m_telemetry) { CallBase = true };
 
@@ -431,7 +431,7 @@ namespace Opc.Ua.Client.Tests
                 default,
                 CancellationToken.None);
 
-            Assert.DoesNotThrowAsync(async () => await task.ConfigureAwait(false));
+            await Assert.DoesNotThrowAsync(async () => await task.ConfigureAwait(false));
             factory.Verify();
         }
 
@@ -506,12 +506,12 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReverseConnectRetryPropagatesNonTransientFailureWithoutRefetch()
+        public async Task ReverseConnectRetryPropagatesNonTransientFailureWithoutRefetch()
         {
             ITransportWaitingConnection connection = new Mock<ITransportWaitingConnection>().Object;
             int resolveCalls = 0;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await DefaultSessionFactory
                     .CreateReverseConnectSessionWithRetryAsync(
                         connection,
@@ -526,7 +526,7 @@ namespace Opc.Ua.Client.Tests
                         logger: null,
                         endpointUrl: s_reverseEndpointUrl,
                         ct: CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
             Assert.That(resolveCalls, Is.Zero,
@@ -534,13 +534,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReverseConnectRetryStopsAfterMaxAttemptsAndSurfacesStaleFailure()
+        public async Task ReverseConnectRetryStopsAfterMaxAttemptsAndSurfacesStaleFailure()
         {
             ITransportWaitingConnection connection = new Mock<ITransportWaitingConnection>().Object;
             int createCalls = 0;
             int resolveCalls = 0;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await DefaultSessionFactory
                     .CreateReverseConnectSessionWithRetryAsync(
                         connection,
@@ -558,7 +558,7 @@ namespace Opc.Ua.Client.Tests
                         logger: null,
                         endpointUrl: s_reverseEndpointUrl,
                         ct: CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
             Assert.That(createCalls, Is.EqualTo(3), "initial attempt plus two bounded retries");

@@ -213,6 +213,11 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Crane and hoist monitoring and explicitly configured limit requests.
         /// </summary>
-        CranesHoists = 35
+        CranesHoists = 35,
+
+        /// <summary>
+        /// AutoID reader discovery, scans, tag reads and RTLS location queries.
+        /// </summary>
+        AutoId = 36
     }
 }

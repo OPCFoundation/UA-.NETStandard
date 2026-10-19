@@ -47,7 +47,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             {
                 ExpectedVersionIncarnation = "required-instance"
             };
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (prepare)
                 {
@@ -58,7 +58,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 {
                     await m_native.ExecuteAsync(request).ConfigureAwait(false);
                 }
-            });
+            }))!;
             XRegistryResponse root = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
                 .ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -82,8 +82,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 .ConfigureAwait(false);
             NodeId logical = await FindChildEntityAsync(group, "/schemagroups/g/schemas/r").ConfigureAwait(false);
             ResourceTypeClient file = m_generic.GetResource(logical);
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await file.OpenAsync(6).ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.OpenAsync(6).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(rejected.StatusCode,
@@ -148,8 +148,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 m_forwarder.Release?.TrySetResult(true);
             }
             closing ??= file.CloseAsync(handle).AsTask();
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await closing.ConfigureAwait(false));
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await closing.ConfigureAwait(false)))!;
             XRegistryResponse current = await m_forwarder.Inner.ExecuteAsync(
                 Request(XRegistryAction.Read, versionPath) with { View = XRegistryView.Default })
                 .ConfigureAwait(false);

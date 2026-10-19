@@ -112,7 +112,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                     Results = []
                 }));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (operation == "read")
                 {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 fixture.Remote.Context.NamespaceUris.Append("urn:changed:namespace");
             }
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session.ResolveNodeIdAsync(node).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
@@ -173,7 +173,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             ArrayOf<ReadValueId> request = [new ReadValueId { NodeId = node, AttributeId = Attributes.Value }];
 
             ArrayOf<DataValue> first = await session.ReadAsync(request).ConfigureAwait(false);
-            ServiceResultException? limited = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? limited = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session.ReadAsync(request).ConfigureAwait(false));
             fixture.Clock.Advance(TimeSpan.FromSeconds(1));
             ArrayOf<DataValue> second = await session.ReadAsync(request).ConfigureAwait(false);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 Value = new DataValue(Variant.From(1))
             };
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session.WriteAsync([write]).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));

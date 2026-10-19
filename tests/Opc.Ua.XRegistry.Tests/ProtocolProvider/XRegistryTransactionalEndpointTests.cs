@@ -435,8 +435,8 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             };
             using (XRegistryTransactionalEndpoint first = CreateEndpoint(failed))
             {
-                Assert.ThrowsAsync<IOException>(async () => await first.ExecuteAsync(request).ConfigureAwait(false));
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () => await first.ExecuteAsync(request).ConfigureAwait(false));
+                await Assert.ThrowsAsync<IOException>(async () =>
                     await first.ExecuteAsync(Request(XRegistryAction.Read, "/")).ConfigureAwait(false));
             }
             using XRegistryTransactionalEndpoint recovered = CreateEndpoint(durable);
@@ -475,7 +475,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             var corrupt = ByteString.From(Encoding.UTF8.GetBytes("""{"format":1,"registryid":"test-registry"}"""));
             await store.CommitAsync(default, corrupt).ConfigureAwait(false);
             using XRegistryTransactionalEndpoint endpoint = CreateEndpoint(store);
-            Assert.ThrowsAsync<InvalidDataException>(async () =>
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
                 await endpoint.ExecuteAsync(Request(XRegistryAction.Read, "/")).ConfigureAwait(false));
             ByteString retained = await store.LoadAsync().ConfigureAwait(false);
             Assert.That(retained.ToArray(), Is.EqualTo(corrupt.ToArray()));

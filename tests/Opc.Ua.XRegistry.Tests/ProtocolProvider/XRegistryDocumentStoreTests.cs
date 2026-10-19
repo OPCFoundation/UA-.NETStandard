@@ -233,12 +233,12 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 using var reopened = new XRegistryTransactionalEndpoint(options, state);
                 if (missing)
                 {
-                    Assert.ThrowsAsync<FileNotFoundException>(async () =>
+                    await Assert.ThrowsAsync<FileNotFoundException>(async () =>
                         await reopened.InspectAsync(Writer).ConfigureAwait(false));
                 }
                 else
                 {
-                    Assert.ThrowsAsync<InvalidDataException>(async () =>
+                    await Assert.ThrowsAsync<InvalidDataException>(async () =>
                         await reopened.InspectAsync(Writer).ConfigureAwait(false));
                 }
                 Assert.That((await state.LoadAsync().ConfigureAwait(false)).IsNull, Is.False);
@@ -260,7 +260,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
                 using var second = new MemoryStream(Encoding.UTF8.GetBytes("discard"));
                 XRegistryBlobReference keep = await documents.StoreAsync(first, 4).ConfigureAwait(false);
                 XRegistryBlobReference discard = await documents.StoreAsync(second, 7).ConfigureAwait(false);
-                Assert.ThrowsAsync<InvalidDataException>(async () => await documents.CollectAsync(
+                await Assert.ThrowsAsync<InvalidDataException>(async () => await documents.CollectAsync(
                     [new XRegistryBlobReference(keep.Sha256, keep.Length + 1)]).ConfigureAwait(false));
                 Assert.That(Directory.GetFiles(root, "*.blob"), Has.Length.EqualTo(2));
                 Assert.That(await documents.CollectAsync([keep]).ConfigureAwait(false), Is.EqualTo(1));
@@ -282,7 +282,7 @@ namespace Opc.Ua.XRegistry.Tests.ProtocolProvider
             {
                 await using var documents = new FileXRegistryDocumentStore(root);
                 using var input = new MemoryStream(new byte[65_537]);
-                Assert.ThrowsAsync<InvalidDataException>(async () =>
+                await Assert.ThrowsAsync<InvalidDataException>(async () =>
                     await documents.StoreAsync(input, 65_536).ConfigureAwait(false));
                 Assert.That(Directory.GetFiles(root, "*.pending"), Is.Empty);
                 Assert.That(Directory.GetFiles(root, "*.blob"), Is.Empty);

@@ -278,7 +278,7 @@ namespace Opc.Ua.Extrusion.Tests
                     Assert.That((await datasets.ReadInformationAsync(StorageEnumeration.PRODUCTION, ct)
                         .ConfigureAwait(false)).Name, Is.EqualTo("recipe"));
                     await datasets.SetFrozenAsync(StorageEnumeration.PRODUCTION, true, ct).ConfigureAwait(false);
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await datasets.LoadAsync(StorageEnumeration.PRODUCTION, "recipe", [],
                             ct).ConfigureAwait(false));
 

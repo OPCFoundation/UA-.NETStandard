@@ -51,7 +51,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     public class WebApiBodyCodecBoundedReadTests
     {
         [Test]
-        public void DecodeBodyAsyncRejectsOversizedBody()
+        public async Task DecodeBodyAsyncRejectsOversizedBody()
         {
             // 4 KB payload, MaxMessageSize 512 → must throw BadRequestTooLarge
             // BEFORE the in-buffer DecodeBody size check (which uses
@@ -63,9 +63,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             var context = ServiceMessageContext.CreateEmpty(new TelemetryStub());
             context.MaxMessageSize = 512;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => _ = await WebApiBodyCodec
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () => _ = await WebApiBodyCodec
                     .DecodeBodyAsync<ReadRequest>(stream, context, ct: CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTooLarge),
                 "WebApiBodyCodec.DecodeBodyAsync must short-circuit via the bounded " +

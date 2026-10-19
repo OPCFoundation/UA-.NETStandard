@@ -85,7 +85,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                 })));
             var endpoint = new XRegistryScopedEndpoint(resolver, fixture.Telemetry);
 
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await endpoint.InspectAsync(caller).ConfigureAwait(false));
 
             Assert.That(releases, Is.EqualTo(1));
@@ -110,7 +110,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             var resolver = new XRegistryEndpointResolver((_, _) => new ValueTask<IXRegistryEndpointLease>(lease));
             var endpoint = new XRegistryScopedEndpoint(resolver, fixture.Telemetry);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await endpoint.ExecuteAsync(Request(XRegistryAction.Read)).ConfigureAwait(false));
 
             Assert.That(releases, Is.EqualTo(1));
@@ -156,11 +156,11 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                     await CancelAsync(revoked).ConfigureAwait(false);
                     Assert.That(snapshot.HasCandidate, Is.False);
                 }
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                     await snapshot.InspectCandidateAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                     await snapshot.ReadCandidateAsync(Request(XRegistryAction.Read)).ConfigureAwait(false));
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                     await operation.CommitAsync().ConfigureAwait(false));
                 Assert.That(snapshot.HasCandidate, Is.False);
             }
@@ -201,17 +201,17 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                     Assert.That(committed.StatusCode, Is.EqualTo(200));
                     Assert.That(snapshot.HasCandidate, Is.False);
                 });
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await operation.CommitAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await snapshot.InspectCandidateAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await snapshot.ReadCandidateAsync(Request(XRegistryAction.Read)).ConfigureAwait(false));
             }
             await operation.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await snapshot.InspectCandidateAsync().ConfigureAwait(false));
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await snapshot.ReadCandidateAsync(Request(XRegistryAction.Read)).ConfigureAwait(false));
             XRegistryResponse root = await provider.ExecuteAsync(Request(XRegistryAction.Read)).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -245,9 +245,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             {
                 var candidate = (IXRegistryPreparedSnapshot)prepared;
                 Assert.That(candidate.HasCandidate, Is.False);
-                Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await Assert.ThrowsAsync<NotSupportedException>(async () =>
                     await candidate.InspectCandidateAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<NotSupportedException>(async () =>
+                await Assert.ThrowsAsync<NotSupportedException>(async () =>
                     await candidate.ReadCandidateAsync(Request(XRegistryAction.Read)).ConfigureAwait(false));
                 Assert.That(await prepared.CommitAsync().ConfigureAwait(false), Is.SameAs(response));
             }
@@ -305,10 +305,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                 })));
             var endpoint = new XRegistryScopedEndpoint(resolver, fixture.Telemetry);
 
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
                 await endpoint.GetOperationOutcomeAsync("absent", Writer).ConfigureAwait(false));
             await using IAsyncEnumerator<XRegistryChangeHint> watch = endpoint.WatchAsync(Writer).GetAsyncEnumerator();
-            Assert.ThrowsAsync<NotSupportedException>(async () => await watch.MoveNextAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<NotSupportedException>(async () => await watch.MoveNextAsync().ConfigureAwait(false));
 
             Assert.That(releases, Is.EqualTo(2));
             backend.VerifyNoOtherCalls();
@@ -341,7 +341,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                 await entered.Task.WaitAsync(s_wait).ConfigureAwait(false);
                 Assert.That(releases, Is.Zero);
                 await CancelAsync(revoked).ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await read.WaitAsync(s_wait).ConfigureAwait(false));
                 Assert.That(releases, Is.EqualTo(1));
             }
@@ -391,7 +391,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
 
             authorized = false;
             feed.Next.TrySetResult(true);
-            Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 await watch.MoveNextAsync().AsTask().WaitAsync(s_wait).ConfigureAwait(false));
 
             Assert.Multiple(() =>
@@ -437,7 +437,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             }
             else
             {
-                Assert.ThrowsAsync<IOException>(async () => await prepared.DisposeAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<IOException>(async () => await prepared.DisposeAsync().ConfigureAwait(false));
             }
             await prepared.DisposeAsync().ConfigureAwait(false);
 

@@ -81,7 +81,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             long generation = await manager.RestoreIntoPristineAsync(backup).ConfigureAwait(false);
             XRegistrySyncStateStatus status = await manager.ReadStatusAsync().ConfigureAwait(false);
             ByteString before = await ReadStateAsync(recoveredStore).ConfigureAwait(false);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await manager.RestoreIntoPristineAsync(backup).ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -109,7 +109,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             ByteString before = await ReadStateAsync(fixture.Store).ConfigureAwait(false);
             XRegistrySyncState state = new XRegistrySyncStateCodec().Decode(before);
             string id = state.Intents.Keys.Single();
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await fixture.State.CompactAsync(
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await fixture.State.CompactAsync(
                 stale ? state.Generation - 1 : state.Generation, [id]).ConfigureAwait(false));
             Assert.That(await ReadStateAsync(fixture.Store).ConfigureAwait(false), Is.EqualTo(before));
         }

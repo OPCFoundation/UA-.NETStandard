@@ -592,8 +592,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ArraySegment<byte> chunk = await harness.Peer.CreateOpenAsync(false).ConfigureAwait(false);
             var truncated = new ArraySegment<byte>(chunk.Array!, chunk.Offset, chunk.Count - 1);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.Target.ReadOpenBodyLengthAsync(truncated).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.Target.ReadOpenBodyLengthAsync(truncated).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }

@@ -133,10 +133,10 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
             await using var fixture = new XRegistrySyncFixture();
             await fixture.BaselineAsync().ConfigureAwait(false);
             ByteString before = await ReadStateAsync(fixture.Store).ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await fixture.State.ResolveConflictAsync("missing", XRegistrySyncConflictPolicy.Manual)
                     .ConfigureAwait(false));
-            Assert.ThrowsAsync<KeyNotFoundException>(async () =>
+            await Assert.ThrowsAsync<KeyNotFoundException>(async () =>
                 await fixture.State.ResolveConflictAsync("missing", XRegistrySyncConflictPolicy.PreferHttp)
                     .ConfigureAwait(false));
             ByteString after = await ReadStateAsync(fixture.Store).ConfigureAwait(false);
@@ -165,7 +165,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Sync
                 }
                 return default;
             };
-            Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), async () =>
+            await Assert.ThrowsAsync(Is.InstanceOf<OperationCanceledException>(), async () =>
                 await fixture.Engine().RunOnceAsync(cancellationToken: cancellation.Token).ConfigureAwait(false));
             XRegistrySyncReport restart = await fixture.Engine().RunOnceAsync().ConfigureAwait(false);
             XRegistrySyncStateStatus state = await fixture.State.ReadStatusAsync().ConfigureAwait(false);

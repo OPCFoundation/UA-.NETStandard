@@ -94,7 +94,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);
             await m_session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             var native = new XRegistryOpcUaEndpoint(m_session, factory.Manager!.RegistryNodeId, options, m_telemetry);
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (baseMethod)
                 {
@@ -108,7 +108,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                         OperationId = "projection-quota"
                     }).ConfigureAwait(false);
                 }
-            });
+            }))!;
             XRegistryResponse group = await m_forwarder.Inner.ExecuteAsync(
                 Request(XRegistryAction.Read, "/schemagroups/candidate")).ConfigureAwait(false);
             XRegistryResponse root = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
@@ -172,9 +172,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             try
             {
                 await m_forwarder.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                ServiceResultException blocked = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException blocked = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await XRegistryOpcUaEndpoint.BrowseAsync(m_session, m_manager.RegistryNodeId, m_options,
-                        CancellationToken.None).ConfigureAwait(false));
+                        CancellationToken.None).ConfigureAwait(false)))!;
                 XRegistryResponse before = await m_forwarder.Inner.ExecuteAsync(Request(XRegistryAction.Read, "/"))
                     .ConfigureAwait(false);
                 Assert.Multiple(() =>

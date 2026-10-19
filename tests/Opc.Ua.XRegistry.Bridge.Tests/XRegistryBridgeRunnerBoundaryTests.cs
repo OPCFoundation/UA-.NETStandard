@@ -122,9 +122,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             try
             {
                 await entered.Task.WaitAsync(s_wait).ConfigureAwait(false);
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunOnceAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunOnceAsync().ConfigureAwait(false));
                 Assert.Multiple(() =>
                 {
@@ -203,7 +203,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                     Assert.That(failed.Failure, Is.EqualTo("An upstream health or repair operation failed."));
                     Assert.That(runner.Status.Lag, Is.EqualTo(TimeSpan.FromSeconds(8)));
                 });
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunOnceAsync().ConfigureAwait(false));
                 Assert.That(runner.WaitForPendingOperationsAsync().AsTask().IsCompleted, Is.False);
             }
@@ -278,9 +278,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
                 Assert.That(await run.WaitAsync(s_wait).ConfigureAwait(false), Is.EqualTo(1));
                 Assert.That(runner.Status.Stopped, Is.True);
                 Assert.That(runner.WaitForPendingOperationsAsync().AsTask().IsCompleted, Is.False);
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunOnceAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunAsync().ConfigureAwait(false));
                 projection.Verify(value => value.RefreshAsync(It.IsAny<CancellationToken>()), Times.Once);
             }
@@ -353,7 +353,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             try
             {
                 await entered.Task.WaitAsync(s_wait).ConfigureAwait(false);
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await runner.RunAsync().ConfigureAwait(false));
                 Assert.That(run.IsCompleted, Is.False);
                 await CancelAsync(stopped).ConfigureAwait(false);

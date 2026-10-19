@@ -169,12 +169,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             await file.CloseAsync(clean).ConfigureAwait(false);
             foreach (byte mode in new byte[] { 2, 6 })
             {
-                ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await file.OpenAsync(mode).ConfigureAwait(false));
+                ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await file.OpenAsync(mode).ConfigureAwait(false)))!;
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             }
-            ServiceResultException createRejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_generic.GetGroup(group).CreateResourceAsync("unfenced", "v1", true).ConfigureAwait(false));
+            ServiceResultException createRejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_generic.GetGroup(group).CreateResourceAsync("unfenced", "v1", true).ConfigureAwait(false)))!;
             Assert.That(createRejected.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(handler.Writes, Is.Zero);
             var native = new XRegistryOpcUaEndpoint(m_session, factory.Manager.RegistryNodeId, options, m_telemetry);
@@ -198,7 +198,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 Assert.That(bytes.ToArray(), Is.EqualTo(handler.Document));
             });
             handler.Unavailable = true;
-            Assert.ThrowsAsync<ServiceResultException>(async () => await file.OpenAsync(1).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await file.OpenAsync(1).ConfigureAwait(false));
         }
 
         [Test]

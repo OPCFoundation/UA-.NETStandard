@@ -93,8 +93,8 @@ namespace Opc.Ua.GMS.Tests
             provider.Snapshot = rejectWarning
                 ? rejected with { SensorWarnings = [] }
                 : rejected with { Sensors = [accepted.Sensors[0] with { Qualified = null }] };
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await handle.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await handle.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(error.Message, Does.Contain(rejectWarning ? "SensorWarnings" : "qualification countdown"));
             Assert.Multiple(() =>

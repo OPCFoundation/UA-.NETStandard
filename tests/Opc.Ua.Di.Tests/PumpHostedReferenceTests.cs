@@ -115,7 +115,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     pumpReferences,
                     Has.All.Matches<ReferenceDescription>(reference =>
-                        ExpandedNodeId.ToNodeId(
+                        reference is not null && ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             server.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     clientPumpReferences,
                     Has.All.Matches<ReferenceDescription>(reference =>
-                        ExpandedNodeId.ToNodeId(
+                        reference is not null && ExpandedNodeId.ToNodeId(
                             reference.ReferenceTypeId,
                             session.NamespaceUris) == Types.ReferenceTypeIds.Organizes));
 

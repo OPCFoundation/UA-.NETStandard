@@ -176,10 +176,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
             await server.AddSecurityGroupAsync(BuildGroup(id: "group-1", authorizedCallerIdentities: [CallerId])).ConfigureAwait(false);
             await server.AddSecurityGroupAsync(BuildGroup(id: "group-2", authorizedCallerIdentities: [otherCallerId])).ConfigureAwait(false);
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
-                    new SksKeyRequest("group-2", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("group-2", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -189,10 +189,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
             await server.AddSecurityGroupAsync(BuildGroup(authorizedCallerIdentities: [])).ConfigureAwait(false);
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
-                    new SksKeyRequest("group-1", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("group-1", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -201,10 +201,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
             await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.GetSecurityKeysAsync(
                     string.Empty,
-                    new SksKeyRequest("group-1", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("group-1", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
 
@@ -212,10 +212,10 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         public async Task GetSecurityKeysAsync_RejectsUnknownGroup()
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
-                    new SksKeyRequest("missing", 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest("missing", 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -224,18 +224,18 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
             await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false);
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
-                async () => await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false))!;
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await server.AddSecurityGroupAsync(BuildGroup()).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadAlreadyExists));
         }
 
         [Test]
-        public void AddSecurityGroupAsync_RejectsUnsupportedPolicy()
+        public async Task AddSecurityGroupAsync_RejectsUnsupportedPolicy()
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.AddSecurityGroupAsync(
-                    BuildGroup(policyUri: "http://example.org/UnsupportedPolicy")).ConfigureAwait(false))!;
+                    BuildGroup(policyUri: "http://example.org/UnsupportedPolicy")).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
@@ -250,11 +250,11 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public void RemoveSecurityGroupAsync_RejectsUnknownGroup()
+        public async Task RemoveSecurityGroupAsync_RejectsUnknownGroup()
         {
             var server = new InMemoryPubSubKeyServiceServer(new FakeTimeProvider());
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
-                async () => await server.RemoveSecurityGroupAsync("missing").ConfigureAwait(false))!;
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
+                async () => await server.RemoveSecurityGroupAsync("missing").ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
@@ -373,13 +373,13 @@ namespace Opc.Ua.PubSub.Tests.Security.Sks
         }
 
         [Test]
-        public void GetSecurityKeysAsync_RejectsEmptySecurityGroupId()
+        public async Task GetSecurityKeysAsync_RejectsEmptySecurityGroupId()
         {
             var server = new InMemoryPubSubKeyServiceServer();
-            OpcUaSksException ex = Assert.ThrowsAsync<OpcUaSksException>(
+            OpcUaSksException ex = (await Assert.ThrowsAsync<OpcUaSksException>(
                 async () => await server.GetSecurityKeysAsync(
                     CallerId,
-                    new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false))!;
+                    new SksKeyRequest(string.Empty, 0U, 1U)).ConfigureAwait(false)))!;
             Assert.That(ex.Status.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 

@@ -82,8 +82,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             Assert.That(await reader.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(reader.Current.Reason, Is.EqualTo("connection-or-namespace-changed"));
             Assert.That(reader.Current.RequiresFullInventory, Is.True);
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await reader.MoveNextAsync().ConfigureAwait(false));
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await reader.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             Assert.That(await reader.MoveNextAsync().ConfigureAwait(false), Is.True);
             Assert.That(reader.Current.Reason, Is.EqualTo("model-changed"));
             Assert.That(reader.Current.RequiresFullInventory, Is.True);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await reader.MoveNextAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await reader.MoveNextAsync().ConfigureAwait(false));
         }
     }
 }

@@ -82,9 +82,9 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
             var options = new XRegistryBridgeNativeOptions { ProjectionContext = XRegistrySyncFixture.Writer };
             if (change)
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await XRegistryNativeSnapshot.LoadAsync(fixture.Native, options, CancellationToken.None)
-                        .ConfigureAwait(false));
+                        .ConfigureAwait(false)))!;
                 Assert.Multiple(() =>
                 {
                     Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
@@ -159,28 +159,28 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
         [TestCase(null)]
         [TestCase("")]
         [TestCase("other")]
-        public void SuccessfulReadsCannotOmitOrChangeTheGeneration(string? generation)
+        public async Task SuccessfulReadsCannotOmitOrChangeTheGeneration(string? generation)
         {
             var endpoint = new Mock<IXRegistryEndpoint>();
             endpoint.Setup(value => value.ExecuteAsync(It.IsAny<XRegistryRequest>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new XRegistryResponse(200) { Generation = generation });
             var scope = new XRegistryGenerationReadScope(endpoint.Object, Description());
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/")).ConfigureAwait(false));
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.ExecuteAsync(new XRegistryRequest(XRegistryAction.Read, "/")).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
         [TestCase(false, "generation")]
         [TestCase(true, null)]
         [TestCase(true, "different")]
-        public void FinalInspectionRejectsAChangedOrRevokedGeneration(bool supported, string? generation)
+        public async Task FinalInspectionRejectsAChangedOrRevokedGeneration(bool supported, string? generation)
         {
             var endpoint = new Mock<IXRegistryEndpoint>();
             endpoint.Setup(value => value.InspectAsync(It.IsAny<XRegistryCallContext>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Description() with { SupportsGenerationGuards = supported, Generation = generation });
             var scope = new XRegistryGenerationReadScope(endpoint.Object, Description());
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.InspectAsync(XRegistryCallContext.Anonymous).ConfigureAwait(false));
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.InspectAsync(XRegistryCallContext.Anonymous).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
@@ -202,11 +202,11 @@ namespace Opc.Ua.XRegistry.Bridge.Tests
         [TestCase(XRegistryAction.Create, null)]
         [TestCase(XRegistryAction.Delete, null)]
         [TestCase(XRegistryAction.Read, "other")]
-        public void ScopeCannotMutateOrSilentlyReplaceAnotherGuard(XRegistryAction action, string? generation)
+        public async Task ScopeCannotMutateOrSilentlyReplaceAnotherGuard(XRegistryAction action, string? generation)
         {
             var endpoint = new Mock<IXRegistryEndpoint>(MockBehavior.Strict);
             var scope = new XRegistryGenerationReadScope(endpoint.Object, Description());
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.ExecuteAsync(
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await scope.ExecuteAsync(
                 new XRegistryRequest(action, "/") { ExpectedGeneration = generation }).ConfigureAwait(false));
             endpoint.VerifyNoOtherCalls();
         }
