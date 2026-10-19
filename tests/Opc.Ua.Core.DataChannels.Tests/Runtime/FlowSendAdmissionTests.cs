@@ -181,7 +181,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 {
                     Assert.That(pending.IsCompleted, Is.False);
                     Assert.That(waiting.Local.StateData.LastDataId, Is.Zero);
-                    Assert.That(budget.Usage.Messages, Is.EqualTo(heldCount));
+                    Assert.That(occupied.Local.StateData.SendMessages, Is.EqualTo(heldCount));
+                    Assert.That(waiting.Local.StateData.SendMessages, Is.Zero);
                     first.InitiatorCarrier.BeforeRelease.TrySetResult(true);
                     Assert.That(await Task.WhenAll(held).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
                         Is.All.EqualTo(DataChannelResult.Good));

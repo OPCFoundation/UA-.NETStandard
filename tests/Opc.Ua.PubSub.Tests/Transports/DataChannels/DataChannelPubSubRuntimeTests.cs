@@ -431,6 +431,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             {
                 Assert.That(core.LeftBudget.Usage.Flows, Is.Zero);
                 Assert.That(core.RightBudget.Usage.Flows, Is.Zero);
+            });
+            // Shared Core contexts can still own close-control reservations after the PubSub flows stop.
+            await core.Left.DisposeAsync().ConfigureAwait(false);
+            await core.Right.DisposeAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
                 Assert.That(core.LeftBudget.Usage.Messages, Is.Zero);
                 Assert.That(core.RightBudget.Usage.Messages, Is.Zero);
             });
