@@ -3,7 +3,9 @@
 This document explains how to run the **2.0** stack's BenchmarkDotNet
 harnesses and summarizes its performance against **1.5.378**. It covers
 improvements, remaining slowdowns, and planned future work. It also reports
-the pooled encodeable micro-benchmarks and server session scalability.
+the pooled encodeable micro-benchmarks, server request throughput measured with
+the out-of-process [server load harness](../perf/README.md), and server
+session scalability.
 
 ## Contents
 
@@ -23,6 +25,9 @@ the pooled encodeable micro-benchmarks and server session scalability.
   - [Interpretation](#interpretation)
   - [Reproducing](#reproducing)
   - [Out of scope](#out-of-scope)
+- [Server request throughput](#server-request-throughput)
+  - [Reference numbers](#reference-numbers)
+  - [Measuring](#measuring)
 - [Server session scalability](#server-session-scalability)
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
@@ -428,6 +433,59 @@ attributable to the residual allocation in the pooled
 heap. It is not an `IEncodeable` and does not participate in the
 activator pool system.
 
+## Server request throughput
+
+The [server load harness](../perf/README.md) runs the server in a child
+process, so its CPU time, allocations and GC counters exclude the load
+generator. Its `native-read` scenario drives the server with the native
+open62541 Read workers of
+[o6-automation/opcua-benchmarks](https://github.com/o6-automation/opcua-benchmarks),
+so the .NET server and other OPC UA stacks are measured with the same client.
+
+### Reference numbers
+
+Measured 2026-10-18 on `master` 014f99a53. AMD Ryzen AI 9 HX 370 (4 Zen 5 and
+8 Zen 5c cores, 24 logical processors), Windows 11, .NET 10. Harness server
+with `AsyncCustomNodeManager` node managers and Server GC; 10 worker processes
+with 100 single-value Reads each in flight, no security unless noted; steady
+state (`--iterations 300000 --warmup-calls 100000`). The machine was shared
+with other work, so throughput is indicative; CPU and allocated bytes per Read
+are the comparable figures.
+
+| Server | Processors | Throughput | Server CPU / Read | Allocated / Read |
+|---|---|--:|--:|--:|
+| UA-.NETStandard | 4 logical, pinned (`0xF`) | — | 8.8 µs | 2.6 KB |
+| open62541 (single-threaded) | — | 117k req/s | 8.1 µs | — |
+| UA-.NETStandard | 24 logical | 574k req/s | 27.5 µs | — |
+| UA-.NETStandard, 10 × 1000 in flight | 24 logical | 518k req/s | — | — |
+| UA-.NETStandard, Basic256Sha256 SignAndEncrypt | 24 logical | 447k req/s | — | — |
+
+Restricted to 4 logical processors, the .NET server costs about as much CPU
+per Read as the single-threaded open62541 server. On all 24 logical processors
+it serves almost five times open62541's rate, but the CPU per Read is about
+three times the pinned figure: the remaining gap is in scaling over many cores,
+which on this machine include SMT siblings and the slower Zen 5c cores, not in
+the single-request path. See
+[Hybrid CPUs and processor affinity](ServerScalability.md#hybrid-cpus-and-processor-affinity).
+
+Short runs measure the JIT warm-up instead: with the benchmark's default
+parameters (10,000 warm-up and 100,000 measured calls per client) the same
+server shows about 60 µs per Read on 24 logical processors, and 3-second runs
+on 4 pinned processors 28–31 µs. See
+[JIT warm-up](ServerScalability.md#jit-warm-up).
+
+### Measuring
+
+Follow the [measurement method](../perf/README.md#measurement-method) of the
+harness: allocated bytes per operation as the primary metric, CPU per
+operation with the server pinned (`--server-affinity` and
+`SERVER_DOTNET_PROCESSOR_COUNT`) to one core type, the native scenarios at
+[steady state](../perf/README.md#steady-state-parameters), and throughput
+only from paired, alternating A/B rounds with `perf/ab.sh` (5 rounds, medians
+with ranges), discarding rounds during which other test hosts or load
+harnesses ran on the machine. Label every published number with the machine,
+the operating system, the .NET version, the commit and the date.
+
 ## Server session scalability
 
 The `[Explicit]` macro test
@@ -548,6 +606,8 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
   100–200 workers served thousands of sessions. A very large pool
   oversubscribes cores during connection bursts and slows establishment.
   `MinRequestThreadCount` prewarms the pool to avoid thread-pool cold start.
+  See [Request workers and the request queue](ServerScalability.md#request-workers-and-the-request-queue)
+  for the current behaviour of these settings and of `MaxQueuedRequestCount`.
 
   Set `DecoupleHeldPublishRequests = false` to restore the legacy behavior.
   Held Publishes then occupy workers. A server handling N sessions needs a

@@ -83,6 +83,9 @@ review of your deployment.
   [Server resource isolation](ResourceIsolation.md).
 - [ ] Size the server for the expected sessions, subscriptions, and monitored
   items. See [Server scalability](ServerScalability.md).
+- [ ] Enable Server GC for servers under load, and size the request queue for
+  the pipelining of your clients. See
+  [Runtime and host settings](ServerScalability.md#runtime-and-host-settings).
 
 ## Diagnostics and auditing
 

@@ -303,7 +303,8 @@ The subscription guides assume the client path; the sizing guides assume
   queued notifications while clients are disconnected.
 - [Generation-bound session clients](SessionBindings.md) — capture dispatch,
   session identity and mapping snapshots without reconnecting to a replacement peer.
-- [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
+- [Server scalability](ServerScalability.md) — sizing limits, bottlenecks, and
+  runtime settings for servers under load (Server GC, hybrid CPUs, warm-up).
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 
 <a id="global-discovery-server-gds"></a>

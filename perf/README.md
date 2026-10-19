@@ -39,7 +39,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--security` | `none` | `none`, `sign` or `encrypt` (Basic256Sha256). |
 | `--client` | `classic` | `classic`: `Session` with the classic subscription engine. `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`). `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
 | `--callback` | `fast` | Classic data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
-| `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). |
+| `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). `events` defaults to 15 subscriptions; `counters` to a 1000 ms publishing interval. |
 | `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
 | `--writers` | 0 | Dedicated writer sessions in addition to `--sessions` (`sub`). 0: the first subscriber session writes. |
 | `--write-interval 0` | | Writers write in a closed loop instead of on a timer (`sub`). |
@@ -70,7 +70,8 @@ per request (or per notification) of the server (`per-op:`) and of the client
 (`client-per-op:`). Classic sessions are created without diagnostics in responses, as an
 application would; the test fixture otherwise asks for them. Allocated bytes per operation are
 deterministic and the most reliable signal. On a shared machine, throughput and latency vary
-from run to run, so compare builds with `ab.sh` rather than with two separate runs.
+from run to run, so compare builds with `ab.sh` rather than with two separate runs; see
+[Measurement method](#measurement-method).
 
 ## External benchmark workers
 
@@ -91,7 +92,7 @@ scenarios, with the CPU time of the native workers in `client-per-op:`.
 | `--native-client` | `client.exe` (`native-read`), `sub_client.exe` (`native-counters`) | Path of the worker executable. |
 | `--clients` | 10 | Read worker processes (`native-read`). |
 | `--inflight` | 100 | Outstanding Reads per worker (`native-read`). |
-| `--iterations`, `--warmup-calls` | 100000, 10000 | Measured and warm-up Reads per worker (`native-read`). |
+| `--iterations`, `--warmup-calls` | 100000, 10000 | Measured and warm-up Reads per worker (`native-read`). The defaults are the benchmark's own and are a smoke test for a .NET server; see [Steady-state parameters](#steady-state-parameters). |
 | `--nodes`, `--sampling`, `--pub` | 1, 10, 1000 | Monitored counters, sampling and publishing interval in ms (`native-counters`). |
 | `--server-exe`, `--server-args` | harness child, `--port {port}` | An external server executable and its arguments; `{port}`, `{items}`, `{sampling}` and `{pki}` are replaced. `--server-args` takes the next argument verbatim, even if it starts with `--`. |
 | `--server-affinity` | all processors | Hexadecimal processor mask of the server process, for example `0x1` to compare the throughput per core with a single-threaded server. |
@@ -117,7 +118,7 @@ The harness child is configured like the benchmark's .NET worker for UA-.NETStan
 | Node managers (contract and counters) | `AsyncCustomNodeManager` | `--async-node-manager 0`: `CustomNodeManager2` |
 | Counter increment | under a lock owned by the counters | `--counter-lock 0`: interlocked |
 | Garbage collector | Server GC | `SERVER_DOTNET_gcServer=0` |
-| `MaxQueuedRequestCount` | clients × in flight + 3 (minimum 200): the whole worker pipeline plus the three reserved bootstrap, reconnect and control slots | `--queue` |
+| `MaxQueuedRequestCount` | clients × in flight + 3 (minimum 200): the whole worker pipeline plus the three reserved bootstrap, reconnect and control slots, as the benchmark runner sizes it for 2.0.1 (current builds add the reserved slots on top of the configured value, so the + 3 is headroom) | `--queue` |
 
 The `counters` scenario keeps `CustomNodeManager2` with interlocked increments.
 
@@ -143,6 +144,25 @@ ServerLoadHarness.exe run --scenario native-read --native-client <workers>/build
 ServerLoadHarness.exe run --scenario native-read --native-client <workers>/build/client.exe --server-exe <workers>/build/server.exe --server-args "--port {port}"
 ServerLoadHarness.exe run --scenario native-counters --native-client <workers>/build/sub_client.exe --nodes 4096
 ```
+
+### Steady-state parameters
+
+The default `native-read` run (10,000 warm-up and 100,000 measured Reads per worker) takes a few
+seconds. The .NET server then still runs much of its request path as tier-0 JIT code, and the
+CPU per request measures the JIT warm-up rather than the server: on 4 pinned logical processors
+about 28–31 µs per Read in 3-second runs against 8.8 µs at steady state, on 24 logical
+processors about 60 µs against 28 µs. A native server such as open62541 has no warm-up, so short
+runs also skew a comparison between stacks. Use the defaults as a smoke test, and for CPU per
+request and comparisons with other stacks measure at steady state:
+
+```bash
+SERVER_DOTNET_PROCESSOR_COUNT=4 ServerLoadHarness.exe run --scenario native-read --native-client <workers>/build/client.exe --server-affinity 0xF --iterations 300000 --warmup-calls 100000
+```
+
+The per-request cost should not change when the warm-up is made longer; if it still falls,
+extend the warm-up. `SERVER_DOTNET_TieredCompilation=0` (every method fully optimized at its
+first call) is a quick check of how much of a short run is JIT warm-up, but it also removes
+dynamic PGO, so do not use it for the reported numbers.
 
 ### Building the workers
 
@@ -194,9 +214,15 @@ does not name (samples show as `!?`); set `SERVER_DOTNET_TC_QuickJitForLoops=0` 
 The sampler suspends running threads at their next GC poll, so many on-CPU samples have
 `Thread.PollGCWorker` as their leaf; `cpu` attributes those to the calling frame instead of
 dropping them as a wait (threads that wait for a real collection land there too, which the
-`gc` mode shows). The poll is often the return from a native call (`DateTime.UtcNow`,
-`TimeProvider.GetTimestamp`), so such frames are over-represented: read the shares as where
-the work happens, not as exact costs.
+`gc` mode shows). The EventPipe sampler attributes the on-CPU time since the previous sample to
+the poll site it stops at, and the poll is often the return from a native call
+(`DateTime.UtcNow`, `TimeProvider.GetTimestamp`), so such frames are heavily over-represented:
+in one pinned `native-read` trace the clock reads held about 70 % of the samples, yet removing
+them did not change the CPU per request. Read the shares as where the threads run, not as
+costs, and check a suspected hot spot with an A/B run of the change. For reliable CPU
+attribution use ETW CPU sampling, which samples at the instruction the processor executes:
+PerfView (`PerfView collect`) or WPR/WPA (`wpr -start CPU`), both from an elevated prompt on
+Windows.
 
 The sampled thread-time profile also samples blocked threads. The `cpu` mode drops samples
 whose leaf frame is a known wait (thread-pool semaphore, I/O completion poll, sleep),
@@ -219,11 +245,33 @@ client), `ROUNDS` the rounds per scenario and `OUT` the result file:
 ```bash
 git worktree add --detach C:/uabase origin/master
 cp -r perf C:/uabase/ && (cd C:/uabase && CustomTestTarget=net10.0 dotnet build perf/ServerLoadHarness -c Release)
-cd perf && BASELINE=C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe SCENARIOS=client-scenarios.txt ./ab.sh
+cd perf && BASELINE=C:/uabase/perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe SCENARIOS=client-scenarios.txt ROUNDS=5 ./ab.sh
 pwsh -File ab-summary.ps1
 ```
 
 The summary prints medians as
 `baseline -> candidate (change)`: throughput, latency percentiles, client allocated bytes and CPU
 per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`cpause`,
-`ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`).
+`ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
+only; take the ranges from the result blocks in `ab-results.txt`.
+
+## Measurement method
+
+These rules proved reliable on a developer machine shared with other work:
+
+- **Allocated bytes per operation** (`per-op: allocB`) are deterministic and the primary metric:
+  a change of a few percent is real, also on a loaded machine.
+- **CPU per operation** (`per-op: cpuUs`) is comparable only with the server pinned:
+  `--server-affinity 0xF` and `SERVER_DOTNET_PROCESSOR_COUNT=4` for the child, so that the
+  runtime sizes the thread pool and the GC heaps for the mask. On a hybrid CPU, choose a mask
+  of one core type only (all performance or all efficiency cores): the same request costs
+  measurably more CPU time on an efficiency core, so a mask that mixes them measures the
+  scheduler. Measure the native scenarios at [steady state](#steady-state-parameters).
+- **Throughput and latency** only from paired, alternating A/B rounds (`ab.sh`), never from two
+  separate runs. Other test hosts, load harnesses or benchmarks running on the machine at the
+  same time make a build look slower (fewer requests per second while cores sit idle); discard
+  every round during which one ran, and repeat it.
+- Run **5 rounds** per scenario and report the **median with the range** (min–max) of each side.
+  A difference inside the ranges of both sides is not a result.
+- Name the machine, the operating system, the .NET version, the commit and the date with every
+  number you publish.
