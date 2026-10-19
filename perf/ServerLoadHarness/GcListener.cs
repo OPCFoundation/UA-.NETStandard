@@ -29,10 +29,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Globalization;
 using System.Linq;
 using System.Runtime;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Perf.ServerLoadHarness
 {
@@ -68,14 +71,44 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 m_suspendEnd = default;
                 // events are dispatched later: the induced collection before the mark is not part of the window
                 m_markTime = DateTime.UtcNow;
+                m_endTime = DateTime.MaxValue;
+                m_sawAfterEnd = false;
                 m_recording = true;
             }
         }
 
         /// <summary>
-        /// Stops recording and returns the summary line of the window.
+        /// Ends the window: events stamped after now are not counted, events stamped before
+        /// now still are when they arrive later.
         /// </summary>
-        public string Report()
+        public void End()
+        {
+            lock (m_lock)
+            {
+                m_endTime = DateTime.UtcNow;
+            }
+        }
+
+        /// <summary>
+        /// Waits until the events of the window have been delivered and returns its summary line.
+        /// </summary>
+        /// <remarks>
+        /// Events arrive in order but later than they happen. A gen0 collection induced after
+        /// <see cref="End"/> produces events stamped after the window; once one arrives, every
+        /// event of the window has arrived too (or the wait gives up after two seconds).
+        /// </remarks>
+        public async Task<string> ReportAsync()
+        {
+            GC.Collect(0, GCCollectionMode.Forced, blocking: true);
+            var wait = Stopwatch.StartNew();
+            while (!Volatile.Read(ref m_sawAfterEnd) && wait.ElapsedMilliseconds < 2000)
+            {
+                await Task.Delay(10).ConfigureAwait(false);
+            }
+            return Report();
+        }
+
+        private string Report()
         {
             List<Collection> all;
             List<Pause> pauses;
@@ -158,8 +191,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
             lock (m_lock)
             {
-                if (!m_recording || e.TimeStamp.ToUniversalTime() < m_markTime)
+                DateTime stamp = e.TimeStamp.ToUniversalTime();
+                if (!m_recording || stamp < m_markTime)
                 {
+                    return;
+                }
+                if (stamp > m_endTime)
+                {
+                    // the delivery boundary of ReportAsync
+                    m_sawAfterEnd = true;
                     return;
                 }
                 if (name.StartsWith("GCSuspendEEBegin", StringComparison.Ordinal))
@@ -297,6 +337,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private DateTime m_suspendStart;
         private DateTime m_suspendEnd;
         private DateTime m_markTime;
+        private DateTime m_endTime = DateTime.MaxValue;
+        private bool m_sawAfterEnd;
         private bool m_recording;
     }
 }

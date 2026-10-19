@@ -102,6 +102,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return await RunServerAsync().ConfigureAwait(false);
             }
             if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                NativeWorkerBenchmark.IsScenario(Arg("scenario", "read")))
+            {
+                // the native workers are not .NET processes; they use --client-affinity
+                Console.WriteLine(
+                    "--client-cores and --client-memory apply to the .NET client scenarios; " +
+                    "use --client-affinity and --server-affinity with the native workers.");
+                return 2;
+            }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
                 Environment.GetEnvironmentVariable(kConstrainedVariable) == null)
             {
                 return await RunConstrainedAsync(args).ConfigureAwait(false);
@@ -368,7 +377,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 s_gcListener = new GcListener();
             }
+            // a constrained client starts the server before it confines itself, so the server
+            // does not inherit the client's processors; the server runtime is sized for the
+            // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
             string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
+            string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            Dictionary<string, string>? serverEnvironment = serverAffinity == null
+                ? null
+                : new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["DOTNET_PROCESSOR_COUNT"] = BitOperations.PopCount(Convert.ToUInt64(serverAffinity, 16))
+                        .ToString(CultureInfo.InvariantCulture)
+                };
+            (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
+                FormattableString.Invariant(
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"),
+                serverEnvironment);
+            using Process server = startedServer;
+            using BlockingCollection<string> serverLines = startedLines;
+            if (serverAffinity != null && OperatingSystem.IsWindows())
+            {
+                // the server keeps the processors the constrained client does not have
+                server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);
+            }
             if (clientAffinity != null && OperatingSystem.IsWindows())
             {
                 // the process mask applies to the threads the runtime has already started, too
@@ -380,19 +411,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Console.WriteLine(FormattableString.Invariant(
                     $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
                     FormattableString.Invariant(
-                    $"heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
-            }
-
-            (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
-                FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"));
-            using Process server = startedServer;
-            using BlockingCollection<string> serverLines = startedLines;
-            string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
-            if (serverAffinity != null && OperatingSystem.IsWindows())
-            {
-                // the server keeps the processors the constrained client does not have
-                server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);
+                    $"server mask=0x{serverAffinity ?? "all"} heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
             }
             string ready = serverLines.Take();
             if (!ready.StartsWith("READY", StringComparison.Ordinal))
@@ -531,7 +550,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
             string clientProcess = ProcessStats.Capture().Delta(clientMark);
-            string? clientGc = s_gcListener?.Report();
+            // the window ends here; GC events stamped before this arrive later and still count
+            s_gcListener?.End();
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
             // freeze the client counts at the end of the server window
@@ -562,6 +582,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Console.WriteLine("trace: " + trace);
             }
 
+            string? clientGc = s_gcListener == null ? null : await s_gcListener.ReportAsync().ConfigureAwait(false);
             var result = new StringBuilder();
             result.Append(CultureInfo.InvariantCulture, $"RESULT scenario={scenario} security={security} sessions={sessionCount} ")
                 .Append(string.Join(' ', args.Skip(1)))
