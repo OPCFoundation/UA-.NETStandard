@@ -282,12 +282,12 @@
       {
         "base": "msvc",
         "path": "lib/x64/libcmt.lib",
-        "sha256": "b0d63342d47be1f3f5c2a5f7ee1bea1f1e81ace5adfc3ca68282a863d7c47d27"
+        "sha256": "d4cc4c224455825dec1669f9ad6a9872a4f5b37ed1daae1fd0b9044d7650d908"
       },
       {
         "base": "msvc",
         "path": "lib/x64/libvcruntime.lib",
-        "sha256": "2d8c0eae0b8df5f7e6a2ae9b52cdaa2812d7253a1254fa02d25de60720c48486"
+        "sha256": "f0a898588ecb26fe4c7530b2495a6fe5e768856309a33391702a3cbcbb72b0589"
       },
       {
         "base": "sdk",

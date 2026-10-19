@@ -58,9 +58,10 @@ Repository build commands (no implicit tool installation/download):
 .\Pack-Native.ps1 -ValidationOnly -Configuration Debug
 ```
 
-Windows uses public Rust 1.97.0, MSVC 14.51.36231 / linker 14.51.36260.0 and
-Windows SDK 10.0.26100.0. The Linux script requires the already cached, digest-pinned
-public Rust image. `build/public-inputs.json` contains exact archive/tool/runtime pins.
+Windows uses public Rust 1.97.0, MSVC 14.51.36231 / linker 14.51.36260.0,
+static CRT libraries 14.51.36247 and Windows SDK 10.0.26100.0. The Linux script
+requires the already cached, digest-pinned public Rust image.
+`build/public-inputs.json` contains exact archive/tool/runtime pins.
 Neither `.msrustup` nor mutable default Rust selection is used.
 
 Release and Debug validation packages have distinct IDs: the Debug ID ends in
