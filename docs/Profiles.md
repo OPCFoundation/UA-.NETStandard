@@ -252,6 +252,7 @@ limitations and the actual configured instance before claiming a facet.
 | [GMS](GMS.md), OPC 40210 | Native systems, sensors/qualification, calibration observations, jobs/parts and Machinery-backed results | Full GMS Production facet is withheld because its required `GMS_ProductionStatisticsType` is undefined upstream; no invented acquisition/calibration-control methods |
 | [Cranes and Hoists](CranesHoists.md), OPC 40020-1 | Robotics-derived topology, load/protection observations and provider-authorized limit requests | Preview-only packages; not a motion or safety controller |
 | [Pumps](Pumps.md), OPC 40223 | Released model, fluent device builders and typed clients | Actual equipment observations and effects require providers |
+| [AutoID Devices](AutoID.md), OPC 30010 | Released model, DI-based reader hosting with hardware providers, Scan/ScanStart/ScanStop, RFID tag access, RTLS location methods, scan/access/presence/log events, typed client and MCP tools | The Full AutoID facet is withheld (no `ScanActive` control, no RuntimeParameters); actual readers require a provider; the optical verifier `Scan` method is not published because the NodeSet types its results as `WGS84Coordinate` |
 | [Scales](Scales.md), OPC 40200 | Weighing, zero/tare, products, statistics, recipes, PackML and typed clients | Stock runtime withholds Catchweigher, AutomaticWeightPriceLabeler and TotalizingHopper kind facets; application recipe execution/parser remains explicit |
 | [ISA-95](ISA95.md), OPC 10030 and OPC 10031-4 | Common resource model and Job Control V1/V2 providers, server bindings and clients | Providers supply actual execution, catalogs and responses |
 | [Positioning](Positioning.md), OPC 10000-210/-211 | Released RSL/GPOS models, spatial lists, model changes, position/location/zones interfaces | Positioning packages remain preview-only; do not infer GNSS hardware support |
@@ -734,6 +735,7 @@ for the variant selected by `--ctt`.
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)
 - [Pumps](Pumps.md) (OPC 40223)
+- [AutoID Devices](AutoID.md) (OPC 30010)
 - [Scales](Scales.md) (OPC 40200 and PackML)
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4)
 - [MachineTool and WMTP](MachineTool.md) (OPC 40501-1 and OPC 40505)

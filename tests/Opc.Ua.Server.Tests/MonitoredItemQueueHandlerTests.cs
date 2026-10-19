@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -70,6 +72,205 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 queue.IsEventContainedInQueue(new AuditSessionEventState(null)),
                 Is.False);
+        }
+
+        [Test]
+        public void EventQueueDuplicateCheckFollowsTheNewestEntries()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(2000, true);
+            var handles = new List<AuditSessionEventState>();
+            for (int i = 0; i < 1200; i++)
+            {
+                var handle = new AuditSessionEventState(null);
+                handles.Add(handle);
+                // a trailing filtered retain event is queued with a wrapper of its instance.
+                object queuedHandle = i % 3 == 0 ? new FilteredRetainTarget(handle) : handle;
+                queue.Enqueue(new EventFieldList { EventFields = [new Variant(i)], Handle = queuedHandle });
+            }
+
+            // only the newest 1000 entries are checked.
+            Assert.That(queue.IsEventContainedInQueue(handles[199]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[200]), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(handles[201]), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(handles[1199]), Is.True);
+
+            // an instance queued twice stays a duplicate until both entries are gone.
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(-1)], Handle = handles[1199] });
+            for (int i = 0; i < 1000; i++)
+            {
+                Assert.That(queue.Dequeue(out _), Is.True);
+            }
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(201));
+            Assert.That(queue.IsEventContainedInQueue(handles[999]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[1000]), Is.True);
+            Assert.That(queue.Dequeue(out EventFieldList last), Is.True);
+            Assert.That(last.EventFields[0].GetInt32(), Is.EqualTo(1000));
+            for (int i = 0; i < 199; i++)
+            {
+                Assert.That(queue.Dequeue(out _), Is.True);
+            }
+            Assert.That(queue.IsEventContainedInQueue(handles[1199]), Is.True);
+            Assert.That(queue.Dequeue(out _), Is.True);
+            Assert.That(queue.ItemsInQueue, Is.Zero);
+            Assert.That(queue.IsEventContainedInQueue(handles[1199]), Is.False);
+
+            // a shrink counts the remaining entries again.
+            for (int i = 0; i < 10; i++)
+            {
+                queue.Enqueue(new EventFieldList { EventFields = [new Variant(i)], Handle = handles[i] });
+            }
+            queue.SetQueueSize(4, false);
+            Assert.That(queue.IsEventContainedInQueue(handles[3]), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(handles[4]), Is.False);
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(20)], Handle = handles[20] });
+            Assert.That(queue.IsEventContainedInQueue(handles[0]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[20]), Is.True);
+        }
+
+        [Test]
+        public void EventQueueDuplicateCheckSeesEntriesAddedByDerivedQueue()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new DirectlyFilledEventQueue(telemetry);
+            queue.SetQueueSize(10, true);
+            var queued = new AuditSessionEventState(null);
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(1)], Handle = queued });
+
+            var added = new AuditSessionEventState(null);
+            queue.AddDirectly(new EventFieldList { EventFields = [new Variant(2)], Handle = added });
+            Assert.That(queue.IsEventContainedInQueue(added), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(queued), Is.True);
+
+            // a queue changed directly stays consistent through further queue operations.
+            queue.AddDirectly(new EventFieldList { EventFields = [new Variant(3)], Handle = added });
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(4)], Handle = queued });
+            Assert.That(queue.Dequeue(out _), Is.True);
+            Assert.That(queue.Dequeue(out _), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(added), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(queued), Is.True);
+            Assert.That(queue.Dequeue(out _), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(added), Is.False);
+
+            // an entry replaced in place leaves the count unchanged.
+            var replacement = new AuditSessionEventState(null);
+            queue.ReplaceNewest(new EventFieldList { EventFields = [new Variant(5)], Handle = replacement });
+            Assert.That(queue.IsEventContainedInQueue(replacement), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(queued), Is.False);
+        }
+
+        [Test]
+        public void EventQueueReleasesEventsAfterResizeAndDrain()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(10, true);
+            WeakReference released = EnqueueUnreferencedEvent(queue);
+
+            queue.SetQueueSize(10, true);
+            DequeueAndDrop(queue);
+            Assert.That(queue.ItemsInQueue, Is.Zero);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Assert.That(released.IsAlive, Is.False);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference EnqueueUnreferencedEvent(EventMonitoredItemQueue queue)
+        {
+            var handle = new AuditSessionEventState(null);
+            queue.Enqueue(new EventFieldList { EventFields = [new Variant(1)], Handle = handle });
+            Assert.That(queue.IsEventContainedInQueue(handle), Is.True);
+            return new WeakReference(handle);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void DequeueAndDrop(EventMonitoredItemQueue queue)
+        {
+            Assert.That(queue.Dequeue(out _), Is.True);
+        }
+
+        private sealed class DirectlyFilledEventQueue : EventMonitoredItemQueue
+        {
+            public DirectlyFilledEventQueue(ITelemetryContext telemetry)
+                : base(false, 1, telemetry)
+            {
+            }
+
+            public void AddDirectly(EventFieldList value)
+            {
+                m_events.Add(value);
+            }
+
+            public void ReplaceNewest(EventFieldList value)
+            {
+                m_events[m_events.Count - 1] = value;
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EventQueueKeepsOrderAcrossDequeueCompactionAndShrink(bool discardOldest)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queue = new EventMonitoredItemQueue(false, 1, telemetry);
+            queue.SetQueueSize(100, true);
+            var handles = new List<AuditSessionEventState>();
+
+            void Enqueue(int value)
+            {
+                var handle = new AuditSessionEventState(null);
+                handles.Add(handle);
+                queue.Enqueue(new EventFieldList { EventFields = [new Variant(value)], Handle = handle });
+            }
+
+            int Dequeue()
+            {
+                Assert.That(queue.Dequeue(out EventFieldList fields), Is.True);
+                return fields.EventFields[0].GetInt32();
+            }
+
+            // 150 events into a queue of 100 discard the oldest 50.
+            for (int i = 0; i < 150; i++)
+            {
+                Enqueue(i);
+            }
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(100));
+            Assert.That(queue.IsEventContainedInQueue(handles[49]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[50]), Is.True);
+
+            // dequeue across the compaction threshold, interleaved with new events.
+            int expected = 50;
+            for (int i = 0; i < 70; i++)
+            {
+                Assert.That(Dequeue(), Is.EqualTo(expected++));
+                if (i % 2 == 0)
+                {
+                    Enqueue(150 + (i / 2));
+                }
+            }
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(65));
+            Assert.That(queue.IsEventContainedInQueue(handles[119]), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(handles[120]), Is.True);
+            Assert.That(queue.IsEventContainedInQueue(handles[handles.Count - 1]), Is.True);
+
+            // shrinking keeps the oldest or newest of the queued events.
+            queue.SetQueueSize(10, discardOldest);
+            Assert.That(queue.ItemsInQueue, Is.EqualTo(10));
+            int first = discardOldest ? 175 : 120;
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.That(Dequeue(), Is.EqualTo(first + i));
+            }
+            Assert.That(queue.Dequeue(out _), Is.False);
+            Assert.That(queue.ItemsInQueue, Is.Zero);
+            Assert.That(queue.IsEventContainedInQueue(handles[handles.Count - 1]), Is.False);
+
+            Enqueue(1000);
+            Assert.That(Dequeue(), Is.EqualTo(1000));
         }
 
         [Test]
