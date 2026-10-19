@@ -2435,7 +2435,7 @@ namespace Opc.Ua
             // an empty array is immutable: all share one instance.
             if (length == 0)
             {
-                return Array.Empty<T>();
+                return [];
             }
 
             int capacity = GetInitialArrayCapacity<T>(length);
@@ -2534,7 +2534,7 @@ namespace Opc.Ua
         {
             if (length == 0)
             {
-                return Array.Empty<T>();
+                return [];
             }
 
             // The caller verified the length against the remaining bytes. If
