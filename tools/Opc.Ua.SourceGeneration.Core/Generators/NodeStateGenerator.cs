@@ -1131,10 +1131,10 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            bool isMethodOverrideWithDifferentClass =
-                IsMethodOverrideWithDifferentClass(instance);
+            bool isOverrideWithUnrelatedClass =
+                IsOverrideWithUnrelatedClass(instance);
             if (node.IsNotExplicitlyDefined ||
-                (instance.IsOverridden() && !isMethodOverrideWithDifferentClass))
+                (instance.IsOverridden() && !isOverrideWithUnrelatedClass))
             {
                 return null;
             }
@@ -1166,7 +1166,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (isMethodOverrideWithDifferentClass)
+            if (isOverrideWithUnrelatedClass)
             {
                 instance = instance.GetMergedInstance();
             }
@@ -1577,7 +1577,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-                if (instance is MethodDesign)
+                if (IsOverrideWithUnrelatedClass(instance))
                 {
                     return NodeStateTemplates.Property;
                 }
@@ -4580,7 +4580,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 if (instance.IsOverridden() &&
-                    !IsMethodOverrideWithDifferentClass(instance))
+                    !IsOverrideWithUnrelatedClass(instance))
                 {
                     continue;
                 }
@@ -4591,17 +4591,27 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Returns whether a method overrides the supertype's method with
-        /// another method state class. The subtype then declares a field and a
-        /// property of its own that hide the supertype's, so it also has to
-        /// enumerate and remove the child itself: the supertype's field stays
-        /// empty.
+        /// Returns whether a child overrides the supertype's child with a node
+        /// state class the supertype's class cannot be cast to: a method with
+        /// another method state class, or a variable whose subtype refines the
+        /// DataType so that only the type argument of the generic state class
+        /// changes (<c>PropertyState&lt;ArrayOf&lt;A&gt;&gt;</c> overridden as
+        /// <c>PropertyState&lt;ArrayOf&lt;B&gt;&gt;</c>). The subtype then
+        /// declares a field and a property of its own that hide the
+        /// supertype's, so it also has to enumerate and remove the child
+        /// itself: the supertype's field stays empty.
         /// </summary>
-        private bool IsMethodOverrideWithDifferentClass(InstanceDesign instance)
+        private bool IsOverrideWithUnrelatedClass(InstanceDesign instance)
         {
-            return instance is MethodDesign &&
-                instance.IsOverridden() &&
-                !instance.IsOverriddenWithSameClass(
+            if (!instance.IsOverridden() ||
+                instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces))
+            {
+                return false;
+            }
+            return instance is MethodDesign ||
+                instance.IsOverriddenWithRefinedGenericClass(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces);
         }

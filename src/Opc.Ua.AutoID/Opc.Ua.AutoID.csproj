@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AutoID</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.AutoID</PackageId>
+    <RootNamespace>Opc.Ua.AutoID</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Description>Server/client-independent OPC 30010 AutoID Devices model over the OPC 10000-100 DI base model: RFID, OCR, optical and RTLS reader device types, scan events, the ScanData and Location unions, the scan result structures, generated identifiers, typed node states, encodeable and node-state factories and client proxies.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <!-- OPC 30010 requires the base namespace and DI (RequiredModel
+       http://opcfoundation.org/UA/DI/ 1.01, a lower bound): the AutoID device
+       types derive from the DI DeviceType, so the DI model assembly has to be
+       referenced for the generator to resolve those base types out of the
+       [ModelDependencyAttribute] payload it publishes. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- Model\Opc.Ua.AutoID.NodeSet2.xml and Model\Opc.Ua.AutoID.NodeIds.csv
+       are the unmodified OPC Foundation publication from
+       UA-Nodeset/latest/AutoID; Model\provenance.json pins the revision and
+       the SHA-256 of both files.
+
+       The published NodeIds.csv still lists the 1.00 symbols and lacks the
+       nodes the 1.01 NodeSet added, so it is kept out of AdditionalFiles.
+       Model\Opc.Ua.AutoID.Derived.NodeIds.csv is the drift guard derived from
+       it with tools/nodesets/derive-identifier-table.py; the generator fails
+       the build when model and table disagree. -->
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.AutoID.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.AutoID.Derived.NodeIds.csv" />
+    <AdditionalFiles Include="Model\Opc.Ua.AutoID.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/AutoID/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>AutoID</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.AutoID</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.AutoID.Derived.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.AutoID.Derived.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
