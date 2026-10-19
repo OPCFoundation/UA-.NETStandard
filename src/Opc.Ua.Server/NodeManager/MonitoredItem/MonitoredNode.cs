@@ -644,13 +644,17 @@ namespace Opc.Ua.Server
             // per (item, eventType, sourceNode) avoids two role-validation
             // calls per delivered event.
             (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(snapshot.EventTargetSnapshot);
+
+            // the items with an equal filter share one evaluation of the event: the where
+            // clause and the select clauses are evaluated once per group, not per item.
+            var evaluations = new SharedEventEvaluations();
             if (m_useMultipleConsumers)
             {
                 var deliveries = new List<Task>(EventMonitoredItems.Count);
                 foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
                 {
                     deliveries.Add(ProcessEventForItemAsync(
-                        item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, cancellationToken));
+                        item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken));
                 }
                 await Task.WhenAll(deliveries).ConfigureAwait(false);
                 return;
@@ -658,8 +662,46 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
             {
                 await ProcessEventForItemAsync(
-                    item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
+                    item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// The evaluations of one event, one per group of items with an equal filter.
+        /// </summary>
+        /// <remarks>
+        /// An item's group is looked up before its delivery first awaits, by the loop over
+        /// the items of the event, so the dictionary is never accessed concurrently (the
+        /// loop may continue on another thread after an asynchronous permission check). A
+        /// delivery that completes on another thread uses the evaluation, which
+        /// synchronizes itself.
+        /// </remarks>
+        private sealed class SharedEventEvaluations
+        {
+            /// <summary>
+            /// Returns the evaluation of the group <paramref name="item"/> belongs to, or
+            /// <c>null</c> when the item evaluates the event itself.
+            /// </summary>
+            public MonitoredItem.SharedEventEvaluation? Get(
+                IEventMonitoredItem item,
+                out MonitoredItem.SharedEventFilterKey? key)
+            {
+                key = (item as MonitoredItem)?.GetSharedEventFilterKey();
+                if (key == null)
+                {
+                    return null;
+                }
+
+                m_groups ??= [];
+                if (!m_groups.TryGetValue(key, out MonitoredItem.SharedEventEvaluation? evaluation))
+                {
+                    evaluation = new MonitoredItem.SharedEventEvaluation();
+                    m_groups.Add(key, evaluation);
+                }
+                return evaluation;
+            }
+
+            private Dictionary<MonitoredItem.SharedEventFilterKey, MonitoredItem.SharedEventEvaluation>? m_groups;
         }
 
         /// <summary>
@@ -670,6 +712,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            SharedEventEvaluations evaluations,
             CancellationToken cancellationToken)
         {
             if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
@@ -685,12 +728,24 @@ namespace Opc.Ua.Server
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+
+                // looked up before the first await, by the loop over the items.
+                MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
+                    monitoredItem,
+                    out MonitoredItem.SharedEventFilterKey? key);
                 ServiceResult validationResult = await GetOrAddEventPermissionAsync(
                     monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
                 if (!ServiceResult.IsBad(validationResult))
                 {
-                    monitoredItem.QueueEvent(target);
+                    if (evaluation != null)
+                    {
+                        ((MonitoredItem)monitoredItem).QueueSharedEvent(target, key!, evaluation);
+                    }
+                    else
+                    {
+                        monitoredItem.QueueEvent(target);
+                    }
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
