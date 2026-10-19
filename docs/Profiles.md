@@ -304,8 +304,8 @@ Client-side feature coverage:
   [Model Change Tracking](ModelChangeTracking.md).
 - **File System Operations** — Async, `System.IO`-style client over OPC
   UA file methods; see [FileSystemClient](FileSystemClient.md).
-- **Alarms and Conditions** — Typed `AlarmClient` event records, fluent
-  `AlarmEventFilterBuilder`, and `IAsyncEnumerable` alarm streaming via
+- **Alarms and Conditions** — Typed `AlarmClient` event records, generated
+  `{Type}Record.EventFilters.Build()` event filters, and `IAsyncEnumerable` alarm streaming via
   `AlarmStreamExtensions`; see
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **Historical Access** — `HistoryClient` (`session.Historian()`) for

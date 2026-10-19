@@ -57,9 +57,9 @@ Server redundancy is either **transparent** or **non-transparent**. In transpare
 | --- | --- | --- |
 | `None` | No server redundancy is advertised. | Single-server default. |
 | `Cold` | Only one server is active at a time; backups may be unavailable or not running. | Client connects to one server and creates a fresh session/subscriptions on failover. |
-| `Warm` | Backup servers are running but have less functionality or no process data. | Client can connect to peers, keep subscriptions created but sampling/publishing inactive on backups, and promote the highest-`ServiceLevel` server. |
-| `Hot` | Multiple servers are running and can independently provide data. | Client connects to peers and either hands reporting over to one active server or merges reporting streams. |
-| `HotAndMirrored` | Hot servers mirror communication state. | `ManagedSession` keeps one active session, may keep lightweight ServiceLevel status-check sessions to backups, and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
+| `Warm` | Backup servers are running but have less functionality or no process data. | `ManagedSession` treats it like Cold: it fails over to the highest-`ServiceLevel` peer and recreates the session there. Subscriptions are not pre-created on backups. |
+| `Hot` | Multiple servers are running and can independently provide data. | `ManagedSession` treats it like Cold: one active session; parallel sessions to peers are not implemented. |
+| `HotAndMirrored` | Hot servers mirror communication state. | With `WithTokenReuseFailover()`, `ManagedSession` keeps one active session and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
 | `Transparent` | One virtual server identity hides physical failover. | Server publishes `CurrentServerId`; deployment infrastructure supplies the virtual address and shared certificate/endpoint identity. |
 
 ### Server.ServerRedundancy model
@@ -216,7 +216,7 @@ if (decision.IsFailoverWarranted)
 
 ## Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)
 
-`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
+With `WithServerRedundancy()`, `ManagedSession` keeps **one** active session and fails over between servers of a non-transparent set that it discovers from `RedundantServerArray`/`ServerUriArray` and resolves with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
 
 The resolver retains a peer's discovery addresses before contacting that peer.
 Thus a Cold backup that was offline at connect time can be resolved at failover
@@ -227,78 +227,47 @@ endpoint or session security validation. If no peer address was learned before
 the primary became unreachable, a reachable discovery service or a custom
 `IRedundantServerEndpointResolver` is still required to translate its application URI.
 
+Failover is reactive. There is no public method to trigger it: when reconnecting to the current server fails and the reconnect policy or retry budget is exhausted, the session's connection state moves to `ConnectionState.Failover`. `ManagedSession` then refreshes the redundancy snapshot, asks the handler's `SelectFailoverTarget` for a peer (the default handler picks the Running peer with the highest `ServiceLevel` that is not the current server) and recreates the session in place against that endpoint. The inner `Session` object, the V2 subscription engine and the application's subscriptions survive the switch. Subscriptions are recreated on the new server, or transferred when `WithTransferSubscriptionsOnRecreate()` is enabled and the server supports it. For `Transparent` sets the default handler returns no target, because the server infrastructure moves the session.
+
+`ManagedSession` does not keep sessions or subscriptions open on backup servers. The Table 107 client patterns map onto it as follows:
+
 | Mode | Table 107 actions | `ManagedSession` realization |
 | --- | --- | --- |
-| Cold | Initial connection to one active server. At failover open a SecureChannel, create/activate a session, create subscriptions/monitored items, activate sampling, then activate publishing. | Starts with the initial endpoint only. `FailoverAsync` selects a peer, connects it, applies subscriptions only to the current session, and enables reporting/publishing. |
-| Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Connects all peers, stores templates with `AddSubscriptionAsync`, creates subscriptions on each connected server, and keeps only the selected server in Reporting/publishing while backups are Sampling/publishing disabled. |
-| Hot (a) | Connect to more than one server, create subscriptions everywhere, activate sampling everywhere, publish from one server; at failover activate publishing on the next server. | Default `HotRedundancyNotificationMode.ReportingHandoff`: all connected peers host subscriptions; current server Reports and publishes, backups Sample only. |
-| Hot (b) | Connect to more than one server, create subscriptions everywhere, activate sampling and publishing everywhere; client handles duplicate streams. | `HotRedundancyNotificationMode.ReportingMerge`: all connected peers Report and publish; duplicate suppression/merge is a client responsibility above the event callback. |
-| HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | Keeps a single active session and, when `EnableHotAndMirroredStatusChecks` is set, periodically reads ServiceLevel from backup status sessions. `FailoverAsync` reuses the mirrored `AuthenticationToken` and single-use nonce by calling `ActivateSession` on the backup; it does not recreate subscriptions because the server mirrors session and subscription state. |
+| Cold | Initial connection to one active server. At failover open a SecureChannel, create/activate a session, create subscriptions/monitored items, activate sampling, then activate publishing. | Matches the default behaviour: one session, and at failover a new session on the selected peer with subscriptions recreated. |
+| Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Handled like Cold. Pre-creating subscriptions on backups is not implemented; failover takes as long as a Cold failover. |
+| Hot (a) / Hot (b) | Connect to more than one server and create subscriptions everywhere; publish from one server (a) or from all servers with client-side de-duplication (b). | Handled like Cold. Parallel sessions and duplicate streams are not implemented. |
+| HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | With `WithTokenReuseFailover()`, failover re-activates the mirrored session on the selected peer by reusing the current `AuthenticationToken`, so the server-side session and subscriptions continue. If the peer rejects the token, the client falls back to creating a new session. |
 
-`ManagedSession.RefreshServiceLevelsAsync` reads service levels from connected sessions and selects the highest value. The default handler will not fail over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` or a longer default backoff, and selects a Running peer with an operational `ServiceLevel`.
-
-```csharp
-ManagedSession coldClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(ct: ct);
-
-await coldClient.AddSubscriptionAsync("process", subscriptionTemplate, ct);
-await coldClient.FailoverAsync(ct);
-```
+The default handler also implements the Part 4 selection rules in `ShouldFailover`: it does not recommend failing over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` (or `DefaultServerRedundancyHandler.DefaultMaintenanceBackoff`), and only selects a Running peer with an operational `ServiceLevel`. `ManagedSession` does not poll `ServiceLevel` to fail over proactively; call `FetchRedundancyInfoAsync` and `ShouldFailover` yourself, as in the example above, if you want to act on ServiceLevel changes.
 
 ```csharp
-ManagedSession warmClient = await new ManagedSessionBuilder(configuration, telemetry)
+// Cold, Warm and Hot sets: fail over by recreating the session on a peer.
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(ct: ct);
+    .WithServerRedundancy()
+    .WithTransferSubscriptionsOnRecreate()
+    .ConnectAsync(ct);
 
-await warmClient.AddSubscriptionAsync("process", subscriptionTemplate, ct);
-await warmClient.RefreshServiceLevelsAsync(ct);
-```
-
-Hot handoff is the default Hot mode: every connected peer hosts the subscriptions and samples, but only the active server publishes, so the client sees a single stream and the next server starts publishing on failover. Use it for fast failover without client-side de-duplication.
-
-```csharp
-ManagedSession hotHandoffClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            HotNotificationMode = HotRedundancyNotificationMode.ReportingHandoff
-        },
-        ct);
-```
-
-Hot merge has every connected peer publish at once, so the client receives duplicate streams with near-zero failover latency and merges or de-duplicates them in the `NotificationReceived` handler (by application key, source timestamp, EventId, or sequence context). Use it when the lowest possible failover gap is worth handling duplicates.
-
-```csharp
-ManagedSession hotMergeClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            HotNotificationMode = HotRedundancyNotificationMode.ReportingMerge
-        },
-        ct);
-
-hotMergeClient.NotificationReceived += (sender, args) =>
+session.ConnectionStateChanged += (sender, args) =>
 {
-    // Merge or de-duplicate streams by application key, source timestamp, EventId, or sequence context.
+    if (args.NewState == ConnectionState.Failover)
+    {
+        // The current server is unreachable; a peer is being selected.
+    }
 };
 ```
 
-For a `HotAndMirrored` server, the client keeps one active session and, with `EnableHotAndMirroredStatusChecks`, periodically polls the backups' `ServiceLevel` over lightweight status-check sessions so it can pick the healthiest survivor. Because the server mirrors session and subscription state, failover re-activates the mirrored session on the survivor and does not recreate subscriptions. Use it when the server set runs `HotAndMirrored` (or `Transparent`) mirroring.
+For a `HotAndMirrored` set, add token-reuse failover so the mirrored session is re-activated instead of recreated. This is what [samples/Redundancy/RedundantClient](../samples/Redundancy/RedundantClient) does:
 
 ```csharp
 ManagedSession mirroredClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            EnableHotAndMirroredStatusChecks = true,
-            HotAndMirroredStatusCheckInterval = TimeSpan.FromSeconds(5)
-        },
-        ct);
+    .WithServerRedundancy()
+    .WithTokenReuseFailover()
+    .ConnectAsync(ct);
 ```
+
+To run Warm or Hot standbys on the *client* side, so that a second client process holds a ready session, use a client replica set (`RedundantClientSessionBuilder` with `ClientStandbyMode`); see [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets) below.
 
 ## Manual failover and Maintenance (as per Part 4 §6.6.5)
 

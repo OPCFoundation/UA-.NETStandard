@@ -318,12 +318,14 @@ public sealed class MyTransportListener : ITransportListener, ITransportListener
 {
     // ...
 
-    public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+    public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+        Certificate oldCertificate,
+        CancellationToken ct = default)
     {
         // Close every channel whose negotiated ServerCertificate.Thumbprint
         // matches oldCertificate.Thumbprint. Keep the listener socket bound.
         // Return the global channel ids that were closed (for diagnostics).
-        return [];
+        return new ValueTask<IReadOnlyList<string>>([]);
     }
 }
 ```
