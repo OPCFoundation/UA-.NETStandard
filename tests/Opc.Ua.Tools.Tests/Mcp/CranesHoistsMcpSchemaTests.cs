@@ -79,6 +79,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase(McpToolProfile.Vision)]
         [TestCase(McpToolProfile.MachineTool)]
         [TestCase(McpToolProfile.Gms)]
+        [TestCase(McpToolProfile.AutoId)]
         [TestCase((McpToolProfile)99)]
         public void UnselectedProfilesAddNothing(McpToolProfile profile)
         {

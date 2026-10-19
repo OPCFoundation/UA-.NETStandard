@@ -1,0 +1,60 @@
+{
+  "revision": "9f6c7660b94af24d32c4248d4b13bf60adab0301",
+  "specification": "OPC-30010",
+  "referenceEdition": "1.01",
+  "referenceUrl": "https://reference.opcfoundation.org/AutoID/v101/docs/",
+  "hashNormalization": "UTF-8 source bytes; the publication uses LF line endings and .gitattributes keeps them on every platform.",
+  "model": {
+    "ModelUri": "http://opcfoundation.org/UA/AutoID/",
+    "Version": "1.01",
+    "PublicationDate": "2020-06-18T13:52:03Z",
+    "requiredModels": [
+      {
+        "ModelUri": "http://opcfoundation.org/UA/",
+        "Version": "1.03",
+        "PublicationDate": "2019-09-09T00:00:00Z"
+      },
+      {
+        "ModelUri": "http://opcfoundation.org/UA/DI/",
+        "Version": "1.01",
+        "PublicationDate": "2019-05-01T00:00:00Z"
+      }
+    ]
+  },
+  "sources": [
+    {
+      "file": "Opc.Ua.AutoID.NodeSet2.xml",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f6c7660b94af24d32c4248d4b13bf60adab0301/AutoID/Opc.Ua.AutoID.NodeSet2.xml",
+      "gitBlob": "2cdca69cd86c4f46c61ea4da9ce7d625a02ed53a",
+      "sha256": "c3d5e77aaeeed03862620e307cdf4974e5998267e8faa992c1f1a24f9be6a4ba"
+    },
+    {
+      "file": "Opc.Ua.AutoID.NodeIds.csv",
+      "url": "https://raw.githubusercontent.com/OPCFoundation/UA-Nodeset/9f6c7660b94af24d32c4248d4b13bf60adab0301/AutoID/Opc.Ua.AutoID.NodeIds.csv",
+      "gitBlob": "85fa052bf9934e6b70f90c0bf5e927b50182f905",
+      "sha256": "e8f1d80fbce4f76e9d42f3a652c6cc8c6daf68c289b2629bcce68c5879746cd6"
+    }
+  ],
+  "derivedIdentifierTable": {
+    "file": "Opc.Ua.AutoID.Derived.NodeIds.csv",
+    "tool": "tools/nodesets/derive-identifier-table.py",
+    "purpose": "Local source-generator symbolic-name drift guard, not an upstream publication or NodeId source.",
+    "guardedRows": 238,
+    "renamedSymbols": 86,
+    "nodeSetDeclarationsAbsentFromPublishedTable": 67,
+    "derivationResult": "All 238 published rows agree with the NodeSet on numeric id and node class; 86 symbolic names follow the generator conventions. The published table predates model 1.01 and lacks 67 of the 305 NodeSet declarations (for example AutoIdDiagnosticsEventType i=1010, AccessResult i=3017, RfidAccessResult i=3018 and WriteTagID i=7023). Their NodeIds come from the NodeSet; no rows are invented."
+  },
+  "declarationCounts": {
+    "DataType": 28,
+    "Variable": 175,
+    "VariableType": 1,
+    "ObjectType": 17,
+    "Object": 54,
+    "Method": 30
+  },
+  "compatibility": [
+    "RequiredModel entries are lower bounds: the package loads the DI model the SDK ships, which is newer than DI 1.01.",
+    "The NodeSet defines Default Binary and Default XML encodings only; JSON uses the DataType NodeIds.",
+    "AutoIdScanEventType subtypes and RfidAccessEventType refine the DataType of the ScanResult and AccessResult properties to a structure subtype. The generated subtype states expose those properties with the refined value type."
+  ]
+}
