@@ -86,7 +86,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task ConditionRefreshObservesRefreshBoundaryEventsV2Async(
             CancellationToken ct)

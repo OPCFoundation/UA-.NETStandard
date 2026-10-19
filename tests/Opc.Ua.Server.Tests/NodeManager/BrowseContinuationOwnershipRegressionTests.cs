@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Verifies that metadata lookup failure propagates while releasing the claimed continuation's resource.
         /// </summary>
         [Test]
-        public void MetadataFailureReleasesTheClaimedContinuation()
+        public async Task MetadataFailureReleasesTheClaimedContinuation()
         {
             using var harness = new BrowseHarness();
             var resource = new Mock<IDisposable>();
@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<BrowseResultMask>(), It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("metadata failure"));
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await harness.Master.BrowseNextAsync(harness.Context, false, [Token(point)]).ConfigureAwait(false));
             Assert.That(error.Message, Is.EqualTo("metadata failure"));
             resource.Verify(value => value.Dispose(), Times.Once);
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// the client.
         /// </summary>
         [Test]
-        public void CancellationReleasesCurrentAndEarlierUnreturnedPages()
+        public async Task CancellationReleasesCurrentAndEarlierUnreturnedPages()
         {
             using var harness = new BrowseHarness();
             using var cancellation = new CancellationTokenSource();
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<ContinuationPoint?>(current);
                 });
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await harness.Master.BrowseNextAsync(
+            await Assert.CatchAsync<OperationCanceledException>(async () => await harness.Master.BrowseNextAsync(
                     harness.Context, false, [Token(first), Token(second)], cancellation.Token).ConfigureAwait(false));
             firstResource.Verify(value => value.Dispose(), Times.Once);
             secondResource.Verify(value => value.Dispose(), Times.Once);

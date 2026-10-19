@@ -2517,7 +2517,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await removeTask.ConfigureAwait(false));
             Assert.That(
                 exception.Message,
@@ -2638,7 +2638,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await reloadTask.ConfigureAwait(false));
             Assert.That(
                 exception.Message,
@@ -4025,7 +4025,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             firstManager!.DeleteAddressSpaceFailuresRemaining = 1;
             lastManager!.DeleteAddressSpaceFailuresRemaining = 1;
             IServerInternal server = m_server.CurrentInstance;
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
+            AggregateException failure = await Assert.ThrowsAsync<AggregateException>(
                 async () => await server.NodeManager.ShutdownAsync().ConfigureAwait(false));
 
             Assert.That(failure.Flatten().InnerExceptions, Has.Count.EqualTo(2));
@@ -4115,7 +4115,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 requestScope.Dispose();
                 requestScope = null!;
 
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await removeTask.ConfigureAwait(false));
                 await shutdownTask
                     .WaitAsync(TimeSpan.FromSeconds(10))
@@ -4212,7 +4212,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 requestScope.Dispose();
                 requestScope = null!;
                 NodeManagerReloadCommittedException exception =
-                    Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                    await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                         async () => await reloadTask.ConfigureAwait(false));
                 Assert.That(exception.InnerException, Is.TypeOf<ObjectDisposedException>());
                 await shutdownTask
@@ -4619,7 +4619,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ShadowReloadAsync(
                             originalRegistration,
@@ -5041,7 +5041,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public Task AddAsyncWhenPreparationAndCleanupFailReportsEveryFailureAsync()
+        public async Task AddAsyncWhenPreparationAndCleanupFailReportsEveryFailureAsync()
         {
             const string NamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:PreparationCleanupFailure";
@@ -5072,7 +5072,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(nodeManager.Object);
 
-            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                 async () => await m_server.NodeManagerLifecycle
                     .AddAsync(factory.Object, null)
                     .ConfigureAwait(false));
@@ -5101,7 +5101,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken.None),
                 Times.Once);
             disposable.Verify(manager => manager.Dispose(), Times.Once);
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -5281,7 +5280,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             failRetiredSessionClosing = true;
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(original, replacementFactory.Object, null)
                         .ConfigureAwait(false));
@@ -5430,7 +5429,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(retainedManager.Object);
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
                         .AddAsync(retainedFactory.Object, null)
                         .ConfigureAwait(false));
@@ -5612,7 +5611,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ReturnsAsync(replacementManager.Object);
 
             NodeManagerReloadCommittedException exception =
-                Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
                     async () => await m_server.NodeManagerLifecycle
                         .ReloadAsync(
                             originalRegistration,
@@ -5811,7 +5810,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             try
             {
-                AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+                AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                     async () => await host
                         .CommitAsync(
                             replacement,
@@ -5874,7 +5873,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public Task LifecycleArgumentGuardsRejectNullInputsAsync()
+        public async Task LifecycleArgumentGuardsRejectNullInputsAsync()
         {
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IAsyncNodeManagerFactory asyncFactory =
@@ -5882,19 +5881,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
 
             ArgumentNullException exception =
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await lifecycle
                         .AddAsync((IAsyncNodeManagerFactory)null!, null)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .AddAsync((INodeManagerFactory)null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("factory"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
@@ -5902,7 +5901,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(
                         null!,
@@ -5910,19 +5909,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(null!, asyncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadAsync(null!, syncFactory, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(
                         null!,
@@ -5930,7 +5929,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(
                         null!,
@@ -5938,36 +5937,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(null!, asyncFactory)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ShadowReloadAsync(null!, syncFactory)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .RemoveAsync(null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .BeginShutdownAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("server"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .CompleteShutdownAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("server"));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -6023,7 +6021,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             await host.PublishAsync(prepared).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await host
                     .CommitAsync(prepared, null, null, null)
                     .ConfigureAwait(false));
@@ -6034,7 +6032,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // dynamic-reference table directly: it rejects a NodeManager that is
             // already recorded there.
             var probe = new PreparedNodeManager(candidate.Object, []);
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await host.PublishAsync(probe).ConfigureAwait(false),
                 "The rolled-back NodeManager must not still be recorded as registered.");
         }
@@ -6052,37 +6050,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 []);
 
             ArgumentNullException exception =
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await host
                         .PrepareAsync(null!)
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .PublishAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("prepared"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .ReplaceAsync(null!, prepared)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("current"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .UnpublishAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .DestroyAddressSpaceAsync(null!)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("nodeManager"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await host
                     .RemoveDestroyedExternalReferencesAsync(null!)
                     .ConfigureAwait(false));
@@ -6758,7 +6756,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<InvalidOperationException>()
                     .And
                     .Matches<InvalidOperationException>(
-                        exception => exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
+                        exception => exception is not null && exception.ToString().Contains("shutting down", StringComparison.Ordinal)));
         }
 
         private static async Task WaitForRetiredNotificationsSuspendedAsync(

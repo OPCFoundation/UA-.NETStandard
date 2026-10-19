@@ -431,7 +431,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 Assert.That(applicationInstance, Is.Not.Null);
 
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -447,14 +447,14 @@ namespace Opc.Ua.Configuration.Tests
                 ApplicationType = ApplicationType.DiscoveryServer
             })
             {
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsClient()
                         .AddSecurityConfiguration(applicationCerts, m_pkiRoot)
                         .CreateAsync()
                         .ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -499,7 +499,7 @@ namespace Opc.Ua.Configuration.Tests
             await using (var applicationInstance = new ApplicationInstance(telemetry) { ApplicationName = ApplicationName })
             {
                 // invalid use, use AddUnsecurePolicyNone instead
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -508,7 +508,7 @@ namespace Opc.Ua.Configuration.Tests
                         .CreateAsync()
                         .ConfigureAwait(false));
                 // invalid mix sign / none
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -517,7 +517,7 @@ namespace Opc.Ua.Configuration.Tests
                         .CreateAsync()
                         .ConfigureAwait(false));
                 // invalid policy
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -526,7 +526,7 @@ namespace Opc.Ua.Configuration.Tests
                         .CreateAsync()
                         .ConfigureAwait(false));
                 // invalid user token policy
-                Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                     await applicationInstance
                         .Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
@@ -890,7 +890,7 @@ namespace Opc.Ua.Configuration.Tests
                     }
                     else
                     {
-                        ServiceResultException sre = Assert
+                        ServiceResultException sre = await Assert
                             .ThrowsAsync<ServiceResultException>(async () =>
                                 await applicationInstance.CheckApplicationInstanceCertificatesAsync(
                                     true)
@@ -1012,7 +1012,7 @@ namespace Opc.Ua.Configuration.Tests
                     }
                     else
                     {
-                        ServiceResultException sre = Assert
+                        ServiceResultException sre = await Assert
                             .ThrowsAsync<ServiceResultException>(async () =>
                                 await applicationInstance.CheckApplicationInstanceCertificatesAsync(
                                     true)
@@ -1102,7 +1102,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false);
 
-                Assert.DoesNotThrowAsync(
+                await Assert.DoesNotThrowAsync(
                     async () => await applicationInstance.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
 
                 subjectName = "UA";// UA is a substring of the previous certificate SubjectName CN
@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Configuration.Tests
                     // Since the SubjectName is a substring of the first one's CN,
                     // the matching algorithm will find the first certificate because a fuzzy match is done on the SubjectName when SubjectName does not contain CN=.
                     // However, since the ApplicationUri is different, the certificate will be considered invalid
-                    ServiceResultException exception = Assert
+                    ServiceResultException exception = await Assert
                         .ThrowsAsync<ServiceResultException>(async () =>
                             await applicationInstance2.CheckApplicationInstanceCertificatesAsync(true)
                                 .ConfigureAwait(false));
@@ -1146,7 +1146,7 @@ namespace Opc.Ua.Configuration.Tests
                         .ConfigureAwait(false);
 
                     // Since the SubjectName contains CN=UA, the matching algorithm will not do a fuzzy match and will not find the first certificate.
-                    Assert.DoesNotThrowAsync(
+                    await Assert.DoesNotThrowAsync(
                         async () => await applicationInstance3.CheckApplicationInstanceCertificatesAsync(true).ConfigureAwait(false));
                 }
             }
@@ -1211,7 +1211,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 if (disableCertificateAutoCreation)
                 {
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(async () =>
                             await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                             .ConfigureAwait(false));
@@ -1301,7 +1301,7 @@ namespace Opc.Ua.Configuration.Tests
                 ];
 
                 // This should throw because all certificates must have the same ApplicationUri
-                ServiceResultException sre = Assert
+                ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));
@@ -1524,7 +1524,7 @@ namespace Opc.Ua.Configuration.Tests
                 config.SecurityConfiguration.ApplicationCertificates = [certId];
 
                 // This should fail because none of the URIs match
-                ServiceResultException sre = Assert
+                ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));
@@ -1693,7 +1693,7 @@ namespace Opc.Ua.Configuration.Tests
                 ];
 
                 // This should fail because cert2 doesn't contain ApplicationUri
-                ServiceResultException sre = Assert
+                ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(async () =>
                         await applicationInstance.CheckApplicationInstanceCertificatesAsync(true)
                         .ConfigureAwait(false));

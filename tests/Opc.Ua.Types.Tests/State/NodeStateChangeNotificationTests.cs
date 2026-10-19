@@ -102,7 +102,7 @@ namespace Opc.Ua.Types.Tests.State
             root.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, source);
             var e = new BaseObjectState(null);
             root.OnReportEventAsync = static (_, _, _, _) => throw new InvalidOperationException("sink");
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await source.ReportEventAsync(context, e).ConfigureAwait(false));
             int reports = 0;
             root.OnReportEventAsync = (_, _, _, _) =>

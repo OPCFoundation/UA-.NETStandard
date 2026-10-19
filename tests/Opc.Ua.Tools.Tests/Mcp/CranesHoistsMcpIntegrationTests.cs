@@ -538,7 +538,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             });
             await m_fixture.WaitForObservationAsync(unrelated).ConfigureAwait(false);
             await m_mcp.CancelLastRequestAsync().ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () => await observing.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observing.ConfigureAwait(false));
             Assert.That(m_mcp.LastToolCancellationToken.CanBeCanceled, Is.True);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             while (m_fixture.Subscriptions.Count != subscriptions)
@@ -564,8 +564,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 sessionName: "crane", ct: cancellation.Token);
             await m_fixture.WaitForObservationAsync(unrelated).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
-            OperationCanceledException error = Assert.CatchAsync<OperationCanceledException>(
-                async () => await observing.ConfigureAwait(false))!;
+            OperationCanceledException error = (await Assert.CatchAsync<OperationCanceledException>(
+                async () => await observing.ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(m_fixture.Subscriptions.Count, Is.EqualTo(subscriptions));
             Assert.That(m_fixture.Subscriptions.Items, Does.Contain(unrelated));

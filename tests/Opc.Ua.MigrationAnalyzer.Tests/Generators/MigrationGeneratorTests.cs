@@ -341,7 +341,7 @@ namespace Opc.Ua.MigrationAnalyzer.Tests.Generators
             Assert.That(
                 result.Results.SelectMany(r => r.GeneratedSources),
                 Has.None.Matches<GeneratedSourceResult>(source => source.HintName == "PumpCollection.g.cs"));
-            Assert.That(result.Diagnostics, Has.One.Matches<Diagnostic>(diagnostic => diagnostic.Id == "MIG01"));
+            Assert.That(result.Diagnostics, Has.One.Matches<Diagnostic>(diagnostic => diagnostic is not null && diagnostic.Id == "MIG01"));
         }
 
         [Test]

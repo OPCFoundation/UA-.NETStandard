@@ -143,7 +143,6 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         [Test]
-        [Order(200)]
         public async Task TestBoundaryCaseForReadingChunksAsync()
         {
             ISession theSession = Session;

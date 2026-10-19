@@ -116,7 +116,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using IDisposable caller = fixture.Enter();
             McpSecretReference reference = await IssueAsync(fixture).ConfigureAwait(false);
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(reference.Reference, resource, McpCapability.CredentialIssuance)
                     .ConfigureAwait(false));
 
@@ -135,10 +135,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }
             using (fixture.Enter(GdsTestContext.Other))
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Secrets.ResolveAsync(
                         reference.Reference, "urn:resource", McpCapability.CredentialIssuance).ConfigureAwait(false));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Secrets.RevokeReferenceAsync(reference.Reference).ConfigureAwait(false));
             }
             Assert.That(fixture.Store.Values, Has.Count.EqualTo(1));
@@ -155,7 +155,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using IDisposable caller = fixture.Enter();
             fixture.Store.Seed("proof", "synthetic-credential");
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(reference, resource, McpCapability.CredentialIssuance)
                     .ConfigureAwait(false));
 
@@ -197,7 +197,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }
             fixture.Clock.Advance(TimeSpan.FromTicks(1));
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(
                     reference.Reference, "urn:resource", McpCapability.CredentialIssuance).ConfigureAwait(false));
             await fixture.Secrets.PurgeExpiredAsync().ConfigureAwait(false);
@@ -226,7 +226,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await fixture.Secrets.RevokeReferenceAsync(reference.Reference).ConfigureAwait(false);
             release.SetResult();
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await lookup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false));
 
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -243,7 +243,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             fixture.Store.Seed("proof", "host-owned");
             fixture.Store.SetFailure = new IOException("sensitive-provider-token-and-path");
 
-            McpSecretPersistenceException? failure = Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
+            McpSecretPersistenceException? failure = await Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
                 await IssueAsync(fixture).ConfigureAwait(false));
 
             Assert.That(failure!.ProviderStatus, Is.EqualTo(StatusCodes.BadResourceUnavailable));
@@ -263,14 +263,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using IDisposable caller = fixture.Enter();
             fixture.Store.SetFailure = new ServiceResultException(StatusCodes.BadTimeout, "primary-secret");
             fixture.Store.RemoveFailure = new IOException("cleanup-secret");
-            McpSecretPersistenceException? failure = Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
+            McpSecretPersistenceException? failure = await Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
                 await IssueAsync(fixture).ConfigureAwait(false));
 
             Assert.That(failure!.ProviderStatus, Is.EqualTo(StatusCodes.BadTimeout));
             Assert.That(failure.CleanupFailed, Is.True);
             Assert.That(failure.ToString(), Does.Not.Contain("primary-secret").And.Not.Contain("cleanup-secret"));
             Assert.That(fixture.Store.Values, Has.Count.EqualTo(1));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(failure.Reference.Reference, "urn:resource",
                     McpCapability.CredentialIssuance).ConfigureAwait(false));
             Assert.That(() => fixture.Secrets.ReserveIssuance(McpCapability.CredentialIssuance),
@@ -297,11 +297,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             McpSecretReference unrelated = await IssueAsync(fixture, "credential-b").ConfigureAwait(false);
             fixture.Store.RemoveFailure = new IOException("provider-sensitive-cleanup");
 
-            Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
+            await Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
                 await fixture.Secrets.RevokeCredentialAsync("urn:resource", "credential-a").ConfigureAwait(false));
             foreach (McpSecretReference revoked in new[] { first, second })
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Secrets.ResolveAsync(revoked.Reference, "urn:resource",
                         McpCapability.CredentialIssuance).ConfigureAwait(false));
             }
@@ -348,7 +348,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             using IDisposable caller = fixture.Enter();
             fixture.Store.GetFailure = new InvalidOperationException("the password is confidential");
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync("alias:proof", "urn:resource", McpCapability.CredentialIssuance)
                     .ConfigureAwait(false));
 
@@ -370,7 +370,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(fixture.Store.Views, Is.Empty);
             fixture.Store.RemoveFailure = new IOException("private provider detail");
 
-            Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
+            await Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
                 await fixture.Secrets.RevokeReferenceAsync(reference.Reference).ConfigureAwait(false));
 
             Assert.That(dependency.Invalidated.IsCompletedSuccessfully, Is.True);

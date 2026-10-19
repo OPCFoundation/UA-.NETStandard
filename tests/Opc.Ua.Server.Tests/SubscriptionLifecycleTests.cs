@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -861,18 +862,18 @@ namespace Opc.Ua.Server.Tests
 
             await subscription.DeleteAsync(context).ConfigureAwait(false);
 
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.CreateMonitoredItemsAsync(
                     context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ModifyMonitoredItemsAsync(
                     context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.DeleteMonitoredItemsAsync(context, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.SetMonitoringModeAsync(
                     context, MonitoringMode.Reporting, []).ConfigureAwait(false)));
-            AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
+            AssertBadSubscriptionId(await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false)));
         }
 

@@ -697,10 +697,10 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// ValidateAsync throws when ApplicationName is empty.
         /// </summary>
-        public void ValidateAsyncThrowsWhenApplicationNameEmpty()
+        public async Task ValidateAsyncThrowsWhenApplicationNameEmpty()
         {
             var config = new ApplicationConfiguration(m_telemetry);
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Server).ConfigureAwait(false));
         }
 
@@ -708,7 +708,7 @@ namespace Opc.Ua.Core.Tests
         /// <summary>
         /// ValidateAsync throws when SecurityConfiguration is null.
         /// </summary>
-        public void ValidateAsyncThrowsWhenSecurityConfigurationNull()
+        public async Task ValidateAsyncThrowsWhenSecurityConfigurationNull()
         {
             var config = new ApplicationConfiguration(m_telemetry)
             {
@@ -720,7 +720,7 @@ namespace Opc.Ua.Core.Tests
             // to throw since there are no certificate stores configured.
             // The setter prevents null, so SecurityConfiguration is always non-null.
             // The validate call will proceed past the null check.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Server).ConfigureAwait(false));
         }
 
@@ -733,7 +733,7 @@ namespace Opc.Ua.Core.Tests
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
             config.ApplicationType = ApplicationType.Server;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Server).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -747,7 +747,7 @@ namespace Opc.Ua.Core.Tests
         {
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.Client).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);
@@ -761,7 +761,7 @@ namespace Opc.Ua.Core.Tests
         {
             ApplicationConfiguration config = CreateMinimalValidatableConfig();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await config.ValidateAsync(ApplicationType.DiscoveryServer).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             await Task.CompletedTask.ConfigureAwait(false);

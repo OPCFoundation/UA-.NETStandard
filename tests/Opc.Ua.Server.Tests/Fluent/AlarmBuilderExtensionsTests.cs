@@ -134,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(
                 references,
                 Has.Exactly(2).Matches<IReference>(reference =>
-                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                    reference is not null && reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
                     !reference.IsInverse));
 
             references.Clear();
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(
                 references,
                 Has.Exactly(1).Matches<IReference>(reference =>
-                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                    reference is not null && reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
                     reference.IsInverse &&
                     reference.TargetId == root.NodeId));
         }
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(
                     references,
                     Has.Exactly(1).Matches<IReference>(reference =>
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
+                        reference is not null && reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource &&
                         !reference.IsInverse &&
                         reference.TargetId == ab.Alarm.NodeId));
             });
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(
                 references,
                 Has.None.Matches<IReference>(reference =>
-                    reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource),
+                    reference is not null && reference.ReferenceTypeId == ReferenceTypeIds.HasEventSource),
                 "a refused alarm leaves the parent untouched");
         }
 

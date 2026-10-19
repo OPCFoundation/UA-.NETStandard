@@ -90,13 +90,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// A reader that arrives after the queue stopped is cancelled instead of waiting.
         /// </summary>
         [Test]
-        public void StoppedQueueCancelsANewReader()
+        public async Task StoppedQueueCancelsANewReader()
         {
             var provider = new TestProvider();
             FairRequestQueue queue = CreateQueue(provider);
             queue.Dispose();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await queue.DequeueAsync(CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -815,7 +815,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 if (waiter != completed)
                 {
-                    Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                         await waiter.ConfigureAwait(false));
                 }
             }
@@ -891,7 +891,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.ExecutionGrants, Is.EqualTo(2));
             deadline.Cancel();
             Task<FairRequestQueue.Entry> cancelled = (completed == original ? competing : original)!;
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await cancelled!.ConfigureAwait(false));
         }
 
@@ -1774,7 +1774,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
                 foreach (Task<FairRequestQueue.Entry> waiter in waiters)
                 {
-                    Assert.CatchAsync<OperationCanceledException>(
+                    await Assert.CatchAsync<OperationCanceledException>(
                         async () => await waiter.WaitAsync(deadline.Token).ConfigureAwait(false));
                     Assert.That(deadline.IsCancellationRequested, Is.False, "the stop must wake the waiter");
                 }

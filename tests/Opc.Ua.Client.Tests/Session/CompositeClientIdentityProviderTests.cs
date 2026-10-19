@@ -76,14 +76,14 @@ namespace Opc.Ua.Client.Tests.Identity
         }
 
         [Test]
-        public void GetIdentityAsyncRejectsUnmatchedPolicy()
+        public async Task GetIdentityAsyncRejectsUnmatchedPolicy()
         {
             UserTokenPolicy policy = CreatePolicy(UserTokenType.Certificate);
             IdentitySelectionContext context = CreateContext(policy);
             var provider = new CompositeClientIdentityProvider(
                 new StubProvider("user", UserTokenType.UserName, DateTime.MaxValue));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider.GetIdentityAsync(policy, context).ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
         }

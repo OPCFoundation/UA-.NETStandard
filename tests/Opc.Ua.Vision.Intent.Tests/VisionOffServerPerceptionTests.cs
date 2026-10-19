@@ -78,8 +78,8 @@ namespace Opc.Ua.Vision.Intent.Tests
                 .ConfigureAwait(false);
             VisionPipelineClient pipeline = context.Vision.Pipeline(pipelineNodeId);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await pipeline.RunInferenceAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await pipeline.RunInferenceAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
                 "An off-server pipeline must refuse RunInference with Bad_NotSupported.");
         }

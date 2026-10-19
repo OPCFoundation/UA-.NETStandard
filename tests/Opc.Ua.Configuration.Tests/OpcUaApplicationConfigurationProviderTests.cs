@@ -197,7 +197,7 @@ namespace Opc.Ua.Configuration.Tests
 
             try
             {
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await provider.GetAsync().ConfigureAwait(false));
             }
             finally

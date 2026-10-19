@@ -255,7 +255,7 @@ namespace Opc.Ua.Server.Tests
                 uint itemId = created.Results[0].MonitoredItemId;
 
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_services.SetMonitoringModeAsync(
                         m_requestHeader,
                         subscriptionId,
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_services.ModifyMonitoredItemsAsync(
                         m_requestHeader,
                         subscriptionId,

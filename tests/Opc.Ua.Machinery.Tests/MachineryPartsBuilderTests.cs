@@ -162,8 +162,8 @@ namespace Opc.Ua.Machinery.Tests
                 NewMachine("Unbound-Job-Machine").WithJobManagement();
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("job-order receiver"));
         }
 
@@ -371,8 +371,8 @@ namespace Opc.Ua.Machinery.Tests
             };
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await StoreAsync(jobManagement!, jobOrder))!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await StoreAsync(jobManagement!, jobOrder)))!;
             Assert.That(exception.Message, Does.Contain("PlannedSetupTime"));
             Assert.That(exception.Message, Does.Contain("Duration"));
 
@@ -642,7 +642,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void AResourceFolderWithoutAMainMeteringPointIsRefused()
+        public async Task AResourceFolderWithoutAMainMeteringPointIsRefused()
         {
             ushort energyNamespaceIndex = NamespaceIndex(
                 Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
@@ -667,8 +667,8 @@ namespace Opc.Ua.Machinery.Tests
                 }));
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("Main metering point"));
             Assert.That(exception.Message, Does.Contain("Steam"));
         }
@@ -867,13 +867,13 @@ namespace Opc.Ua.Machinery.Tests
             // ResultId alone is what every other result test publishes; the
             // unit needs six more fields on top of it.
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await machine.Results!.PublishAsync(
                         new MachineryResult(
                             new ResultDataType
                             {
                                 ResultMetaData = new ResultMetaDataType { ResultId = "R-thin" }
-                            })))!;
+                            }))))!;
 
             Assert.That(exception.Message, Does.Contain("PredefinedResultMetaData"));
             Assert.That(exception.Message, Does.Contain("ExternalRecipeId"));

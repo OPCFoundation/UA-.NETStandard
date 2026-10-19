@@ -621,7 +621,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 var ready = (Task)closingEntry.GetType()
                     .GetMethod("WaitForReadyAsync", [typeof(CancellationToken)])!
                     .Invoke(closingEntry, [CancellationToken.None])!;
-                ServiceResultException? notReady = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? notReady = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await ready.ConfigureAwait(false));
                 Assert.That(notReady!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
 
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             });
 
             createCount = 0;
-            ServiceResultException? sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.GetAsync(
                     new TestParticipant("creator", endpoint), default).ConfigureAwait(false));
             Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
@@ -2170,8 +2170,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 await reconnect.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(await ordinary.ConfigureAwait(false), Is.SameAs(response));
 
-                ServiceResultException expired = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await captured!.SendRequestAsync(new ReadRequest(), timeout.Token).ConfigureAwait(false))!;
+                ServiceResultException expired = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await captured!.SendRequestAsync(new ReadRequest(), timeout.Token).ConfigureAwait(false)))!;
                 Assert.That(expired.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 await captured!.CloseAsync(timeout.Token).ConfigureAwait(false);
                 captured.Dispose();

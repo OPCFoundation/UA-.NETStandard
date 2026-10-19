@@ -199,11 +199,11 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A custom streaming implementation must explicitly support readiness for control-and-wait.
         /// </summary>
         [Test]
-        public void ReadinessUnsupportedFailsWithoutIssuingControl()
+        public async Task ReadinessUnsupportedFailsWithoutIssuingControl()
         {
             var stream = new Mock<IStreamingSubscription>(MockBehavior.Strict);
             bool called = false;
-            Assert.ThrowsAsync<NotSupportedException>(async () =>
+            await Assert.ThrowsAsync<NotSupportedException>(async () =>
                 await m_proxy.WaitForProgramTransitionAsync(stream.Object, ObjectIds.Server, ProgramState.Running,
                     _ =>
                     {
@@ -217,7 +217,7 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A failed server monitored-item creation aborts the wait before control dispatch.
         /// </summary>
         [Test]
-        public void MonitoredItemCreationFailureDoesNotIssueControl()
+        public async Task MonitoredItemCreationFailureDoesNotIssueControl()
         {
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(i => i.Created).Returns(false);
@@ -225,7 +225,7 @@ namespace Opc.Ua.Client.Tests.Programs
             item.As<IMonitoredItemApplyState>().SetupGet(i => i.HasPendingChanges).Returns(false);
             var stream = new ScriptedStreaming(_ => [], item.Object);
             bool called = false;
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
                 await m_proxy.WaitForProgramTransitionAsync(stream, ObjectIds.Server, ProgramState.Running,
                     _ =>
                     {
@@ -239,11 +239,11 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Server overflow events bypass invocation filtering and report loss explicitly.
         /// </summary>
         [Test]
-        public void ServerOverflowIsNeverSilentlyDiscardedBySourceFiltering()
+        public async Task ServerOverflowIsNeverSilentlyDiscardedBySourceFiltering()
         {
             var stream = new ScriptedStreaming(filter =>
                 [Fields(filter, ObjectTypeIds.EventQueueOverflowEventType, NodeId.Null, 0)]);
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
             {
                 await foreach (ProgramTransitionEventTypeRecord _ in m_proxy.ObserveProgramTransitionsAsync(
                     stream, ObjectIds.Server).ConfigureAwait(false))
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.Tests.Programs
                     It.IsAny<IOptionsMonitor<Subscriptions.SubscriptionOptions>>()))
                 .Returns(subscription.Object);
             await using var streaming = new StreamingSubscription(manager.Object);
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
                 await m_proxy.WaitForProgramTransitionAsync(
                     streaming, ObjectIds.Server, ProgramState.Running,
                     _ =>
@@ -295,7 +295,7 @@ namespace Opc.Ua.Client.Tests.Programs
         [TestCase("to-state")]
         [TestCase("event-type")]
         [TestCase("source")]
-        public void MalformedEventsFailInsteadOfBecomingDefaultRecords(string invalid)
+        public async Task MalformedEventsFailInsteadOfBecomingDefaultRecords(string invalid)
         {
             var stream = new ScriptedStreaming(filter =>
             {
@@ -315,7 +315,7 @@ namespace Opc.Ua.Client.Tests.Programs
                 fields[index] = invalid == "to-state" ? Variant.Null : Variant.From(123);
                 return [ArrayOf.Wrapped(fields)];
             });
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
             {
                 await foreach (ProgramTransitionEventTypeRecord _ in m_proxy.ObserveProgramTransitionsAsync(
                     stream, ObjectIds.Server).ConfigureAwait(false))
@@ -329,20 +329,20 @@ namespace Opc.Ua.Client.Tests.Programs
         /// A custom decoder failure remains observable and is never converted to an empty stream.
         /// </summary>
         [Test]
-        public void DecoderExceptionsArePropagated()
+        public async Task DecoderExceptionsArePropagated()
         {
             var registry = new EventRecordDecoderRegistry();
             registry.Register(m_transitionType, ProgramTransitionEventTypeRecord.Decoder.StandardFields,
                 _ => throw new InvalidOperationException("decoder-failure"));
             var stream = new ScriptedStreaming(filter => [Fields(filter, m_transitionType, s_invocation, 1)]);
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await foreach (ProgramTransitionEventTypeRecord _ in m_proxy.ObserveProgramTransitionsAsync(
                     stream, ObjectIds.Server, registry).ConfigureAwait(false))
                 {
                     Assert.Fail("Decoder error was swallowed.");
                 }
-            })!;
+            }))!;
             Assert.That(error.Message, Is.EqualTo("decoder-failure"));
         }
 
@@ -350,12 +350,12 @@ namespace Opc.Ua.Client.Tests.Programs
         /// An explicitly registered decoder returning no record does not trigger a success-shaped fallback.
         /// </summary>
         [Test]
-        public void NullCustomDecoderResultIsAnExplicitDecodingFailure()
+        public async Task NullCustomDecoderResultIsAnExplicitDecodingFailure()
         {
             var registry = new EventRecordDecoderRegistry();
             registry.Register(m_transitionType, ProgramTransitionEventTypeRecord.Decoder.StandardFields, _ => null);
             var stream = new ScriptedStreaming(filter => [Fields(filter, m_transitionType, s_invocation, 1)]);
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
             {
                 await foreach (ProgramTransitionEventTypeRecord _ in m_proxy.ObserveProgramTransitionsAsync(
                     stream, ObjectIds.Server, registry).ConfigureAwait(false))
@@ -369,13 +369,13 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Cancellation stops readiness and does not perform a state read or control.
         /// </summary>
         [Test]
-        public void CancelledWaitDoesNotReadStateOrRunControl()
+        public async Task CancelledWaitDoesNotReadStateOrRunControl()
         {
             var stream = new ScriptedStreaming(_ => []);
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
             bool called = false;
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await m_proxy.WaitForProgramTransitionAsync(stream, ObjectIds.Server, ProgramState.Running,
                     _ =>
                     {
@@ -389,10 +389,10 @@ namespace Opc.Ua.Client.Tests.Programs
         /// Unexpected stream completion is not confused with reaching the target state.
         /// </summary>
         [Test]
-        public void EarlyStreamEndIsReportedAsNoData()
+        public async Task EarlyStreamEndIsReportedAsNoData()
         {
             var stream = new ScriptedStreaming(_ => []);
-            AssertStatus(async () =>
+            await AssertStatus(async () =>
                 await m_proxy.WaitForProgramTransitionAsync(stream, ObjectIds.Server, ProgramState.Halted)
                     .ConfigureAwait(false), StatusCodes.BadNoData);
         }
@@ -425,9 +425,9 @@ namespace Opc.Ua.Client.Tests.Programs
             return string.Join("/", clause.BrowsePath.ToArray()!.Select(p => p.Name));
         }
 
-        private static void AssertStatus(Func<Task> action, StatusCode expected)
+        private static async Task AssertStatus(Func<Task> action, StatusCode expected)
         {
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(action)!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(action))!;
             Assert.That(exception.StatusCode, Is.EqualTo(expected));
         }
 

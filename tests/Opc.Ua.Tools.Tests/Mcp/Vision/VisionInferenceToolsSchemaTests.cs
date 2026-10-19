@@ -410,9 +410,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsUndefinedExpectedKind()
+        public async Task RunInferenceToolRejectsUndefinedExpectedKind()
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest
@@ -425,9 +425,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsNegativeMaxItems()
+        public async Task RunInferenceToolRejectsNegativeMaxItems()
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest
@@ -438,9 +438,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsMaxItemsAbove100()
+        public async Task RunInferenceToolRejectsMaxItemsAbove100()
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest
@@ -451,9 +451,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsInvalidDetailEnum()
+        public async Task RunInferenceToolRejectsInvalidDetailEnum()
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest
@@ -464,9 +464,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsInvalidExpectedKindEnum()
+        public async Task RunInferenceToolRejectsInvalidExpectedKindEnum()
         {
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest
@@ -477,9 +477,9 @@ namespace Opc.Ua.Tools.Tests.Mcp
         }
 
         [Test]
-        public void RunInferenceToolRejectsWhitespacePipelineBeforeResolvingSession()
+        public async Task RunInferenceToolRejectsWhitespacePipelineBeforeResolvingSession()
         {
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await VisionInferenceTools.RunInferenceAsync(
                     null!,
                     new VisionInferenceRequest

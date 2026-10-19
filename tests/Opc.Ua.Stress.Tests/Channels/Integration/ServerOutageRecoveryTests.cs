@@ -52,7 +52,6 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
     public sealed class ServerOutageRecoveryTests : IntegrationTestBase
     {
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task SingleSessionRecoversAfterServerRestartAsync(
             CancellationToken ct)
@@ -123,8 +122,8 @@ namespace Opc.Ua.Stress.Tests.Channels.Integration
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(SingleSessionRecoversAfterServerRestartAsync), AllowFailure = true)]
         public async Task MultipleSessionsRecoverAfterServerRestartAsync(
             CancellationToken ct)
         {

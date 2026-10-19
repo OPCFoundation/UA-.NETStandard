@@ -170,22 +170,22 @@ namespace Opc.Ua.MachineTool.Tests
                 Assert.That(selected.Changes[0].Value.StatusCode, Is.EqualTo(StatusCodes.UncertainLastUsableValue));
                 Assert.That(selected.Changes[0].Value.SourceTimestamp, Is.EqualTo(acquired));
                 Assert.That(subscriptions.Count, Is.EqualTo(before));
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                     await client.ObserveValuesAsync(ArrayOf<NodeId>.Empty).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await client.ObserveValuesAsync([machine.NodeId, machine.NodeId]).ConfigureAwait(false));
                 var oversizedSelection = new NodeId[257];
                 for (int index = 0; index < oversizedSelection.Length; index++)
                 {
                     oversizedSelection[index] = new NodeId((uint)(index + 1), machine.NodeId.NamespaceIndex);
                 }
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                     await client.ObserveValuesAsync(new ArrayOf<NodeId>(oversizedSelection)).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                     await client.DiscoverAsync(0).ConfigureAwait(false));
                 using var cancellation = new CancellationTokenSource();
                 cancellation.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await client.DiscoverAsync(cancellationToken: cancellation.Token).ConfigureAwait(false));
                 using var pendingCancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
                 Task<MachineToolDataObservation> pending = client.ObserveDataAsync(machine.NodeId,
@@ -200,18 +200,18 @@ namespace Opc.Ua.MachineTool.Tests
                     await client.DisposeAsync().ConfigureAwait(false);
                     Assert.That(subscriptions.Count, Is.EqualTo(before),
                         "Disposing a facade must cancel and drain its own subscription resources.");
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await pending.WaitAsync(TimeSpan.FromSeconds(1)).ConfigureAwait(false));
                 }
                 finally
                 {
                     pendingCancellation.Cancel();
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await pending.ConfigureAwait(false));
                 }
                 Assert.That(subscriptions.Count, Is.EqualTo(before));
                 Assert.That(session.Connected, Is.True, "Disposing a borrowed facade must not close its caller's session.");
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await client.DiscoverAsync().ConfigureAwait(false));
             }
             finally
@@ -265,7 +265,7 @@ namespace Opc.Ua.MachineTool.Tests
             await first.DisposeAsync().ConfigureAwait(false);
             await first.DisposeAsync().ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
             Assert.That(subscriptions.Count, Is.EqualTo(before));
             Assert.That(shared.Disposed, Is.False);
             Assert.That(shared.Connected, Is.True);
@@ -324,8 +324,8 @@ namespace Opc.Ua.MachineTool.Tests
                 return cached;
             }, telemetry);
 
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
-                () => factory.CreateAsync(cancellation.Token))!;
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token)))!;
 
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(acquisitions, Is.EqualTo(1));
@@ -358,8 +358,8 @@ namespace Opc.Ua.MachineTool.Tests
                 Is.EqualTo(StatusCodes.Good));
             Assert.That(shared.Disposed, Is.False);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => provider.GetRequiredService<MachineToolClientFactory>().CreateAsync())!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => provider.GetRequiredService<MachineToolClientFactory>().CreateAsync()))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(shared.Disposed, Is.False);
@@ -372,7 +372,7 @@ namespace Opc.Ua.MachineTool.Tests
         /// A pre-cancelled request must not invoke even an accessor that ignores its token.
         /// </summary>
         [Test]
-        public void ClientFactoryRejectsCancellationBeforeAcquisition()
+        public async Task ClientFactoryRejectsCancellationBeforeAcquisition()
         {
             bool acquired = false;
             var factory = new MachineToolClientFactory(_ =>
@@ -383,8 +383,8 @@ namespace Opc.Ua.MachineTool.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            OperationCanceledException error = Assert.ThrowsAsync<OperationCanceledException>(
-                () => factory.CreateAsync(cancellation.Token))!;
+            OperationCanceledException error = (await Assert.ThrowsAsync<OperationCanceledException>(
+                () => factory.CreateAsync(cancellation.Token)))!;
 
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(acquired, Is.False);

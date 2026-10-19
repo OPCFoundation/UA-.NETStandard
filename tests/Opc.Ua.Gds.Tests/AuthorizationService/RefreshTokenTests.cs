@@ -252,7 +252,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             (_, _, string refreshToken) = await StartAndFinishAsync(client).ConfigureAwait(false);
             await client.RefreshTokenAsync(Audience, refreshToken).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.RefreshTokenAsync(Audience, refreshToken).ConfigureAwait(false));
             Assert.That(ex, Is.Not.Null);
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));

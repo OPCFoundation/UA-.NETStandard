@@ -154,7 +154,7 @@ namespace Opc.Ua.Configuration.Tests
                 }
                 else
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+                    ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
                         application.CheckApplicationInstanceCertificatesAsync(silent: true).AsTask());
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 }

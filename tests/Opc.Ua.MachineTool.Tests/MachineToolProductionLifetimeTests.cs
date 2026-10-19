@@ -197,12 +197,12 @@ namespace Opc.Ua.MachineTool.Tests
             };
             if (cancel)
             {
-                Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await controller.InitializeAsync(snapshot, cancellation.Token).ConfigureAwait(false));
             }
             else
             {
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await controller.InitializeAsync(snapshot).ConfigureAwait(false));
             }
             Assert.That(controller.Observation, Is.Null);
@@ -253,11 +253,11 @@ namespace Opc.Ua.MachineTool.Tests
                 Production = initial.Production with { Jobs = [] }
             }).AsTask();
             await entered.Task.ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.ApplyAsync(initial with { Revision = 2 }).ConfigureAwait(false));
             Assert.That(controller.Observation, Is.SameAs(initial));
             Task disposing = controller.DisposeAsync().AsTask();
-            Assert.ThrowsAsync<TaskCanceledException>(async () => await removing.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TaskCanceledException>(async () => await removing.ConfigureAwait(false));
             await disposing.ConfigureAwait(false);
             Assert.That(machine.Production!.ProductionPlan, Is.Null);
         }
@@ -290,14 +290,14 @@ namespace Opc.Ua.MachineTool.Tests
             };
             ByteString eventId = default;
             int calls = 0;
-            machine.OnReportEventAsync = (_, _, e, _) =>
+            machine.OnReportEventAsync = async (_, _, e, _) =>
             {
                 if (e is not ProductionJobTransitionEventState transition)
                 {
-                    return default;
+                    return;
                 }
                 Assert.That(controller.Observation, Is.SameAs(next));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await controller.ApplyAsync(next).ConfigureAwait(false));
                 Assert.That(() => controller.DisposeAsync(), Throws.TypeOf<ServiceResultException>());
                 if (++calls == 1)
@@ -306,12 +306,11 @@ namespace Opc.Ua.MachineTool.Tests
                     throw new InvalidOperationException("The event sink failed.");
                 }
                 Assert.That(transition.EventId!.Value, Is.EqualTo(eventId));
-                return default;
             };
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await controller.ApplyAsync(next).ConfigureAwait(false));
             Assert.That(controller.Observation, Is.SameAs(next), "The observation was committed before publication.");
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await controller.ApplyAsync(next with { Revision = 2 }).ConfigureAwait(false));
             await controller.ApplyAsync(next).ConfigureAwait(false);
             Assert.That(calls, Is.EqualTo(2));
@@ -416,8 +415,8 @@ namespace Opc.Ua.MachineTool.Tests
                     Jobs = [Job("A", MachineToolProductionPhase.Ended), Job("B", MachineToolProductionPhase.Ended)]
                 }
             }).ConfigureAwait(false);
-            AggregateException error = Assert.ThrowsAsync<AggregateException>(async () =>
-                await controller.DisposeAsync().ConfigureAwait(false))!;
+            AggregateException error = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                await controller.DisposeAsync().ConfigureAwait(false)))!;
             Assert.That(error.Flatten().InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(resources[0].Disposals, Is.EqualTo(1));
             Assert.That(resources[1].Disposals, Is.EqualTo(1));

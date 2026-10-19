@@ -117,7 +117,7 @@ namespace OpcUaPubSubJsonTests
                 PublisherId = PublisherId.FromUInt16(300)
             };
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(msg, ctx).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
         }

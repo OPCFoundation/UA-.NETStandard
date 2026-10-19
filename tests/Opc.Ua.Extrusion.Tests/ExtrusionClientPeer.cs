@@ -293,9 +293,9 @@ namespace Opc.Ua.Extrusion.Tests
             });
         }
 
-        internal static void AssertFailure(Func<Task> action, StatusCode expected)
+        internal static async Task AssertFailure(Func<Task> action, StatusCode expected)
         {
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await action().ConfigureAwait(false));
             Assert.That(failure!.StatusCode, Is.EqualTo(expected));
         }

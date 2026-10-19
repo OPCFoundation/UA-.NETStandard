@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.Tests.Channels
                         .ConfigureAwait(false));
                 }
 
-                ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await sut.GetAsync(
                             new TestParticipant("over-cap", GetTestEndpoint(serverCert, options.MaxChannels)),
                             default)

@@ -585,7 +585,7 @@ namespace Opc.Ua.Server.Tests
         /// the in-progress state.
         /// </summary>
         [Test]
-        public void FailedConditionRefreshClearsTheInProgressState()
+        public async Task FailedConditionRefreshClearsTheInProgressState()
         {
             using Subscription subscription = CreateSubscription(new FakeTimeProvider(), 1000, 10);
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new InvalidOperationException("refresh failed"));
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false));
             Assert.DoesNotThrow(() => subscription.ValidateConditionRefresh(context));
         }

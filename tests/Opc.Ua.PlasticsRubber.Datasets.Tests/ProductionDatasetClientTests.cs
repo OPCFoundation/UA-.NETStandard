@@ -65,12 +65,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// A peer's Error state remains a failure even when CloseAndCommit returned a successful service result.
         /// </summary>
         [Test]
-        public void UploadRejectsAsynchronousRemoteCommitError()
+        public async Task UploadRejectsAsynchronousRemoteCommitError()
         {
             var peer = new ProductionDatasetClientPeer { FailsCommit = true };
             var client = new ProductionDatasetClient(peer.Session.Object, peer.ManagementId);
             using var source = new MemoryStream([1]);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.UploadAsync(Options(), source).ConfigureAwait(false));
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(peer.StateReads, Is.EqualTo(2));
@@ -80,12 +80,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// A bad completion-state read cannot be interpreted as successful commit completion.
         /// </summary>
         [Test]
-        public void UploadPropagatesBadCompletionStateQuality()
+        public async Task UploadPropagatesBadCompletionStateQuality()
         {
             var peer = new ProductionDatasetClientPeer { BadStateQuality = true };
             var client = new ProductionDatasetClient(peer.Session.Object, peer.ManagementId);
             using var source = new MemoryStream([1]);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.UploadAsync(Options(), source).ConfigureAwait(false));
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
         }

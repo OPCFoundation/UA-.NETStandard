@@ -97,9 +97,9 @@ namespace Opc.Ua.GranulateDrying.Tests
             Task disposing = lifetime.DisposeAsync().AsTask();
             Assert.That(disposing.IsCompleted, Is.False);
             operation.Dispose();
-            Assert.ThrowsAsync<AggregateException>(async () =>
+            await Assert.ThrowsAsync<AggregateException>(async () =>
                 await disposing.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
-            Assert.ThrowsAsync<AggregateException>(async () =>
+            await Assert.ThrowsAsync<AggregateException>(async () =>
                 await lifetime.DisposeAsync().ConfigureAwait(false));
         }
     }

@@ -103,7 +103,6 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(100)]
         public async Task AddSubscriptionAsync()
         {
             using var defaultItemSource = new TestableSubscription(Telemetry);
@@ -155,7 +154,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             subscription.AddItem(list[0]);
             Assert.That(subscription.MonitoredItemCount, Is.EqualTo(1));
             Assert.That(subscription.ChangesPending, Is.True);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await subscription.CreateAsync().ConfigureAwait(false));
             bool result = await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false);
             Assert.That(result, Is.False);
@@ -216,7 +215,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             OutputSubscriptionInfo(TestContext.Out, subscription);
 
             await subscription.ConditionRefreshAsync().ConfigureAwait(false);
-            ServiceResultException sre = Assert
+            ServiceResultException sre = await Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await subscription.RepublishAsync(subscription.SequenceNumber + 100)
                     .ConfigureAwait(false));
@@ -245,7 +244,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(AddSubscriptionAsync), AllowFailure = true)]
         public async Task LoadSubscriptionAsync()
         {
             if (!File.Exists(m_subscriptionTestXml))
@@ -302,7 +301,6 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Theory]
-        [Order(300)]
         [CancelAfter(30_000)]
         /// <summary>
         /// This test doesn't deterministically prove sequential publishing,
@@ -310,6 +308,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         /// This test should be re-implemented with a Session that deterministically
         /// provides the wrong order of messages to Subscription.
         ///</summary>
+        [DependsOnTest(nameof(LoadSubscriptionAsync), AllowFailure = true)]
         public async Task SequentialPublishingSubscriptionAsync(bool enabled)
         {
             var subscriptionList = new List<Subscription>();
@@ -447,8 +446,8 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(30_000)]
+        [DependsOnTest(nameof(SequentialPublishingSubscriptionAsync), AllowFailure = true)]
         public async Task PublishRequestCountAsync()
         {
             var subscriptionList = new List<Subscription>();
@@ -492,7 +491,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                     var dict = list.ToDictionary(item => item.ClientHandle, _ => DateTime.MinValue);
 
                     subscription.AddItems(list);
-                    Assert.ThrowsAsync<ServiceResultException>(
+                    await Assert.ThrowsAsync<ServiceResultException>(
                         () => subscription.CreateAsync());
                     bool result = Session.AddSubscription(subscription);
                     Assert.That(result, Is.True);
@@ -550,7 +549,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(1000)]
+        [DependsOnTest(nameof(SetTriggeringTrackingAsync), AllowFailure = true)]
         public async Task FastKeepAliveCallbackAsync()
         {
             // add current time
@@ -669,7 +668,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             Assert.That(conditionRefresh, Is.True);
 
             ServiceResultException sre =
-                Assert.ThrowsAsync<ServiceResultException>(() =>
+                await Assert.ThrowsAsync<ServiceResultException>(() =>
                     subscription.RepublishAsync(subscription.SequenceNumber + 100));
             Assert.That(
                 sre.StatusCode,
@@ -684,7 +683,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         }
 
         [Test]
-        [Order(900)]
+        [DependsOnTest(nameof(PublishRequestCountAsync), AllowFailure = true)]
         public async Task SetTriggeringTrackingAsync()
         {
             // Create a subscription
@@ -783,7 +782,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
         /// CreateItemsAsync could include the same items in their create requests.
         /// </summary>
         [Test]
-        [Order(1100)]
+        [DependsOnTest(nameof(FastKeepAliveCallbackAsync), AllowFailure = true)]
         public async Task ConcurrentCreateItemsNoDuplicatesAsync()
         {
             using var subscription = new TestableSubscription(Session.DefaultSubscription);

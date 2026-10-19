@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(1u)]
         [TestCase(3u)]
-        public void DequeueDoesNotClaimPublication(uint queueSize)
+        public async Task DequeueDoesNotClaimPublication(uint queueSize)
         {
             using var harness = new Harness(queueSize);
             using var cancellation = new CancellationTokenSource();
@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
             Assert.That(observation.IsCompleted, Is.False);
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
 
             harness.Item.QueueValue(new DataValue(100), ServiceResult.Good);
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(100)));
@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
-        public void PartialQueueDrainKeepsWaitingForTheFinalEntry(bool discardOldest)
+        public async Task PartialQueueDrainKeepsWaitingForTheFinalEntry(bool discardOldest)
         {
             using var harness = new Harness(3, discardOldest);
             using var cancellation = new CancellationTokenSource();
@@ -91,14 +91,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(12)));
             Assert.That(observation.IsCompleted, Is.False, "Dequeue is not response construction.");
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
         }
 
         /// <summary>
         /// A zero-sized publication budget cannot consume a queue-size-one final value.
         /// </summary>
         [Test]
-        public void ZeroPublicationBudgetDoesNotConsumeFinalValue()
+        public async Task ZeroPublicationBudgetDoesNotConsumeFinalValue()
         {
             using var harness = new Harness(1);
             using var cancellation = new CancellationTokenSource();
@@ -106,31 +106,31 @@ namespace Opc.Ua.Server.Tests
             Assert.That(harness.Dequeue(0), Is.Empty);
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
         }
 
         /// <summary>
         /// An overlapping finalization fails without changing or cancelling its predecessor.
         /// </summary>
         [Test]
-        public void CompetingFinalizationDoesNotSupersedeTheFirst()
+        public async Task CompetingFinalizationDoesNotSupersedeTheFirst()
         {
             using var harness = new Harness(1);
             using var cancellation = new CancellationTokenSource();
             Task first = harness.ObserveAsync(42, cancellation.Token);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ObserveAsync(99, cancellation.Token).ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(first.IsCompleted, Is.False);
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await first.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await first.ConfigureAwait(false));
 
             using var retryCancellation = new CancellationTokenSource();
             Task retry = harness.ObserveAsync(99, retryCancellation.Token);
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(99)));
             retryCancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await retry.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await retry.ConfigureAwait(false));
         }
 
         /// <summary>
@@ -138,12 +138,12 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(1u)]
         [TestCase(3u)]
-        public void DeadlineUsesTimeProviderAndReleasesProtection(uint queueSize)
+        public async Task DeadlineUsesTimeProviderAndReleasesProtection(uint queueSize)
         {
             using var harness = new Harness(queueSize);
             Task observation = harness.ObserveAsync(42, CancellationToken.None);
             harness.Clock.Advance(TimeSpan.FromSeconds(5));
-            Assert.ThrowsAsync<TimeoutException>(async () => await observation.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TimeoutException>(async () => await observation.ConfigureAwait(false));
 
             harness.Item.QueueValue(new DataValue(100), ServiceResult.Good);
             harness.Item.QueueValue(new DataValue(101), ServiceResult.Good);
@@ -196,12 +196,12 @@ namespace Opc.Ua.Server.Tests
         /// Deleting the source before observation is a failure, not a successfully drained queue.
         /// </summary>
         [Test]
-        public void PrematureSourceDeletionFailsObservation()
+        public async Task PrematureSourceDeletionFailsObservation()
         {
             using var harness = new Harness(1);
             Task observation = harness.ObserveAsync(42, CancellationToken.None);
             ((IDetachableMonitoredItem)harness.Item).MarkNodeDeleted();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await observation.ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
@@ -210,11 +210,11 @@ namespace Opc.Ua.Server.Tests
         /// A custom subscription without observation support must not return a successful no-op.
         /// </summary>
         [Test]
-        public void UnsupportedSubscriptionFailsClearly()
+        public async Task UnsupportedSubscriptionFailsClearly()
         {
             using var harness = new Harness(1);
             harness.Item.SubscriptionCallback = new Mock<ISubscription>().Object;
-            Assert.ThrowsAsync<NotSupportedException>(
+            await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await harness.ObserveAsync(42, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -222,10 +222,10 @@ namespace Opc.Ua.Server.Tests
         /// A raw final value cannot be represented as the result of an aggregate filter.
         /// </summary>
         [Test]
-        public void AggregateFilterFailsClearly()
+        public async Task AggregateFilterFailsClearly()
         {
             using var harness = new Harness(1, filter: CreateAggregateFilter());
-            Assert.ThrowsAsync<NotSupportedException>(
+            await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await harness.ObserveAsync(42, CancellationToken.None).ConfigureAwait(false));
         }
 
@@ -233,14 +233,14 @@ namespace Opc.Ua.Server.Tests
         /// Introducing aggregation while a terminal observation is pending fails that observation.
         /// </summary>
         [Test]
-        public void AggregationChangeFailsThePendingObservation()
+        public async Task AggregationChangeFailsThePendingObservation()
         {
             using var harness = new Harness(1);
             Task observation = harness.ObserveAsync(42, CancellationToken.None);
             ServerAggregateFilter aggregate = CreateAggregateFilter();
             harness.Item.ModifyAttributes(
                 DiagnosticsMasks.None, TimestampsToReturn.Both, 1, aggregate, aggregate, null, 0, 1, true);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await observation.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
         }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(1u, 3u)]
         [TestCase(3u, 1u)]
-        public void QueueResizePreservesFinalSample(uint initialSize, uint revisedSize)
+        public async Task QueueResizePreservesFinalSample(uint initialSize, uint revisedSize)
         {
             using var harness = new Harness(initialSize);
             using var cancellation = new CancellationTokenSource();
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(harness.Dequeue(1).Peek().Value.WrappedValue, Is.EqualTo(new Variant(42)));
             Assert.That(observation.IsCompleted, Is.False);
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
         }
 
         /// <summary>
@@ -270,13 +270,13 @@ namespace Opc.Ua.Server.Tests
         [TestCase(0)]
         [TestCase(-1)]
         [TestCase(double.MaxValue)]
-        public void InvalidDeadlinesAreRejected(double milliseconds)
+        public async Task InvalidDeadlinesAreRejected(double milliseconds)
         {
             using var harness = new Harness(1);
             TimeSpan timeout = milliseconds == double.MaxValue
                 ? TimeSpan.MaxValue
                 : TimeSpan.FromMilliseconds(milliseconds);
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await harness.Item.WaitForValuePublicationAsync(
                     harness.Session, new DataValue(42), timeout).ConfigureAwait(false));
         }

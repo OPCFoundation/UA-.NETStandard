@@ -541,7 +541,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateBeforeActivateWithClientCertificateAndEmptySignatureThrows()
+        public async Task ValidateBeforeActivateWithClientCertificateAndEmptySignatureThrows()
         {
             using Certificate clientCertificate =
                 s_factory.CreateCertificate("CN=CoverageClient").CreateForRSA();
@@ -551,7 +551,7 @@ namespace Opc.Ua.Server.Tests
                 endpoint, channelId: "channel-1", clientCertificate: clientCertificate);
             OperationContext context = CreateContext(endpoint, channelId: "channel-1");
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
@@ -580,13 +580,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateBeforeActivateWithSecurityPolicyMismatchThrows()
+        public async Task ValidateBeforeActivateWithSecurityPolicyMismatchThrows()
         {
             using ServerSession session = CreateSession(CreateEndpoint(SecurityPolicies.None));
             OperationContext context = CreateContext(
                 CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
         /// activation detaches is disposed even when the channel check throws.
         /// </summary>
         [Test]
-        public void ValidateBeforeActivateFailureDisposesStalePreparedNonce()
+        public async Task ValidateBeforeActivateFailureDisposesStalePreparedNonce()
         {
             if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
             {
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server.Tests
                     System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                 .SetValue(session, stale);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
@@ -634,12 +634,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateBeforeActivateWithWrongChannelThrows()
+        public async Task ValidateBeforeActivateWithWrongChannelThrows()
         {
             using ServerSession session = CreateSession(CreateEndpoint(), channelId: "channel-1");
             OperationContext context = CreateContext(CreateEndpoint(), channelId: "other-channel");
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),
@@ -674,7 +674,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ValidateBeforeActivateAnonymousNotSupportedThrows()
+        public async Task ValidateBeforeActivateAnonymousNotSupportedThrows()
         {
             var tokens = new UserTokenPolicy[]
             {
@@ -684,7 +684,7 @@ namespace Opc.Ua.Server.Tests
             using ServerSession session = CreateSession(endpoint);
             OperationContext context = CreateContext(endpoint);
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ValidateBeforeActivateAsync(
                     context,
                     new SignatureData(),

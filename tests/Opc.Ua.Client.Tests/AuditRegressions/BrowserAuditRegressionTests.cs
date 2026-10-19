@@ -264,7 +264,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         /// references" for a node the server merely refused to browse.
         /// </summary>
         [Test]
-        public void FetchReferencesSurfacesTheBrowseError()
+        public async Task FetchReferencesSurfacesTheBrowseError()
         {
             using SessionMock session = SessionMock.Create();
 
@@ -280,7 +280,7 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
 
             var context = new NodeCacheContext(session);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await context
                     .FetchReferencesAsync(null, new NodeId("Denied", 2))
                     .ConfigureAwait(false));
@@ -400,13 +400,13 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
         /// browse and the continuation point is released.
         /// </summary>
         [Test]
-        public void SingleNodeBrowseGivesUpOnEndlessEmptyPagesAndReleases()
+        public async Task SingleNodeBrowseGivesUpOnEndlessEmptyPagesAndReleases()
         {
             using SessionMock session = SessionMock.Create();
             List<BrowseNextRequest> browseNexts = SetupEmptyPages(session, int.MaxValue);
 
             var browser = new Browser(session) { ContinueUntilDone = true };
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await browser.BrowseAsync(new NodeId("A", 2)).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
