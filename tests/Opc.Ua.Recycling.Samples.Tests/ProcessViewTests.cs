@@ -102,8 +102,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(wire.Tick, Is.EqualTo(expected.Tick));
             RecyclingCommand disable = CoordinatorTests.Command(
                 environment.Coordinator, RecyclingCommandKind.DisableProcess, process);
-            ServiceResultException unavailable = Assert.ThrowsAsync<ServiceResultException>(() =>
-                view.ForwardCommandAsync(RecyclingModelMapping.ToWire(disable), timeout.Token).AsTask())!;
+            ServiceResultException unavailable = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                view.ForwardCommandAsync(RecyclingModelMapping.ToWire(disable), timeout.Token).AsTask()))!;
             Assert.That(unavailable.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(environment.Coordinator.Current.Stages.Span.ToArray()
                 .Where(stage => stage.Process == process).All(static stage => stage.Enabled), Is.True);
@@ -135,8 +135,8 @@ namespace Opc.Ua.Recycling.Samples.Tests
             Assert.That(environment.Coordinator.Current.Stages[0].Enabled, Is.False);
             var substituted = new RecyclingUserCommandForwarder(
                 (_, _) => new ValueTask<RecyclingCoordinatorClient>(service));
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(() =>
-                substituted.ForwardAsync(principal, command, timeout.Token).AsTask())!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(() =>
+                substituted.ForwardAsync(principal, command, timeout.Token).AsTask()))!;
             Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
         }
     }

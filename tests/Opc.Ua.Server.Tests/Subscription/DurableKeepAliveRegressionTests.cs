@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests.NodeManager;
@@ -132,7 +133,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void PublishMissingQueueKeepsClosingSessionDistinct(bool closing)
+        public async Task PublishMissingQueueKeepsClosingSessionDistinct(bool closing)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -142,7 +143,7 @@ namespace Opc.Ua.Server.Tests
                 session.SetupGet(value => value.Id).Returns(new NodeId(1, 1));
                 session.SetupGet(value => value.IsClosing).Returns(closing);
                 using var context = new OperationContext(session.Object, DiagnosticsMasks.None);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.PublishAsync(context, [], null).ConfigureAwait(false));
                 Assert.That(error.StatusCode,
                     Is.EqualTo(closing ? StatusCodes.BadSessionClosed : StatusCodes.BadNoSubscription));

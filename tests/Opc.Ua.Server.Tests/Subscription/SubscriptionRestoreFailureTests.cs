@@ -53,14 +53,14 @@ namespace Opc.Ua.Server.Tests
     public sealed class SubscriptionRestoreFailureTests
     {
         [Test]
-        public void StoreThatThrowsFailsTheRestore()
+        public async Task StoreThatThrowsFailsTheRestore()
         {
             var failure = new InvalidOperationException("store unavailable");
             using var fixture = new Fixture(store => store
                 .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
                 .ThrowsAsync(failure));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
@@ -68,13 +68,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void StoreThatReportsFailureFailsTheRestore()
+        public async Task StoreThatReportsFailureFailsTheRestore()
         {
             using var fixture = new Fixture(store => store
                 .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new RestoreSubscriptionResult(false, null)));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
@@ -93,7 +93,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void SubscriptionThatCannotBeRestoredFailsTheRestore()
+        public async Task SubscriptionThatCannotBeRestoredFailsTheRestore()
         {
             using var fixture = new Fixture(
                 store => store
@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
                     .ReturnsAsync(new RestoreSubscriptionResult(true, [CreateStored(41)])),
                 failingSubscriptionId: 41);
 
-            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
 
             Assert.That(exception.InnerExceptions, Has.Count.EqualTo(1));
@@ -184,13 +184,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void StoreThatReportsFailureIsLoggedBeforeTheRestoreFails()
+        public async Task StoreThatReportsFailureIsLoggedBeforeTheRestoreFails()
         {
             using var fixture = new Fixture(store => store
                 .Setup(value => value.RestoreSubscriptionsAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new RestoreSubscriptionResult(false, null)));
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
 
             Assert.That(
@@ -222,7 +222,7 @@ namespace Opc.Ua.Server.Tests
                         [CreateStored(41), CreateStored(42)])),
                 failingSubscriptionId: 41);
 
-            Assert.ThrowsAsync<AggregateException>(
+            await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
 
             AssertNothingRestored(fixture);
@@ -269,7 +269,7 @@ namespace Opc.Ua.Server.Tests
                     });
             });
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
                     .ConfigureAwait(false));
 
@@ -308,7 +308,7 @@ namespace Opc.Ua.Server.Tests
                     .ReturnsAsync(stored),
                 nodeManager: source.Object);
 
-            Assert.ThrowsAsync<AggregateException>(
+            await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             AssertNothingRestored(fixture);
             Assert.That(
@@ -341,7 +341,7 @@ namespace Opc.Ua.Server.Tests
                 },
                 failingSubscriptionId: 41);
 
-            Assert.ThrowsAsync<AggregateException>(
+            await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             AssertNothingRestored(fixture);
 
@@ -374,7 +374,7 @@ namespace Opc.Ua.Server.Tests
             // queue, which discards the oldest stored value; then 43 fails, after every
             // write the restore scheduled reached the storage.
             fixture.Manager.BeforeFailure = queues.FlushAsync;
-            Assert.ThrowsAsync<AggregateException>(
+            await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             AssertNothingRestored(fixture);
             await queues.AssertDataChangeQueueKeptAsync(1002).ConfigureAwait(false);
@@ -427,7 +427,7 @@ namespace Opc.Ua.Server.Tests
                 nodeManager: source.Object);
 
             // 43's event item is recreated, then the restore of its other items is cancelled.
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
                     .ConfigureAwait(false));
             AssertNothingRestored(fixture);
@@ -475,7 +475,7 @@ namespace Opc.Ua.Server.Tests
 
             // The node manager releases the item, and with it the restored queue, when
             // the creation of the item fails.
-            AggregateException exception = Assert.ThrowsAsync<AggregateException>(
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync().ConfigureAwait(false));
             Assert.That(exception.InnerExceptions[0], Is.TypeOf<InvalidOperationException>());
             AssertNothingRestored(fixture);
@@ -513,7 +513,7 @@ namespace Opc.Ua.Server.Tests
                         [CreateStored(42), CreateStored(43, CreateStoredEventItem(1003, 43))])),
                 nodeManager: source.Object);
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await fixture.Manager.RestoreSubscriptionsAsync(cancellation.Token)
                     .ConfigureAwait(false));
             AssertNothingRestored(fixture);

@@ -171,9 +171,9 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
             Assert.Multiple(() =>
             {
                 Assert.That(services, Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(IPubSubCaptureRegistry)));
+                    d => d is not null && d.ServiceType == typeof(IPubSubCaptureRegistry)));
                 Assert.That(services, Has.Some.Matches<ServiceDescriptor>(
-                    d => d.ServiceType == typeof(PubSubCaptureSessionManager)));
+                    d => d is not null && d.ServiceType == typeof(PubSubCaptureSessionManager)));
             });
         }
 
@@ -193,9 +193,9 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
                 Assert.Multiple(() =>
                 {
                     Assert.That(services, Has.Some.Matches<ServiceDescriptor>(
-                        d => d.ServiceType == typeof(IHostedService)));
+                        d => d is not null && d.ServiceType == typeof(IHostedService)));
                     Assert.That(services, Has.Some.Matches<ServiceDescriptor>(
-                        d => d.ImplementationInstance is PubSubPcapEnvironmentOptions
+                        d => d is not null && d.ImplementationInstance is PubSubPcapEnvironmentOptions
                         {
                             PcapFilePath: not null
                         }));
@@ -217,7 +217,7 @@ namespace Opc.Ua.PubSub.Pcap.Tests.Formats
             services.AddPubSubPcapFromEnvironment();
 
             Assert.That(services, Has.None.Matches<ServiceDescriptor>(
-                d => d.ServiceType == typeof(IHostedService)));
+                d => d is not null && d.ServiceType == typeof(IHostedService)));
         }
 
         [Test]

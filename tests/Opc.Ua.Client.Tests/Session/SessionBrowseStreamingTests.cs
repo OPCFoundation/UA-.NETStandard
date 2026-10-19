@@ -132,14 +132,14 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void EnumerateReferencesAsyncRejectsSixteenConsecutiveEmptyPages()
+        public async Task EnumerateReferencesAsyncRejectsSixteenConsecutiveEmptyPages()
         {
             ByteString point = ByteString.From([3]);
             m_firstPage = Page(point);
             m_nextPage = (_, _) => Page(point);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => DrainAsync(Enumerate()))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => DrainAsync(Enumerate())))!;
 
             Assert.Multiple(() =>
             {
@@ -178,15 +178,15 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void EnumerateReferencesAsyncReleasesContinuationAfterNextPageFailure()
+        public async Task EnumerateReferencesAsyncReleasesContinuationAfterNextPageFailure()
         {
             ByteString point = ByteString.From([5]);
             var primary = new ServiceResultException(StatusCodes.BadCommunicationError);
             m_firstPage = Page(point, Reference("first"));
             m_nextPage = (_, _) => throw primary;
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                () => DrainAsync(Enumerate()))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => DrainAsync(Enumerate())))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(m_nextRequests.Select(r => (r.Release, r.Point)),
@@ -195,20 +195,20 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void EnumerateReferencesAsyncReleasesContinuationAfterConsumerFailure()
+        public async Task EnumerateReferencesAsyncReleasesContinuationAfterConsumerFailure()
         {
             ByteString point = ByteString.From([6]);
             var primary = new IOException("Consumer failed.");
             m_firstPage = Page(point, Reference("first"));
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
             {
                 await foreach (ReferenceDescription reference in Enumerate().ConfigureAwait(false))
                 {
                     Assert.That(reference.NodeId, Is.EqualTo(new ExpandedNodeId("first", 2)));
                     throw primary;
                 }
-            })!;
+            }))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(m_nextRequests.Select(r => (r.Release, r.Point)),
@@ -237,8 +237,8 @@ namespace Opc.Ua.Client.Tests
                 {
                     cancellation.Cancel();
                 }
-                OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(
-                    async () => await iterator.MoveNextAsync().ConfigureAwait(false))!;
+                OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await iterator.MoveNextAsync().ConfigureAwait(false)))!;
                 Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
             }
 
@@ -261,8 +261,8 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(iterator.Current.NodeId, Is.EqualTo(new ExpandedNodeId("first", 2)));
                 cancellation.Cancel();
 
-                OperationCanceledException exception = Assert.ThrowsAsync<OperationCanceledException>(
-                    async () => await iterator.MoveNextAsync().ConfigureAwait(false))!;
+                OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(
+                    async () => await iterator.MoveNextAsync().ConfigureAwait(false)))!;
                 Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
             }
 

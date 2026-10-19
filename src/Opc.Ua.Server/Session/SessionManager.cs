@@ -594,10 +594,14 @@ namespace Opc.Ua.Server
             PendingRestore? pendingRestore = null;
             if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
             {
-                (pendingRestore, restoredSession) = await JoinRestoreAsync(
-                    authenticationToken,
-                    context,
-                    cancellationToken).ConfigureAwait(false);
+                await using (((m_server.NodeManager as IDynamicNodeManagerBatchHost)?.SuspendBindingAdmission(context) ??
+                    BindingAdmissionSuspension.Empty).ConfigureAwait(false))
+                {
+                    (pendingRestore, restoredSession) = await JoinRestoreAsync(
+                        authenticationToken,
+                        context,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
 
             Nonce? serverNonceObject = null;

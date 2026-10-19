@@ -69,10 +69,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         [TestCase("method")]
         [TestCase("void-method")]
         [TestCase("session")]
-        public void FactoryRejectsMissingArgumentsBeforeBinding(string missing)
+        public async Task FactoryRejectsMissingArgumentsBeforeBinding(string missing)
         {
             var client = new AsyncServiceClient();
-            _ = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            _ = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             {
                 switch (missing)
                 {
@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     default:
                         throw new ArgumentException("Unknown missing argument.", nameof(missing));
                 }
-            });
+            }).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         {
             await using ScriptedOperationServer peer =
                 await ScriptedOperationServer.CreateAsync().ConfigureAwait(false);
-            Uuid id = Uuid.NewUuid();
+            var id = Uuid.NewUuid();
             SubmitServiceResponse admission = await peer.Owner.SubmitServiceAsync(
                 null, id, new ExtensionObject(CreateReadRequest()), 10_000, 5000, 0, peer.Timeout)
                 .ConfigureAwait(false);
@@ -137,10 +137,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using ScriptedOperationServer peer =
                 await ScriptedOperationServer.CreateAsync().ConfigureAwait(false);
             peer.LoseSubmission = true;
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peer.Owner.SubmitServiceAsync(
                     null, Uuid.NewUuid(), new ExtensionObject(CreateReadRequest()), 10_000, 5000, 0, peer.Timeout)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(peer.Submissions, Is.EqualTo(1));
         }
@@ -157,8 +157,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var client = new AsyncServiceClient();
             await using AsyncServiceOperation<ReadResponse> operation = await client.CreateReadAsync(
                 peer.Owner, CreateReadRequest(), peer.Timeout).ConfigureAwait(false);
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(operation.ServerToken.IsNull, Is.True);
             await peer.RecoverAsync().ConfigureAwait(false);
             _ = await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false);
@@ -170,8 +171,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(peer.Submissions, Is.EqualTo(1));
             Assert.That(peer.Acknowledgements, Is.EqualTo(1));
             Assert.That(operation.Invalidated.IsCompleted, Is.False);
-            _ = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(peer.Submissions, Is.EqualTo(1));
         }
 
@@ -254,8 +256,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 return default;
             });
             _ = await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false);
-            _ = Assert.ThrowsAsync<IOException>(async () =>
-                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<IOException>(async () =>
+                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(operation.Completion.IsCompleted, Is.False);
             Assert.That(peer.Acknowledgements, Is.Zero);
             _ = await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false);
@@ -371,8 +373,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Task disposing = operation.DisposeAsync().AsTask();
             try
             {
-                _ = Assert.ThrowsAsync<TaskCanceledException>(async () =>
-                    await operation.Completion.WaitAsync(peer.Timeout).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                    await operation.Completion.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 release.TrySetResult(true);
                 _ = await collecting.ConfigureAwait(false);
                 await disposing.ConfigureAwait(false);
@@ -402,8 +404,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                         ObjectTypeIds.RsaSha256ApplicationCertificateType, "CN=Synthetic", false, default, ct),
                 peer.Timeout).ConfigureAwait(false);
             _ = await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false);
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(operation.Completion.IsCompleted, Is.False);
             Assert.That(peer.Acknowledgements, Is.Zero);
             Assert.That(peer.Submissions, Is.EqualTo(1));
@@ -507,8 +509,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                         throw new ArgumentException("Unknown malformed envelope.", nameof(fault));
                 }
             };
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(operation.Completion.IsCompleted, Is.False);
             Assert.That(peer.Acknowledgements, Is.Zero);
             Assert.That(peer.Submissions, Is.EqualTo(1));

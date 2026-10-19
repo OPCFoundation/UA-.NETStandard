@@ -148,7 +148,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 Assert.That(dns.Calls, Is.Zero, "Construction and policy preflight must not resolve or connect.");
                 await using Stream connected = await mqtt.Options.GetStreamProvider()!.ConnectAsync(
                     new DnsEndPoint("broker.test", 1883), CancellationToken.None).ConfigureAwait(false);
-                ServiceResultException? changed = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? changed = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await mqtt.Options.GetStreamProvider()!.ConnectAsync(
                         new DnsEndPoint("broker.test", 1883), CancellationToken.None).ConfigureAwait(false));
 

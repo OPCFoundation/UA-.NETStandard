@@ -228,7 +228,7 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(() =>
                     m_node.UpdateCertificate!.OnCallAsync!(
                         m_context, m_node.UpdateCertificate, m_node.NodeId,
                         group, type, wrongUpload, [], string.Empty, ByteString.Empty, CancellationToken.None).AsTask());

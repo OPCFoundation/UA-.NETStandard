@@ -666,7 +666,7 @@ namespace Opc.Ua.Tools.Tests
                 await gate.Entered.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 Assert.That(m_fixture.ActiveStreams, Is.EqualTo(1));
                 await m_mcp.CancelAsync().ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Assert.CatchAsync<OperationCanceledException>(async () =>
                     await pending.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
                 await m_mcp.Finished.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 await gate.Closed.Task.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);

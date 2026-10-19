@@ -70,12 +70,12 @@ namespace Opc.Ua.MachineTool.Tests
             Task configure = peripheral.Measurements[0].SetTriggerAsync(
                 25, new WmtpRequest { SessionId = new NodeId("first", 1) }, cancellation.Token).AsTask();
             await entered.Task.ConfigureAwait(false);
-            ServiceResultException busy = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException busy = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.Measurements[0].SetDeltaAsync(
-                    Variant.From(2d), new WmtpRequest { SessionId = new NodeId("second", 1) }).ConfigureAwait(false))!;
+                    Variant.From(2d), new WmtpRequest { SessionId = new NodeId("second", 1) }).ConfigureAwait(false)))!;
             Assert.That(busy.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
             cancellation.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () => await configure.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await configure.ConfigureAwait(false));
             Assert.That(peripheral.Measurements[0].TriggerMilliseconds, Is.EqualTo(1000));
             Assert.That(peripheral.Measurements[0].State.DeltaCondition!.Value, Is.Zero);
             equipment.Authorization.Verify(provider => provider.AuthorizeAsync(
@@ -120,20 +120,20 @@ namespace Opc.Ua.MachineTool.Tests
             Task<ArrayOf<WMTPOutputDataType>> pending = first.WorkRecords!.ReadAsync(
                 new WmtpRecordQuery(), new WmtpRequest { SessionId = firstCaller }).AsTask();
             await entered.Task.ConfigureAwait(false);
-            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await first.AbortAsync(new WmtpRequest { SessionId = otherCaller }).ConfigureAwait(false))!;
+            ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await first.AbortAsync(new WmtpRequest { SessionId = otherCaller }).ConfigureAwait(false)))!;
             Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(pending.IsCompleted, Is.False);
             Assert.That(await second.WorkRecords!.CountAsync(
                 new WmtpRecordQuery(), new WmtpRequest { SessionId = otherCaller }).ConfigureAwait(false),
                 Is.EqualTo(1));
             await first.AbortAsync(new WmtpRequest { SessionId = firstCaller }).ConfigureAwait(false);
-            ServiceResultException aborted = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await pending.ConfigureAwait(false))!;
+            ServiceResultException aborted = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await pending.ConfigureAwait(false)))!;
             Assert.That(aborted.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
             Assert.That(await second.WorkRecords.CountAsync(new WmtpRecordQuery(), new WmtpRequest())
                 .ConfigureAwait(false), Is.EqualTo(1));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await second.WorkRecords.CountAsync(new WmtpRecordQuery(),
                     new WmtpRequest { PeripheralId = first.NodeId }).ConfigureAwait(false));
         }
@@ -177,7 +177,7 @@ namespace Opc.Ua.MachineTool.Tests
             await cancellationSeen.Task.ConfigureAwait(false);
             bool providerPending = !dispose.IsCompleted;
             providerRelease.TrySetResult(true);
-            Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await pending.ConfigureAwait(false));
             await resourceEntered.Task.ConfigureAwait(false);
             Task repeated = peripheral.DisposeAsync().AsTask();
             bool resourcePending = !repeated.IsCompleted;
@@ -187,7 +187,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(resourcePending, Is.True);
             resource.Verify(owned => owned.DisposeAsync(), Times.Once);
             Assert.That(fixture.Context.Manager.FindPredefinedNode(peripheral.NodeId), Is.Null);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await peripheral.RefreshAsync().ConfigureAwait(false));
         }
 
@@ -207,13 +207,13 @@ namespace Opc.Ua.MachineTool.Tests
                     It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()))
                 .Returns(async (string _, uint _, Variant _, CancellationToken _) =>
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await peripheral.DisposeAsync().ConfigureAwait(false))!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await peripheral.DisposeAsync().ConfigureAwait(false)))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                     await Task.Yield();
                     return StatusCodes.BadNotSupported;
                 });
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await peripheral.Measurements[0].SetTriggerAsync(3, new WmtpRequest()).ConfigureAwait(false));
             Assert.That(peripheral.Measurements[0].TriggerMilliseconds, Is.EqualTo(1000));
         }
@@ -266,9 +266,9 @@ namespace Opc.Ua.MachineTool.Tests
             bool cancellationWasDelivered = primaryCancelled.Task.IsCompleted;
             primaryRelease.TrySetResult(true);
             abortRelease.TrySetResult(true);
-            Assert.CatchAsync<OperationCanceledException>(async () => await primary.ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () => await abort.ConfigureAwait(false));
-            Assert.ThrowsAsync<AggregateException>(async () => await disposal.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await primary.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await abort.ConfigureAwait(false));
+            await Assert.ThrowsAsync<AggregateException>(async () => await disposal.ConfigureAwait(false));
             Assert.That(cancellationWasDelivered, Is.True);
             resource.Verify(owned => owned.DisposeAsync(), Times.Once);
             Assert.That(fixture.Context.Manager.FindPredefinedNode(peripheral.NodeId), Is.Null);

@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await cancellation.CancelAsync();
             await consensus.CommitAsync(1);
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await snapshot.WaitAsync(TimeSpan.FromSeconds(10)));
             ValueTask<RaftKeyValueSnapshot> next = store.CreateSnapshotAsync();
             await consensus.CommitAsync(1);
@@ -233,7 +233,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await source.SetAsync("a", ByteString.From(new byte[] { 1 }));
             RaftKeyValueSnapshot snapshot = await source.CreateSnapshotAsync();
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await source.RestoreSnapshotAsync(snapshot.Data));
         }
 
@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             consensus.CompleteStart();
             await set;
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await restore);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await restore);
             (bool found, _) = await store.TryGetAsync("applied");
             Assert.That(found, Is.True, "the restore did not erase what the started store applied");
         }
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             RaftKeyValueSnapshot snapshot = await source.CreateSnapshotAsync();
             await using var store = new RaftSharedKeyValueStore();
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () => await store.RestoreSnapshotAsync(snapshot.Data, (RaftSnapshotLogReplay)7));
         }
 
@@ -294,7 +294,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             };
             await using var store = new RaftSharedKeyValueStore();
 
-            Assert.ThrowsAsync<FormatException>(
+            await Assert.ThrowsAsync<FormatException>(
                 async () => await store.RestoreSnapshotAsync(ByteString.From(data)));
         }
 

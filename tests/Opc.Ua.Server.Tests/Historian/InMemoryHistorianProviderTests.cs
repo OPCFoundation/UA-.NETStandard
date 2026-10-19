@@ -1126,7 +1126,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     1));
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await provider.ReadModifiedAsync(
                         context,
                         new HistorianModifiedReadRequest

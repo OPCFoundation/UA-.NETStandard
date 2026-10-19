@@ -114,8 +114,8 @@ namespace Opc.Ua.MachineTool.Tests
                 .WithProvider(new InMemoryMachineToolProvider(new MachineToolSnapshot()))
                 .WithIdentification(identity => identity.Manufacturer = new LocalizedText("Manufacturer"));
 
-            ServiceResultException invalid = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             await using MachineToolRuntime<MachineToolState> runtime = await builder
                 .WithIdentification(identity =>
@@ -302,8 +302,8 @@ namespace Opc.Ua.MachineTool.Tests
                     identity.ProductInstanceUri = "urn:test:additional-1";
                 });
 
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException missing = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             await using MachineToolRuntime<MachineToolState> runtime = await builder.WithIdentification(identity =>
             {

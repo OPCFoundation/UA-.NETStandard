@@ -57,7 +57,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             await slot.DisposeAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await slot.GetAsync(CancellationToken.None).ConfigureAwait(false));
             Assert.That(factory.OpenCount, Is.Zero, "A disposed slot must never open a channel.");
         }
@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await slot.GetAsync(CancellationToken.None).ConfigureAwait(false);
             await slot.DisposeAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await slot.GetAsync(CancellationToken.None).ConfigureAwait(false));
             Assert.That(factory.OpenCount, Is.EqualTo(1), "A disposed slot must never open a second channel.");
             Assert.That(channel.DisposeCount, Is.EqualTo(1));
@@ -113,7 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             // Post-race: the slot is disposed, so no later GetAsync may open
             // another channel.
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await slot.GetAsync(CancellationToken.None).ConfigureAwait(false));
             Assert.That(factory.OpenCount, Is.EqualTo(1));
         }

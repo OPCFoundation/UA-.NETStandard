@@ -238,7 +238,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             Assert.That((await client.DesiccantBedsAsync().ConfigureAwait(false)).Count, Is.Zero);
             Assert.That(await client.UsersAsync().ConfigureAwait(false), Is.Null);
             Assert.That((await client.MaintenanceAsync().ConfigureAwait(false)).Count, Is.Zero);
-            AssertUaFailure(async () => await client.DisplayLanguage.WriteAsync("en").ConfigureAwait(false),
+            await AssertUaFailure(async () => await client.DisplayLanguage.WriteAsync("en").ConfigureAwait(false),
                 StatusCodes.BadNotSupported);
         }
 
@@ -255,9 +255,9 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingDeviceClient client = m_host.Client.Device(device.NodeId);
             GranulateDryingOperationClient operation = await client.OperationAsync().ConfigureAwait(false);
             Assert.That((await operation.RemoteControlOpcUa.ReadAsync().ConfigureAwait(false)).Value, Is.False);
-            AssertUaFailure(async () => await operation.DeviceMappingNumber.WriteAsync(7).ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.DeviceMappingNumber.WriteAsync(7).ConfigureAwait(false),
                 StatusCodes.BadNotWritable);
-            AssertUaFailure(async () => await operation.Proxy.IdentifyDeviceAsync().ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.Proxy.IdentifyDeviceAsync().ConfigureAwait(false),
                 StatusCodes.BadNotExecutable);
             Assert.Multiple(() =>
             {
@@ -372,9 +372,9 @@ namespace Opc.Ua.GranulateDrying.Tests
                 Assert.That((observed.Value.SystemContext as ISessionSystemContext)!.SessionId,
                     Is.EqualTo(m_host.Session.SessionId));
             });
-            AssertUaFailure(async () => await parameter.LowerTolerance.WriteAsync(3).ConfigureAwait(false),
+            await AssertUaFailure(async () => await parameter.LowerTolerance.WriteAsync(3).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
-            AssertUaFailure(async () => await parameter.MonitoringSensitivity.WriteAsync(3).ConfigureAwait(false),
+            await AssertUaFailure(async () => await parameter.MonitoringSensitivity.WriteAsync(3).ConfigureAwait(false),
                 StatusCodes.BadOutOfRange);
             parameters.Verify(provider => provider.WriteSettingAsync(It.IsAny<PlasticsRubberRequestContext>(),
                 MonitoredParameterSetting.SetValue, 188.0, It.IsAny<CancellationToken>()), Times.Once);
@@ -483,7 +483,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             GranulateDryingDevice device = await m_host.CreateAsync(options, authority).ConfigureAwait(false);
             GranulateDryingBinClient bin = (await m_host.Client.Device(device.NodeId).BinsAsync()
                 .ConfigureAwait(false))[0];
-            AssertUaFailure(async () => await bin.AirFlowMode.WriteAsync(AirFlowModeEnumeration.INTERVAL)
+            await AssertUaFailure(async () => await bin.AirFlowMode.WriteAsync(AirFlowModeEnumeration.INTERVAL)
                 .ConfigureAwait(false), StatusCodes.BadNotSupported);
             Assert.That(authority.LastCommand, Is.Null);
         }
@@ -510,7 +510,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                     new GranulateDryingMaintenanceOptions { Id = "same", DisplayName = new LocalizedText("Second") }
                 ]
             }).Validate());
-            AssertUaFailure(async () => await m_host.CreateAsync(
+            await AssertUaFailure(async () => await m_host.CreateAsync(
                 basic with { OptionalMembers = ["Operation/NotAStandardMember"] }, new DryingAuthority())
                 .ConfigureAwait(false), StatusCodes.BadBrowseNameInvalid);
             Assert.That((await m_host.Client.DiscoverDevicesAsync().ConfigureAwait(false))
@@ -617,11 +617,11 @@ namespace Opc.Ua.GranulateDrying.Tests
             Assert.That(await values.ComponentName.WriteAsync(new LocalizedText("fr",
                 "Sécheur B")).ConfigureAwait(false),
                 Is.EqualTo(StatusCodes.Good));
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await values.SerialNumber.WriteAsync("replacement").ConfigureAwait(false), StatusCodes.BadNotWritable);
             peer.ExpectTranslation(identification, [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }],
                 false, peer.Machinery("Location"));
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await values.Location.WriteAsync("absent").ConfigureAwait(false), StatusCodes.BadNotSupported);
             peer.Verify();
         }
@@ -667,13 +667,13 @@ namespace Opc.Ua.GranulateDrying.Tests
         }
 
         [Test]
-        public void GddGoodPayloadWithWrongNativeTypeIsRejected()
+        public async Task GddGoodPayloadWithWrongNativeTypeIsRejected()
         {
             var peer = new GranulateDryingClientPeer();
             NodeId owner = GranulateDryingClientPeer.DeviceId;
             NodeId node = peer.ExpectPath(owner, peer.Common("ActualValue"));
             peer.ExpectRead(node, GranulateDryingClientPeer.Sample(Variant.From(27)));
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await peer.Client.Parameter(new MonitoredParameterTypeClient(peer.Session.Object, owner,
                     peer.Telemetry))
                     .ActualValue.ReadAsync().ConfigureAwait(false), StatusCodes.BadTypeMismatch);
@@ -703,13 +703,13 @@ namespace Opc.Ua.GranulateDrying.Tests
 
         [TestCase(0)]
         [TestCase(2)]
-        public void GddReadResponseCountsMustMatchTheOneRequestedValue(int count)
+        public async Task GddReadResponseCountsMustMatchTheOneRequestedValue(int count)
         {
             var peer = new GranulateDryingClientPeer();
             NodeId node = peer.ExpectPath(GranulateDryingClientPeer.DeviceId, peer.Gdd("DisplayLanguage"));
             peer.ExpectRead(node, Enumerable.Repeat(
                 GranulateDryingClientPeer.Sample(Variant.From("de-DE")), count).ToArray());
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await peer.Client.Device(GranulateDryingClientPeer.DeviceId).DisplayLanguage.ReadAsync()
                     .ConfigureAwait(false), StatusCodes.BadUnexpectedError);
             peer.Verify();
@@ -721,7 +721,7 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase("TwoTargets")]
         [TestCase("Incomplete")]
         [TestCase("AccessDenied")]
-        public void GddPathsUseQualifiedNamesAndValidateTranslationShapes(string shape)
+        public async Task GddPathsUseQualifiedNamesAndValidateTranslationShapes(string shape)
         {
             var peer = new GranulateDryingClientPeer();
             StatusCode expectedStatus = shape is "NoResults" or "TwoResults"
@@ -740,7 +740,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 default: throw new ArgumentOutOfRangeException(nameof(shape));
             }
             peer.ExpectTranslation(GranulateDryingClientPeer.DeviceId, results, false, peer.Gdd("DisplayLanguage"));
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await peer.Client.Device(GranulateDryingClientPeer.DeviceId).DisplayLanguage.ReadAsync()
                     .ConfigureAwait(false), expectedStatus);
             peer.Verify();
@@ -831,14 +831,14 @@ namespace Opc.Ua.GranulateDrying.Tests
                     Variant.From(0.75), 0.75).ConfigureAwait(false);
                 await ReadValueAsync(peer, parameter.SetRampDown, id, peer.Common("SetRampDown"),
                     Variant.From(2.25), 2.25).ConfigureAwait(false);
-                GranulateDryingClientPeer.AssertFailure(async () =>
+                await GranulateDryingClientPeer.AssertFailure(async () =>
                     await parameter.SetRampUp.WriteAsync(1.5, peer.Token).ConfigureAwait(false),
                         StatusCodes.BadNotWritable);
-                GranulateDryingClientPeer.AssertFailure(async () =>
+                await GranulateDryingClientPeer.AssertFailure(async () =>
                     await parameter.SetRampDown.WriteAsync(3.5, peer.Token).ConfigureAwait(false),
                         StatusCodes.BadNotWritable);
             }
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await parameter.Status.WriteAsync(1, peer.Token).ConfigureAwait(false), StatusCodes.BadNotWritable);
             peer.Verify();
         }
@@ -916,7 +916,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 Variant.From(false), false, true, Variant.From(true)).ConfigureAwait(false);
             await ReadValueAsync(peer, loop.AutoTuningActive, child, peer.Common("AutoTuningActive"),
                 Variant.From(true), true).ConfigureAwait(false);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await loop.AutoTuningActive.WriteAsync(false).ConfigureAwait(false), StatusCodes.BadNotWritable);
             peer.Verify();
         }
@@ -985,7 +985,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 Assert.That(catalogue.DataValue.SourceTimestamp, Is.EqualTo(GranulateDryingClientPeer.SourceTime));
                 Assert.That(catalogue.DataValue.ServerTimestamp, Is.EqualTo(GranulateDryingClientPeer.ServerTime));
             });
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await configuration.PageDirectory.WriteAsync([]).ConfigureAwait(false), StatusCodes.BadNotWritable);
             Assert.That(energy.Proxy.ObjectId, Is.EqualTo(energyId));
             Assert.That(configuration.Proxy.ObjectId, Is.EqualTo(configurationId));
@@ -1048,13 +1048,13 @@ namespace Opc.Ua.GranulateDrying.Tests
         [TestCase(0)]
         [TestCase(2)]
         [TestCase(1)]
-        public void GddWritesPreserveNativeTypesAndServiceStatuses(int resultCount)
+        public async Task GddWritesPreserveNativeTypesAndServiceStatuses(int resultCount)
         {
             var peer = new GranulateDryingClientPeer();
             NodeId node = peer.ExpectPath(GranulateDryingClientPeer.DeviceId, peer.Gdd("DisplayLanguage"));
             peer.ExpectWrite(node, value => Assert.That(value, Is.EqualTo(Variant.From("ja-JP"))),
                 Enumerable.Repeat(StatusCodes.BadUserAccessDenied, resultCount).ToArray());
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await peer.Client.Device(GranulateDryingClientPeer.DeviceId).DisplayLanguage.WriteAsync("ja-JP")
                     .ConfigureAwait(false),
                 resultCount == 1 ? StatusCodes.BadUserAccessDenied : StatusCodes.BadUnexpectedError);
@@ -1158,7 +1158,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                 StatusCodes.GoodClamped);
             Assert.That(await bed.TemperatureSetValue.WriteAsync(122.5, peer.Token).ConfigureAwait(false),
                 Is.EqualTo(StatusCodes.GoodClamped));
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await bin.Temperature.WriteAsync(83, peer.Token).ConfigureAwait(false), StatusCodes.BadNotWritable);
             peer.Verify();
         }
@@ -1202,7 +1202,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             await ReadValueAsync(peer, bin.ResetDryingTimeResponseStatus, binId,
                 peer.Gdd("ResetDryingTimeResponseStatus"),
                 Variant.From(resetTime), resetTime).ConfigureAwait(false);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await bin.ResetDryingTimeResponseStatus.WriteAsync(resetTime).ConfigureAwait(false),
                     StatusCodes.BadNotWritable);
             NodeId operationId = peer.ExpectChild(GranulateDryingClientPeer.DeviceId, peer.Gdd("Operation"));
@@ -1224,9 +1224,9 @@ namespace Opc.Ua.GranulateDrying.Tests
             NodeId identification = peer.ExpectChild(GranulateDryingClientPeer.DeviceId, peer.Di("Identification"));
             GranulateDryingIdentificationClient values = await peer.Client.Device(GranulateDryingClientPeer.DeviceId)
                 .IdentificationValuesAsync().ConfigureAwait(false);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await values.MonthOfConstruction.WriteAsync(7).ConfigureAwait(false), StatusCodes.BadNotWritable);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await
                     values.InitialOperationDate.WriteAsync(GranulateDryingClientPeer.SourceTime).ConfigureAwait(false),
                 StatusCodes.BadNotWritable);

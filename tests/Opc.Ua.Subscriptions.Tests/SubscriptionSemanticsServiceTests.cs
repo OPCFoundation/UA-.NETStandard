@@ -169,7 +169,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     await Session.DeleteSubscriptionsAsync(null, [own.SubscriptionId], CancellationToken.None)
                         .ConfigureAwait(false);
                 }
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await Session.PublishAsync(
                         new RequestHeader { TimeoutHint = 1000 }, [], CancellationToken.None).ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
@@ -229,7 +229,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 Assert.That(subscription.ReadDiagnostics(d => d.RepublishMessageRequestCount), Is.EqualTo(1));
                 Assert.That(subscription.ReadDiagnostics(d => d.RepublishMessageCount), Is.EqualTo(1));
 
-                ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException missing = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await Session.RepublishAsync(null, created.SubscriptionId, uint.MaxValue, deadline.Token)
                         .ConfigureAwait(false));
                 Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
@@ -240,7 +240,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 using var other = await OpenAuxSessionAsync().ConfigureAwait(false);
                 try
                 {
-                    ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await other.RepublishAsync(
                             null, created.SubscriptionId, published.NotificationMessage.SequenceNumber, deadline.Token)
                             .ConfigureAwait(false));

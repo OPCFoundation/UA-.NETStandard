@@ -265,14 +265,14 @@ namespace Opc.Ua.Server.Tests.Programs
         }
 
         [Test]
-        public void InvalidVendorCreateOutputsRollBackTheInvocation()
+        public async Task InvalidVendorCreateOutputsRollBackTheInvocation()
         {
             m_creationAdapter.InvalidOutput = true;
             NodeId typeId = ExpandedNodeId.ToNodeId(
                 Model.ObjectTypeIds.NamedProgramType, m_session.MessageContext.NamespaceUris);
             var proxy = new NamedProgramTypeClient(m_session, typeId, m_telemetry);
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await proxy.CreateAsync("Rejected").ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await proxy.CreateAsync("Rejected").ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(m_factory.Manager!.GetInstanceCount(Model.ObjectTypeIds.NamedProgramType), Is.Zero);
             Assert.That(m_namedExecution!.Disposed, Is.True);

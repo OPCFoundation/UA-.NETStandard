@@ -182,11 +182,11 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void PreCancellationStopsDocumentSetConversion()
+        public async Task PreCancellationStopsDocumentSetConversion()
         {
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await WotNodeSetConverter.FromNodeSetDocumentsAsync(
                     Nodes(2), "nodes", cancellationToken: cancellation.Token).ConfigureAwait(false));
         }

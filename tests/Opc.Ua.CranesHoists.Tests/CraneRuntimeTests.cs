@@ -297,8 +297,8 @@ namespace Opc.Ua.CranesHoists.Tests
             invalid = CraneRuntimeTestData.Replace(invalid,
                 CraneRuntimeTestData.Sample(name, CraneSignal.SystemOn, Variant.From(false)));
             await provider.SetSamplesAsync(invalid).ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await crane.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await crane.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(crane.ReadSignal(new(name, CraneSignal.SystemOn)).WrappedValue.GetBoolean(), Is.True);
             Assert.That(crane.ReadSignal(new("Overload", CraneSignal.Enabled)).WrappedValue.GetBoolean(), Is.True);
@@ -377,8 +377,8 @@ namespace Opc.Ua.CranesHoists.Tests
             string name = NextName();
             await using var provider = new SimulatedCraneProvider([]);
             CranesHoistsBuildContext context = Context();
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await CraneRuntimeTestData.Define(context, name, provider).BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await CraneRuntimeTestData.Define(context, name, provider).BuildAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
             Assert.That(context.ConformanceUnits, Is.Empty);
             Assert.That(m_fixture.ReservedCount, Is.Zero, m_fixture.ReservedNames);

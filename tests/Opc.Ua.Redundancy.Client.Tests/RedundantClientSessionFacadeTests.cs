@@ -215,11 +215,11 @@ namespace Opc.Ua.Client.Redundancy.Tests
         [TestCase("submit")]
         [TestCase("get")]
         [TestCase("control")]
-        public void RecoverableServicesAreNotDelegatedToARetargetableSession(string service)
+        public async Task RecoverableServicesAreNotDelegatedToARetargetableSession(string service)
         {
             var session = new Mock<ISession>();
             RedundantClientSession facade = CreateLeaderFacade(session);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 switch (service)
                 {
@@ -240,7 +240,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     default:
                         throw new ArgumentException("Unknown experimental Service.", nameof(service));
                 }
-            })!;
+            }).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             session.Verify(value => value.SubmitServiceAsync(
                 It.IsAny<RequestHeader?>(), It.IsAny<Uuid>(), It.IsAny<ExtensionObject>(),

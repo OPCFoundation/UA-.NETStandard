@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Tests
         /// the keep alive worker handles, not with an unexpected exception.
         /// </summary>
         [Test]
-        public void KeepAliveReadAfterTheChannelIsDetachedFailsWithBadSecureChannelClosed()
+        public async Task KeepAliveReadAfterTheChannelIsDetachedFailsWithBadSecureChannelClosed()
         {
             using KeepAliveTestSession session = CreateSession(new FakeTimeProvider());
 
@@ -271,7 +271,7 @@ namespace Opc.Ua.Client.Tests
             session.DetachChannel();
 #pragma warning restore CS0618
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ReadAsync(
                     new RequestHeader(),
                     0,

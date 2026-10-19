@@ -631,10 +631,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 if (outcome == "handshake-failure")
                 {
                     handshake.TrySetResult(new ServiceResult(StatusCodes.BadSecurityChecksFailed));
-                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await connected.ConfigureAwait(false));
                     Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
-                    ServiceResultException serviceError = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException serviceError = await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await available.ConfigureAwait(false));
                     Assert.That(serviceError.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
                     Assert.That(restoring.Task.IsCompleted, Is.False);
@@ -658,11 +658,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 else if (outcome == "failure")
                 {
                     finish.TrySetResult(new ServiceResult(StatusCodes.BadResourceUnavailable));
-                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await connected.ConfigureAwait(false));
                     Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
                     Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
-                    ServiceResultException serviceError = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException serviceError = await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await machine.WaitForServiceAvailabilityAsync(timeout.Token).ConfigureAwait(false));
                     Assert.That(serviceError.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
                 }
@@ -888,7 +888,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             using var cts = new CancellationTokenSource(
                 TimeSpan.FromSeconds(10));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sm.WaitForConnectedAsync(cts.Token)
                     .ConfigureAwait(false));
 
@@ -922,7 +922,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             sm.RequestClose();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await waitTask.ConfigureAwait(false));
 
             Assert.That(
@@ -1325,7 +1325,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
             machine.TriggerReconnect();
             await disconnected.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false));
 
             time.Advance(TimeSpan.FromMinutes(1));

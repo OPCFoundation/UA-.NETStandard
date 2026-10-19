@@ -230,13 +230,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 sut.TryAdd("Item4", OptionsFactory.Create<MonitoredItemOptions>(), out IMonitoredItem? existingItem4);
 
                 sut.NotifySubscriptionManagerPaused(true);
-                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
+                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => i is not null && ((TestMonitoredItem)i).Paused));
                 sut.NotifySubscriptionManagerPaused(false);
-                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
+                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => i is not null && !((TestMonitoredItem)i).Paused));
                 sut.NotifySubscriptionManagerPaused(false);
-                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => !((TestMonitoredItem)i).Paused));
+                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => i is not null && !((TestMonitoredItem)i).Paused));
                 sut.NotifySubscriptionManagerPaused(true);
-                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => ((TestMonitoredItem)i).Paused));
+                Assert.That(sut.Items, Has.All.Matches<IMonitoredItem>(i => i is not null && ((TestMonitoredItem)i).Paused));
 
                 // Assert
                 // no-op: FakeMonitoredItemManagerContext records calls; verifications are inline.

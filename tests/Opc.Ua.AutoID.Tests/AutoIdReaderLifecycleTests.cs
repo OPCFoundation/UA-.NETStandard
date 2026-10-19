@@ -160,9 +160,9 @@ namespace Opc.Ua.AutoID.Tests
                 .ConfigureAwait(false);
             int before = m_fixture.Runtime.Readers.Count;
 
-            ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_fixture.Runtime.CreateReaderAsync(m_fixture.Name(Unique("Dock")), new FakeProvider())
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(duplicate.StatusCode, Is.EqualTo((uint)StatusCodes.BadBrowseNameDuplicated));
             Assert.That(m_fixture.Runtime.Readers.Count, Is.EqualTo(before));
@@ -211,7 +211,7 @@ namespace Opc.Ua.AutoID.Tests
             m_fixture.Runtime.ReaderRegisteredForTest = _ => throw new InvalidOperationException("registration failed");
             try
             {
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_fixture.Runtime.CreateReaderAsync(m_fixture.Name(Unique("Dock")), provider)
                         .ConfigureAwait(false));
             }
@@ -234,14 +234,14 @@ namespace Opc.Ua.AutoID.Tests
         }
 
         [Test]
-        public Task AProviderThatFailsToAttachRollsTheReaderBackAsync()
+        public async Task AProviderThatFailsToAttachRollsTheReaderBackAsync()
         {
             var provider = new FakeProvider { AttachException = new InvalidOperationException("no hardware") };
             int before = m_fixture!.Runtime.Readers.Count;
 
-            InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await m_fixture!.Runtime.CreateReaderAsync(m_fixture.Name(Unique("Dock")), provider)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -250,15 +250,14 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(m_fixture!.Runtime.Readers.Count, Is.EqualTo(before));
                 Assert.That(provider.DetachCalls, Is.EqualTo(1));
             });
-            return Task.CompletedTask;
         }
 
         [Test]
-        public Task ABrokenIdentificationRollsTheReaderBackAsync()
+        public async Task ABrokenIdentificationRollsTheReaderBackAsync()
         {
             var provider = new FakeProvider();
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await m_fixture!.Runtime.Reader(m_fixture.Name(Unique("Dock")), provider)
                     .WithIdentification(_ => throw new InvalidOperationException("bad nameplate"))
                     .BuildAsync().ConfigureAwait(false));
@@ -268,7 +267,6 @@ namespace Opc.Ua.AutoID.Tests
                 Assert.That(DeviceSetChild("Dock"), Is.Null);
                 Assert.That(provider.AttachCalls, Is.Zero, "the provider is attached last");
             });
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -303,7 +301,8 @@ namespace Opc.Ua.AutoID.Tests
             IAutoIdReaderBuilder builder = m_fixture!.Runtime.Reader(m_fixture.Name(Unique("Once")), new FakeProvider());
             await builder.BuildAsync().ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () => await builder.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await builder.BuildAsync().ConfigureAwait(false));
         }
 
         [Test]
@@ -340,15 +339,15 @@ namespace Opc.Ua.AutoID.Tests
             await own.Runtime.DisposeAsync().ConfigureAwait(false);
             await own.Runtime.DisposeAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(provider.DetachCalls, Is.EqualTo(1));
                 Assert.That(provider.Disposed, Is.EqualTo(owned));
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await reader.ReportPresenceAsync(1).ConfigureAwait(false));
                 Assert.Throws<ObjectDisposedException>(
                     () => own.Runtime.Reader(own.Name("Late"), new FakeProvider()));
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await own.Runtime.CreateReaderAsync(own.Name("Late"), new FakeProvider())
                         .ConfigureAwait(false));
             });
@@ -401,7 +400,8 @@ namespace Opc.Ua.AutoID.Tests
 
             await own.Runtime.DisposeAsync().ConfigureAwait(false);
 
-            ServiceResultException halted = Assert.ThrowsAsync<ServiceResultException>(async () => await call.ConfigureAwait(false))!;
+            ServiceResultException halted = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await call.ConfigureAwait(false)))!;
             Assert.That(halted.StatusCode, Is.EqualTo((uint)StatusCodes.BadServerHalted));
         }
 

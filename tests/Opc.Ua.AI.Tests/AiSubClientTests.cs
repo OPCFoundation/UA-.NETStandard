@@ -728,11 +728,11 @@ namespace Opc.Ua.AI.Tests
         }
 
         [Test]
-        public void ModelReadResourceAsyncWithNullNodeIdThrows()
+        public async Task ModelReadResourceAsyncWithNullNodeIdThrows()
         {
             var h = new AISessionHarness();
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await h.Client.Model(h.ModelNodeId)
                     .ReadResourceAsync(NodeId.Null).ConfigureAwait(false));
         }

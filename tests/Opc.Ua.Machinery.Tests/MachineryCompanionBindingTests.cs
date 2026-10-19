@@ -101,8 +101,8 @@ namespace Opc.Ua.Machinery.Tests
                 .WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(failing.Object))
                 .BuildAsync();
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await fixture.Manager.DeleteNodeAsync(fixture.Manager.SystemContext, machine.NodeId))!;
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await fixture.Manager.DeleteNodeAsync(fixture.Manager.SystemContext, machine.NodeId)))!;
 
             Assert.That(error.Message, Is.EqualTo("owned cleanup failed"));
             first.Verify(value => value.DisposeAsync(), Times.Once);
@@ -376,8 +376,8 @@ namespace Opc.Ua.Machinery.Tests
             builder.State.AddChild(management);
             builder.WithJobManagement(management, jobs => jobs.WithJobOrderReceiver(receiver.Object));
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await builder.BuildAsync())!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.BuildAsync()))!;
             Assert.That(exception.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
             Assert.That(exception.Message, Does.Contain("response provider"));
             Assert.That(fixture.Manager.FindPredefinedNode(builder.State.NodeId), Is.Null);
@@ -631,13 +631,13 @@ namespace Opc.Ua.Machinery.Tests
 
             if (returnNull)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await machine.Results!.PublishAsync(result))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await machine.Results!.PublishAsync(result)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             }
             else
             {
-                Assert.ThrowsAsync<FormatException>(async () => await machine.Results!.PublishAsync(result));
+                await Assert.ThrowsAsync<FormatException>(async () => await machine.Results!.PublishAsync(result));
             }
             store.Verify(value => value.AddResultAsync(
                 It.IsAny<MachineryResult>(), It.IsAny<CancellationToken>()), Times.Never);

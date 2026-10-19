@@ -117,8 +117,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             }
             else
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(expectedStatus));
                 Assert.That(reads, Is.Zero);
                 Assert.That(context.Invalidated.IsCompleted, Is.True);
@@ -160,8 +160,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(recoverable.SessionId, Is.EqualTo(originalSessionId));
             Assert.That(recoverable.Invalidated.IsCompleted, Is.False);
             Assert.That(strict.Invalidated.IsCompleted, Is.True);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(strict.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(strict.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
@@ -217,7 +218,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 if (cancelWait)
                 {
                     await waitCancellation.CancelAsync().ConfigureAwait(false);
-                    _ = Assert.ThrowsAsync<TaskCanceledException>(async () => await request.ConfigureAwait(false));
+                    _ = await Assert.ThrowsAsync<TaskCanceledException>(async () => await request.ConfigureAwait(false))
+                        .ConfigureAwait(false);
                     Assert.That(reads, Is.Zero);
                 }
                 release.TrySetResult(true);
@@ -262,10 +264,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await context.Session.CallAsync(null,
                     [new CallMethodRequest { ObjectId = new NodeId(1u), MethodId = new NodeId(2u) }],
-                    timeout.Token).ConfigureAwait(false))!;
+                    timeout.Token).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(invocations, Is.EqualTo(1));
             await channels.Manager.ReconnectAsync((IManagedTransportChannel)owner.TransportChannel, timeout.Token)
@@ -313,8 +315,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(channels.CreatedChannels[0].CreateSessionCount, Is.EqualTo(2));
             Assert.That(owner.SessionId == originalSession, Is.EqualTo(reuseIdentifiers));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
@@ -360,16 +363,18 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var changedIdentity = new UserIdentity("synthetic-user", []);
             if (activationFails)
             {
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await owner.UpdateSessionAsync(changedIdentity, [], timeout.Token).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await owner.UpdateSessionAsync(changedIdentity, [], timeout.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false);
             }
             else
             {
                 await owner.UpdateSessionAsync(changedIdentity, [], timeout.Token).ConfigureAwait(false);
             }
             Assert.That(context.Invalidated.IsCompleted, Is.True);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
         }
 
@@ -387,8 +392,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureRecoverableAsync(owner, timeout.Token).ConfigureAwait(false);
             (changeBorrowedSession ? context.Session : owner).NamespaceUris.Append("urn:changed:mapping");
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
         }
@@ -431,8 +437,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 default:
                     throw new ArgumentException("Unknown encoding limit.", nameof(limit));
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
         }
@@ -462,8 +469,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             }
             else
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             Assert.That(context.Invalidated.IsCompleted, Is.False);
@@ -499,8 +506,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 MaxDecoderRecoveries = previous.MaxDecoderRecoveries
             };
             channel.Mock.Setup(value => value.MessageContext).Returns(replacement);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
         }
@@ -570,8 +577,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     Assert.Fail("Unrecognized test case.");
                     break;
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadAsync(context.Session, timeout.Token).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
         }

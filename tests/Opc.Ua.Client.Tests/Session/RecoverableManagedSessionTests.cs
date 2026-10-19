@@ -306,8 +306,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             AssertRead(result, 42);
             Assert.That(accepted, Is.EqualTo(1));
             Assert.That(scope.Receipt, Is.Null);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(1));
             Assert.That(peer.OrdinaryRequests.Single(), Is.TypeOf<ReadRequest>());
@@ -327,8 +327,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             peer.SubmitFault = RejectionStatus(rejection);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(RejectionStatus(rejection)));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -352,8 +352,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 return default;
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             Assert.That(attempts, Is.EqualTo(1));
@@ -399,8 +399,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.LoseSubmitReply = lostSubmit;
             peer.UnknownCollection = true;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -420,8 +420,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.FastResult = false;
             peer.CollectionFault = RejectionStatus(failure);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(RejectionStatus(failure)));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -445,8 +445,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             SetDefaultBudget(peer, execution, new DataValue(Variant.From(budget)));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
@@ -479,8 +479,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 _ => StatusCodes.BadDecodingError
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(expected));
             Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
@@ -524,8 +524,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.ExecutionDefault = new DataValue(Variant.From(-1d));
             peer.RetentionDefault = new DataValue(Variant.From(-1d));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             AssertNoApplicationDispatch(peer);
@@ -554,10 +554,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await Client.ManagedSession.CreateAsync(options, channels.Configuration,
                     new DefaultSessionFactory(channels.Telemetry), telemetry: channels.Telemetry,
-                    channelManager: channels.Manager).ConfigureAwait(false))!;
+                    channelManager: channels.Manager).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(channels.CreatedChannels, Is.Empty);
@@ -595,8 +595,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     }
                 }).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await peer.Session.ReadValueAsync<string>(new NodeId(100u), peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await peer.Session.ReadValueAsync<string>(new NodeId(100u), peer.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(accepted, Is.Zero);
@@ -631,8 +632,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 };
             }
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await CreateSigningRequestAsync(peer).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await CreateSigningRequestAsync(peer).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(accepted, Is.Zero);
@@ -686,8 +687,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(malformed == "missing-result"
                 ? StatusCodes.BadUnexpectedError : StatusCodes.BadDecodingError));
@@ -718,8 +719,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.OriginalFailure = expected;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             await peer.AckEntered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(expected));
@@ -746,8 +747,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.MethodStatus = StatusCodes.BadMethodInvalid;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await CreateSigningRequestAsync(peer).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await CreateSigningRequestAsync(peer).ConfigureAwait(false)).ConfigureAwait(false))!;
             await peer.AckEntered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
@@ -800,8 +801,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
             Assert.That(scope.Receipt, Is.Null);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             await scope.DisposeAsync().ConfigureAwait(false);
             await scope.DisposeAsync().ConfigureAwait(false);
@@ -822,8 +823,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             AssertRead(retained, 42);
             Assert.That(receipt.IsAcknowledged, Is.False);
             Assert.That(peer.Controls, Is.Empty);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
-                await receipt.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await receipt.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             ReadResponse next = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             await peer.AckEntered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
             AssertRead(next, 42);
@@ -842,8 +843,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope(
                 requireRecoverableReceipt: true);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             Assert.That(scope.Receipt, Is.Null);
@@ -864,8 +865,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope(requireReceipt);
             if (requireReceipt)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             }
             else
@@ -875,8 +876,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             }
 
             Assert.That(scope.Receipt, Is.Null);
-            ServiceResultException noReceipt = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException noReceipt = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(noReceipt.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(requireReceipt ? 1 : 2));
             Assert.That(peer.Submissions, Is.Empty);
@@ -893,8 +894,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var proxy = new UninstrumentedProxy(peer.Session, peer.Channels.Telemetry);
             if (recoverable)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await proxy.InvokeAsync(peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await proxy.InvokeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(peer.OrdinaryRequests, Is.Empty);
             }
@@ -1030,14 +1031,14 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     throw rejected;
                 });
 
-            InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error, Is.SameAs(rejected));
             Assert.That(acceptances, Is.EqualTo(1));
             Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             await scope.DisposeAsync().ConfigureAwait(false);
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(peer.Controls, Is.Empty);
@@ -1068,8 +1069,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(call.IsCompleted, Is.False);
                 Assert.That(peer.Controls, Is.Empty);
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.ThrowsAsync<TaskCanceledException>(async () =>
-                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
                 Assert.That(peer.Controls, Is.Empty);
@@ -1191,8 +1192,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(call.IsCompleted, Is.False);
                 await scope.DisposeAsync().AsTask().WaitAsync(peer.Timeout).ConfigureAwait(false);
                 release.TrySetResult(true);
-                Assert.ThrowsAsync<TaskCanceledException>(async () =>
-                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
                 Assert.That(peer.Controls, Is.Empty);
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -1274,16 +1275,16 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             try
             {
                 await entered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
                 Assert.That(peer.Controls, Is.Empty);
                 release.TrySetResult(true);
                 AssertRead(await first.WaitAsync(peer.Timeout).ConfigureAwait(false), 42);
                 RecoverableReceipt receipt = scope.Receipt!;
 
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(scope.Receipt, Is.SameAs(receipt));
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
                 Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
@@ -1303,8 +1304,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             await using RecoverableAcknowledgementScope outer = peer.Session.BeginAcknowledgementScope();
             await using RecoverableAcknowledgementScope inner = peer.Session.BeginAcknowledgementScope();
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await outer.DisposeAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await outer.DisposeAsync().ConfigureAwait(false)).ConfigureAwait(false);
             int innerResult = await peer.Session.ReadValueAsync<int>(new NodeId(101u), peer.Timeout).ConfigureAwait(false);
             Assert.That(innerResult, Is.EqualTo(43));
             RecoverableReceipt innerReceipt = inner.Receipt!;
@@ -1362,8 +1363,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ReadResponse result = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             NodeId originalSession = peer.Session.SessionId;
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             AssertRead(result, 42);
@@ -1391,8 +1392,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
             ReadResponse result = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(RejectionStatus(failure)));
             Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
@@ -1476,8 +1477,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await ReadAsync(peer.Session, cancellation.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await ReadAsync(peer.Session, cancellation.Token).ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.That(scope.Receipt, Is.Null);
             Assert.That(peer.DiscoveryRequests, Is.Empty);
@@ -1513,8 +1514,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             {
                 await entered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.ThrowsAsync<TaskCanceledException>(async () =>
-                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 await scope.DisposeAsync().ConfigureAwait(false);
                 Assert.That(collectionAttempts, Is.EqualTo(1));
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -1574,8 +1575,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var identity = new UserIdentity("synthetic-user", []);
             if (activationFails)
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await peer.Owner.UpdateSessionAsync(identity, [], peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await peer.Owner.UpdateSessionAsync(identity, [], peer.Timeout).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             else
@@ -1583,8 +1585,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 await peer.Owner.UpdateSessionAsync(identity, [], peer.Timeout).ConfigureAwait(false);
             }
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             AssertRead(result, 42);
@@ -1601,8 +1603,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ReadResponse result = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             peer.Session.NamespaceUris.Append("urn:synthetic:changed-mapping");
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             AssertRead(result, 42);
@@ -1704,8 +1706,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
             };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(invalid switch
             {
@@ -1798,8 +1800,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             AssertRead(result, 42);
             Assert.That(scope.Receipt, Is.Null);
 
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(1));
             Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(1));
@@ -1844,8 +1846,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ReadResponse response = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             await cancellation.CancelAsync().ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
-                await scope.AcknowledgeAsync(cancellation.Token).ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await scope.AcknowledgeAsync(cancellation.Token).ConfigureAwait(false)).ConfigureAwait(false);
 
             Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
             Assert.That(peer.Controls, Is.Empty);
@@ -1936,8 +1938,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             };
             if (typed)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await peer.Session.ReadValueAsync<int>(new NodeId(100u), peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await peer.Session.ReadValueAsync<int>(new NodeId(100u), peer.Timeout).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             }
             else
@@ -1978,8 +1981,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(call.IsCompleted, Is.False);
                 Assert.That(peer.Controls, Is.Empty);
                 release.TrySetResult(true);
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
                 await peer.AckEntered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
                 Assert.That(peer.AckObservedCallerCompletion, Is.True);
@@ -2078,8 +2081,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             };
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(expected));
             Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
@@ -2150,9 +2153,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.MethodStatus = failed ? StatusCodes.BadMethodInvalid : StatusCodes.Good;
             if (failed)
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await peer.Session.CallAsync(new NodeId(200u), new NodeId(300u), peer.Timeout, Variant.From(7))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
             }
             else
@@ -2246,7 +2249,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             };
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ClientOperationContext.ExecuteAsync(peer.Session, async token =>
                 {
                     if (proxy)
@@ -2265,13 +2268,13 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                         _ = await peer.Session.ReadValueAsync<string>(new NodeId(101u), token).ConfigureAwait(false);
                     }
                     return 0;
-                }, peer.Timeout).ConfigureAwait(false))!;
+                }, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(expected));
             Assert.That(acceptances, Is.Zero, "A local validation failure is not an accepted original outcome.");
             Assert.That(peer.Submissions, Has.Count.EqualTo(2));
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(peer.Controls, Is.Empty);
             Assert.That(peer.OrdinaryRequests, Is.Empty);
         }
@@ -2299,8 +2302,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(call.IsCompleted, Is.False);
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
                 Assert.That(scope.Receipt, Is.Null, "Admission and possession of a token are not receipt of an outcome.");
-                ServiceResultException noReceipt = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException noReceipt = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(noReceipt.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(peer.Controls, Is.Empty);
 
@@ -2332,13 +2335,13 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.SubmitFault = RejectionStatus(rejected);
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(RejectionStatus(rejected)));
             Assert.That(scope.Receipt, Is.Null);
-            ServiceResultException noReceipt = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException noReceipt = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(noReceipt.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(peer.Controls, Is.Empty);
@@ -2355,8 +2358,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope(required);
             if (required)
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             }
             else
@@ -2385,8 +2388,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
             };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
             Assert.That(scope.Receipt!.IsAcknowledged, Is.False);
@@ -2420,7 +2423,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.OriginalFailure = StatusCodes.BadUserAccessDenied;
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await ClientOperationContext.ExecuteAsync(peer.Session, async token =>
                 {
                     try
@@ -2436,7 +2439,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                         }
                         throw new ServiceResultException(original.StatusCode, "synthetic local replacement");
                     }
-                }, peer.Timeout).ConfigureAwait(false))!;
+                }, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(acceptances, Is.EqualTo(rethrowOriginal ? 1 : 0));
@@ -2450,8 +2453,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             else
             {
                 Assert.That(failure, Is.Not.SameAs(observedOriginal));
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(peer.Controls, Has.Count.EqualTo(rethrowOriginal ? 1 : 0));
@@ -2510,8 +2513,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(scope.Receipt!.IsFullyRecoverable, Is.True);
             Assert.That(peer.Controls, Is.Empty);
-            ServiceResultException excluded = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException excluded = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(excluded.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             AssertOnlyPreparationBrowses(peer, 1);
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
@@ -2538,7 +2541,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     return default;
                 });
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (units)
                 {
@@ -2548,14 +2551,14 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 {
                     _ = await variable.ReadAsync(peer.Timeout).ConfigureAwait(false);
                 }
-            })!;
+            }).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(acceptances, Is.Zero);
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             AssertOnlyPreparationBrowses(peer, units ? 2 : 1);
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(peer.Controls, Is.Empty);
         }
 
@@ -2620,7 +2623,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     return default;
                 });
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 if (units)
                 {
@@ -2630,7 +2633,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 {
                     _ = await variable.ReadAsync(peer.Timeout).ConfigureAwait(false);
                 }
-            })!;
+            }).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
             Assert.That(acceptances, Is.Zero);
@@ -2661,8 +2664,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     return default;
                 });
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await variable.ReadEngineeringUnitsAsync(peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await variable.ReadEngineeringUnitsAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(acceptances, Is.EqualTo(1));
@@ -2708,8 +2711,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             if (bad)
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await variable.WriteAsync(87, peer.Timeout).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await variable.WriteAsync(87, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
             else
@@ -2745,8 +2748,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             ClientVariable<int> variable = CreateConvenienceVariable(peer, writable: false);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await variable.WriteAsync(87, peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await variable.WriteAsync(87, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(acceptances, Is.Zero);
@@ -2851,8 +2854,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }
             };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await proxy.CallWithResultAsync(new ExpandedNodeId(300u), [], peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await proxy.CallWithResultAsync(new ExpandedNodeId(300u), [], peer.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(acceptances, Is.Zero);
@@ -2987,16 +2991,16 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             }
             if (failureKind == "type")
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await peer.Session.ReadBytesToAsync(new NodeId(100u), destination,
-                        8, 4, peer.Timeout).ConfigureAwait(false))!;
+                        8, 4, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             }
             else
             {
-                IOException failure = Assert.ThrowsAsync<IOException>(async () =>
+                IOException failure = (await Assert.ThrowsAsync<IOException>(async () =>
                     await peer.Session.ReadBytesToAsync(new NodeId(100u), destination,
-                        failureKind == "limit" ? 3 : 8, 4, peer.Timeout).ConfigureAwait(false))!;
+                        failureKind == "limit" ? 3 : 8, 4, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
                 if (destination is FailingConvenienceDestination scripted)
                 {
                     Assert.That(failure, Is.SameAs(scripted.Failure));
@@ -3040,8 +3044,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
                 Assert.That(peer.Controls, Is.Empty);
                 await cancellation.CancelAsync().ConfigureAwait(false);
-                Assert.ThrowsAsync<TaskCanceledException>(async () =>
-                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false));
+                await Assert.ThrowsAsync<TaskCanceledException>(async () =>
+                    await call.WaitAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(acceptances, Is.Zero);
                 Assert.That(destination.Length, Is.Zero);
                 Assert.That(destination.CanWrite, Is.True);
@@ -3160,8 +3164,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 oversized ? new DataValue(Variant.From(ByteString.From("efghi"u8)))
                     : new DataValue(Variant.From(42)));
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await peer.Session.ReadByteStringInChunksAsync(new NodeId(100u), peer.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await peer.Session.ReadByteStringInChunksAsync(new NodeId(100u), peer.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(oversized ? StatusCodes.BadUnknownResponse : StatusCodes.BadTypeMismatch));
             Assert.That(acceptances, Is.Zero);

@@ -125,7 +125,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchValueAsyncShouldThrowServiceResultExceptionForBadStatusCode()
+        public async Task FetchValueAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -144,7 +144,7 @@ namespace Opc.Ua.Client.Tests
                 }))
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await sut.FetchValueAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await sut.FetchValueAsync(
                 null,
                 nodeId,
                 CancellationToken.None).ConfigureAwait(false));
@@ -192,7 +192,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchValueAsyncShouldHandleCancellation()
+        public async Task FetchValueAsyncShouldHandleCancellation()
         {
             using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
@@ -207,12 +207,12 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await sut.FetchValueAsync(null, nodeId, cts.Token).ConfigureAwait(false));
         }
 
         [Test]
-        public void FetchValuesAsyncShouldHandleCancellation()
+        public async Task FetchValuesAsyncShouldHandleCancellation()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => _ = await sut.FetchValuesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
         }
 
@@ -535,7 +535,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNodeAsyncShouldThrowServiceResultExceptionForBadStatusCode()
+        public async Task FetchNodeAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -566,7 +566,7 @@ namespace Opc.Ua.Client.Tests
                     }))
                 .Verifiable(Times.Once);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchNodeAsync(null, nodeId,
                     NodeClass.Unspecified).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadAlreadyExists));
@@ -798,7 +798,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchNodeAsyncShouldHandleCancellation()
+        public async Task FetchNodeAsyncShouldHandleCancellation()
         {
             using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
@@ -813,12 +813,12 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await sut.FetchNodeAsync(null, nodeId, ct: cts.Token).ConfigureAwait(false));
         }
 
         [Test]
-        public void FetchNodesAsyncShouldHandleCancellation()
+        public async Task FetchNodesAsyncShouldHandleCancellation()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -838,7 +838,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () => _ = await sut.FetchNodesAsync(
+            await Assert.ThrowsAsync<OperationCanceledException>(async () => _ = await sut.FetchNodesAsync(
                 null,
                 nodeIds,
                 NodeClass.Unspecified,
@@ -1106,7 +1106,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchReferencesAsyncShouldHandleCancellation()
+        public async Task FetchReferencesAsyncShouldHandleCancellation()
         {
             using var session = SessionMock.Create();
             var sut = new NodeCacheContext(session);
@@ -1125,7 +1125,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => _ = await sut.FetchReferencesAsync(null, nodeIds, cts.Token).ConfigureAwait(false));
         }
 
@@ -1172,7 +1172,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void FetchReferenceAsyncShouldThrowServiceResultExceptionForBadStatusCode()
+        public async Task FetchReferenceAsyncShouldThrowServiceResultExceptionForBadStatusCode()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -1205,14 +1205,14 @@ namespace Opc.Ua.Client.Tests
                 .Verifiable(Times.Once);
 
             // Act
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await sut.FetchReferencesAsync(null, nodeId).ConfigureAwait(false));
 
             session.Channel.Verify();
         }
 
         [Test]
-        public void FetchReferenceAsyncShouldHandleCancellation()
+        public async Task FetchReferenceAsyncShouldHandleCancellation()
         {
             // Arrange
             using var session = SessionMock.Create();
@@ -1228,7 +1228,7 @@ namespace Opc.Ua.Client.Tests
                 .ThrowsAsync(new OperationCanceledException())
                 .Verifiable(Times.Once);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await sut.FetchReferencesAsync(null, nodeId, cts.Token).ConfigureAwait(false));
         }
     }

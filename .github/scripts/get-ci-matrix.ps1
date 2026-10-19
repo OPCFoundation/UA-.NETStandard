@@ -135,7 +135,7 @@ $RunnerArchitectures = @{
     macos   = 'arm64'
 }
 
-$LatestSdk = '10.0.401'
+$LatestSdk = '10.0.402'
 
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
@@ -278,7 +278,7 @@ $PerProjectTimeoutMinutes = 45
 # run, 39236278891, was still progressing when 741s + 1959s reached 45 minutes.
 # Isolate that project below so its 60-minute legacy budget never widens the
 # budget of another project. The per-test hang detector is unchanged.
-$LegacyServerTimeoutMinutes = 60
+$Net48ServerTestsTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -499,8 +499,10 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
             # This remains one combined build-and-test ceiling. Only the isolated
             # Server batch on .NET Framework needs the larger measured allowance.
             $perProjectTimeout = $PerProjectTimeoutMinutes
-            if ($testProfile.framework -eq 'net48' -and $batch -contains $ServerProject) {
-                $perProjectTimeout = $LegacyServerTimeoutMinutes
+            if ($testProfile.framework -eq 'net48' -and
+                $testProfile.os -eq 'windows' -and
+                $batch -contains $ServerProject) {
+                $perProjectTimeout = $Net48ServerTestsTimeoutMinutes
             }
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus
             # the combined build-and-test ceiling for every project in the

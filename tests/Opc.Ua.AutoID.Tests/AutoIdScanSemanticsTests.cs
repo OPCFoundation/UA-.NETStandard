@@ -203,7 +203,7 @@ namespace Opc.Ua.AutoID.Tests
             (RfidReaderDeviceState device, FakeProvider provider) = await CreateAsync().ConfigureAwait(false);
             provider.OnScan = (settings, ct) => throw new InvalidOperationException("antenna cable unplugged");
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false));
 
             provider.OnScan = (settings, ct) => new ValueTask<AutoIdScanOutcome>(
@@ -235,7 +235,7 @@ namespace Opc.Ua.AutoID.Tests
 
             await cancel.CancelAsync().ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await call.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await call.ConfigureAwait(false));
             Assert.That(device.DeviceStatus!.Value, Is.EqualTo(DeviceStatusEnumeration.Idle));
         }
 
@@ -246,13 +246,13 @@ namespace Opc.Ua.AutoID.Tests
             provider.OnScan = (settings, ct) => throw new OperationCanceledException("the antenna gave up");
             provider.OnRead = ct => throw new OperationCanceledException("the antenna gave up");
 
-            OperationCanceledException scan = Assert.CatchAsync<OperationCanceledException>(
-                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false))!;
-            OperationCanceledException read = Assert.CatchAsync<OperationCanceledException>(
+            OperationCanceledException scan = (await Assert.CatchAsync<OperationCanceledException>(
+                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false)))!;
+            OperationCanceledException read = (await Assert.CatchAsync<OperationCanceledException>(
                 async () => await device.ReadTag!.OnCallAsync!(
                     m_fixture!.Context, device.ReadTag, device.NodeId,
                     AutoIdTestData.Epc(AutoIdTestData.Bytes(1, 2)), "EPC", 1, 0, 4, default, CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -270,8 +270,8 @@ namespace Opc.Ua.AutoID.Tests
                 new ScanResult[] { new OcrScanResult { CodeType = "RAW:STRING" } }.ToArrayOf(),
                 AutoIdOperationStatusEnumeration.SUCCESS));
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -288,8 +288,8 @@ namespace Opc.Ua.AutoID.Tests
             provider.OnScan = (settings, ct) => new ValueTask<AutoIdScanOutcome>(
                 new AutoIdScanOutcome(many.ToArrayOf(), AutoIdOperationStatusEnumeration.SUCCESS));
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ScanAsync(device, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo((uint)StatusCodes.BadResponseTooLarge));
         }
@@ -420,7 +420,7 @@ namespace Opc.Ua.AutoID.Tests
 
             ScanStartMethodStateResult refused = await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false);
             provider.OnStart = (settings, ct) => throw new InvalidOperationException("no radio");
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await StartAsync(device, AutoIdTestData.Settings()).ConfigureAwait(false));
 
             Assert.Multiple(() =>
@@ -654,18 +654,19 @@ namespace Opc.Ua.AutoID.Tests
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ArgumentException>(async () => await sink.ReportScanAsync(default).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentException>(
+                    async () => await sink.ReportScanAsync(default).ConfigureAwait(false));
                 Assert.That(
-                    Assert.ThrowsAsync<ServiceResultException>(async () => await sink.ReportScanAsync(
-                        new ScanResult[] { new OcrScanResult() }.ToArrayOf()).ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () => await sink.ReportScanAsync(
+                        new ScanResult[] { new OcrScanResult() }.ToArrayOf()).ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo((uint)StatusCodes.BadInternalError));
                 Assert.That(
-                    Assert.ThrowsAsync<ServiceResultException>(async () => await sink.ReportScanAsync(
-                        many.ToArrayOf()).ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<ServiceResultException>(async () => await sink.ReportScanAsync(
+                        many.ToArrayOf()).ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo((uint)StatusCodes.BadResponseTooLarge));
-                Assert.CatchAsync<OperationCanceledException>(async () => await sink.ReportScanAsync(
+                await Assert.CatchAsync<OperationCanceledException>(async () => await sink.ReportScanAsync(
                     new ScanResult[] { AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1, 1)) }.ToArrayOf(),
                     cancelled.Token).ConfigureAwait(false));
                 Assert.That(events.Events, Is.Empty, "a rejected report raises no event");
@@ -681,13 +682,13 @@ namespace Opc.Ua.AutoID.Tests
             await provider.Sink!.ReportPresenceAsync(3).ConfigureAwait(false);
             await provider.Sink.ReportLogEntryAsync("antenna 2 reconnected").ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(events.Of<AutoIdPresenceEventState>().Single().Presence!.Value, Is.EqualTo(3));
                 Assert.That(
                     events.Of<AutoIdLogEntryEventState>().Single().Message!.Value.Text,
                     Is.EqualTo("antenna 2 reconnected"));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await provider.Sink.ReportLogEntryAsync(string.Empty).ConfigureAwait(false));
             });
         }
@@ -707,16 +708,16 @@ namespace Opc.Ua.AutoID.Tests
                 .ConfigureAwait(false);
 
             RfidAccessEventState e = events.Of<RfidAccessEventState>().Single();
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(e.Command!.Value, Is.EqualTo("ReadTag"));
                 Assert.That(e.Client!.Value, Is.EqualTo("pedal"));
                 Assert.That(e.AccessResult!.Value[0], Is.EqualTo(access));
-                Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
+                await Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
                     string.Empty, "x", new AccessResult[] { access }.ToArrayOf()).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
+                await Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
                     "ReadTag", "x", default).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
+                await Assert.ThrowsAsync<ArgumentException>(async () => await provider.Sink.ReportAccessAsync(
                     "ReadTag", "x", new AccessResult[] { new() }.ToArrayOf()).ConfigureAwait(false));
             });
         }
@@ -728,12 +729,15 @@ namespace Opc.Ua.AutoID.Tests
             await ReaderOf(device).DisposeAsync().ConfigureAwait(false);
             IAutoIdReaderSink sink = provider.Sink!;
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<ObjectDisposedException>(async () => await sink.ReportPresenceAsync(1).ConfigureAwait(false));
-                Assert.ThrowsAsync<ObjectDisposedException>(async () => await sink.ReportLogEntryAsync("x").ConfigureAwait(false));
-                Assert.ThrowsAsync<ObjectDisposedException>(async () => await sink.CompleteScanAsync().ConfigureAwait(false));
-                Assert.ThrowsAsync<ObjectDisposedException>(async () => await sink.ReportScanAsync(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await sink.ReportPresenceAsync(1).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await sink.ReportLogEntryAsync("x").ConfigureAwait(false));
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await sink.CompleteScanAsync().ConfigureAwait(false));
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () => await sink.ReportScanAsync(
                     new ScanResult[] { AutoIdTestData.RfidResult(AutoIdTestData.Bytes(1, 1)) }.ToArrayOf())
                     .ConfigureAwait(false));
             });

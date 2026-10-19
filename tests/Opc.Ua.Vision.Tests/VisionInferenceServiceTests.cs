@@ -154,7 +154,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotThrowsOnExpectedKindMismatchWhenAuthoritative()
+        public async Task RunOneShotThrowsOnExpectedKindMismatchWhenAuthoritative()
         {
             var harness = new VisionSessionHarness();
             SetupMinimalDetectionPipeline(harness);
@@ -162,7 +162,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -194,12 +194,12 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotRejectsNullPipeline()
+        public async Task RunOneShotRejectsNullPipeline()
         {
             var harness = new VisionSessionHarness();
             VisionInferenceService service = harness.Client.Inference();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () =>
                     await service.RunOneShotAsync(
                         null!,
@@ -210,7 +210,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotRejectsNegativeMaxItems()
+        public async Task RunOneShotRejectsNegativeMaxItems()
         {
             var harness = new VisionSessionHarness();
             SetupMinimalDetectionPipeline(harness);
@@ -218,7 +218,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -229,7 +229,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotRejectsMaxItemsAbove100()
+        public async Task RunOneShotRejectsMaxItemsAbove100()
         {
             var harness = new VisionSessionHarness();
             SetupMinimalDetectionPipeline(harness);
@@ -237,7 +237,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -248,7 +248,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotRejectsUndefinedExpectedKind()
+        public async Task RunOneShotRejectsUndefinedExpectedKind()
         {
             var harness = new VisionSessionHarness();
             SetupMinimalDetectionPipeline(harness);
@@ -256,7 +256,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -267,7 +267,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void RunOneShotRejectsUndefinedDetail()
+        public async Task RunOneShotRejectsUndefinedDetail()
         {
             var harness = new VisionSessionHarness();
             SetupMinimalDetectionPipeline(harness);
@@ -275,7 +275,7 @@ namespace Opc.Ua.Vision.Tests
             VisionInferenceService service = harness.Client.Inference();
             VisionPipelineClient pipeline = harness.Client.Pipeline(harness.PipelineNodeId);
 
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -378,7 +378,7 @@ namespace Opc.Ua.Vision.Tests
             Assert.That(autoResult.Resolved, Is.True);
             Assert.That(autoResult.ResultKind, Is.EqualTo(VisionResultKind.Unknown));
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await service.RunOneShotAsync(
                         pipeline,
@@ -461,7 +461,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void DetermineResultKindThrowsOnMultipleTypeDefinitions()
+        public async Task DetermineResultKindThrowsOnMultipleTypeDefinitions()
         {
             var harness = new VisionSessionHarness();
             harness.AddBrowse(
@@ -500,7 +500,7 @@ namespace Opc.Ua.Vision.Tests
                 ]);
 
             VisionInferenceService service = harness.Client.Inference();
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await service.DetermineResultKindAsync(harness.InferenceResultNodeId)
                         .ConfigureAwait(false));
@@ -737,42 +737,42 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ResolvePipelineIsCaseSensitive()
+        public async Task ResolvePipelineIsCaseSensitive()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline("BinPicking");
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync("binpicking")
                         .ConfigureAwait(false));
         }
 
         [Test]
-        public void ResolvePipelineRejectsNullOrWhitespace()
+        public async Task ResolvePipelineRejectsNullOrWhitespace()
         {
             var harness = new VisionSessionHarness();
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync(string.Empty)
                         .ConfigureAwait(false));
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync("   ")
                         .ConfigureAwait(false));
         }
 
         [Test]
-        public void ResolvePipelineThrowsWhenNotFound()
+        public async Task ResolvePipelineThrowsWhenNotFound()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
             harness.AddPipeline("Alpha");
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync("Beta")
                         .ConfigureAwait(false));
@@ -782,7 +782,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ResolvePipelineErrorsListBrowseNameDisplayNameAndNodeId()
+        public async Task ResolvePipelineErrorsListBrowseNameDisplayNameAndNodeId()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -793,7 +793,7 @@ namespace Opc.Ua.Vision.Tests
             entry.DisplayName = new LocalizedText("Pipeline Display Name");
             harness.AddBrowse(harness.PipelinesFolderId, [entry]);
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync("missing").ConfigureAwait(false));
 
@@ -807,7 +807,7 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ResolvePipelineThrowsOnAmbiguity()
+        public async Task ResolvePipelineThrowsOnAmbiguity()
         {
             var harness = new VisionSessionHarness();
             harness.ConfigureVisionFolders();
@@ -825,7 +825,7 @@ namespace Opc.Ua.Vision.Tests
                         Perception.ObjectTypes.InferencePipelineType)
                 ]);
 
-            InvalidOperationException? ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () =>
                     await harness.Client.ResolvePipelineAsync("Dup")
                         .ConfigureAwait(false));

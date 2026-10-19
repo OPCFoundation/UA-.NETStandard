@@ -275,9 +275,9 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void DownloadingAnUnknownResultFails()
+        public async Task DownloadingAnUnknownResultFails()
         {
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client!.DownloadResultAsync(m_machine!.NodeId, "missing"));
         }
 
@@ -407,7 +407,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void EnumeratingPropagatesAFailedBrowseCall()
+        public async Task EnumeratingPropagatesAFailedBrowseCall()
         {
             // A lost session or a timeout is not the same as a machine without
             // components and must not read as one.
@@ -420,21 +420,21 @@ namespace Opc.Ua.Machinery.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(StatusCodes.BadTimeout));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (MachineEntry _ in m_client!
                     .EnumerateComponentsAsync(m_machine!.NodeId)
                     .ConfigureAwait(false))
                 {
                 }
-            })!;
+            }))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
         }
 
         [Test]
-        public void DownloadResultRequiresAResultId()
+        public async Task DownloadResultRequiresAResultId()
         {
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await m_client!.DownloadResultAsync(m_machine!.NodeId, string.Empty));
         }
 
@@ -447,9 +447,9 @@ namespace Opc.Ua.Machinery.Tests
             Assert.That(await m_client.ReadJobOrderParametersAsync(machine, "J-1"), Is.Null);
             Assert.That(await m_client.ReadJobResponseParametersAsync(machine, "J-1"), Is.Null);
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await m_client.ReadJobOrderParametersAsync(machine, string.Empty));
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await m_client.ReadJobResponseParametersAsync(machine, string.Empty));
         }
 

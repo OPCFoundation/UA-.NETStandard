@@ -87,8 +87,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                         }
                     ]
                 }, wire.Timeout).ConfigureAwait(false);
-            _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.SubmitAsync(10_000, 30_000, 0, wire.Timeout).ConfigureAwait(false));
+            _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.SubmitAsync(10_000, 30_000, 0, wire.Timeout).ConfigureAwait(false))
+                .ConfigureAwait(false);
             using var recovery = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await wire.Owner.ReconnectAsync(null, null, recovery.Token).ConfigureAwait(false);
             _ = await operation.CollectAsync(2000, wire.Timeout).ConfigureAwait(false);
@@ -383,8 +384,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             Assert.That(wire.Owner.TransportChannel.MessageContext.MaxMessageSize, Is.EqualTo(65_536));
             Assert.That(strict.Invalidated.IsCompleted, Is.True);
             scenario.Release();
-            ServiceResultException deliveryFailure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CollectAsync(2000, wire.Timeout).ConfigureAwait(false))!;
+            ServiceResultException deliveryFailure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CollectAsync(2000, wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(deliveryFailure.StatusCode,
                 Is.EqualTo(StatusCodes.BadResponseTooLarge).Or.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(operation.Invalidated.IsCompleted, Is.False);
@@ -481,8 +482,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 Assert.That(available, Is.False);
                 await using AsyncServiceOperation<CallResponse> rejected = await client.CreateCallAsync(
                     wire.Owner, request, wire.Timeout).ConfigureAwait(false);
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await rejected.SubmitAsync(10_000, 30_000, ct: wire.Timeout).ConfigureAwait(false))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await rejected.SubmitAsync(10_000, 30_000, ct: wire.Timeout).ConfigureAwait(false))
+                    .ConfigureAwait(false))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
                 Assert.That(scenario.Invocations, Is.Zero);
                 Assert.That(scenario.Counter, Is.EqualTo(7));
@@ -577,8 +579,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             await wire.Owner.ReconnectAsync(null, null, wire.Timeout).ConfigureAwait(false);
             Assert.That(wire.Owner.SessionId, Is.Not.EqualTo(previous));
             Assert.That(operation.Invalidated.IsCompleted, Is.True);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await operation.CollectAsync(ct: wire.Timeout).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await operation.CollectAsync(ct: wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(scenario.Invocations, Is.EqualTo(1));
             Assert.That(wire.Faults.Submissions, Is.EqualTo(1));
@@ -653,8 +655,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 wire.Timeout).ConfigureAwait(false);
             if (lostReply == "submit")
             {
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await operation.SubmitAsync(20_000, 30_000, 0, wire.Timeout).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await operation.SubmitAsync(20_000, 30_000, 0, wire.Timeout).ConfigureAwait(false))
+                    .ConfigureAwait(false);
                 await wire.Faults.Dropped.WaitAsync(wire.Timeout).ConfigureAwait(false);
                 Assert.That(operation.ServerToken.IsNull, Is.True);
                 await wire.RecoverAsync().ConfigureAwait(false);
@@ -667,8 +670,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             scenario.Release();
             if (lostReply == "result")
             {
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await operation.CollectAsync(2000, wire.Timeout).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await operation.CollectAsync(2000, wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 await wire.Faults.Dropped.WaitAsync(wire.Timeout).ConfigureAwait(false);
                 await wire.RecoverAsync().ConfigureAwait(false);
             }
@@ -863,16 +866,16 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                     .ConfigureAwait(false);
                 Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(scope.Receipt, Is.Null);
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 response.Reuse();
             }
             await using (RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope(true))
             {
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await wire.Owner.ReadAsync(null, 0, TimestampsToReturn.Neither,
                         [new ReadValueId { NodeId = blob, AttributeId = Attributes.Value }], wire.Timeout)
-                        .ConfigureAwait(false));
+                        .ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(scope.Receipt, Is.Null);
             }
             Assert.That(scenario.BlobReads, Is.EqualTo(1));
@@ -919,8 +922,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             Assert.That(result, Is.EqualTo(9));
             if (point == "ack")
             {
-                _ = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false));
+                _ = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
             }
             await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
             Assert.That(scope.Receipt!.IsAcknowledged, Is.True);

@@ -72,7 +72,7 @@ namespace Opc.Ua.Server.Tests
                     session!);
                 using IDisposable requestScope = serverInternal.RequestManager.EnterRequestScope(outstanding);
 
-                Assert.DoesNotThrowAsync(async () => await serverInternal
+                await Assert.DoesNotThrowAsync(async () => await serverInternal
                     .CloseSessionAsync(null!, session!.Id, true)
                     .ConfigureAwait(false));
 
@@ -108,14 +108,14 @@ namespace Opc.Ua.Server.Tests
 
                 // The close starts after Session.ValidateRequest admitted the Read.
                 sessionManager.MarkClosingAfterAdmission = true;
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReadAsync(
                         secureChannelContext,
                         new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
                         0,
                         TimestampsToReturn.Neither,
                         [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
                 Assert.That(
@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests
                     () => throw new InvalidOperationException("cancellation callback"));
 
                 // the Read was sent before the Cancel and was still queued when it ran.
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReadAsync(
                         secureChannelContext,
                         new RequestHeader
@@ -173,13 +173,13 @@ namespace Opc.Ua.Server.Tests
                         0,
                         TimestampsToReturn.Neither,
                         [new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }],
-                        lifetime).ConfigureAwait(false))!;
+                        lifetime).ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                 Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
 
                 using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                Assert.DoesNotThrowAsync(
+                await Assert.DoesNotThrowAsync(
                     async () => await serverInternal.RequestManager
                         .WaitForCurrentRequestsAsync(drainTimeout.Token)
                         .ConfigureAwait(false),
@@ -265,8 +265,8 @@ namespace Opc.Ua.Server.Tests
                 uint securityRejectedSessionsBefore = diagnostics.SecurityRejectedSessionCount;
 
                 server.RejectCreateSession = true;
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await server.CreateAndActivateSessionAsync("RejectedCreate").ConfigureAwait(false))!;
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.CreateAndActivateSessionAsync("RejectedCreate").ConfigureAwait(false)))!;
 
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(diagnostics.RejectedSessionCount, Is.EqualTo(rejectedSessionsBefore + 1));

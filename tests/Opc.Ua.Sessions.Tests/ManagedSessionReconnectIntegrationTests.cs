@@ -95,7 +95,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task ChannelLossTriggersAutomaticReconnect(
             CancellationToken ct)
@@ -187,8 +186,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ChannelLossTriggersAutomaticReconnect), AllowFailure = true)]
         public async Task ServiceCallsResumeAfterAutomaticReconnect(
             CancellationToken ct)
         {
@@ -270,8 +269,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [TestCaseSource(nameof(s_permanentReactivationFailures))]
-        [Order(250)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ServiceCallsResumeAfterAutomaticReconnect), AllowFailure = true)]
         public async Task ManagedSessionRecreatesAfterPermanentReactivationFailureAsync(
             StatusCode statusCode,
             CancellationToken ct)
@@ -340,8 +339,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(ManagedSessionRecreatesAfterPermanentReactivationFailureAsync), AllowFailure = true)]
         public async Task DisposeDuringReconnectTransitionsToClosed(
             CancellationToken ct)
         {
@@ -396,8 +395,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(DisposeDuringReconnectTransitionsToClosed), AllowFailure = true)]
         public async Task ConnectionStateChangedReportsExpectedSequence(
             CancellationToken ct)
         {
@@ -485,8 +484,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(500)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ConnectionStateChangedReportsExpectedSequence), AllowFailure = true)]
         public async Task FailoverInvokesRedundancyHandlerWhenReconnectExhausted(
             CancellationToken ct)
         {
@@ -602,8 +601,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(600)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(FailoverInvokesRedundancyHandlerWhenReconnectExhausted), AllowFailure = true)]
         public async Task FailoverWithNullTargetReturnsToDisconnected(
             CancellationToken ct)
         {
@@ -695,8 +694,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(700)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(FailoverWithNullTargetReturnsToDisconnected), AllowFailure = true)]
         public async Task SubscriptionRecoversAfterAutomaticReconnect(
             CancellationToken ct)
         {
@@ -824,8 +823,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(800)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SubscriptionRecoversAfterAutomaticReconnect), AllowFailure = true)]
         public async Task SubscriptionRecoversAfterFailover(
             CancellationToken ct)
         {
@@ -975,8 +974,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(900)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(SubscriptionRecoversAfterFailover), AllowFailure = true)]
         public async Task TransferSubscriptionsKeepsV2SubscriptionWorkingAfterReconnect(
             CancellationToken ct)
         {
@@ -1157,8 +1156,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(1000)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(TransferSubscriptionsKeepsV2SubscriptionWorkingAfterReconnect), AllowFailure = true)]
         public async Task BuilderTransferSubscriptionsOnRecreateOptInAppliesToV2Manager(
             CancellationToken ct)
         {

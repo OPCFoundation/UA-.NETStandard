@@ -91,7 +91,7 @@ namespace Opc.Ua.Robotics.Tests
                 Assert.That(
                     activeMissionArray,
                     Has.One.Matches<MissionSnapshot>(snapshot =>
-                        snapshot.MissionId == "hosted-mission" &&
+                        snapshot is not null && snapshot.MissionId == "hosted-mission" &&
                         snapshot.MissionNode == admission.Operation &&
                         !RobotIntentRules.IsTerminal(snapshot.ExecutionState)));
             });
@@ -118,7 +118,7 @@ namespace Opc.Ua.Robotics.Tests
             Assert.That(
                 terminalMissionArray,
                 Has.One.Matches<MissionSnapshot>(snapshot =>
-                    snapshot.MissionId == "hosted-mission" &&
+                    snapshot is not null && snapshot.MissionId == "hosted-mission" &&
                     snapshot.MissionNode == admission.Operation &&
                     snapshot.ExecutionState == ExecutionStateEnum.Succeeded));
         }

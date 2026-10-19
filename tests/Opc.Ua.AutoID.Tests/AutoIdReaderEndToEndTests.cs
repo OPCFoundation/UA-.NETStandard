@@ -247,12 +247,14 @@ namespace Opc.Ua.AutoID.Tests
         {
             AutoIdReaderEntry reader = await ReaderAsync(AutoIdHostFixture.RfidName).ConfigureAwait(false);
 
-            ServiceResultException infinite = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings()).ConfigureAwait(false))!;
-            ServiceResultException negative = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings(duration: -1)).ConfigureAwait(false))!;
-            ServiceResultException tooLong = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings(duration: 6000)).ConfigureAwait(false))!;
+            ServiceResultException infinite = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings()).ConfigureAwait(false)))!;
+            ServiceResultException negative = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings(duration: -1))
+                    .ConfigureAwait(false)))!;
+            ServiceResultException tooLong = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings(duration: 6000))
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -270,10 +272,11 @@ namespace Opc.Ua.AutoID.Tests
                 reader, AutoIdTestData.Settings(duration: 1500)).AsTask();
             await WaitForStatusAsync(AutoIdHostFixture.OcrName, DeviceStatusEnumeration.Busy).ConfigureAwait(false);
 
-            ServiceResultException second = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client.ScanAsync(reader, AutoIdTestData.Settings(duration: 100)).ConfigureAwait(false))!;
-            ServiceResultException start = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client.ScanStartAsync(reader, AutoIdTestData.Settings()).ConfigureAwait(false))!;
+            ServiceResultException second = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ScanAsync(reader, AutoIdTestData.Settings(duration: 100))
+                    .ConfigureAwait(false)))!;
+            ServiceResultException start = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client.ScanStartAsync(reader, AutoIdTestData.Settings()).ConfigureAwait(false)))!;
             await first.ConfigureAwait(false);
 
             Assert.Multiple(() =>
@@ -302,8 +305,8 @@ namespace Opc.Ua.AutoID.Tests
                     r => r.ScanResult?.OfType<RfidScanResult>().Any(x => x.ScanData.Epc.UId == epc) == true)
                     .ConfigureAwait(false);
                 await m_client.ScanStopAsync(reader).ConfigureAwait(false);
-                ServiceResultException stopAgain = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await m_client.ScanStopAsync(reader).ConfigureAwait(false))!;
+                ServiceResultException stopAgain = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_client.ScanStopAsync(reader).ConfigureAwait(false)))!;
 
                 Assert.Multiple(() =>
                 {
@@ -560,9 +563,9 @@ namespace Opc.Ua.AutoID.Tests
             });
             try
             {
-                NotSupportedException unsupported = Assert.ThrowsAsync<NotSupportedException>(
+                NotSupportedException unsupported = (await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await m_client!.ScanAsync(verifier, AutoIdTestData.Settings(cycles: 1))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 await m_client!.ScanStartAsync(verifier, AutoIdTestData.Settings()).ConfigureAwait(false);
                 AutoIdScanEventTypeRecord record = await FirstEventAsync(
                     ct => m_client.ObserveScanEventsAsync(m_session!.DefaultStreaming, verifier, ct),
@@ -610,24 +613,24 @@ namespace Opc.Ua.AutoID.Tests
                     new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id },
                     "UID",
                     LocationTypeEnumeration.WGS84).ConfigureAwait(false);
-                ServiceResultException unknown = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException unknown = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_client.GetLocationAsync(
                         rtls,
                         new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = AutoIdTestData.Bytes("\t"u8.ToArray()) },
                         "UID",
-                        LocationTypeEnumeration.WGS84).ConfigureAwait(false))!;
-                ServiceResultException notAvailable = Assert.ThrowsAsync<ServiceResultException>(
+                        LocationTypeEnumeration.WGS84).ConfigureAwait(false)))!;
+                ServiceResultException notAvailable = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_client.GetLocationAsync(
                         rtls,
                         new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id },
                         "UID",
-                        LocationTypeEnumeration.LOCAL).ConfigureAwait(false))!;
-                ServiceResultException unsupportedType = Assert.ThrowsAsync<ServiceResultException>(
+                        LocationTypeEnumeration.LOCAL).ConfigureAwait(false)))!;
+                ServiceResultException unsupportedType = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await m_client.GetLocationAsync(
                         rtls,
                         new ScanData { SwitchField = ScanDataFields.ByteString, ByteString = id },
                         "UID",
-                        LocationTypeEnumeration.NMEA).ConfigureAwait(false))!;
+                        LocationTypeEnumeration.NMEA).ConfigureAwait(false)))!;
                 AutoIdScanResponse scan = await m_client.ScanAsync(rtls, AutoIdTestData.Settings(cycles: 1))
                     .ConfigureAwait(false);
 
@@ -656,15 +659,15 @@ namespace Opc.Ua.AutoID.Tests
 
             Location location = await m_client!.GetDeviceLocationAsync(reader, LocationTypeEnumeration.NAME)
                 .ConfigureAwait(false);
-            ServiceResultException other = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException other = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.GetDeviceLocationAsync(reader, LocationTypeEnumeration.WGS84)
-                    .ConfigureAwait(false))!;
-            ServiceResultException undefined = Assert.ThrowsAsync<ServiceResultException>(
+                    .ConfigureAwait(false)))!;
+            ServiceResultException undefined = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.GetDeviceLocationAsync(reader, (LocationTypeEnumeration)99)
-                    .ConfigureAwait(false))!;
-            ServiceResultException none = Assert.CatchAsync<ServiceResultException>(
+                    .ConfigureAwait(false)))!;
+            ServiceResultException none = (await Assert.CatchAsync<ServiceResultException>(
                 async () => await m_client.GetDeviceLocationAsync(ocr, LocationTypeEnumeration.NAME)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -744,23 +747,23 @@ namespace Opc.Ua.AutoID.Tests
             AutoIdReaderEntry rfid = await ReaderAsync(AutoIdHostFixture.RfidName).ConfigureAwait(false);
             ScanData id = AutoIdTestData.Epc(AutoIdTestData.Bytes(1, 2));
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_client!.ReadTagAsync(ocr, id, "EPC", 1, 0, 1).ConfigureAwait(false));
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_client!.GetSupportedLocationTypesAsync(rfid).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await m_client!.ReadTagAsync(rfid, null!, "EPC", 1, 0, 1).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await m_client!.ReadTagAsync(rfid, id, string.Empty, 1, 0, 1).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await m_client!.ScanAsync(null!, AutoIdTestData.Settings(cycles: 1)).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await m_client!.ScanAsync(rfid, null!).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await m_client!.ScanStartAsync(rfid, null!).ConfigureAwait(false));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await m_client!.GetLocationAsync(
                         await ReaderAsync(AutoIdHostFixture.RtlsName).ConfigureAwait(false),
                         null!, "UID", LocationTypeEnumeration.NAME).ConfigureAwait(false));
@@ -770,28 +773,27 @@ namespace Opc.Ua.AutoID.Tests
         [Test]
         public async Task ABrowseTheServerRejectsIsReportedNotHiddenAsync()
         {
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (AutoIdReaderEntry entry in m_client!.EnumerateReadersUnderAsync(
                     new NodeId("DoesNotExist", 7)))
                 {
                     Assert.Fail("Nothing can be found below an unknown node: " + entry.BrowseName);
                 }
-            })!;
-            ServiceResultException unknownReader = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await m_client!.GetReaderAsync(new NodeId("DoesNotExist", 7)).ConfigureAwait(false))!;
-            ServiceResultException notAReader = Assert.ThrowsAsync<ServiceResultException>(
+            }))!;
+            ServiceResultException unknownReader = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_client!.GetReaderAsync(new NodeId("DoesNotExist", 7)).ConfigureAwait(false)))!;
+            ServiceResultException notAReader = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client!.GetReaderAsync(
                     new NodeId(Di.Objects.DeviceSet, (ushort)m_session!.NamespaceUris.GetIndex(Di.Namespaces.OpcUaDi)))
-                    .ConfigureAwait(false))!;
-            await Task.CompletedTask.ConfigureAwait(false);
+                    .ConfigureAwait(false)))!;
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(StatusCode.IsBad(failure.StatusCode), Is.True);
                 Assert.That(StatusCode.IsBad(unknownReader.StatusCode), Is.True);
                 Assert.That(notAReader.StatusCode, Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
-                Assert.ThrowsAsync<ArgumentException>(
+                await Assert.ThrowsAsync<ArgumentException>(
                     async () => await m_client!.GetReaderAsync(NodeId.Null).ConfigureAwait(false));
             });
         }
@@ -803,18 +805,18 @@ namespace Opc.Ua.AutoID.Tests
             using var cancelled = new CancellationTokenSource();
             await cancelled.CancelAsync().ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
             {
                 await foreach (AutoIdReaderEntry entry in m_client!.EnumerateReadersAsync(cancelled.Token))
                 {
                     Assert.Fail("A cancelled enumeration yields nothing: " + entry.BrowseName);
                 }
             });
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await m_client!.ScanAsync(reader, AutoIdTestData.Settings(cycles: 1), cancelled.Token)
                     .ConfigureAwait(false));
             using var shortLived = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
             {
                 await foreach (AutoIdPresenceEventTypeRecord record in m_client!.ObservePresenceEventsAsync(
                     m_session!.DefaultStreaming, reader, shortLived.Token))
