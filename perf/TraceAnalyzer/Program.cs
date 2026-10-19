@@ -37,6 +37,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
@@ -241,19 +242,54 @@ namespace Opc.Ua.Perf.TraceAnalyzer
         private static void Collections(TraceLog log)
         {
             var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var reasons = new Dictionary<string, int>(StringComparer.Ordinal);
             var pauses = new List<double>();
             var suspensions = new List<double>();
+            // time and bytes of the phases of a collection, between consecutive phase events
+            var phaseMs = new Dictionary<string, double>(StringComparer.Ordinal);
+            var markedBytes = new Dictionary<string, double>(StringComparer.Ordinal);
             double suspendStart = 0;
+            double phaseStart = 0;
+            int phased = 0;
             foreach (TraceEvent e in log.Events)
             {
                 if (e is GCStartTraceData start)
                 {
                     string key = FormattableString.Invariant($"gen{start.Depth} {start.Type} {start.Reason}");
                     counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+                    if (suspendStart > 0)
+                    {
+                        Add(phaseMs, "0 suspend+start", e.TimeStampRelativeMSec - suspendStart);
+                    }
+                    phaseStart = e.TimeStampRelativeMSec;
+                    phased++;
+                }
+                else if (e.EventName == "GC/MarkWithType" && phaseStart > 0)
+                {
+                    int type = Convert.ToInt32(e.PayloadByName("Type") ?? -1, CultureInfo.InvariantCulture);
+                    string name = "1 mark " + (type is >= 0 and < 10 ? s_markTypes[type] : type.ToString(CultureInfo.InvariantCulture));
+                    Add(phaseMs, name, e.TimeStampRelativeMSec - phaseStart);
+                    Add(markedBytes, name, Convert.ToDouble(e.PayloadByName("Promoted") ?? 0, CultureInfo.InvariantCulture));
+                    phaseStart = e.TimeStampRelativeMSec;
+                }
+                else if (e is GCEndTraceData && phaseStart > 0)
+                {
+                    // plan, relocate, compact or sweep after the last mark phase
+                    Add(phaseMs, "2 plan+relocate+compact", e.TimeStampRelativeMSec - phaseStart);
+                    phaseStart = e.TimeStampRelativeMSec;
                 }
                 else if (e is GCSuspendEETraceData)
                 {
                     suspendStart = e.TimeStampRelativeMSec;
+                }
+                else if (e.EventName == "GC/PerHeapHistory" && e.PayloadByName("CondemnReasons0") is object r0)
+                {
+                    // why the generation was condemned: the generation each tuning input asked for,
+                    // and the conditions that raised it (gc_condemn_reason_gen / _condition)
+                    string key = "condemn " + CondemnReasons(
+                        Convert.ToInt64(r0, CultureInfo.InvariantCulture),
+                        Convert.ToInt64(e.PayloadByName("CondemnReasons1") ?? 0, CultureInfo.InvariantCulture));
+                    reasons[key] = reasons.TryGetValue(key, out int n) ? n + 1 : 1;
                 }
                 else if (e.EventName == "GC/SuspendEEStop" && suspendStart > 0)
                 {
@@ -263,7 +299,12 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 else if (e.EventName == "GC/RestartEEStop" && suspendStart > 0)
                 {
                     pauses.Add(e.TimeStampRelativeMSec - suspendStart);
+                    if (phaseStart > 0)
+                    {
+                        Add(phaseMs, "3 end+restart", e.TimeStampRelativeMSec - phaseStart);
+                    }
                     suspendStart = 0;
+                    phaseStart = 0;
                 }
             }
             int total = counts.Values.Sum();
@@ -271,6 +312,21 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             foreach (KeyValuePair<string, int> entry in counts.OrderByDescending(c => c.Value))
             {
                 Console.WriteLine(FormattableString.Invariant($" {entry.Value,7}  {entry.Key}"));
+            }
+            foreach (KeyValuePair<string, int> entry in reasons.OrderByDescending(c => c.Value))
+            {
+                Console.WriteLine(FormattableString.Invariant($" {entry.Value,7}  {entry.Key}"));
+            }
+            if (phased > 0)
+            {
+                Console.WriteLine("phases (average per collection):");
+                foreach (KeyValuePair<string, double> entry in phaseMs.OrderBy(c => c.Key, StringComparer.Ordinal))
+                {
+                    string bytes = markedBytes.TryGetValue(entry.Key, out double b)
+                        ? FormattableString.Invariant($"  {b / phased / 1024,9:F1} KB marked")
+                        : string.Empty;
+                    Console.WriteLine(FormattableString.Invariant($" {entry.Value / phased,8:F3} ms  {entry.Key}{bytes}"));
+                }
             }
             if (suspensions.Count > 0)
             {
@@ -288,6 +344,46 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                     FormattableString.Invariant(
                     $"p99={pauses[Math.Min(pauses.Count - 1, (int)(pauses.Count * 0.99))]:F2}ms max={pauses[^1]:F2}ms"));
             }
+        }
+
+        private static readonly string[] s_markTypes =
+        [
+            "stack", "finalizeQueue", "handles", "older(cards)", "sizedRef", "overflow",
+            "dependentHandles", "newFinalizeQueue", "steal", "bgcRoots"
+        ];
+
+        /// <summary>
+        /// Decodes the condemn reasons of a GCPerHeapHistory event: CondemnReasons0 packs the
+        /// generation each input asked for in 2-bit fields (initial, final per heap, allocation
+        /// budget, time tuning, ...), CondemnReasons1 is a set of condition flags.
+        /// </summary>
+        private static string CondemnReasons(long gens, long conditions)
+        {
+            string[] genNames = ["initial", "perHeap", "budget", "timeTuning"];
+            string[] flagNames =
+            [
+                "inducedFull", "expandFull", "highMem", "veryHighMem", "lowEphemeral", "lowCard",
+                "ephHighFrag", "maxHighFrag", "maxHighFragE", "maxHighFragM", "maxHighFragVm",
+                "maxGen1", "beforeOom", "gen2TooSmall", "inducedNoForce", "beforeBgc",
+                "almostMaxAlloc"
+            ];
+            var text = new StringBuilder();
+            for (int i = 0; i < genNames.Length; i++)
+            {
+                long gen = (gens >> (2 * i)) & 3;
+                if (gen != 0)
+                {
+                    text.Append(CultureInfo.InvariantCulture, $"{genNames[i]}=gen{gen} ");
+                }
+            }
+            for (int i = 0; i < 32; i++)
+            {
+                if ((conditions & (1L << i)) != 0)
+                {
+                    text.Append('+').Append(i < flagNames.Length ? flagNames[i] : "c" + i.ToString(CultureInfo.InvariantCulture)).Append(' ');
+                }
+            }
+            return text.Length == 0 ? "gen0" : text.ToString().TrimEnd();
         }
 
         /// <summary>
