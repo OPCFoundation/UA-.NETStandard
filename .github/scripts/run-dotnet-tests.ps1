@@ -104,7 +104,6 @@ $ErrorActionPreference = 'Stop'
 # can be tested without building or running anything - see
 # tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
 . (Join-Path $PSScriptRoot 'get-test-verdict.ps1')
-. (Join-Path $PSScriptRoot 'stage-nunit-trace.ps1')
 
 $projectList = @($Projects -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($projectList.Count -eq 0) {
@@ -235,99 +234,6 @@ function Get-ProjectProperties([string] $project)
     return ($output.Substring($start, $end - $start + 1) | ConvertFrom-Json).Properties
 }
 
-<#
- .SYNOPSIS
-    Resolves the directory the test assembly is built into for the framework the
-    tests execute on, which is where NUnit writes its InternalTrace logs.
-
- .DESCRIPTION
-    Runs under the caller's shared build and test budget: it never waits longer
-    than what is left of it, drains both streams with a bound, and always ends
-    the process tree it started. It never throws; the returned object carries
-    the directory and, when that is empty, the reason and the captured stderr.
-#>
-function Get-TestAssemblyDirectory(
-    [string] $project,
-    [System.Diagnostics.Stopwatch] $budget,
-    [double] $budgetMinutes,
-    [string] $command = 'dotnet',
-    [string[]] $leadingArguments = @())
-{
-    $result = [pscustomobject]@{ Directory = ''; Reason = '' }
-    $remainingMs = [long]([double]$budgetMinutes * 60 * 1000) - $budget.ElapsedMilliseconds
-    if ($remainingMs -le 0) {
-        $result.Reason = 'the shared build and test budget is already exhausted'
-        return $result
-    }
-
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = $command
-    foreach ($argument in $leadingArguments + @(
-        'msbuild', $project,
-        # Two properties force the JSON document form; a single one prints a bare value.
-        '-getProperty:TargetPath;TargetFileName',
-        "-p:TargetFramework=$Framework",
-        "-p:CustomTestTarget=$CustomTestTarget",
-        "-p:Configuration=$Configuration",
-        '-nologo')) {
-        $startInfo.ArgumentList.Add($argument)
-    }
-    $startInfo.UseShellExecute = $false
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-
-    $process = [System.Diagnostics.Process]::new()
-    $process.StartInfo = $startInfo
-    $started = $false
-    try {
-        $started = $process.Start()
-        $stdout = $process.StandardOutput.ReadToEndAsync()
-        $stderr = $process.StandardError.ReadToEndAsync()
-        $waitMs = [int][System.Math]::Min([long][int]::MaxValue, $remainingMs)
-        if (-not $process.WaitForExit($waitMs)) {
-            $result.Reason = 'the evaluation did not finish within the remaining shared budget and was stopped'
-            return $result
-        }
-
-        $drained = [System.Threading.Tasks.Task]::WaitAll(@($stdout, $stderr), 10000)
-        if (-not $drained) {
-            $result.Reason = 'the evaluation output could not be drained within 10 seconds'
-            return $result
-        }
-        if ($process.ExitCode -ne 0) {
-            $result.Reason = "dotnet msbuild exited with $($process.ExitCode): $($stderr.Result.Trim()) $($stdout.Result.Trim())"
-            return $result
-        }
-
-        $text = $stdout.Result
-        $open = $text.IndexOf('{')
-        $close = $text.LastIndexOf('}')
-        if ($open -lt 0 -or $close -le $open) {
-            $result.Reason = "the evaluation produced no property document: $($text.Trim()) $($stderr.Result.Trim())"
-            return $result
-        }
-
-        $targetPath = [string](($text.Substring($open, $close - $open + 1) | ConvertFrom-Json).Properties.TargetPath)
-        $result.Directory = Get-TargetPathDirectory $targetPath
-        if (-not $result.Directory) {
-            $result.Reason = "TargetPath '$targetPath' is not an absolute path"
-        }
-        return $result
-    }
-    catch {
-        $result.Reason = "the evaluation failed: $($_.Exception.Message)"
-        return $result
-    }
-    finally {
-        if ($started -and -not $process.HasExited) {
-            $process.Kill($true)
-            if (-not $process.WaitForExit(10000)) {
-                $result.Reason += ' (the evaluation process did not exit within 10 seconds of being stopped)'
-            }
-        }
-        $process.Dispose()
-    }
-}
 $records = @()
 foreach ($project in $projectList) {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
@@ -446,38 +352,8 @@ foreach ($project in $projectList) {
             $testArguments += @('--filter', $Filter)
         }
 
-        # Diagnostics only: ask NUnit for an Info-level InternalTrace so a run
-        # that stalls leaves a record of the fixture it was executing.
-        $traceEnabled = Test-NUnitTraceApplies $stem $Framework ([bool]$Coverage)
-        $traceOutputDirectory = ''
-        if ($traceEnabled) {
-            # Diagnostics only: a failed evaluation is reported and the capture is
-            # recorded as missing; it never fails the project.
-            $traceTarget = Get-TestAssemblyDirectory $project $projectBudget $PerProjectTimeoutMinutes
-            $traceOutputDirectory = $traceTarget.Directory
-            if (-not $traceOutputDirectory) {
-                Write-Host "::warning title=$stem NUnit trace::Could not resolve the test output directory: $($traceTarget.Reason)"
-            }
-            $testArguments += @('--settings', (New-NUnitTraceSettings $projectResults))
-        }
-        $traceStartedUtc = [datetime]::UtcNow
-
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
         $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
-
-        if ($traceEnabled) {
-            # Staged before the verdict so a timed out or failed run keeps it.
-            $trace = Copy-NUnitTraceLogs `
-                -OutputDirectory $traceOutputDirectory `
-                -StartedUtc $traceStartedUtc `
-                -Destination (Join-Path $projectResults 'nunit-trace')
-            foreach ($warning in $trace.warnings) {
-                Write-Host "::warning title=$stem NUnit trace::$warning"
-            }
-            $trace | ConvertTo-Json -Depth 5 |
-                Out-File -LiteralPath (Join-Path $projectResults 'nunit-trace-manifest.json') -Encoding utf8
-            Write-Host "NUnit trace: $($trace.captureStatus), staged $(@($trace.staged).Count) log(s), $(@($trace.warnings).Count) warning(s)."
-        }
 
         if ($test.TimedOut) {
             throw ("The test exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
