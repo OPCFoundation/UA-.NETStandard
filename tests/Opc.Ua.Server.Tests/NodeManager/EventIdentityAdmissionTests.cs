@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -171,6 +169,52 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, Event(s_otherId)),
                 StatusCodes.BadTooManyOperations);
             fixture.Manager.AdmitEvent(fixture.Context, first);
+        }
+
+        /// <summary>
+        /// Verifies that drained native occurrences do not consume lifetime identity capacity.
+        /// </summary>
+        [Test]
+        public void DrainedNativeOccurrencesReclaimIdentityCapacity()
+        {
+            using var fixture = new IdentityFixture(1);
+            EnableAdmission(fixture);
+            for (int index = 0; index < 4; index++)
+            {
+                WeakReference<BaseEventState> target = AdmitUnownedNativeOccurrence(
+                    fixture, index % 2 == 0 ? s_id : s_otherId);
+                CollectUnownedTargets();
+                Assert.That(target.TryGetTarget(out _), Is.False);
+            }
+            Assert.That(fixture.Manager.EventIdentityAdmissionStatus, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Verifies that a native occurrence stays owned until its final notification lease is released.
+        /// </summary>
+        [Test]
+        public void NativeNotificationLeasePinsIdentityUntilReleased()
+        {
+            using var fixture = new IdentityFixture(1);
+            EnableAdmission(fixture);
+            using MonitoredItem item = fixture.CreateItem();
+            QueueNativeOccurrence(fixture, item);
+            var published = new Queue<EventFieldList>();
+            using var context = NewContext();
+            item.Publish(context, published, 8);
+            Assert.That(published, Has.Count.EqualTo(1));
+            SentMessageQueue sent = NewQueue(fixture, 4);
+            NotificationMessage message = NewMessage(sent, published);
+            _ = sent.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+
+            Assert.That(sent.TryAcknowledge(message.SequenceNumber), Is.True);
+            AssertIdentityHeld(fixture);
+
+            lease.Release();
+            CollectUnownedTargets();
+            Assert.DoesNotThrow(() => fixture.Manager.AdmitEvent(fixture.Context, Event(s_otherId)));
+            Assert.That(fixture.Manager.EventIdentityAdmissionStatus, Is.EqualTo(StatusCodes.Good));
+            GC.KeepAlive(published);
         }
 
         /// <summary>
@@ -623,6 +667,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             return new OperationContext(
                 new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None);
+        }
+
+        /// <summary>
+        /// Admits a native occurrence without retaining its event target.
+        /// </summary>
+        /// <param name="fixture">The admission fixture.</param>
+        /// <param name="eventId">The native EventId.</param>
+        /// <returns>A weak reference used to verify that the target was collected.</returns>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static WeakReference<BaseEventState> AdmitUnownedNativeOccurrence(
+            IdentityFixture fixture, ByteString eventId)
+        {
+            BaseEventState state = Event(eventId);
+            fixture.Manager.AdmitEvent(fixture.Context, state);
+            return new WeakReference<BaseEventState>(state);
+        }
+
+        /// <summary>
+        /// Queues a native occurrence without retaining its event target.
+        /// </summary>
+        /// <param name="fixture">The admission fixture.</param>
+        /// <param name="item">The monitored item receiving the event.</param>
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void QueueNativeOccurrence(IdentityFixture fixture, MonitoredItem item)
+        {
+            BaseEventState state = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, state);
+            item.QueueEvent(state);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

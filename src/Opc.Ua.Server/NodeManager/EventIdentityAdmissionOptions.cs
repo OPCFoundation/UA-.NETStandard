@@ -37,8 +37,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the maximum simultaneously tracked EventIds, including native
         /// publications, generation reservations and queued or retained occurrences.
-        /// Native evidence is retained until server disposal. Generation evidence
-        /// is reclaimable after its reservations and notification references drain.
+        /// Native evidence is reclaimable after its event targets and notification
+        /// references drain. Generation evidence also retains its active reservations.
+        /// Reclamation can lag until unowned targets are collected.
         /// Exhaustion never evicts a live occurrence.
         /// </summary>
         public int MaxEventIdentities { get; init; } = 65_536;

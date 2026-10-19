@@ -579,8 +579,10 @@ Configure `StandardServer.EventIdentityAdmissionOptions` before startup, inject
 options, or supply them to EventManager. Native and projected events share this
 admission domain; copied fields/URI aliases cannot establish one trusted occurrence.
 Queues/retransmission buffers retain admitted identity references until drain.
-Ordinary native evidence remains bounded until server disposal; projected
-reclamation can lag generation disposal.
+Native evidence remains owned by live event targets, retained Condition snapshots,
+and queued or retransmitted fields, rather than by a server-lifetime table reference.
+After those owners drain, the identity slot is reclaimable. Native and projected
+reclamation can lag until unowned targets are collected.
 
 Preparing transparent projection/first projected reservation requires strict
 identity admission for the remaining server lifetime. Earlier unsupported native

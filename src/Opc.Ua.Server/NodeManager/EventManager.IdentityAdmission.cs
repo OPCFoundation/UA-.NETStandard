@@ -113,7 +113,7 @@ namespace Opc.Ua.Server
             lock (m_identityLock)
             {
                 RequireEventIdentityAdmissionCore();
-                IdentityClaim claim = ReserveIdentityCore(eventId, source, native: false);
+                IdentityClaim claim = ReserveIdentityCore(eventId, source);
                 claim.Reservations++;
                 return new EventIdentityReservation(this, claim);
             }
@@ -148,7 +148,7 @@ namespace Opc.Ua.Server
                         return;
                     }
                     IdentityClaim claim = ReserveIdentityCore(
-                        snapshot.EventId, new NativeIdentitySource(snapshot), native: true);
+                        snapshot.EventId, new NativeIdentitySource(snapshot));
                     SetIdentityStamp(occurrence, new IdentityStamp(claim, snapshot));
                 }
                 catch (ServiceResultException exception) when (!m_identityRequired)
@@ -279,7 +279,6 @@ namespace Opc.Ua.Server
                 claim.Reservations--;
                 if (claim.Reservations == 0 && !claim.Attached &&
                     m_eventIdentities.TryGetValue(claim.EventId, out IdentityEntry? entry) &&
-                    entry.NativeOwner is null &&
                     entry.Claim.TryGetTarget(out IdentityClaim? current) && ReferenceEquals(current, claim))
                 {
                     m_eventIdentities.Remove(claim.EventId);
@@ -309,7 +308,7 @@ namespace Opc.Ua.Server
             m_eventIdentityTargets.Add(occurrence, stamp);
         }
 
-        private IdentityClaim ReserveIdentityCore(ByteString eventId, IEventIdentitySource source, bool native)
+        private IdentityClaim ReserveIdentityCore(ByteString eventId, IEventIdentitySource source)
         {
             if (m_eventIdentities.TryGetValue(eventId, out IdentityEntry? entry))
             {
@@ -340,7 +339,7 @@ namespace Opc.Ua.Server
                 }
             }
             var claim = new IdentityClaim(eventId, source);
-            m_eventIdentities.Add(eventId, new IdentityEntry(claim, native));
+            m_eventIdentities.Add(eventId, new IdentityEntry(claim));
             return claim;
         }
 
@@ -490,18 +489,12 @@ namespace Opc.Ua.Server
             public bool Attached { get; set; }
         }
 
-        private sealed class IdentityEntry(IdentityClaim claim, bool native)
+        private sealed class IdentityEntry(IdentityClaim claim)
         {
             /// <summary>
             /// Gets the claim for <c>IdentityEntry</c>.
             /// </summary>
             public WeakReference<IdentityClaim> Claim { get; } = new(claim);
-
-            // Native APIs do not expose a producing-generation release boundary.
-            /// <summary>
-            /// Gets the native owner for <c>IdentityEntry</c>.
-            /// </summary>
-            public IdentityClaim? NativeOwner { get; } = native ? claim : null;
         }
 
         private sealed record IdentitySnapshot(ByteString EventId, ArrayOf<Variant> Facts);
