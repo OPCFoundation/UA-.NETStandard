@@ -96,7 +96,7 @@ namespace OpcUaPubSubJsonTests
         {
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await encoder.EncodeAsync(null!, ctx).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
         }
@@ -106,7 +106,7 @@ namespace OpcUaPubSubJsonTests
         {
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
             var msg = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage();
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await encoder.EncodeAsync(msg, null!).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
         }
@@ -117,7 +117,7 @@ namespace OpcUaPubSubJsonTests
             var encoder = new Opc.Ua.PubSub.Encoding.Json.JsonEncoder();
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var foreign = new ForeignNetworkMessage();
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(foreign, ctx).ConfigureAwait(false));
             await Task.CompletedTask.ConfigureAwait(false);
         }

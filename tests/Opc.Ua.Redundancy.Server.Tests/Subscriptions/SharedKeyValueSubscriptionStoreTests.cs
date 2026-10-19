@@ -422,7 +422,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 SharedKeyValueSubscriptionStore.KeyFor(expected.Id),
                 ByteString.From(encoder.CloseAndReturnBuffer())).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -647,7 +647,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .SetAsync(record.Key, ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -695,7 +695,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     ByteString.From(new byte[] { 1, 2, 3, 4, 5 }))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => reader.RestoreSubscriptionsAsync().AsTask());
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(GetCachedSubscriptionIds(reader), Is.EqualTo(new uint[] { 450 }));
@@ -727,7 +727,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -744,7 +744,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription subscription = NewSubscription(490, 49);
             ((StoredMonitoredItem)subscription.MonitoredItems.Single()).SubscriptionId = 491;
 
-            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => store.StoreSubscriptionsAsync([subscription]).AsTask());
             (bool foundManifest, _) = await kv
                 .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
@@ -800,7 +800,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             StoredSubscription first = NewSubscription(950, 95);
             StoredSubscription duplicate = NewSubscription(950, 96);
 
-            ArgumentException? exception = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException? exception = await Assert.ThrowsAsync<ArgumentException>(
                 () => store.StoreSubscriptionsAsync([first, duplicate]).AsTask());
             (bool foundManifest, _) = await kv
                 .TryGetAsync(SharedKeyValueSubscriptionStore.SnapshotManifestKey())
@@ -857,7 +857,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using var store = new SharedKeyValueSubscriptionStore(failingBackend, CreateContext());
             await store.StoreSubscriptionsAsync([NewSubscription(990, 103)]).ConfigureAwait(false);
 
-            InvalidOperationException? exception = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException? exception = await Assert.ThrowsAsync<InvalidOperationException>(
                 () => store.StoreSubscriptionsAsync(
                     [NewSubscription(990, 103), NewSubscription(991, 104)]).AsTask());
 
@@ -909,7 +909,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     ByteString.From(0xFF, 0xFE, 0xFD))
                 .ConfigureAwait(false);
 
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
@@ -933,7 +933,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .ConfigureAwait(false);
 
             await using SharedKeyValueSubscriptionStore store = CreateStore(kv);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => store.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -956,7 +956,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -979,7 +979,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1004,7 +1004,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1023,7 +1023,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var duplicating = new DuplicatingScanStore(kv);
             var reader = new SharedKeyValueSubscriptionStore(duplicating, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => reader.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1046,7 +1046,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1069,7 +1069,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
@@ -1095,7 +1095,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var restartedBackend = new AsyncSharedKeyValueStore(kv);
             var restarted = new SharedKeyValueSubscriptionStore(restartedBackend, CreateContext());
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                 () => restarted.RestoreSubscriptionsAsync().AsTask());
 
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));

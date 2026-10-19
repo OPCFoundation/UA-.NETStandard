@@ -301,9 +301,9 @@ namespace Opc.Ua.WotCon.Tests
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_serverFixture.Port}"), SecurityPolicies.None)
                     .ConfigureAwait(false);
             var foreign = new WoTDocumentTypeClient(other, allocation.Version.ResourceNodeId, m_telemetry);
-            ServiceResultException ownership = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ownership = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await foreign.WriteAsync(allocation.FileHandle, ByteString.From(new byte[] { 1 }))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ownership.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             WotUpsertResourceRequest request = WotRegistryIdentityTests.Request(
                 m_registry.Current.FindGroup(group.GroupId)!, allocation.Version.ResourceId, "urn:thing", "v1");
@@ -348,16 +348,16 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
             uint reader = await existing.Version.Proxy.OpenAsync(1).ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
-            ServiceResultException conflict = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException conflict = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await group.GetOrCreateDocumentResourceAsync("urn:existing", "v1", requestFileOpen: true)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(conflict.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
             Assert.That(m_registry.Current, Is.SameAs(before));
             await existing.Version.Proxy.CloseAsync(reader).ConfigureAwait(false);
 
             m_store.FailNextCommit = true;
-            ServiceResultException commit = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await group.CreateDocumentResourceAsync("urn:new", "v1", requestFileOpen: true).ConfigureAwait(false))!;
+            ServiceResultException commit = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await group.CreateDocumentResourceAsync("urn:new", "v1", requestFileOpen: true).ConfigureAwait(false)))!;
             Assert.That(commit.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
             Assert.That(m_registry.Current, Is.SameAs(before));
             (WotRegistryResourceAllocation retry, bool createdResource, bool createdVersion) =
@@ -397,8 +397,8 @@ namespace Opc.Ua.WotCon.Tests
                 storedGroup, first.Version.ResourceId, "urn:other", "v1").Content;
             await replacement.Version.Proxy.WriteAsync(replacement.FileHandle, other).ConfigureAwait(false);
 
-            ServiceResultException rejected = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await replacement.Version.Proxy.CloseAsync(replacement.FileHandle).ConfigureAwait(false))!;
+            ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await replacement.Version.Proxy.CloseAsync(replacement.FileHandle).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -420,12 +420,12 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase(true)]
         public async Task NativeInvalidKindAuthorityAndWrongReceiverHaveNoCreationSideEffects(bool modelOnDescription)
         {
-            ServiceResultException all = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException all = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.Proxy.CreateDocumentGroupAsync(WoTDocumentKindEnum.All, "urn:catalogue")
-                    .ConfigureAwait(false))!;
-            ServiceResultException relative = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    .ConfigureAwait(false)))!;
+            ServiceResultException relative = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_client.Proxy.GetOrCreateDocumentGroupAsync(WoTDocumentKindEnum.ThingModel, "relative")
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(all.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(relative.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(m_store.CommitCount, Is.Zero);
@@ -486,9 +486,9 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 method.Executable = fault != "executable";
                 method.UserExecutable = fault != "user";
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_client.CreateDocumentGroupAsync(WoTDocumentKindEnum.ThingDescription, "urn:catalogue")
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.Multiple(() =>
                 {
                     Assert.That(failure.StatusCode, Is.EqualTo(status));
@@ -541,15 +541,15 @@ namespace Opc.Ua.WotCon.Tests
         [Test]
         public async Task MissingGenericAuthorityIsRejectedRatherThanInferredFromNames()
         {
-            ServiceResultException groupFailure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_client.Proxy.CreateGroupAsync("thingmodels").ConfigureAwait(false))!;
+            ServiceResultException groupFailure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_client.Proxy.CreateGroupAsync("thingmodels").ConfigureAwait(false)))!;
             Assert.That(groupFailure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(m_store.CommitCount, Is.Zero);
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingDescription, "urn:catalogue").ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
-            ServiceResultException resourceFailure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await group.Proxy.CreateResourceAsync("urn-looking-name", "v1", true).ConfigureAwait(false))!;
+            ServiceResultException resourceFailure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await group.Proxy.CreateResourceAsync("urn-looking-name", "v1", true).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(resourceFailure.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));

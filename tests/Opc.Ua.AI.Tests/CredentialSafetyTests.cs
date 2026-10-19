@@ -172,7 +172,7 @@ namespace Opc.Ua.AI.Tests
                 // repairing. Sanitising it quietly would hide the misconfiguration.
                 foreach (string escape in new[] { "../key", "sub/key", "sub\\key", ".." })
                 {
-                    Assert.ThrowsAsync<ArgumentException>(
+                    await Assert.ThrowsAsync<ArgumentException>(
                         async () => await resolver
                             .ResolveAsync(escape, CancellationToken.None)
                             .ConfigureAwait(false),

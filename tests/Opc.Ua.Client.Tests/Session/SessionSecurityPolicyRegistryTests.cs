@@ -58,7 +58,7 @@ namespace Opc.Ua.Client.Tests
         /// <see cref="SecurityPolicies.Default"/>.
         /// </summary>
         [Test]
-        public void OpenAsyncResolvesTheEndpointPolicyThroughTheInjectedRegistry()
+        public async Task OpenAsyncResolvesTheEndpointPolicyThroughTheInjectedRegistry()
         {
             var registry = new Mock<ISecurityPolicyRegistry>();
             registry
@@ -73,7 +73,7 @@ namespace Opc.Ua.Client.Tests
 
             using Session session = CreateSession(registry.Object);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 () => session.OpenAsync(
                     "test",
                     60000,
@@ -81,7 +81,7 @@ namespace Opc.Ua.Client.Tests
                     default,
                     false,
                     false,
-                    CancellationToken.None))!;
+                    CancellationToken.None)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             registry.Verify();
@@ -93,11 +93,11 @@ namespace Opc.Ua.Client.Tests
         /// by the endpoint.
         /// </summary>
         [Test]
-        public void OpenAsyncAcceptsTheEndpointPolicyWhenNoRegistryIsInjected()
+        public async Task OpenAsyncAcceptsTheEndpointPolicyWhenNoRegistryIsInjected()
         {
             using Session session = CreateSession(securityPolicies: null);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 () => session.OpenAsync(
                     "test",
                     60000,
@@ -105,7 +105,7 @@ namespace Opc.Ua.Client.Tests
                     default,
                     false,
                     false,
-                    CancellationToken.None))!;
+                    CancellationToken.None)))!;
 
             Assert.That(
                 exception.StatusCode,

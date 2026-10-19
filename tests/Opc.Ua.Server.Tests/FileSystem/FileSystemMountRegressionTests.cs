@@ -305,7 +305,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             try
             {
                 // An existing target also keeps the unfixed recursive copy bounded.
-                Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+                await Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
                 {
                     switch (operation)
                     {

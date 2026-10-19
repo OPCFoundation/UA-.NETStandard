@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Server.Tests
                 deletedItems: [],
                 isOwnedBySubscription: static _ => true);
 
-            ServiceResultException detachException = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException detachException = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await failedDetachTransition
                     .DetachCurrentAsync(CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1121,7 +1121,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false),
                 Is.Empty);
 
-            AggregateException rollbackException = Assert.ThrowsAsync<AggregateException>(
+            AggregateException rollbackException = await Assert.ThrowsAsync<AggregateException>(
                 async () => await rollbackTransition
                     .RollbackAsync(CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1853,8 +1853,8 @@ namespace Opc.Ua.Server.Tests
                     release.TrySetResult(true);
                     if (failAttachment)
                     {
-                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
-                            async () => await original.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await original.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
                         Assert.That(error, Is.SameAs(failure));
                     }
                     else
@@ -2029,8 +2029,8 @@ namespace Opc.Ua.Server.Tests
                     release.TrySetResult(true);
                     if (compensateDetach)
                     {
-                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
-                            async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
                         Assert.That(error, Is.SameAs(failure));
                         clock.Advance(TimeSpan.FromTicks(1));
                         Assert.That(compensationToken.IsCancellationRequested, Is.False,

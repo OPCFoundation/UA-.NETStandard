@@ -80,7 +80,7 @@ namespace Opc.Ua.WotCon.Tests
             else
             {
                 fixture.Options.Discovery = new Discovery(content);
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await fixture.Client.CreateAssetForEndpointAsync("mapped", "sim://opcua.test/wot/mapped"));
             }
             Assert.That(fixture.Provider.Connects, Is.Zero);
@@ -114,9 +114,9 @@ namespace Opc.Ua.WotCon.Tests
                 else
                 {
                     fixture.Options.Discovery = new Discovery(content);
-                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await fixture.Client.CreateAssetForEndpointAsync(
-                            "mapped", "sim://opcua.test/wot/mapped"), nodeId.ToString())!;
+                            "mapped", "sim://opcua.test/wot/mapped"), nodeId.ToString()))!;
                     Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists), nodeId.ToString());
                 }
                 Assert.That(fixture.Provider.Connects, Is.Zero, nodeId.ToString());
@@ -167,9 +167,9 @@ namespace Opc.Ua.WotCon.Tests
                 fixture, asset.AssetId, Ua.ReferenceTypeIds.HasInterface, BrowseDirection.Forward);
             Assert.That(interfaces.Count, Is.EqualTo(1));
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UploadThingDescriptionAsync(NativeDocumentWithPropertyIdentity(
-                    "ns=1;s=Assets/mapped/File/Read/OutputArguments").Span.ToArray()))!;
+                    "ns=1;s=Assets/mapped/File/Read/OutputArguments").Span.ToArray())))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
             Assert.That(fixture.Provider.Connects, Is.EqualTo(1));

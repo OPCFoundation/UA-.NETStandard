@@ -79,8 +79,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 cancellation.Cancel();
             }
 
-            InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await startup.ConfigureAwait(false))!;
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await startup.ConfigureAwait(false)))!;
             Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
             Assert.That(runtime.ReceivedToken.IsCancellationRequested, Is.True);
             Assert.That(host.DeadlineExpired, Is.False);
@@ -105,8 +105,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             WotRegistrySnapshot before = m_registry.Current;
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false))!;
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
             Assert.That(failure.InnerException, Is.SameAs(runtime.Failure));
             m_registryRegistration = FindStartupRegistryRegistration();
             Assert.That(host.AddCalls, Is.EqualTo(1));
@@ -141,8 +141,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 await PrepareControlledStartupAsync(converter: converter).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
 
-            InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false))!;
+            InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await AddStoredRegistryAsync(cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerException, Is.InstanceOf<ServiceResultException>());
             Assert.That(((ServiceResultException)failure.InnerException!).StatusCode,
@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(baseline + 1));
                 await AssertStartupSensorAsync(readable: false).ConfigureAwait(false);
                 using var conflictDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     if (reload)
                     {
@@ -214,7 +214,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                         await m_server.NodeManagerLifecycle.RemoveAsync(
                             m_registryRegistration, callerContext: null, conflictDeadline.Token).ConfigureAwait(false);
                     }
-                })!;
+                }))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
                 Assert.That(failure.Message, Does.Contain("publication admission"));
                 Assert.That(conflictDeadline.IsCancellationRequested, Is.False);
@@ -342,16 +342,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 if (cancel)
                 {
                     cancellation.Cancel();
-                    OperationCanceledException failure = Assert.CatchAsync<OperationCanceledException>(
-                        async () => await startup.ConfigureAwait(false))!;
+                    OperationCanceledException failure = (await Assert.CatchAsync<OperationCanceledException>(
+                        async () => await startup.ConfigureAwait(false)))!;
                     Assert.That(failure.CancellationToken, Is.EqualTo(readiness.ReceivedToken));
                     Assert.That(readiness.ReceivedToken.IsCancellationRequested, Is.True);
                 }
                 else
                 {
                     readiness.Release.TrySetResult(true);
-                    InvalidOperationException failure = Assert.ThrowsAsync<InvalidOperationException>(
-                        async () => await startup.ConfigureAwait(false))!;
+                    InvalidOperationException failure = (await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await startup.ConfigureAwait(false)))!;
                     Assert.That(failure, Is.SameAs(readiness.Failure));
                 }
             }

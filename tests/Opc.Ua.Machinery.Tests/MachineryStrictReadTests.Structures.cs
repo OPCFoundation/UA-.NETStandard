@@ -102,8 +102,8 @@ namespace Opc.Ua.Machinery.Tests
             if (count > 2)
             {
                 Assert.That(
-                    Assert.ThrowsAsync<MachineryReadException>(
-                        async () => await client.ReadJobOrdersAsync(harness.Machine).ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<MachineryReadException>(
+                        async () => await client.ReadJobOrdersAsync(harness.Machine).ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             else
@@ -124,7 +124,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("WrongUInt32", nameof(StatusCodes.BadTypeMismatch))]
         [TestCase("NullParameter", nameof(StatusCodes.BadDecodingError))]
         [TestCase("DuplicateParameter", nameof(StatusCodes.BadDecodingError))]
-        public void StrictJobSnapshotRejectsMalformedStructures(string kind, string statusName)
+        public async Task StrictJobSnapshotRejectsMalformedStructures(string kind, string statusName)
         {
             StatusCode expectedStatus = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -156,7 +156,7 @@ namespace Opc.Ua.Machinery.Tests
             };
             DataValue original = TimedValue(value, StatusCodes.Good);
             NodeId source = AddJobList(harness, original);
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadJobOrdersSnapshotAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -168,7 +168,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void StrictJobSnapshotBoundsNestedArraysAndCycles(bool cycle)
+        public async Task StrictJobSnapshotBoundsNestedArraysAndCycles(bool cycle)
         {
             var harness = new ReadHarness();
             V2.ISA95JobOrderAndStateDataType order = Order("J-1");
@@ -185,7 +185,7 @@ namespace Opc.Ua.Machinery.Tests
             order.JobOrder.JobOrderParameters = [parameter];
             NodeId source = AddJobList(harness,
                 new DataValue(Variant.FromStructure([order])));
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
                 await harness.Client(new MachineryClientOptions { MaximumReadArrayItems = 3 })
                     .ReadJobOrdersSnapshotAsync(harness.Machine)
                     .ConfigureAwait(false));
@@ -262,7 +262,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("ContentLimit", nameof(StatusCodes.BadEncodingLimitsExceeded))]
         [TestCase("UriLimit", nameof(StatusCodes.BadEncodingLimitsExceeded))]
         [TestCase("NestedArrayLimit", nameof(StatusCodes.BadEncodingLimitsExceeded))]
-        public void StrictResultSnapshotRejectsMalformedOrOversizedValues(string kind, string statusName)
+        public async Task StrictResultSnapshotRejectsMalformedOrOversizedValues(string kind, string statusName)
         {
             StatusCode status = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -284,7 +284,7 @@ namespace Opc.Ua.Machinery.Tests
             DataValue original = new(
                 kind == "WrongType" ? Variant.From("not a result") : Variant.FromStructure(result));
             harness.Values[harness.Machine] = original;
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
                 await harness.Client(new MachineryClientOptions { MaximumReadArrayItems = 2 })
                     .ReadPublishedResultAsync(harness.Machine)
                     .ConfigureAwait(false));
@@ -333,14 +333,14 @@ namespace Opc.Ua.Machinery.Tests
         /// A malformed known-type body keeps the original binary value and source evidence.
         /// </summary>
         [Test]
-        public void MalformedBinaryResultRetainsSourceAndReportsDecodingFailure()
+        public async Task MalformedBinaryResultRetainsSourceAndReportsDecodingFailure()
         {
             var harness = new ReadHarness();
             var encoded = new ExtensionObject(
                 new ResultDataType().BinaryEncodingId, Token(1));
             DataValue original = TimedValue(Variant.From(encoded), StatusCodes.Good);
             harness.Values[harness.Machine] = original;
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().ReadPublishedResultAsync(harness.Machine).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(harness.Machine));
@@ -399,9 +399,9 @@ namespace Opc.Ua.Machinery.Tests
                 (await client.ReadJobResponsesSnapshotAsync(harness.Machine).ConfigureAwait(false)).JobResponses.Count,
                 Is.EqualTo(2));
             Assert.That(
-                Assert.ThrowsAsync<MachineryReadException>(async () =>
+                (await Assert.ThrowsAsync<MachineryReadException>(async () =>
                     await client.ReadJobResponseParametersAsync(harness.Machine, "J-1")
-                        .ConfigureAwait(false))!.StatusCode,
+                        .ConfigureAwait(false)))!.StatusCode,
                 Is.EqualTo(StatusCodes.BadDecodingError));
         }
 

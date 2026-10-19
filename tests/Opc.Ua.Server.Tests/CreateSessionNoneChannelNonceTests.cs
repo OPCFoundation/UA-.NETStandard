@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests
                     "none-nonce-oversized", GetNoneEndpoint(server), RequestEncoding.Binary, null, null);
                 ByteString clientNonce = Nonce.CreateRandomNonceData(129).ToByteString();
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.CreateSessionAsync(
                         channel, new RequestHeader(), null, null, null, "none-nonce-oversized",
                         clientNonce, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false));

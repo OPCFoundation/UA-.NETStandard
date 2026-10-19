@@ -96,7 +96,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WotProjectionDocument projection = CreateConditionProjection(action, eventForm, actionForm);
                 if (applicationHandler)
                 {
-                    ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await host.AddAsync(projection).ConfigureAwait(false));
                     Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                     Assert.That(error.Message, Does.Contain("invocation handler"));

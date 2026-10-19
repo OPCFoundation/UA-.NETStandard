@@ -161,7 +161,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             upstream.Push(first);
             upstream.Push(Notification("a", new ByteString(new byte[] { 2 }), acked: true));
-            ServiceResultException? capacity = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? capacity = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(capacity!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(Read(h.Conditions.Nodes["a"], "AckedState", "Id").TryGetValue(out bool acked), Is.True);
@@ -175,7 +175,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(upstream.Stopped, Is.EqualTo(1));
             IAsyncEnumerator<BaseEventState> retry = h.Publisher.Open(h.Nodes.Root.NodeId);
             await using var retryOwner = retry.ConfigureAwait(false);
-            ServiceResultException? unavailable = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? unavailable = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await retry.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(unavailable!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(upstream.Channel.SubscribeEventCount, Is.EqualTo(1));
@@ -300,7 +300,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Task<bool> pending = events.MoveNextAsync().AsTask();
             await upstream.Started.Task.WaitAsync(s_timeout).ConfigureAwait(false);
             upstream.Push(new WotNotification(new DataValue(Variant.Null)));
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await pending.WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(upstream.Stopped, Is.EqualTo(1));
@@ -814,8 +814,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 else
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                        await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false))!;
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                        await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false)))!;
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
                 }
             }

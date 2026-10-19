@@ -60,7 +60,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x02 });
             h.Alarm.Severity!.Value = 999;
             h.Alarm.Time!.Value = s_time + TimeSpan.FromSeconds(1);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await h.ProjectAsync("ClientUserId").ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
             var retained = new List<IFilterTarget>();
@@ -103,7 +103,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x03 });
             h.Alarm.Severity!.Value = 999;
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await h.ProjectAsync(invalidNamespace ? null : "Quality/SourceTimestamp",
                     invalidNamespace: invalidNamespace).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(invalidNamespace
@@ -144,7 +144,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC8, 0x04 });
             h.Alarm.Severity!.Value = 999;
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await h.ProjectAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(retained.EventId!.Value, Is.EqualTo(eventId));
@@ -237,7 +237,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(original, Is.EqualTo(s_eventId));
             Assert.That(await h.ProjectAsync().ConfigureAwait(false), Is.Null);
             h.Alarm.EventId!.Value = ByteString.From(new byte[] { 0xD3, 0xC4, 0x12 });
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await h.ProjectAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(h.Conditions[0].EventId!.Value, Is.EqualTo(eventId));
@@ -327,7 +327,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 default:
                     throw new ArgumentOutOfRangeException(nameof(change));
             }
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await h.ProjectAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             using (Assert.EnterMultipleScope())

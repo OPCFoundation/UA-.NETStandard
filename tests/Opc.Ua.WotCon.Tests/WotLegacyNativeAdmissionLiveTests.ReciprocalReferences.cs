@@ -380,8 +380,8 @@ namespace Opc.Ua.WotCon.Tests
             ByteString content = PeerReferenceDocument(
                 WotNodeSetPreservationMode.Always, true, false, rejectingPeer: true);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(status));
             await AssertPeerReferenceAsync(fixture, asset.AssetId, peer, inverse: true, present: false);

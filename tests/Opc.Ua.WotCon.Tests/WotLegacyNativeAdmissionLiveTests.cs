@@ -102,8 +102,8 @@ namespace Opc.Ua.WotCon.Tests
                     """
             };
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await asset.UploadThingDescriptionAsync(Document(binding: binding).Span.ToArray()))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await asset.UploadThingDescriptionAsync(Document(binding: binding).Span.ToArray())))!;
 
             Assert.That(StatusCode.IsBad(failure.StatusCode), Is.True);
             Assert.That(fixture.Provider.Connects, Is.EqualTo(connects));
@@ -128,7 +128,7 @@ namespace Opc.Ua.WotCon.Tests
                   "forms":[{"href":"sim://opcua.test/wot/speed"}]}}
                 """;
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UploadThingDescriptionAsync(Document(properties: properties).Span.ToArray()));
 
             Assert.That(fixture.Provider.Connects, Is.Zero);
@@ -175,7 +175,7 @@ namespace Opc.Ua.WotCon.Tests
             await asset.UploadThingDescriptionAsync(initial.Span.ToArray());
             int connects = fixture.Provider.Connects;
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UploadThingDescriptionAsync(Document(extra:
                     "\"uav:id\":\"nsu=urn:test:other-owner;s=other\",").Span.ToArray()));
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.WotCon.Tests
             WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
             NodeId originalType = await fixture.TypeAsync(asset.AssetId);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UploadThingDescriptionAsync(Document(extra:
                     "\"uav:browseName\":\"nsu=urn:test:another-owner;Different\",").Span.ToArray()));
 
@@ -396,7 +396,7 @@ namespace Opc.Ua.WotCon.Tests
             WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
             NodeId initial = await fixture.TypeAsync(asset.AssetId);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await asset.UploadThingDescriptionAsync(
                     NativeDocument(WotNodeSetPreservationMode.Always, "another").Span.ToArray()));
 

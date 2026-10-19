@@ -244,7 +244,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 UserIdentityToken token = createToken(certificate, created.ServerNonce);
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.ActivateSessionAsync(
                         context, created.AuthenticationToken, new SignatureData(), new ExtensionObject(token),
                         new SignatureData(), [], default).ConfigureAwait(false));

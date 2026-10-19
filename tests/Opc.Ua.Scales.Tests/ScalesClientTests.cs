@@ -71,7 +71,7 @@ namespace Opc.Ua.Scales.Tests
         }
 
         [Test]
-        public void BrowseThatFailsAsAServiceCallPropagates()
+        public async Task BrowseThatFailsAsAServiceCallPropagates()
         {
             // A timeout or a lost session is not an empty folder.
             using SessionMock session = SessionMock.Create();
@@ -81,7 +81,7 @@ namespace Opc.Ua.Scales.Tests
                     Task.FromException<IServiceResponse>(new ServiceResultException(StatusCodes.BadTimeout))));
             var client = new ScalesClient(session, NUnitTelemetryContext.Create());
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (ReferenceDescription reference in client
                     .BrowseChildrenAsync(new NodeId("Scale", 2), NodeClass.Object, CancellationToken.None)

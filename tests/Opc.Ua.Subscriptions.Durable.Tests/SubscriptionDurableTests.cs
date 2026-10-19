@@ -122,7 +122,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task SetSubscriptionDurableSucceedsBeforeItemsAddedV2Async(
             CancellationToken ct)
@@ -162,8 +161,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SetSubscriptionDurableSucceedsBeforeItemsAddedV2Async), AllowFailure = true)]
         public async Task SetSubscriptionDurableFailsWhenMIExistsV2Async(
             CancellationToken ct)
         {
@@ -197,7 +196,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
                 // Per OPC UA Part 4 §5.13.9 the server rejects
                 // SetSubscriptionDurable once items have been created.
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await sub.SetAsDurableAsync(TimeSpan.FromHours(1), ct)
                         .ConfigureAwait(false));
 
@@ -211,8 +210,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SetSubscriptionDurableFailsWhenMIExistsV2Async), AllowFailure = true)]
         public async Task SetSubscriptionDurableFailsOnUncreatedSubscriptionV2Async(
             CancellationToken ct)
         {
@@ -273,8 +272,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(SetSubscriptionDurableFailsOnUncreatedSubscriptionV2Async), AllowFailure = true)]
         public async Task DurableSubscriptionRevisedLifetimeMonotonicallyDecreasesV2Async(
             CancellationToken ct)
         {
@@ -321,8 +320,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(500)]
         [CancelAfter(90_000)]
+        [DependsOnTest(nameof(DurableSubscriptionRevisedLifetimeMonotonicallyDecreasesV2Async), AllowFailure = true)]
         public async Task DurableSubscriptionSurvivesSessionCloseV2Async(
             CancellationToken ct)
         {
@@ -452,8 +451,8 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(600)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(DurableSubscriptionSurvivesSessionCloseV2Async), AllowFailure = true)]
         public async Task DurableLifetimeAppliesToAllPartitionsV2Async(
             CancellationToken ct)
         {

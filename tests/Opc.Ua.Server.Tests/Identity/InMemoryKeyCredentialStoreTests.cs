@@ -150,30 +150,30 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
-        public void GetAsyncRejectsEmptyCredentialId()
+        public async Task GetAsyncRejectsEmptyCredentialId()
         {
             using var store = new InMemoryKeyCredentialStore();
-            ArgumentException ex = Assert.ThrowsAsync<ArgumentException>(
+            ArgumentException ex = await Assert.ThrowsAsync<ArgumentException>(
                 async () => await store.GetAsync(string.Empty, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("credentialId"));
         }
 
         [Test]
-        public void UpdateAsyncRejectsNullCredential()
+        public async Task UpdateAsyncRejectsNullCredential()
         {
             using var store = new InMemoryKeyCredentialStore();
-            ArgumentNullException ex = Assert.ThrowsAsync<ArgumentNullException>(
+            ArgumentNullException ex = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.UpdateAsync(CredentialId, null!, CancellationToken.None).ConfigureAwait(false));
             Assert.That(ex.ParamName, Is.EqualTo("credential"));
         }
 
         [Test]
-        public void OperationsAfterDisposeThrowObjectDisposedException()
+        public async Task OperationsAfterDisposeThrowObjectDisposedException()
         {
             var store = new InMemoryKeyCredentialStore();
             store.Dispose();
 
-            Assert.ThrowsAsync<ObjectDisposedException>(
+            await Assert.ThrowsAsync<ObjectDisposedException>(
                 async () => await store.GetAsync(CredentialId, CancellationToken.None).ConfigureAwait(false));
         }
     }

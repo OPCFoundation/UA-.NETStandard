@@ -367,8 +367,8 @@ namespace Opc.Ua.WotCon.Tests
                 Assert.That(outputs.Skip(5).All(argument => argument.DataType == Ua.DataTypeIds.Boolean), Is.True);
             });
             WotRegistrySnapshot beforeOpen = m_registry.Current;
-            ServiceResultException unsupported = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await InvokeTypedAsync(group, getOrCreate, "urn:review:open", "v1", true).ConfigureAwait(false))!;
+            ServiceResultException unsupported = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await InvokeTypedAsync(group, getOrCreate, "urn:review:open", "v1", true).ConfigureAwait(false)))!;
             Assert.That(unsupported.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(m_registry.Current, Is.SameAs(beforeOpen));
 

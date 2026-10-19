@@ -121,7 +121,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void TransferToDeviceThrowsOnBadStatus()
+        public async Task TransferToDeviceThrowsOnBadStatus()
         {
             Mock<ISession> session = CreateSessionMock();
             session
@@ -143,7 +143,7 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.TransferToDeviceAsync().ConfigureAwait(false));
         }
 
@@ -214,7 +214,7 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void StreamAsyncThrowsOnErrorChunk()
+        public async Task StreamAsyncThrowsOnErrorChunk()
         {
             Mock<ISession> session = CreateSessionMock();
             session
@@ -234,12 +234,12 @@ namespace Opc.Ua.Di.Tests
             var client = new DiTransferClient(
                 session.Object, kTransferServicesId, NullTelemetry());
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (ParameterFetchEntry _ in client.StreamAsync(transferId: 1))
                 {
                 }
-            })!;
+            }))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadOutOfMemory));
         }
 

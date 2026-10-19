@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             upstream.Push(Notification("a", ByteString.From(new byte[] { 3 }), acked: true, confirmed: true));
             Assert.That(await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
             ByteString secondId = events.Current.EventId!.Value;
-            ServiceResultException? overflow = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? overflow = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await events.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(overflow!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(upstream.Stopped, Is.EqualTo(1));
@@ -82,7 +82,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             IAsyncEnumerator<BaseEventState> retry = h.Publisher.Open(h.Nodes.Root.NodeId);
             await using var retryOwner = retry.ConfigureAwait(false);
-            ServiceResultException? unavailable = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? unavailable = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await retry.MoveNextAsync().AsTask().WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(unavailable!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
             Assert.That(upstream.Channel.SubscribeEventCount, Is.EqualTo(1));

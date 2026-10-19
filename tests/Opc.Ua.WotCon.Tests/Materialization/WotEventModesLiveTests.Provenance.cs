@@ -112,7 +112,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     Assert.That(origin.ReceiveTime, Is.EqualTo(received));
                     Assert.That(origin.EncodingMask, Is.EqualTo(0xCFU));
                 }
-                ServiceResultException? missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? missing = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     _ = await client.GetEventProvenanceAsync(
                         ByteString.From(new byte[] { 0x00, 0x50, 0x60, 0x70 }), ct).ConfigureAwait(false);

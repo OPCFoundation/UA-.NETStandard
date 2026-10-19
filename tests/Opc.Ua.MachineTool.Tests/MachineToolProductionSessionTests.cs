@@ -178,8 +178,8 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(production.State.ActiveProgram!.JobNodeId!.Value.IsNull, Is.True);
             Assert.That(production.State.ActiveProgram.NumberInList!.Value, Is.Zero);
             Assert.That(firstReceiver.HasDeletionModelChange, Is.True);
-            ServiceResultException deleted = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await second.ReadValueAsync(counterNodeId).ConfigureAwait(false))!;
+            ServiceResultException deleted = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await second.ReadValueAsync(counterNodeId).ConfigureAwait(false)))!;
             Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             await first.CloseAsync(CancellationToken.None).ConfigureAwait(false);
             await second.CloseAsync(CancellationToken.None).ConfigureAwait(false);

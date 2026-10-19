@@ -222,7 +222,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     destination.Session, descriptor, NUnitTelemetryContext.Create());
                 foreach (ByteString eventId in new[] { observedId, ByteString.From(new byte[] { 0x01 }) })
                 {
-                    ServiceResultException? denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException? denied = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     {
                         _ = await client.GetEventProvenanceAsync(eventId, ct).ConfigureAwait(false);
                     });

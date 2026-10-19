@@ -58,7 +58,7 @@ namespace Opc.Ua.WotCon.Tests
                 """);
             if (missing)
             {
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await asset.UploadThingDescriptionAsync(content.Span.ToArray()));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
             }
@@ -103,7 +103,7 @@ namespace Opc.Ua.WotCon.Tests
             ByteString content = Document(binding: $"\"@type\":[\"Thing\",\"model:{type}\"],");
             if (missing)
             {
-                ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await asset.UploadThingDescriptionAsync(content.Span.ToArray()));
                 Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
@@ -144,8 +144,8 @@ namespace Opc.Ua.WotCon.Tests
                 """);
             if (binding is "missing" or "wrong-class")
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
                 Assert.That((await PropertiesAsync(asset)).Count, Is.Zero);
@@ -179,8 +179,8 @@ namespace Opc.Ua.WotCon.Tests
                 """);
             if (binding == "missing")
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
                 Assert.That((await PropertiesAsync(asset)).Count, Is.Zero);
@@ -216,8 +216,8 @@ namespace Opc.Ua.WotCon.Tests
             ByteString content = Document(binding: "\"@type\":[\"Thing\",\"ua:BaseObjectType\"]," + link);
             if (binding == "conflict")
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
             }

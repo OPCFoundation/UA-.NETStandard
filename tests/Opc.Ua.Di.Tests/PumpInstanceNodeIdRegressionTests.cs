@@ -579,7 +579,7 @@ namespace Opc.Ua.Di.Tests
                 Assert.That(
                     pumpReferences,
                     Has.Exactly(1).Matches<IReference>(reference =>
-                        reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                        reference is not null && reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
                         !reference.IsInverse &&
                         reference.TargetId == events.NodeId));
 
@@ -593,13 +593,13 @@ namespace Opc.Ua.Di.Tests
                     Assert.That(
                         eventReferences,
                         Has.Exactly(1).Matches<IReference>(reference =>
-                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
+                            reference is not null && reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasNotifier &&
                             reference.IsInverse &&
                             reference.TargetId == pump.NodeId));
                     Assert.That(
                         eventReferences,
                         Has.Exactly(1).Matches<IReference>(reference =>
-                            reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasEventSource &&
+                            reference is not null && reference.ReferenceTypeId == Opc.Ua.Types.ReferenceTypeIds.HasEventSource &&
                             !reference.IsInverse &&
                             reference.TargetId == alarm.NodeId));
                 });
@@ -625,7 +625,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(
                 alarmNodes,
                 Has.All.Matches<PumpNode>(node =>
-                    !node.State.NodeId.IsNull &&
+                    node is not null && !node.State.NodeId.IsNull &&
                     node.State.NodeId.NamespaceIndex == m_manager!.InstanceNamespaceIndex));
             Assert.That(alarmNodes.Select(node => node.State.NodeId), Is.Unique);
         }
@@ -668,7 +668,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(nodes, Is.Not.Empty);
             Assert.That(
                 nodes,
-                Has.All.Matches<PumpNode>(node => node.State.NodeId
+                Has.All.Matches<PumpNode>(node => node is not null && node.State.NodeId
                     == ExpectedChildId(node.Parent.NodeId, node.State.BrowseName)));
         }
 

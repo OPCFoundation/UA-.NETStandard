@@ -121,7 +121,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
                     if (failedPreparation)
                     {
-                        Assert.ThrowsAsync<InvalidOperationException>(
+                        await Assert.ThrowsAsync<InvalidOperationException>(
                             async () => await reload!().ConfigureAwait(false));
                         Assert.That(leases, Has.Count.EqualTo(1));
                         leases.ToArray()[0].Verify(lease => lease.DisposeAsync(), Times.Never);

@@ -74,7 +74,7 @@ namespace Opc.Ua.GMS.Tests
             Assert.That(first.ConformanceUnits, Is.Empty);
             Assert.That(fixture.Manager.FindPredefinedNode(sibling.NodeId), Is.SameAs(sibling.State));
             await sibling.RefreshAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () => await first.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () => await first.RefreshAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -90,18 +90,18 @@ namespace Opc.Ua.GMS.Tests
             await using GmsHandle handle = await GmsSystemTests.Builder(context, "ReentryGms", provider)
                 .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()))
                 .BuildAsync().ConfigureAwait(false);
-            provider.Callback = ct =>
+            provider.Callback = async ct =>
             {
-                ServiceResultException update = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await handle.RefreshAsync(ct).ConfigureAwait(false))!;
+                ServiceResultException update = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await handle.RefreshAsync(ct).ConfigureAwait(false)))!;
                 Assert.That(update.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-                ServiceResultException dispose = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await handle.DisposeAsync().ConfigureAwait(false))!;
+                ServiceResultException dispose = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await handle.DisposeAsync().ConfigureAwait(false)))!;
                 Assert.That(dispose.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-                return new ValueTask<GmsSystemSnapshot>(new GmsSystemSnapshot
+                return new GmsSystemSnapshot
                 {
                     MachineTool = new Opc.Ua.MachineTool.MachineToolSnapshot { Revision = 1 }
-                });
+                };
             };
             await handle.RefreshAsync().ConfigureAwait(false);
             Assert.That(fixture.Manager.FindPredefinedNode(handle.NodeId), Is.SameAs(handle.State));
@@ -126,7 +126,7 @@ namespace Opc.Ua.GMS.Tests
                     builder.WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(failed));
                     builder.WithRegistrationBinding((_, _, _) => new ValueTask<IAsyncDisposable>(completed));
                 }).BuildAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<AggregateException>(async () => await handle.DisposeAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<AggregateException>(async () => await handle.DisposeAsync().ConfigureAwait(false));
             Assert.That(failed.Calls, Is.EqualTo(1));
             Assert.That(completed.Calls, Is.EqualTo(1));
             Assert.That(fixture.Manager.FindPredefinedNode(handle.NodeId), Is.Null);

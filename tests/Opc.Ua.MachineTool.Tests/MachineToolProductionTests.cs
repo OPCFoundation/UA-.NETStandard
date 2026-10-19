@@ -153,7 +153,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(reported[0].SourceNode!.Value, Is.EqualTo(published.State.NodeId));
             Assert.That(reported[0].Identifier!.Value, Is.EqualTo("Job-1"));
 
-            ServiceResultException invalid = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException invalid = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await production.ApplyAsync(next with
                 {
                     Revision = 2,
@@ -162,7 +162,7 @@ namespace Opc.Ua.MachineTool.Tests
                     {
                         Jobs = [job with { RunsCompleted = 9, TransitionSequence = 2 }]
                     }
-                }).ConfigureAwait(false))!;
+                }).ConfigureAwait(false)))!;
             Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(published.RunsCompleted.Value, Is.EqualTo(1));
             Assert.That(machine.Production.ActiveProgram.Name!.Value, Is.EqualTo("SECOND.NC"));
@@ -267,7 +267,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(programs[0].JobIdentifier!.Value, Is.EqualTo("Job"));
             Assert.That(programs[0].Name!.Value, Is.EqualTo("MAIN.NC"));
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await production.ApplyAsync(finishedPart with
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await production.ApplyAsync(finishedPart with
             {
                 Revision = 3,
                 Production = finishedPart.Production with { Jobs = [job with { PartsGood = 2 }] }
@@ -341,7 +341,7 @@ namespace Opc.Ua.MachineTool.Tests
             conditions[0].ConditionRefresh(fixture.Context.Context, retained, true);
             Assert.That(retained, Has.Count.EqualTo(1));
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await production.ApplyAsync(interrupted with
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await production.ApplyAsync(interrupted with
             {
                 Revision = 3,
                 Production = interrupted.Production with

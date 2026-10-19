@@ -199,7 +199,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [TestCase("output-type")]
         [TestCase("output-rank")]
         [TestCase("output-name")]
-        public void ProjectedSignatureMismatchFailsBeforeOpeningTheSelectedSource(string mismatch)
+        public async Task ProjectedSignatureMismatchFailsBeforeOpeningTheSelectedSource(string mismatch)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             var numberInput = new Argument
@@ -244,7 +244,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ]);
             var factory = new WotProjectionBindingRuntimeFactory(registry);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await using IAsyncDisposable? runtime =
                     await factory.CreateAsync(h.Builder, [plan]).ConfigureAwait(false);

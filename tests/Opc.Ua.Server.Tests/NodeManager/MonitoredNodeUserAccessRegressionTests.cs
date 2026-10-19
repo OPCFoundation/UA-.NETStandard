@@ -285,7 +285,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 var queued = item.Invocations
                     .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                    .Select(i => ((DataValue)i.Arguments[0], (ServiceResult)i.Arguments[1]))
+                    .Select(i => ((DataValue)i.Arguments[0]!, (ServiceResult)i.Arguments[1]!))
                     .ToList();
                 Assert.That(queued, Has.Count.EqualTo(1));
                 return queued[0];

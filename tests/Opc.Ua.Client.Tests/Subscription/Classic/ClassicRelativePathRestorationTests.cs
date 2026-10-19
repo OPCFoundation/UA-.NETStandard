@@ -325,7 +325,7 @@ namespace Opc.Ua.Client.Tests
             }
             translation.SetResult(Translation("Stale"));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await resolving.ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(item.ResolvedNodeId.IsNull, Is.True);
@@ -355,7 +355,7 @@ namespace Opc.Ua.Client.Tests
 
             translation.SetResult(Translation("Stale"));
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await resolving.ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await resolving.ConfigureAwait(false));
             Assert.That(item.ResolvedNodeId, Is.EqualTo(new NodeId("CreatedTarget", 1)));
             Assert.That(item.Status.NodeId, Is.EqualTo(new NodeId("CreatedTarget", 1)));
         }
@@ -379,12 +379,12 @@ namespace Opc.Ua.Client.Tests
             if (cancel)
             {
                 translation.SetCanceled();
-                Assert.ThrowsAsync<TaskCanceledException>(async () => await creating.ConfigureAwait(false));
+                await Assert.ThrowsAsync<TaskCanceledException>(async () => await creating.ConfigureAwait(false));
             }
             else
             {
                 translation.SetException(new ServiceResultException(StatusCodes.BadCommunicationError));
-                Assert.ThrowsAsync<ServiceResultException>(async () => await creating.ConfigureAwait(false));
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await creating.ConfigureAwait(false));
             }
 
             Assert.DoesNotThrow(() => item.RelativePath = "/Retry");
@@ -409,7 +409,7 @@ namespace Opc.Ua.Client.Tests
             subscription.AddItem(item);
             SetTranslation(session, Task.FromResult(new TranslateBrowsePathsToNodeIdsResponse { Results = [] }));
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await subscription.CreateItemsAsync().ConfigureAwait(false));
 
             Assert.DoesNotThrow(() => item.RelativePath = "/Retry");
@@ -524,7 +524,7 @@ namespace Opc.Ua.Client.Tests
             }
             translation.SetResult(Translation("StaleOwner"));
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await resolving.ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(item.ResolvedNodeId.IsNull, Is.True);

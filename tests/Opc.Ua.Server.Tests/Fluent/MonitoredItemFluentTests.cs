@@ -534,7 +534,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 },
                 useSamplingGroups).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await harness.CreateAsync(CreateRequest())
                     .ConfigureAwait(false));
             Assert.Multiple(() =>

@@ -257,8 +257,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 await upstream.Started.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 upstream.Push(OccurrenceNotification(BusinessEventId(valueKind), 1));
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await pending.WaitAsync(s_timeout).ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await pending.WaitAsync(s_timeout).ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
                 Assert.That(upstream.Stopped, Is.EqualTo(1));
             }

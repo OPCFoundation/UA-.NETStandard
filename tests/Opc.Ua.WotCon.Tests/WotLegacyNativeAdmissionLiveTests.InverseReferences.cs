@@ -153,8 +153,8 @@ namespace Opc.Ua.WotCon.Tests
                 WotAssetClient asset = await fixture.Client.CreateAssetAsync("mapped");
                 ByteString original = Document();
                 await asset.UploadThingDescriptionAsync(original.Span.ToArray());
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
                 Assert.That(fixture.Provider.Connects, Is.EqualTo(1));
                 Assert.That(await asset.DownloadThingDescriptionAsync(), Is.EqualTo(original.Span.ToArray()));
@@ -165,9 +165,9 @@ namespace Opc.Ua.WotCon.Tests
                 if (path == "discovery")
                 {
                     fixture.Options.Discovery = new Discovery(content);
-                    ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await fixture.Client.CreateAssetForEndpointAsync(
-                            "mapped", "sim://opcua.test/wot/mapped"))!;
+                            "mapped", "sim://opcua.test/wot/mapped")))!;
                     Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
                 }
                 else
@@ -223,8 +223,8 @@ namespace Opc.Ua.WotCon.Tests
             ByteString content = InlineInverseReferenceDocument(hierarchical);
             if (hierarchical)
             {
-                ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await asset.UploadThingDescriptionAsync(content.Span.ToArray()))!;
+                ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await asset.UploadThingDescriptionAsync(content.Span.ToArray())))!;
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
                 Assert.That(fixture.Provider.Connects, Is.Zero);
             }
@@ -253,8 +253,8 @@ namespace Opc.Ua.WotCon.Tests
             ByteString original = InlineInverseReferenceDocument(false);
             await asset.UploadThingDescriptionAsync(original.Span.ToArray());
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await asset.UploadThingDescriptionAsync(InlineInverseReferenceDocument(true).Span.ToArray()))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await asset.UploadThingDescriptionAsync(InlineInverseReferenceDocument(true).Span.ToArray())))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadReferenceNotAllowed));
             Assert.That(fixture.Provider.Connects, Is.EqualTo(1));

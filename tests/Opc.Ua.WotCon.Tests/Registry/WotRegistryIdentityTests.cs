@@ -142,7 +142,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     Assert.That(service.Current, Is.SameAs(before));
                 });
 
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     if (tryCreate)
                     {
@@ -152,7 +152,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     {
                         await service.GetOrCreateGroupAsync(collision, typed.Group.Kind).ConfigureAwait(false);
                     }
-                })!;
+                }))!;
 
                 using var restarted = new WotRegistryService(inner);
                 await restarted.InitializeAsync().ConfigureAwait(false);
@@ -206,16 +206,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("https://contoso.org/a b")]
         [TestCase("https://contoso.org/%zz")]
         [TestCase("https://contoso.org\\a")]
-        public void InvalidCatalogueRejectsBeforeStoreOrContentIo(string catalogue)
+        public async Task InvalidCatalogueRejectsBeforeStoreOrContentIo(string catalogue)
         {
             var bytes = new Mock<IXRegistryResourceStore>(MockBehavior.Strict);
             var store = new ObservedStore(bytes.Object);
             using var service = new WotRegistryService(store);
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.GetOrCreateDocumentGroupAsync(WoTDocumentKindEnum.ThingDescription, catalogue)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -232,14 +232,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase(-1)]
         [TestCase(2)]
         [TestCase(3)]
-        public void SelectorAndUndefinedKindsCannotAllocate(int kind)
+        public async Task SelectorAndUndefinedKindsCannotAllocate(int kind)
         {
             var store = new ObservedStore();
             using var service = new WotRegistryService(store);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.CreateDocumentGroupAsync((WoTDocumentKindEnum)kind, "urn:catalogue")
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -350,9 +350,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotDocumentResourceResult repeated = await service.GetOrCreateDocumentResourceAsync(
                 group.GroupId, group.Kind, "urn:thing", "V3").ConfigureAwait(false);
             WotRegistrySnapshot beforeDuplicate = service.Current;
-            ServiceResultException duplicate = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException duplicate = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.CreateDocumentResourceAsync(group.GroupId, group.Kind, "urn:thing", "V3")
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -390,9 +390,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 WoTDocumentKindEnum.ThingModel, "urn:models").ConfigureAwait(false)).Group;
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await service.GetOrCreateDocumentResourceAsync(group.GroupId, group.Kind, source)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -492,12 +492,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription;
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException typed = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.CreateDocumentResourceAsync(group.GroupId, other, "urn:wrong").ConfigureAwait(false))!;
-            ServiceResultException legacy = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.GetOrCreateGroupAsync(group.GroupId, other).ConfigureAwait(false))!;
-            ServiceResultException version = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.GetOrCreateVersionAsync(group.GroupId, "wrong", "v1", other).ConfigureAwait(false))!;
+            ServiceResultException typed = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await service.CreateDocumentResourceAsync(group.GroupId, other, "urn:wrong").ConfigureAwait(false)))!;
+            ServiceResultException legacy = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await service.GetOrCreateGroupAsync(group.GroupId, other).ConfigureAwait(false)))!;
+            ServiceResultException version = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await service.GetOrCreateVersionAsync(group.GroupId, "wrong", "v1", other).ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -582,7 +582,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistrySnapshot before = service.Current;
             store.FailNextCommit = true;
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await service.CreateDocumentResourceAsync(group.GroupId, group.Kind, "urn:thing")
                     .ConfigureAwait(false));
             Assert.That(service.Current, Is.SameAs(before));
@@ -610,8 +610,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 "legacy", WoTDocumentKindEnum.ThingModel, name: "urn:catalogue").ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException missing = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await service.ProvisionConfiguredGroupAsync("legacy", true, default).ConfigureAwait(false))!;
+            ServiceResultException missing = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await service.ProvisionConfiguredGroupAsync("legacy", true, default).ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));

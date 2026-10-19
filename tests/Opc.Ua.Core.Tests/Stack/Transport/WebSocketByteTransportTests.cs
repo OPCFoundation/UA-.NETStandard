@@ -177,9 +177,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 endOfMessage: true,
                 CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
         }
 
@@ -206,9 +206,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 endOfMessage: false,
                 CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
         }
 
@@ -229,9 +229,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "test",
                 CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
@@ -281,9 +281,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 WebSocketMessageType.Binary,
                 endOfMessage: true,
                 CancellationToken.None).ConfigureAwait(false);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.ReceiveChunkAsync(CancellationToken.None)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTooLarge));
         }
 
@@ -392,7 +392,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 kBufferSize,
                 m_telemetry);
 
-            Assert.ThrowsAsync<NotSupportedException>(
+            await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await transport.ConnectAsync(
                     new Uri("opc.wss://localhost:4840"),
                     CancellationToken.None).ConfigureAwait(false));
@@ -416,10 +416,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             transport.Close();
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await transport.SendChunkAsync(
                     new byte[8].AsMemory(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadConnectionClosed));
         }
 
@@ -445,10 +445,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// throw <see cref="ArgumentNullException"/> when the URL is null.
         /// </summary>
         [Test]
-        public void ClientTransportConnectAsyncRejectsNullUrl()
+        public async Task ClientTransportConnectAsyncRejectsNullUrl()
         {
             using var transport = new WebSocketClientByteTransport(m_bufferManager, kBufferSize, m_telemetry);
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await transport.ConnectAsync(null!, CancellationToken.None)
                     .ConfigureAwait(false));
         }

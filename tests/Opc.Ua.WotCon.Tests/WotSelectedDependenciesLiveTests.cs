@@ -405,8 +405,8 @@ namespace Opc.Ua.WotCon.Tests
             };
 
             DataValue denied = await fixture.ReadNodeAsync(propertyId);
-            ServiceResultException refresh = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await fixture.RefreshAsync([source.Selector], "denied"))!;
+            ServiceResultException refresh = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await fixture.RefreshAsync([source.Selector], "denied")))!;
 
             Assert.Multiple(() =>
             {

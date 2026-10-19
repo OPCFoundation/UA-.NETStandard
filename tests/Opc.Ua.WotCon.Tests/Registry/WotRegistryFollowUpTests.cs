@@ -77,13 +77,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     WotRegistryGroups.ThingDescriptions,
                     "pending",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                    WoTDocumentKindEnum.ThingDescription);
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "pending",
                     "different",
-                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {
@@ -222,12 +222,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await reloaded.InitializeAsync().ConfigureAwait(false);
             WotRegistrySnapshot before = reloaded.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await reloaded.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "desired",
                     "v4",
-                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {
@@ -689,12 +689,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Request("collision", TestMaterialization.Td("urn:collision", "first"), "V1")).ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "collision",
                         TestMaterialization.Td("urn:collision", "second"),
-                        "v1")).ConfigureAwait(false))!;
+                        "v1"))))!;
 
             Assert.Multiple(() =>
             {
@@ -731,16 +731,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// Verifies that malformed upsert version ID throws bad invalid argument.
         /// </summary>
         [Test]
-        public void MalformedUpsertVersionIdThrowsBadInvalidArgument()
+        public async Task MalformedUpsertVersionIdThrowsBadInvalidArgument()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "invalid-upsert",
                         TestMaterialization.Td("urn:invalid-upsert"),
-                        "invalid/version")).ConfigureAwait(false))!;
+                        "invalid/version"))))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -749,16 +749,16 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// Verifies that new overlong upsert version ID throws bad invalid argument.
         /// </summary>
         [Test]
-        public void NewOverlongUpsertVersionIdThrowsBadInvalidArgument()
+        public async Task NewOverlongUpsertVersionIdThrowsBadInvalidArgument()
         {
             using var service = new WotRegistryService();
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.UpsertResourceAsync(
                     Request(
                         "overlong-upsert",
                         TestMaterialization.Td("urn:overlong-upsert"),
-                        new string('a', 129))).ConfigureAwait(false))!;
+                        new string('a', 129)))))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -775,12 +775,12 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Request("overflow", TestMaterialization.Td("urn:overflow"), maximum)).ConfigureAwait(false);
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.TryCreateVersionAsync(
                     WotRegistryGroups.ThingDescriptions,
                     "overflow",
                     string.Empty,
-                    WoTDocumentKindEnum.ThingDescription).ConfigureAwait(false))!;
+                    WoTDocumentKindEnum.ThingDescription)))!;
 
             Assert.Multiple(() =>
             {

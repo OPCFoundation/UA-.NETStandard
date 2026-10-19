@@ -110,7 +110,7 @@ namespace Opc.Ua.Pcap.Tests.KeyLog
                 await writer.AppendAsync(material, CancellationToken.None).ConfigureAwait(false);
             }
 
-            Exception? exception = Assert.ThrowsAsync<AuthenticationTagMismatchException>(async () =>
+            Exception? exception = await Assert.ThrowsAsync<AuthenticationTagMismatchException>(async () =>
                 await PcapTestHelpers.ToListAsync(
                     new UaKeyLogJsonReader(path, wrongKey).ReadAllAsync(CancellationToken.None)).ConfigureAwait(false));
 

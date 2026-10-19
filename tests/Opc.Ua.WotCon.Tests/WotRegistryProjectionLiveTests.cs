@@ -1799,8 +1799,8 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 """));
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await resource.Proxy.UploadAsync(content).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await resource.Proxy.UploadAsync(content).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             WotResource stored = m_registry.Current.FindResource(group.GroupId, resource.ResourceId)!;

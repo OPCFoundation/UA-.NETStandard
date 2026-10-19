@@ -92,8 +92,8 @@ namespace Opc.Ua.Client.Tests.Streaming
                     ready = true;
                     return default;
                 }, ct: timeout.Token).GetAsyncEnumerator();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await events.MoveNextAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await events.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That(ready, Is.False);
             harness.Items.Verify(items => items.TryRemove(42), Times.Once);
@@ -113,7 +113,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             var observed = new InvalidOperationException("Ready after creation.");
             await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWhenReadyAsync(
                 ObjectIds.Server, new EventFilter(), _ => throw observed, ct: timeout.Token).GetAsyncEnumerator();
-            Exception? error = Assert.ThrowsAsync<InvalidOperationException>(
+            Exception? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await events.MoveNextAsync().ConfigureAwait(false));
             Assert.That(error, Is.SameAs(observed));
             harness.Item.VerifyGet(item => item.Created, Times.Exactly(2));
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             var failure = new InvalidOperationException("Readiness consumer failed.");
             await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWhenReadyAsync(
                 ObjectIds.Server, new EventFilter(), _ => throw failure).GetAsyncEnumerator();
-            Exception? error = Assert.ThrowsAsync<InvalidOperationException>(
+            Exception? error = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await events.MoveNextAsync().ConfigureAwait(false));
             Assert.That(error, Is.SameAs(failure));
             harness.Items.Verify(items => items.TryRemove(42), Times.Once);
@@ -201,8 +201,8 @@ namespace Opc.Ua.Client.Tests.Streaming
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWithRefreshAsync(
                 ObjectIds.Server, new EventFilter(), ct: timeout.Token).GetAsyncEnumerator();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await events.MoveNextAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await events.MoveNextAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             harness.Item.Verify(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()), Times.Never);
             harness.Items.Verify(items => items.TryRemove(42), Times.Once);
@@ -218,7 +218,7 @@ namespace Opc.Ua.Client.Tests.Streaming
             await using var streaming = new StreamingSubscription(harness.Manager.Object);
             await using IAsyncEnumerator<EventNotification> events = streaming.SubscribeEventsWithRefreshAsync(
                 ObjectIds.Server, new EventFilter()).GetAsyncEnumerator();
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await events.MoveNextAsync().ConfigureAwait(false));
             Assert.That(error, Is.SameAs(failure));
             harness.Item.Verify(item => item.ConditionRefreshAsync(It.IsAny<CancellationToken>()), Times.Once);

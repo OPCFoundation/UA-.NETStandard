@@ -112,11 +112,11 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 Assert.That(refused.Message.Text, Is.EqualTo("operator owns command authority"));
             });
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => _ = await new RobotIntentControllerClient(failedTransport)
                         .TrySubmitIntentAsync(
                             RoboticsIntentDtoConverter.ConvertLinearMove(kLinearMoveDto, null),
-                            CancellationToken.None).ConfigureAwait(false))!;
+                            CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 

@@ -129,12 +129,15 @@ namespace Opc.Ua.Server
             TypeInfo originalType = default;
             bool badDataSkipped = false;
 
+            // Part 13 §5.4.3.27 uses the first and last Good values; the definition wins over
+            // §4.2.1.2, so Uncertain values are skipped whatever TreatUncertainAsBad is
+            // (Mantis 11495 ~0025874).
             for (int ii = 0; ii < values.Count; ii++)
             {
                 // find start value.
                 DataValue start = values[ii];
 
-                if (IsGood(start))
+                if (IsGoodValue(start))
                 {
                     try
                     {
@@ -158,7 +161,7 @@ namespace Opc.Ua.Server
                 // find end value.
                 DataValue end = values[ii];
 
-                if (IsGood(end))
+                if (IsGoodValue(end))
                 {
                     try
                     {

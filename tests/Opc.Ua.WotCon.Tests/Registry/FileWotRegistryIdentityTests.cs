@@ -181,7 +181,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             File.WriteAllText(path, manifest.ToJsonString());
             using var reopened = new FileWotRegistryStore(m_root);
 
-            Assert.ThrowsAsync<InvalidDataException>(async () => await reopened.LoadAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<InvalidDataException>(async () => await reopened.LoadAsync().ConfigureAwait(false));
         }
 
         /// <summary>

@@ -130,10 +130,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         [Test]
-        public void AddResourceLabelMissingKeyThrows()
+        public async Task AddResourceLabelMissingKeyThrows()
         {
             using var service = new WotRegistryService();
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", string.Empty, "x"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -143,31 +143,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("a\u202Eb")]           // BIDI override
         [TestCase("AddAttribute")]       // reserved container member
         [TestCase("RemoveAttribute")]    // reserved container member
-        public void AddResourceLabelInvalidOrReservedKeyThrows(string key)
+        public async Task AddResourceLabelInvalidOrReservedKeyThrows(string key)
         {
             using var service = new WotRegistryService();
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", key, "x"));
         }
 
         [Test]
-        public void AddResourceLabelKeyTooLongThrows()
+        public async Task AddResourceLabelKeyTooLongThrows()
         {
             using var service = new WotRegistryService();
             string longKey = new('k', service.Bounds.MaxLabelKeyLength + 1);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", longKey, "x"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         [Test]
-        public void AddResourceLabelValueTooLongThrows()
+        public async Task AddResourceLabelValueTooLongThrows()
         {
             using var service = new WotRegistryService();
             string longValue = new('v', service.Bounds.MaxLabelValueLength + 1);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", "k", longValue));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await service.AddResourceLabelAsync("sensors", "a", "k1", "v1");
             await service.AddResourceLabelAsync("sensors", "a", "k2", "v2");
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await service.AddResourceLabelAsync("sensors", "a", "k3", "v3"));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
 

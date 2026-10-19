@@ -115,8 +115,8 @@ namespace Opc.Ua.WotCon.Tests
             }
             WotRegistrySnapshot before = service.Current;
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CreateAsync(service, operation, WoTDocumentKindEnum.All).ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CreateAsync(service, operation, WoTDocumentKindEnum.All).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(service.Current, Is.SameAs(before));

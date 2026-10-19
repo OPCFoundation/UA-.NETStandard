@@ -161,7 +161,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             RoleEntry role = roles.GetRole(ObjectIds.WellKnownRole_Operator) ??
                 throw new AssertionException("The well-known Operator role is missing.");
             Assert.That(role.Identities, Has.Exactly(1).Matches<IdentityMappingRuleType>(rule =>
-                rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "preset-operator"));
+                rule is not null && rule.CriteriaType == IdentityCriteriaType.UserName && rule.Criteria == "preset-operator"));
         }
     }
 }

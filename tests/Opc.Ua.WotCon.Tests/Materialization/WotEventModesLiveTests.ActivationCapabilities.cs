@@ -213,7 +213,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var host = new LifecycleWotProjectionHost(destination.Server.NodeManagerLifecycle,
                 new WotProjectionBindingRuntimeFactory(channels));
             ArrayOf<NodeManagerRegistration> before = destination.Server.NodeManagerLifecycle.Registrations;
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 _ = await host.AddAsync(document, ct).ConfigureAwait(false);
             });
@@ -256,7 +256,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotProjectionBindingRuntimeFactory(channels));
             ExpandedNodeId type = new("EventType", SourceNamespace);
             ArrayOf<NodeManagerRegistration> before = destination.Server.NodeManagerLifecycle.Registrations;
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 _ = await host.AddAsync(TransparentProjection(
                     form, EventDeclaration("transparent-forwarding", type)), ct).ConfigureAwait(false);
@@ -324,14 +324,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await captured.Task.WaitAsync(ct).ConfigureAwait(false);
                 if (invalidateSource)
                 {
-                    ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         _ = await replacement.ConfigureAwait(false));
                     Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
                 }
                 else
                 {
                     await cancellation.CancelAsync().ConfigureAwait(false);
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         _ = await replacement.ConfigureAwait(false));
                 }
                 using (Assert.EnterMultipleScope())
@@ -373,7 +373,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotProjectionBindingRuntimeFactory(channels));
             ArrayOf<NodeManagerRegistration> before = destination.Server.NodeManagerLifecycle.Registrations;
             ExpandedNodeId type = new("EventType", SourceNamespace);
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 _ = await host.AddAsync(TransparentProjection(EventForm(destination.EndpointUrl),
                     EventDeclaration("transparent-forwarding", type)), ct).ConfigureAwait(false);
@@ -418,7 +418,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             try
             {
                 ArrayOf<NodeManagerRegistration> before = destination.Server.NodeManagerLifecycle.Registrations;
-                ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     _ = await host.ShadowReloadAsync(active, desired, ct).ConfigureAwait(false);
                 });

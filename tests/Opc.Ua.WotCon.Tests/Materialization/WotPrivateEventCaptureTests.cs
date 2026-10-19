@@ -359,7 +359,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     return new ValueTask<ConditionState>(new ConditionState(null) { NodeId = nodeId });
                 });
             WotNotification notification = new WotNotification(new DataValue(Variant.Null)).WithCapturedEvent(captured);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await projected.ProjectAsync(notification, CancellationToken.None).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(field is "ConditionId" or "NullConditionId"
                 ? StatusCodes.BadNodeIdInvalid : StatusCodes.BadEventIdUnknown));

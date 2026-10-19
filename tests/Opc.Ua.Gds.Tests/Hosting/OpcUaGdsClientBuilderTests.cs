@@ -78,15 +78,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(builder.Services, Is.SameAs(services));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
-                d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<KeyCredentialServiceClient>>)));
+                d is not null && d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<KeyCredentialServiceClient>>)));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
-                d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<AuthorizationServiceClient>>)));
+                d is not null && d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<AuthorizationServiceClient>>)));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
-                d.ServiceType == typeof(LocalDiscoveryServerClient)));
+                d is not null && d.ServiceType == typeof(LocalDiscoveryServerClient)));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
-                d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>)));
+                d is not null && d.ServiceType == typeof(Func<NodeId, CancellationToken, ValueTask<OnboardingClient>>)));
             Assert.That(services, Has.Some.Matches<ServiceDescriptor>(d =>
-                d.ServiceType == typeof(IAccessTokenProvider)));
+                d is not null && d.ServiceType == typeof(IAccessTokenProvider)));
 
             using ServiceProvider provider = services.BuildServiceProvider();
             Assert.That(provider.GetService<IAccessTokenProvider>(), Is.Not.Null);

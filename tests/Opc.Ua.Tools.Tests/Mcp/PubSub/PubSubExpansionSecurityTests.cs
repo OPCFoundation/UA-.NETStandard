@@ -223,7 +223,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
 
             await fixture.Secrets.RevokeReferenceAsync(security.KeyReference).ConfigureAwait(false);
             await transport.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            ServiceResultException? refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? refused = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.CreateAsync(input with { Name = "retry" }).ConfigureAwait(false));
 
             Assert.That(refused!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -242,7 +242,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 fixture, TimeSpan.FromMinutes(2), notBefore: boundary).ConfigureAwait(false);
             PubSubApplicationInput input = PubSubExpansionTestContext.Input() with { Security = security };
 
-            ServiceResultException? early = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? early = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Runtimes.CreateAsync(input).ConfigureAwait(false));
             fixture.Clock.Advance(TimeSpan.FromMinutes(1));
             JsonObject accepted = await fixture.Runtimes.CreateAsync(input).ConfigureAwait(false);
@@ -269,7 +269,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                     security with { PolicyUri = PubSubSecurityPolicyUri.PubSubAes256Ctr }
                 })
                 {
-                    ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await fixture.Runtimes.CreateAsync(
                             PubSubExpansionTestContext.Input() with { Security = invalid })
                             .ConfigureAwait(false));
@@ -278,7 +278,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             }
             using (fixture.Enter(PubSubExpansionTestContext.Other))
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () => await fixture.Runtimes.CreateAsync(
+                await Assert.ThrowsAsync<ServiceResultException>(async () => await fixture.Runtimes.CreateAsync(
                     PubSubExpansionTestContext.Input() with { Security = security }).ConfigureAwait(false));
                 Assert.That(fixture.Registry.List(), Is.Empty);
             }

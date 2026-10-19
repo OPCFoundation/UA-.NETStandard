@@ -466,8 +466,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await validating.ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await validating.ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(service.Current.FindResource("ordinary", "source")!.DefaultVersion!.Validation, Is.Null);
             }

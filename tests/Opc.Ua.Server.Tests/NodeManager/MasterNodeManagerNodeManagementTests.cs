@@ -104,12 +104,12 @@ namespace Opc.Ua.Server.Tests
         [TestCase(RequestType.DeleteNodes)]
         [TestCase(RequestType.AddReferences)]
         [TestCase(RequestType.DeleteReferences)]
-        public void NodeManagementRequestCancellationPropagates(RequestType requestType)
+        public async Task NodeManagementRequestCancellationPropagates(RequestType requestType)
         {
             using var harness = new AuthorizationHarness();
             using var cancellation = new CancellationTokenSource();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await DispatchFailingNodeManagementBatchAsync(
                     harness,
                     requestType,

@@ -188,7 +188,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Task<bool> survivorRead = cancelFirst ? secondRead : firstRead;
                 Task<bool> victimRead = cancelFirst ? firstRead : secondRead;
                 await victim.CancelAsync().ConfigureAwait(false);
-                Assert.CatchAsync<OperationCanceledException>(
+                await Assert.CatchAsync<OperationCanceledException>(
                     async () => await victimRead.WaitAsync(s_timeout).ConfigureAwait(false));
                 Assert.That(secondCancelled.Task.IsCompleted, Is.False,
                     "Cancelling either local listener must not cancel the shared HTTP acquisition.");
