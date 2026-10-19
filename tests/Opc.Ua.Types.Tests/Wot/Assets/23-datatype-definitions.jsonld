@@ -9,6 +9,7 @@
     "../opc-ua-wot-binding.context.jsonld"
   ],
   "@type": ["tm:ThingModel", "uav:objectType"],
+  "uav:bindingVersion": "1.1",
   "title": "DataTypeDefinition examples",
   "uav:browseName": "demo:DataTypeExampleType",
   "uav:dataTypeDefinitions": [
@@ -177,8 +178,8 @@
       "@type": "uav:StructureDefinition",
       "uav:dataTypeName": "demo:VariantUnionDataType",
       "uav:structureType": "UnionWithSubtypedValues",
+      "uav:defaultEncodings": ["Binary", "JSON"],
       "uav:binaryEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/Binary",
-      "uav:xmlEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/XML",
       "uav:jsonEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/JSON",
       "uav:defaultEncodingId": "nsu=http://example.com/demo/dtd/;s=Encodings/VariantUnion/Binary",
       "uav:fields": [
@@ -274,7 +275,7 @@
   ],
   "properties": {
     "measurement": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:Measurement",
       "type": "object",
       "uav:fieldOrder": ["Value", "State", "Samples"],
@@ -312,7 +313,7 @@
       }
     },
     "optionalMeasurement": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:OptionalMeasurement",
       "type": "object",
       "uav:fieldOrder": ["Value", "State", "Samples", "Quality"],
@@ -345,7 +346,7 @@
       }
     },
     "state": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:State",
       "type": "integer",
       "oneOf": [
@@ -356,7 +357,7 @@
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#MachineStateEnum" }
     },
     "access": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:Access",
       "type": "integer",
       "minimum": 0,
@@ -364,7 +365,7 @@
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#AccessFlags" }
     },
     "matrix": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:Matrix",
       "type": "array",
       "items": { "type": "number", "uav:dataTypeName": "ua:Double", "uav:dataTypeId": "i=11" },
@@ -372,7 +373,7 @@
       "uav:arrayDimensions": [3, 3]
     },
     "inferredRecord": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:InferredRecord",
       "uav:dataTypeName": "demo:InferredRecordDataType",
       "type": "object",
@@ -385,7 +386,7 @@
       "required": ["Enabled", "Label", "CreatedAt"]
     },
     "inferredMode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:InferredMode",
       "uav:dataTypeName": "demo:InferredModeEnum",
       "type": "integer",
@@ -395,7 +396,7 @@
       ]
     },
     "inferredOptional": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:InferredOptional",
       "uav:dataTypeName": "demo:InferredOptionalDataType",
       "type": "object",
@@ -411,12 +412,13 @@
       "required": ["Value"]
     },
     "inferredUnion": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:InferredUnion",
       "uav:dataTypeName": "demo:InferredUnionDataType",
       "type": "object",
       "uav:structureType": "Union",
       "uav:fieldOrder": ["Number", "Text"],
+      "maxProperties": 1,
       "properties": {
         "Number": {
           "type": "number",
@@ -427,11 +429,12 @@
       },
       "oneOf": [
         { "required": ["Number"] },
-        { "required": ["Text"] }
+        { "required": ["Text"] },
+        { "const": {} }
       ]
     },
     "inferredPositive": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:InferredPositive",
       "uav:dataTypeName": "demo:InferredPositiveType",
       "uav:dataTypeSubtypeOf": {
@@ -441,7 +444,7 @@
       "minimum": 0
     },
     "counter": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:Counter",
       "type": "integer",
       "minimum": 0,
@@ -449,12 +452,12 @@
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#PositiveCounterType" }
     },
     "linkedNode": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:LinkedNode",
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#LinkedNodeDataType" }
     },
     "anyNumber": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:AnyNumber",
       "type": "object",
       "uav:fieldOrder": ["Value"],
@@ -465,9 +468,10 @@
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#AnyNumberDataType" }
     },
     "variantUnion": {
-      "@type": "uav:variableType",
+      "@type": "uav:variable",
       "uav:browseName": "demo:VariantUnion",
       "type": "object",
+      "maxProperties": 1,
       "uav:fieldOrder": ["NumericValue", "TextValue"],
       "properties": {
         "NumericValue": {
@@ -484,7 +488,8 @@
       },
       "oneOf": [
         { "required": ["NumericValue"] },
-        { "required": ["TextValue"] }
+        { "required": ["TextValue"] },
+        { "const": {} }
       ],
       "uav:structureType": "UnionWithSubtypedValues",
       "uav:dataTypeDefinition": { "@id": "urn:example:dtd#VariantUnionDataType" }
@@ -496,6 +501,8 @@
       "uav:browseName": "demo:SetCommand",
       "input": {
         "type": "object",
+        "uav:argumentLayout": "single",
+        "maxProperties": 1,
         "uav:fieldOrder": ["Setpoint", "Stop"],
         "properties": {
           "Setpoint": { "type": "number", "uav:dataTypeName": "ua:Double", "uav:dataTypeId": "i=11" },
@@ -503,7 +510,8 @@
         },
         "oneOf": [
           { "required": ["Setpoint"] },
-          { "required": ["Stop"] }
+          { "required": ["Stop"] },
+          { "const": {} }
         ],
         "uav:structureType": "Union",
         "uav:dataTypeDefinition": {

@@ -1003,6 +1003,14 @@ namespace Opc.Ua.Schema.Model
         public DataTypeDesign? DataTypeNode { get; set; }
 
         /// <summary>
+        /// Whether the node was imported from a NodeSet2 that declares no
+        /// Value for it. Its Value is then null (OPC 10000-6 F.5) rather than
+        /// the default value of its DataType, which a ModelDesign implies.
+        /// </summary>
+        [XmlIgnore]
+        public bool NodeSetValueIsNull { get; set; }
+
+        /// <summary>
         /// The verbatim OPC UA AccessLevel bitmask imported from a
         /// NodeSet2 model. The ModelDesign <see cref="AccessLevel"/>
         /// enumeration cannot represent combinations such as
@@ -1045,6 +1053,7 @@ namespace Opc.Ua.Schema.Model
                 AccessLevelSpecified == other.AccessLevelSpecified &&
                 RawAccessLevel == other.RawAccessLevel &&
                 RawUserAccessLevel == other.RawUserAccessLevel &&
+                NodeSetValueIsNull == other.NodeSetValueIsNull &&
                 InstanceAccessLevel == other.InstanceAccessLevel &&
                 InstanceAccessLevelSpecified == other.InstanceAccessLevelSpecified &&
                 MinimumSamplingInterval == other.MinimumSamplingInterval &&
@@ -1066,6 +1075,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(AccessLevelSpecified);
             hash.Add(RawAccessLevel);
             hash.Add(RawUserAccessLevel);
+            hash.Add(NodeSetValueIsNull);
             hash.Add(InstanceAccessLevel);
             hash.Add(InstanceAccessLevelSpecified);
             hash.Add(MinimumSamplingInterval);
@@ -1114,6 +1124,14 @@ namespace Opc.Ua.Schema.Model
         [XmlIgnore]
         public DataTypeDesign? DataTypeNode { get; set; }
 
+        /// <summary>
+        /// Whether the node was imported from a NodeSet2 that declares no
+        /// Value for it. Its Value is then null (OPC 10000-6 F.5) rather than
+        /// the default value of its DataType, which a ModelDesign implies.
+        /// </summary>
+        [XmlIgnore]
+        public bool NodeSetValueIsNull { get; set; }
+
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
@@ -1141,6 +1159,7 @@ namespace Opc.Ua.Schema.Model
                 MinimumSamplingIntervalSpecified == other.MinimumSamplingIntervalSpecified &&
                 Historizing == other.Historizing &&
                 HistorizingSpecified == other.HistorizingSpecified &&
+                NodeSetValueIsNull == other.NodeSetValueIsNull &&
                 ExposesItsChildren == other.ExposesItsChildren;
         }
 
@@ -1160,6 +1179,7 @@ namespace Opc.Ua.Schema.Model
             hash.Add(MinimumSamplingIntervalSpecified);
             hash.Add(Historizing);
             hash.Add(HistorizingSpecified);
+            hash.Add(NodeSetValueIsNull);
             hash.Add(ExposesItsChildren);
             return hash.ToHashCode();
         }

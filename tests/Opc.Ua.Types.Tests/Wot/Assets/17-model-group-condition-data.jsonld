@@ -7,7 +7,8 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": ["tm:ThingModel", "uav:projection"],
+  "@type": "uav:projection",
+  "uav:projectionKind": "ThingModel",
   "id": "urn:example:model:pump-asset:condition-data",
   "title": "Condition data",
   "description": "The type-level condition data set. One of its members is Optional in the Thing Model, so an instance that omits it simply has a smaller group; the group does not have to be authored twice.",

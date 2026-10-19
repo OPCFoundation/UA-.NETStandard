@@ -83,7 +83,9 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             factory.SetupGet(value => value.SubscriptionEngineFactory)
                 .Returns(DefaultSubscriptionEngineFactory.Instance);
             factory.Setup(value => value.CreateAsync(
-                    m_configuration, m_endpoint, false, false, It.IsAny<string>(), It.IsAny<uint>(),
+                    m_configuration,
+                    It.Is<ConfiguredEndpoint>(candidate => candidate.EndpointUrl == m_endpoint.EndpointUrl),
+                    false, false, It.IsAny<string>(), It.IsAny<uint>(),
                     It.IsAny<IUserIdentity>(), It.IsAny<ArrayOf<string>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Inner);
             m_factory = factory.Object;

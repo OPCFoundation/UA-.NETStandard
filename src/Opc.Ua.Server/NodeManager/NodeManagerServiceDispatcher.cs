@@ -2559,6 +2559,10 @@ namespace Opc.Ua.Server
                         handle,
                         item);
 
+                    // The result list owns the item from here on, so that a restore that
+                    // fails or is cancelled while subscribing releases it.
+                    monitoredItems[ii] = monitoredItem;
+
                     // subscribe to all node managers.
                     if (item.NodeId == Objects.Server)
                     {
@@ -2596,12 +2600,14 @@ namespace Opc.Ua.Server
 
                         if (ServiceResult.IsBad(error))
                         {
+                            // The subscription does not take the item, so nothing
+                            // else releases it and its queues.
+                            monitoredItems[ii] = null!;
                             Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
+                            monitoredItem.Dispose();
                             continue;
                         }
                     }
-
-                    monitoredItems[ii] = monitoredItem;
                 }
             }
         }

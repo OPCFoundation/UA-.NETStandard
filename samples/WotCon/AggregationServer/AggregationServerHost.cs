@@ -138,6 +138,16 @@ namespace AggregationServer
                 };
             });
 
+            // The bundled companion registry holds 540 partitioned documents (31 MiB), more than
+            // the default 256-document resolver budget, so the sample states a larger budget
+            // explicitly. The byte budgets stay at their defaults.
+            builder.Services.AddSingleton(new Opc.Ua.Wot.WotNodeSetConverterOptions
+            {
+                MaxJsonDocumentSize = options.MaximumDocumentBytes,
+                MaxResolverDocumentBytes = options.MaximumDocumentBytes,
+                MaxResolverDocuments = 1024
+            });
+
             opcUa.AddClient(client =>
             {
                 client.ApplicationName = $"{options.ApplicationName}.Upstream";

@@ -317,6 +317,33 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Parses the portable text form of a relative path.
+        /// </summary>
+        /// <param name="text">The portable relative path text.</param>
+        /// <param name="namespaceUris">The namespace URIs.</param>
+        /// <param name="resolvePrefix">The resolve prefix.</param>
+        /// <param name="maxElements">The max elements.</param>
+        internal static RelativePathFormatter ParsePortable(
+            string text,
+            NamespaceTable namespaceUris,
+            Func<string, string?> resolvePrefix,
+            int maxElements)
+        {
+            var path = new RelativePathFormatter();
+            using var reader = new StringReader(text);
+            while (reader.Peek() != -1)
+            {
+                if (path.Elements.Count >= maxElements)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded, "The browse path exceeds the element limit.");
+                }
+                path.Elements.Add(Element.Parse(reader, namespaceUris, resolvePrefix));
+            }
+            return path;
+        }
+
+        /// <summary>
         /// A element in a relative path string.
         /// </summary>
         public class Element : IFormattable
@@ -483,8 +510,24 @@ namespace Opc.Ua
             /// <summary>
             /// Extracts a relative path element from a string.
             /// </summary>
-            /// <param name="reader">The string read stream containing the text to convert to a RelativePathStringElement</param>
+            /// <param name="reader">
+            /// The string read stream containing the text to convert to a RelativePathStringElement.
+            /// </param>
             public static Element Parse(StringReader reader)
+            {
+                return Parse(reader, null, null);
+            }
+
+            /// <summary>
+            /// Parses one path element from the reader.
+            /// </summary>
+            /// <param name="reader">The string reader.</param>
+            /// <param name="namespaceUris">The namespace URIs.</param>
+            /// <param name="resolvePrefix">The resolve prefix.</param>
+            internal static Element Parse(
+                StringReader reader,
+                NamespaceTable? namespaceUris,
+                Func<string, string?>? resolvePrefix)
             {
                 var element = new Element();
 
@@ -514,14 +557,14 @@ namespace Opc.Ua
                             reader.Read();
                         }
 
-                        element.ReferenceTypeName = ParseName(reader, true);
+                        element.ReferenceTypeName = ParseName(reader, true, namespaceUris, resolvePrefix);
                         break;
                     default:
                         element.ElementType = ElementType.AnyHierarchical;
                         break;
                 }
 
-                element.TargetName = ParseName(reader, false);
+                element.TargetName = ParseName(reader, false, namespaceUris, resolvePrefix);
 
                 return element;
             }
@@ -530,16 +573,23 @@ namespace Opc.Ua
             /// Extracts a browse name with an optional namespace prefix from the reader.
             /// </summary>
             /// <exception cref="ServiceResultException"></exception>
-            private static QualifiedName ParseName(StringReader reader, bool referenceName)
+            private static QualifiedName ParseName(
+                StringReader reader,
+                bool referenceName,
+                NamespaceTable? namespaceUris,
+                Func<string, string?>? resolvePrefix)
             {
                 ushort namespaceIndex = 0;
 
                 // extract namespace index if present.
                 var buffer = new StringBuilder();
-
+                if (namespaceUris is not null)
+                {
+                    namespaceIndex = ParsePortableNamespace(reader, buffer, namespaceUris, resolvePrefix!);
+                }
                 int last = reader.Peek();
 
-                for (int next = last; next != -1; next = reader.Peek(), last = next)
+                for (int next = last; namespaceUris is null && next != -1; next = reader.Peek(), last = next)
                 {
                     if (!char.IsDigit((char)next))
                     {
@@ -642,6 +692,99 @@ namespace Opc.Ua
                 }
 
                 return new QualifiedName(buffer.ToString(), namespaceIndex);
+            }
+
+            private static ushort ParsePortableNamespace(
+                StringReader reader,
+                StringBuilder buffer,
+                NamespaceTable namespaceUris,
+                Func<string, string?> resolvePrefix)
+            {
+                if (reader.Peek() == '{')
+                {
+                    reader.Read();
+                    return AddNamespace(namespaceUris, ReadNamespaceUri(reader, '}'));
+                }
+                while (reader.Peek() is int next &&
+                    next != -1 &&
+                    (next == '&' || next is not ('!' or ':' or '<' or '>' or '/' or '.' or '#')))
+                {
+                    if (reader.Peek() == '&')
+                    {
+                        reader.Read();
+                        int escaped = reader.Read();
+                        if (escaped is not ('!' or ':' or '<' or '>' or '/' or '.' or '#' or '&'))
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadSyntaxError,
+                                escaped == -1
+                                    ? "Unexpected end after escape character '&'."
+                                    : CoreUtils.Format("Invalid escape sequence '&{0}' in browse path.", (char)escaped));
+                        }
+                        buffer.Append((char)escaped);
+                        continue;
+                    }
+                    buffer.Append((char)reader.Read());
+                    if (buffer.Length == 4 && buffer.ToString() == "nsu=")
+                    {
+                        buffer.Clear();
+                        return AddNamespace(namespaceUris, Uri.UnescapeDataString(ReadNamespaceUri(reader, ';')));
+                    }
+                }
+                if (reader.Peek() != ':')
+                {
+                    return 0;
+                }
+                reader.Read();
+                string prefix = buffer.ToString();
+                buffer.Clear();
+                bool numeric = true;
+                foreach (char character in prefix)
+                {
+                    if (character is < '0' or > '9')
+                    {
+                        numeric = false;
+                        break;
+                    }
+                }
+                if (numeric)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid,
+                        "A portable browse path requires a non-numeric namespace prefix.");
+                }
+                string? namespaceUri = resolvePrefix(prefix);
+                if (string.IsNullOrEmpty(namespaceUri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid, $"The browse path prefix '{prefix}' is not bound.");
+                }
+                return AddNamespace(namespaceUris, namespaceUri!);
+            }
+
+            private static string ReadNamespaceUri(StringReader reader, char terminator)
+            {
+                var uri = new StringBuilder();
+                while (reader.Read() is int next && next != -1)
+                {
+                    if (next == terminator)
+                    {
+                        return uri.ToString();
+                    }
+                    uri.Append((char)next);
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameInvalid, "The browse path namespace URI has no closing delimiter.");
+            }
+
+            private static ushort AddNamespace(NamespaceTable namespaceUris, string namespaceUri)
+            {
+                if (!Uri.TryCreate(namespaceUri, UriKind.Absolute, out _))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid, "The browse path namespace URI must be absolute.");
+                }
+                return namespaceUris.GetIndexOrAppend(namespaceUri);
             }
 
             /// <summary>

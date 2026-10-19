@@ -194,6 +194,48 @@ namespace Opc.Ua.Client.Tests
             Assert.That(item.ResolvedNodeId, Is.EqualTo(new NodeId("Start", 2)));
         }
 
+        /// <summary>
+        /// Existing items reject retargeting without discarding their cached identity.
+        /// </summary>
+        [Test]
+        public void CreatedItemRejectsTargetChangesWithoutChangingMetadata()
+        {
+            MonitoredItem item = CreateItem();
+            item.StartNodeId = new NodeId("Start", 2);
+            item.RelativePath = "/Child";
+            item.ResolvedNodeId = new NodeId("Target", 2);
+            item.ServerId = 42;
+
+            ServiceResultException? startError = Assert.Throws<ServiceResultException>(
+                () => item.StartNodeId = new NodeId("Other", 2));
+            ServiceResultException? pathError = Assert.Throws<ServiceResultException>(
+                () => item.RelativePath = "/Other");
+
+            Assert.That(startError!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(pathError!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(item.StartNodeId, Is.EqualTo(new NodeId("Start", 2)));
+            Assert.That(item.RelativePath, Is.EqualTo("/Child"));
+            Assert.That(item.ResolvedNodeId, Is.EqualTo(new NodeId("Target", 2)));
+            Assert.DoesNotThrow(() => item.StartNodeId = new NodeId("Start", 2));
+            Assert.DoesNotThrow(() => item.RelativePath = "/Child");
+        }
+
+        /// <summary>
+        /// Changing an uncreated item's starting node invalidates its cached target.
+        /// </summary>
+        [Test]
+        public void ChangingUncreatedStartNodeInvalidatesResolvedTarget()
+        {
+            MonitoredItem item = CreateItem();
+            item.StartNodeId = new NodeId("Start", 2);
+            item.RelativePath = "/Child";
+            item.ResolvedNodeId = new NodeId("Target", 2);
+
+            item.StartNodeId = new NodeId("Other", 2);
+
+            Assert.That(item.ResolvedNodeId.IsNull, Is.True);
+        }
+
         [Test]
         public void NodeClassObjectConfiguresEventDefaults()
         {

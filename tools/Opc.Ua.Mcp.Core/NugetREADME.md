@@ -63,9 +63,14 @@ session. For example, `ReadValue` accepts:
 { "nodeId": "ns=2;s=Temperature", "sessionName": "plant" }
 ```
 
-`Connect` keeps its anonymous/username arguments. For certificate authentication,
-use `ConnectCertificate` with a non-secret `certificateIdentity` name configured
-by the host. It always validates server trust and has no auto-accept switch. The executable reads
+Use `ConnectCertificate` for certificate authentication with a non-secret
+`certificateIdentity` name configured by the host and the server's `endpointUrl`.
+It fixes the authentication type to Certificate and accepts optional `securityMode`,
+`securityPolicy`, and `name`. It always validates server trust and has no auto-accept switch.
+`Connect` retains its original eight arguments for Anonymous and Username authentication;
+`authType: "Certificate"` on that tool fails without an identity selector.
+Both public C# `ConnectAsync` overloads, including the certificate-identity overload, remain available.
+The executable reads
 `McpServer:CertificateIdentities:<name>` with `StoreType`, `StorePath`, and exactly
 one of `SubjectName` or `Thumbprint`. Embedders populate
 `OpcUaMcpOptions.CertificateIdentities` with `McpCertificateIdentity` entries and
@@ -233,12 +238,11 @@ The assembly is marked `IsAotCompatible` on `net10.0`: its own IL is free of tri
 and AOT warnings, and tool results are written with `Utf8JsonWriter` rather than
 the reflection-based `JsonSerializer`.
 
-That is not yet the same as working in an ahead-of-time published host. Registering
-the tools still requires JSON reflection, because the MCP SDK builds each tool's
-input schema by asking `JsonSchemaExporter` for a `JsonTypeInfo` of every parameter
+Tool registration in an ahead-of-time published host still requires JSON reflection.
+The MCP SDK builds each tool's input schema by asking `JsonSchemaExporter` for a
+`JsonTypeInfo` of every parameter
 type; without a source-generated context covering the tool signatures this throws
-`NotSupportedException`. `Opc.Ua.Aot.Tests.McpAotTests` pins that limitation so it
-is stated rather than discovered at run time.
+`NotSupportedException`. `Opc.Ua.Aot.Tests.McpAotTests` tests this registration failure.
 
 `OPCFoundation.NetStandard.Opc.Ua.Mcp.Diagnostics` is deliberately *not* marked
 AOT-compatible: it depends on SharpPcap and on reflective service-call dissection.

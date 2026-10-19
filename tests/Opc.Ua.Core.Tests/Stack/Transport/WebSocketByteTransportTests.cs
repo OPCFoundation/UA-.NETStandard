@@ -503,7 +503,27 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// sender forever.
         /// </summary>
         [Test]
-        public async Task CloseFailsQueuedSendInsteadOfOrphaningItAsync()
+        public Task CloseFailsQueuedSendInsteadOfOrphaningItAsync()
+        {
+            return CloseWithQueuedSendAsync();
+        }
+
+        /// <summary>
+        /// Close can wake the in-flight sender, whose lock release then grants
+        /// the queued waiter before its cancellation removes it. The queued
+        /// sender must still fail as closed rather than write to the aborted
+        /// socket. The interleaving depends on the thread pool, so it repeats.
+        /// </summary>
+        [Test]
+        public async Task CloseFailsQueuedSendEvenWhenTheLockIsGrantedAsync()
+        {
+            for (int iteration = 0; iteration < 2000; iteration++)
+            {
+                await CloseWithQueuedSendAsync().ConfigureAwait(false);
+            }
+        }
+
+        private async Task CloseWithQueuedSendAsync()
         {
             using var socket = new BlockingSendWebSocket();
             var transport = new WebSocketServerByteTransport(

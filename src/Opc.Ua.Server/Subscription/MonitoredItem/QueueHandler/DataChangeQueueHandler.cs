@@ -699,6 +699,11 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// The queue, when it supports a staged restore.
+        /// </summary>
+        internal IRestorableMonitoredItemQueue? RestorableQueue => m_dataValueQueue as IRestorableMonitoredItemQueue;
+
         /// <inheritdoc/>
         public void Dispose()
         {

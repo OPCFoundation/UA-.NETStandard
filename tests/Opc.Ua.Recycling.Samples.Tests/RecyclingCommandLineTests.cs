@@ -43,6 +43,39 @@ namespace Opc.Ua.Recycling.Samples.Tests
     public sealed class RecyclingCommandLineTests
     {
         /// <summary>
+        /// Extended scenarios can reduce durable lease-refresh load without changing subscription delivery.
+        /// </summary>
+        [TestCase(null, 2000, true)]
+        [TestCase("10000", 10000, true)]
+        [TestCase("0", 0, false)]
+        [TestCase("15000", 15000, false)]
+        public async Task ViewPollPeriodIsExplicitAndRemainsWithinLeaseBoundsAsync(
+            string? period, int expected, bool valid)
+        {
+            string identities = Path.Combine(TestContext.CurrentContext.TestDirectory,
+                "poll-identities-" + Guid.NewGuid().ToString("N") + ".json");
+            await File.WriteAllTextAsync(identities, "{}").ConfigureAwait(false);
+            try
+            {
+                ArrayOf<string> arguments = period == null
+                    ? ["--role", "coordinator", "--identities", identities]
+                    : ["--role", "coordinator", "--identities", identities, "--view-poll-ms", period];
+                if (!valid)
+                {
+                    Assert.ThrowsAsync<ArgumentException>(() => RecyclingCommandLine.LoadAsync(arguments).AsTask());
+                    return;
+                }
+                RecyclingHostOptions options = await RecyclingCommandLine.LoadAsync(arguments).ConfigureAwait(false);
+                Assert.That(options.ViewPollPeriod, Is.EqualTo(TimeSpan.FromMilliseconds(expected)));
+                Assert.That(options.TickPeriod, Is.EqualTo(TimeSpan.FromSeconds(1)));
+            }
+            finally
+            {
+                File.Delete(identities);
+            }
+        }
+
+        /// <summary>
         /// The shipped sparse JSON recipes must retain the same effective defaults as their named counterparts.
         /// </summary>
         [TestCase("healthy")]

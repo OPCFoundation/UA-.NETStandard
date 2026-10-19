@@ -82,6 +82,13 @@ namespace Opc.Ua.PubSub.Configuration
         public bool SuppressInsecureSecurityModeWarnings { get; init; }
 
         /// <summary>
+        /// Explicit host registrations supplying keys without an SKS endpoint.
+        /// Security group identity, message security and runtime key resolution
+        /// remain required. Portable configuration alone grants no registration.
+        /// </summary>
+        public ArrayOf<string> RegisteredSecurityGroupIds { get; init; }
+
+        /// <summary>
         /// Runs all validation rules against
         /// <paramref name="configuration"/> and returns the aggregated
         /// result. Never throws; missing or malformed sub-trees produce
@@ -133,21 +140,23 @@ namespace Opc.Ua.PubSub.Configuration
                 string name = publishedDataSet.Name ?? string.Empty;
                 if (name.Length == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.MissingPublishedDataSetName,
-                        "PublishedDataSet has an empty Name.",
-                        path,
-                        SpecClauses.PubSubObjectModel));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.MissingPublishedDataSetName,
+                            "PublishedDataSet has an empty Name.",
+                            path,
+                            SpecClauses.PubSubObjectModel));
                 }
                 else if (lookup.ContainsKey(name))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DuplicatePublishedDataSetName,
-                        $"Duplicate PublishedDataSet name '{name}'.",
-                        path,
-                        SpecClauses.PubSubObjectModel));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DuplicatePublishedDataSetName,
+                            $"Duplicate PublishedDataSet name '{name}'.",
+                            path,
+                            SpecClauses.PubSubObjectModel));
                 }
                 else
                 {
@@ -167,41 +176,45 @@ namespace Opc.Ua.PubSub.Configuration
             string name = connection.Name ?? string.Empty;
             if (name.Length == 0)
             {
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.MissingConnectionName,
-                    "PubSubConnection has an empty Name.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.MissingConnectionName,
+                        "PubSubConnection has an empty Name.",
+                        path,
+                        SpecClauses.PubSubConnection));
             }
             else if (!connectionNames.Add(name))
             {
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.DuplicateConnectionName,
-                    $"Duplicate PubSubConnection name '{name}'.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.DuplicateConnectionName,
+                        $"Duplicate PubSubConnection name '{name}'.",
+                        path,
+                        SpecClauses.PubSubConnection));
             }
             string profile = connection.TransportProfileUri ?? string.Empty;
             if (profile.Length == 0)
             {
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.MissingTransportProfile,
-                    "PubSubConnection has an empty TransportProfileUri.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.MissingTransportProfile,
+                        "PubSubConnection has an empty TransportProfileUri.",
+                        path,
+                        SpecClauses.PubSubConnection));
             }
             else if (m_registeredTransportProfileUris.Count > 0 &&
                 !m_registeredTransportProfileUris.Contains(profile))
             {
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.UnsupportedTransportProfile,
-                    $"TransportProfileUri '{profile}' has no registered transport factory.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.UnsupportedTransportProfile,
+                        $"TransportProfileUri '{profile}' has no registered transport factory.",
+                        path,
+                        SpecClauses.PubSubConnection));
             }
             if (DataChannelPubSubConfiguration.TryGetCarrierKind(profile, out _))
             {
@@ -235,12 +248,13 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     return;
                 }
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.MissingConnectionAddress,
-                    "PubSubConnection has no Address.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.MissingConnectionAddress,
+                        "PubSubConnection has no Address.",
+                        path,
+                        SpecClauses.PubSubConnection));
                 return;
             }
             string? url = connection.Address.TryGetValue(
@@ -253,12 +267,13 @@ namespace Opc.Ua.PubSub.Configuration
                 {
                     return;
                 }
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Warning,
-                    IssueCodes.AddressUrlMissing,
-                    "PubSubConnection.Address is not a NetworkAddressUrlDataType or has an empty Url.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Warning,
+                        IssueCodes.AddressUrlMissing,
+                        "PubSubConnection.Address is not a NetworkAddressUrlDataType or has an empty Url.",
+                        path,
+                        SpecClauses.PubSubConnection));
                 return;
             }
             if (string.IsNullOrEmpty(profile))
@@ -284,13 +299,14 @@ namespace Opc.Ua.PubSub.Configuration
                 string schemes = string.Join(
                     " or ",
                     Array.ConvertAll(expected, static s => $"'{s.scheme}'"));
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Error,
-                    IssueCodes.AddressSchemeMismatch,
-                    $"Address Url '{url}' does not match the expected scheme {schemes} " +
-                    $"for transport profile '{profile}'.",
-                    path,
-                    SpecClauses.PubSubConnection));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.AddressSchemeMismatch,
+                        $"Address Url '{url}' does not match the expected scheme {schemes} " +
+                        $"for transport profile '{profile}'.",
+                        path,
+                        SpecClauses.PubSubConnection));
             }
         }
 
@@ -310,13 +326,14 @@ namespace Opc.Ua.PubSub.Configuration
                     v2.DiscoveryMaxMessageSize != 0 ||
                     !string.IsNullOrEmpty(v2.QosCategory))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Info,
-                        IssueCodes.DatagramV2InUse,
-                        "PubSubConnection uses DatagramConnectionTransport2DataType v2-only fields; " +
-                        "consider documenting the v2 dependency to consumers.",
-                        path + ".TransportSettings",
-                        SpecClauses.DatagramTransport));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Info,
+                            IssueCodes.DatagramV2InUse,
+                            "PubSubConnection uses DatagramConnectionTransport2DataType v2-only fields; " +
+                            "consider documenting the v2 dependency to consumers.",
+                            path + ".TransportSettings",
+                            SpecClauses.DatagramTransport));
                 }
             }
         }
@@ -338,42 +355,46 @@ namespace Opc.Ua.PubSub.Configuration
                 string path = $"{connectionPath}.WriterGroups[{wgIndex}]";
                 if (writerGroup.WriterGroupId == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.WriterGroupIdZero,
-                        "WriterGroupId must be non-zero.",
-                        path,
-                        SpecClauses.WriterGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.WriterGroupIdZero,
+                            "WriterGroupId must be non-zero.",
+                            path,
+                            SpecClauses.WriterGroup));
                 }
                 else if (!seenIds.Add(writerGroup.WriterGroupId))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DuplicateWriterGroupId,
-                        $"Duplicate WriterGroupId '{writerGroup.WriterGroupId}'.",
-                        path,
-                        SpecClauses.WriterGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DuplicateWriterGroupId,
+                            $"Duplicate WriterGroupId '{writerGroup.WriterGroupId}'.",
+                            path,
+                            SpecClauses.WriterGroup));
                 }
                 if (writerGroup.PublishingInterval <= 0.0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.PublishingIntervalNotPositive,
-                        $"PublishingInterval must be > 0 ms (was {writerGroup.PublishingInterval}).",
-                        path,
-                        SpecClauses.WriterGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.PublishingIntervalNotPositive,
+                            $"PublishingInterval must be > 0 ms (was {writerGroup.PublishingInterval}).",
+                            path,
+                            SpecClauses.WriterGroup));
                 }
                 if (writerGroup.KeepAliveTime > 0.0 &&
                     writerGroup.PublishingInterval > 0.0 &&
                     writerGroup.KeepAliveTime < writerGroup.PublishingInterval)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.KeepAliveBelowPublishingInterval,
-                        $"KeepAliveTime ({writerGroup.KeepAliveTime} ms) must be " +
-                        $">= PublishingInterval ({writerGroup.PublishingInterval} ms).",
-                        path,
-                        SpecClauses.WriterGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.KeepAliveBelowPublishingInterval,
+                            $"KeepAliveTime ({writerGroup.KeepAliveTime} ms) must be " +
+                            $">= PublishingInterval ({writerGroup.PublishingInterval} ms).",
+                            path,
+                            SpecClauses.WriterGroup));
                 }
                 ValidateGroupSecurity(
                     writerGroup.SecurityMode,
@@ -408,50 +429,55 @@ namespace Opc.Ua.PubSub.Configuration
                 string path = $"{writerGroupPath}.DataSetWriters[{dswIndex}]";
                 if (writer.DataSetWriterId == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DataSetWriterIdZero,
-                        "DataSetWriterId must be non-zero.",
-                        path,
-                        SpecClauses.DataSetWriter));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DataSetWriterIdZero,
+                            "DataSetWriterId must be non-zero.",
+                            path,
+                            SpecClauses.DataSetWriter));
                 }
                 else if (!seenIds.Add(writer.DataSetWriterId))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DuplicateDataSetWriterId,
-                        $"Duplicate DataSetWriterId '{writer.DataSetWriterId}'.",
-                        path,
-                        SpecClauses.DataSetWriter));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DuplicateDataSetWriterId,
+                            $"Duplicate DataSetWriterId '{writer.DataSetWriterId}'.",
+                            path,
+                            SpecClauses.DataSetWriter));
                 }
                 string dataSetName = writer.DataSetName ?? string.Empty;
                 DataSetMetaDataType? metaData = null;
                 if (dataSetName.Length == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DataSetNameMissing,
-                        "DataSetWriter.DataSetName must reference a PublishedDataSet.",
-                        path,
-                        SpecClauses.DataSetWriter));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DataSetNameMissing,
+                            "DataSetWriter.DataSetName must reference a PublishedDataSet.",
+                            path,
+                            SpecClauses.DataSetWriter));
                 }
                 else if (!publishedDataSets.TryGetValue(dataSetName, out metaData))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.DataSetNameUnresolved,
-                        $"DataSetWriter.DataSetName '{dataSetName}' does not reference any PublishedDataSet.",
-                        path,
-                        SpecClauses.DataSetWriter));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.DataSetNameUnresolved,
+                            $"DataSetWriter.DataSetName '{dataSetName}' does not reference any PublishedDataSet.",
+                            path,
+                            SpecClauses.DataSetWriter));
                 }
                 if (writer.KeyFrameCount == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Warning,
-                        IssueCodes.KeyFrameCountZero,
-                        "KeyFrameCount is 0; non-event DataSetWriters should publish a periodic key frame.",
-                        path,
-                        SpecClauses.DataSetWriter));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Warning,
+                            IssueCodes.KeyFrameCountZero,
+                            "KeyFrameCount is 0; non-event DataSetWriters should publish a periodic key frame.",
+                            path,
+                            SpecClauses.DataSetWriter));
                 }
                 ValidateRawDataPaddingBounds(writer, metaData, path, issues);
                 dswIndex++;
@@ -505,14 +531,15 @@ namespace Opc.Ua.PubSub.Configuration
                     ? "MaxStringLength is 0"
                     : "ArrayDimensions is empty";
                 string fieldPath = $"{writerPath}.PublishedDataSet.Fields[{i}]";
-                issues.Add(new PubSubConfigurationIssue(
-                    PubSubConfigurationIssueSeverity.Warning,
-                    IssueCodes.RawDataMissingFieldBound,
-                    $"DataSetWriter '{writerName}' uses RawData encoding for field '{fieldName}' " +
-                    $"but {reason}; the field will be encoded with a variable-length prefix, " +
-                    "breaking interop with strict v1.05.06 subscribers.",
-                    fieldPath,
-                    SpecClauses.RawDataFieldEncoding));
+                issues.Add(
+                    new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Warning,
+                        IssueCodes.RawDataMissingFieldBound,
+                        $"DataSetWriter '{writerName}' uses RawData encoding for field '{fieldName}' " +
+                        $"but {reason}; the field will be encoded with a variable-length prefix, " +
+                        "breaking interop with strict v1.05.06 subscribers.",
+                        fieldPath,
+                        SpecClauses.RawDataFieldEncoding));
             }
         }
 
@@ -533,21 +560,23 @@ namespace Opc.Ua.PubSub.Configuration
                 string name = readerGroup.Name ?? string.Empty;
                 if (name.Length == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.ReaderGroupNameMissing,
-                        "ReaderGroup has an empty Name.",
-                        path,
-                        SpecClauses.ReaderGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.ReaderGroupNameMissing,
+                            "ReaderGroup has an empty Name.",
+                            path,
+                            SpecClauses.ReaderGroup));
                 }
                 else if (!seenNames.Add(name))
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Warning,
-                        IssueCodes.DuplicateReaderGroupName,
-                        $"Duplicate ReaderGroup name '{name}' within connection.",
-                        path,
-                        SpecClauses.ReaderGroup));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Warning,
+                            IssueCodes.DuplicateReaderGroupName,
+                            $"Duplicate ReaderGroup name '{name}' within connection.",
+                            path,
+                            SpecClauses.ReaderGroup));
                 }
                 ValidateGroupSecurity(
                     readerGroup.SecurityMode,
@@ -581,31 +610,34 @@ namespace Opc.Ua.PubSub.Configuration
                 string path = $"{readerGroupPath}.DataSetReaders[{drIndex}]";
                 if (reader.DataSetWriterId == 0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.ReaderDataSetWriterIdZero,
-                        "DataSetReader.DataSetWriterId must be non-zero.",
-                        path,
-                        SpecClauses.DataSetReader));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.ReaderDataSetWriterIdZero,
+                            "DataSetReader.DataSetWriterId must be non-zero.",
+                            path,
+                            SpecClauses.DataSetReader));
                 }
                 if (reader.MessageReceiveTimeout <= 0.0)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.MessageReceiveTimeoutNotPositive,
-                        $"DataSetReader.MessageReceiveTimeout must be > 0 ms (was {reader.MessageReceiveTimeout}).",
-                        path,
-                        SpecClauses.DataSetReader));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.MessageReceiveTimeoutNotPositive,
+                            $"DataSetReader.MessageReceiveTimeout must be > 0 ms (was {reader.MessageReceiveTimeout}).",
+                            path,
+                            SpecClauses.DataSetReader));
                 }
                 if (reader.SubscribedDataSet.IsNull)
                 {
-                    issues.Add(new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        IssueCodes.SubscribedDataSetMissing,
-                        "DataSetReader.SubscribedDataSet must be set " +
-                        "(TargetVariablesDataType or SubscribedDataSetMirrorDataType).",
-                        path,
-                        SpecClauses.DataSetReader));
+                    issues.Add(
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            IssueCodes.SubscribedDataSetMissing,
+                            "DataSetReader.SubscribedDataSet must be set " +
+                            "(TargetVariablesDataType or SubscribedDataSetMirrorDataType).",
+                            path,
+                            SpecClauses.DataSetReader));
                 }
                 ValidateGroupSecurity(
                     reader.SecurityMode,
@@ -637,80 +669,89 @@ namespace Opc.Ua.PubSub.Configuration
                 case MessageSecurityMode.SignAndEncrypt:
                     if (!hasGroup)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityGroupIdMissing,
-                            $"SecurityMode '{securityMode}' requires a non-empty SecurityGroupId.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityGroupIdMissing,
+                                $"SecurityMode '{securityMode}' requires a non-empty SecurityGroupId.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
-                    if (!hasServices)
+                    if (!hasServices && (!hasGroup || !RegisteredSecurityGroupIds.Contains(securityGroupId!)))
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityKeyServicesMissing,
-                            $"SecurityMode '{securityMode}' requires at least one SecurityKeyService endpoint.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityKeyServicesMissing,
+                                $"SecurityMode '{securityMode}' requires an SKS endpoint " +
+                                "or an explicitly registered key provider.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
                     break;
                 case MessageSecurityMode.None:
                     if (!SuppressInsecureSecurityModeWarnings)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Warning,
-                            IssueCodes.SecurityModeNone,
-                            "SecurityMode None disables PubSub message-layer security.",
-                            path,
-                            SpecClauses.PubSubSecurity));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Warning,
+                                IssueCodes.SecurityModeNone,
+                                "SecurityMode None disables PubSub message-layer security.",
+                                path,
+                                SpecClauses.PubSubSecurity));
                     }
                     if (hasGroup)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityGroupIdUnexpected,
-                            "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityGroupIdUnexpected,
+                                "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
                     if (hasServices)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityKeyServicesUnexpected,
-                            "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityKeyServicesUnexpected,
+                                "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
                     break;
                 case MessageSecurityMode.Invalid:
                     if (!SuppressInsecureSecurityModeWarnings)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Warning,
-                            IssueCodes.SecurityModeInvalid,
-                            "SecurityMode is unset (Invalid) and is treated as None; " +
-                            "configure an explicit SecurityMode to silence this warning.",
-                            path,
-                            SpecClauses.PubSubSecurity));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Warning,
+                                IssueCodes.SecurityModeInvalid,
+                                "SecurityMode is unset (Invalid) and is treated as None; " +
+                                "configure an explicit SecurityMode to silence this warning.",
+                                path,
+                                SpecClauses.PubSubSecurity));
                     }
                     if (hasGroup)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityGroupIdUnexpected,
-                            "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityGroupIdUnexpected,
+                                "SecurityGroupId must be empty when SecurityMode is None or Invalid.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
                     if (hasServices)
                     {
-                        issues.Add(new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            IssueCodes.SecurityKeyServicesUnexpected,
-                            "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
-                            path,
-                            SpecClauses.SecurityKeyServices));
+                        issues.Add(
+                            new PubSubConfigurationIssue(
+                                PubSubConfigurationIssueSeverity.Error,
+                                IssueCodes.SecurityKeyServicesUnexpected,
+                                "SecurityKeyServices must be empty when SecurityMode is None or Invalid.",
+                                path,
+                                SpecClauses.SecurityKeyServices));
                     }
                     break;
             }
@@ -728,12 +769,13 @@ namespace Opc.Ua.PubSub.Configuration
                 return;
             }
 
-            issues.Add(new PubSubConfigurationIssue(
-                PubSubConfigurationIssueSeverity.Warning,
-                IssueCodes.PlaintextMqttWithoutMessageSecurity,
-                "Plaintext mqtt:// transport is used without PubSub message-layer security.",
-                groupPath,
-                SpecClauses.PubSubSecurity));
+            issues.Add(
+                new PubSubConfigurationIssue(
+                    PubSubConfigurationIssueSeverity.Warning,
+                    IssueCodes.PlaintextMqttWithoutMessageSecurity,
+                    "Plaintext mqtt:// transport is used without PubSub message-layer security.",
+                    groupPath,
+                    SpecClauses.PubSubSecurity));
         }
 
         private static bool IsPlaintextMqttConnection(PubSubConnectionDataType connection)

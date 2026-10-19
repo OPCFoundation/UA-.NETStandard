@@ -772,6 +772,7 @@ namespace Opc.Ua.Schema.Model
             UpdateTypeDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRankSpecified = true;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
@@ -1118,6 +1119,7 @@ namespace Opc.Ua.Schema.Model
             UpdateInstanceDesign(input, output);
 
             output.DefaultValue = input.Value;
+            output.NodeSetValueIsNull = input.Value == null;
             output.ValueRank = ImportValueRank(input.ValueRank);
             output.ValueRankSpecified = true;
             output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
@@ -1934,7 +1936,8 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
                     NodeId targetId = ImportNodeId(ii.Value);
-                    NodeDesign? target = FindNode<NodeDesign>(targetId);
+                    NodeDesign? target = FindNode<NodeDesign>(targetId) ??
+                        FindOrCreateExternalTarget(targetId, nodeId);
 
                     if (target == null)
                     {
@@ -1988,6 +1991,59 @@ namespace Opc.Ua.Schema.Model
                 existing.HasReferences = true;
                 existing.References = [.. references];
             }
+        }
+
+        /// <summary>
+        /// Returns a stand-in for the target of a reference into another
+        /// namespace whose node is not part of any loaded design, for example
+        /// the DeviceSet of DI organizing a device when DI is supplied by a
+        /// referenced assembly. The dependency metadata of a referenced
+        /// assembly carries types only, so such a target cannot be resolved
+        /// and the reference used to be dropped. The stand-in carries only
+        /// the NodeId the generated reference needs and is not generated.
+        /// </summary>
+        private ObjectDesign? FindOrCreateExternalTarget(NodeId targetId, NodeId sourceId)
+        {
+            if (targetId.IsNull ||
+                targetId.NamespaceIndex == 0 ||
+                targetId.NamespaceIndex == sourceId.NamespaceIndex)
+            {
+                return null;
+            }
+
+            string? namespaceUri = m_settings.NamespaceUris.GetString(targetId.NamespaceIndex);
+            object? identifier = ImportIdentifier(targetId);
+
+            if (string.IsNullOrEmpty(namespaceUri) || identifier == null)
+            {
+                return null;
+            }
+
+            // The identifier alone does not make a unique name: the identifier
+            // type is dropped and punctuation is replaced (i=5001 and s=5001,
+            // or s=A.B and s=A/B, give the same name). FindNode already
+            // returns the stand-in of a NodeId seen before, so a name taken
+            // here always belongs to another node and gets a numeric suffix.
+            string baseName = "ExternalNode_" + GetCollisionSuffix(targetId.ToString());
+            var symbolicId = new XmlQualifiedName(baseName, namespaceUri);
+            for (int suffix = 2; m_settings.NodesByQName!.ContainsKey(symbolicId); suffix++)
+            {
+                symbolicId = new XmlQualifiedName(
+                    baseName + "_" + suffix.ToString(CultureInfo.InvariantCulture),
+                    namespaceUri);
+            }
+
+            var target = new ObjectDesign
+            {
+                SymbolicId = symbolicId,
+                SymbolicName = symbolicId,
+                BrowseName = symbolicId.Name
+            };
+            target.SetIdentifier(identifier);
+
+            m_settings.NodesByQName![symbolicId] = target;
+            m_settings.NodesById[targetId] = target;
+            return target;
         }
 
         private static Permissions[] ToPermissions(PermissionType input)

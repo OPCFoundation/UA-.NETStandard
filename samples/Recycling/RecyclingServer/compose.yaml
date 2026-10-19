@@ -14,6 +14,43 @@ x-view: &view
   depends_on: [coordinator]
 
 services:
+  operator-console:
+    <<: *common
+    profiles: [operator-console]
+    image: ${RECYCLING_CLIENT_IMAGE:-recycling-client:local}
+    build:
+      context: ../../..
+      dockerfile: samples/Recycling/RecyclingOperatorConsole/Dockerfile
+    depends_on: [coordinator]
+    environment:
+      RecyclingConsole__ContainerBind: "true"
+      RecyclingConsole__AllowedHost: "localhost:8080"
+      RecyclingConsole__Endpoint: "opc.tcp://recycling-coordinator:62570/Recycling"
+      RecyclingConsole__LineId: "line-1"
+      RecyclingConsole__Role: "Observer"
+      RecyclingConsole__BootstrapKeyFile: "/run/console-secrets/bootstrap-key"
+      RecyclingConsole__UserCertificatePath: "/run/console-secrets/users"
+      RecyclingConsole__UserCertificateSubject: "CN=Recycling-line-1-observer"
+      RecyclingConsole__UserCertificatePasswordFile: "/run/console-secrets/user-password"
+      RecyclingConsole__ApplicationCertificateStore: "/data/pki/own"
+      RecyclingConsole__TrustedPeerStore: "/data/pki/trusted"
+      RecyclingConsole__TrustedIssuerStore: "/data/pki/issuer"
+      RecyclingConsole__RejectedCertificateStore: "/data/pki/rejected"
+      RecyclingConsole__ProcessEndpoints__Collection: "opc.tcp://recycling-collection:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Sorting: "opc.tcp://recycling-sorting:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Shredding: "opc.tcp://recycling-shredding:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Washing: "opc.tcp://recycling-washing:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__DensitySeparation: "opc.tcp://recycling-density-separation:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Drying: "opc.tcp://recycling-drying:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Extrusion: "opc.tcp://recycling-extrusion:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__MeltFiltration: "opc.tcp://recycling-melt-filtration:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Pelletizing: "opc.tcp://recycling-pelletizing:62570/Recycling"
+      RecyclingConsole__ProcessEndpoints__Bagging: "opc.tcp://recycling-bagging:62570/Recycling"
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - "${RECYCLING_DATA_DIR:?Set an absolute provisioned directory outside the repository}/operator-console/pki:/data/pki"
+      - "${RECYCLING_DATA_DIR}/operator-console/secrets:/run/console-secrets:ro"
+
   coordinator:
     <<: *common
     hostname: recycling-coordinator

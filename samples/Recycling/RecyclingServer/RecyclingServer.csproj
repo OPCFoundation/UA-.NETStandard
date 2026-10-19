@@ -15,7 +15,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
-    <ProjectReference Include="..\..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Recycling.Client\Recycling.Client.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj" />
@@ -36,15 +36,18 @@
     <InternalsVisibleTo Include="Opc.Ua.Recycling.Samples.Tests" />
   </ItemGroup>
   <ItemGroup>
-    <AdditionalFiles Include="Model\Recycling.xml">
+    <AdditionalFiles Include="..\Recycling.Client\Model\Recycling.xml">
+      <Link>Model\Recycling.xml</Link>
       <ModelSourceGeneratorModelUri>urn:opcfoundation.org:sample:recycling</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>RecyclingModel</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>Opc.Ua.Recycling.Model</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
-    <EmbeddedResource Include="Model\Recycling.xml" LogicalName="Recycling.Model.xml" />
+    <!-- Preserve the original journal configuration hash input and resource name. -->
+    <EmbeddedResource Include="..\Recycling.Client\Model\Recycling.xml" LogicalName="Recycling.Model.xml" />
   </ItemGroup>
   <Import Project="..\..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
   </PropertyGroup>
 </Project>

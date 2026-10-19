@@ -4,7 +4,7 @@ This sample is a small OPC UA Robot Intent server for one stationary UR5e-style 
 `Server/RobotIntent/Controllers/UR5eIntentController`, the controller's frames, tools, locations,
 axes, outputs, programs, description, safety state and OpenUSD representation.
 
-This sample intentionally retains the UR-style six-axis arm and numerical IK. The
+This sample uses a UR-style six-axis arm and numerical IK. The
 [`BinPickingCell`](../BinPickingCell) sample injects a separate analytic four-axis
 palletizer through the shared `ISimulatedArmKinematics` executor seam; changing the
 bin-picking robot does not change this standalone sample's model or behavior.
@@ -22,6 +22,21 @@ server before rebuilding the sample; the running process holds its assemblies op
 For demonstration only, the sample maps anonymous users to the well-known Operator role so the command
 methods can be exercised without user-management setup. A production server should keep the Robot
 Intent command methods role-restricted and grant Operator only to authenticated operator identities.
+
+For a finite, noninteractive run, supply `--run-seconds` (1 through 3600).
+`--pki-root` selects an absolute private certificate-store directory and
+`--autoaccept false` rejects untrusted certificates. For example:
+
+```powershell
+dotnet run --project samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj -- `
+    --host 127.0.0.1 --port 62840 --pki-root C:\Temp\IntentRobotPki `
+    --autoaccept false --run-seconds 60
+```
+
+Finite runs do not start the interactive safety-console reader, so blocked console
+input cannot hold shutdown open. The simulated safety source and method authorization
+remain active. Without `--run-seconds`, the console is interactive.
+Robot Intent is a draft model, separate from the published OPC 40010 Robotics model.
 
 ## Address space
 

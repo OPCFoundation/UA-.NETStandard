@@ -1236,13 +1236,7 @@ namespace Opc.Ua.Client
             {
                 IServiceMessageContext context = MessageContext
                     ?? throw new InvalidOperationException("Missing service message context");
-                using var encoder = new BinaryEncoder(
-                    stream, context, true);
-                encoder.WriteStringArray(
-                    null, context.NamespaceUris.ToArrayOf());
-                encoder.WriteStringArray(
-                    null, context.ServerUris.ToArrayOf());
-                sessionConfiguration.Encode(encoder);
+                SnapshotCodec.SaveConfiguration(stream, context, sessionConfiguration);
             }
             return sessionConfiguration;
         }
@@ -1264,17 +1258,10 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            using var encoder = new BinaryEncoder(
-                stream, context, true);
-            encoder.WriteStringArray(
-                null, context.NamespaceUris.ToArrayOf());
-            encoder.WriteStringArray(
-                null, context.ServerUris.ToArrayOf());
-            encoder.WriteInt32(null, subscriptionStates.Count);
-            foreach (SubscriptionState state in subscriptionStates)
-            {
-                state.Encode(encoder);
-            }
+            SnapshotCodec.SaveSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                subscriptionStates.ToArray());
         }
 
         /// <inheritdoc/>
@@ -1287,40 +1274,33 @@ namespace Opc.Ua.Client
 
             IServiceMessageContext context = MessageContext
                 ?? throw new InvalidOperationException("Missing service message context");
-            using var decoder = new BinaryDecoder(
-                stream, context, true);
-            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
-            decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()!),
-                new StringTable(serverUris.Memory.ToArray()!));
-
-            int count = decoder.ReadInt32(null);
-            if (count <= 0)
+            ArrayOf<SubscriptionState> states = SnapshotCodec.LoadSubscriptions(
+                stream,
+                context.NamespaceUris.Count <= 1 ? m_restoredSubscriptionContext ?? context : context,
+                out ServiceMessageContext restoredContext);
+            var subscriptions = new SubscriptionCollection(states.Count);
+            foreach (SubscriptionState savedState in states)
             {
-                return [];
-            }
-
-            var subscriptions = new SubscriptionCollection(count);
-            for (int i = 0; i < count; i++)
-            {
-                var state = new SubscriptionState();
-                state.Decode(decoder);
-                // Restore subscription from state
-                Subscription subscription = CreateSubscription(state);
-                subscription.Restore(state);
+                SubscriptionState state = savedState;
                 if (!transferSubscriptions)
                 {
-                    // ServerId must be reset if the saved list of subscriptions
-                    // is not used to transfer a subscription
-                    foreach (MonitoredItem monitoredItem in subscription.MonitoredItems)
+                    // Persisted target identity is for adoption, not authority
+                    // for a freshly created server item.
+                    state = state with
                     {
-                        monitoredItem.ServerId = 0;
-                    }
+                        MonitoredItems = state.MonitoredItems.ConvertAll(item => item with
+                        {
+                            ServerId = 0,
+                            ResolvedNodeId = NodeId.Null
+                        })
+                    };
                 }
+                Subscription subscription = CreateSubscription(state);
+                subscription.Restore(state);
                 AddSubscription(subscription);
                 subscriptions.Add(subscription);
             }
+            m_restoredSubscriptionContext = restoredContext;
             return subscriptions;
         }
 
@@ -6961,6 +6941,9 @@ namespace Opc.Ua.Client
         private readonly Lock m_lock = new();
         private readonly List<Subscription> m_subscriptions = [];
         private uint m_maxRequestMessageSize;
+
+        /// <summary>Namespace provenance of subscriptions loaded before the session reconnects.</summary>
+        private ServiceMessageContext? m_restoredSubscriptionContext;
         private readonly SessionSystemContext m_systemContext;
 #pragma warning disable CA2213 // Disposed in DisposeAsyncCore/Dispose
         private readonly NodeCache m_nodeCache;

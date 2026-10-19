@@ -1,3 +1,9 @@
+function Test-DebugPackageId {
+    param([Parameter(Mandatory)][string]$PackageId)
+
+    return $PackageId -match '\.Debug(?:\.(?:win|linux|osx)(?:-[a-z0-9]+)+)?$'
+}
+
 function Test-PreviewPackageId {
     param([Parameter(Mandatory)][string]$PackageId)
 

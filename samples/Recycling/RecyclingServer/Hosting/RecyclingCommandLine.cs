@@ -116,7 +116,10 @@ namespace Opc.Ua.Recycling
                 Simulation = configuration,
                 TickPeriod = TimeSpan.FromMilliseconds(values.TryGetValue("--pace-ms", out string? pacing)
                     ? int.Parse(pacing, CultureInfo.InvariantCulture)
-                    : 1000)
+                    : 1000),
+                ViewPollPeriod = TimeSpan.FromMilliseconds(values.TryGetValue("--view-poll-ms", out string? polling)
+                    ? int.Parse(polling, CultureInfo.InvariantCulture)
+                    : 2000)
             };
             options.Validate();
             return options;
@@ -180,7 +183,7 @@ namespace Opc.Ua.Recycling
         private static readonly HashSet<string> s_options =
         [
             "--role", "--process", "--line-id", "--endpoint", "--coordinator", "--pki-root", "--state-root",
-            "--identity-store", "--identity-subject", "--identities", "--scenario", "--pace-ms"
+            "--identity-store", "--identity-subject", "--identities", "--scenario", "--pace-ms", "--view-poll-ms"
         ];
     }
 

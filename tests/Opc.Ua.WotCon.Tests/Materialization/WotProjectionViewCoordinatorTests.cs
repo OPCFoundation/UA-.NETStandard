@@ -32,6 +32,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
@@ -66,7 +67,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, m_host,
                 documentConverter: m_converter,
-                viewProjectionHost: m_viewHost);
+                viewProjectionHost: m_viewHost,
+                converterOptions: new WotNodeSetConverterOptions
+                {
+                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                });
         }
 
         [TearDown]
@@ -239,8 +244,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(request.Plan.Omissions, Is.Empty);
             WoTResourceLoadResultDataType projection =
                 result.Results.Single(r => r.ResourceId == "view-clean");
-            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
-            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
+            Assert.That(projection.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), projection.Message);
+            Assert.That(projection.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), projection.Message);
             Assert.That(projection.Message, Does.Contain("organizing 1 Node(s)"));
             Assert.That(projection.Message, Does.Not.Contain("omitted"));
         }

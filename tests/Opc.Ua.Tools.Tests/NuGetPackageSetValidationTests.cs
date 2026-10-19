@@ -158,12 +158,13 @@ namespace Opc.Ua.Tools.Tests
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
             string[] actual =
             [
-                .. lines.Select(line => line.Trim()).Where(id =>
-                    id is "OPCFoundation.NetStandard.Opc.Ua.Vision" or
-                        "OPCFoundation.NetStandard.Opc.Ua.MachineVision" or
-                        "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" ||
-                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Vision.", StringComparison.Ordinal) ||
-                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.MachineVision.", StringComparison.Ordinal))
+                .. lines.Select(line => line.Trim()).Where(
+                    id =>
+                        id is "OPCFoundation.NetStandard.Opc.Ua.Vision" or
+                            "OPCFoundation.NetStandard.Opc.Ua.MachineVision" or
+                            "OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision" ||
+                        id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Vision.", StringComparison.Ordinal) ||
+                        id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.MachineVision.", StringComparison.Ordinal))
             ];
             string[] expected =
             [
@@ -205,8 +206,12 @@ namespace Opc.Ua.Tools.Tests
             string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
             string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
 
-            Assert.That(lines.Any(line => line.Trim().StartsWith(
-                "OPCFoundation.NetStandard.Opc.Ua.GranulateDrying", StringComparison.Ordinal)), Is.False);
+            Assert.That(
+                lines.Any(
+                    line => line.Trim().StartsWith(
+                        "OPCFoundation.NetStandard.Opc.Ua.GranulateDrying",
+                        StringComparison.Ordinal)),
+                Is.False);
         }
 
         [Test]
@@ -218,14 +223,15 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Zero, result.Output);
-                Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("preview"));
-                Assert.That(
-                    result.Manifest.Value.GetProperty("basePackageVersion").GetString(),
-                    Is.EqualTo("2.0.0-preview.1.gabc123def0"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Zero, result.Output);
+                    Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("preview"));
+                    Assert.That(
+                        result.Manifest.Value.GetProperty("basePackageVersion").GetString(),
+                        Is.EqualTo("2.0.0-preview.1.gabc123def0"));
+                });
         }
 
         [Test]
@@ -237,16 +243,17 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Zero, result.Output);
-                Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("stable"));
-                string[] actualVersions = [.. result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
-                    .Select(e => e.GetString()!)
-                    .OrderBy(v => v, StringComparer.Ordinal)];
-                string[] expectedVersions = ["2.0.0", PreviewFamilyVersion];
-                Assert.That(actualVersions, Is.EqualTo(expectedVersions.OrderBy(v => v, StringComparer.Ordinal)));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Zero, result.Output);
+                    Assert.That(result.Manifest!.Value.GetProperty("channel").GetString(), Is.EqualTo("stable"));
+                    string[] actualVersions = [.. result.Manifest.Value.GetProperty("packageVersions").EnumerateArray()
+                        .Select(e => e.GetString()!)
+                        .OrderBy(v => v, StringComparer.Ordinal)];
+                    string[] expectedVersions = ["2.0.0", PreviewFamilyVersion];
+                    Assert.That(actualVersions, Is.EqualTo(expectedVersions.OrderBy(v => v, StringComparer.Ordinal)));
+                });
         }
 
         /// <summary>
@@ -283,15 +290,16 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.0").ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    result.ExitCode,
-                    Is.Zero,
-                    "A Debug-configuration-only package set must anchor on Core.Debug, not fail looking for plain Core.\n" +
-                    result.Output);
-                Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(2));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        result.ExitCode,
+                        Is.Zero,
+                        "A Debug-configuration-only package set must anchor on Core.Debug, not fail looking for plain Core.\n" +
+                        result.Output);
+                    Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(2));
+                });
         }
 
         [Test]
@@ -303,12 +311,13 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("do not match the preview policy"));
-                Assert.That(result.Output, Does.Contain("OPCFoundation.NetStandard.Opc.Ua.XRegistry=2.0.0"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("do not match the preview policy"));
+                    Assert.That(result.Output, Does.Contain("OPCFoundation.NetStandard.Opc.Ua.XRegistry=2.0.0"));
+                });
         }
 
         [Test]
@@ -320,11 +329,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("do not match the preview policy"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("do not match the preview policy"));
+                });
         }
 
         [Test]
@@ -335,11 +345,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("Core (or .Core.Debug)"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("Core (or .Core.Debug)"));
+                });
         }
 
         [Test]
@@ -355,13 +366,14 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Zero, result.Output);
-                Assert.That(
-                    result.Manifest!.Value.GetProperty("basePackageVersion").GetString(),
-                    Is.EqualTo("2.0.0"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Zero, result.Output);
+                    Assert.That(
+                        result.Manifest!.Value.GetProperty("basePackageVersion").GetString(),
+                        Is.EqualTo("2.0.0"));
+                });
         }
 
         [Test]
@@ -373,11 +385,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("disagree on the package version"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("disagree on the package version"));
+                });
         }
 
         [Test]
@@ -389,11 +402,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("Duplicate package ID/version"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("Duplicate package ID/version"));
+                });
         }
 
         [Test]
@@ -404,11 +418,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync(expectedVersion: "2.0.1").ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("Expected base package version '2.0.1'"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("Expected base package version '2.0.1'"));
+                });
         }
 
         [Test]
@@ -420,11 +435,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("does not contain any .Debug package IDs"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("does not contain any .Debug package IDs"));
+                });
         }
 
         [Test]
@@ -438,12 +454,58 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Zero, result.Output);
-                Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(2));
-                Assert.That(result.Manifest.Value.GetProperty("packageCount").GetInt32(), Is.EqualTo(4));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Zero, result.Output);
+                    Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(2));
+                    Assert.That(result.Manifest.Value.GetProperty("packageCount").GetInt32(), Is.EqualTo(4));
+                });
+        }
+
+        /// <summary>
+        /// Counts a RID-specific Debug tool payload as Debug in a mixed package set.
+        /// </summary>
+        [TestCase("win-x64")]
+        [TestCase("linux-x64")]
+        [TestCase("osx-arm64")]
+        public async Task RequireDebugAcceptsARuntimeSpecificDebugToolPayloadAsync(string runtimeIdentifier)
+        {
+            using PackageSetFixture fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core", "2.0.0");
+            fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.{runtimeIdentifier}", "2.0.0");
+
+            ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Zero, result.Output);
+                    Assert.That(result.Manifest!.Value.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(1));
+                    Assert.That(result.Manifest.Value.GetProperty("packageCount").GetInt32(), Is.EqualTo(2));
+                });
+        }
+
+        /// <summary>
+        /// Does not let a RID-specific Debug payload masquerade as a Release package.
+        /// </summary>
+        [TestCase("win-x64")]
+        [TestCase("linux-x64")]
+        [TestCase("osx-arm64")]
+        public async Task RequireDebugRejectsADebugOnlySetWithRuntimeToolPayloadAsync(string runtimeIdentifier)
+        {
+            using PackageSetFixture fixture = PackageSetFixture.Create();
+            fixture.AddPackage("OPCFoundation.NetStandard.Opc.Ua.Core.Debug", "2.0.0");
+            fixture.AddPackage($"OPCFoundation.NetStandard.Opc.Ua.Lens.Debug.{runtimeIdentifier}", "2.0.0");
+
+            ValidationResult result = await fixture.ValidateAsync(requireDebug: true).ConfigureAwait(false);
+
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("does not contain any Release package IDs"));
+                });
         }
 
         [Test]
@@ -456,11 +518,12 @@ namespace Opc.Ua.Tools.Tests
 
             ValidationResult result = await fixture.ValidateAsync().ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.Not.Zero);
-                Assert.That(result.Output, Does.Contain("Symbol packages without matching packages"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.Not.Zero);
+                    Assert.That(result.Output, Does.Contain("Symbol packages without matching packages"));
+                });
         }
 
         private readonly record struct ValidationResult(int ExitCode, string Output, JsonElement? Manifest);
@@ -648,7 +711,8 @@ namespace Opc.Ua.Tools.Tests
             }
 
             ValidationResult result = await fixture.ValidateAsync(
-                expectedVersion: "2.0.0", requireDebug: true).ConfigureAwait(false);
+                expectedVersion: "2.0.0",
+                requireDebug: true).ConfigureAwait(false);
 
             AssertStableVisionManifest(result, packages, expectedPackageCount: 17, expectedDebugCount: 8);
         }
@@ -669,7 +733,8 @@ namespace Opc.Ua.Tools.Tests
             }
 
             ValidationResult result = await fixture.ValidateAsync(
-                expectedVersion: "2.0.0", requireDebug: true).ConfigureAwait(false);
+                expectedVersion: "2.0.0",
+                requireDebug: true).ConfigureAwait(false);
 
             AssertStableVisionManifest(result, packages, expectedPackageCount: 3, expectedDebugCount: 1);
         }
@@ -755,33 +820,37 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(result.Manifest.HasValue, Is.True, "Successful validation must write the manifest.");
             JsonElement manifest = result.Manifest!.Value;
             (string? Id, string? Version, string? Type, string? File)[] archives =
-                [.. manifest.GetProperty("archives").EnumerateArray().Select(archive => (
-                    archive.GetProperty("id").GetString(),
-                    archive.GetProperty("version").GetString(),
-                    archive.GetProperty("type").GetString(),
-                    archive.GetProperty("file").GetString()))];
+                [.. manifest.GetProperty("archives").EnumerateArray().Select(
+                    archive => (
+                        archive.GetProperty("id").GetString(),
+                        archive.GetProperty("version").GetString(),
+                        archive.GetProperty("type").GetString(),
+                        archive.GetProperty("file").GetString()))];
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(manifest.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(2));
-                Assert.That(manifest.GetProperty("basePackageVersion").GetString(), Is.EqualTo("2.0.0"));
-                Assert.That(manifest.GetProperty("channel").GetString(), Is.EqualTo("stable"));
-                Assert.That(manifest.GetProperty("packageCount").GetInt32(), Is.EqualTo(expectedPackageCount));
-                Assert.That(manifest.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(expectedDebugCount));
-                Assert.That(manifest.GetProperty("symbolPackageCount").GetInt32(), Is.Zero);
-                Assert.That(
-                    manifest.GetProperty("packageVersions").EnumerateArray().Select(version => version.GetString()),
-                    Is.EquivalentTo(["2.0.0", PreviewFamilyVersion]));
-                Assert.That(archives, Has.Length.EqualTo(expectedPackageCount));
-                Assert.That(archives, Is.Unique);
-                Assert.That(
-                    archives,
-                    Is.EquivalentTo(expectedPackages.Select(package => (
-                        package.Id,
-                        package.Version,
-                        "package",
-                        $"{package.Id}.{package.Version}.nupkg"))));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(manifest.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(2));
+                    Assert.That(manifest.GetProperty("basePackageVersion").GetString(), Is.EqualTo("2.0.0"));
+                    Assert.That(manifest.GetProperty("channel").GetString(), Is.EqualTo("stable"));
+                    Assert.That(manifest.GetProperty("packageCount").GetInt32(), Is.EqualTo(expectedPackageCount));
+                    Assert.That(manifest.GetProperty("debugPackageCount").GetInt32(), Is.EqualTo(expectedDebugCount));
+                    Assert.That(manifest.GetProperty("symbolPackageCount").GetInt32(), Is.Zero);
+                    Assert.That(
+                        manifest.GetProperty("packageVersions").EnumerateArray().Select(version => version.GetString()),
+                        Is.EquivalentTo(["2.0.0", PreviewFamilyVersion]));
+                    Assert.That(archives, Has.Length.EqualTo(expectedPackageCount));
+                    Assert.That(archives, Is.Unique);
+                    Assert.That(
+                        archives,
+                        Is.EquivalentTo(
+                            expectedPackages.Select(
+                                package => (
+                                    package.Id,
+                                    package.Version,
+                                    "package",
+                                    $"{package.Id}.{package.Version}.nupkg"))));
+                });
         }
 
         private static void AssertVisionPolicyRejection(
@@ -790,16 +859,17 @@ namespace Opc.Ua.Tools.Tests
             string actualVersion,
             string expectedVersion)
         {
-            Assert.Multiple(() =>
-            {
-                Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);
-                Assert.That(
-                    result.Output,
-                    Does.Contain(
-                        "The package set contains versions that do not match the preview policy: " +
-                        $"{packageId}={actualVersion} (expected {expectedVersion})."));
-                Assert.That(result.Manifest, Is.Null, "A rejected package set must not produce a manifest.");
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(result.ExitCode, Is.EqualTo(1), result.Output);
+                    Assert.That(
+                        result.Output,
+                        Does.Contain(
+                            "The package set contains versions that do not match the preview policy: " +
+                            $"{packageId}={actualVersion} (expected {expectedVersion})."));
+                    Assert.That(result.Manifest, Is.Null, "A rejected package set must not produce a manifest.");
+                });
         }
     }
 }
