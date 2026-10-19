@@ -121,7 +121,7 @@ try {
     & python (Join-Path $project 'build\prepare_overlay.py') `
         --source $QuicSourceRoot --verified-module $module.Dir --output $VerificationRoot
     if ($LASTEXITCODE -ne 0) {
-        throw 'The source inventory or accepted exact09 observation overlay does not match.'
+        throw 'The source inventory or accepted QUIC overlays do not match.'
     }
 }
 finally {

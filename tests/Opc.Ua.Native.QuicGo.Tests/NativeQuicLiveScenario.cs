@@ -407,8 +407,8 @@ namespace Opc.Ua.Native.QuicGo.Tests
                                 reset.StreamId == opened.StreamId &&
                                 reset.ErrorCode == peerError &&
                                 reset.FinalSize == 3 &&
-                                reset.ReliableSize == 0 &&
-                                reset.ResetFrameType == 4,
+                                reset.ReliableSize == 3 &&
+                                reset.ResetFrameType == 0x24,
                                 role + "ActualPeerStopAndLocalResetRemainDistinct");
                         }
                     }

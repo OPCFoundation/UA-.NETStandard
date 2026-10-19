@@ -72,7 +72,7 @@ def verify(path):
         allowed = {
             "_rels/.rels", "[Content_Types].xml", "LICENSE.txt", "NugetREADME.md", "images/logo.jpg",
             nuspec,
-            "native/NATIVE_ABI.md", "native/THIRD-PARTY-NOTICES.txt", "native/source/observation.patch",
+            "native/NATIVE_ABI.md", "native/THIRD-PARTY-NOTICES.txt", "native/source/quic-overlay.patch",
             "native/receipts/win-x64.json", "native/receipts/linux-x64.json",
         }
         allowed |= {"native/source/" + source + (".txt" if source.endswith(".ps1") else "") for source in SOURCE_FILES}

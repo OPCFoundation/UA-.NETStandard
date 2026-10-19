@@ -30,7 +30,7 @@
     "win-x64": {"goos": "windows", "target": "x86_64-windows-gnu", "asset": "opcua_quic_go.dll"},
     "linux-x64": {"goos": "linux", "target": "x86_64-linux-gnu.2.28", "asset": "libopcua_quic_go.so"}
   },
-  "observation": [
+  "overlays": [
     {
       "source": "internal/wire/transport_parameters.go",
       "upstream_sha256": "aaa41c5ff8c4af9b033a7b0aa21f9e3f07395665d5c790489b44d9fff6a023e9",
@@ -45,6 +45,11 @@
       "source": "connection_logging.go",
       "upstream_sha256": "567150b8256e382e7bbeb03398c2531e2cecd9c93ef523fb13a01a0ea96fd3b0",
       "overlay_sha256": "659f3dfdc46327b949946c56559fce58b3d56cd66c6f10637f3e42ec969c0af6"
+    },
+    {
+      "source": "send_stream.go",
+      "upstream_sha256": "875b7e8f1411af6ac1375bd8bd51ee69de67272112c3397ec95a8ce0d62a9821",
+      "overlay_sha256": "d671b60bdc19cd6279e25e427cad4f40ddbe692a4c50bf16f4bfdffe82fd206f"
     }
   ],
   "linux_test_image": "66e55c09f5ef12a5b7f056f2fcbec83bf29b724c374f4b26e9d2fe9ca00cd75a",

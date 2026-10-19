@@ -15,7 +15,7 @@
           Pack="true" PackagePath="native\receipts\" />
     <None Include="$(BaseIntermediateOutputPath)native-package\linux-x64.json"
           Pack="true" PackagePath="native\receipts\" />
-    <None Include="$(NativeQuicAssetRoot)\win-x64\overlay\observation.patch"
+    <None Include="$(NativeQuicAssetRoot)\win-x64\overlay\quic-overlay.patch"
           Pack="true" PackagePath="native\source\" />
   </ItemGroup>
   <Target Name="ValidateQuicNativeAssets" BeforeTargets="GenerateNuspec"

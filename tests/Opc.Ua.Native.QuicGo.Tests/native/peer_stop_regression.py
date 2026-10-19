@@ -1,7 +1,6 @@
 # Copyright (c) OPC Foundation. Licensed under the MIT License.
 """Actual peer-STOP evidence, including local-reset-first crossed shutdown."""
 import asyncio
-import time
 
 
 class DatagramRelay(asyncio.DatagramProtocol):
@@ -108,11 +107,11 @@ async def check_peer_stop_semantics(driver, credentials):
         assert_peer_stop(stopped, payload, stream_id, peer_code)
         reset, _ = await driver.execute(3, sender, 23)
         assert (reset.remote, reset.stream_id, reset.error_code, reset.final_size,
-                reset.reliable_size, reset.reset_frame_type) == (0, stream_id, peer_code, 2141, 0, 0x04)
+                reset.reliable_size, reset.reset_frame_type) == (0, stream_id, peer_code, 2141, 3, 0x24)
         await driver.execute(3, sender, 22, code=local_code)
         repeated, _ = await driver.execute(3, sender, 23)
         assert (repeated.error_code, repeated.final_size, repeated.reliable_size,
-                repeated.reset_frame_type) == (peer_code, 2141, 0, 0x04)
+                repeated.reset_frame_type) == (peer_code, 2141, 3, 0x24)
         await driver.execute(3, receiver, 20, data=b"reverse-after-stop", flags=1)
         received = b""
         while True:
@@ -123,8 +122,8 @@ async def check_peer_stop_semantics(driver, credentials):
             assert read.outcome == 0
         assert received == b"reverse-after-stop"
         await driver.cleanup()
-        driver.check(role + "DelayedPrefixPeerStopProducesActualOrdinaryReset",
-                     error=peer_code, final=2141, reliable=0, frame=4)
+        driver.check(role + "DelayedPrefixPeerStopPreservesReliableReset",
+                     error=peer_code, final=2141, reliable=3, frame=0x24)
 
         listener, address = await driver.start_listener(credentials)
         relay = DatagramRelay(address)
@@ -151,15 +150,9 @@ async def check_peer_stop_semantics(driver, credentials):
             await driver.execute(3, receiver, 24, code=peer_code)
             stopped, payload = await driver.finish(observed)
             assert_peer_stop(stopped, payload, stream_id, peer_code)
-            deadline = time.monotonic() + 3
-            while True:
-                after, _ = await driver.execute(3, sender, 23)
-                if after.reset_frame_type == 0x04:
-                    break
-                assert time.monotonic() < deadline, "actual STOP did not produce ordinary RESET"
-                await asyncio.sleep(0.001)
+            after, _ = await driver.execute(3, sender, 23)
             assert (after.remote, after.error_code, after.final_size,
-                    after.reliable_size, after.reset_frame_type) == (0, local_code, 2141, 0, 0x04)
+                    after.reliable_size, after.reset_frame_type) == (0, local_code, 2141, 3, 0x24)
             repeated, payload = await driver.execute(3, sender, 29)
             assert_peer_stop(repeated, payload, stream_id, peer_code)
             legacy, _ = await driver.execute(3, sender, 25)

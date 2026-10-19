@@ -147,25 +147,19 @@ runtime gate. Export signatures and all structure sizes remain unchanged.
 
 ### STOP and application reliable-minimum policies
 
-The pinned native `handleStopSendingFrame` deliberately clears its reliable size and sends
-ordinary RESET_STREAM after STOP_SENDING. This is not an acknowledgement-driven optimization.
-An earlier local reset's error remains authoritative if STOP arrives later, while the
-subsequent actual reset can reduce reliable size to zero. The recorder reports these actual
-frames; it never substitutes the earlier reliable boundary or received reset metadata.
+The pinned quic-go STOP_SENDING handler is overlaid to preserve an established reliable
+boundary. If STOP_SENDING arrives before local cancellation, the response reset retains the
+reliable prefix and retransmits any outstanding prefix frames. If a reset already owns the
+send direction, the later STOP_SENDING does not replace or downgrade that reset. A stream
+without an established reliable boundary still uses an ordinary reset. The recorder reports
+the actual frames; it never substitutes the earlier reliable boundary or received reset metadata.
 
 [Reliable-reset draft09 section5.4](https://www.ietf.org/archive/id/draft-ietf-quic-reliable-stream-reset-09.txt)
-recommends ordinary RESET_STREAM in response to STOP; section5.2 permits application protocols
-to impose minimum reliable sizes.
+recommends ordinary RESET_STREAM in response to STOP_SENDING. The
 [WebTransport draft16 section4.4](https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-16.txt)
-requires header-sized reliable reset for WebTransport data streams. Generic QUIC correctness
-alone does **not** establish an exception to that application requirement.
-
-This pinned backend currently has no native policy setting that preserves a minimum reliable
-size after peer STOP. The new observation does not add such a policy or authorize a
-WebTransport binding to accept ordinary resets as reliable-prefix confirmation. That use
-requires an authoritative normative reconciliation or separately approved and qualified
-native policy support. No QUIC protocol behavior or the three-file observation overlay is
-changed here.
+requires a reliable size at least as large as the WebTransport header when resetting data
+streams. The pinned adapter policy preserves the WebTransport requirement while retaining
+ordinary reset behavior for streams with no reliable boundary.
 
 ### Late application-error cancellation
 
@@ -213,7 +207,8 @@ No installer or global PATH/configuration change is required. `ToolRoot` contain
 `go\bin\go.exe` and `zig\zig.exe`. `CacheRoot` is an existing writable Go/Zig cache;
 `QuicSourceRoot` is the exact source tree from the checksum-verified module zip.
 Reuse a reviewed tree instead of duplicating a full mirror. Every source file is compared
-with the verified Go module, then only the three pinned observation files are overlaid.
+with the verified Go module, then only the three pinned observation files and the pinned
+STOP_SENDING reliable-prefix policy patch are overlaid.
 Go forbids overlays directly in its module cache; an output-local small shim source tree
 uses a junction to the reviewed QUIC tree with a stable `./quic-go` replacement. This
 avoids embedding private source paths in native module build-info and makes no upstream

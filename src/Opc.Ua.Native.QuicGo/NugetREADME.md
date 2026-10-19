@@ -5,10 +5,10 @@ It does **not** implement Data Channel records, HTTP/3, Sessions or PubSub, and 
 dependency to ordinary Core/client/server/PubSub packages. The separate HTTP/3 engine
 reuses this runtime rather than loading another Go image.
 
-The backend uses pinned quic-go **0.64.0**, Go **1.27.2** and Zig **0.17.0**, with only
-the reviewed three-file exact-reset-09 **observation** overlay. TLS 1.3 with supplied
-mutual application identities, real RFC9221 datagrams and exact peer TP `0x1d` are
-mandatory. There is no transport downgrade or generated/system-trust fallback.
+The backend uses pinned quic-go **0.64.0**, Go **1.27.2** and Zig **0.17.0**, with three
+hash-pinned exact-reset-09 observation overlays and a STOP_SENDING reliable-prefix policy
+overlay. TLS 1.3 with supplied mutual application identities, real RFC9221 datagrams and
+exact peer TP `0x1d` are mandatory. There is no transport downgrade or generated/system-trust fallback.
 
 ## Managed use
 
@@ -65,13 +65,10 @@ even if local cancellation happened first. The older `WaitStopped` observes the 
 send-context cause and is not sufficient for crossed shutdown. Actual STOP and reset
 evidence remain distinct; no final/reliable size is invented for a STOP.
 
-**Application-policy limitation:** the pinned QUIC implementation responds to peer STOP
-with ordinary RESET_STREAM, including after a reliable prefix was marked. This follows
-reliable-reset draft09's transport guidance but does not establish an exception to
-WebTransport draft16's application-level header minimum. There is currently no native
-setting to preserve a minimum reliable size after peer STOP. See `native/NATIVE_ABI.md`
-before selecting this backend for a protocol with that requirement; the observer does
-not add such a policy or turn ordinary resets into reliable-prefix confirmation.
+The pinned QUIC overlay preserves an established reliable prefix when peer STOP_SENDING
+requires a reset, and does not downgrade a reset that already owns the send direction.
+Streams without a reliable boundary retain ordinary reset behavior. The overlay is pinned
+to the exact upstream source hash and covered by native live tests; see `native/NATIVE_ABI.md`.
 
 ## Deployment and ownership
 
@@ -86,7 +83,7 @@ Restart to upgrade. `NativeQuicLibrary` checks absolute trusted paths, SHA256 an
 layouts; it never searches PATH. An initialization failure requires restart. The hash
 sidecar is an integrity check, not a substitute for authenticating the distribution.
 
-Native source, exact dependency locks, observation patch, build receipts and notices
+Native source, exact dependency locks, the hash-pinned QUIC overlay, build receipts and notices
 are included. Native binaries and test identities are not checked into source control.
 Build/package instructions and bounds are in `native/NATIVE_ABI.md`.
 
