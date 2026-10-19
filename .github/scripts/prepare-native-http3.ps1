@@ -94,6 +94,7 @@ if ([string]::IsNullOrWhiteSpace($visualStudio)) {
 }
 $windowsSdk = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10'
 $msvc = Join-Path $visualStudio "VC\Tools\MSVC\$($pins.windows.msvc_directory)"
+$nativeInputMismatches = [Collections.Generic.List[string]]::new()
 foreach ($file in $pins.windows.native_files) {
     $base = switch ($file.base) {
         'msvc' { $msvc }
@@ -103,8 +104,12 @@ foreach ($file in $pins.windows.native_files) {
     $path = Join-Path $base $file.path
     $actualHash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
     if ($actualHash -ne $file.sha256) {
-        throw "The accepted MSVC/SDK input differs at '$($file.path)' (expected '$($file.sha256)', found '$actualHash')."
+        $nativeInputMismatches.Add(
+            "'$($file.path)' expected '$($file.sha256)', found '$actualHash'.")
     }
+}
+if ($nativeInputMismatches.Count -gt 0) {
+    throw "The accepted MSVC/SDK inputs differ: $($nativeInputMismatches -join ' ')"
 }
 
 [pscustomobject]@{
