@@ -442,6 +442,68 @@ namespace Opc.Ua.Server.Tests
             return [.. notifications];
         }
 
+        private static List<EventFieldList> Publish(MonitoredItem item, DiagnosticsMasks diagnosticsMask)
+        {
+            var notifications = new Queue<EventFieldList>();
+            using var context = new OperationContext(
+                new RequestHeader { ReturnDiagnostics = (uint)diagnosticsMask },
+                null,
+                RequestType.Publish,
+                RequestLifetime.None);
+            _ = item.Publish(context, notifications, 100);
+            return [.. notifications];
+        }
+
+        /// <summary>
+        /// Publishing rewrites a StatusResult field with the diagnostics mask and string table
+        /// of the publishing session, so items of a group must not share those fields: the
+        /// notification of one item must not change when another item publishes.
+        /// </summary>
+        [Test]
+        public async Task StatusResultFieldsStayPerItemWhenItemsShareTheEvaluationAsync()
+        {
+            SimpleAttributeOperand[] selectClauses = [.. SelectA(), Field("Result")];
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(true);
+            MonitoredItem first = CreateItem(1, CreateFilter(selectClauses, null), null);
+            MonitoredItem second = CreateItem(2, CreateFilter([.. SelectA(), Field("Result")], null), null);
+            monitoredNode.Add((IEventMonitoredItem)first);
+            monitoredNode.Add((IEventMonitoredItem)second);
+
+            BaseEventState e = CreateEventState(EventSeverity.High);
+            var result = new PropertyState(e)
+            {
+                NodeId = new NodeId("Result", 1),
+                BrowseName = QualifiedName.From("Result"),
+                DisplayName = new LocalizedText("Result"),
+                TypeDefinitionId = VariableTypeIds.PropertyType,
+                DataType = DataTypeIds.StatusResult,
+                ValueRank = ValueRanks.Scalar,
+                WrappedValue = Variant.FromStructure(new StatusResult(new ServiceResult(
+                    StatusCodes.BadUserAccessDenied,
+                    new LocalizedText("en-US", "The pump refused the command."))))
+            };
+            e.AddChild(result);
+
+            // a NodeState is cloned by the notifier and read through the event node.
+            await monitoredNode.OnReportEventAsync(m_systemContext, monitoredNode.Node, e).ConfigureAwait(false);
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            StatusResult firstResult = ResultOf(Publish(first, DiagnosticsMasks.All).Single(), selectClauses.Length - 1);
+            DiagnosticInfo? firstDiagnostics = firstResult.DiagnosticInfo;
+            Assert.That(firstDiagnostics, Is.Not.Null);
+
+            StatusResult secondResult = ResultOf(Publish(second, DiagnosticsMasks.None).Single(), selectClauses.Length - 1);
+            Assert.That(secondResult, Is.Not.SameAs(firstResult));
+            Assert.That(firstResult.DiagnosticInfo, Is.SameAs(firstDiagnostics), "the first notification is unchanged");
+        }
+
+        private static StatusResult ResultOf(EventFieldList fields, int index)
+        {
+            StatusResult result;
+            Assert.That(fields.EventFields[index].TryGetStructure(out result!), Is.True);
+            return result;
+        }
+
         private MonitoredNode2 CreateMonitoredNode(bool serverNode)
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
@@ -517,6 +579,13 @@ namespace Opc.Ua.Server.Tests
 
         private InstanceStateSnapshot CreateEvent(EventSeverity severity)
         {
+            var snapshot = new InstanceStateSnapshot();
+            snapshot.Initialize(m_systemContext, CreateEventState(severity));
+            return snapshot;
+        }
+
+        private BaseEventState CreateEventState(EventSeverity severity)
+        {
             var e = new BaseEventState(null);
             e.Create(
                 m_systemContext,
@@ -530,9 +599,7 @@ namespace Opc.Ua.Server.Tests
             e.Severity!.Value = (ushort)severity;
             e.SourceName!.Value = "Pump";
             e.Message!.Value = new LocalizedText(new TranslationInfo(kMessageKey, "en-US", kMessageEnglish));
-            var snapshot = new InstanceStateSnapshot();
-            snapshot.Initialize(m_systemContext, e);
-            return snapshot;
+            return e;
         }
 
         private EventFilter CreateFilter(SimpleAttributeOperand[] selectClauses, ushort? minimumSeverity)

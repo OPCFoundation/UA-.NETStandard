@@ -314,8 +314,14 @@ namespace Opc.Ua.Server
 
             /// <summary>
             /// Returns the field values of the event for the select clauses of the group.
-            /// The array is shared by the items of the group and must not be modified.
             /// </summary>
+            /// <remarks>
+            /// The array is shared by the items of the group and must not be modified. When
+            /// a field holds a <see cref="StatusResult"/>, which publishing rewrites with the
+            /// diagnostics mask and string table of the publishing session, every item gets
+            /// its own copy with its own instances of those fields, as a read of the event
+            /// node gave it before the evaluation was shared.
+            /// </remarks>
             public Variant[] GetEventFields(
                 MonitoredItem item,
                 FilterContext context,
@@ -331,16 +337,48 @@ namespace Opc.Ua.Server
                         if (fields == null)
                         {
                             fields = item.EvaluateEventFields(context, filter, instance);
+                            m_copyPerItem = ContainsStatusResult(fields);
                             Volatile.Write(ref m_fields, fields);
                         }
                     }
                 }
-                return fields;
+                return m_copyPerItem ? CopyStatusResults(fields) : fields;
+            }
+
+            private static bool ContainsStatusResult(Variant[] fields)
+            {
+                foreach (Variant field in fields)
+                {
+                    if (IsStatusResult(field))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private static bool IsStatusResult(Variant field)
+            {
+                StatusResult status;
+                return field.TryGetStructure(out status!);
+            }
+
+            private static Variant[] CopyStatusResults(Variant[] fields)
+            {
+                var copy = new Variant[fields.Length];
+                for (int ii = 0; ii < fields.Length; ii++)
+                {
+                    copy[ii] = IsStatusResult(fields[ii])
+                        ? CoreUtils.Clone(fields[ii])
+                        : fields[ii];
+                }
+                return copy;
             }
 
             private readonly Lock m_lock = new();
             private int m_whereClause;
             private Variant[]? m_fields;
+            private bool m_copyPerItem;
         }
     }
 }
