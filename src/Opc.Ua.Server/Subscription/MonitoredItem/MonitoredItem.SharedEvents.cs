@@ -215,9 +215,8 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                SharedEventFilterKey representative = Volatile.Read(ref m_equivalent) ?? this;
-                SharedEventFilterKey otherRepresentative = Volatile.Read(ref other.m_equivalent) ?? other;
-                if (ReferenceEquals(representative, otherRepresentative))
+                SharedEventFilterKey representative = Representative;
+                if (ReferenceEquals(representative, other.Representative))
                 {
                     return true;
                 }
@@ -228,9 +227,18 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                Volatile.Write(ref m_equivalent, otherRepresentative);
+                // a dictionary compares the key it holds with the key it is asked for, so
+                // the asked key adopts the representative of the held one: the held key of
+                // a group stays stable and every other key of the group compares by
+                // reference from the next event on.
+                Volatile.Write(ref other.m_equivalent, representative);
                 return true;
             }
+
+            /// <summary>
+            /// The key this key compares by reference with, after it was found equal to it.
+            /// </summary>
+            internal SharedEventFilterKey Representative => Volatile.Read(ref m_equivalent) ?? this;
 
             /// <inheritdoc/>
             public override bool Equals(object? obj)

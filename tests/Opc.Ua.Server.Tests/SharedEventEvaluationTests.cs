@@ -272,9 +272,12 @@ namespace Opc.Ua.Server.Tests
         private async Task<int> CountReadsAsync(bool serverNode, int itemCount)
         {
             MonitoredNode2 monitoredNode = CreateMonitoredNode(serverNode);
+            var items = new List<MonitoredItem>();
             for (int ii = 0; ii < itemCount; ii++)
             {
-                monitoredNode.Add((IEventMonitoredItem)CreateItem((uint)(ii + 1), CreateFilter(SelectA(), 500), null));
+                MonitoredItem item = CreateItem((uint)(ii + 1), CreateFilter(SelectA(), 500), null);
+                monitoredNode.Add((IEventMonitoredItem)item);
+                items.Add(item);
             }
 
             var target = new CountingFilterTarget(CreateEvent(EventSeverity.High));
@@ -282,11 +285,89 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
             await monitoredNode.DisposeAsync().ConfigureAwait(false);
 
-            foreach (IEventMonitoredItem item in monitoredNode.EventMonitoredItems.Values)
+            // the node forgets its items when it is disposed, so check the items created here.
+            foreach (MonitoredItem item in items)
             {
-                Assert.That(Publish((MonitoredItem)item), Has.Count.EqualTo(1));
+                Assert.That(Publish(item), Has.Count.EqualTo(1), $"item {item.Id}");
             }
             return target.Reads;
+        }
+
+        /// <summary>
+        /// The keys of items with equal filters settle on one representative during the first
+        /// event, so later events group them by reference instead of comparing the filters.
+        /// </summary>
+        [Test]
+        public async Task EqualFilterKeysCompareByReferenceAfterTheFirstEventAsync()
+        {
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(true);
+            var items = new List<MonitoredItem>();
+            for (uint ii = 1; ii <= 4; ii++)
+            {
+                MonitoredItem item = CreateItem(ii, CreateFilter(SelectA(), 500), null);
+                monitoredNode.Add((IEventMonitoredItem)item);
+                items.Add(item);
+            }
+
+            var representatives = new List<MonitoredItem.SharedEventFilterKey>();
+            for (int ii = 0; ii < 3; ii++)
+            {
+                await monitoredNode.OnReportEventAsync(
+                    m_systemContext, monitoredNode.Node, CreateEvent(EventSeverity.High)).ConfigureAwait(false);
+                await monitoredNode.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+
+                MonitoredItem.SharedEventFilterKey[] keys =
+                    [.. items.Select(item => item.GetSharedEventFilterKey()!)];
+                for (int jj = 1; jj < keys.Length; jj++)
+                {
+                    Assert.That(keys[jj].Filter, Is.Not.SameAs(keys[0].Filter), "equal, not shared filters");
+                }
+                Assert.That(
+                    keys.Select(key => key.Representative).Distinct().Count(),
+                    Is.EqualTo(1),
+                    $"event {ii}");
+                representatives.Add(keys[0].Representative);
+            }
+            await monitoredNode.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(representatives.Distinct().Count(), Is.EqualTo(1), "stable across events");
+            foreach (MonitoredItem item in items)
+            {
+                Assert.That(Publish(item), Has.Count.EqualTo(3), $"item {item.Id}");
+            }
+        }
+
+        /// <summary>
+        /// Looking up keys in a dictionary in any order makes the looked-up keys adopt the
+        /// representative of the key the dictionary holds.
+        /// </summary>
+        [Test]
+        public void LookedUpKeysAdoptTheRepresentativeOfTheHeldKey()
+        {
+            MonitoredItem.SharedEventFilterKey[] keys =
+            [
+                new(CreateFilter(SelectA(), 500), null),
+                new(CreateFilter(SelectA(), 500), null),
+                new(CreateFilter(SelectA(), 500), null)
+            ];
+
+            foreach (int[] order in new[] { new[] { 0, 1, 2 }, new[] { 2, 0, 1 }, new[] { 1, 2, 0 } })
+            {
+                var groups = new Dictionary<MonitoredItem.SharedEventFilterKey, int>();
+                foreach (int index in order)
+                {
+                    if (!groups.TryGetValue(keys[index], out int count))
+                    {
+                        count = 0;
+                    }
+                    groups[keys[index]] = count + 1;
+                }
+
+                Assert.That(groups, Has.Count.EqualTo(1));
+                Assert.That(groups.Values.Single(), Is.EqualTo(3));
+                Assert.That(keys.Select(key => key.Representative).Distinct().Count(), Is.EqualTo(1));
+            }
+            Assert.That(keys[0].Representative, Is.SameAs(keys[0]), "the first held key stays its own");
         }
 
         private static string? Message(EventFieldList fields)
