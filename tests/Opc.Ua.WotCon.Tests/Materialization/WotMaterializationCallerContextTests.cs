@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -53,10 +54,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private FakeWotProjectionHost m_host = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private PreparedWotTestRuntime? m_runtime;
+        private IDisposable? m_lifecycleRegistration;
 
         [SetUp]
         public async Task SetUpAsync()
         {
+            ClearObserved();
             m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
@@ -72,11 +75,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         }
                     }),
                 documentConverter: new FakeWotDocumentConverter());
+            m_lifecycleRegistration = m_registry.RegisterLifecycleCoordinator(m_coordinator);
         }
 
         [TearDown]
         public async Task TearDownAsync()
         {
+            m_lifecycleRegistration?.Dispose();
+            m_lifecycleRegistration = null;
             m_coordinator?.Dispose();
             if (m_runtime is not null)
             {
@@ -326,6 +332,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = resourceId,
+                VersionId = "v1",
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(TestMaterialization.Tm("urn:" + resourceId))
             }).AsTask();
