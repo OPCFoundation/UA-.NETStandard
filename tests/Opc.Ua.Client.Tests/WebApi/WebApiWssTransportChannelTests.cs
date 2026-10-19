@@ -86,13 +86,13 @@ namespace Opc.Ua.Client.Tests.WebApi
             using var channel = new WebApiWssTransportChannel(NUnitTelemetryContext.Create());
             await channel.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-            ServiceResultException reconnect = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException reconnect = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.ReconnectAsync().ConfigureAwait(false));
             Assert.That(reconnect.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
             Assert.That(
                 async () => await channel.SendRequestAsync(null!, CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
-            ServiceResultException notConnected = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException notConnected = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(notConnected.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));

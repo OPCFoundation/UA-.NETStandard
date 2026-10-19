@@ -252,7 +252,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             Mock<IServerInternal> mockServer = CreateMinimalServerMock();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await factory.CreateAsync(
                     mockServer.Object,
                     new ApplicationConfiguration(),

@@ -69,6 +69,18 @@ namespace Opc.Ua
         /// <exception cref="InvalidOperationException"></exception>
         internal ViewOwner SetViewSelector(Func<EncodeableFactory?> selector)
         {
+            return TryAcquireViewOwner(selector) ??
+                throw new InvalidOperationException("The encodeable factory already has a publication owner.");
+        }
+
+        /// <summary>
+        /// Atomically acquires publication ownership when no owner exists.
+        /// </summary>
+        /// <param name="selector">The current image selector.</param>
+        /// <returns>The owner token, or <c>null</c> when another owner holds the factory.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        internal ViewOwner? TryAcquireViewOwner(Func<EncodeableFactory?> selector)
+        {
             if (selector is null)
             {
                 throw new ArgumentNullException(nameof(selector));
@@ -77,12 +89,17 @@ namespace Opc.Ua
             {
                 if (m_viewSelector is not null)
                 {
-                    throw new InvalidOperationException("The encodeable factory already has a publication owner.");
+                    return null;
                 }
                 Volatile.Write(ref m_viewSelector, selector);
                 return new ViewOwner(this, selector);
             }
         }
+
+        /// <summary>
+        /// Gets whether a publication owner currently selects the serving image.
+        /// </summary>
+        internal bool HasViewOwner => Volatile.Read(ref m_viewSelector) is not null;
 
         /// <summary>
         /// Captures independent registration maps with their source identity and revision.
@@ -173,12 +190,15 @@ namespace Opc.Ua
                         {
                             throw new InvalidOperationException("The factory publication owner changed.");
                         }
-                        image.EnsureMutable();
-                        current.m_encodeableTypes = image.m_encodeableTypes;
-                        current.m_enumeratedTypes = image.m_enumeratedTypes;
-                        current.m_xmlNameToType = image.m_xmlNameToType;
-                        current.m_revision++;
-                        image.m_retired = true;
+                        if (!ReferenceEquals(image, current))
+                        {
+                            image.EnsureMutable();
+                            current.m_encodeableTypes = image.m_encodeableTypes;
+                            current.m_enumeratedTypes = image.m_enumeratedTypes;
+                            current.m_xmlNameToType = image.m_xmlNameToType;
+                            current.m_revision++;
+                            image.m_retired = true;
+                        }
                         Volatile.Write(ref current.m_viewSelector, null);
                         Volatile.Write(ref m_owner, null);
                     }

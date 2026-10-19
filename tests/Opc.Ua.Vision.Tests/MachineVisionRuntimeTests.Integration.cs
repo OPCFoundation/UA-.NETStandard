@@ -216,7 +216,7 @@ namespace Opc.Ua.Vision.Tests
                     Assert.That(configured.configuration.HasTransferableDataOnFile, Is.True);
                     Assert.That(await configurations.ReleaseConfigurationHandleAsync(configured.configurationHandle, ct)
                         .ConfigureAwait(false), Is.Zero);
-                    ServiceResultException? activeRemoval = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException? activeRemoval = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await configurations.RemoveConfigurationAsync(configuration, ct).ConfigureAwait(false));
                     Assert.That(activeRemoval!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                     await runtime.PublishResultAsync(new ResultDataType
@@ -259,7 +259,7 @@ namespace Opc.Ua.Vision.Tests
                     Assert.That(capabilities.SupportsControl, Is.True);
                     Assert.That(capabilities.SupportsAssets, Is.True);
                     Assert.That(capabilities.Interfaces.ToArray(), Has.Some.Matches<MachineVisionInterfaceCapability>(
-                        member => member.Path == "RecipeManagement/RecipeTransfer" && !member.NodeId.IsNull));
+                        member => member is not null && member.Path == "RecipeManagement/RecipeTransfer" && !member.NodeId.IsNull));
                     MachineVisionStatusSnapshot status = await client.ReadStatusAsync(runtime.State.NodeId, ct)
                         .ConfigureAwait(false);
                     Assert.That(status.Values.Count, Is.EqualTo(5));

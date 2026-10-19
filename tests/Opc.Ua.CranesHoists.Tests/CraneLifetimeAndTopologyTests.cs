@@ -112,15 +112,15 @@ namespace Opc.Ua.CranesHoists.Tests
         /// </summary>
         [TestCase("Missing")]
         [TestCase("Trolley")]
-        public void InvalidPhysicalCompositionFailsSetup(string child)
+        public async Task InvalidPhysicalCompositionFailsSetup(string child)
         {
             var provider = new Mock<ICraneDataProvider>(MockBehavior.Strict);
             CraneSystemBuilder builder = Definition("BadPhysical", provider.Object);
             builder.AddDevice("Trolley", CraneMotionDeviceCategoryEnum.TROLLEY_TRAVERSE, device =>
                 device.WithIdentification(data => CraneRuntimeTestData.Identify(data, "Trolley"))
                     .WithPhysicalComponent(child).AddAxis("TrolleyAxis", axis => axis.AddMotor("TrolleyMotor")));
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(m_server.ReservedCount, Is.Zero);
             provider.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -131,13 +131,13 @@ namespace Opc.Ua.CranesHoists.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void InvalidProtectionReferencesFailSetup(bool duplicate)
+        public async Task InvalidProtectionReferencesFailSetup(bool duplicate)
         {
             var provider = new Mock<ICraneDataProvider>(MockBehavior.Strict);
             CraneSystemBuilder builder = Definition("BadProtection", provider.Object);
             builder.AddProtectiveFunction("Protection", duplicate ? ["Lift", "Lift"] : ["OtherSystemAxis"]);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(m_server.ReservedCount, Is.Zero);
             provider.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -176,8 +176,8 @@ namespace Opc.Ua.CranesHoists.Tests
             invalid = CraneRuntimeTestData.Replace(invalid,
                 CraneRuntimeTestData.Sample("Hoist", CraneSignal.SpeedOverride, Variant.From("wrong type")));
             await provider.SetSamplesAsync(invalid).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await crane.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await crane.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(crane.ReadSignal(new(name, CraneSignal.SystemOn)).WrappedValue.GetBoolean(), Is.True);
             Assert.That(crane.ReadSignal(new("Hoist", CraneSignal.SpeedOverride)).WrappedValue.GetDouble(),
@@ -223,8 +223,8 @@ namespace Opc.Ua.CranesHoists.Tests
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await crane.RefreshAsync().ConfigureAwait(false))!;
+                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await crane.RefreshAsync().ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
                 for (int index = 0; index < signals.Count; index++)
                 {
@@ -257,13 +257,13 @@ namespace Opc.Ua.CranesHoists.Tests
             Task refresh = crane.RefreshAsync().AsTask();
             await started.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
             await crane.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            Assert.CatchAsync<OperationCanceledException>(async () => await refresh.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await refresh.ConfigureAwait(false));
             Assert.That(crane.IsDisposed, Is.True);
             Assert.That(crane.ReadSignal(new(name, CraneSignal.SystemOn)).StatusCode,
                 Is.EqualTo(StatusCodes.BadShutdown));
             disposable.Verify(value => value.DisposeAsync(), Times.Once);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await crane.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await crane.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadShutdown));
 
             async ValueTask<ArrayOf<CraneSample>> ReadAsync(CancellationToken cancellationToken)
@@ -310,12 +310,12 @@ namespace Opc.Ua.CranesHoists.Tests
         /// A selected configuration request without a provider/authorizer fails before publication.
         /// </summary>
         [Test]
-        public void SelectedLimitRequestsRequireBothProvidersAtSetup()
+        public async Task SelectedLimitRequestsRequireBothProvidersAtSetup()
         {
             var provider = new Mock<ICraneDataProvider>(MockBehavior.Strict);
             CraneSystemBuilder definition = Definition("UnbackedLimits", provider.Object).WithGlobalSpeedLimit();
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await definition.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await definition.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(m_server.ReservedCount, Is.Zero);
             provider.Verify(value => value.ReadAsync(It.IsAny<CancellationToken>()), Times.Never);
@@ -410,8 +410,8 @@ namespace Opc.Ua.CranesHoists.Tests
                     }
                 });
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(context.ConformanceUnits, Is.Empty);
             Assert.That(m_server.ReservedCount, Is.Zero, m_server.ReservedNames);

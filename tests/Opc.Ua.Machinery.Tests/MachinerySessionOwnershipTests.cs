@@ -65,8 +65,8 @@ namespace Opc.Ua.Machinery.Tests
             var client = new MachineryClient(fixture.ManagedSession, fixture.Telemetry,
                 new MachineryClientOptions { MaximumBrowsePages = 1 });
 
-            MachineryReadException failure = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await client.DiscoverMachinesAsync().ConfigureAwait(false))!;
+            MachineryReadException failure = (await Assert.ThrowsAsync<MachineryReadException>(
+                async () => await client.DiscoverMachinesAsync().ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(fixture.Requests, Has.Count.EqualTo(2));
@@ -129,8 +129,8 @@ namespace Opc.Ua.Machinery.Tests
             };
             var client = new MachineryClient(fixture.ManagedSession, fixture.Telemetry, new MachineryClientOptions());
 
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                async () => await client.DiscoverMachinesAsync().ConfigureAwait(false))!;
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await client.DiscoverMachinesAsync().ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(failure.InnerExceptions, Has.All.InstanceOf<ServiceResultException>()
@@ -190,9 +190,9 @@ namespace Opc.Ua.Machinery.Tests
             var client = new MachineryClient(fixture.ManagedSession, fixture.Telemetry);
             using var destination = new MemoryStream();
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.DownloadResultAsync(
-                    new NodeId("machine", 1), "selected", destination, 1).ConfigureAwait(false))!;
+                    new NodeId("machine", 1), "selected", destination, 1).ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Has.Count.EqualTo(1));

@@ -266,8 +266,8 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             await Task.WhenAll(firstDisposal, secondDisposal).WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false);
 
-            Assert.CatchAsync<OperationCanceledException>(async () => await active.ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () => await queued.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await active.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await queued.ConfigureAwait(false));
             provider.Verify(value => value.StartAsync(
                 It.IsAny<PlasticsRubberRequestContext>(), It.IsAny<CancellationToken>()), Times.Once);
             Assert.That(start.Executable, Is.False);

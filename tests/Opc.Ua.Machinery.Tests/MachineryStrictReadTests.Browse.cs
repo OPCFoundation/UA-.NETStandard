@@ -58,8 +58,8 @@ namespace Opc.Ua.Machinery.Tests
             if (count > 2)
             {
                 Assert.That(
-                    Assert.ThrowsAsync<MachineryReadException>(async () =>
-                        await client.DiscoverMachinesAsync().ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<MachineryReadException>(async () =>
+                        await client.DiscoverMachinesAsync().ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             else
@@ -78,16 +78,16 @@ namespace Opc.Ua.Machinery.Tests
         /// Duplicate references consume the raw reference budget even when identities are deduplicated.
         /// </summary>
         [Test]
-        public void BrowseBudgetCountsDuplicateReferencesBeforeDeduplication()
+        public async Task BrowseBudgetCountsDuplicateReferencesBeforeDeduplication()
         {
             var harness = new ReadHarness();
             ReferenceDescription duplicate = Reference(harness, 1);
             harness.Browse = _ => Page([duplicate, duplicate], Token(1));
             Assert.That(
-                Assert.ThrowsAsync<MachineryReadException>(async () =>
+                (await Assert.ThrowsAsync<MachineryReadException>(async () =>
                     await harness.Client(new MachineryClientOptions { MaximumBrowseReferences = 1 })
                         .DiscoverMachinesAsync()
-                        .ConfigureAwait(false))!.StatusCode,
+                        .ConfigureAwait(false)))!.StatusCode,
                 Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(harness.Releases.Select(r => r.Token).ToArray(), Is.EqualTo([Token(1)]));
             Assert.That(harness.NextRequests, Is.Empty);
@@ -115,8 +115,8 @@ namespace Opc.Ua.Machinery.Tests
             else
             {
                 Assert.That(
-                    Assert.ThrowsAsync<MachineryReadException>(async () =>
-                        await client.DiscoverMachinesAsync().ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<MachineryReadException>(async () =>
+                        await client.DiscoverMachinesAsync().ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token((byte)pages)));
             }
@@ -151,14 +151,14 @@ namespace Opc.Ua.Machinery.Tests
         /// Repeated continuation points remain bounded by the page budget and are released once.
         /// </summary>
         [Test]
-        public void RepeatedContinuationRemainsBoundedAndIsReleasedOnce()
+        public async Task RepeatedContinuationRemainsBoundedAndIsReleasedOnce()
         {
             var harness = new ReadHarness
             {
                 Browse = _ => Page([], Token(7)),
                 Next = (_, _) => Task.FromResult(NextPage([], Token(7)))
             };
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client(new MachineryClientOptions { MaximumBrowsePages = 3 })
                     .DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -197,7 +197,7 @@ namespace Opc.Ua.Machinery.Tests
         /// An ordinary borrowed session cannot receive an old continuation after changing its server identity.
         /// </summary>
         [Test]
-        public void ReplacedBorrowedSessionDoesNotReceiveBrowseNextOrRelease()
+        public async Task ReplacedBorrowedSessionDoesNotReceiveBrowseNextOrRelease()
         {
             var harness = new ReadHarness();
             harness.Browse = _ =>
@@ -206,8 +206,8 @@ namespace Opc.Ua.Machinery.Tests
                 return Page([], Token(9));
             };
 
-            AggregateException failure = Assert.ThrowsAsync<AggregateException>(
-                async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false))!;
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(
+                async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false)))!;
 
             Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
             Assert.That(failure.InnerExceptions, Has.All.InstanceOf<ServiceResultException>()
@@ -221,7 +221,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void EmptyReleaseResponsePreservesThePrimaryFailure(bool invalidDiagnostics)
+        public async Task EmptyReleaseResponsePreservesThePrimaryFailure(bool invalidDiagnostics)
         {
             var harness = new ReadHarness
             {
@@ -238,7 +238,7 @@ namespace Opc.Ua.Machinery.Tests
 
             if (invalidDiagnostics)
             {
-                AggregateException error = Assert.ThrowsAsync<AggregateException>(BrowseAsync)!;
+                AggregateException error = (await Assert.ThrowsAsync<AggregateException>(BrowseAsync))!;
                 Assert.That(error.InnerExceptions[0], Is.TypeOf<MachineryReadException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -248,7 +248,7 @@ namespace Opc.Ua.Machinery.Tests
             }
             else
             {
-                MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(BrowseAsync)!;
+                MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(BrowseAsync))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token(1)));
@@ -276,8 +276,8 @@ namespace Opc.Ua.Machinery.Tests
                 new MachineryClientOptions { MaximumBrowsePages = 1 }).DiscoverMachinesAsync().AsTask();
             try
             {
-                AggregateException error = Assert.ThrowsAsync<AggregateException>(
-                    async () => await browsing.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false))!;
+                AggregateException error = (await Assert.ThrowsAsync<AggregateException>(
+                    async () => await browsing.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false)))!;
                 Assert.That(error.InnerExceptions, Has.Count.EqualTo(2));
                 Assert.That(error.InnerExceptions[0], Is.TypeOf<MachineryReadException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
@@ -298,7 +298,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void CancelledBrowseReleasesOwnedPointWithIndependentToken(bool duringNext)
+        public async Task CancelledBrowseReleasesOwnedPointWithIndependentToken(bool duringNext)
         {
             var harness = new ReadHarness();
             using var cancellation = new CancellationTokenSource();
@@ -315,7 +315,7 @@ namespace Opc.Ua.Machinery.Tests
                 await cancellation.CancelAsync().ConfigureAwait(false);
                 throw new OperationCanceledException(token);
             };
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.Client().DiscoverMachinesAsync(cancellation.Token).ConfigureAwait(false));
             Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token(3)));
             Assert.That(harness.Releases.Single().Cancelled, Is.False);
@@ -326,12 +326,12 @@ namespace Opc.Ua.Machinery.Tests
         /// Pre-cancellation makes no browse request.
         /// </summary>
         [Test]
-        public void PreCancelledBrowseDoesNotContactSession()
+        public async Task PreCancelledBrowseDoesNotContactSession()
         {
             var harness = new ReadHarness();
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.Client().DiscoverMachinesAsync(cancellation.Token).ConfigureAwait(false));
             Assert.That(harness.BrowseLimits, Is.Empty);
             Assert.That(harness.Releases, Is.Empty);
@@ -341,7 +341,7 @@ namespace Opc.Ua.Machinery.Tests
         /// A malformed successor cannot hide either its returned tokens or the submitted token from cleanup.
         /// </summary>
         [Test]
-        public void MalformedBrowseNextReleasesSubmittedAndUnexpectedReturnedPoints()
+        public async Task MalformedBrowseNextReleasesSubmittedAndUnexpectedReturnedPoints()
         {
             var harness = new ReadHarness
             {
@@ -356,7 +356,7 @@ namespace Opc.Ua.Machinery.Tests
                     ]
                 })
             };
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(harness.Releases.Select(r => r.Token).ToArray(),
@@ -367,7 +367,7 @@ namespace Opc.Ua.Machinery.Tests
         /// Both the original limit failure and a failed cleanup remain observable without retries.
         /// </summary>
         [Test]
-        public void BrowseCleanupFailurePreservesPrimaryFailure()
+        public async Task BrowseCleanupFailurePreservesPrimaryFailure()
         {
             var harness = new ReadHarness
             {
@@ -375,7 +375,7 @@ namespace Opc.Ua.Machinery.Tests
                 Release = (_, _) => Task.FromException<BrowseNextResponse>(
                     new ServiceResultException(StatusCodes.BadCommunicationError))
             };
-            AggregateException? error = Assert.ThrowsAsync<AggregateException>(async () =>
+            AggregateException? error = await Assert.ThrowsAsync<AggregateException>(async () =>
                 await harness.Client(new MachineryClientOptions { MaximumBrowsePages = 1 })
                     .DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.InnerExceptions, Has.Count.EqualTo(2));
@@ -401,7 +401,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("WrongNodeClass", nameof(StatusCodes.BadDecodingError))]
         [TestCase("MissingBrowseName", nameof(StatusCodes.BadDecodingError))]
         [TestCase("RemoteReference", nameof(StatusCodes.BadNotSupported))]
-        public void StrictBrowseRejectsBadOrMalformedResponses(string kind, string statusName)
+        public async Task StrictBrowseRejectsBadOrMalformedResponses(string kind, string statusName)
         {
             StatusCode expectedStatus = TestStatus(statusName);
             var harness = new ReadHarness();
@@ -441,7 +441,7 @@ namespace Opc.Ua.Machinery.Tests
                     throw new ArgumentOutOfRangeException(nameof(kind));
             }
             harness.Browse = _ => kind == "MissingResponse" ? null! : response;
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(expectedStatus));
             Assert.That(harness.Releases, Has.Count.EqualTo(kind is "NullResult" or "MissingResponse" ? 0 : 1));
@@ -474,7 +474,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
-        public void ProcessValueDiscoverySharesTraversalBudgets(bool references)
+        public async Task ProcessValueDiscoverySharesTraversalBudgets(bool references)
         {
             var harness = new ReadHarness();
             NodeId monitoring = harness.Add(harness.Machine, [Machinery(harness, BrowseNames.Monitoring)]);
@@ -486,12 +486,12 @@ namespace Opc.Ua.Machinery.Tests
                 MaximumBrowsePages = references ? 10 : 1
             });
             Assert.That(
-                Assert.ThrowsAsync<MachineryReadException>(async () =>
+                (await Assert.ThrowsAsync<MachineryReadException>(async () =>
                 {
                     await foreach (MachineEntry _ in client.EnumerateProcessValuesAsync(harness.Machine))
                     {
                     }
-                })!.StatusCode,
+                }))!.StatusCode,
                 Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(harness.BrowseLimits, Has.Count.EqualTo(references ? 2 : 1));
             Assert.That(harness.ReadTimestamps, Is.Empty);
@@ -501,12 +501,12 @@ namespace Opc.Ua.Machinery.Tests
         /// Over-budget successor pages release the successor, not the consumed predecessor.
         /// </summary>
         [Test]
-        public void NextPageReferenceLimitReleasesTheLiveSuccessor()
+        public async Task NextPageReferenceLimitReleasesTheLiveSuccessor()
         {
             var harness = new ReadHarness();
             harness.Browse = _ => Page([Reference(harness, 1)], Token(1));
             harness.Next = (_, _) => Task.FromResult(NextPage([Reference(harness, 2)], Token(2)));
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(async () =>
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(async () =>
                 await harness.Client(new MachineryClientOptions { MaximumBrowseReferences = 1 })
                     .DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -517,14 +517,14 @@ namespace Opc.Ua.Machinery.Tests
         /// A missing continuation response leaves the submitted token owned for cleanup.
         /// </summary>
         [Test]
-        public void MissingBrowseNextResponseReleasesSubmittedToken()
+        public async Task MissingBrowseNextResponseReleasesSubmittedToken()
         {
             var harness = new ReadHarness
             {
                 Browse = _ => Page([], Token(1)),
                 Next = (_, _) => Task.FromResult<BrowseNextResponse>(null!)
             };
-            MachineryReadException? error = Assert.ThrowsAsync<MachineryReadException>(
+            MachineryReadException? error = await Assert.ThrowsAsync<MachineryReadException>(
                 async () => await harness.Client().DiscoverMachinesAsync().ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(harness.Releases.Single().Token, Is.EqualTo(Token(1)));
@@ -535,7 +535,7 @@ namespace Opc.Ua.Machinery.Tests
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void BrowseCleanupValidatesReleaseOutcomes(bool malformed)
+        public async Task BrowseCleanupValidatesReleaseOutcomes(bool malformed)
         {
             var harness = new ReadHarness
             {
@@ -556,7 +556,7 @@ namespace Opc.Ua.Machinery.Tests
             MachineryClient client = harness.Client(new MachineryClientOptions { MaximumBrowsePages = 1 });
             if (malformed)
             {
-                AggregateException? error = Assert.ThrowsAsync<AggregateException>(
+                AggregateException? error = await Assert.ThrowsAsync<AggregateException>(
                     async () => await client.DiscoverMachinesAsync().ConfigureAwait(false));
                 Assert.That(((MachineryReadException)error!.InnerExceptions[1]).StatusCode,
                     Is.EqualTo(StatusCodes.BadDecodingError));
@@ -564,8 +564,8 @@ namespace Opc.Ua.Machinery.Tests
             else
             {
                 Assert.That(
-                    Assert.ThrowsAsync<MachineryReadException>(async () =>
-                        await client.DiscoverMachinesAsync().ConfigureAwait(false))!.StatusCode,
+                    (await Assert.ThrowsAsync<MachineryReadException>(async () =>
+                        await client.DiscoverMachinesAsync().ConfigureAwait(false)))!.StatusCode,
                     Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             Assert.That(harness.Releases, Has.Count.EqualTo(1));

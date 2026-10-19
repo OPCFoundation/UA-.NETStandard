@@ -195,18 +195,18 @@ namespace Opc.Ua.AMB.Tests
         }
 
         [Test]
-        public void RegisteringWithoutTheNodeManagerFails()
+        public async Task RegisteringWithoutTheNodeManagerFails()
         {
             var assets = new AssetManagement();
             var node = new Mock<INodeBuilder<BaseObjectState>>();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await assets.RegisterAssetAsync(node.Object).ConfigureAwait(false))!;
-            Assert.Multiple(() =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await assets.RegisterAssetAsync(node.Object).ConfigureAwait(false)))!;
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
                 Assert.That(exception.Message, Does.Contain("AddAssetManagement()"));
-                Assert.ThrowsAsync<ArgumentNullException>(async () => await assets.RegisterAssetAsync(null!).ConfigureAwait(false));
+                await Assert.ThrowsAsync<ArgumentNullException>(async () => await assets.RegisterAssetAsync(null!).ConfigureAwait(false));
             });
         }
 

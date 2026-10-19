@@ -128,24 +128,24 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void MqttsRequiredCredentialUnresolvedFailsClosed()
+        public async Task MqttsRequiredCredentialUnresolvedFailsClosed()
         {
             WotCompiledForm form = Compiled("mqtts://broker/things/p", withSecurity: true);
 
             Assert.That(form.Security, Is.Not.Empty, "The form must declare a security scheme.");
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await PrepareAsync(
                     form, new MqttWotBindingOptions(), NullWotCredentialProvider.Instance).ConfigureAwait(false));
         }
 
         [Test]
-        public void PlainMqttWithCredentialsFailsClosedNoPlaintextDowngrade()
+        public async Task PlainMqttWithCredentialsFailsClosedNoPlaintextDowngrade()
         {
             WotCompiledForm form = Compiled("mqtt://broker/things/p", withSecurity: true);
 
             // The provider resolves username / password but the connection is plain
             // mqtt://, so sending the credentials would leak them in clear text.
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await PrepareAsync(
                     form, new MqttWotBindingOptions(), new UserPasswordCredentialProvider()).ConfigureAwait(false));
         }

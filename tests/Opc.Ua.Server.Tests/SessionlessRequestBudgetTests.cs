@@ -333,7 +333,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext first = await ValidateAsync(manager, Channel("a")).ConfigureAwait(false);
             OperationContext second = await ValidateAsync(manager, Channel("b")).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, Channel("c")).ConfigureAwait(false));
 
             Assert.That(error, Is.InstanceOf<ServerBusyException>());
@@ -352,7 +352,7 @@ namespace Opc.Ua.Server.Tests
             using SessionManager manager = CreateManager(maxRequests: 0, maxPerChannel: 1);
             OperationContext first = await ValidateAsync(manager, Channel("a")).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, Channel("a")).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
@@ -376,7 +376,7 @@ namespace Opc.Ua.Server.Tests
             first.Dispose();
             OperationContext third = await ValidateAsync(manager, Channel("a")).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, Channel("a")).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
@@ -393,7 +393,7 @@ namespace Opc.Ua.Server.Tests
             // with a leak the second attempt would be answered Bad_ServerTooBusy
             for (int i = 0; i < 5; i++)
             {
-                ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                     async () => await ValidateAsync(manager, HttpsChannel(), new NodeId("forged.jwt.token", 0))
                         .ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
@@ -414,11 +414,11 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 3; i++)
             {
-                ServiceResultException? noIdentity = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException? noIdentity = await Assert.CatchAsync<ServiceResultException>(
                     async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
                 Assert.That(noIdentity!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
 
-                ServiceResultException? insecure = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException? insecure = await Assert.CatchAsync<ServiceResultException>(
                     async () => await ValidateAsync(
                         manager,
                         TcpChannel(MessageSecurityMode.None),
@@ -459,13 +459,13 @@ namespace Opc.Ua.Server.Tests
             await entered.Task.ConfigureAwait(false);
 
             // the place is taken while the validation runs
-            ServiceResultException? busy = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? busy = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
             Assert.That(busy!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
 
             Assert.That(lifetime.TryCancel(StatusCodes.BadRequestCancelledByClient), Is.True);
             // the cancellation reaches the endpoint, which maps it to the status of the request lifetime
-            Assert.CatchAsync<OperationCanceledException>(() => pending);
+            await Assert.CatchAsync<OperationCanceledException>(() => pending);
 
             OperationContext context = await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false);
             context.Dispose();
@@ -491,11 +491,11 @@ namespace Opc.Ua.Server.Tests
                 }
             };
 
-            ServiceResultException? denied = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? denied = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
             Assert.That(denied!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
 
-            ServiceResultException? failed = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? failed = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
             Assert.That(failed!.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
 
@@ -516,7 +516,7 @@ namespace Opc.Ua.Server.Tests
             };
             OperationContext first = await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false);
 
-            ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServerTooBusy));
@@ -532,7 +532,7 @@ namespace Opc.Ua.Server.Tests
             // no handler and no options: there is no budget, and every request is refused
             for (int i = 0; i < 200; i++)
             {
-                ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                     async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
                 Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
             }
@@ -554,7 +554,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                ServiceResultException? error = Assert.CatchAsync<ServiceResultException>(
+                ServiceResultException? error = await Assert.CatchAsync<ServiceResultException>(
                     async () => await ValidateAsync(
                         manager,
                         HttpsChannel(),
@@ -573,7 +573,7 @@ namespace Opc.Ua.Server.Tests
             using SessionManager manager = CreateManager(maxRequests: 1, maxPerChannel: 0);
             SessionlessInvocationOptions options = manager.SessionlessInvocation!;
             OperationContext first = await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false);
-            Assert.CatchAsync<ServiceResultException>(
+            await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
 
             options.MaxConcurrentRequests = 2;
@@ -592,7 +592,7 @@ namespace Opc.Ua.Server.Tests
             // the places of the old budget are returned to the old budget
             first.Dispose();
             second.Dispose();
-            Assert.CatchAsync<ServiceResultException>(
+            await Assert.CatchAsync<ServiceResultException>(
                 async () => await ValidateAsync(manager, HttpsChannel()).ConfigureAwait(false));
 
             third.Dispose();

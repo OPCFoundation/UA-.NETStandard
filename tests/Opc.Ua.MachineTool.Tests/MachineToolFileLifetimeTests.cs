@@ -129,8 +129,8 @@ namespace Opc.Ua.MachineTool.Tests
                 uint secondHandle = await secondFile.OpenAsync(1, ct).ConfigureAwait(false);
                 Assert.That(await ReadOpenCountAsync(second, file, ct).ConfigureAwait(false), Is.EqualTo(2));
 
-                ServiceResultException wrongOwner = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await secondFile.ReadAsync(firstHandle, 3, ct).ConfigureAwait(false))!;
+                ServiceResultException wrongOwner = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await secondFile.ReadAsync(firstHandle, 3, ct).ConfigureAwait(false)))!;
                 Assert.That(wrongOwner.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 if (!abandonFile)
                 {

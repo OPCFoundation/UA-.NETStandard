@@ -105,14 +105,14 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void AcquireAsyncRejectsExpiredToken()
+        public async Task AcquireAsyncRejectsExpiredToken()
         {
             var provider = new JwtBearerAccessTokenProvider(
                 "https://issuer.example",
                 [1],
                 TimeProvider.System.GetUtcNow().UtcDateTime.AddMinutes(-5));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await provider
                     .AcquireAsync(new AuthorizationServerMetadata())
                     .ConfigureAwait(false));

@@ -396,7 +396,7 @@ namespace Opc.Ua.Features.Tests
         // ----------------------------------------------------------------
 
         [Test]
-        public void AddIdentityAsync_AnonymousReservedRole_RejectedByServer()
+        public async Task AddIdentityAsync_AnonymousReservedRole_RejectedByServer()
         {
             var client = new RoleManagementClient(m_session);
 
@@ -406,7 +406,7 @@ namespace Opc.Ua.Features.Tests
             // BadNoMatch when resolving the child or BadInvalidArgument /
             // BadInvalidState if a reserved-role guard hits first. Any of
             // these proves the reserved role can't be mutated.
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.AddIdentityAsync(
                     ObjectIds.WellKnownRole_Anonymous,
                     new IdentityMappingRuleType

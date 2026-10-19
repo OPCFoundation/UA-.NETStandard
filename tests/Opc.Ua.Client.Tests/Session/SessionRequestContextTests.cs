@@ -129,8 +129,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 fixture.Recreate();
             }
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await request.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.InnerSession, Is.SameAs(original));
             Assert.That(fixture.Requests, Is.Empty);
@@ -168,8 +168,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 reply.TrySetResult(new HistoryReadResponse { Results = [] });
             }
             _ = await first.ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Has.Count.EqualTo(1));
             Assert.That(fixture.Requests[0].RequestHeader.AuthenticationToken,
@@ -195,8 +195,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     ["http://opcfoundation.org/UA/", "urn:request-context:replacement"]);
             }
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await request.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Session.NamespaceUris.GetString(1), Is.EqualTo("urn:request-context:original"));
             Assert.That(fixture.Requests, Is.Empty);
@@ -219,8 +219,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 request = ReadHistoryAsync(context.Session).AsTask();
                 fixture.ReplaceTransport(replacement.Object);
             }
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await request.ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await request.ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.InnerSession.SessionId, Is.EqualTo(context.SessionId));
             Assert.That(fixture.Requests, Is.Empty);
@@ -238,8 +238,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
             fixture.InnerSession.SessionCreated(NodeId.Parse("s=original-session"), NodeId.Parse("s=original-token"));
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
             Assert.That(fixture.Requests, Is.Empty);
@@ -254,12 +254,12 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using var fixture = new SessionRequestContextTestContext();
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await context.Session.ReadAsync(
                     new RequestHeader { AuthenticationToken = NodeId.Parse("s=foreign-token") },
                     0, TimestampsToReturn.Neither,
                     [new ReadValueId { NodeId = new NodeId(10u), AttributeId = Attributes.Value }],
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(fixture.Requests, Is.Empty);
         }
@@ -393,8 +393,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             await channels.Manager.ReconnectAsync((IManagedTransportChannel)owner.TransportChannel)
                 .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
             Assert.That(context.Invalidated.IsCompleted, Is.True);
             Assert.That(calls, Is.EqualTo(1));
@@ -410,8 +410,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             fixture.Handler = static (_, _) => throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             await using SessionRequestContext context =
                 await SessionRequestContext.CaptureAsync(fixture.ManagedSession).ConfigureAwait(false);
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadHistoryAsync(context.Session).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(fixture.Requests, Has.Count.EqualTo(1));
         }
@@ -444,11 +444,11 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         /// No fixed-generation guarantee is fabricated for an arbitrary ISession implementation.
         /// </summary>
         [Test]
-        public void CapturingCustomSessionFailsClosed()
+        public async Task CapturingCustomSessionFailsClosed()
         {
             var custom = new Mock<ISession>();
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await SessionRequestContext.CaptureAsync(custom.Object).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await SessionRequestContext.CaptureAsync(custom.Object).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             custom.VerifyNoOtherCalls();
         }

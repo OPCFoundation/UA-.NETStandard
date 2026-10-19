@@ -99,7 +99,6 @@ namespace Opc.Ua.Sessions.Tests
         /// session + subscription engine counter-monotonicity contract.
         /// </summary>
         [Test]
-        [Order(100)]
         [Explicit]
         public async Task ShortHaulManagedSessionV2Async()
         {
@@ -126,7 +125,6 @@ namespace Opc.Ua.Sessions.Tests
         /// injection — pure long-running monotonicity verification.
         /// </summary>
         [Test]
-        [Order(200)]
         [Explicit]
         public async Task LongHaulManagedSessionV2Async()
         {
@@ -161,7 +159,6 @@ namespace Opc.Ua.Sessions.Tests
         /// issue #3744</see>.
         /// </summary>
         [Test]
-        [Order(300)]
         [Explicit]
         public async Task LongHaulManagedSessionWithFaultInjectionV2Async()
         {

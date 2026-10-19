@@ -133,7 +133,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 XRegistryFederationTarget target = context.CreateTarget(xid: "/groups/schemas/resources/other");
 
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await context.Client.VerifyLogicalResourceAsync(
                         target, context.EndpointUrl, context.Token).ConfigureAwait(false));
                 await Task.CompletedTask.ConfigureAwait(false);
@@ -150,7 +150,7 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 XRegistryFederationTarget target = context.CreateTarget(resourceIdentifier: "unknown-resource");
 
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await context.Client.VerifyLogicalResourceAsync(
                         target, context.EndpointUrl, context.Token).ConfigureAwait(false));
                 await Task.CompletedTask.ConfigureAwait(false);
@@ -169,7 +169,7 @@ namespace Opc.Ua.XRegistry.Tests
                 string endpointUrl = context.EndpointUrl;
                 await context.Session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await context.Client.VerifyLogicalResourceAsync(
                         target, endpointUrl, context.Token).ConfigureAwait(false));
             }).ConfigureAwait(false);
@@ -232,7 +232,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
                 {
                     XRegistryFederationTarget other = context.CreateTarget(registryIdentifier: 1234u);
-                    Assert.ThrowsAsync<ServiceResultException>(
+                    await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
                             proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
@@ -253,7 +253,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
                 {
                     XRegistryFederationTarget other = context.CreateTarget(resourceIdentifier: "unknown-resource");
-                    Assert.ThrowsAsync<ServiceResultException>(
+                    await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
                             proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
@@ -274,7 +274,7 @@ namespace Opc.Ua.XRegistry.Tests
                 await WithProxyAsync(context, target, async (proxySession, proxyNodeId) =>
                 {
                     XRegistryFederationTarget other = context.CreateTarget(xid: "/groups/schemas/resources/other");
-                    Assert.ThrowsAsync<ServiceResultException>(
+                    await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
                             proxySession, proxyNodeId, other, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
@@ -294,7 +294,7 @@ namespace Opc.Ua.XRegistry.Tests
 
                 await WithProxyAsync(context, target, async (proxySession, _) =>
                 {
-                    Assert.ThrowsAsync<ServiceResultException>(
+                    await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await context.Client.FollowExternalReferenceAsync(
                             proxySession, Ua.ObjectIds.Server, target, context.Token).ConfigureAwait(false));
                     await Task.CompletedTask.ConfigureAwait(false);
@@ -385,7 +385,7 @@ namespace Opc.Ua.XRegistry.Tests
 
         private static async Task AssertStatusAsync(Task action, StatusCode expected)
         {
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await action.ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(expected.Code));
             await Task.CompletedTask.ConfigureAwait(false);

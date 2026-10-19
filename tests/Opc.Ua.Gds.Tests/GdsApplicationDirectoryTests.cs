@@ -418,10 +418,10 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
-        public void GetApplicationWithInvalidIdThrowsBadNotFound()
+        public async Task GetApplicationWithInvalidIdThrowsBadNotFound()
         {
             var invalidId = new NodeId(Guid.NewGuid());
-            Assert.ThrowsAsync<ServiceResultException>(async () => await GetApplicationAsync(invalidId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await GetApplicationAsync(invalidId).ConfigureAwait(false));
         }
 
         [Test]
@@ -482,14 +482,14 @@ namespace Opc.Ua.Gds.Tests
             await UnregisterApplicationAsync(appId).ConfigureAwait(false);
 
             // Verify the app is gone
-            Assert.ThrowsAsync<ServiceResultException>(async () => await GetApplicationAsync(appId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await GetApplicationAsync(appId).ConfigureAwait(false));
         }
 
         [Test]
-        public void UnregisterApplicationWithInvalidIdThrowsBadNotFound()
+        public async Task UnregisterApplicationWithInvalidIdThrowsBadNotFound()
         {
             var invalidId = new NodeId(Guid.NewGuid());
-            Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterApplicationAsync(invalidId).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterApplicationAsync(invalidId).ConfigureAwait(false));
         }
 
         /// <summary>

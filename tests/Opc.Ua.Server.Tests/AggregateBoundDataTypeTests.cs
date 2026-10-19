@@ -166,12 +166,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// With TreatUncertainAsBad = false an Uncertain value is equivalent to Good
-        /// (Part 13 §4.2.1.2), so Average includes it; otherwise it is excluded.
+        /// Average uses the Good values only (Part 13 §5.4.3.3): the definition wins over §4.2.1.2, so an
+        /// Uncertain value is excluded whatever TreatUncertainAsBad is (Mantis 11495 ~0025874).
         /// </summary>
-        [TestCase(false, 2.5)]
+        [TestCase(false, 1.0)]
         [TestCase(true, 1.0)]
-        public void AverageHonorsTreatUncertainAsBad(bool treatUncertainAsBad, double expected)
+        public void AverageExcludesUncertainValues(bool treatUncertainAsBad, double expected)
         {
             List<DataValue> results = Run(
                 ObjectIds.AggregateFunction_Average,

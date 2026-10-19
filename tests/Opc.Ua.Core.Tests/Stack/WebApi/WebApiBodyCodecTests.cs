@@ -240,12 +240,12 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
         }
 
         [Test]
-        public void DecodeBodyAsyncNullStreamThrowsArgumentNullException()
+        public async Task DecodeBodyAsyncNullStreamThrowsArgumentNullException()
         {
             var context = ServiceMessageContext.Create(
                 NUnitTelemetryContext.Create());
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .DecodeBodyAsync<ReadRequest>(null!, context, ct: CancellationToken.None)
                     .ConfigureAwait(false));

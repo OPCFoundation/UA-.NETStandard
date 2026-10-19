@@ -165,14 +165,14 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void DestinationFailureClosesRemoteHandleWithoutDisposingCallerStream()
+        public async Task DestinationFailureClosesRemoteHandleWithoutDisposingCallerStream()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateTransferSession([1, 2, 3], calls);
             var client = new MachineryClient(session.Object, NUnitTelemetryContext.Create());
             using var destination = new FailingDestination();
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await client.DownloadResultAsync(new NodeId("machine", 2), "result-1", destination));
 
             Assert.That(destination.WasDisposed, Is.False);
@@ -180,7 +180,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void CancellationClosesRemoteHandleWithAnUncancelledCleanupToken()
+        public async Task CancellationClosesRemoteHandleWithAnUncancelledCleanupToken()
         {
             var calls = new List<CallMethodRequest>();
             Mock<ISession> session = CreateTransferSession([1, 2, 3], calls);
@@ -188,7 +188,7 @@ namespace Opc.Ua.Machinery.Tests
             using var cancellation = new CancellationTokenSource();
             using var destination = new FailingDestination(cancellation);
 
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await client.DownloadResultAsync(
                     new NodeId("machine", 2), "result-1", destination, cancellation.Token));
 
@@ -198,15 +198,15 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void InvalidDestinationIsRejectedBeforeOpeningRemoteTransfer()
+        public async Task InvalidDestinationIsRejectedBeforeOpeningRemoteTransfer()
         {
             Mock<ISession> session = CreateSession();
             var client = new MachineryClient(session.Object, NUnitTelemetryContext.Create());
             using var readOnly = new MemoryStream([1, 2, 3], writable: false);
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await client.DownloadResultAsync(new NodeId("machine", 2), "result-1", null!));
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await client.DownloadResultAsync(new NodeId("machine", 2), "result-1", readOnly));
 
             session.Verify(value => value.CallAsync(

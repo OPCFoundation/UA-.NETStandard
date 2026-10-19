@@ -164,8 +164,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             mock.FailNextCallOn[CreateMethod(mock)] = StatusCodes.BadUserAccessDenied;
             using var source = new NonSeekableUploadSource([41, 42]);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(source.ReadCalls, Is.Zero);
@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 await CreatePendingAsync().ConfigureAwait(false);
             using var source = new NonSeekableUploadSource([51, 52, 53, 54]);
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 3, chunkSize: 4)
                     .ConfigureAwait(false));
 
@@ -203,7 +203,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 await CreatePendingAsync().ConfigureAwait(false);
             using var source = new MemoryStream([0, 61, 62, 63]) { Position = 1 };
 
-            Assert.ThrowsAsync<IOException>(async () =>
+            await Assert.ThrowsAsync<IOException>(async () =>
                 await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2, chunkSize: 4)
                     .ConfigureAwait(false));
 
@@ -262,9 +262,9 @@ namespace Opc.Ua.WotCon.Tests.Client
                 await CreatePendingAsync().ConfigureAwait(false);
             using var source = new NonSeekableUploadSource([71]);
 
-            ArgumentOutOfRangeException exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            ArgumentOutOfRangeException exception = (await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: limit, chunkSize: chunk)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo(parameter));
             Assert.That(source.ReadCalls, Is.Zero);
@@ -279,10 +279,10 @@ namespace Opc.Ua.WotCon.Tests.Client
                 await CreatePendingAsync().ConfigureAwait(false);
             using Stream unreadable = new Mock<Stream>().Object;
 
-            ArgumentNullException nullException = Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await resource.UploadNewVersionAndGetResultAsync((Stream)null!, maxBytes: 8).ConfigureAwait(false))!;
-            ArgumentException capabilityException = Assert.ThrowsAsync<ArgumentException>(async () =>
-                await resource.UploadNewVersionAndGetResultAsync(unreadable, maxBytes: 8).ConfigureAwait(false))!;
+            ArgumentNullException nullException = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await resource.UploadNewVersionAndGetResultAsync((Stream)null!, maxBytes: 8).ConfigureAwait(false)))!;
+            ArgumentException capabilityException = (await Assert.ThrowsAsync<ArgumentException>(async () =>
+                await resource.UploadNewVersionAndGetResultAsync(unreadable, maxBytes: 8).ConfigureAwait(false)))!;
 
             Assert.That(nullException.ParamName, Is.EqualTo("content"));
             Assert.That(capabilityException.ParamName, Is.EqualTo("content"));
@@ -379,8 +379,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 _ => [Variant.From(VersionNode(mock, "2")), Variant.From("2"), Variant.From(0u)]);
             using var source = new NonSeekableUploadSource([102, 103]);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(source.ReadCalls, Is.Zero);
@@ -400,8 +400,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 BeforeRead = _ => throw primary
             };
 
-            IOException exception = Assert.ThrowsAsync<IOException>(async () =>
-                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false))!;
+            IOException exception = (await Assert.ThrowsAsync<IOException>(async () =>
+                await resource.UploadNewVersionAndGetResultAsync(source, maxBytes: 2).ConfigureAwait(false)))!;
 
             Assert.That(exception, Is.SameAs(primary));
             Assert.That(mock.Capture.Select(r => r.MethodId),

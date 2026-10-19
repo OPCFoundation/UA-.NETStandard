@@ -81,13 +81,13 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [TestCaseSource(nameof(s_badStatuses))]
-        public void RefreshAsyncRejectsBadMethodStatusWithoutRetry(StatusCode methodStatus)
+        public async Task RefreshAsyncRejectsBadMethodStatusWithoutRetry(StatusCode methodStatus)
         {
             SetResponse(methodStatus, RefreshOutputs());
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_registry.RefreshAsync([], new WoTRefreshOptionsDataType(), expectedGeneration: 17)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(methodStatus));
             AssertWireCall(
@@ -145,7 +145,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [TestCaseSource(nameof(s_badStatuses))]
-        public void ValidateWithResultAsyncRejectsBadMethodStatusWithoutRetry(StatusCode methodStatus)
+        public async Task ValidateWithResultAsyncRejectsBadMethodStatusWithoutRetry(StatusCode methodStatus)
         {
             SetResponse(methodStatus, [Variant.FromStructure(new WoTValidationOutcomeDataType
             {
@@ -153,8 +153,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 FormatOutcome = WoTOutcomeEnum.Success
             })]);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_document.ValidateWithResultAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_document.ValidateWithResultAsync().ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(methodStatus));
             AssertWireCall(
@@ -165,7 +165,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         [TestCase("extra")]
         [TestCase("wrong-type")]
         [TestCase("null-binary")]
-        public void ValidateWithResultAsyncRejectsInvalidOutcomeShape(string shape)
+        public async Task ValidateWithResultAsyncRejectsInvalidOutcomeShape(string shape)
         {
             Variant valid = Variant.FromStructure(new WoTValidationOutcomeDataType
             {
@@ -182,8 +182,8 @@ namespace Opc.Ua.WotCon.Tests.Client
             };
             SetResponse(StatusCodes.Good, output);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_document.ValidateWithResultAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_document.ValidateWithResultAsync().ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             AssertWireCall(
@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void ValidateWithResultAsyncPreservesBadServiceStatus()
+        public async Task ValidateWithResultAsyncPreservesBadServiceStatus()
         {
             SetResponse(StatusCodes.Good, [Variant.FromStructure(new WoTValidationOutcomeDataType
             {
@@ -199,8 +199,8 @@ namespace Opc.Ua.WotCon.Tests.Client
                 FormatOutcome = WoTOutcomeEnum.Success
             })], serviceStatus: StatusCodes.BadSessionClosed);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_document.ValidateWithResultAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_document.ValidateWithResultAsync().ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             AssertWireCall(
@@ -208,10 +208,10 @@ namespace Opc.Ua.WotCon.Tests.Client
         }
 
         [Test]
-        public void ValidateWithResultAsyncRejectsNullProxy()
+        public async Task ValidateWithResultAsyncRejectsNullProxy()
         {
-            ArgumentNullException exception = Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await WoTDocumentTypeClientExtensions.ValidateWithResultAsync(null!).ConfigureAwait(false))!;
+            ArgumentNullException exception = (await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+                await WoTDocumentTypeClientExtensions.ValidateWithResultAsync(null!).ConfigureAwait(false)))!;
 
             Assert.That(exception.ParamName, Is.EqualTo("document"));
             Assert.That(m_calls, Is.Empty);

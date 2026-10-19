@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -49,13 +50,13 @@ namespace Opc.Ua.XRegistry.Tests
         /// Verifies that following an external reference requires a generation-bound session provider.
         /// </summary>
         [Test]
-        public void FollowExternalReferenceRejectsSessionWithoutBindingProvider()
+        public async Task FollowExternalReferenceRejectsSessionWithoutBindingProvider()
         {
             GenericXRegistryClient client = CreateClient();
             XRegistryFederationTarget target = CreateTarget();
             Mock<ISession> referencing = new();
 
-            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.FollowExternalReferenceAsync(
                     referencing.Object, new NodeId("proxy", 1), target).ConfigureAwait(false));
 
@@ -66,15 +67,15 @@ namespace Opc.Ua.XRegistry.Tests
         /// Verifies that following an external reference rejects null arguments.
         /// </summary>
         [Test]
-        public void FollowExternalReferenceRejectsNullArguments()
+        public async Task FollowExternalReferenceRejectsNullArguments()
         {
             GenericXRegistryClient client = CreateClient();
             XRegistryFederationTarget target = CreateTarget();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await client.FollowExternalReferenceAsync(
                     null!, new NodeId("proxy", 1), target).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await client.FollowExternalReferenceAsync(
                     new Mock<ISession>().Object, new NodeId("proxy", 1), null!).ConfigureAwait(false));
         }
@@ -83,11 +84,11 @@ namespace Opc.Ua.XRegistry.Tests
         /// Verifies that verification rejects a null trusted target.
         /// </summary>
         [Test]
-        public void VerifyLogicalResourceRejectsNullTarget()
+        public async Task VerifyLogicalResourceRejectsNullTarget()
         {
             GenericXRegistryClient client = CreateClient();
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await client.VerifyLogicalResourceAsync(
                     null!, "opc.tcp://remote:4840").ConfigureAwait(false));
         }

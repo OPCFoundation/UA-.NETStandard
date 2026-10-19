@@ -69,9 +69,9 @@ namespace Opc.Ua.Server.Tests
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
             Assert.That(created.Session.HasExpired, Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
@@ -285,9 +285,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero, "A closing session is not a timeout.");
@@ -304,8 +304,8 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
@@ -320,9 +320,9 @@ namespace Opc.Ua.Server.Tests
             using var harness = new Harness();
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             harness.Server.Verify(
@@ -471,14 +471,14 @@ namespace Opc.Ua.Server.Tests
                     "other-channel",
                     secureChannelContext.EndpointDescription,
                     RequestEncoding.Binary);
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await server.ReadAsync(
                         otherChannel,
                         new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
                         0,
                         TimestampsToReturn.Neither,
                         nodesToRead,
-                        RequestLifetime.None).ConfigureAwait(false))!;
+                        RequestLifetime.None).ConfigureAwait(false)))!;
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
 
                 Assert.That(
@@ -557,9 +557,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.Read)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
             Assert.That(harness.Manager.GetSession(created.AuthenticationToken), Is.Null);
@@ -581,8 +581,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
             harness.Clock.Advance(TimeSpan.FromSeconds(2));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ActivateAsync(created.AuthenticationToken).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(harness.Diagnostics.SessionTimeoutCount, Is.Zero);
@@ -630,7 +630,7 @@ namespace Opc.Ua.Server.Tests
             harness.Authenticator.Gate.TrySetResult(true);
 
             Assert.That(completed, Is.SameAs(create), "CreateSession waited for the activation.");
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await create.ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(async () => await create.ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
             await activation.ConfigureAwait(false);
             Assert.That(first.Session.Activated, Is.True);
@@ -667,9 +667,9 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult created = await harness.CreateActivatedSessionAsync().ConfigureAwait(false);
             Assert.That(((ServerSession)created.Session).MarkClosing(), Is.True);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await harness.ValidateAsync(created.AuthenticationToken, RequestType.CloseSession)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
@@ -705,8 +705,8 @@ namespace Opc.Ua.Server.Tests
             CreateSessionResult first = await harness.CreateSessionAsync(firstNonce).ConfigureAwait(false);
             CreateSessionResult second = await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.CreateSessionAsync(secondNonce).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNonceInvalid));
             Assert.That(harness.Manager.GetSession(first.AuthenticationToken), Is.SameAs(first.Session));
@@ -740,8 +740,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(custom.Object.IsClosing, Is.False);
             Assert.That(SessionTermination.IsClosingOrClaimed(custom.Object), Is.True);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.ValidateAsync(token, RequestType.Read).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
         }
 

@@ -430,7 +430,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void FailedInitialRegistrationDeregistersOnlyCompletedRegistrations()
+        public async Task FailedInitialRegistrationDeregistersOnlyCompletedRegistrations()
         {
             InMemoryFileSystemProvider provider = CreateProvider();
             provider.AddFile("a.txt", "a");
@@ -439,7 +439,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             SessionSystemContext context = CreateContext();
             var deregistered = new List<NodeState>();
 
-            Assert.ThrowsAsync<IOException>(async () => await CreateBinder().BindAsync(
+            await Assert.ThrowsAsync<IOException>(async () => await CreateBinder().BindAsync(
                 root, provider, context,
                 registerNode: (node, _) =>
                 {

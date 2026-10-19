@@ -266,14 +266,14 @@ namespace Opc.Ua.Extrusion.Tests
                 .ConfigureAwait(false);
             MonitoredParameterState parameter = device.Node.Throughput!;
             await PublishInitialAsync(device, parameter).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() =>
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() =>
                 device.ApplySnapshotAsync(new ExtrusionSnapshot(2,
                 [
                     new ExtrusionValue(parameter.MinValue!.NodeId,
                         new DataValue(Variant.From(300.0), StatusCodes.Good, s_laterTimestamp)),
                     new ExtrusionValue(parameter.SetValue!.NodeId,
                         new DataValue(Variant.From(180.0), StatusCodes.Good, s_laterTimestamp))
-                ])).AsTask())!;
+                ])).AsTask()))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
             await AssertValueAsync(parameter.MinValue!, 100.0, ExtrusionFixture.Timestamp, StatusCodes.Good)

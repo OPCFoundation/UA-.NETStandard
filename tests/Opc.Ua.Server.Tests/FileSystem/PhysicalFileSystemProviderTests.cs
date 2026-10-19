@@ -269,12 +269,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 await WritePayloadAsync(writer, payload).ConfigureAwait(false);
                 await writer.FlushAsync().ConfigureAwait(false);
 
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () =>
                 {
                     using Stream unexpected = await other.OpenWriteAsync(
                         "exclusive.bin", FileWriteMode.Truncate, CancellationToken.None).ConfigureAwait(false);
                 });
-                Assert.ThrowsAsync<IOException>(async () =>
+                await Assert.ThrowsAsync<IOException>(async () =>
                 {
                     using Stream unexpected = await other.OpenReadAsync(
                         "exclusive.bin", CancellationToken.None).ConfigureAwait(false);

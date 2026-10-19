@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(TrustListMasks.TrustedCertificates)]
         [TestCase(TrustListMasks.IssuerCertificates)]
-        public void ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)
+        public async Task ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)
         {
             TrustListState node = CreateNode();
             CertificateStoreIdentifier identifier = mask == TrustListMasks.TrustedCertificates
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server.Tests
                 resolver.Object);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            IOException actual = Assert.ThrowsAsync<IOException>(async () =>
+            IOException actual = await Assert.ThrowsAsync<IOException>(async () =>
                 await node.OpenWithMasks!.OnCallAsync!(context, node.OpenWithMasks, node.NodeId,
                     (uint)mask, CancellationToken.None).ConfigureAwait(false));
 
@@ -2152,7 +2152,7 @@ namespace Opc.Ua.Server.Tests
                 new SecurityConfiguration(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
                 Assert.That(ServiceResult.IsGood(accepted), Is.True, accepted.ToString());
                 Assert.That(missingIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
@@ -2161,7 +2161,7 @@ namespace Opc.Ua.Server.Tests
                 // certificates are still usable afterwards.
                 Assert.That(leaf.RawData, Has.Length.GreaterThan(0));
                 Assert.That(caCert.Subject, Does.Contain("Prevalidated CA"));
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await trustList.ValidateNewTrustListAsync(
                         [], [], [], [], null!, CancellationToken.None).ConfigureAwait(false));
             });

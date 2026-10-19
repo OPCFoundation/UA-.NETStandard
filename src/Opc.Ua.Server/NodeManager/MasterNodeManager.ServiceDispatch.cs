@@ -129,6 +129,30 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks whether a node is currently published by any NodeManager.
+        /// </summary>
+        /// <remarks>
+        /// The query reads the live routing, so a caller inside a dispatched service call, such as a method
+        /// callback that has just published a NodeManager, sees what was committed after the call captured its
+        /// routing image. The result is a live published-existence answer only. It is not a retained captured
+        /// service handle: the handle resolved by the lookup is discarded, the ambient captured routing image is
+        /// not promoted, and the answer must not be used to perform later service operations. The lookup goes
+        /// through <see cref="GetManagerHandleAsync"/> exactly once.
+        /// </remarks>
+        /// <param name="nodeId">The node to look up.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>True if a NodeManager resolves a handle for the node.</returns>
+        public async ValueTask<bool> IsNodeMaterializedAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            (object? handle, IAsyncNodeManager? _) = await GetManagerHandleAsync(nodeId, cancellationToken)
+                .ConfigureAwait(false);
+            return handle is not null;
+        }
+
+        /// <summary>
         /// Registers a set of node ids.
         /// </summary>
         /// <remarks>
@@ -419,7 +443,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual ValueTask CreateMonitoredItemsAsync(
+        public virtual async ValueTask CreateMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
             double publishingInterval,
@@ -431,7 +455,10 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
-            return m_serviceDispatch.CreateMonitoredItemsAsync(
+            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using BindingAdmission admission = EnterBindingAdmission(context);
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.CreateMonitoredItemsAsync(
                 context,
                 subscriptionId,
                 publishingInterval,
@@ -441,7 +468,7 @@ namespace Opc.Ua.Server
                 filterResults,
                 monitoredItems,
                 createDurable,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -482,7 +509,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual ValueTask ModifyMonitoredItemsAsync(
+        public virtual async ValueTask ModifyMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             IList<IMonitoredItem> monitoredItems,
@@ -491,14 +518,17 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default)
         {
-            return m_serviceDispatch.ModifyMonitoredItemsAsync(
+            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using BindingAdmission admission = EnterBindingAdmission(context);
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.ModifyMonitoredItemsAsync(
                 context,
                 timestampsToReturn,
                 monitoredItems,
                 itemsToModify,
                 errors,
                 filterResults,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -578,19 +608,22 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public virtual ValueTask DeleteMonitoredItemsAsync(
+        public virtual async ValueTask DeleteMonitoredItemsAsync(
             OperationContext context,
             uint subscriptionId,
             IList<IMonitoredItem> itemsToDelete,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            return m_serviceDispatch.DeleteMonitoredItemsAsync(
+            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            using BindingAdmission admission = EnterBindingAdmission(context, [.. itemsToDelete]);
+            using IDisposable routing = m_nodeManagers.UseLiveRouting();
+            await m_serviceDispatch.DeleteMonitoredItemsAsync(
                 context,
                 subscriptionId,
                 itemsToDelete,
                 errors,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

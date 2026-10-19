@@ -147,7 +147,7 @@ namespace Opc.Ua.Machinery.Tests
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await handle.SetValueAsync(
                     new DataValue(Variant.From(87.0), StatusCodes.Good, DateTimeUtc.Now),
                     cancellation.Token));
@@ -177,8 +177,8 @@ namespace Opc.Ua.Machinery.Tests
                 _ => throw new ArgumentOutOfRangeException(nameof(inputKind))
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await handle.SetValueAsync(reading))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await handle.SetValueAsync(reading)))!;
 
             StatusCode expectedStatus = inputKind == "uninitialized"
                 ? StatusCodes.BadInvalidArgument

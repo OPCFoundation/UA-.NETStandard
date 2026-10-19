@@ -53,7 +53,19 @@ namespace Opc.Ua
         /// <param name="selector">The current image selector.</param>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        internal void SetViewSelector(Func<TypeTable?> selector)
+        internal ViewOwner SetViewSelector(Func<TypeTable?> selector)
+        {
+            return TryAcquireViewOwner(selector) ??
+                throw new InvalidOperationException("The type table already has a publication owner.");
+        }
+
+        /// <summary>
+        /// Atomically acquires publication ownership when no owner exists.
+        /// </summary>
+        /// <param name="selector">The current image selector.</param>
+        /// <returns>The owner token, or <c>null</c> when another owner holds the table.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        internal ViewOwner? TryAcquireViewOwner(Func<TypeTable?> selector)
         {
             if (selector is null)
             {
@@ -63,11 +75,17 @@ namespace Opc.Ua
             {
                 if (m_viewSelector is not null)
                 {
-                    throw new InvalidOperationException("The type table already has a publication owner.");
+                    return null;
                 }
                 Volatile.Write(ref m_viewSelector, selector);
+                return new ViewOwner(this, selector);
             }
         }
+
+        /// <summary>
+        /// Gets whether a publication owner currently selects the serving image.
+        /// </summary>
+        internal bool HasViewOwner => Volatile.Read(ref m_viewSelector) is not null;
 
         /// <summary>
         /// Copies the type graph without sharing mutable hierarchy or encoding storage.
@@ -189,6 +207,73 @@ namespace Opc.Ua
         private long m_revision;
         private bool m_publicationPending;
         private bool m_retired;
+
+        /// <summary>
+        /// Retains exclusive ownership of the type table's serving-image selector.
+        /// </summary>
+        /// <param name="owner">The type table.</param>
+        /// <param name="selector">The owned image selector.</param>
+        internal sealed class ViewOwner(TypeTable owner, Func<TypeTable?> selector)
+        {
+            /// <summary>
+            /// Releases ownership after transferring the last published hierarchy back to the table.
+            /// The call is idempotent and a stale token never clears a later owner's selector.
+            /// </summary>
+            /// <param name="image">The serving image whose hierarchy is preserved.</param>
+            /// <exception cref="ArgumentNullException"></exception>
+            /// <exception cref="InvalidOperationException"></exception>
+            public void Release(TypeTable image)
+            {
+                if (image is null)
+                {
+                    throw new ArgumentNullException(nameof(image));
+                }
+                TypeTable? current = Volatile.Read(ref m_owner);
+                if (current is null)
+                {
+                    return;
+                }
+                lock (current.m_lock)
+                {
+                    lock (image.m_lock)
+                    {
+                        if (m_owner is null)
+                        {
+                            return;
+                        }
+                        if (!ReferenceEquals(current.m_viewSelector, selector))
+                        {
+                            throw new InvalidOperationException("The type table publication owner changed.");
+                        }
+                        if (!ReferenceEquals(image, current))
+                        {
+                            image.EnsureMutable();
+                            current.m_nodes.Clear();
+                            current.m_encodings.Clear();
+                            current.m_referenceTypes.Clear();
+                            foreach (KeyValuePair<NodeId, TypeInfo> entry in image.m_nodes)
+                            {
+                                current.m_nodes[entry.Key] = entry.Value;
+                            }
+                            foreach (KeyValuePair<NodeId, TypeInfo> entry in image.m_encodings)
+                            {
+                                current.m_encodings[entry.Key] = entry.Value;
+                            }
+                            foreach (KeyValuePair<QualifiedName, TypeInfo> entry in image.m_referenceTypes)
+                            {
+                                current.m_referenceTypes[entry.Key] = entry.Value;
+                            }
+                            current.m_revision++;
+                            image.m_retired = true;
+                        }
+                        Volatile.Write(ref current.m_viewSelector, null);
+                        Volatile.Write(ref m_owner, null);
+                    }
+                }
+            }
+
+            private TypeTable? m_owner = owner;
+        }
 
         /// <summary>
         /// Reserves type mutations and retires the source after successful publication.

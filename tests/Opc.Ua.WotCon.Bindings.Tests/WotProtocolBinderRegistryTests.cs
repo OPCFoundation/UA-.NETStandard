@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var registry = new WotProtocolBinderRegistry([]);
             await Task.CompletedTask.ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.ActivateAsync(null!).ConfigureAwait(false));
         }
 
@@ -200,7 +200,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         {
             var registry = new WotProtocolBinderRegistry([]);
             await Task.CompletedTask.ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.DeactivateAsync(null!).ConfigureAwait(false));
         }
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         [Test]
-        public void OpenChannelAsyncWithoutExecutorThrows()
+        public async Task OpenChannelAsyncWithoutExecutorThrows()
         {
             var registry = new WotProtocolBinderRegistry([new HttpBindingPlanner()]);
             var form = new WotCompiledForm(
@@ -236,20 +236,20 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 new WotPayloadDescriptor("application/json", "json"),
                 [], isExecutable: false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await registry.OpenChannelAsync(form).ConfigureAwait(false));
         }
 
         [Test]
-        public void OpenChannelAsyncWithNullFormThrows()
+        public async Task OpenChannelAsyncWithNullFormThrows()
         {
             var registry = new WotProtocolBinderRegistry([]);
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await registry.OpenChannelAsync(null!).ConfigureAwait(false));
         }
 
         [Test]
-        public void OpenChannelAsyncRejectsEndpointBeforeExecutorActivation()
+        public async Task OpenChannelAsyncRejectsEndpointBeforeExecutorActivation()
         {
             var executor = new TestExecutor(new HttpBindingPlanner().Identity);
             var registry = new WotProtocolBinderRegistry([new HttpBindingPlanner()], [executor]);
@@ -267,8 +267,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 [],
                 isExecutable: true);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await registry.OpenChannelAsync(form).ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await registry.OpenChannelAsync(form).ConfigureAwait(false)))!;
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             Assert.That(executor.Activations, Is.Zero);

@@ -57,7 +57,7 @@ namespace Opc.Ua.Core.Security.Tests
             await AddIssuerToServerAsync(root).ConfigureAwait(false);
             try
             {
-                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
                     using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri!, user)
                         .ConfigureAwait(false);
@@ -82,7 +82,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             EndpointDescription ep = await FindSecureEndpointAsync().ConfigureAwait(false);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri!, user)
                     .ConfigureAwait(false);

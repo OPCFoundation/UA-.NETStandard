@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests.WebApi
         }
 
         [Test]
-        public void SendRequestRequiresOpenChannel()
+        public async Task SendRequestRequiresOpenChannel()
         {
             using var channel = new WebApiTransportChannel(NUnitTelemetryContext.Create());
 
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                 async () => await channel.SendRequestAsync(null!, CancellationToken.None)
                     .ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
@@ -199,7 +199,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                 }))
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             // Same on every target framework (the library maps the status code
@@ -216,7 +216,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                     new HttpResponseMessage(HttpStatusCode.InternalServerError))))
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                     new SocketException((int)SocketError.ConnectionRefused))))
                 .ConfigureAwait(false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(StatusCode.IsBad(ex.StatusCode), Is.True);
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                 .ConfigureAwait(false);
             channel.OperationTimeout = 200;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
@@ -348,7 +348,7 @@ namespace Opc.Ua.Client.Tests.WebApi
         }
 
         [Test]
-        public void OpenRejectsCredentialsOverPlainHttp()
+        public async Task OpenRejectsCredentialsOverPlainHttp()
         {
             using var channel = new WebApiTransportChannel(
                 NUnitTelemetryContext.Create(),
@@ -359,7 +359,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                         new HttpResponseMessage(HttpStatusCode.OK)))
                 });
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.OpenAsync(
                     new Uri("http://localhost:4843/"),
                     CreateSettings(),
@@ -384,7 +384,7 @@ namespace Opc.Ua.Client.Tests.WebApi
         }
 
         [Test]
-        public void PublicClientRejectsCredentialsWhenPlainHttpBaseAddressIsSetLater()
+        public async Task PublicClientRejectsCredentialsWhenPlainHttpBaseAddressIsSetLater()
         {
             int sent = 0;
             using var httpClient = new HttpClient(new StubHandler((_, _) =>
@@ -397,7 +397,7 @@ namespace Opc.Ua.Client.Tests.WebApi
                 new WebApiClientOptions { BearerToken = "secret" });
             httpClient.BaseAddress = new Uri("http://localhost:4843/");
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.ReadAsync(NewReadRequest(), CancellationToken.None)
                     .ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));

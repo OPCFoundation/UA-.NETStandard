@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 // Directly access builder to bypass fluent chain - ServerConfig is null
                 var builder = new ApplicationConfigurationBuilder(appInstance);
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await builder.CreateAsync().ConfigureAwait(false));
             }
         }
@@ -1963,7 +1963,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 // Directly access builder to bypass fluent chain - ClientConfig is null
                 var builder = new ApplicationConfigurationBuilder(appInstance);
-                Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Assert.ThrowsAsync<ArgumentException>(async () =>
                     await builder.CreateAsync().ConfigureAwait(false));
             }
         }

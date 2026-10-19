@@ -205,6 +205,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("machinetool", 33)]
         [TestCase("gms", 34)]
         [TestCase("craneshoists", 35)]
+        [TestCase("autoid", 36)]
         public void CompanionProfileNamesParseWithoutReusingExistingNumericValues(string name, int value)
         {
             McpToolProfileSet set = McpToolProfileSet.Parse(name);

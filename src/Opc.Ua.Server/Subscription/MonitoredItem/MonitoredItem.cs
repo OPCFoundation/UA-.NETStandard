@@ -179,6 +179,7 @@ namespace Opc.Ua.Server
             m_server = server;
             NodeManager = nodeManager;
             ManagerHandle = managerHandle;
+            SourceMetadata = CaptureSourceMetadata(server, managerHandle);
             SubscriptionId = subscriptionId;
             Id = id;
             NodeId = itemToMonitor.NodeId;
@@ -396,6 +397,12 @@ namespace Opc.Ua.Server
         /// The node manager that created the item.
         /// </summary>
         public IAsyncNodeManager NodeManager { get; private set; }
+
+        /// <summary>
+        /// Gets the metadata snapshot of the source node captured when the item was created or last rebound, which
+        /// lets a detached item be modified after its source node left the address space.
+        /// </summary>
+        internal NodeState? SourceMetadata { get; private set; }
 
         /// <summary>
         /// Whether any live monitored item in the process is detached or marked deleted.
@@ -773,10 +780,12 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
         {
+            NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
+                SourceMetadata = metadata;
                 SetDetachState(isDetached: false, isDeleted: false);
                 m_finalValuePublished = false;
             }
@@ -1642,6 +1651,29 @@ namespace Opc.Ua.Server
             EventFilter filter,
             IFilterTarget instance)
         {
+            return CreateEventFieldList(instance, EvaluateEventFields(context, filter, instance));
+        }
+
+        /// <summary>
+        /// Creates the event field list of this item for event field values.
+        /// </summary>
+        private EventFieldList CreateEventFieldList(IFilterTarget instance, Variant[] eventFieldValues)
+        {
+            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
+            result.ClientHandle = ClientHandle;
+            result.Handle = instance;
+            result.EventFields = eventFieldValues;
+            return result;
+        }
+
+        /// <summary>
+        /// Reads the values of the select clauses from the event.
+        /// </summary>
+        private Variant[] EvaluateEventFields(
+            FilterContext context,
+            EventFilter filter,
+            IFilterTarget instance)
+        {
             // fetch the event fields.
             bool[] rejected = GetRejectedSelectClauses(context, filter);
             var eventFieldValues = new Variant[rejected.Length];
@@ -1676,11 +1708,7 @@ namespace Opc.Ua.Server
                     eventFieldValues[ii] = value;
                 }
             }
-            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            result.ClientHandle = ClientHandle;
-            result.Handle = instance;
-            result.EventFields = eventFieldValues;
-            return result;
+            return eventFieldValues;
         }
 
         /// <summary>
@@ -1688,9 +1716,9 @@ namespace Opc.Ua.Server
         /// the server tables and the preferred locales of the session, so it is created again
         /// only when the session replaces its locales (or the item moves to another session).
         /// </summary>
-        private FilterContext GetEventFilterContext()
+        private FilterContext GetEventFilterContext(out string[]? preferredLocales)
         {
-            string[]? preferredLocales = Session?.PreferredLocales;
+            preferredLocales = Session?.PreferredLocales;
             EventFilterContext? cached = m_eventFilterContext;
             if (cached == null || !ReferenceEquals(cached.PreferredLocales, preferredLocales))
             {
@@ -1742,6 +1770,12 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(instance));
             }
 
+            // the evaluation shared by the items with an equal filter, when the event
+            // consumer offers one for this event.
+            SharedEventEvaluation? sharedEvaluation = TakeSharedEvaluation(
+                instance,
+                out SharedEventFilterKey? sharedKey);
+
             lock (m_lock)
             {
                 // this method should only be called for objects or views.
@@ -1762,7 +1796,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                FilterContext context = GetEventFilterContext();
+                FilterContext context = GetEventFilterContext(out string[]? preferredLocales);
 
                 // event filter must be specified.
                 if (FilterToUse is not EventFilter filter)
@@ -1770,13 +1804,25 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
+                // the shared evaluation was made for the filter and locales the event was
+                // grouped by; an item modified since then evaluates the event itself.
+                if (sharedKey == null || !sharedKey.Matches(filter, preferredLocales))
+                {
+                    sharedEvaluation = null;
+                }
+
                 // apply filter first: an event the where clause would have rejected was
                 // never going to be queued, so it must not count as a queue overflow.
                 bool overrideRetain = false;
-                if (!bypassFilter &&
-                    !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
+                if (!bypassFilter)
                 {
-                    return;
+                    bool passedFilter = sharedEvaluation != null
+                        ? sharedEvaluation.PassesWhereClause(context, filter, instance)
+                        : filter.WhereClause.Evaluate(context, instance);
+                    if (!ApplyFilteredRetain(filter, instance, passedFilter, out overrideRetain))
+                    {
+                        return;
+                    }
                 }
 
                 // check for space in the queue only for events that passed the filter.
@@ -1788,11 +1834,24 @@ namespace Opc.Ua.Server
                 // fetch the event fields. The trailing filtered retain event reads them
                 // through a wrapper that reports Retain = false to this client only. The
                 // wrapper stays the handle of the queued event, so a later change of the
-                // select clauses rebuilds its fields with the same Retain override.
-                IFilterTarget fieldSource = overrideRetain
-                    ? new FilteredRetainTarget(instance)
-                    : instance;
-                QueueEvent(GetEventFields(context, filter, fieldSource));
+                // select clauses rebuilds its fields with the same Retain override. Its
+                // fields are this item's own, the other fields are shared by the group.
+                EventFieldList fields;
+                if (overrideRetain)
+                {
+                    fields = GetEventFields(context, filter, new FilteredRetainTarget(instance));
+                }
+                else if (sharedEvaluation != null)
+                {
+                    fields = CreateEventFieldList(
+                        instance,
+                        sharedEvaluation.GetEventFields(this, context, filter, instance));
+                }
+                else
+                {
+                    fields = GetEventFields(context, filter, instance);
+                }
+                QueueEvent(fields);
             }
         }
 
@@ -1842,9 +1901,21 @@ namespace Opc.Ua.Server
             IFilterTarget instance,
             out bool overrideRetain)
         {
-            overrideRetain = false;
-
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
+            return ApplyFilteredRetain(filter, instance, passedFilter, out overrideRetain);
+        }
+
+        /// <summary>
+        /// Applies filtered retain to the where clause result of an event: see
+        /// <see cref="CanSendFilteredAlarm"/>.
+        /// </summary>
+        private bool ApplyFilteredRetain(
+            EventFilter filter,
+            IFilterTarget instance,
+            bool passedFilter,
+            out bool overrideRetain)
+        {
+            overrideRetain = false;
 
             ConditionState? alarmCondition = GetFilteredRetainCondition(instance);
 
@@ -2414,6 +2485,42 @@ namespace Opc.Ua.Server
                         : ArrayOf<string>.Null
                 };
             }
+        }
+
+        /// <summary>
+        /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
+        /// </summary>
+        /// <param name="server">The server providing the type tree and system context.</param>
+        /// <param name="managerHandle">The node manager handle of the monitored source node.</param>
+        /// <returns>The metadata snapshot, or null when the handle does not carry a node.</returns>
+        private static NodeState? CaptureSourceMetadata(IServerInternal server, object managerHandle)
+        {
+            if (managerHandle is not NodeHandle { Node: { } source })
+            {
+                return null;
+            }
+            if (source is not BaseVariableState variable)
+            {
+                return new BaseObjectState(null) { NodeId = source.NodeId };
+            }
+            var metadata = new BaseDataVariableState(null)
+            {
+                NodeId = source.NodeId,
+                DataType = server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number)
+                    ? DataTypeIds.Number
+                    : variable.DataType,
+                MinimumSamplingInterval = variable.MinimumSamplingInterval
+            };
+            if (variable.FindChild(server.DefaultSystemContext, QualifiedName.From(BrowseNames.EURange)) is
+                PropertyState property && property.Value.TryGetStructure<Range>(out Range? range))
+            {
+                metadata.AddChild(new PropertyState(metadata)
+                {
+                    BrowseName = QualifiedName.From(BrowseNames.EURange),
+                    Value = new Variant(new ExtensionObject(new Range { Low = range.Low, High = range.High }))
+                });
+            }
+            return metadata;
         }
 
         private void QueueNodeIdUnknown()
