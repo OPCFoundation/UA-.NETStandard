@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -619,6 +620,7 @@ namespace Opc.Ua.Server.Tests
             int closed = 0;
             int checks = 0;
             int confirmed = 0;
+            int readersLive = 0;
             var errors = new ConcurrentQueue<string>();
             using var stop = new CancellationTokenSource();
 
@@ -629,6 +631,7 @@ namespace Opc.Ua.Server.Tests
                 readers[r] = Task.Run(() =>
                 {
                     int attempt = 0;
+                    bool seenLive = false;
                     while (!stop.IsCancellationRequested)
                     {
                         OperationContext channel = channels[(reader + attempt++) & 1];
@@ -650,6 +653,11 @@ namespace Opc.Ua.Server.Tests
                                 break;
                             }
                             Interlocked.Increment(ref confirmed);
+                            if (!seenLive)
+                            {
+                                seenLive = true;
+                                Interlocked.Increment(ref readersLive);
+                            }
                             if (closedBefore || binding.ActivationSequence < floor)
                             {
                                 errors.Enqueue(
@@ -662,6 +670,18 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
+                // let every reader confirm the live session once before the race starts, so the
+                // positive check does not depend on the pool scheduling readers during transfers
+                var deadline = Stopwatch.StartNew();
+                while (Volatile.Read(ref readersLive) < kReaders && errors.IsEmpty)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(30))
+                    {
+                        Assert.Fail(
+                            $"Only {Volatile.Read(ref readersLive)} of {kReaders} readers confirmed the live session.");
+                    }
+                    await Task.Delay(1).ConfigureAwait(false);
+                }
                 for (int i = 1; i <= kTransfers; i++)
                 {
                     await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
