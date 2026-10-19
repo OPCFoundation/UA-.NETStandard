@@ -69,7 +69,7 @@ procedure for running the CTT is in [ctt-testing.md](ctt-testing.md).
 | C9 | Monitor Value Change V2 `042.js` | Computes `indexValue` from itself; the message cannot identify the missing item. | [11430](https://mantis.opcfoundation.org/view.php?id=11430) |
 | C17 | Monitor Basic `039.js` | Calls `getMatrixValues` without including its library. | [11097](https://mantis.opcfoundation.org/view.php?id=11097) (fixed) |
 | 18 | Subscription Durable `008.js` | Misspells `MoreNotifications` and does not drain the queue; the DataChange count check rarely runs and the write spacing uses only `items[0]`'s sampling interval. | [11259](https://mantis.opcfoundation.org/view.php?id=11259) (fixed), [11475](https://mantis.opcfoundation.org/view.php?id=11475) |
-| C38 | Subscription Durable `012.js` | Ignores a denied diagnostics Browse (`BadUserAccessDenied`) and then reads an empty node list (see *Server follow-ups*). | [11445](https://mantis.opcfoundation.org/view.php?id=11445) |
+| C38 | Subscription Durable `012.js` | Ignores a denied diagnostics Browse (`BadUserAccessDenied`) and then reads an empty node list. The server side matches 11445 ~0025750 since #4664: every Session may browse its own subscriptions in SubscriptionDiagnosticsArray, and reading the whole array stays administrator-only. | [11445](https://mantis.opcfoundation.org/view.php?id=11445) |
 | 19 | Subscription Minimum 02 `020.js` | Accepts unrelated audit events and other server events (for example simulated alarms). | [11260](https://mantis.opcfoundation.org/view.php?id=11260) |
 | C50 | Security None `007.js`, Security Basic 256 Sha256 `005.js`, Subscription Publish Basic `cleanup.js` (warnings) | CloseSession is stamped before the CTT stops the SessionThread (about 550 ms), so the delay warning blames the server. | [11454](https://mantis.opcfoundation.org/view.php?id=11454) |
 
@@ -164,8 +164,10 @@ procedure for running the CTT is in [ctt-testing.md](ctt-testing.md).
   unit, so the whole next unit fails.
 - **C65. Aggregate Bad data search reads forward.** `HAAggregateHelper.GetBadData` reads 120 raw values
   "backward" from the configured `StartOfBadData*` time with EndTime `new UaDateTime()`, the null DateTime. The
-  server therefore reads forward (Part 11 §6.5.3), and the helper takes the last value as the earliest, so the
-  Bad block must lie in the 120 values after the configured time (see *Bad data entries for aggregates*).
+  server therefore reads forward (Part 11 §6.5.3), and the helper takes the last value as the earliest. The
+  search then covers the 120 values after the configured time, and the final read spans from the end of that
+  search to the 120th value after the first non-Good value it found. The Bad block must lie in that final read,
+  not in the search window (see *Bad data entries for aggregates*).
   Proposed fix (EndTime `1601-01-01T00:00:00.001Z`) not tested yet. Related, different defect:
   [11505](https://mantis.opcfoundation.org/view.php?id=11505) (no contiguous Bad block → TypeError).
 - **C66. Aggregates on Boolean/String nodes.** The CTT's expected values for StartBound/EndBound and
@@ -225,8 +227,6 @@ CTT skips them when TreatUncertainAsBad = True (16 p06 errors). Not asked in Man
   with TreatUncertainAsBad = False, and let them make the status `UncertainDataSubNormal`.
 - **C48/C49:** if 11427 ~0025875 is confirmed over 11426 ~0025852, return the Good extremum (not the Uncertain
   one) with `UncertainDataSubNormal`.
-- **C38:** per 11445 ~0025750, a user should be able to browse its own session diagnostics, with entries of other
-  sessions restricted to administrators. The server denies the diagnostics Browse to non-admin users.
 - **C64:** if [11499](https://mantis.opcfoundation.org/view.php?id=11499) defines another conversion than Part 4
   §7.7.3 rounding, follow it for the source-type aggregates.
 
