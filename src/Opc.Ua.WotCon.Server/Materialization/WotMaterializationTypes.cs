@@ -319,6 +319,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="snapshot">The WoT registry snapshot used to initialize the instance.</param>
         /// <param name="contents">The contents used to initialize the instance.</param>
         /// <param name="dataTypeDefinitions">The data type definitions used to initialize the instance.</param>
+        /// <param name="archiveContexts">The factory for the captured archive context index, if available.</param>
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,

@@ -544,9 +544,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes a group and every resource it contains.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="expectedEpoch">The expected group epoch, or <c>null</c> to skip the epoch check.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
         /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
             string groupId,
             long? expectedEpoch,
@@ -611,9 +614,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes a resource and all of its versions.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
         /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
             string groupId,
             string resourceId,
@@ -634,9 +641,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Enables or disables a resource for projection.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="enabled">Whether the resource is eligible for projection.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
         /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> SetEnabledAsync(
             string groupId,
             string resourceId,
@@ -810,9 +822,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes one exact Version.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
         /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
             string groupId,
             string resourceId,
@@ -826,9 +843,15 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// logical Resource or exact Version role, then deletes that entity. Logical
         /// Resource deletion applies the implementation's default dependency policy.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The projected version ID.</param>
+        /// <param name="deleteLogicalResource">Whether to delete the resource rather than only the version.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
         /// <param name="callerContext">
         /// The executing request's context, or <c>null</c> for an external or background caller.
         /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteProjectedEntityAsync(
             string groupId,
             string resourceId,

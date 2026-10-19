@@ -2109,7 +2109,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             if (!enabled && Volatile.Read(ref m_lifecycleCoordinator) is { } coordinator)
             {
                 return coordinator.SetEnabledAsync(
-                    groupId, resourceId, false, expectedEpoch, cancellationToken, callerContext);
+                    groupId, resourceId, false, expectedEpoch, callerContext, cancellationToken);
             }
             return MutateResourceAsync(
                 groupId,
