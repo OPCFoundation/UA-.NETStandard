@@ -831,8 +831,9 @@ namespace Opc.Ua.Server
 
                 long currentTime = m_timeProvider.GetTimestampMilliseconds();
 
-                // check if publish interval has elapsed.
-                if (m_publishTimerExpiry >= currentTime)
+                // check if publish interval has elapsed; a sweep that runs exactly at the
+                // deadline counts as elapsed.
+                if (m_publishTimerExpiry > currentTime)
                 {
                     // check if waiting for publish.
                     if (m_waitingForPublish)
@@ -843,10 +844,20 @@ namespace Opc.Ua.Server
                     return PublishingState.Idle;
                 }
 
-                // set next expiry time.
-                while (m_publishTimerExpiry < currentTime)
+                // set next expiry time. The publish timer sweep runs on its own cadence, and
+                // when it runs at the publishing interval a sweep that wakes a little late
+                // can find the subscription a whole interval behind. Advancing by one
+                // interval keeps that expiry due for the next sweep instead of dropping a
+                // publishing cycle; only a subscription that is still behind by a whole
+                // interval after that (a stalled sweep) skips the missed expiries.
+                long publishingInterval = (long)m_publishingInterval;
+                m_publishTimerExpiry += publishingInterval;
+                if (m_publishTimerExpiry <= currentTime - publishingInterval)
                 {
-                    m_publishTimerExpiry += (long)m_publishingInterval;
+                    while (m_publishTimerExpiry <= currentTime)
+                    {
+                        m_publishTimerExpiry += publishingInterval;
+                    }
                 }
 
                 // OPC 10000-4 §5.14.1.2 row 27: the LifetimeCounter is decremented when the
