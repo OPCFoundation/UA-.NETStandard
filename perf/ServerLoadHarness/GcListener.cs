@@ -43,6 +43,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// trigger, pause and suspension percentiles, bytes promoted per gen0/gen1
     /// collection, the heap count DATAS chose and the gen0 budget.
     /// </summary>
+    /// <remarks>
+    /// Collections and pauses are tracked separately. A background gen2 overlaps foreground
+    /// gen0/gen1 collections and stops the threads more than once, so a collection is
+    /// identified by its count from start to end (its heap statistics follow its end), and
+    /// every suspend/restart interval is a pause of its own.
+    /// </remarks>
     internal sealed class GcListener : EventListener
     {
         /// <summary>
@@ -53,10 +59,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             lock (m_lock)
             {
                 m_collections.Clear();
+                m_open.Clear();
+                m_pauses.Clear();
                 m_heaps.Clear();
                 m_budgets.Clear();
-                m_current = null;
+                m_ended = null;
                 m_suspendStart = default;
+                m_suspendEnd = default;
                 // events are dispatched later: the induced collection before the mark is not part of the window
                 m_markTime = DateTime.UtcNow;
                 m_recording = true;
@@ -69,12 +78,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public string Report()
         {
             List<Collection> all;
+            List<Pause> pauses;
             List<long> heaps;
             List<long> budgets;
             lock (m_lock)
             {
                 m_recording = false;
-                all = m_collections.Where(c => c.PauseMs >= 0).ToList();
+                all = [.. m_collections];
+                pauses = [.. m_pauses];
                 heaps = [.. m_heaps];
                 budgets = [.. m_budgets];
             }
@@ -88,25 +99,29 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 text.Append(CultureInfo.InvariantCulture, $" {g.Key}={g.Count()}");
             }
-            if (all.Count > 0)
+            if (pauses.Count > 0)
             {
-                double[] pauses = [.. all.Select(c => c.PauseMs).Order()];
-                double[] suspensions = [.. all.Select(c => c.SuspendMs).Order()];
+                double[] pauseMs = [.. pauses.Select(p => p.PauseMs).Order()];
+                double[] suspendMs = [.. pauses.Select(p => p.SuspendMs).Order()];
                 text.Append(CultureInfo.InvariantCulture,
-                    $" pause p50={Pct(pauses, 0.5):F2} p99={Pct(pauses, 0.99):F2} max={pauses[^1]:F2} sum={pauses.Sum():F0}ms");
+                    $" pauses={pauseMs.Length} p50={Pct(pauseMs, 0.5):F2} p99={Pct(pauseMs, 0.99):F2} max={pauseMs[^1]:F2} sum={pauseMs.Sum():F0}ms");
                 text.Append(CultureInfo.InvariantCulture,
-                    $" suspend p99={Pct(suspensions, 0.99):F2} max={suspensions[^1]:F2}ms");
-                AppendPromoted(text, all, 0);
-                AppendPromoted(text, all, 1);
-                double pinned = all.Average(c => (double)c.Pinned);
+                    $" suspend p99={Pct(suspendMs, 0.99):F2} max={suspendMs[^1]:F2}ms");
+            }
+            List<Collection> ended = all.Where(c => c.HasStats).ToList();
+            if (ended.Count > 0)
+            {
+                AppendPromoted(text, ended, 0);
+                AppendPromoted(text, ended, 1);
+                double pinned = ended.Average(c => (double)c.Pinned);
                 text.Append(CultureInfo.InvariantCulture, $" pinned~{pinned:F0}");
-                long gen2 = all[^1].Gen2Size;
-                long loh = all[^1].LohSize;
+                // the generation sizes after the collection that ended last
+                Collection last = ended.MaxBy(c => c.EndOrder)!;
                 text.Append(CultureInfo.InvariantCulture,
-                    $" gen2MB={gen2 / 1048576.0:F1} lohMB={loh / 1048576.0:F1}");
+                    $" gen2MB={last.Gen2Size / 1048576.0:F1} lohMB={last.LohSize / 1048576.0:F1}");
                 // the largest heap left after a collection in the window
                 text.Append(CultureInfo.InvariantCulture,
-                    $" peakAfterGcMB={all.Max(c => c.HeapSize) / 1048576.0:F1}");
+                    $" peakAfterGcMB={ended.Max(c => c.HeapSize) / 1048576.0:F1}");
             }
             GCMemoryInfo info = GC.GetGCMemoryInfo();
             text.Append(CultureInfo.InvariantCulture,
@@ -150,58 +165,57 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 if (name.StartsWith("GCSuspendEEBegin", StringComparison.Ordinal))
                 {
                     m_suspendStart = e.TimeStamp;
+                    m_suspendEnd = default;
                 }
                 else if (name.StartsWith("GCSuspendEEEnd", StringComparison.Ordinal))
                 {
                     m_suspendEnd = e.TimeStamp;
                 }
+                else if (name.StartsWith("GCRestartEEEnd", StringComparison.Ordinal))
+                {
+                    // every stop-the-world interval, including the extra ones of a background gen2
+                    if (m_suspendStart != default)
+                    {
+                        m_pauses.Add(new Pause(
+                            (e.TimeStamp - m_suspendStart).TotalMilliseconds,
+                            m_suspendEnd < m_suspendStart ? 0 : (m_suspendEnd - m_suspendStart).TotalMilliseconds));
+                    }
+                    m_suspendStart = default;
+                }
                 else if (name.StartsWith("GCStart", StringComparison.Ordinal))
                 {
-                    m_current = new Collection
+                    var collection = new Collection
                     {
                         Depth = ToInt(e, "Depth"),
                         Reason = ToInt(e, "Reason"),
-                        Type = ToInt(e, "Type"),
-                        SuspendMs = m_suspendStart == default || m_suspendEnd < m_suspendStart
-                            ? 0
-                            : (m_suspendEnd - m_suspendStart).TotalMilliseconds,
-                        Start = m_suspendStart
+                        Type = ToInt(e, "Type")
                     };
-                    m_collections.Add(m_current);
+                    m_collections.Add(collection);
+                    m_open[ToLong(e, "Count")] = collection;
                 }
-                else if (name.StartsWith("GCHeapStats", StringComparison.Ordinal) && m_current != null)
+                else if (name.StartsWith("GCEnd", StringComparison.Ordinal))
                 {
-                    m_current.Promoted0 = ToLong(e, "TotalPromotedSize0");
-                    m_current.Promoted1 = ToLong(e, "TotalPromotedSize1");
-                    m_current.Gen2Size = ToLong(e, "GenerationSize2");
-                    m_current.LohSize = ToLong(e, "GenerationSize3");
-                    m_current.Pinned = ToLong(e, "PinnedObjectCount");
-                    m_current.HeapSize = ToLong(e, "GenerationSize0") + ToLong(e, "GenerationSize1") +
-                        m_current.Gen2Size + m_current.LohSize + ToLong(e, "GenerationSize4");
+                    // the heap statistics that follow describe the collection that ended
+                    m_ended = m_open.Remove(ToLong(e, "Count"), out Collection? collection) ? collection : null;
+                }
+                else if (name.StartsWith("GCHeapStats", StringComparison.Ordinal) && m_ended != null)
+                {
+                    Collection c = m_ended;
+                    c.HasStats = true;
+                    c.EndOrder = ++m_endOrder;
+                    c.Promoted0 = ToLong(e, "TotalPromotedSize0");
+                    c.Promoted1 = ToLong(e, "TotalPromotedSize1");
+                    c.Gen2Size = ToLong(e, "GenerationSize2");
+                    c.LohSize = ToLong(e, "GenerationSize3");
+                    c.Pinned = ToLong(e, "PinnedObjectCount");
+                    c.HeapSize = ToLong(e, "GenerationSize0") + ToLong(e, "GenerationSize1") +
+                        c.Gen2Size + c.LohSize + ToLong(e, "GenerationSize4");
+                    m_ended = null;
                 }
                 else if (name.StartsWith("GCGlobalHeapHistory", StringComparison.Ordinal))
                 {
                     m_heaps.Add(ToLong(e, "NumHeaps"));
                     m_budgets.Add(ToLong(e, "FinalYoungestDesired"));
-                }
-                else if (name.StartsWith("GCRestartEEEnd", StringComparison.Ordinal))
-                {
-                    // a background gen2 restarts the threads more than once: the first
-                    // restart after a suspension ends the pause of the collection it started
-                    if (m_current != null && m_current.PauseMs < 0 && m_suspendStart != default)
-                    {
-                        m_current.PauseMs = (e.TimeStamp - m_suspendStart).TotalMilliseconds;
-                    }
-                    else
-                    {
-                        // a foreground gen0/gen1 inside a background gen2 has its own suspension
-                        Collection? open = m_collections.LastOrDefault(c => c.PauseMs < 0);
-                        if (open != null && m_suspendStart != default)
-                        {
-                            open.PauseMs = (e.TimeStamp - m_suspendStart).TotalMilliseconds;
-                        }
-                    }
-                    m_suspendStart = default;
                 }
             }
         }
@@ -260,9 +274,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             public int Depth;
             public int Reason;
             public int Type;
-            public DateTime Start;
-            public double SuspendMs;
-            public double PauseMs = -1;
+            public bool HasStats;
+            public long EndOrder;
             public long Promoted0;
             public long Promoted1;
             public long Gen2Size;
@@ -271,11 +284,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             public long HeapSize;
         }
 
+        private readonly record struct Pause(double PauseMs, double SuspendMs);
+
         private readonly object m_lock = new();
         private readonly List<Collection> m_collections = [];
+        private readonly Dictionary<long, Collection> m_open = [];
+        private readonly List<Pause> m_pauses = [];
         private readonly List<long> m_heaps = [];
         private readonly List<long> m_budgets = [];
-        private Collection? m_current;
+        private Collection? m_ended;
+        private long m_endOrder;
         private DateTime m_suspendStart;
         private DateTime m_suspendEnd;
         private DateTime m_markTime;

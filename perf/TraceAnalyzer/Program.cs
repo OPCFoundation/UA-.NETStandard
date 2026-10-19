@@ -245,38 +245,69 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             var reasons = new Dictionary<string, int>(StringComparer.Ordinal);
             var pauses = new List<double>();
             var suspensions = new List<double>();
-            // time and bytes of the phases of a collection, between consecutive phase events
+            // time and bytes of the phases of a blocking collection that does not overlap a
+            // background gen2: marking per heap (each heap's time since its previous mark event,
+            // summed over heaps), plan to end and end to restart as elapsed time
             var phaseMs = new Dictionary<string, double>(StringComparer.Ordinal);
             var markedBytes = new Dictionary<string, double>(StringComparer.Ordinal);
+            var heapLastMark = new Dictionary<int, double>();
             double suspendStart = 0;
-            double phaseStart = 0;
+            double collectionStart = 0;
+            double collectionEnd = 0;
+            long phasedCount = -1;
+            long backgroundCount = -1;
             int phased = 0;
+            int unphased = 0;
             foreach (TraceEvent e in log.Events)
             {
                 if (e is GCStartTraceData start)
                 {
                     string key = FormattableString.Invariant($"gen{start.Depth} {start.Type} {start.Reason}");
                     counts[key] = counts.TryGetValue(key, out int n) ? n + 1 : 1;
+                    if (start.Type == GCType.BackgroundGC || backgroundCount >= 0)
+                    {
+                        // a background gen2, or a foreground collection inside one
+                        if (start.Type == GCType.BackgroundGC)
+                        {
+                            backgroundCount = start.Count;
+                        }
+                        phasedCount = -1;
+                        unphased++;
+                        continue;
+                    }
                     if (suspendStart > 0)
                     {
                         Add(phaseMs, "0 suspend+start", e.TimeStampRelativeMSec - suspendStart);
                     }
-                    phaseStart = e.TimeStampRelativeMSec;
+                    phasedCount = start.Count;
+                    collectionStart = e.TimeStampRelativeMSec;
+                    collectionEnd = 0;
+                    heapLastMark.Clear();
                     phased++;
                 }
-                else if (e.EventName == "GC/MarkWithType" && phaseStart > 0)
+                else if (e.EventName == "GC/MarkWithType" && phasedCount >= 0 && collectionEnd == 0)
                 {
                     int type = Convert.ToInt32(e.PayloadByName("Type") ?? -1, CultureInfo.InvariantCulture);
+                    int heap = Convert.ToInt32(e.PayloadByName("HeapNum") ?? 0, CultureInfo.InvariantCulture);
                     string name = "1 mark " + (type is >= 0 and < 10 ? s_markTypes[type] : type.ToString(CultureInfo.InvariantCulture));
-                    Add(phaseMs, name, e.TimeStampRelativeMSec - phaseStart);
+                    double previous = heapLastMark.TryGetValue(heap, out double last) ? last : collectionStart;
+                    Add(phaseMs, name, e.TimeStampRelativeMSec - previous);
                     Add(markedBytes, name, Convert.ToDouble(e.PayloadByName("Promoted") ?? 0, CultureInfo.InvariantCulture));
-                    phaseStart = e.TimeStampRelativeMSec;
+                    heapLastMark[heap] = e.TimeStampRelativeMSec;
                 }
-                else if (e is GCEndTraceData && phaseStart > 0)
+                else if (e is GCEndTraceData end)
                 {
-                    // plan, relocate, compact or sweep after the last mark phase
-                    Add(phaseMs, "2 plan+relocate+compact", e.TimeStampRelativeMSec - phaseStart);
-                    phaseStart = e.TimeStampRelativeMSec;
+                    if (end.Count == backgroundCount)
+                    {
+                        backgroundCount = -1;
+                    }
+                    else if (end.Count == phasedCount)
+                    {
+                        // plan, relocate, compact or sweep after the last heap finished marking
+                        double lastMark = heapLastMark.Count > 0 ? heapLastMark.Values.Max() : collectionStart;
+                        Add(phaseMs, "2 plan+relocate+compact", e.TimeStampRelativeMSec - lastMark);
+                        collectionEnd = e.TimeStampRelativeMSec;
+                    }
                 }
                 else if (e is GCSuspendEETraceData)
                 {
@@ -299,12 +330,12 @@ namespace Opc.Ua.Perf.TraceAnalyzer
                 else if (e.EventName == "GC/RestartEEStop" && suspendStart > 0)
                 {
                     pauses.Add(e.TimeStampRelativeMSec - suspendStart);
-                    if (phaseStart > 0)
+                    if (phasedCount >= 0 && collectionEnd > 0)
                     {
-                        Add(phaseMs, "3 end+restart", e.TimeStampRelativeMSec - phaseStart);
+                        Add(phaseMs, "3 end+restart", e.TimeStampRelativeMSec - collectionEnd);
+                        phasedCount = -1;
                     }
                     suspendStart = 0;
-                    phaseStart = 0;
                 }
             }
             int total = counts.Values.Sum();
@@ -319,7 +350,8 @@ namespace Opc.Ua.Perf.TraceAnalyzer
             }
             if (phased > 0)
             {
-                Console.WriteLine("phases (average per collection):");
+                Console.WriteLine(FormattableString.Invariant(
+                    $"phases (average per blocking collection outside background GCs, {phased} of {phased + unphased}; mark phases summed over heaps):"));
                 foreach (KeyValuePair<string, double> entry in phaseMs.OrderBy(c => c.Key, StringComparer.Ordinal))
                 {
                     string bytes = markedBytes.TryGetValue(entry.Key, out double b)

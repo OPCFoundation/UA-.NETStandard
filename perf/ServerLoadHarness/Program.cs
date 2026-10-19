@@ -76,6 +76,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         // processor masks of a constrained client run (--client-cores), set by RunConstrainedAsync
         private const string kClientAffinityVariable = "PERF_CLIENT_AFFINITY";
         private const string kServerAffinityVariable = "PERF_SERVER_AFFINITY";
+        private const string kConstrainedVariable = "PERF_CONSTRAINED";
 
         /// <summary>
         /// Runs the server or the load driver.
@@ -101,7 +102,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return await RunServerAsync().ConfigureAwait(false);
             }
             if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
-                Environment.GetEnvironmentVariable(kClientAffinityVariable) == null)
+                Environment.GetEnvironmentVariable(kConstrainedVariable) == null)
             {
                 return await RunConstrainedAsync(args).ConfigureAwait(false);
             }
@@ -112,27 +113,59 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         /// <summary>
         /// Runs the harness again as a client confined like a container: <c>--client-cores N</c>
-        /// gives it the last N processors (the runtime sizes the thread pool and GC for N through
-        /// <c>DOTNET_PROCESSOR_COUNT</c>) and the server the others; <c>--client-memory MB</c> sets
-        /// the GC heap hard limit to 75 % of MB, the limit .NET derives from a container memory limit.
+        /// gives it the last N of the processors this process may use (the runtime sizes the
+        /// thread pool and GC for N through <c>DOTNET_PROCESSOR_COUNT</c>) and the server the
+        /// others; <c>--client-memory MB</c> sets the GC heap hard limit to 75 % of MB, the limit
+        /// .NET derives from a container memory limit.
         /// </summary>
+        /// <remarks>
+        /// Processor confinement uses the process affinity mask, which on Windows applies to all
+        /// threads of a process. On Linux it applies only to the main thread, so there the
+        /// client belongs in a cgroup (for example <c>docker --cpuset-cpus</c>) or under
+        /// <c>taskset</c> instead.
+        /// </remarks>
         private static async Task<int> RunConstrainedAsync(string[] args)
         {
-            int total = Math.Min(Environment.ProcessorCount, 63);
-            int cores = Math.Clamp(ArgInt("client-cores", total), 1, total);
-            long allMask = (1L << total) - 1;
-            long clientMask = ((1L << cores) - 1) << (total - cores);
             var startInfo = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
             foreach (string arg in args)
             {
                 startInfo.ArgumentList.Add(arg);
             }
-            startInfo.Environment[kClientAffinityVariable] = clientMask.ToString("X", CultureInfo.InvariantCulture);
-            if (cores < total)
+            startInfo.Environment[kConstrainedVariable] = "1";
+            if (TryGetArg("client-cores", out string? coresArg))
             {
+                if (!OperatingSystem.IsWindows())
+                {
+                    Console.WriteLine(
+                        "--client-cores is supported on Windows only, where the affinity mask applies to all threads; " +
+                        "on Linux run the client in a cgroup (docker --cpuset-cpus) or under taskset.");
+                    return 2;
+                }
+                // the processors this process may use, which can be a subset of the machine,
+                // within the processor group of the process (at most 64)
+                using Process self = Process.GetCurrentProcess();
+                long allowed = self.ProcessorAffinity;
+                var processors = new List<int>();
+                for (int bit = 0; bit < 64; bit++)
+                {
+                    if ((allowed & (1L << bit)) != 0)
+                    {
+                        processors.Add(bit);
+                    }
+                }
+                int cores = Math.Clamp(int.Parse(coresArg!, CultureInfo.InvariantCulture), 1, processors.Count);
+                long clientMask = 0;
+                foreach (int bit in processors.Skip(processors.Count - cores))
+                {
+                    clientMask |= 1L << bit;
+                }
+                startInfo.Environment[kClientAffinityVariable] = clientMask.ToString("X", CultureInfo.InvariantCulture);
                 startInfo.Environment["DOTNET_PROCESSOR_COUNT"] = cores.ToString(CultureInfo.InvariantCulture);
-                startInfo.Environment[kServerAffinityVariable] =
-                    (allMask & ~clientMask).ToString("X", CultureInfo.InvariantCulture);
+                if (cores < processors.Count)
+                {
+                    startInfo.Environment[kServerAffinityVariable] =
+                        (allowed & ~clientMask).ToString("X", CultureInfo.InvariantCulture);
+                }
             }
             if (TryGetArg("client-memory", out string? memory))
             {
@@ -143,7 +176,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await child.WaitForExitAsync().ConfigureAwait(false);
             return child.ExitCode;
         }
-
         internal static bool TryGetArg(string name, out string? value)
         {
             return s_args.TryGetValue(name, out value);
@@ -337,12 +369,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 s_gcListener = new GcListener();
             }
             string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
-            if (clientAffinity != null && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
+            if (clientAffinity != null && OperatingSystem.IsWindows())
             {
+                // the process mask applies to the threads the runtime has already started, too
                 using Process self = Process.GetCurrentProcess();
                 self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
+            }
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            {
                 Console.WriteLine(FormattableString.Invariant(
-                    $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity} ") +
+                    $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
                     FormattableString.Invariant(
                     $"heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
             }
@@ -353,7 +389,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
             string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
-            if (serverAffinity != null && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
+            if (serverAffinity != null && OperatingSystem.IsWindows())
             {
                 // the server keeps the processors the constrained client does not have
                 server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);

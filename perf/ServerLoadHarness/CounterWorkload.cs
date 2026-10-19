@@ -193,7 +193,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 {
                     throw new InvalidOperationException($"Could not add counter item {i}.");
                 }
-                m_indexByItem[item] = i;
+                // notifications can arrive while items are still being added
+                lock (m_lock)
+                {
+                    m_indexByItem[item] = i;
+                }
             }
             var time = Stopwatch.StartNew();
             await setup.WaitForReadyAsync(subscription, default).ConfigureAwait(false);

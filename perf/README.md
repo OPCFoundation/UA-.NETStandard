@@ -57,7 +57,7 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
 | `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
-| `--client-cores` | all | Confine the client like a container with N processors: the harness runs itself again with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) on the last N processors, and pins the server to the other processors. |
+| `--client-cores` | all | Windows only. Confine the client like a container with N processors: the harness runs itself again with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) on the last N of the processors it may use, and pins the server to the remaining ones. The process affinity mask applies to all threads on Windows but only to the main thread on Linux, so on Linux use a cgroup (`docker --cpuset-cpus`) or `taskset` instead. |
 | `--client-memory` | unlimited | Container memory limit of the client in MB: the GC heap hard limit becomes 75 % of it, the limit .NET derives from a container memory limit. Only the managed heap is limited, not native memory. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
@@ -79,8 +79,9 @@ from run to run, so compare builds with `ab.sh` rather than with two separate ru
 
 The `client-gc:` line summarizes the client's collections in the window from the runtime's GC
 events (an in-process `EventListener`, a few events per collection): the GC mode, the
-collections by condemned generation and trigger (`gen2bg` is a background gen2), pause and
-suspension percentiles, the bytes that survived gen0 and gen1 per collection, the gen2 and LOH
+collections by condemned generation and trigger (`gen2bg` is a background gen2), the number
+of stop-the-world pauses with their percentiles and suspension percentiles (a background gen2
+stops the threads more than once, so `pauses` can exceed `n`), the bytes that survived gen0 and gen1 per collection, the gen2 and LOH
 sizes after the last collection, the largest heap left after a collection (`peakAfterGcMB`), the
 committed bytes and the heap limit (`limitMB`, the hard limit under `--client-memory`), the heap
 count DATAS chose and the gen0 budget. A
@@ -189,8 +190,10 @@ above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, an
 direct callees. `gc` reads a
 trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
 reason, the condemn reasons the GC recorded (`condemn budget=gen1`: the gen1 budget was
-exhausted), the average time per collection of each phase (marking by root type with the bytes
-marked from stacks, handles and old-generation cards, then plan/relocate/compact) and splits each
+exhausted), the average time per blocking collection of each phase (marking by root type with
+the bytes marked from stacks, handles and old-generation cards, summed over the heaps of Server
+GC, then plan/relocate/compact and restart as elapsed time; background gen2 collections and the
+foreground ones inside them are left out of the phases) and splits each
 pause into the time needed to suspend the threads and the whole pause; a long suspension means a
 thread ran for a while without reaching a safe point. A pause that stays long while few bytes are
 marked is the fixed cost of a collection (stack and card scanning), which only fewer collections
