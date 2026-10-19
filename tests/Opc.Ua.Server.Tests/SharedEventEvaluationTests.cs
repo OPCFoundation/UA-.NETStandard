@@ -338,6 +338,65 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Keys are equal only for equal filters and equal locales in the same order.
+        /// </summary>
+        [Test]
+        public void KeysCompareFiltersAndLocalesByValue()
+        {
+            var key = new MonitoredItem.SharedEventFilterKey(CreateFilter(SelectA(), 500), ["de-DE", "en-US"]);
+
+            var equal = new MonitoredItem.SharedEventFilterKey(CreateFilter(SelectA(), 500), ["de-DE", "en-US"]);
+            Assert.That(key, Is.EqualTo(equal));
+            Assert.That(key.GetHashCode(), Is.EqualTo(equal.GetHashCode()));
+
+            MonitoredItem.SharedEventFilterKey[] different =
+            [
+                new(CreateFilter(SelectA(), 500), null),
+                new(CreateFilter(SelectA(), 500), []),
+                new(CreateFilter(SelectA(), 500), ["de-DE"]),
+                new(CreateFilter(SelectA(), 500), ["en-US", "de-DE"]),
+                new(CreateFilter(SelectA(), 600), ["de-DE", "en-US"]),
+                new(CreateFilter(SelectB(), 500), ["de-DE", "en-US"])
+            ];
+            foreach (MonitoredItem.SharedEventFilterKey other in different)
+            {
+                Assert.That(key, Is.Not.EqualTo(other));
+                Assert.That(other, Is.Not.EqualTo(key));
+            }
+
+            var noLocales = new MonitoredItem.SharedEventFilterKey(CreateFilter(SelectA(), 500), null);
+            Assert.That(noLocales, Is.EqualTo(different[0]));
+        }
+
+        /// <summary>
+        /// An item that no longer matches the key the event was grouped by (its filter or its
+        /// session's locales changed) ignores the shared evaluation and evaluates the event
+        /// itself.
+        /// </summary>
+        [Test]
+        public void ItemThatNoLongerMatchesTheGroupEvaluatesTheEventItself()
+        {
+            MonitoredItem other = CreateItem(1, CreateFilter(SelectB(), null), null);
+            MonitoredItem item = CreateItem(2, CreateFilter(SelectA(), null), null);
+            MonitoredItem alone = CreateItem(3, CreateFilter(SelectA(), null), null);
+            MonitoredItem.SharedEventFilterKey otherKey = other.GetSharedEventFilterKey()!;
+            var evaluation = new MonitoredItem.SharedEventEvaluation();
+            InstanceStateSnapshot snapshot = CreateEvent(EventSeverity.High);
+
+            // the evaluation now holds the fields of the other item's select clauses.
+            other.QueueSharedEvent(snapshot, otherKey, evaluation);
+            item.QueueSharedEvent(snapshot, otherKey, evaluation);
+            alone.QueueEvent(snapshot);
+
+            List<EventFieldList> expected = Publish(alone);
+            List<EventFieldList> actual = Publish(item);
+            Assert.That(actual, Has.Count.EqualTo(1));
+            Assert.That(actual[0].EventFields.ToArray(), Is.EqualTo(expected[0].EventFields.ToArray()));
+            Assert.That(actual[0].EventFields.Count, Is.EqualTo(SelectA().Length));
+            Assert.That(Publish(other)[0].EventFields.Count, Is.EqualTo(SelectB().Length));
+        }
+
+        /// <summary>
         /// Looking up keys in a dictionary in any order makes the looked-up keys adopt the
         /// representative of the key the dictionary holds.
         /// </summary>
