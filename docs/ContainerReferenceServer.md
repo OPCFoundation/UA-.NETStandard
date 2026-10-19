@@ -38,7 +38,7 @@ and publishes the sample images below to the GitHub Container Registry
 | `redundantclient` | `samples/Redundancy/RedundantClient` |
 | `redundantpubsub` | `samples/Redundancy/RedundantPubSub` |
 | `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
-| `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
+| `pumpserver` | `samples/Di/PumpDeviceIntegrationServer` |
 
 The workflow does not compile anything under emulation. Its
 `publish-samples` job publishes every sample above once, natively, as

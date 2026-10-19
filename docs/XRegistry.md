@@ -168,7 +168,7 @@ explicit Version does not change the default. WoT preserves its own selection po
 `SetDefaultVersion` separately. Generic options do **not** define active/desired selection,
 per-resource retention or metadata reload. Persisting bytes through `IXRegistryResourceStore` alone
 does not restore the generic address-space metadata after restart. Use the existing
-[WoT registry service and persistence](WoTConnectivity.md#112-registry-service-and-persistence)
+[WoT registry service and persistence](WotCon.md#112-registry-service-and-persistence)
 for those domain contracts; this registrar does not invent a retention-lease or reload API.
 
 **Browse compatibility:** clients that previously searched for flattened `resource:version` Group
@@ -332,7 +332,7 @@ the registrar never deletes established content to emulate atomic replacement.
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
 the shared byte layer without an on-disk migration. See
-[WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
+[WoT Connectivity — keeping the document bytes in a shared store](WotCon.md#keeping-the-document-bytes-in-a-shared-store).
 
 ### Transport security
 

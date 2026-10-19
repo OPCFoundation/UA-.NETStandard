@@ -178,7 +178,7 @@ canonical URI string before claiming a facet):
 - **WoT Connectivity** (OPC 10100-1) — `Opc.Ua.WotCon` /
   `Opc.Ua.WotCon.Server` / `Opc.Ua.WotCon.Client` library trio for
   surfacing OPC UA servers as Web-of-Things Thing Descriptions. See
-  [WoT Connectivity](WoTConnectivity.md).
+  [WoT Connectivity](WotCon.md).
 - **Device Integration** (Part 100) — `Opc.Ua.Di` / `Opc.Ua.Di.Server` /
   `Opc.Ua.Di.Client` library trio, including the lock service and the
   software-update package store. See [Device Integration](DeviceIntegration.md)
@@ -260,7 +260,7 @@ limitations and the actual configured instance before claiming a facet.
 | [Machine Vision](Vision.md), OPC 40100-1/-2 | Released control/configuration/recipe/result and asset/condition-monitoring interfaces, clients and MCP | Providers supply acquisition and equipment behavior; separate from Perception |
 | [Perception](Vision.md#perception-model) and [Robot Intent](Robotics.md#robot-intent) | Perception/media/inference/feedback and robot task-intent implementations | Draft models with provisional identifiers, not released-companion conformance claims |
 | [AI](AI.md), [xRegistry](XRegistry.md), [OpenUSD](OpenUsd.md) | Model/deployment/inference services, registry/version/federation and scene/address-space integration | Draft extension models; preview-only families, with provider/backend-specific limits |
-| [WoT Connectivity](WoTConnectivity.md) | OPC 10100-1 interfaces and WoT conversion/binding implementations | Preview package policy; registry extensions and transport-specific bindings have separate scope |
+| [WoT Connectivity](WotCon.md) | OPC 10100-1 interfaces and WoT conversion/binding implementations | Preview package policy; registry extensions and transport-specific bindings have separate scope |
 | [PA-DIM/ECM](Machinery.md) and [PackML](Scales.md) | Shared generated dependency models and the behavior bound by Machinery/Scales | Not a blanket standalone device or all-facet implementation claim |
 
 Package preview status is governed by [the release policy](ReleaseProcess.md#terms),
@@ -730,7 +730,7 @@ for the variant selected by `--ctt`.
   (Parts 210 and 211)
 - [Robotics](Robotics.md) (OPC 40010-1 over OPC 10000-200)
 - [Software Update](SoftwareUpdate.md)
-- [WoT Connectivity](WoTConnectivity.md) (OPC 10100-1)
+- [WoT Connectivity](WotCon.md) (OPC 10100-1)
 - [Node Management](NodeManagement.md) (Part 4)
 - [Asset Management Basics](AMB.md) (OPC 10000-110)
 - [Machinery](Machinery.md) (OPC 40001 series, PA-DIM and ECM)

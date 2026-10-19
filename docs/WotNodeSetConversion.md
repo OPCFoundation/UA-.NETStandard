@@ -11,12 +11,14 @@ For SDK callers, `ToNodeSetWithResolversAsync` converts a complete
 `WotDocumentSet` with caller-supplied thing/schema resolution while preserving
 set-local precedence. It performs no transport I/O itself.
 
-See [WoT design and provider contracts](WoT.md) for resolver ownership and
+See [Conversion providers](#conversion-providers) for resolver ownership and
 DataType declaration inputs, and [WoT bindings](WotBindings.md) for binding
 authoring and runtime integration.
 
 ## Contents
 
+- [Conversion providers](#conversion-providers)
+  - [DataType declaration inputs](#datatype-declaration-inputs)
 - [Which specification revision this tracks](#which-specification-revision-this-tracks)
 - [Importable output](#importable-output)
   - [Modelling rules and the two placeholder identifiers](#modelling-rules-and-the-two-placeholder-identifiers)
@@ -44,6 +46,40 @@ authoring and runtime integration.
 - [ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)](#referencetypes-and-relations-sections-512-53-and-62)
   - [`uav:componentOf` and its `ua:ComponentOf` alias](#uavcomponentof-and-its-uacomponentof-alias)
   - [Projection documents and the OPC 10100-1 v1.02 asset surface](#projection-documents-and-the-opc-10100-1-v102-asset-surface)
+
+## Conversion providers
+
+`WotNodeSetConverter` converts a document to a NodeSet2 model. It resolves
+declarations from the captured sibling documents of the Thing before any
+loaded type. Callers supply the exact original bytes and the contextual
+declarations; the converter does not perform a fresh default lookup or use an
+arbitrary Web resolver.
+See [type binding](WotBindings.md#resolving-a-type-binding-the-local-context).
+
+An embedded `uav:nodeSet` needs no external model fetch. Required models absent
+from both the converted document and the caller's resolver remain diagnostics.
+These conversion contracts do not establish Full-profile or full JSON Schema
+conformance.
+
+### DataType declaration inputs
+
+Stored definitions can be referenced by graph identity, qualified name, or
+portable NodeId. Lookup uses the carrying element's original context. Graph
+identities need not resemble document locations; ambiguous owners fail.
+`uav:dataTypeDefinition`, `uav:fieldDataTypeDefinition`, typed links, and
+`uav:dataTypeSubtypeOf` contribute dependencies. Recursive fields are legal;
+inheritance cycles are not. An acyclic base/derived pair in one document does
+not create a cycle between documents.
+Opaque metadata and literal instance values are not definition indexes.
+
+`IWotCapturedDataTypeDefinitions` on the captured Thing resolver supplies
+complete `WotDataTypeDefinitionSource` values through `DataTypeDefinitions`.
+`IWotDataTypeDefinitionResolver.ResolveDataTypeDefinitionsAsync` resolves
+definitions on demand. Resolvers own the documents they return; the converter
+does not dispose borrowed documents and does not retain them after conversion.
+
+Generated NodeSets declare the namespaces their Nodes own; merely referring to
+a namespace does not claim it.
 
 ## Which specification revision this tracks
 
@@ -863,8 +899,8 @@ Two neighbouring subjects are documented elsewhere so they are stated once:
 
 - A **projection document** declares affordances instead of defining them, and
   Section 12.5 closes the set of members it may annotate beside `tm:ref`. See
-  [Projection documents and the View NodeClass](WoTConnectivity.md#124-projection-documents-and-the-view-nodeclass).
+  [Projection documents and the View NodeClass](WotCon.md#124-projection-documents-and-the-view-nodeclass).
 - The **OPC 10100-1 v1.02 asset surface** (`CreateAsset`, `WoTFile` upload, the
   `AssetRegistry` POCO reader) is a separate code path governed by that
   specification. Nothing on this page describes it. See
-  [The 1.02 asset surface](WoTConnectivity.md#126-the-102-asset-surface).
+  [The 1.02 asset surface](WotCon.md#126-the-102-asset-surface).

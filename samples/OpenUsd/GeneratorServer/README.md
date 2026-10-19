@@ -5,7 +5,7 @@ model** (`http://opcfoundation.org/UA/Generators/`): N
 simulated generating sets, a datasheet-driven simulation, DI and Machinery
 integration, and a per-set OpenUSD twin.
 
-It complements [`PumpDeviceIntegrationServer`](../../DI/PumpDeviceIntegrationServer),
+It complements [`PumpDeviceIntegrationServer`](../../Di/PumpDeviceIntegrationServer),
 and the two are composed into one scene by
 [`SiteCompositionServer`](../SiteCompositionServer).
 

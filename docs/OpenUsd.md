@@ -226,7 +226,7 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   that the MCP tools command, and a viewport prim pick can become a robot command through
   `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
-* [`PumpDeviceIntegrationServer`](../samples/DI/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
+* [`PumpDeviceIntegrationServer`](../samples/Di/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
 * [`GeneratorServer`](../samples/OpenUsd/GeneratorServer) — the Generators companion
   specification with a datasheet-driven simulation and one independent twin per

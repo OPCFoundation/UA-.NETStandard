@@ -47,7 +47,7 @@ the time-based models in the datasheet.
 ## Running the sample
 
 ```pwsh
-cd samples/DI/PumpDeviceIntegrationServer
+cd samples/Di/PumpDeviceIntegrationServer
 dotnet run -c Release
 ```
 
@@ -92,7 +92,7 @@ change the operating system.
 
 ```powershell
 $env:CustomTestTarget = 'net10.0'
-dotnet run --project samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj `
+dotnet run --project samples\Di\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj `
   -c Release -f net10.0 -- --host localhost --port 62550 --software-update-demo true --autoaccept false
 ```
 
@@ -445,7 +445,7 @@ non-root user.
 
 ```pwsh
 # from the repository root:
-docker build -f samples/DI/PumpDeviceIntegrationServer/Dockerfile `
+docker build -f samples/Di/PumpDeviceIntegrationServer/Dockerfile `
              -t pumpdeviceintegrationserver:local .
 ```
 
@@ -594,7 +594,7 @@ hierarchy and `ReportEvent`.
 ## NativeAOT publishing
 
 ```pwsh
-cd samples/DI/PumpDeviceIntegrationServer
+cd samples/Di/PumpDeviceIntegrationServer
 dotnet publish -c Release -r win-x64
 ```
 

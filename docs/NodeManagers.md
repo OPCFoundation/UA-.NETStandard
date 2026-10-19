@@ -2967,7 +2967,7 @@ the state NodeId; migrating an override written against 1.5.378 is covered by th
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
-- `samples/DI/PumpDeviceIntegrationServer/` — the full OPC 40223
+- `samples/Di/PumpDeviceIntegrationServer/` — the full OPC 40223
   Pumps companion server. Exercises every fluent extension above
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean

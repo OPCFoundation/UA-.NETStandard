@@ -218,7 +218,7 @@ Localizations, type bindings, method arguments, engineering units and ranges,
 ordered event selections, and Condition-action relationships remain in the
 generated documents. Event severity comes from the source occurrence, not an
 invented severity property on an asset projection. See
-[WoT / NodeSet conversion](../../docs/WoTNodeSetConversion.md) for the representation
+[WoT / NodeSet conversion](../../docs/WotNodeSetConversion.md) for the representation
 and preservation rules.
 
 The DI documents use **DI 1.05.0**. `ConnectsTo` derives from
@@ -329,7 +329,7 @@ These nodes are not compiled into `AggregationServer`. They are produced from th
 
 [`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs)
 compares the declared companion-model subset against
-[`PumpDeviceIntegrationServer`](../DI/PumpDeviceIntegrationServer), which builds
+[`PumpDeviceIntegrationServer`](../Di/PumpDeviceIntegrationServer), which builds
 an OPC 40223 Pump from generated companion-model code. This provides an
 independent oracle rather than only comparing the WoT documents with themselves.
 
@@ -486,4 +486,4 @@ Use the published `FlatTagServer.exe` twice with the Source A and Source B argum
 ## Related documentation
 
 * [WoT protocol bindings](../../docs/WotBindings.md)
-* [WoT Connectivity model, server, registry, and client](../../docs/WoTConnectivity.md)
+* [WoT Connectivity model, server, registry, and client](../../docs/WotCon.md)

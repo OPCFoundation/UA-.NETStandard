@@ -1117,7 +1117,7 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 ## Related documentation
 
-* [WoT Connectivity model, server, registry, and client](WoTConnectivity.md)
+* [WoT Connectivity model, server, registry, and client](WotCon.md)
 * [WoT aggregation sample](../samples/WotCon/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
 * [Dependency injection](DependencyInjection.md)
 * [Runtime NodeSets](RuntimeNodeSets.md)
@@ -1155,14 +1155,14 @@ neither becomes a Node, and both are restated verbatim on a round trip.
 ### What the readable mapping does not yet carry
 
 Readable mappings and their fallback conditions are maintained in
-[WoT / NodeSet conversion](WoTNodeSetConversion.md). In particular,
-[engineering units, ranges and scaling](WoTNodeSetConversion.md#engineering-units-ranges-and-scaling-sections-64-and-641)
+[WoT / NodeSet conversion](WotNodeSetConversion.md). In particular,
+[engineering units, ranges and scaling](WotNodeSetConversion.md#engineering-units-ranges-and-scaling-sections-64-and-641)
 are mapped in both directions when their values can be decoded. Missing or
 unsupported values use the documented preservation projection rather than
 invented defaults.
 
 Use this guide for protocol planners, executors, and binding registration;
-use [WoT Connectivity](WoTConnectivity.md) for registry hosting and projection
+use [WoT Connectivity](WotCon.md) for registry hosting and projection
 lifecycle. Keeping conversion rules in one place avoids binding implementations
 depending on an outdated list of mapping limitations.
 
@@ -1516,7 +1516,7 @@ Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
 mapping, as Section 13.1 scopes it.
 
 For the converter-default compatibility note, see
-[Condition events derive from their ConditionType](WoTNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
+[Condition events derive from their ConditionType](WotNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
 
 The [two-pump aggregation sample](../samples/WotCon/README.md) includes supervision
 EventTypes and Condition-action Methods. With `--exerciseControls true`, its client

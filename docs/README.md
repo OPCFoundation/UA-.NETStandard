@@ -221,7 +221,7 @@ models that each model depends on.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
-- [WoT connectivity](WoTConnectivity.md) (OPC 10100-1; preview package) —
+- [WoT connectivity](WotCon.md) (OPC 10100-1; preview package) —
   connect Web of Things assets. Its registry extension is listed in stage 7.
 
 For more examples, including the Pumps and Machinery models, see the
@@ -292,11 +292,11 @@ Assumes the client or server path.
   OPC UA servers. [Stack workflow profiles](McpServer.md#stack-workflow-tools)
   add GDS/credential issuance, roles/users, files, alarms, history, schemas,
   policy-controlled PubSub and live WoT execution.
-- [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
+- [WoT / NodeSet conversion](WotNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
-  protocol bindings. Read WoT connectivity first.
-  [WoT design and provider contracts](WoT.md) covers resolver ownership and
-  DataType declaration inputs.
+  protocol bindings. The conversion guide also covers
+  [resolver ownership and DataType declaration inputs](WotNodeSetConversion.md#conversion-providers).
+  Read WoT connectivity first.
 
 ### Session recovery and performance
 
@@ -373,7 +373,7 @@ guide describes its current limitations.
   task-level motion commands. Does not require the Robotics model.
 - [OpenUSD](OpenUsd.md) (draft models; preview package) — bind values to OpenUSD
   scenes and materialize scenes in the address space.
-- [WoT Connectivity 1.1 registry](WoTConnectivity.md#11-wot-connectivity-11-registry-and-materialization-preview)
+- [WoT Connectivity 1.1 registry](WotCon.md#11-wot-connectivity-11-registry-and-materialization-preview)
   (draft model; preview package) — registry and materialization. Read WoT
   connectivity first.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)

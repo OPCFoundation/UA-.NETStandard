@@ -2018,6 +2018,6 @@ services.AddOpcUa()
 - [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
-- [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
+- [WoT Connectivity](WotCon.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
 - [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.

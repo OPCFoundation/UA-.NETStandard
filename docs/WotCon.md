@@ -732,7 +732,7 @@ Behaviours:
   `<Aliases>` table of everything it returns, on all three restoration paths
   (readable synthesis, `uav:nodeSet` envelope restore and `uav:nodes` native
   restore), without rewriting any name a document brought. See
-  [Importable output](WoTNodeSetConversion.md#importable-output). A vendor alias
+  [Importable output](WotNodeSetConversion.md#importable-output). A vendor alias
   a source document uses but never declares still fails the load, and is
   reported as a closure diagnostic naming it.
 * Independent closures commit independently; a failed or invalid closure
@@ -925,7 +925,7 @@ not by copying the source document. The readable surface tracks the current
   units and ranges, `titles` / `descriptions`, `uav:valueRank` /
   `uav:arrayDimensions`, and typed links for arbitrary companion
   ReferenceTypes in both directions. Each is stated once, in
-  [WoT / NodeSet conversion](WoTNodeSetConversion.md); the relation and
+  [WoT / NodeSet conversion](WotNodeSetConversion.md); the relation and
   type-binding resolution rules are stated once in
   [WoT protocol bindings](WotBindings.md#resolving-a-type-binding-the-local-context).
   Converted NodeSets are also alias-complete, which makes the
@@ -937,7 +937,7 @@ not by copying the source document. The readable surface tracks the current
   rather than reported. Registry materialization keeps that default, so a
   document authored against a later revision still loads. `Strict` is for
   authoring and conformance testing; see
-  [Conformance claims and strict mode](WoTNodeSetConversion.md#conformance-claims-and-strict-mode-sections-41-61-66-and-11).
+  [Conformance claims and strict mode](WotNodeSetConversion.md#conformance-claims-and-strict-mode-sections-41-61-66-and-11).
 
 ### 11.9 Registry client
 

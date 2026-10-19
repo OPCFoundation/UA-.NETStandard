@@ -431,7 +431,7 @@ This explicitly adds a separate `SoftwareUpdateDemo` device; it does not update
 the simulated pumps or execute package contents. Its install callback requires a
 matching staged SHA-256, rehashes the stored bytes and copies the package into an
 in-memory software-version folder. See the
-[pump sample guide](../samples/DI/PumpDeviceIntegrationServer/README.md#software-update-simulator).
+[pump sample guide](../samples/Di/PumpDeviceIntegrationServer/README.md#software-update-simulator).
 
 Attach the software-update facet to a `ComponentType`-derived device
 created through the Device Integration builder:

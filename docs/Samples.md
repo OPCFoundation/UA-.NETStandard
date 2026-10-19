@@ -56,7 +56,7 @@ Minimal Client together.
   covers browser inspection and role-limited controls with screenshots and an animated tour.
   The guide distinguishes synthetic simulation from calibration, original-source parity
   and formal companion certification.
-- [Pump Device Integration Server](../samples/DI/PumpDeviceIntegrationServer/README.md) —
+- [Pump Device Integration Server](../samples/Di/PumpDeviceIntegrationServer/README.md) —
   Device Integration Part 100 server using `Opc.Ua.Di.Server`'s fluent
   builder.
 - [AMB Server](../samples/AMB/README.md) — OPC 10000-110 Asset Management
@@ -110,7 +110,7 @@ Minimal Client together.
 - [Combined companion suite](../samples/CompanionSuite/) — MachineTool, WMTP,
   GMS, CranesHoists and MachineVision on one DI/Machinery owner, with isolated
   instances and a bounded real-session self-check.
-- [Minimal ISA-95 Server](../samples/Isa95/MinimalIsa95Server/README.md) —
+- [Minimal ISA-95 Server](../samples/ISA95/MinimalIsa95Server/README.md) —
   hosts the OPC-10030 ISA-95 Common Model with OPC-10031-4 Job Control V1 and
   V2, using the typed common-model builder and in-memory Job Control provider.
 

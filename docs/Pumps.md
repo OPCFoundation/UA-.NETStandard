@@ -359,7 +359,7 @@ models itself, call `CreatePumpsRuntime`, and release registered resources throu
 `DisposeMachineryResourcesAsync()` from its asynchronous disposal path.
 No inheritance change to the sealed stock managers is required.
 
-The [PumpDeviceIntegrationServer sample](../samples/DI/PumpDeviceIntegrationServer)
+The [PumpDeviceIntegrationServer sample](../samples/Di/PumpDeviceIntegrationServer)
 follows the same pattern in its own `DiNodeManager` subclass, because the same
 manager also owns OpenUSD. It still source-generates its own copies of the
 Machinery and Pumps models, which other test suites use as fixtures; moving it
@@ -789,7 +789,7 @@ convenience; disable it when testing explicit peer trust.
 | --- | --- |
 | [PumpsServer](../samples/Pumps/PumpsServer) | `AddPumps` / `ConfigurePumps` with two pumps: nameplate, every group builder, units and ranges, ports, documentation links, and a simulation that publishes runtime updates to subscribers |
 | [PumpsClient](../samples/Pumps/PumpsClient) | `PumpsClient` discovery, `ReadPumpAsync` snapshots, supervision and maintenance evaluation, `ValuesOnly` polling, and streaming subscriptions on `PumpValue.NodeId` |
-| [PumpDeviceIntegrationServer](../samples/DI/PumpDeviceIntegrationServer) | A datasheet-driven pump simulation in its own `DiNodeManager` subclass with the Pumps model loaded next to OpenUSD, published data changes, and an OpenUSD twin per pump |
+| [PumpDeviceIntegrationServer](../samples/Di/PumpDeviceIntegrationServer) | A datasheet-driven pump simulation in its own `DiNodeManager` subclass with the Pumps model loaded next to OpenUSD, published data changes, and an OpenUSD twin per pump |
 | [WoT aggregation](../samples/WotCon/README.md) | A DI / Machinery / Pumps `PumpType` instance loaded at runtime from WoT documents, with no Pumps assembly referenced |
 | [SiteCompositionServer](../samples/OpenUsd/SiteCompositionServer) | A supervisory server composing the pump and generator servers into one scene |
 

@@ -541,7 +541,7 @@ WoT legacy asset management and the registry are independent capabilities.
 `wot_inspect_server` reports each separately and accepts explicitly discovered
 roots when a server uses different placement. Missing optional capabilities
 are not treated as supported empty results. Draft WoT registry and xRegistry
-model identities are described in [WoT connectivity](WoTConnectivity.md) and
+model identities are described in [WoT connectivity](WotCon.md) and
 [xRegistry](XRegistry.md); package release-channel policy is independent of
 model maturity.
 
