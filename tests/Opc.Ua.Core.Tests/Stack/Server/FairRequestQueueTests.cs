@@ -1847,6 +1847,46 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// An admission that throws while a reader spins does not leave that reader counted as
+        /// spinning: later requests still wake a parked reader.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task AdmissionFailureWhileSpinningKeepsWakingParkedReadersAsync(bool useFairScheduling)
+        {
+            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider);
+            queue.SpinDuration = System.Diagnostics.Stopwatch.Frequency * 10;
+            queue.MaxSpinningReaders = 1;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Task<FairRequestQueue.Entry> first = Task.Run(() => queue.DequeueAsync(deadline.Token).AsTask());
+            Task<FairRequestQueue.Entry> second = Task.Run(() => queue.DequeueAsync(deadline.Token).AsTask());
+            while (queue.ParkedReaderCount == 0)
+            {
+                await Task.Delay(1, deadline.Token).ConfigureAwait(false);
+            }
+            provider.BeforeExecutionGrant = () =>
+            {
+                provider.BeforeExecutionGrant = null!;
+                throw new InvalidOperationException("Provider failure while spinning.");
+            };
+
+            var failed = new TestRequest(token, 1);
+            Enqueue(queue, failed);
+            Task<FairRequestQueue.Entry> faulted = await Task.WhenAny(first, second).WaitAsync(deadline.Token)
+                .ConfigureAwait(false);
+            Assert.CatchAsync<InvalidOperationException>(async () => await faulted.ConfigureAwait(false));
+            Assert.That(failed.Status, Is.EqualTo(StatusCodes.BadInternalError));
+            Assert.That(queue.ParkedReaderCount, Is.EqualTo(1));
+
+            Enqueue(queue, new TestRequest(token, 2));
+            Task<FairRequestQueue.Entry> parked = faulted == first ? second : first;
+            using FairRequestQueue.Entry entry = await parked.WaitAsync(deadline.Token).ConfigureAwait(false);
+            Assert.That(entry.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
+        }
+
+        /// <summary>
         /// Spins that run out lower the spin score until readers park at once, and a request
         /// admitted then still wakes a parked reader.
         /// </summary>

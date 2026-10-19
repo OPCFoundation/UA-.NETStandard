@@ -981,6 +981,37 @@ namespace Opc.Ua
             {
                 return false;
             }
+            try
+            {
+                SpinDequeue(ref version, out entry);
+            }
+            catch
+            {
+                // A failed admission must not leave the reader counted: Pulse would wake
+                // nobody for good. The failure's own Pulse was skipped while it was counted.
+                Interlocked.Decrement(ref m_hot.Spinning);
+                Pulse();
+                throw;
+            }
+            // Pulses were skipped while this reader was counted: it looks once more after it
+            // stopped, or wakes the next reader for what is left behind the request it took.
+            Interlocked.Decrement(ref m_hot.Spinning);
+            if (entry != null)
+            {
+                Pulse();
+                return true;
+            }
+            return TryDequeue(out entry);
+        }
+
+        /// <summary>
+        /// Counts the reader as spinning and looks for a request until the spin budget runs
+        /// out; the caller ends the count.
+        /// </summary>
+        private void SpinDequeue(ref long version, out Entry? entry)
+        {
+            entry = null;
+            long budget = SpinDuration;
             if (Interlocked.Increment(ref m_hot.Spinning) <= MaxSpinningReaders)
             {
                 long start = Stopwatch.GetTimestamp();
@@ -1020,15 +1051,6 @@ namespace Opc.Ua
                     ref m_hot.SpinScore,
                     entry != null ? Math.Min(kMaxSpinScore, score + 2) : Math.Max(0, score - 1));
             }
-            // Pulses were skipped while this reader was counted: it looks once more after it
-            // stopped, or wakes the next reader for what is left behind the request it took.
-            Interlocked.Decrement(ref m_hot.Spinning);
-            if (entry != null)
-            {
-                Pulse();
-                return true;
-            }
-            return TryDequeue(out entry);
         }
 
         /// <summary>
