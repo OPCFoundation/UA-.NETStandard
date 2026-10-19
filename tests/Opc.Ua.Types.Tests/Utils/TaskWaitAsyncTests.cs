@@ -67,8 +67,8 @@ namespace Opc.Ua.Types.Tests.Utils
             {
                 Assert.That(source.TrySetCanceled(canceled.Token), Is.True);
             }
-            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(async () =>
-                await wait.ConfigureAwait(false));
+            OperationCanceledException exception = (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await wait.ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(wait.IsCanceled, Is.True);
@@ -78,26 +78,26 @@ namespace Opc.Ua.Types.Tests.Utils
 
         [TestCase(false)]
         [TestCase(true)]
-        public void SourceFaultIsNotReplacedByATimeout(bool generic)
+        public async Task SourceFaultIsNotReplacedByATimeout(bool generic)
         {
             var original = new InvalidOperationException("source failure");
             Task<int> source = Task.FromException<int>(original);
             Task wait = generic
                 ? source.WaitAsync(TimeSpan.FromSeconds(30))
                 : ((Task)source).WaitAsync(TimeSpan.FromSeconds(30));
-            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await wait.ConfigureAwait(false)), Is.SameAs(original));
+            Assert.That((await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await wait.ConfigureAwait(false)))!, Is.SameAs(original));
         }
 
         [TestCase(false)]
         [TestCase(true)]
-        public void ActualDeadlineExpiryDoesNotCancelTheSource(bool generic)
+        public async Task ActualDeadlineExpiryDoesNotCancelTheSource(bool generic)
         {
             var source = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task wait = generic
                 ? source.Task.WaitAsync(TimeSpan.Zero)
                 : ((Task)source.Task).WaitAsync(TimeSpan.Zero);
-            Assert.ThrowsAsync<TimeoutException>(async () => await wait.ConfigureAwait(false));
+            await Assert.ThrowsAsync<TimeoutException>(async () => await wait.ConfigureAwait(false));
             Assert.That(source.Task.IsCompleted, Is.False);
             source.SetResult(42);
         }
@@ -112,8 +112,8 @@ namespace Opc.Ua.Types.Tests.Utils
                 ? source.Task.WaitAsync(TimeSpan.FromSeconds(30), canceled.Token)
                 : ((Task)source.Task).WaitAsync(TimeSpan.FromSeconds(30), canceled.Token);
             await canceled.CancelAsync().ConfigureAwait(false);
-            OperationCanceledException exception = Assert.CatchAsync<OperationCanceledException>(async () =>
-                await wait.ConfigureAwait(false));
+            OperationCanceledException exception = (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await wait.ConfigureAwait(false)))!;
             Assert.Multiple(() =>
             {
                 Assert.That(source.Task.IsCompleted, Is.False);
