@@ -36,6 +36,17 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class MonitoredItemCreateContext
     {
+        /// <summary>
+        /// Captures the request and subscription settings available to a monitored-item creation decision.
+        /// </summary>
+        /// <param name="systemContext">The server context used to create the monitored item.</param>
+        /// <param name="handle">The node handle identifying the monitored-item source.</param>
+        /// <param name="subscriptionId">The identifier of the owning subscription.</param>
+        /// <param name="publishingInterval">The subscription publishing interval in milliseconds.</param>
+        /// <param name="diagnosticsMasks">The diagnostics requested for monitored-item creation.</param>
+        /// <param name="timestampsToReturn">The timestamp policy requested for monitored values.</param>
+        /// <param name="request">The monitored-item creation request.</param>
+        /// <param name="createDurable">Whether the monitored item belongs to a durable subscription.</param>
         internal MonitoredItemCreateContext(
             ServerSystemContext systemContext,
             NodeHandle handle,
@@ -108,6 +119,24 @@ namespace Opc.Ua.Server
     /// </summary>
     public sealed class MonitoredItemFactoryContext
     {
+        /// <summary>
+        /// Captures validated settings and server resources for constructing a custom monitored item.
+        /// </summary>
+        /// <param name="server">The server providing monitored-item services.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
+        /// <param name="systemContext">The server context used to create the monitored item.</param>
+        /// <param name="handle">The node handle identifying the monitored-item source.</param>
+        /// <param name="subscriptionId">The identifier of the owning subscription.</param>
+        /// <param name="monitoredItemId">The identifier of the affected monitored item.</param>
+        /// <param name="publishingInterval">The subscription publishing interval in milliseconds.</param>
+        /// <param name="diagnosticsMasks">The diagnostics requested for monitored-item creation.</param>
+        /// <param name="timestampsToReturn">The timestamp policy requested for monitored values.</param>
+        /// <param name="request">The monitored-item creation request.</param>
+        /// <param name="euRange">The engineering-unit range used when evaluating the monitored-item filter.</param>
+        /// <param name="filter">The validated monitoring filter.</param>
+        /// <param name="samplingInterval">The revised sampling interval in milliseconds.</param>
+        /// <param name="queueSize">The revised monitored-item queue size.</param>
+        /// <param name="createDurable">Whether the monitored item belongs to a durable subscription.</param>
         internal MonitoredItemFactoryContext(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -221,6 +250,43 @@ namespace Opc.Ua.Server
         /// Whether the item belongs to a durable subscription.
         /// </summary>
         public bool CreateDurable { get; }
+
+        /// <summary>
+        /// Creates a standard monitored item whose values are supplied by its
+        /// external source rather than by reading the monitored Node.
+        /// </summary>
+        /// <remarks>
+        /// The source must queue its initial value and resume delivery when the
+        /// item is re-enabled. Node changes and sampling groups do not read the
+        /// Node's value on behalf of this item. Use this factory with
+        /// <see cref="MonitoredItemCreateDecision.Use"/> and
+        /// <c>queueInitialValue: false</c>.
+        /// </remarks>
+        public MonitoredItem CreatePushMonitoredItem()
+        {
+            return new MonitoredItem(
+                Server,
+                NodeManager,
+                Handle,
+                SubscriptionId,
+                MonitoredItemId,
+                Request.ItemToMonitor,
+                DiagnosticsMasks,
+                TimestampsToReturn,
+                Request.MonitoringMode,
+                Request.RequestedParameters.ClientHandle,
+                Filter,
+                Filter,
+                EuRange,
+                SamplingInterval,
+                QueueSize,
+                Request.RequestedParameters.DiscardOldest,
+                sourceSamplingInterval: 0,
+                CreateDurable)
+            {
+                UsesExternalValueSource = true
+            };
+        }
     }
 
     /// <summary>
@@ -280,12 +346,24 @@ namespace Opc.Ua.Server
                 queueInitialValue);
         }
 
+        /// <summary>
+        /// Gets whether creation uses the default factory, is refused, or uses a custom factory.
+        /// </summary>
         internal MonitoredItemCreateDecisionKind Kind { get; }
 
+        /// <summary>
+        /// Gets the error returned when monitored-item creation is refused.
+        /// </summary>
         internal ServiceResult? Error { get; }
 
+        /// <summary>
+        /// Gets the custom monitored-item factory selected by the decision.
+        /// </summary>
         internal MonitoredItemFactory? Factory { get; }
 
+        /// <summary>
+        /// Gets whether the custom item should receive an initial value through the stack lifecycle.
+        /// </summary>
         internal bool QueueInitialValue { get; }
 
         private static readonly MonitoredItemCreateDecision s_default = new(
@@ -295,10 +373,24 @@ namespace Opc.Ua.Server
             false);
     }
 
+    /// <summary>
+    /// Identifies the action selected by a monitored-item creation decision.
+    /// </summary>
     internal enum MonitoredItemCreateDecisionKind
     {
+        /// <summary>
+        /// Uses the stack's default monitored-item creation path.
+        /// </summary>
         Default,
+
+        /// <summary>
+        /// Refuses monitored-item creation with the supplied error.
+        /// </summary>
         Refuse,
+
+        /// <summary>
+        /// Creates the monitored item through a custom factory.
+        /// </summary>
         Custom
     }
 }

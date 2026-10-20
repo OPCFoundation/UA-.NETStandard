@@ -4934,6 +4934,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Registers a user-token authenticator immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="authenticator">The provider that authenticates user tokens.</param>
         internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
         {
             if (authenticator == null)
@@ -4950,6 +4954,10 @@ namespace Opc.Ua.Server
             m_preStartAuthenticators.Add(authenticator);
         }
 
+        /// <summary>
+        /// Registers an identity augmenter immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="augmenter">The provider that augments authenticated identities.</param>
         internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
         {
             if (augmenter == null)
@@ -5612,8 +5620,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When

@@ -51,24 +51,39 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     {
         private WotRegistryService m_registry = null!;
         private FakeWotProjectionHost m_host = null!;
+        private IWotInvocationProjectionHost m_preparedHost = null!;
+        private PreparedWotTestRuntime? m_runtime;
         private FakeWotDocumentConverter m_converter = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
 
+        /// <summary>
+        /// Starts the prepared test runtime and initializes the test registry.
+        /// </summary>
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
-            m_registry = new WotRegistryService();
+            m_runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
             m_host = new FakeWotProjectionHost();
+            m_preparedHost = m_runtime.Observe(m_host.RecordCommitted);
             m_converter = new FakeWotDocumentConverter();
             m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_host, documentConverter: m_converter);
+                m_registry, m_preparedHost, documentConverter: m_converter);
         }
 
+        /// <summary>
+        /// Disposes the materialization coordinator and the prepared test runtime.
+        /// </summary>
         [TearDown]
-        public void TearDown()
+        public async Task TearDownAsync()
         {
-            m_coordinator.Dispose();
-            m_registry.Dispose();
+            m_coordinator?.Dispose();
+            if (m_runtime is not null)
+            {
+                await m_runtime.DisposeAsync().ConfigureAwait(false);
+                m_runtime = null;
+            }
+            m_coordinator = null!;
         }
 
         private Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
@@ -93,6 +108,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }).AsTask();
         }
 
+        /// <summary>
+        /// Verifies that cyclic Thing Models are not projected and generate load-failure events.
+        /// </summary>
         [Test]
         public async Task CyclicTmsAreNotProjectedAndEmitLoadFailureEvent()
         {
@@ -115,19 +133,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "Each cyclic closure member must raise a LoadFailure event.");
         }
 
+        /// <summary>
+        /// Verifies that remove all async retires previously projected closures.
+        /// </summary>
         [Test]
         public async Task RemoveAllAsyncRetiresPreviouslyProjectedClosures()
         {
+            int registrations = m_runtime!.Lifecycle.Registrations.Count;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a"));
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
             Assert.That(m_host.AddCount, Is.EqualTo(1));
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations + 1));
 
             await m_coordinator.RemoveAllAsync();
 
             Assert.That(m_host.RemoveCount, Is.EqualTo(1),
                 "RemoveAllAsync must retire the live projection.");
+            Assert.That(m_runtime.Lifecycle.Registrations.Count, Is.EqualTo(registrations));
         }
 
+        /// <summary>
+        /// Verifies that a forced refresh reprocesses content whose digest has not changed.
+        /// </summary>
         [Test]
         public async Task ForceRefreshReprocessesUnchangedContent()
         {
@@ -147,6 +174,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.Not.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
+        /// <summary>
+        /// Verifies that selection filter limits results to selected resources.
+        /// </summary>
         [Test]
         public async Task SelectionFilterLimitsResultsToSelectedResources()
         {
@@ -170,6 +200,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Results.Single().Xid, Is.EqualTo(tdAXid));
         }
 
+        /// <summary>
+        /// Verifies that refreshing an empty registry returns no resource outcomes.
+        /// </summary>
         [Test]
         public async Task RefreshAllEmptyResourceRegistryReturnsEmptyResults()
         {
@@ -179,6 +212,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Summary.Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
         }
 
+        /// <summary>
+        /// Verifies that refresh generation increments.
+        /// </summary>
         [Test]
         public async Task RefreshGenerationIncrements()
         {
@@ -190,6 +226,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_coordinator.Generation, Is.GreaterThan(before));
         }
 
+        /// <summary>
+        /// Verifies that a completed refresh raises its completion event.
+        /// </summary>
         [Test]
         public async Task RefreshCompletedEventIsRaisedAfterRefresh()
         {
@@ -204,6 +243,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A RefreshCompleted event must be raised after every refresh.");
         }
 
+        /// <summary>
+        /// Verifies that invalid document content raises a validation-failure event.
+        /// </summary>
         [Test]
         public async Task ValidationFailureEventIsRaisedForInvalidContent()
         {
@@ -219,6 +261,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A ValidationFailure event must be raised for invalid content.");
         }
 
+        /// <summary>
+        /// Verifies that a missing document dependency raises a load-failure event.
+        /// </summary>
         [Test]
         public async Task LoadFailureEventIsRaisedForMissingDependency()
         {
@@ -234,6 +279,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A LoadFailure event must be raised for each resource in an unresolvable closure.");
         }
 
+        /// <summary>
+        /// Verifies that independent dependency closures produce separate projection registrations.
+        /// </summary>
         [Test]
         public async Task TwoIndependentClosuresProjectAsTwoSeparateRegistrations()
         {
@@ -247,6 +295,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.Results, Has.Length.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that successful resource projection raises its resource event.
+        /// </summary>
         [Test]
         public async Task ResourceEventIsRaisedAfterSuccessfulProjection()
         {
@@ -262,15 +313,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "A Resource event must be raised for each successfully projected resource.");
         }
 
+        /// <summary>
+        /// Verifies that oversized resolver response fails dependency resolution before publication.
+        /// </summary>
         [Test]
-        public async Task OversizedResolverResponseIsReportedAsBindingFailure()
+        public async Task OversizedResolverResponseFailsDependencyResolutionBeforePublication()
         {
             var events = new List<WotMaterializationEventArgs>();
             var resolver = new RecordingResolver(_ => new MemoryStream(new byte[16]));
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 converterOptions: new WotNodeSetConverterOptions { MaxResolverDocumentBytes = 8 },
                 documentConverter: m_converter,
                 nodeSetResolver: resolver);
@@ -282,27 +336,38 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+                Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Failed));
+                Assert.That(result.Results.Single().Phase, Is.EqualTo(WoTPhaseEnum.DependencyResolution));
+                Assert.That(result.Results.Single().Message, Does.Contain("urn:oversized").And.Contain("exceeded 8"));
                 Assert.That(resolver.RequestedNamespaces, Does.Contain("urn:oversized"));
+                Assert.That(m_host.Operations, Is.Empty);
+                Assert.That(result.NewGeneration, Is.Zero);
+                Assert.That(m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "td-a")!
+                    .RootNodeId.IsNull, Is.True);
                 Assert.That(
                     events.Any(e =>
-                        e.Kind == WotMaterializationEventKind.BindingFailure &&
+                        e.Kind == WotMaterializationEventKind.LoadFailure &&
+                        e.Phase == WoTPhaseEnum.DependencyResolution &&
+                        e.ResourceId == "td-a" && e.Generation == 0 &&
                         e.Reason.Contains("exceeded", StringComparison.Ordinal)),
                     Is.True);
             });
         }
 
+        /// <summary>
+        /// Verifies that retired projection namespace is resolved again despite stale namespace table entry.
+        /// </summary>
         [Test]
         public async Task RetiredProjectionNamespaceIsResolvedAgainDespiteStaleNamespaceTableEntry()
         {
-            var namespaces = new NamespaceTable();
+            NamespaceTable namespaces = m_runtime!.Namespaces;
             namespaces.GetIndexOrAppend("urn:wot:thingdescriptions/old");
             var resolver = new RecordingResolver(
                 uri => new MemoryStream(TestNodeSets.XmlBytes(uri)));
             m_coordinator.Dispose();
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
-                m_host,
+                m_preparedHost,
                 documentConverter: m_converter,
                 nodeSetResolver: resolver)
             {
@@ -313,6 +378,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
             await m_registry.DeleteResourceAsync(WotRegistryGroups.ThingDescriptions, "old");
             await m_coordinator.RefreshAsync(new WotRefreshRequest());
+            Assert.That(namespaces.GetIndex("urn:wot:thingdescriptions/old"), Is.GreaterThanOrEqualTo(0));
             m_converter.RequiredNamespace = "urn:wot:thingdescriptions/old";
             await RegisterTd("new", TestMaterialization.Td("urn:new"));
 
@@ -341,6 +407,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private readonly Func<string, Stream?> m_resolve;
         }
 
+        /// <summary>
+        /// Verifies that binding capabilities are available even when no binders are registered.
+        /// </summary>
         [Test]
         public void BindingCapabilitiesIsNonNullEvenWithNoBinders()
         {
@@ -348,12 +417,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_coordinator.BindingCapabilities, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that remove all on empty coordinator does not throw.
+        /// </summary>
         [Test]
         public async Task RemoveAllAsyncOnEmptyCoordinatorDoesNotThrow()
         {
             await m_coordinator.RemoveAllAsync();
         }
 
+        /// <summary>
+        /// Verifies that a cyclic dependency closure reports a load failure for every member.
+        /// </summary>
         [Test]
         public async Task CyclicClosureEmitsLoadFailureForEachMember()
         {

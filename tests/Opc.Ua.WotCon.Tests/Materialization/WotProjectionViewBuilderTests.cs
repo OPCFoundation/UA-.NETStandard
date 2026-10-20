@@ -60,6 +60,40 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static readonly NodeId s_levelNode = new("SourceU/Level", 5);
         private static readonly NodeId s_levelUnitNode = new("SourceU/Level.EngineeringUnits", 5);
 
+        /// <summary>
+        /// Verifies that modern projection plan carries its declared kind into the view.
+        /// </summary>
+        /// <param name="kind">The document kind text declared by the plan.</param>
+        /// <param name="expected">The expected WoT document kind asserted by the test.</param>
+        [TestCase("ThingDescription", WotDocumentKind.ThingDescription)]
+        [TestCase("ThingModel", WotDocumentKind.ThingModel)]
+        public async Task ModernProjectionPlanCarriesItsDeclaredKindIntoTheView(
+            string kind, WotDocumentKind expected)
+        {
+            var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                ["urn:sourceA#alpha"] = s_alphaNode,
+                ["urn:sourceA#beta"] = s_betaNode
+            });
+            var builder = new WotProjectionViewBuilder(new MapThingResolver(
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["urn:sourceA"] = SourceA }),
+                index, null, TestNamespaces());
+            string json = SimpleProjection.Replace(
+                "\"@type\": [\"Thing\", \"uav:projection\"]",
+                "\"@type\": [\"uav:projection\"], \"uav:projectionKind\": \"" + kind + "\"",
+                StringComparison.Ordinal);
+
+            WotViewProjectionResult result = await Build(builder, json).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.ToList()));
+            Assert.That(result.Plan!.DocumentKind, Is.EqualTo(expected));
+            Assert.That(result.Plan.OrganizedNodeIds.ToArray(), Is.EquivalentTo([s_alphaNode, s_betaNode]));
+            Assert.That(result.Plan.MaterializedNodeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that view organizes the source nodes and defines no affordance node.
+        /// </summary>
         [Test]
         public async Task ViewOrganizesTheSourceNodesAndDefinesNoAffordanceNode()
         {
@@ -71,13 +105,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotProjectionViewBuilder builder = Builder(index,
                 ("urn:sourceA", SourceA));
 
-            WotViewProjectionResult result = await Build(builder, SimpleProjection);
+            WotViewProjectionResult result = await Build(builder, SimpleProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True,
                 string.Join(Environment.NewLine, (result.Diagnostics.ToArray() ?? Array.Empty<WotDiagnostic>()).Select(d => d.ToString())));
             WotViewProjectionPlan plan = result.Plan!;
             Assert.That(plan.OrganizedNodeIds.ToArray(),
-                Is.EquivalentTo(new[] { s_alphaNode, s_betaNode }),
+                Is.EquivalentTo([s_alphaNode, s_betaNode]),
                 "The View must Organize the Nodes already materialized from the source.");
             Assert.That(plan.Groups.Count, Is.Zero);
             Assert.That(plan.Omissions.Count, Is.Zero);
@@ -88,6 +122,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.MaterializedNodeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that projection of a projection organizes the nodes the ultimate sources materialized.
+        /// </summary>
         [Test]
         public async Task ProjectionOfAProjectionOrganizesTheNodesTheUltimateSourcesMaterialized()
         {
@@ -102,17 +139,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ("urn:sourceA", SourceA),
                 ("urn:view:simple", SimpleProjection));
 
-            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection);
+            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             WotViewProjectionPlan plan = result.Plan!;
             Assert.That(plan.OrganizedNodeIds.ToArray(),
-                Is.EquivalentTo(new[] { s_alphaNode, s_betaNode }),
+                Is.EquivalentTo([s_alphaNode, s_betaNode]),
                 "A projection selecting from a projection must organize the Nodes the " +
                 "ultimate sources materialized.");
             Assert.That(plan.Omissions.Count, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that projection of a projection omits and names the ultimate source when it is not materialized.
+        /// </summary>
         [Test]
         public async Task ProjectionOfAProjectionOmitsAndNamesTheUltimateSourceWhenItIsNotMaterialized()
         {
@@ -123,7 +163,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ("urn:sourceA", SourceA),
                 ("urn:view:simple", SimpleProjection));
 
-            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection);
+            WotViewProjectionResult result = await Build(builder, ProjectionOverProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             WotViewProjectionPlan plan = result.Plan!;
@@ -137,6 +177,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Verifies that materialized node count counts only view plus organizational objects.
+        /// </summary>
         [Test]
         public async Task MaterializedNodeCountCountsOnlyViewPlusOrganizationalObjects()
         {
@@ -153,7 +196,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ("urn:view:inner", InnerGroupProjection),
                 ("urn:view:outer", OuterGroupProjection));
 
-            WotViewProjectionResult result = await Build(builder, NestedGroupProjection);
+            WotViewProjectionResult result = await Build(builder, NestedGroupProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             WotViewProjectionPlan plan = result.Plan!;
@@ -163,6 +206,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.MaterializedNodeCount, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Verifies that organizing links produce objects with only the outermost a view.
+        /// </summary>
         [Test]
         public async Task OrganizingLinksProduceObjectsWithOnlyTheOutermostAView()
         {
@@ -176,21 +222,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ("urn:sourceC", SourceC),
                 ("urn:view:inner", InnerGroupProjection));
 
-            WotViewProjectionResult result = await Build(builder, OuterGroupProjection);
+            WotViewProjectionResult result = await Build(builder, OuterGroupProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             WotViewProjectionPlan plan = result.Plan!;
-            Assert.That(plan.OrganizedNodeIds.ToArray(), Is.EquivalentTo(new[] { s_gammaNode }),
+            Assert.That(plan.OrganizedNodeIds.ToArray(), Is.EquivalentTo([s_gammaNode]),
                 "The outermost View directly Organizes only its own selected Nodes.");
             Assert.That(plan.Groups.Count, Is.EqualTo(1),
                 "The ua:Organizes link becomes one organizational Object, not a View.");
             WotOrganizationalGroup group = plan.Groups[0];
             Assert.That(group.RefName, Is.EqualTo("inner"));
-            Assert.That(group.OrganizedNodeIds.ToArray(), Is.EquivalentTo(new[] { s_deltaNode }),
+            Assert.That(group.OrganizedNodeIds.ToArray(), Is.EquivalentTo([s_deltaNode]),
                 "The organizing document does not absorb the organized affordances.");
             Assert.That(plan.MaterializedNodeCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that out of address space source is omitted but build still succeeds.
+        /// </summary>
         [Test]
         public async Task OutOfAddressSpaceSourceIsOmittedButBuildStillSucceeds()
         {
@@ -203,17 +252,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotProjectionViewBuilder builder = Builder(index,
                 ("urn:sourceA", SourceA));
 
-            WotViewProjectionResult result = await Build(builder, SimpleProjection);
+            WotViewProjectionResult result = await Build(builder, SimpleProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True,
                 "Omitting an out-of-address-space source is not a failure.");
             WotViewProjectionPlan plan = result.Plan!;
-            Assert.That(plan.OrganizedNodeIds.ToArray(), Is.EquivalentTo(new[] { s_alphaNode }));
+            Assert.That(plan.OrganizedNodeIds.ToArray(), Is.EquivalentTo([s_alphaNode]));
             Assert.That(plan.Omissions.Count, Is.EqualTo(1));
             Assert.That(plan.Omissions[0], Does.Contain("beta"),
                 "The omitted affordance must be reported.");
         }
 
+        /// <summary>
+        /// Verifies that organizing cycle is rejected.
+        /// </summary>
         [Test]
         public async Task OrganizingCycleIsRejected()
         {
@@ -224,7 +276,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ("urn:view:cycleA", CycleProjectionA),
                 ("urn:view:cycleB", CycleProjectionB));
 
-            WotViewProjectionResult result = await Build(builder, CycleProjectionA);
+            WotViewProjectionResult result = await Build(builder, CycleProjectionA).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Plan, Is.Null);
@@ -233,6 +285,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True, "An organizing cycle must be reported as ProjectionCycle.");
         }
 
+        /// <summary>
+        /// Verifies that view version is stable across an unchanged build and changes on membership change.
+        /// </summary>
         [Test]
         public async Task ViewVersionIsStableAcrossAnUnchangedBuildAndChangesOnMembershipChange()
         {
@@ -242,9 +297,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ["urn:sourceA#beta"] = s_betaNode
             });
             WotViewProjectionResult first =
-                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
             WotViewProjectionResult second =
-                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
 
             Assert.That(second.Plan!.ViewVersion, Is.EqualTo(first.Plan!.ViewVersion),
                 "An unchanged resolved membership must yield the same ViewVersion.");
@@ -254,7 +309,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ["urn:sourceA#alpha"] = s_alphaNode
             });
             WotViewProjectionResult changed =
-                await Build(Builder(reduced, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(reduced, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
 
             Assert.That(changed.Plan!.ViewVersion, Is.Not.EqualTo(first.Plan!.ViewVersion),
                 "A changed resolved membership must change the ViewVersion.");
@@ -277,9 +332,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
 
             WotViewProjectionResult inOrder =
-                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(full, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
             WotViewProjectionResult reordered =
-                await Build(Builder(full, ("urn:sourceA", SourceAReordered)), SimpleProjection);
+                await Build(Builder(full, ("urn:sourceA", SourceAReordered)), SimpleProjection).ConfigureAwait(false);
 
             Assert.That(inOrder.Success, Is.True);
             Assert.That(reordered.Success, Is.True);
@@ -321,9 +376,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
 
             WotViewProjectionResult two =
-                await Build(Builder(twoMembers, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(twoMembers, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
             WotViewProjectionResult one =
-                await Build(Builder(oneMember, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(oneMember, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
 
             Assert.That(two.Success, Is.True);
             Assert.That(one.Success, Is.True);
@@ -360,9 +415,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ];
 
             WotViewProjectionResult first = await Build(
-                Builder(index, documents), TwoUnnamedGroupsProjection);
+                Builder(index, documents), TwoUnnamedGroupsProjection).ConfigureAwait(false);
             WotViewProjectionResult swapped = await Build(
-                Builder(index, documents), TwoUnnamedGroupsReorderedProjection);
+                Builder(index, documents), TwoUnnamedGroupsReorderedProjection).ConfigureAwait(false);
 
             Assert.That(first.Success, Is.True);
             Assert.That(swapped.Success, Is.True);
@@ -401,9 +456,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ];
 
             WotViewProjectionResult twice = await Build(
-                Builder(index, documents), TwoUnnamedGroupsProjection);
+                Builder(index, documents), TwoUnnamedGroupsProjection).ConfigureAwait(false);
             WotViewProjectionResult once = await Build(
-                Builder(index, documents), OneGroupProjection);
+                Builder(index, documents), OneGroupProjection).ConfigureAwait(false);
 
             Assert.That(twice.Success, Is.True);
             Assert.That(once.Success, Is.True);
@@ -423,7 +478,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// sorted ascending by code point and each written as its UTF-8 octet
         /// length, a colon, the string and U+000A, that is
         /// <c>"24:nsu=urn:test:pump;i=1001\n25:nsu=urn:test:pump;s=Alpha\n"</c>,
-        /// whose SHA-256 digest begins 87 C4 C4 9C — 2277819548 big-endian.
+        /// whose SHA-256 digest begins with <c>0x87C4C49C</c> — 2277819548 big-endian.
         /// </summary>
         [Test]
         public async Task ViewVersionMatchesTheSpecifiedAlgorithm()
@@ -436,7 +491,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
 
             WotViewProjectionResult result =
-                await Build(Builder(index, ("urn:sourceA", SourceA)), SimpleProjection);
+                await Build(Builder(index, ("urn:sourceA", SourceA)), SimpleProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Plan!.OrganizedNodeIds, Has.Count.EqualTo(2));
@@ -445,18 +500,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "code-point-sorted portable member identities joined by U+000A.");
         }
 
+        /// <summary>
+        /// Verifies that non projection document does not materialize a view.
+        /// </summary>
         [Test]
         public async Task NonProjectionDocumentDoesNotMaterializeAView()
         {
             var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal));
             WotProjectionViewBuilder builder = Builder(index);
 
-            WotViewProjectionResult result = await Build(builder, SourceA);
+            WotViewProjectionResult result = await Build(builder, SourceA).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Plan, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that thing model projection also materializes a view.
+        /// </summary>
         [Test]
         public async Task ThingModelProjectionAlsoMaterializesAView()
         {
@@ -467,7 +528,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
             WotProjectionViewBuilder builder = Builder(index, ("urn:sourceA", SourceA));
 
-            WotViewProjectionResult result = await Build(builder, ThingModelProjection);
+            WotViewProjectionResult result = await Build(builder, ThingModelProjection).ConfigureAwait(false);
 
             Assert.That(result.Success, Is.True);
             Assert.That(result.Plan!.DocumentKind, Is.EqualTo(WotDocumentKind.ThingModel),
@@ -591,19 +652,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 map[documents[i].Href] = documents[i].Json;
             }
             return new WotProjectionViewBuilder(
-                new MapThingResolver(map), index,
-                new WotNodeSetConverterOptions
+                new MapThingResolver(map), index, new WotNodeSetConverterOptions
                 {
                     ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                },
-                TestNamespaces());
+                }, TestNamespaces());
         }
 
         private static async Task<WotViewProjectionResult> Build(
             WotProjectionViewBuilder builder, string json)
         {
-            using WotDocument document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
-            return await builder.BuildAsync(document);
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
+            return await builder.BuildAsync(document).ConfigureAwait(false);
         }
 
         private static bool HasCode(ArrayOf<WotDiagnostic> diagnostics, WotDiagnosticCode code)
@@ -655,7 +714,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private readonly Dictionary<string, NodeId> m_map;
         }
 
-        private const string SourceA = """
+        private const string SourceA = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -691,7 +750,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// order. The resolved membership is the same set, reached in a different
         /// order, which is what the ViewVersion canonicalization has to absorb.
         /// </summary>
-        private const string SourceAReordered = """
+        private const string SourceAReordered = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -722,7 +781,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string SourceB = """
+        private const string SourceB = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -746,7 +805,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string SourceC = """
+        private const string SourceC = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -879,7 +938,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string SimpleProjection = """
+        private const string SimpleProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -903,7 +962,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string ThingModelProjection = """
+        private const string ThingModelProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -933,7 +992,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// reaching the organized Nodes requires walking through to
         /// <c>urn:sourceA</c>.
         /// </summary>
-        private const string ProjectionOverProjection = """
+        private const string ProjectionOverProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -957,7 +1016,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string OuterGroupProjection = """
+        private const string OuterGroupProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -984,7 +1043,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string InnerGroupProjection = """
+        private const string InnerGroupProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1012,7 +1071,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// A second group document, so a projection can organize two groups that
         /// carry no uav:refName and therefore tie on it.
         /// </summary>
-        private const string SecondInnerGroupProjection = """
+        private const string SecondInnerGroupProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1036,7 +1095,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string NestedGroupProjection = """
+        private const string NestedGroupProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1068,7 +1127,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Node once can be compared with one that reaches the same Node
         /// through two groups.
         /// </summary>
-        private const string OneGroupProjection = """
+        private const string OneGroupProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1098,7 +1157,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// A projection organizing two groups, neither carrying uav:refName.
         /// </summary>
-        private const string TwoUnnamedGroupsProjection = """
+        private const string TwoUnnamedGroupsProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1130,7 +1189,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <see cref="TwoUnnamedGroupsProjection"/> with the two organizing
         /// links authored in the opposite order.
         /// </summary>
-        private const string TwoUnnamedGroupsReorderedProjection = """
+        private const string TwoUnnamedGroupsReorderedProjection = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1158,7 +1217,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string CycleProjectionA = """
+        private const string CycleProjectionA = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",
@@ -1185,7 +1244,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
         """;
 
-        private const string CycleProjectionB = """
+        private const string CycleProjectionB = /*lang=json,strict*/ """
         {
           "@context": [
             "https://www.w3.org/2022/wot/td/v1.1",

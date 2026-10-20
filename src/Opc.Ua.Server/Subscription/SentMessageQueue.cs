@@ -54,19 +54,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates an empty queue for a new subscription (next sequence number 1, no sent messages).
         /// </summary>
-        /// <param name="subscriptionIdProvider">Returns the owning subscription's id (read lazily so it is current).</param>
+        /// <param name="subscriptionIdProvider">
+        /// Returns the owning subscription's id (read lazily so it is current).
+        /// </param>
         /// <param name="maxMessageCount">The maximum number of sent messages retained for republish.</param>
         /// <param name="retransmissionStore">
         /// Optional store that mirrors retransmission state across a <c>RedundantServerSet</c>; <c>null</c> when the
         /// server is not distributed.
         /// </param>
         /// <param name="logger">The logger used to report queue overflow.</param>
+        /// <param name="eventManager">Releases occurrence references when a message payload is recycled.</param>
         public SentMessageQueue(
             Func<uint> subscriptionIdProvider,
             uint maxMessageCount,
             ISubscriptionRetransmissionStore? retransmissionStore,
-            ILogger logger)
-            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0)
+            ILogger logger,
+            EventManager? eventManager = null)
+            : this(subscriptionIdProvider, maxMessageCount, retransmissionStore, logger, [], 1, 0, eventManager)
         {
         }
 
@@ -80,8 +84,10 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage)
+            int lastSentMessage,
+            EventManager? eventManager)
         {
+            m_eventManager = eventManager;
             m_subscriptionIdProvider = subscriptionIdProvider
                 ?? throw new ArgumentNullException(nameof(subscriptionIdProvider));
             MaxMessageCount = maxMessageCount;
@@ -125,7 +131,8 @@ namespace Opc.Ua.Server
             ILogger logger,
             List<NotificationMessage>? sentMessages,
             uint nextSequenceNumber,
-            int lastSentMessage)
+            int lastSentMessage,
+            EventManager? eventManager = null)
         {
             return new SentMessageQueue(
                 subscriptionIdProvider,
@@ -134,7 +141,8 @@ namespace Opc.Ua.Server
                 logger,
                 sentMessages,
                 nextSequenceNumber,
-                lastSentMessage);
+                lastSentMessage,
+                eventManager);
         }
 
         /// <summary>
@@ -185,7 +193,9 @@ namespace Opc.Ua.Server
         /// Returns the next already-queued (but not yet published) message, or <c>null</c> when none is queued.
         /// </summary>
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
-        /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
+        /// <param name="hasItemsToPublish">
+        /// Whether the subscription still has monitored-item notifications pending.
+        /// </param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
         /// <remarks>
         /// The returned message is shared with the queue and is never recycled to the pools.
@@ -206,7 +216,9 @@ namespace Opc.Ua.Server
         /// Returns the next already-queued (but not yet published) message, or <c>null</c> when none is queued.
         /// </summary>
         /// <param name="availableSequenceNumbers">Receives the sequence numbers still available for republish.</param>
-        /// <param name="hasItemsToPublish">Whether the subscription still has monitored-item notifications pending.</param>
+        /// <param name="hasItemsToPublish">
+        /// Whether the subscription still has monitored-item notifications pending.
+        /// </param>
         /// <param name="moreNotifications">Set to <c>true</c> when more messages remain to be published.</param>
         /// <param name="lease">
         /// Receives a reference on the returned message that the caller must release once it no
@@ -338,7 +350,7 @@ namespace Opc.Ua.Server
                 // never handed out, so nobody else references them.
                 for (int ii = 0; ii < overflowCount; ii++)
                 {
-                    NotificationMessageLease.RecyclePayload(messages[ii], rentedItemArrays?[ii]);
+                    NotificationMessageLease.RecyclePayload(messages[ii], rentedItemArrays?[ii], m_eventManager);
                 }
                 messages.RemoveRange(0, overflowCount);
                 rentedItemArrays?.RemoveRange(0, overflowCount);
@@ -369,7 +381,7 @@ namespace Opc.Ua.Server
             m_lastSentMessage = m_sent.Count;
             for (int ii = 0; ii < messages.Count; ii++)
             {
-                m_sent.Add(new NotificationMessageLease(messages[ii], rentedItemArrays?[ii]));
+                m_sent.Add(new NotificationMessageLease(messages[ii], rentedItemArrays?[ii], m_eventManager));
             }
             StoreRetransmissionState(messages, removedSequenceNumbers);
 
@@ -614,6 +626,7 @@ namespace Opc.Ua.Server
         private readonly Func<uint> m_subscriptionIdProvider;
         private readonly ISubscriptionRetransmissionStore? m_retransmissionStore;
         private readonly ILogger m_logger;
+        private readonly EventManager? m_eventManager;
         private uint m_sequenceNumber;
         private int m_lastSentMessage;
         private uint m_mirroredFirstUnsentSequenceNumber;
@@ -624,6 +637,10 @@ namespace Opc.Ua.Server
     /// </summary>
     internal sealed class SentMessageView : IReadOnlyList<NotificationMessage>
     {
+        /// <summary>
+        /// Creates a message view backed by retained notification-message leases.
+        /// </summary>
+        /// <param name="leases">The notification-message leases backing the view.</param>
         public SentMessageView(List<NotificationMessageLease> leases)
         {
             m_leases = leases;
@@ -658,6 +675,13 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SentMessageQueueLog
     {
+        /// <summary>
+        /// Logs notification-message loss caused by the sent-message queue reaching its configured bound.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
+        /// <param name="subscriptionId">The identifier of the owning subscription.</param>
+        /// <param name="maxMessageCount">The configured maximum sent-message queue size.</param>
         [LoggerMessage(EventId = ServerEventIds.SentMessageQueue + 0, Level = LogLevel.Warning,
             Message = "QUEUE OVERFLOW. Dropping {Count} Messages. Increase MaxMessageQueueSize. " +
                 "SubId={SubscriptionId}, MaxMessageQueueSize={MaxMessageCount}")]
