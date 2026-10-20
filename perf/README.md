@@ -51,8 +51,9 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--nodes` | 100 | Values per Read/Write request, or monitored items per subscription. |
 | `--inflight` | 1 | Outstanding requests per session (closed loop). |
 | `--security` | `none` | `none`, `sign` or `encrypt` (Basic256Sha256). |
-| `--client` | `classic` | `classic`: `Session` with the classic subscription engine. `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`). `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
-| `--callback` | `fast` | Classic data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
+| `--client` | `managed` | `managed`: `ManagedSession` with the V2 subscription engine (`DefaultSubscriptionEngineFactory`), used by `sub`, `events` and `counters`. `classic`: `Session` with the classic subscription engine. `shared`: classic sessions on secure channels shared through one `ClientChannelManager`, created one at a time (`--connect-parallel`). |
+| `--pool-notifications` | 0 | 1: the V2 subscription manager recycles notification objects after the handler returns (`ManagedSessionBuilder.WithPoolNotifications`). |
+| `--callback` | `fast` | Classic engine only: data changes through `Subscription.FastDataChangeCallback` (`fast`) or the per-item `MonitoredItem.Notification` event (`item`). |
 | `--subs`, `--pub`, `--write-interval` | 5, 100, 100 | Subscriptions per session, publishing interval and writer interval in ms (`sub`). `events` defaults to 15 subscriptions; `counters` to a 1000 ms publishing interval. |
 | `--write-nodes` | all | Number of the monitored nodes the writer changes (`sub`), for large subscriptions in which few items change. |
 | `--writers` | 0 | Dedicated writer sessions in addition to `--sessions` (`sub`). 0: the first subscriber session writes. |
@@ -69,10 +70,14 @@ perf/ServerLoadHarness/bin/Release/net10.0/ServerLoadHarness.exe run --scenario 
 | `--trace-profile` | `cpu` | `cpu` (sampled thread time), `alloc` (allocation ticks), `contention` or `gc`. |
 | `--trace-side` | `server` | The process to record: `server` (the child) or `client` (the harness itself). |
 | `--out <file>` | | Append the result block to a file. |
+| `--gc-events` | 1 | 0: turn the in-process GC event listener off (no `client-gc:` line). |
+| `--client-cores` | all | Windows only. Relaunch the client with `DOTNET_PROCESSOR_COUNT=N` (thread pool, GC and `ConcurrentDictionary` sizing) and affinity to the last N allowed processors. If processors remain, pin the server to them. On Linux the process-affinity API changes only the main thread's affinity; use a cgroup (`docker --cpuset-cpus`) or launch under `taskset` instead. |
+| `--client-memory` | unlimited | Emulated client memory budget in MB. Sets the GC heap hard limit to 75 % of that budget; native memory is not capped. |
 
 Environment variables prefixed `SERVER_` are passed to the server process without the prefix,
-for example `SERVER_DOTNET_gcServer=1` to compare garbage collector modes. `DOTNET_gcServer=1`
-set for the harness itself switches the client.
+for example `SERVER_DOTNET_gcServer=1` to compare garbage collector modes. GC settings set for
+the harness itself (`DOTNET_GC*`, `COMPlus_GC*`, for example `DOTNET_gcServer=1` or
+`DOTNET_GCgen0size=0x4000000`) configure only the client: the server child does not inherit them.
 
 Managed subscription setup has a one-minute deadline per subscription. Rejected monitored
 items and subscription error or deletion states fail the scenario instead of waiting
@@ -88,6 +93,20 @@ runtime and configuration matched, including background activity and batching.
 On a shared machine, throughput and latency vary
 from run to run, so compare builds with `ab.sh` rather than with two separate runs; see
 [Measurement method](#measurement-method).
+
+The `client-gc:` line uses runtime GC events captured by an in-process `EventListener`.
+It reports the GC mode and collections by condemned generation and trigger
+(`gen2bg` is a background gen2), plus pause and suspension percentiles. A background gen2
+stops the threads more than once, so `pauses` can exceed `n`.
+
+It also reports bytes surviving gen0 and gen1 per collection, the last gen2 and LOH sizes,
+the largest post-collection heap (`peakAfterGcMB`), committed bytes, the heap limit
+(`limitMB`, the hard limit under `--client-memory`), DATAS heap counts and the gen0 budget.
+When `survivedKB/gen0` approaches the gen0 budget, inspect promotion into later generations
+alongside their collection counts. `CollectionCount` in `client-process:` counts a gen1
+collection under both `gen0` and `gen1`; `client-gc:` counts each collection once.
+The fixed log-linear latency histogram (about 1.6 % resolution) records each observation
+without allocating or retaining individual samples.
 
 ## External benchmark workers
 
@@ -202,12 +221,18 @@ dotnet perf/TraceAnalyzer/bin/Release/net10.0/TraceAnalyzer.dll threads trace.ne
 
 `cpu` with a focus frame also lists the callers of that frame and the first `Opc.Ua` frame
 above it, past framework wrappers such as `Monitor.Enter` or `SemaphoreSlim`, and the frame's
-direct callees. `gc` reads a
-trace recorded with `--trace-profile gc`, lists the collections by generation and trigger
-reason and reports the interval between suspension start and stop separately from the whole
-pause. For a long suspension, inspect safe-point and thread-scheduling delays. `samples`
-lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua` frame),
-including the ones `cpu` leaves out.
+direct callees. `gc` reads a trace recorded with `--trace-profile gc`. It lists collections
+by generation, trigger and condemn reason (`condemn budget=gen1` indicates an exhausted gen1
+budget). It reports average phase times for blocking collections outside background GCs:
+marking time and bytes by root type (stacks, handles and old-generation cards), summed across
+Server GC heaps, followed by elapsed plan/relocate/compact and restart time. Background gen2
+collections and foreground collections overlapping them are excluded from the phase averages.
+
+Each pause includes a separate suspension duration. For long suspensions, inspect safe-point
+and thread-scheduling delays. If little data is marked but pauses remain long, compare the
+reported phases before attributing the cost to stack scanning, card scanning or compaction.
+`samples` lists all thread-time samples by type and leaf frame (and by the first `Opc.Ua`
+frame), including the ones `cpu` leaves out.
 
 `suspend <trace> [thresholdMs]` (default 40) reads a `--trace-profile gc` trace and prints every
 GC suspension that took at least the threshold, with the events recorded between SuspendEE
