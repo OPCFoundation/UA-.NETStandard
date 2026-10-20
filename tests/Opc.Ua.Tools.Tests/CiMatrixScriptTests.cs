@@ -489,6 +489,66 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// The oversized net48 server suite is split into exclusive filters,
+        /// while the other frameworks retain their existing single workload.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task ServerNet48FiltersPartitionEligibleTestsExactlyOnceAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] server = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.Server.Tests.csproj", StringComparison.Ordinal)).ToArray();
+            Assert.That(server, Is.Not.Empty);
+
+            string[] serverShards =
+            [
+                "server-node-management",
+                "server-historian",
+                "server-subscriptions",
+                "server-sessions",
+                "server-configuration",
+                "server-runtime",
+                "server-transport",
+                "server-other"
+            ];
+            foreach (IGrouping<string, MatrixEntry> profile in server.GroupBy(entry => entry.Profile))
+            {
+                string[] expectedShards = profile.First().Framework == "net48" ? serverShards : ["all"];
+                Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
+            }
+
+            (string TestName, string ExpectedShard)[] testCases =
+            [
+                ("Opc.Ua.Server.Tests.NodeManager.NodeManagerLifecycleTests.TestAsync", "server-node-management"),
+                ("Opc.Ua.Server.Tests.Fluent.FluentNodeManagerBasePipelineTests.TestAsync", "server-node-management"),
+                ("Opc.Ua.Server.Tests.Historian.HistorianDispatcherTests.TestAsync", "server-historian"),
+                ("Opc.Ua.Server.Tests.SubscriptionTests.TransferSubscriptionAsync", "server-subscriptions"),
+                ("Opc.Ua.Server.Tests.Session.SessionTests.TestAsync", "server-sessions"),
+                ("Opc.Ua.Server.Tests.Configuration.TrustListTests.TestAsync", "server-configuration"),
+                ("Opc.Ua.Server.Tests.RuntimeNodeSet.RuntimeNodeSetTests.TestAsync", "server-runtime"),
+                ("Opc.Ua.Server.Tests.ReverseConnectServerTests.TestAsync", "server-transport"),
+                ("Opc.Ua.Server.Tests.RequestTableTests.TestAsync", "server-other")
+            ];
+            foreach (IGrouping<string, MatrixEntry> profile in server
+                .Where(entry => entry.Framework == "net48")
+                .GroupBy(entry => entry.Profile))
+            {
+                foreach ((string testName, string expectedShard) in testCases)
+                {
+                    string[] matches = profile
+                        .Where(entry => MatchesServerFilter(entry.Filter, testName))
+                        .Select(entry => entry.Shard)
+                        .ToArray();
+                    Assert.That(
+                        matches,
+                        Is.EqualTo(new[] { expectedShard }),
+                        $"Profile '{profile.Key}', test '{testName}'.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Each integration project stays within the standard workload budget,
         /// and the WoT suite is partitioned by namespace and integration
         /// category where the framework run is the longest.
@@ -639,6 +699,54 @@ namespace Opc.Ua.Tools.Tests
                 _ when term.StartsWith("TestCategory=", StringComparison.Ordinal) =>
                     categories.Contains(term["TestCategory=".Length..], StringComparer.OrdinalIgnoreCase),
                 _ => throw new InvalidOperationException($"Unsupported WoT filter term '{term}'.")
+            });
+        }
+
+        /// <summary>
+        /// Evaluates the disjoint name-filter expressions emitted for the
+        /// oversized server suite.
+        /// </summary>
+        private static bool MatchesServerFilter(string filter, string testName)
+        {
+            string[] categories = [];
+            return filter.Split('&').All(term =>
+            {
+                string expression = term.Trim('(', ')');
+                if (expression.StartsWith("TestCategory!=", StringComparison.Ordinal))
+                {
+                    return !categories.Contains(expression["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase);
+                }
+                if (expression.StartsWith("TestCategory=", StringComparison.Ordinal))
+                {
+                    return categories.Contains(expression["TestCategory=".Length..], StringComparer.OrdinalIgnoreCase);
+                }
+
+                string[] alternatives = expression.Split('|');
+                bool matches = alternatives.Any(alternative =>
+                {
+                    const string includePrefix = "FullyQualifiedName~";
+                    const string excludePrefix = "FullyQualifiedName!~";
+                    bool excluded;
+                    string needle;
+                    if (alternative.StartsWith(excludePrefix, StringComparison.Ordinal))
+                    {
+                        excluded = true;
+                        needle = alternative[excludePrefix.Length..];
+                    }
+                    else if (alternative.StartsWith(includePrefix, StringComparison.Ordinal))
+                    {
+                        excluded = false;
+                        needle = alternative[includePrefix.Length..];
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Unsupported server filter term '{alternative}'.");
+                    }
+
+                    bool contains = testName.Contains(needle, StringComparison.OrdinalIgnoreCase);
+                    return excluded ? !contains : contains;
+                });
+                return matches;
             });
         }
 

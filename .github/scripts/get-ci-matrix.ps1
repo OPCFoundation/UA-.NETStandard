@@ -267,9 +267,8 @@ $BatchFixedMinutes = 6
 
 # Test execution gets a consistent 45-minute ceiling for every project. The job
 # timeout adds a fixed 20-minute allowance for checkout, restore, and builds.
-# Keep 45 minutes for mainline too: on hosted Windows, the net48
-# Opc.Ua.Server.Tests run benefits from runner-variance margin within this
-# standard ceiling.
+# Keep 45 minutes for mainline too; projects whose test execution exceeds this
+# standard ceiling are split into filtered shards.
 $PerProjectTimeoutMinutes = 45
 $DedicatedTestProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 
@@ -518,6 +517,80 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                     hangTimeout = ''
                 }
             )
+        }
+        'Opc.Ua.Server.Tests' {
+            if ($framework -ne 'net48') {
+                return @(
+                    @{
+                        id = 'all'
+                        name = 'all'
+                        filter = ''
+                        hangTimeout = ''
+                    }
+                )
+            }
+
+            $groups = @(
+                @{
+                    id = 'server-node-management'
+                    name = 'server-node-management'
+                    terms = @('NodeManager', 'SamplingGroup', 'SamplingInterval', 'NodeState', 'MonitoredNode')
+                }
+                @{
+                    id = 'server-historian'
+                    name = 'server-historian'
+                    terms = @('Historian', 'Aggregate', 'History')
+                }
+                @{
+                    id = 'server-subscriptions'
+                    name = 'server-subscriptions'
+                    terms = @('Subscription', 'MonitoredItem', 'Publish', 'KeepAlive')
+                }
+                @{
+                    id = 'server-sessions'
+                    name = 'server-sessions'
+                    terms = @('Session', 'Identity', 'UserManagement', 'UserDatabase', 'Role', 'Authentication')
+                }
+                @{
+                    id = 'server-configuration'
+                    name = 'server-configuration'
+                    terms = @('Configuration', 'Certificate', 'TrustList', 'KeyCredential', 'Security')
+                }
+                @{
+                    id = 'server-runtime'
+                    name = 'server-runtime'
+                    terms = @('Fluent', 'Hosting', 'RuntimeNodeSet', 'NodeSet', 'StateMachine',
+                        'ComplexType', 'FileSystem', 'AliasNames', 'Program')
+                }
+                @{
+                    id = 'server-transport'
+                    name = 'server-transport'
+                    terms = @('NativeTcp', 'ReverseConnect', 'Transport', 'ReferenceServer', 'Discovery',
+                        'Quickstart')
+                }
+                @{
+                    id = 'server-other'
+                    name = 'server-other'
+                    terms = @()
+                }
+            )
+
+            $assignedTerms = @()
+            foreach ($group in $groups) {
+                $filterTerms = @(
+                    $assignedTerms | ForEach-Object { "FullyQualifiedName!~$_" }
+                )
+                if ($group.terms.Count -gt 0) {
+                    $groupFilter = @(
+                        $group.terms | ForEach-Object { "FullyQualifiedName~$_" }
+                    ) -join '|'
+                    $filterTerms += "($groupFilter)"
+                }
+                $group.filter = $filterTerms -join '&'
+                $group.hangTimeout = ''
+                $assignedTerms += $group.terms
+            }
+            return $groups
         }
         default {
             return @(
