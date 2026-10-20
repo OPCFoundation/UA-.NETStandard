@@ -31,11 +31,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
+            /// <summary>
     /// Routes Nodes to the NodeManagers that own them and lets NodeManagers be added, replaced,
     /// and removed while the server is running.
     /// <para>
@@ -55,20 +56,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the number of registered NodeManagers, including hidden ones.
         /// </summary>
-        public int Count => Volatile.Read(ref m_snapshot).NodeManagers.Length;
+        public int Count => ReadSnapshot.NodeManagers.Length;
 
         /// <summary>
         /// Gets the registered NodeManager at the given position, including hidden ones.
         /// </summary>
         /// <param name="index">The position of the NodeManager.</param>
         public IAsyncNodeManager this[int index]
-            => Volatile.Read(ref m_snapshot).NodeManagers[index];
+            => ReadSnapshot.NodeManagers[index];
 
         /// <summary>
         /// Gets the NodeManagers that serve each namespace index, excluding hidden ones.
         /// </summary>
         public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
-            => Volatile.Read(ref m_snapshot).VisibleNamespaceManagers;
+            => ReadSnapshot.VisibleNamespaceManagers;
+
+        /// <summary>
+        /// Gets the visible NodeManagers in dispatch order and the namespace routes from one
+        /// snapshot, so a service call cannot see the routes of one lifecycle generation and
+        /// the dispatch order of another.
+        /// </summary>
+        public (IAsyncNodeManager[] NodeManagers,
+            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers) GetDispatchView()
+        {
+            RoutingSnapshot snapshot = ReadSnapshot;
+            return (snapshot.VisibleNodeManagers, snapshot.VisibleNamespaceManagers);
+        }
 
         /// <summary>
         /// Adds a NodeManager during server startup, before the namespace routes are built.
@@ -84,11 +97,16 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 m_snapshot = new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
                     snapshot.NamespaceManagers,
-                    snapshot.HiddenNodeManagers);
+                    snapshot.HiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -96,9 +114,13 @@ namespace Opc.Ua.Server
         /// Publishes the namespace routes that were built during server startup.
         /// </summary>
         /// <param name="namespaceManagers">The NodeManagers that serve each namespace index.</param>
+        /// <param name="typeTree">The initial type image owned by the routing snapshot.</param>
+        /// <param name="factory">The initial factory image owned by the routing snapshot.</param>
         /// <exception cref="ArgumentNullException"><paramref name="namespaceManagers"/> is <c>null</c>.</exception>
         public void Initialize(
-            IReadOnlyDictionary<int, List<IAsyncNodeManager>> namespaceManagers)
+            IReadOnlyDictionary<int, List<IAsyncNodeManager>> namespaceManagers,
+            TypeTable? typeTree = null,
+            EncodeableFactory? factory = null)
         {
             if (namespaceManagers is null)
             {
@@ -107,12 +129,17 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 m_snapshot = new RoutingSnapshot(
                     m_snapshot.NodeManagers,
                     namespaceManagers.ToDictionary(
                         entry => entry.Key,
                         entry => (IReadOnlyList<IAsyncNodeManager>)[.. entry.Value]),
-                    m_snapshot.HiddenNodeManagers);
+                    m_snapshot.HiddenNodeManagers,
+                    typeTree ?? m_snapshot.TypeTree,
+                    factory ?? m_snapshot.Factory,
+                    m_snapshot.References,
+                    m_snapshot.ReadImages);
             }
         }
 
@@ -142,6 +169,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
                 {
@@ -183,7 +211,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
                     routes,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -225,6 +257,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = IndexOf(snapshot.NodeManagers, current);
                 if (managerIndex < 2)
@@ -326,7 +359,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     managers,
                     routes,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
                 return currentPosition;
             }
         }
@@ -356,6 +393,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int replacementIndex = IndexOf(
                     snapshot.NodeManagers,
@@ -431,7 +469,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     [.. managers],
                     routes,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -457,6 +499,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
                 if (managerIndex < 2)
@@ -496,7 +539,11 @@ namespace Opc.Ua.Server
                     [
                         .. snapshot.HiddenNodeManagers.Where(manager =>
                             !AreSameManager(manager, registeredManager))
-                    ]);
+                    ],
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
                 return position;
             }
         }
@@ -545,6 +592,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (IndexOf(snapshot.NodeManagers, nodeManager) >= 0)
                 {
@@ -594,7 +642,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     [.. managers],
                     routes,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -613,6 +665,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -648,7 +701,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     snapshot.NodeManagers,
                     routes,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -667,6 +724,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 if (!snapshot.NamespaceManagers.TryGetValue(
                     namespaceIndex,
@@ -699,7 +757,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     snapshot.NodeManagers,
                     routes,
-                    snapshot.HiddenNodeManagers);
+                    snapshot.HiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
                 return true;
             }
         }
@@ -718,6 +780,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -742,7 +805,11 @@ namespace Opc.Ua.Server
                     [
                         .. snapshot.HiddenNodeManagers.Where(manager =>
                             !AreSameManager(manager, nodeManager))
-                    ]);
+                    ],
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -797,6 +864,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
                 int managerIndex = IndexOf(snapshot.NodeManagers, nodeManager);
                 if (managerIndex < 0)
@@ -824,7 +892,11 @@ namespace Opc.Ua.Server
                 m_snapshot = new RoutingSnapshot(
                     snapshot.NodeManagers,
                     snapshot.NamespaceManagers,
-                    hiddenNodeManagers);
+                    hiddenNodeManagers,
+                    snapshot.TypeTree,
+                    snapshot.Factory,
+                    snapshot.References,
+                    snapshot.ReadImages);
             }
         }
 
@@ -835,6 +907,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureMutable();
+                foreach (NodeState node in m_referenceOwners.Keys)
+                {
+                    m_snapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image);
+                    node.ReleaseReferenceView(SelectReferences, image);
+                }
+                m_referenceOwners.Clear();
                 m_snapshot = RoutingSnapshot.Empty;
             }
         }
@@ -846,7 +925,7 @@ namespace Opc.Ua.Server
         public IEnumerator<IAsyncNodeManager> GetEnumerator()
         {
             IAsyncNodeManager[] nodeManagers =
-                Volatile.Read(ref m_snapshot).VisibleNodeManagers;
+                ReadSnapshot.VisibleNodeManagers;
             return ((IEnumerable<IAsyncNodeManager>)nodeManagers).GetEnumerator();
         }
 
@@ -878,7 +957,10 @@ namespace Opc.Ua.Server
         /// Gets whether two entries denote the same NodeManager. Two adapters that wrap the same
         /// synchronous NodeManager count as the same NodeManager.
         /// </summary>
-        private static bool AreSameManager(
+        /// <param name="left">The first manager.</param>
+        /// <param name="right">The second manager.</param>
+        /// <returns><c>true</c> if both denote the same NodeManager; otherwise <c>false</c>.</returns>
+        internal static bool AreSameManager(
             IAsyncNodeManager left,
             IAsyncNodeManager right)
         {
@@ -971,7 +1053,7 @@ namespace Opc.Ua.Server
         /// An immutable view of the routing table. Every mutation publishes a new instance, which
         /// is what allows readers to work without locking.
         /// </summary>
-        private sealed class RoutingSnapshot
+        internal sealed class RoutingSnapshot
         {
             /// <summary>
             /// Initializes a new instance of the <see cref="RoutingSnapshot"/> class and
@@ -980,14 +1062,29 @@ namespace Opc.Ua.Server
             /// <param name="nodeManagers">All registered NodeManagers, in dispatch order.</param>
             /// <param name="namespaceManagers">The NodeManagers serving each namespace index.</param>
             /// <param name="hiddenNodeManagers">The NodeManagers not yet reachable by Clients.</param>
+            /// <param name="typeTree">The type image published with these routes, if supplied.</param>
+            /// <param name="factory">The factory image published with these routes, if supplied.</param>
+            /// <param name="references">The reference images published with these routes, if supplied.</param>
+            /// <param name="readImages">Immutable application state belonging to the registered owners.</param>
             public RoutingSnapshot(
                 IAsyncNodeManager[] nodeManagers,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers,
-                IAsyncNodeManager[] hiddenNodeManagers)
+                IAsyncNodeManager[] hiddenNodeManagers,
+                TypeTable? typeTree = null,
+                EncodeableFactory? factory = null,
+                IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null,
+                IReadOnlyDictionary<IAsyncNodeManager, INodeManagerReadImage>? readImages = null)
             {
                 NodeManagers = nodeManagers;
                 NamespaceManagers = namespaceManagers;
                 HiddenNodeManagers = hiddenNodeManagers;
+                TypeTree = typeTree;
+                Factory = factory;
+                References = references ?? new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
+                ReadImages = readImages is null
+                    ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
+                    : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
+                        .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
@@ -1007,6 +1104,26 @@ namespace Opc.Ua.Server
                 [],
                 new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
                 []);
+
+            /// <summary>
+            /// Gets the type image owned by this routing generation.
+            /// </summary>
+            public TypeTable? TypeTree { get; }
+
+            /// <summary>
+            /// Gets the factory image owned by this routing generation.
+            /// </summary>
+            public EncodeableFactory? Factory { get; }
+
+            /// <summary>
+            /// Gets the in-memory reference images owned by this routing generation.
+            /// </summary>
+            public IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot> References { get; }
+
+            /// <summary>
+            /// Gets the immutable application state owned by this routing generation.
+            /// </summary>
+            public IReadOnlyDictionary<IAsyncNodeManager, INodeManagerReadImage> ReadImages { get; }
 
             /// <summary>
             /// Gets all registered NodeManagers, in dispatch order, including hidden ones.
@@ -1034,6 +1151,39 @@ namespace Opc.Ua.Server
             public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>>
                 VisibleNamespaceManagers
             { get; }
+
+            /// <summary>
+            /// Keeps the captured images but limits continuation dispatch to its retained owners.
+            /// The first two infrastructure managers keep their fixed dispatcher indexes.
+            /// </summary>
+            /// <param name="owners">The retained owners that continuation dispatch is limited to.</param>
+            /// <returns>A snapshot limited to the retained owners.</returns>
+            internal RoutingSnapshot ForContinuation(ArrayOf<IAsyncNodeManager> owners)
+            {
+                IAsyncNodeManager[] managers =
+                [
+                    .. NodeManagers.Where((manager, index) =>
+                        index < 2 || owners.Contains(owner => ReferenceEquals(owner, manager)))
+                ];
+                var routes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
+                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in NamespaceManagers)
+                {
+                    IAsyncNodeManager[] retained =
+                    [
+                        .. route.Value.Where(manager => Array.Exists(
+                            managers, owner => ReferenceEquals(owner, manager)))
+                    ];
+                    if (retained.Length > 0)
+                    {
+                        routes.Add(route.Key, retained);
+                    }
+                }
+                return new RoutingSnapshot(
+                    managers, routes,
+                    [.. HiddenNodeManagers.Where(manager => Array.Exists(
+                        managers, owner => ReferenceEquals(owner, manager)))],
+                    TypeTree, Factory, References, ReadImages);
+            }
 
             /// <summary>
             /// Builds the namespace routes that exclude hidden NodeManagers, dropping namespaces
@@ -1137,6 +1287,497 @@ namespace Opc.Ua.Server
             /// Gets the manager that formerly followed the removed manager.
             /// </summary>
             public IAsyncNodeManager? Next { get; }
+        }
+
+        /// <summary>
+        /// Gets the current published routing revision.
+        /// </summary>
+        internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
+
+        /// <summary>
+        /// Gets the routing revision captured by the current read scope, or the live revision.
+        /// </summary>
+        internal RoutingSnapshot CapturedRevision => ReadSnapshot;
+
+        /// <summary>
+        /// Gets the type tree of the prepared image in use, or the one captured with the routing revision.
+        /// </summary>
+        internal TypeTable? TypeTree => m_preparedTypes.Value ?? ReadSnapshot.TypeTree;
+
+        /// <summary>
+        /// Gets the encodeable factory of the prepared image in use, or the one captured with the routing revision.
+        /// </summary>
+        internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ReadSnapshot.Factory;
+
+        /// <summary>
+        /// Gets the snapshot captured by the current read scope, or the live snapshot.
+        /// </summary>
+        private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
+
+        /// <summary>
+        /// Gets the read image published for a node manager in the active snapshot.
+        /// </summary>
+        /// <param name="owner">The node manager that owns the image.</param>
+        /// <returns>The read image, or null if the owner has none.</returns>
+        internal INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
+        {
+            return ReadSnapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
+        }
+
+        /// <summary>
+        /// Captures a routing snapshot for the current asynchronous flow until the scope is disposed.
+        /// </summary>
+        /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
+        /// <returns>The scope that restores the previous snapshot when disposed.</returns>
+        internal ReadScope Capture(RoutingSnapshot? snapshot = null)
+        {
+            RoutingSnapshot? previous = m_readSnapshot.Value;
+            m_readSnapshot.Value = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
+            return new ReadScope(this, previous);
+        }
+
+        /// <summary>
+        /// Captures a routing snapshot for the rest of the calling async method, like
+        /// <see cref="Capture"/> without the scope.
+        /// </summary>
+        /// <remarks>
+        /// An async method's changes to the execution context end when it returns: its builder
+        /// restores the caller's context, also when it completes synchronously. A capture that
+        /// lasts until the method returns therefore needs no restore, which would change the
+        /// execution context a second time per service call. Only for async methods; a capture
+        /// that must end earlier uses <see cref="Capture"/>.
+        /// </remarks>
+        /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
+        internal void CaptureUntilReturn(RoutingSnapshot? snapshot = null)
+        {
+            RoutingSnapshot? previous = m_readSnapshot.Value;
+            RoutingSnapshot captured = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
+            if (!ReferenceEquals(captured, previous))
+            {
+                m_readSnapshot.Value = captured;
+            }
+        }
+
+        /// <summary>
+        /// Reads the live routing in the current asynchronous flow until the scope is disposed.
+        /// </summary>
+        /// <returns>The scope that restores the previous snapshot when disposed.</returns>
+        internal ReadScope UseLiveRouting()
+        {
+            RoutingSnapshot? previous = m_readSnapshot.Value;
+            m_readSnapshot.Value = null;
+            return new ReadScope(this, previous);
+        }
+
+        /// <summary>
+        /// Uses privately prepared type tree and factory images in the current asynchronous flow until disposed.
+        /// </summary>
+        /// <param name="typeTree">The prepared type tree.</param>
+        /// <param name="factory">The prepared encodeable factory.</param>
+        /// <returns>The scope that restores the previous images when disposed.</returns>
+        internal IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
+        {
+            TypeTable? previous = m_preparedTypes.Value;
+            EncodeableFactory? previousFactory = m_preparedFactory.Value;
+            m_preparedTypes.Value = typeTree;
+            m_preparedFactory.Value = factory;
+            return new TypeScope(this, previous, previousFactory);
+        }
+
+        /// <summary>
+        /// Builds the routing image that results from adding, replacing and removing node managers.
+        /// </summary>
+        /// <param name="candidates">The prepared node managers to add or replace.</param>
+        /// <param name="removed">The node managers to retire.</param>
+        /// <param name="expectedRevision">The revision the batch was prepared against.</param>
+        /// <param name="resolveNamespaces">Resolves the namespace indexes served by a node manager.</param>
+        /// <param name="typeTree">The type tree to publish.</param>
+        /// <param name="factory">The encodeable factory to publish.</param>
+        /// <param name="references">The reference images to publish, or null to keep the current ones.</param>
+        /// <param name="readImages">The read images to publish.</param>
+        /// <returns>The prepared routes that can be reserved and published.</returns>
+        internal PreparedRoutes PrepareBatch(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            RoutingSnapshot expectedRevision,
+            Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
+            TypeTable typeTree,
+            EncodeableFactory factory,
+            IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null,
+            ArrayOf<INodeManagerReadImage> readImages = default)
+        {
+            lock (m_lock)
+            {
+                RoutingSnapshot current = m_snapshot;
+                if (!ReferenceEquals(current, expectedRevision))
+                {
+                    throw new InvalidOperationException("Routing changed after the batch was prepared.");
+                }
+
+                HashSet<IAsyncNodeManager> removals = [.. removed];
+                HashSet<IAsyncNodeManager> publishing = [];
+                var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
+                foreach (PreparedNodeManager candidate in candidates)
+                {
+                    publishing.Add(candidate.NodeManager);
+                    if (candidate.ReplacedNodeManager is { } replaced)
+                    {
+                        removals.Add(replaced);
+                        replacements.Add(replaced, candidate.NodeManager);
+                    }
+                    if (current.NodeManagers.Contains(candidate.NodeManager))
+                    {
+                        throw new InvalidOperationException("A batch candidate is already registered.");
+                    }
+                }
+                foreach (IAsyncNodeManager removedManager in removals)
+                {
+                    if (Array.IndexOf(current.NodeManagers, removedManager) < 2)
+                    {
+                        throw new InvalidOperationException("A batch retirement is not lifecycle-owned.");
+                    }
+                }
+
+                var managers = new List<IAsyncNodeManager>();
+                foreach (IAsyncNodeManager manager in current.NodeManagers)
+                {
+                    if (replacements.TryGetValue(manager, out IAsyncNodeManager? replacement))
+                    {
+                        managers.Add(replacement);
+                    }
+                    else if (!removals.Contains(manager))
+                    {
+                        managers.Add(manager);
+                    }
+                }
+                foreach (PreparedNodeManager candidate in candidates)
+                {
+                    if (candidate.ReplacedNodeManager is null)
+                    {
+                        managers.Add(candidate.NodeManager);
+                    }
+                }
+
+                var routes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
+                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in current.NamespaceManagers)
+                {
+                    IAsyncNodeManager[] retained =
+                    [
+                        .. route.Value.Where(manager => !removals.Contains(manager))
+                    ];
+                    if (retained.Length != 0)
+                    {
+                        routes.Add(route.Key, retained);
+                    }
+                }
+                foreach (PreparedNodeManager candidate in candidates)
+                {
+                    foreach (int index in resolveNamespaces(candidate.NodeManager).Distinct())
+                    {
+                        routes.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? existing);
+                        routes[index] = existing is null
+                            ? [candidate.NodeManager]
+                            : [.. existing.Where(manager => !AreSameManager(manager, candidate.NodeManager)),
+                                candidate.NodeManager];
+                    }
+                }
+                foreach (int index in routes.Keys.ToArray())
+                {
+                    routes[index] = [.. routes[index].OrderBy(manager => managers.IndexOf(manager))];
+                }
+                Dictionary<IAsyncNodeManager, INodeManagerReadImage> images =
+                    current.ReadImages.ToDictionary(
+                        entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
+                var imageOwners = new HashSet<IAsyncNodeManager>(ReadImageOwnerComparer.Instance);
+                foreach (INodeManagerReadImage image in readImages)
+                {
+                    if (image?.Owner is not { } owner || !managers.Any(manager => ReferenceEquals(manager, owner)))
+                    {
+                        throw new InvalidOperationException("A read image has no owner in the prepared routing image.");
+                    }
+                    if (!imageOwners.Add(owner))
+                    {
+                        throw new InvalidOperationException("A publication contains more than one image for an owner.");
+                    }
+                    images[owner] = image;
+                }
+                var next = new RoutingSnapshot(
+                    [.. managers],
+                    routes,
+                    [
+                        .. current.HiddenNodeManagers.Where(manager =>
+                            !removals.Contains(manager) &&
+                            !publishing.Any(candidate => AreSameManager(candidate, manager)))
+                    ],
+                    typeTree,
+                    factory,
+                    references ?? current.References,
+                    images);
+                return new PreparedRoutes(this, current, next);
+            }
+        }
+
+        /// <summary>
+        /// Prepares the reference image of a node that receives external references from a node manager.
+        /// </summary>
+        /// <param name="owner">The node manager that owns the references.</param>
+        /// <param name="node">The node that receives the references.</param>
+        /// <param name="additions">The references to add.</param>
+        /// <param name="removals">The references to remove.</param>
+        /// <param name="next">Receives the prepared reference snapshot of the node.</param>
+        /// <returns>The reference update to reserve, complete or dispose.</returns>
+        internal NodeState.ReferenceUpdate PrepareReferences(
+            IAsyncNodeManager owner,
+            NodeState node,
+            ArrayOf<IReference> additions,
+            ArrayOf<IReference> removals,
+            Dictionary<NodeState, NodeState.ReferenceSnapshot> next)
+        {
+            lock (m_lock)
+            {
+                EnsureMutable();
+                if (m_referenceOwners.TryGetValue(node, out IAsyncNodeManager? existing) &&
+                    !AreSameManager(existing, owner))
+                {
+                    throw new NotSupportedException("A reference image cannot have multiple NodeManager owners.");
+                }
+                NodeState.ReferenceUpdate update = node.PrepareReferences(SelectReferences, additions, removals);
+                m_referenceOwners[node] = owner;
+                next[node] = update.Next;
+                return update;
+            }
+        }
+
+        /// <summary>
+        /// Releases the reference images of all nodes whose references are owned by a node manager.
+        /// </summary>
+        /// <param name="owner">The node manager that owned the references.</param>
+        internal void ReleaseReferences(IAsyncNodeManager owner)
+        {
+            lock (m_lock)
+            {
+                EnsureMutable();
+                NodeState[] nodes =
+                [
+                    .. m_referenceOwners.Where(entry => AreSameManager(entry.Value, owner)).Select(entry => entry.Key)
+                ];
+                if (nodes.Length == 0)
+                {
+                    return;
+                }
+                Dictionary<NodeState, NodeState.ReferenceSnapshot> references =
+                    m_snapshot.References.ToDictionary(entry => entry.Key, entry => entry.Value);
+                bool changed = false;
+                foreach (NodeState node in nodes)
+                {
+                    references.TryGetValue(node, out NodeState.ReferenceSnapshot? image);
+                    node.ReleaseReferenceView(SelectReferences, image);
+                    changed |= references.Remove(node);
+                    m_referenceOwners.Remove(node);
+                }
+                if (changed)
+                {
+                    m_snapshot = new RoutingSnapshot(
+                        m_snapshot.NodeManagers, m_snapshot.NamespaceManagers, m_snapshot.HiddenNodeManagers,
+                        m_snapshot.TypeTree, m_snapshot.Factory, references, m_snapshot.ReadImages);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selects the reference image of a node in the active snapshot.
+        /// </summary>
+        /// <param name="node">The node.</param>
+        /// <returns>The reference snapshot, or null if there is none.</returns>
+        private NodeState.ReferenceSnapshot? SelectReferences(NodeState node)
+        {
+            return ReadSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
+        }
+
+        /// <summary>
+        /// Throws if the routing image is reserved by a pending publication.
+        /// </summary>
+        private void EnsureMutable()
+        {
+            if (m_reservedRoutes is not null)
+            {
+                throw new InvalidOperationException(
+                    "The routing image belongs to a pending publication and cannot be changed.");
+            }
+        }
+
+        private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
+        private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
+        private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
+        private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
+        private PreparedRoutes? m_reservedRoutes;
+
+        /// <summary>
+        /// Compares node manager read image owners by reference.
+        /// </summary>
+        private sealed class ReadImageOwnerComparer : IEqualityComparer<IAsyncNodeManager>
+        {
+            /// <summary>
+            /// Gets the singleton comparer.
+            /// </summary>
+            public static ReadImageOwnerComparer Instance { get; } = new();
+
+            /// <summary>
+            /// Determines whether two node managers are the same instance.
+            /// </summary>
+            /// <param name="left">The first node manager.</param>
+            /// <param name="right">The second node manager.</param>
+            /// <returns>True if both are the same instance.</returns>
+            public bool Equals(IAsyncNodeManager? left, IAsyncNodeManager? right)
+            {
+                return ReferenceEquals(left, right);
+            }
+
+            /// <summary>
+            /// Gets the reference-based hash code of a node manager.
+            /// </summary>
+            /// <param name="owner">The node manager.</param>
+            /// <returns>The hash code.</returns>
+            public int GetHashCode(IAsyncNodeManager owner)
+            {
+                return RuntimeHelpers.GetHashCode(owner);
+            }
+        }
+
+        /// <summary>
+        /// Restores the previous prepared type tree and factory when disposed.
+        /// </summary>
+        /// <param name="owner">The routing table.</param>
+        /// <param name="previous">The previously prepared type tree.</param>
+        /// <param name="previousFactory">The previously prepared factory.</param>
+        private sealed class TypeScope(
+            NodeManagerRoutingTable owner,
+            TypeTable? previous,
+            EncodeableFactory? previousFactory) : IDisposable
+        {
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                NodeManagerRoutingTable? current = Interlocked.Exchange(ref m_owner, null);
+                if (current is not null)
+                {
+                    current.m_preparedTypes.Value = previous;
+                    current.m_preparedFactory.Value = previousFactory;
+                }
+            }
+
+            private NodeManagerRoutingTable? m_owner = owner;
+        }
+
+        /// <summary>
+        /// Restores the previously captured routing snapshot when disposed.
+        /// </summary>
+        internal sealed class ReadScope : IDisposable
+        {
+            /// <summary>
+            /// Creates a read scope.
+            /// </summary>
+            /// <param name="owner">The routing table.</param>
+            /// <param name="previous">The snapshot to restore on disposal.</param>
+            internal ReadScope(NodeManagerRoutingTable owner, RoutingSnapshot? previous)
+            {
+                m_owner = owner;
+                m_previous = previous;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                NodeManagerRoutingTable? owner = Interlocked.Exchange(ref m_owner, null);
+                if (owner is not null)
+                {
+                    owner.m_readSnapshot.Value = m_previous;
+                }
+            }
+
+            private NodeManagerRoutingTable? m_owner;
+            private readonly RoutingSnapshot? m_previous;
+        }
+
+        /// <summary>
+        /// Routing image prepared for a batch that can be reserved and then published.
+        /// </summary>
+        internal sealed class PreparedRoutes : IDisposable
+        {
+            /// <summary>
+            /// Creates prepared routes.
+            /// </summary>
+            /// <param name="owner">The routing table.</param>
+            /// <param name="previous">The snapshot the routes were prepared from.</param>
+            /// <param name="next">The snapshot to publish.</param>
+            internal PreparedRoutes(
+                NodeManagerRoutingTable owner,
+                RoutingSnapshot previous,
+                RoutingSnapshot next)
+            {
+                m_owner = owner;
+                m_previous = previous;
+                m_next = next;
+            }
+
+            /// <summary>
+            /// Reserves the routing table for this publication so that no other routing change can interleave.
+            /// </summary>
+            public void Reserve()
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (m_disposed || m_published || ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        throw new InvalidOperationException("The routing publication is no longer preparable.");
+                    }
+                    if (!ReferenceEquals(m_owner.m_snapshot, m_previous))
+                    {
+                        throw new InvalidOperationException("Routing changed during batch preparation.");
+                    }
+                    m_owner.EnsureMutable();
+                    m_owner.m_reservedRoutes = this;
+                }
+            }
+
+            /// <summary>
+            /// Publishes the prepared snapshot. Repeated calls have no effect.
+            /// </summary>
+            public void Publish()
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (m_published)
+                    {
+                        return;
+                    }
+                    if (m_disposed || !ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        throw new InvalidOperationException("The routing publication has not been reserved.");
+                    }
+                    Volatile.Write(ref m_owner.m_snapshot, m_next);
+                    m_published = true;
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                lock (m_owner.m_lock)
+                {
+                    if (ReferenceEquals(m_owner.m_reservedRoutes, this))
+                    {
+                        m_owner.m_reservedRoutes = null;
+                    }
+                    m_disposed = true;
+                }
+            }
+
+            private readonly NodeManagerRoutingTable m_owner;
+            private readonly RoutingSnapshot m_previous;
+            private readonly RoutingSnapshot m_next;
+            private bool m_published;
+            private bool m_disposed;
         }
     }
 }

@@ -40,7 +40,7 @@ namespace Opc.Ua.XRegistry.Server
     /// <summary>
     /// Projects immutable xRegistry snapshots into a stable browseable group/resource tree.
     /// </summary>
-    public sealed class XRegistryProjectionEngine : IDisposable
+    public sealed partial class XRegistryProjectionEngine : IDisposable
     {
         /// <summary>
         /// Initializes a new projection engine.
@@ -57,6 +57,7 @@ namespace Opc.Ua.XRegistry.Server
                 : registryNodeIdPath;
             m_eventOptions = context.EventOptions;
             m_versionedStrategy = strategy as IXRegistryVersionedProjectionStrategy;
+            m_contextualDelete = strategy as IXRegistryProjectionContextualDelete;
             m_generationProvider = strategy as IXRegistryProjectionGenerationProvider;
             if (m_eventOptions?.EventsEnabled == true)
             {
@@ -91,6 +92,11 @@ namespace Opc.Ua.XRegistry.Server
             WireMethod(registryNode, BrowseNames.GetOrCreateGroup, OnGetOrCreateGroupAsync);
             if (registryNode is RegistryState registryTyped)
             {
+                if (m_generationProvider is not null && registryTyped.Epoch is null)
+                {
+                    registryTyped.AddEpoch(m_context.SystemContext);
+                    await m_context.AddNodeAsync(registryTyped.Epoch!, ct).ConfigureAwait(false);
+                }
                 registryTyped.AddLabels(m_context.SystemContext);
                 WireLabelsContainer(
                     registryTyped.Labels,
@@ -130,16 +136,28 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Reconciles the browseable tree to the latest snapshot without
         /// advancing or diffing event state. Supplied immutable transitions
-        /// remain the sole authority for event ordering.
+        /// are the sole authority for event ordering. The published registry epoch
+        /// identifies the last successfully reconciled projection.
         /// </summary>
+        /// <param name="ct">Cancels reconciliation.</param>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
-            return ReconcileCoreAsync(
-                suppliedGeneration: null,
-                previousEventSnapshot: null,
-                useSuppliedTransition: false,
-                emitEvents: false,
-                ct);
+            if (m_context.ProjectionDispatcher is { } dispatch)
+            {
+                if (m_registryNode is null)
+                {
+                    return default;
+                }
+                ct.ThrowIfCancellationRequested();
+                XRegistryProjectionGeneration generation = CaptureProjectionGeneration();
+                return dispatch(token => ReconcileCoreAsync(
+                    generation,
+                    previousEventSnapshot: null,
+                    useSuppliedTransition: false,
+                    emitEvents: false,
+                    token), ct);
+            }
+            return ReconcileCurrentProjectionAsync(ct);
         }
 
         /// <summary>
@@ -160,6 +178,150 @@ namespace Opc.Ua.XRegistry.Server
                 ct);
         }
 
+        /// <summary>
+        /// Discards a closing Session's projected file handles and logical Resource pins without committing writes.
+        /// </summary>
+        /// <param name="sessionId">The Session that is closing.</param>
+        /// <param name="ct">Cancels waiting to capture the cleanup scope.</param>
+        /// <exception cref="ArgumentException">The SessionId is null.</exception>
+        /// <exception cref="ServiceResultException">
+        /// A file provider does not implement <see cref="IXRegistryProjectedResourceSessionDiscard"/>.
+        /// Supported providers are still cleaned up before BadNotSupported is reported.
+        /// </exception>
+        public async ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+        {
+            if (sessionId.IsNull)
+            {
+                throw new ArgumentException("A SessionId is required.", nameof(sessionId));
+            }
+            var files = new HashSet<IXRegistryProjectedResourceSessionDiscard>();
+            var nodes = new HashSet<ResourceState>();
+            var logicals = new List<LogicalResourceEntry>();
+            var reservations = new List<XRegistryResourceFileReservation>();
+            bool unsupported = false;
+            await m_gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                foreach (KeyValuePair<XRegistryResourceFileReservation, NodeId> reservation in m_resourceReservations)
+                {
+                    if (reservation.Value == sessionId)
+                    {
+                        reservations.Add(reservation.Key);
+                    }
+                }
+                foreach (ResourceEntry prepared in m_preparedVersions.Values)
+                {
+                    CaptureFile(prepared);
+                }
+                foreach (GroupEntry group in m_groups.Values)
+                {
+                    foreach (ResourceEntry resource in group.Resources.Values)
+                    {
+                        CaptureFile(resource);
+                    }
+                    foreach (LogicalResourceEntry logical in group.LogicalResources.Values)
+                    {
+                        logicals.Add(logical);
+                        foreach (ResourceEntry version in logical.Versions.Values)
+                        {
+                            CaptureFile(version);
+                        }
+                        lock (m_fileHandlesGate)
+                        {
+                            foreach (KeyValuePair<uint, PinnedFileHandle> pinned in logical.PinnedHandles)
+                            {
+                                if (pinned.Value.SessionId != sessionId ||
+                                    !((ICollection<KeyValuePair<uint, PinnedFileHandle>>)logical.PinnedHandles)
+                                        .Remove(pinned))
+                                {
+                                    continue;
+                                }
+                                nodes.Add(pinned.Value.VersionNode);
+                                if (pinned.Value.Forwarder is IXRegistryProjectedResourceSessionDiscard file)
+                                {
+                                    files.Add(file);
+                                }
+                                else
+                                {
+                                    unsupported = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+
+            foreach (XRegistryResourceFileReservation reservation in reservations)
+            {
+                reservation.InvalidateSession();
+            }
+            foreach (IXRegistryProjectedResourceSessionDiscard file in files)
+            {
+                await file.DiscardSessionAsync(sessionId, CancellationToken.None).ConfigureAwait(false);
+            }
+            foreach (ResourceState node in nodes)
+            {
+                await node.ClearChangeMasksAsync(
+                    m_context.SystemContext,
+                    includeChildren: true,
+                    cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            foreach (LogicalResourceEntry logical in logicals)
+            {
+                string? selected = logical.LogicalNode.VersionId?.Value;
+                if (selected is not null && logical.Versions.TryGetValue(selected, out ResourceEntry? version))
+                {
+                    MirrorFileTypeProperties(logical.LogicalNode, version.Node);
+                }
+                await logical.LogicalNode.ClearChangeMasksAsync(
+                    m_context.SystemContext,
+                    includeChildren: true,
+                    cancellationToken: CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            if (unsupported)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "A projected file provider does not support Session discard.");
+            }
+
+            void CaptureFile(ResourceEntry resource)
+            {
+                nodes.Add(resource.Node);
+                if (resource.File is IXRegistryProjectedResourceSessionDiscard file)
+                {
+                    files.Add(file);
+                }
+                else if (resource.File is not null)
+                {
+                    unsupported = true;
+                }
+            }
+        }
+
+        private XRegistryProjectionGeneration CaptureProjectionGeneration()
+        {
+            return m_generationProvider is null
+                ? new XRegistryProjectionGeneration(m_strategy.Current, null)
+                : m_generationProvider.CaptureProjectionGeneration();
+        }
+
+        private ValueTask ReconcileCurrentProjectionAsync(CancellationToken ct)
+        {
+            return ReconcileCoreAsync(
+                suppliedGeneration: null,
+                previousEventSnapshot: null,
+                useSuppliedTransition: false,
+                emitEvents: false,
+                ct);
+        }
+
         private async ValueTask ReconcileCoreAsync(
             XRegistryProjectionGeneration? suppliedGeneration,
             XRegistryProjectionEventSnapshot? previousEventSnapshot,
@@ -174,10 +336,7 @@ namespace Opc.Ua.XRegistry.Server
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                XRegistryProjectionGeneration generation = suppliedGeneration ??
-                    (m_generationProvider is null
-                        ? new XRegistryProjectionGeneration(m_strategy.Current, null)
-                        : m_generationProvider.CaptureProjectionGeneration());
+                XRegistryProjectionGeneration generation = suppliedGeneration ?? CaptureProjectionGeneration();
                 IXRegistryProjectionSnapshot snapshot = generation.Projection;
                 XRegistryProjectionEventSnapshot? eventSnapshot = generation.Events;
                 if (emitEvents &&
@@ -241,6 +400,15 @@ namespace Opc.Ua.XRegistry.Server
                     if (projectionSequence is not null)
                     {
                         m_latestProjectionSequence = projectionSequence.Value;
+                        if (m_registryNode is RegistryState registryWithEpoch && eventSnapshot is not null)
+                        {
+                            SetValue(registryWithEpoch.Epoch, eventSnapshot.Epoch);
+                            await registryWithEpoch.ClearChangeMasksAsync(
+                                m_context.SystemContext,
+                                includeChildren: true,
+                                CancellationToken.None)
+                                .ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -294,6 +462,11 @@ namespace Opc.Ua.XRegistry.Server
                 return;
             }
             m_disposed = true;
+            foreach (ResourceEntry prepared in m_preparedVersions.Values)
+            {
+                prepared.File?.Dispose();
+            }
+            m_preparedVersions.Clear();
             foreach (GroupEntry group in m_groups.Values)
             {
                 foreach (ResourceEntry resource in group.Resources.Values)
@@ -333,13 +506,17 @@ namespace Opc.Ua.XRegistry.Server
                         continue;
                     }
                     if (method.InputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.InputArguments,
+                        string.Equals(
+                            args.BrowseName.Name,
+                            Ua.BrowseNames.InputArguments,
                             StringComparison.Ordinal))
                     {
                         method.InputArguments = args;
                     }
                     else if (method.OutputArguments is null &&
-                        string.Equals(args.BrowseName.Name, Ua.BrowseNames.OutputArguments,
+                        string.Equals(
+                            args.BrowseName.Name,
+                            Ua.BrowseNames.OutputArguments,
                             StringComparison.Ordinal))
                     {
                         method.OutputArguments = args;
@@ -439,8 +616,8 @@ namespace Opc.Ua.XRegistry.Server
             foreach (IXRegistryProjectionResource resource in group.Resources)
             {
                 if (!versionsByResource.TryGetValue(
-                        resource.ResourceId,
-                        out List<IXRegistryProjectionResource>? list))
+                    resource.ResourceId,
+                    out List<IXRegistryProjectionResource>? list))
                 {
                     list = [];
                     versionsByResource[resource.ResourceId] = list;
@@ -462,8 +639,8 @@ namespace Opc.Ua.XRegistry.Server
                     ?? versions[0];
 
                 if (!entry.LogicalResources.TryGetValue(
-                        resourceId,
-                        out LogicalResourceEntry? logical))
+                    resourceId,
+                    out LogicalResourceEntry? logical))
                 {
                     logical = await CreateLogicalResourceNodeAsync(
                         entry,
@@ -498,8 +675,8 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     seenVersions.Add(version.VersionId);
                     if (!logical.Versions.TryGetValue(
-                            version.VersionId,
-                            out ResourceEntry? versionEntry))
+                        version.VersionId,
+                        out ResourceEntry? versionEntry))
                     {
                         versionEntry = await CreateVersionNodeAsync(
                             logical,
@@ -542,8 +719,8 @@ namespace Opc.Ua.XRegistry.Server
                 // that its node exists/was updated in the loop above. Runs for both a
                 // brand-new logical Resource and an existing one being refreshed.
                 if (logical.Versions.TryGetValue(
-                        defaultVersion.VersionId,
-                        out ResourceEntry? defaultVersionEntry))
+                    defaultVersion.VersionId,
+                    out ResourceEntry? defaultVersionEntry))
                 {
                     if (logical.LogicalNode.Labels is not null)
                     {
@@ -577,13 +754,13 @@ namespace Opc.Ua.XRegistry.Server
         {
             GroupState node = m_strategy.CreateGroupNode(m_registryNode!, group);
             NodeId nodeId = GroupNodeId(group.GroupId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
                 new QualifiedName(group.GroupId, m_context.ModelNamespaceIndex),
                 new LocalizedText(group.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.AddCreateResource(m_context.SystemContext)
                 .AddGetOrCreateResource(m_context.SystemContext)
                 .AddDelete(m_context.SystemContext)
@@ -620,12 +797,16 @@ namespace Opc.Ua.XRegistry.Server
 
             await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
             await SyncLabelPropertiesAsync(
-                node.Labels!, GroupNodeIdPath(group.GroupId), group.Labels, ct).ConfigureAwait(false);
+                node.Labels!,
+                GroupNodeIdPath(group.GroupId),
+                group.Labels,
+                ct).ConfigureAwait(false);
             return new GroupEntry(node);
         }
 
         private void ApplyGroupProperties(GroupState node, IXRegistryProjectionGroup group)
         {
+            node.DisplayName = new LocalizedText(group.Name);
             SetValue(node.GroupId, group.GroupId);
             SetValue(node.Xid, group.Xid);
             SetValue(node.Epoch, (uint)group.Epoch);
@@ -665,7 +846,6 @@ namespace Opc.Ua.XRegistry.Server
                 resource.GroupId,
                 resource.ResourceId,
                 resource.VersionId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 nodeId,
@@ -674,6 +854,7 @@ namespace Opc.Ua.XRegistry.Server
                     m_context.ModelNamespaceIndex),
                 new LocalizedText(resource.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.AddVersionId(m_context.SystemContext)
                 .AddFormat(m_context.SystemContext)
                 .AddContentType(m_context.SystemContext)
@@ -785,18 +966,18 @@ namespace Opc.Ua.XRegistry.Server
                     m_resourcesByXid[
                         ResourceSubject(resource.GroupId, resource.ResourceId)] = entry.Node;
                     if (FindEventResource(
-                            eventSnapshot,
-                            resource.GroupId,
-                            resource.ResourceId) is { } logicalResource)
+                        eventSnapshot,
+                        resource.GroupId,
+                        resource.ResourceId) is { } logicalResource)
                     {
                         m_resourcesByXid[logicalResource.Xid] = entry.Node;
                     }
                 }
             }
             else if (FindEventResource(
-                    eventSnapshot,
-                    resource.GroupId,
-                    resource.ResourceId) is { } eventResource)
+                eventSnapshot,
+                resource.GroupId,
+                resource.ResourceId) is { } eventResource)
             {
                 SetValue(entry.Node.MetaEpoch, eventResource.MetaEpoch);
                 SetValue(entry.Node.MetaCreatedAt, (DateTimeUtc)eventResource.MetaCreatedAt);
@@ -831,8 +1012,9 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     continue;
                 }
-                return group.Resources.FirstOrDefault(resource =>
-                    string.Equals(resource.ResourceId, resourceId, StringComparison.Ordinal));
+                return group.Resources.FirstOrDefault(
+                    resource =>
+                        string.Equals(resource.ResourceId, resourceId, StringComparison.Ordinal));
             }
             return null;
         }
@@ -870,13 +1052,13 @@ namespace Opc.Ua.XRegistry.Server
             // Create the logical Resource node — child of the Group.
             ResourceState node = m_strategy.CreateResourceNode(group.Node, defaultVersion);
             NodeId logicalNodeId = LogicalResourceNodeId(groupId, resourceId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 logicalNodeId,
                 new QualifiedName(resourceId, m_context.ModelNamespaceIndex),
                 new LocalizedText(defaultVersion.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
 
             // Logical Resource carries Meta-prefixed members, stable Xid, Delete and Labels.
             node.AddVersionId(m_context.SystemContext)
@@ -898,7 +1080,11 @@ namespace Opc.Ua.XRegistry.Server
             // Delete on the logical Resource always uses Resource-delete semantics.
             node.Delete?.OnCallMethod2Async =
                 (c, m, o, i, ot, t) => OnDeleteLogicalResourceAsync(
-                    groupId, resourceId, c, i, t);
+                    groupId,
+                    resourceId,
+                    c,
+                    i,
+                    t);
 
             WireLabelsContainer(
                 node.MetaLabels,
@@ -915,16 +1101,24 @@ namespace Opc.Ua.XRegistry.Server
             WireLabelsContainer(
                 node.Labels,
                 (c, i, t) => OnAddResourceLabelAsync(
-                    groupId, resourceId, node.VersionId?.Value ?? string.Empty, c, i, t),
+                    groupId,
+                    resourceId,
+                    node.VersionId?.Value ?? string.Empty,
+                    c,
+                    i,
+                    t),
                 (c, i, t) => OnRemoveResourceLabelAsync(
-                    groupId, resourceId, node.VersionId?.Value ?? string.Empty, c, i, t));
+                    groupId,
+                    resourceId,
+                    node.VersionId?.Value ?? string.Empty,
+                    c,
+                    i,
+                    t));
 
             // Create the Versions folder — child of the logical Resource.
             node.AddVersions(m_context.SystemContext);
             ResourceVersionsState versionsFolder = node.Versions!;
             versionsFolder.NodeId = VersionsFolderNodeId(groupId, resourceId);
-            versionsFolder.BrowseName = new QualifiedName(
-                "Versions", m_context.ModelNamespaceIndex);
             versionsFolder.ReferenceTypeId = ReferenceTypeIds.HasComponent;
 
             var logical = new LogicalResourceEntry(node, versionsFolder, groupId, resourceId);
@@ -975,178 +1169,342 @@ namespace Opc.Ua.XRegistry.Server
             ResourceState node = logical.LogicalNode;
 
             node.Open?.OnCall = new OpenMethodStateMethodCallHandler(
-                    (context, method, objectId,
-                     mode, ref fileHandle) =>
+                (
+                    context,
+                    method,
+                    objectId,
+                    mode,
+                    ref fileHandle) =>
+                {
+                    ResourceState? openedVersion = null;
+                    ServiceResult result;
+                    lock (m_fileHandlesGate)
                     {
-                        // Resolve the current default Version by reading VersionId.
-                        // Versions is a ConcurrentDictionary: this read happens on an
-                        // OPC UA method-dispatch thread, outside m_gate, concurrently
-                        // with reconciliation writes under that gate.
+                        if (IsSessionClosing(context))
+                        {
+                            return StatusCodes.BadSessionClosed;
+                        }
                         string? defaultVersionId = node.VersionId?.Value;
                         if (string.IsNullOrEmpty(defaultVersionId) ||
                             !logical.Versions.TryGetValue(defaultVersionId, out ResourceEntry? vEntry) ||
-                            vEntry.File is null)
+                            vEntry.File is not IXRegistryProjectedResourceFileHandleForwarder forwarder)
                         {
                             return StatusCodes.BadNotSupported;
                         }
-
-                        if (vEntry.File is not IXRegistryProjectedResourceFileHandleForwarder forwarder)
-                        {
-                            return StatusCodes.BadNotSupported;
-                        }
-
                         uint underlyingHandle = 0;
-                        ServiceResult result = forwarder.ForwardOpen(
-                            context, method, objectId, mode, ref underlyingHandle);
+                        result = forwarder.ForwardOpen(
+                            context,
+                            method,
+                            objectId,
+                            mode,
+                            ref underlyingHandle);
                         if (ServiceResult.IsGood(result))
                         {
-                            // Allocate an engine-owned synthetic handle: every Version's
-                            // own file manager numbers its underlying handles
-                            // independently starting from 1, so two different Versions
-                            // opened through the logical Resource (e.g. across a default
-                            // switch) can otherwise produce the same underlying handle
-                            // number. Keying PinnedHandles by that raw number alone would
-                            // let a later Open silently overwrite an earlier pin for a
-                            // different Version, misrouting/closing the wrong one.
+                            // Publish the pin in the same critical section as Open, so Session
+                            // cleanup cannot pass between the underlying reservation and its pin.
                             uint syntheticHandle = logical.AllocatePinnedHandle();
                             logical.PinnedHandles[syntheticHandle] = new PinnedFileHandle(
-                                forwarder, vEntry.Node, underlyingHandle, SessionIdOf(context));
+                                forwarder,
+                                vEntry.Node,
+                                underlyingHandle,
+                                SessionIdOf(context));
                             fileHandle = syntheticHandle;
-
-                            // Mirror the resolved Version's FileType Properties (Size,
-                            // OpenCount, ...) onto the logical Resource promptly, rather
-                            // than waiting for the next reconciliation pass.
-                            MirrorFileTypeProperties(node, vEntry.Node);
-                            node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
+                            openedVersion = vEntry.Node;
                         }
-                        return result;
-                    });
+                    }
+                    if (openedVersion is not null && !IsSessionClosing(context))
+                    {
+                        MirrorFileTypeProperties(node, openedVersion);
+                        node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
+                    }
+                    return result;
+                });
+
+            node.Open?.OnCallAsync = (context, method, objectId, mode, ct) =>
+                OpenLogicalResourceAsync(logical, context, method, objectId, mode, ct);
 
             node.Close?.OnCallAsync = new CloseMethodStateMethodAsyncCallHandler(
-                    async (context, method, objectId,
-                           fileHandle, ct) =>
+                async (
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    ct) =>
+                {
+                    // Peek only: do not remove the pin until we know either (a) this
+                    // is not the owning session, in which case the pin must survive
+                    // for the rightful owner's later Close, or (b) the underlying
+                    // manager has actually been given the chance to consume the
+                    // handle. Removing eagerly here previously let a different
+                    // session guess/replay another session's synthetic handle,
+                    // strip the pin, and receive the underlying manager's
+                    // BadUserAccessDenied — after which the underlying writer
+                    // reservation was still held (not released) but the rightful
+                    // owner's own later Close could no longer find its pin at this
+                    // layer, stranding the handle and its writer slot forever.
+                    if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                     {
-                        // Peek only: do not remove the pin until we know either (a) this
-                        // is not the owning session, in which case the pin must survive
-                        // for the rightful owner's later Close, or (b) the underlying
-                        // manager has actually been given the chance to consume the
-                        // handle. Removing eagerly here previously let a different
-                        // session guess/replay another session's synthetic handle,
-                        // strip the pin, and receive the underlying manager's
-                        // BadUserAccessDenied — after which the underlying writer
-                        // reservation was still held (not released) but the rightful
-                        // owner's own later Close could no longer find its pin at this
-                        // layer, stranding the handle and its writer slot forever.
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
+                        return new CloseMethodStateResult
                         {
-                            return new CloseMethodStateResult
-                            {
-                                ServiceResult = ServiceResult.Create(
-                                    StatusCodes.BadInvalidArgument, "Unknown file handle.")
-                            };
-                        }
+                            ServiceResult = ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "Unknown file handle.")
+                        };
+                    }
 
-                        NodeId callerSessionId = SessionIdOf(context);
-                        if (!pinned.SessionId.IsNull &&
-                            !callerSessionId.IsNull &&
-                            pinned.SessionId != callerSessionId)
+                    NodeId callerSessionId = SessionIdOf(context);
+                    if (pinned.SessionId != callerSessionId)
+                    {
+                        // Reject outright without forwarding to the underlying
+                        // manager and without removing the pin, so the rightful
+                        // owner can still close (and release the writer slot) later.
+                        return new CloseMethodStateResult
                         {
-                            // Reject outright without forwarding to the underlying
-                            // manager and without removing the pin, so the rightful
-                            // owner can still close (and release the writer slot) later.
-                            return new CloseMethodStateResult
-                            {
-                                ServiceResult = ServiceResult.Create(
-                                    StatusCodes.BadUserAccessDenied,
-                                    "File handle is owned by another session.")
-                            };
+                            ServiceResult = ServiceResult.Create(
+                                StatusCodes.BadUserAccessDenied,
+                                "File handle is owned by another session.")
+                        };
+                    }
+
+                    // Ownership confirmed, including matching in-process scopes:
+                    // the underlying manager will now either
+                    // release the handle on success, or on any failure path reached
+                    // past its own session check (unknown handle, commit-authorization
+                    // failure, stale content, ...), all of which also remove it from
+                    // the underlying manager's own handle table. It is therefore safe
+                    // to remove our pin unconditionally after forwarding.
+                    ServiceResult result = await pinned.Forwarder.ForwardCloseAsync(
+                        context,
+                        method,
+                        objectId,
+                        pinned.UnderlyingHandle,
+                        ct)
+                        .ConfigureAwait(false);
+                    logical.PinnedHandles.TryRemove(fileHandle, out _);
+
+                    // Close consumes the old pin, but the logical view still belongs
+                    // to the current default. Serialize selection with reconciliation.
+                    await m_gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                    try
+                    {
+                        string? selected = node.VersionId?.Value;
+                        if (selected is not null &&
+                            logical.Versions.TryGetValue(selected, out ResourceEntry? current))
+                        {
+                            MirrorFileTypeProperties(node, current.Node);
                         }
-
-                        // Ownership confirmed (or no session context on either side, e.g.
-                        // an in-process call): the underlying manager will now either
-                        // release the handle on success, or on any failure path reached
-                        // past its own session check (unknown handle, commit-authorization
-                        // failure, stale content, ...), all of which also remove it from
-                        // the underlying manager's own handle table. It is therefore safe
-                        // to remove our pin unconditionally after forwarding.
-                        ServiceResult result = await pinned.Forwarder.ForwardCloseAsync(
-                            context, method, objectId, pinned.UnderlyingHandle, ct)
-                            .ConfigureAwait(false);
-                        logical.PinnedHandles.TryRemove(fileHandle, out _);
-
-                        // Mirror the pinned Version's FileType Properties (OpenCount,
-                        // Size after a commit, ...) onto the logical Resource promptly.
-                        MirrorFileTypeProperties(node, pinned.VersionNode);
-                        node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
-                        return new CloseMethodStateResult { ServiceResult = result };
-                    });
+                    }
+                    finally
+                    {
+                        m_gate.Release();
+                    }
+                    node.ClearChangeMasks(m_context.SystemContext, includeChildren: true);
+                    return new CloseMethodStateResult { ServiceResult = result };
+                });
 
             node.Read?.OnCallAsync = new ReadMethodStateMethodAsyncCallHandler(
-                    async (context, method, objectId,
-                           fileHandle, length, ct) =>
+                async (
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    length,
+                    ct) =>
+                {
+                    if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
+                        return new ReadMethodStateResult
                         {
-                            return new ReadMethodStateResult
-                            {
-                                ServiceResult = ServiceResult.Create(
-                                    StatusCodes.BadInvalidArgument, "Unknown file handle.")
-                            };
-                        }
-                        (ServiceResult status, ByteString data) = await pinned.Forwarder.ForwardReadAsync(
-                            context, method, objectId, pinned.UnderlyingHandle, length, ct)
-                            .ConfigureAwait(false);
-                        return new ReadMethodStateResult { ServiceResult = status, Data = data };
-                    });
+                            ServiceResult = ServiceResult.Create(
+                                StatusCodes.BadInvalidArgument,
+                                "Unknown file handle.")
+                        };
+                    }
+                    (ServiceResult status, ByteString data) = await pinned.Forwarder.ForwardReadAsync(
+                        context,
+                        method,
+                        objectId,
+                        pinned.UnderlyingHandle,
+                        length,
+                        ct)
+                        .ConfigureAwait(false);
+                    return new ReadMethodStateResult { ServiceResult = status, Data = data };
+                });
 
             node.Write?.OnCall = new WriteMethodStateMethodCallHandler(
-                    (context, method, objectId,
-                     fileHandle, data) =>
+                (
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    data) =>
+                {
+                    if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
-                        {
-                            return ServiceResult.Create(
-                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
-                        }
-                        return pinned.Forwarder.ForwardWrite(
-                            context, method, objectId, pinned.UnderlyingHandle, data);
-                    });
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "Unknown file handle.");
+                    }
+                    return pinned.Forwarder.ForwardWrite(
+                        context,
+                        method,
+                        objectId,
+                        pinned.UnderlyingHandle,
+                        data);
+                });
 
             node.GetPosition?.OnCall = new GetPositionMethodStateMethodCallHandler(
-                    (context, method, objectId,
-                     fileHandle, ref position) =>
+                (
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    ref position) =>
+                {
+                    if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
-                        {
-                            return ServiceResult.Create(
-                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
-                        }
-                        return pinned.Forwarder.ForwardGetPosition(
-                            context, method, objectId, pinned.UnderlyingHandle, ref position);
-                    });
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "Unknown file handle.");
+                    }
+                    return pinned.Forwarder.ForwardGetPosition(
+                        context,
+                        method,
+                        objectId,
+                        pinned.UnderlyingHandle,
+                        ref position);
+                });
 
             node.SetPosition?.OnCall = new SetPositionMethodStateMethodCallHandler(
-                    (context, method, objectId,
-                     fileHandle, position) =>
+                (
+                    context,
+                    method,
+                    objectId,
+                    fileHandle,
+                    position) =>
+                {
+                    if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
                     {
-                        if (!logical.PinnedHandles.TryGetValue(fileHandle, out PinnedFileHandle pinned))
-                        {
-                            return ServiceResult.Create(
-                                StatusCodes.BadInvalidArgument, "Unknown file handle.");
-                        }
-                        return pinned.Forwarder.ForwardSetPosition(
-                            context, method, objectId, pinned.UnderlyingHandle, position);
-                    });
+                        return ServiceResult.Create(
+                            StatusCodes.BadInvalidArgument,
+                            "Unknown file handle.");
+                    }
+                    return pinned.Forwarder.ForwardSetPosition(
+                        context,
+                        method,
+                        objectId,
+                        pinned.UnderlyingHandle,
+                        position);
+                });
         }
 
-        /// <summary>
-        /// Mirrors the inherited FileType Properties (Size, Writable, UserWritable,
-        /// OpenCount, MimeType, LastModifiedTime, MaxByteStringLength) from the exact
-        /// Version node currently represented by a logical Resource onto that logical
-        /// Resource's own node, so a client reading these Properties directly on the
-        /// logical Resource observes the represented Version's file state instead of
-        /// stale or default values.
-        /// </summary>
+        private async ValueTask<OpenMethodStateResult> OpenLogicalResourceAsync(
+            LogicalResourceEntry logical,
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            IXRegistryAsyncProjectedResourceFileHandleForwarder? forwarder = null;
+            ResourceState? versionNode = null;
+            uint handle = 0;
+            PinnedFileHandle pending = default;
+            await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                lock (m_fileHandlesGate)
+                {
+                    if (IsSessionClosing(context))
+                    {
+                        return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
+                    string? versionId = logical.LogicalNode.VersionId?.Value;
+                    if (versionId is not null &&
+                        logical.Versions.TryGetValue(versionId, out ResourceEntry? version) &&
+                        version.File is IXRegistryAsyncProjectedResourceFileHandleForwarder asynchronous)
+                    {
+                        forwarder = asynchronous;
+                        versionNode = version.Node;
+                        handle = logical.AllocatePinnedHandle();
+                        pending = new PinnedFileHandle(forwarder, versionNode, 0, SessionIdOf(context));
+                        logical.PinnedHandles[handle] = pending;
+                    }
+                }
+            }
+            finally
+            {
+                m_gate.Release();
+            }
+            if (forwarder is null)
+            {
+                uint legacyHandle = 0;
+                ServiceResult legacy = logical.LogicalNode.Open!.OnCall!(
+                    context,
+                    method,
+                    objectId,
+                    mode,
+                    ref legacyHandle);
+                return new OpenMethodStateResult { ServiceResult = legacy, FileHandle = legacyHandle };
+            }
+            uint underlying = 0;
+            bool returned = false;
+            try
+            {
+                OpenMethodStateResult opened = await forwarder.ForwardOpenAsync(
+                    context,
+                    method,
+                    objectId,
+                    mode,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(opened.ServiceResult))
+                {
+                    return opened;
+                }
+                underlying = opened.FileHandle;
+                cancellationToken.ThrowIfCancellationRequested();
+                lock (m_fileHandlesGate)
+                {
+                    if (IsSessionClosing(context) ||
+                        !logical.PinnedHandles.TryUpdate(
+                            handle,
+                            new PinnedFileHandle(forwarder, versionNode!, underlying, SessionIdOf(context)),
+                            pending))
+                    {
+                        return new OpenMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
+                    string? current = logical.LogicalNode.VersionId?.Value;
+                    if (current is not null && logical.Versions.TryGetValue(current, out ResourceEntry? selected))
+                    {
+                        MirrorFileTypeProperties(logical.LogicalNode, selected.Node);
+                    }
+                }
+                await logical.LogicalNode.ClearChangeMasksAsync(
+                    m_context.SystemContext,
+                    includeChildren: true,
+                    cancellationToken: cancellationToken)
+                    .ConfigureAwait(false);
+                returned = true;
+                return new OpenMethodStateResult { ServiceResult = ServiceResult.Good, FileHandle = handle };
+            }
+            finally
+            {
+                if (!returned)
+                {
+                    logical.PinnedHandles.TryRemove(handle, out _);
+                    if (underlying != 0)
+                    {
+                        await forwarder.ForwardCloseAsync(
+                            context,
+                            method,
+                            objectId,
+                            underlying,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the session a call arrived on, or a null NodeId for an in-process
         /// call or a context without session information.
@@ -1158,7 +1516,20 @@ namespace Opc.Ua.XRegistry.Server
                 : NodeId.Null;
         }
 
-        private static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
+        private static bool IsSessionClosing(ISystemContext context)
+        {
+            return context is SessionSystemContext
+            {
+                OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
+            };
+        }
+
+        /// <summary>
+        /// Mirrors the selected Version's inherited FileType Properties onto its logical Resource.
+        /// </summary>
+        /// <param name="target">The logical Resource that receives the mirrored Properties.</param>
+        /// <param name="source">The selected default Version that owns the Properties.</param>
+        internal static void MirrorFileTypeProperties(ResourceState target, ResourceState source)
         {
             if (source.Size is not null)
             {
@@ -1200,20 +1571,49 @@ namespace Opc.Ua.XRegistry.Server
             string resourceId = version.ResourceId;
             string versionId = version.VersionId;
 
-            // The strategy uses the group node to determine the domain type (TD/TM).
-            // We find the group entry via m_groups, then pass its GroupState.
             GroupState groupNode = m_groups.TryGetValue(groupId, out GroupEntry? ge)
                 ? ge.Node
                 : logical.LogicalNode.Parent as GroupState ?? new GroupState(null);
+            NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
+            ResourceEntry entry = m_preparedVersions.Remove(versionNodeId, out ResourceEntry? prepared)
+                ? prepared
+                : CreateVersionEntry(groupNode, version, eventSnapshot);
+            ResourceState node = entry.Node;
+            ApplyVersionProperties(entry, version, eventSnapshot);
+            m_strategy.ConfigureResourceNode(node, version);
+
+            logical.VersionsFolder.AddChild(node);
+            logical.LogicalNode.AddReference(ReferenceTypeIds.HasNotifier, false, versionNodeId);
+            node.AddReference(ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
+
+            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
+            m_resourcesByXid[version.Xid] = node;
+            await SyncLabelPropertiesAsync(
+                node.Labels!,
+                VersionNodeIdPath(groupId, resourceId, versionId),
+                version.Labels,
+                ct)
+                .ConfigureAwait(false);
+            return entry;
+        }
+
+        private ResourceEntry CreateVersionEntry(
+            GroupState groupNode,
+            IXRegistryProjectionResource version,
+            XRegistryProjectionEventSnapshot? eventSnapshot)
+        {
+            string groupId = version.GroupId;
+            string resourceId = version.ResourceId;
+            string versionId = version.VersionId;
             ResourceState node = m_strategy.CreateResourceNode(groupNode, version);
             NodeId versionNodeId = VersionNodeId(groupId, resourceId, versionId);
-            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
             node.Create(
                 m_context.SystemContext,
                 versionNodeId,
                 new QualifiedName(versionId, m_context.ModelNamespaceIndex),
                 new LocalizedText(version.Name),
                 assignNodeIds: false);
+            node.ReferenceTypeId = ReferenceTypeIds.Organizes;
 
             // Version carries its own Xid, Epoch, Labels, CreatedAt, ModifiedAt, Delete.
             node.AddVersionId(m_context.SystemContext)
@@ -1231,7 +1631,12 @@ namespace Opc.Ua.XRegistry.Server
             // Delete on a Version always uses Version-delete semantics.
             node.Delete?.OnCallMethod2Async =
                 (c, m, o, i, ot, t) => OnDeleteVersionAsync(
-                    groupId, resourceId, versionId, c, i, t);
+                    groupId,
+                    resourceId,
+                    versionId,
+                    c,
+                    i,
+                    t);
 
             WireLabelsContainer(
                 node.Labels,
@@ -1245,20 +1650,6 @@ namespace Opc.Ua.XRegistry.Server
             m_context.SystemContext.AssignInstanceChildNodeIds(node);
             LinkMethodArguments(node, m_context.SystemContext);
 
-            // Wire into the Versions folder and notifier chain.
-            logical.VersionsFolder.AddChild(node);
-            logical.LogicalNode.AddReference(
-                ReferenceTypeIds.HasNotifier, false, versionNodeId);
-            node.AddReference(
-                ReferenceTypeIds.HasNotifier, true, logical.LogicalNode.NodeId);
-
-            await m_context.AddNodeAsync(node, ct).ConfigureAwait(false);
-            m_resourcesByXid[version.Xid] = node;
-            await SyncLabelPropertiesAsync(
-                node.Labels!,
-                VersionNodeIdPath(groupId, resourceId, versionId),
-                version.Labels,
-                ct).ConfigureAwait(false);
             return entry;
         }
 
@@ -1268,6 +1659,7 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventSnapshot? eventSnapshot)
         {
             ResourceState node = logical.LogicalNode;
+            node.DisplayName = new LocalizedText(defaultVersion.Name);
             SetValue(node.ResourceId, defaultVersion.ResourceId);
             node.BrowseName = new QualifiedName(
                 defaultVersion.ResourceId,
@@ -1305,9 +1697,9 @@ namespace Opc.Ua.XRegistry.Server
                     ResourceSubject(defaultVersion.GroupId, defaultVersion.ResourceId)] = node;
             }
             else if (FindEventResource(
-                    eventSnapshot,
-                    defaultVersion.GroupId,
-                    defaultVersion.ResourceId) is { } eventResource)
+                eventSnapshot,
+                defaultVersion.GroupId,
+                defaultVersion.ResourceId) is { } eventResource)
             {
                 SetValue(node.MetaEpoch, eventResource.MetaEpoch);
                 SetValue(node.MetaCreatedAt, (DateTimeUtc)eventResource.MetaCreatedAt);
@@ -1320,6 +1712,7 @@ namespace Opc.Ua.XRegistry.Server
             IXRegistryProjectionResource version,
             XRegistryProjectionEventSnapshot? eventSnapshot)
         {
+            entry.Node.DisplayName = new LocalizedText(version.Name);
             SetValue(entry.Node.ResourceId, version.ResourceId);
             entry.Node.BrowseName = new QualifiedName(
                 version.VersionId,
@@ -1345,8 +1738,8 @@ namespace Opc.Ua.XRegistry.Server
             CancellationToken ct)
         {
             if (!group.LogicalResources.TryGetValue(
-                    resourceId,
-                    out LogicalResourceEntry? logical))
+                resourceId,
+                out LogicalResourceEntry? logical))
             {
                 return;
             }
@@ -1362,7 +1755,9 @@ namespace Opc.Ua.XRegistry.Server
                 m_resourcesByXid.TryRemove(mapped.Key, out _);
             }
             group.Node.RemoveReference(
-                ReferenceTypeIds.HasNotifier, false, logical.LogicalNode.NodeId);
+                ReferenceTypeIds.HasNotifier,
+                false,
+                logical.LogicalNode.NodeId);
             group.Node.RemoveChild(logical.LogicalNode);
             await m_context.DeleteNodeAsync(logical.LogicalNode.NodeId, ct).ConfigureAwait(false);
             group.LogicalResources.Remove(resourceId);
@@ -1384,7 +1779,9 @@ namespace Opc.Ua.XRegistry.Server
                 m_resourcesByXid.TryRemove(mapped.Key, out _);
             }
             logical.LogicalNode.RemoveReference(
-                ReferenceTypeIds.HasNotifier, false, entry.Node.NodeId);
+                ReferenceTypeIds.HasNotifier,
+                false,
+                entry.Node.NodeId);
             logical.VersionsFolder.RemoveChild(entry.Node);
             await m_context.DeleteNodeAsync(entry.Node.NodeId, ct).ConfigureAwait(false);
             logical.Versions.TryRemove(versionId, out _);
@@ -1406,12 +1803,13 @@ namespace Opc.Ua.XRegistry.Server
 
             // Resource-delete: always uses MetaEpoch check, deletes the logical
             // Resource and ALL its Versions.
-            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
+            ServiceResult result = await DeleteProjectedEntityAsync(
                     groupId,
                     resourceId,
                     versionId: string.Empty,
                     deleteLogicalResource: true,
                     expectedEpoch,
+                    context,
                     ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
@@ -1436,12 +1834,13 @@ namespace Opc.Ua.XRegistry.Server
             // Version-delete: always uses that Version's own Epoch check,
             // deletes ONLY that Version. Last-version/default-reassignment
             // rules are applied by the strategy.
-            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
+            ServiceResult result = await DeleteProjectedEntityAsync(
                     groupId,
                     resourceId,
                     versionId,
                     deleteLogicalResource: false,
                     expectedEpoch,
+                    context,
                     ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
@@ -1471,7 +1870,8 @@ namespace Opc.Ua.XRegistry.Server
             if (group is null)
             {
                 return ServiceResult.Create(
-                    StatusCodes.BadNodeIdExists, $"Group '{groupId}' already exists.");
+                    StatusCodes.BadNodeIdExists,
+                    $"Group '{groupId}' already exists.");
             }
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             output.Clear();
@@ -1529,10 +1929,10 @@ namespace Opc.Ua.XRegistry.Server
                 ? await m_strategy.CreateResourceAsync(groupId, resourceId!, ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.CreateResourceAsync(
-                        groupId,
-                        resourceId!,
-                        versionId,
-                        ct)
+                    groupId,
+                    resourceId!,
+                    versionId,
+                    ct)
                     .ConfigureAwait(false);
             if (resource is null)
             {
@@ -1540,12 +1940,12 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     (bool handled, ServiceResult result) =
                         await TryOpenExistingContentlessResourceAsync(
-                                groupId,
-                                resourceId!,
-                                versionId,
-                                context,
-                                output,
-                                ct)
+                            groupId,
+                            resourceId!,
+                            versionId,
+                            context,
+                            output,
+                            ct)
                             .ConfigureAwait(false);
                     if (handled)
                     {
@@ -1569,22 +1969,30 @@ namespace Opc.Ua.XRegistry.Server
 
         private async ValueTask<(bool Handled, ServiceResult Result)>
             TryOpenExistingContentlessResourceAsync(
-            string groupId,
-            string resourceId,
-            string versionId,
-            ISystemContext context,
-            List<Variant> output,
-            CancellationToken ct)
+                string groupId,
+                string resourceId,
+                string versionId,
+                ISystemContext context,
+                List<Variant> output,
+                CancellationToken ct)
         {
+            ResourceEntry? entry = null;
+            IXRegistryAsyncProjectedContentlessResourceFile? asynchronous = null;
+            uint fileHandle = 0;
+            ServiceResult open = ServiceResult.Good;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                ResourceEntry? entry = null;
+                if (IsSessionClosing(context))
+                {
+                    return (true, StatusCodes.BadSessionClosed);
+                }
                 if (m_versionedStrategy is not null)
                 {
                     if (m_groups.TryGetValue(groupId, out GroupEntry? grp) &&
                         grp.LogicalResources.TryGetValue(
-                            resourceId, out LogicalResourceEntry? logical))
+                            resourceId,
+                            out LogicalResourceEntry? logical))
                     {
                         logical.Versions.TryGetValue(versionId, out entry);
                     }
@@ -1603,32 +2011,55 @@ namespace Opc.Ua.XRegistry.Server
                     return (false, ServiceResult.Good);
                 }
 
-                ServiceResult open = contentlessFile.TryOpenContentlessWriteHandle(
-                    context,
-                    out uint fileHandle);
-                if (ServiceResult.IsBad(open))
+                if (contentlessFile is IXRegistryAsyncProjectedContentlessResourceFile asyncFile)
                 {
-                    if (open.StatusCode == StatusCodes.BadInvalidState)
-                    {
-                        return (
-                            true,
-                            ServiceResult.Create(
-                                StatusCodes.BadNodeIdExists,
-                                $"Resource '{resourceId}' already contains document content."));
-                    }
-                    return (true, open);
+                    asynchronous = asyncFile;
                 }
-
-                output.Clear();
-                output.Add(new Variant(entry.Node.NodeId));
-                output.Add(new Variant(entry.VersionId));
-                output.Add(new Variant(fileHandle));
-                return (true, ServiceResult.Good);
+                else
+                {
+                    open = contentlessFile.TryOpenContentlessWriteHandle(context, out fileHandle);
+                }
             }
             finally
             {
                 m_gate.Release();
             }
+            if (asynchronous is not null)
+            {
+                OpenMethodStateResult opened = await asynchronous.OpenContentlessWriteAsync(context, ct)
+                    .ConfigureAwait(false);
+                open = opened.ServiceResult;
+                fileHandle = opened.FileHandle;
+                if (ServiceResult.IsGood(open) && IsSessionClosing(context))
+                {
+                    // Session cleanup won the race against the provider open: release the handle.
+                    if (entry!.File is IXRegistryProjectedResourceFileHandleForwarder forwarder)
+                    {
+                        await forwarder.ForwardCloseAsync(
+                            context,
+                            entry.Node.Close!,
+                            entry.Node.NodeId,
+                            fileHandle,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    return (true, StatusCodes.BadSessionClosed);
+                }
+            }
+            if (ServiceResult.IsBad(open))
+            {
+                return open.StatusCode == StatusCodes.BadInvalidState
+                    ? (
+                        true,
+                        ServiceResult.Create(
+                            StatusCodes.BadNodeIdExists,
+                            $"Resource '{resourceId}' already contains document content."))
+                    : (true, open);
+            }
+            output.Clear();
+            output.Add(new Variant(entry!.Node.NodeId));
+            output.Add(new Variant(entry.VersionId));
+            output.Add(new Variant(fileHandle));
+            return (true, ServiceResult.Good);
         }
 
         private async ValueTask<ServiceResult> OnGetOrCreateResourceAsync(
@@ -1654,10 +2085,10 @@ namespace Opc.Ua.XRegistry.Server
                 ? await m_strategy.GetOrCreateResourceAsync(groupId, resourceId!, ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.GetOrCreateResourceAsync(
-                        groupId,
-                        resourceId!,
-                        versionId,
-                        ct)
+                    groupId,
+                    resourceId!,
+                    versionId,
+                    ct)
                     .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return await CompleteResourceOutputAsync(
@@ -1688,9 +2119,14 @@ namespace Opc.Ua.XRegistry.Server
                 : ResourceNodeId(groupId, resourceId, versionId);
 
             uint fileHandle = 0;
+            ResourceEntry? asynchronous = null;
             await m_gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                if (requestOpen && IsSessionClosing(context))
+                {
+                    return StatusCodes.BadSessionClosed;
+                }
                 if (requestOpen &&
                     m_groups.TryGetValue(groupId, out GroupEntry? group))
                 {
@@ -1698,8 +2134,8 @@ namespace Opc.Ua.XRegistry.Server
                     if (m_versionedStrategy is not null)
                     {
                         if (group.LogicalResources.TryGetValue(
-                                resourceId,
-                                out LogicalResourceEntry? logical))
+                            resourceId,
+                            out LogicalResourceEntry? logical))
                         {
                             logical.Versions.TryGetValue(versionId, out entry);
                         }
@@ -1710,10 +2146,17 @@ namespace Opc.Ua.XRegistry.Server
                     }
                     if (entry?.File is not null)
                     {
-                        ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
-                        if (ServiceResult.IsBad(open))
+                        if (entry.File is IXRegistryAsyncProjectedResourceFileHandleForwarder)
                         {
-                            return open;
+                            asynchronous = entry;
+                        }
+                        else
+                        {
+                            ServiceResult open = entry.File.TryOpenWriteHandle(context, out fileHandle);
+                            if (ServiceResult.IsBad(open))
+                            {
+                                return open;
+                            }
                         }
                     }
                 }
@@ -1721,6 +2164,31 @@ namespace Opc.Ua.XRegistry.Server
             finally
             {
                 m_gate.Release();
+            }
+            if (asynchronous?.File is IXRegistryAsyncProjectedResourceFileHandleForwarder forwarder)
+            {
+                OpenMethodStateResult opened = await forwarder.ForwardOpenAsync(
+                    context,
+                    asynchronous.Node.Open!,
+                    nodeId,
+                    6,
+                    ct).ConfigureAwait(false);
+                if (ServiceResult.IsBad(opened.ServiceResult))
+                {
+                    return opened.ServiceResult;
+                }
+                fileHandle = opened.FileHandle;
+                if (IsSessionClosing(context))
+                {
+                    await forwarder.ForwardCloseAsync(
+                        context,
+                        asynchronous.Node.Close!,
+                        nodeId,
+                        fileHandle,
+                        CancellationToken.None)
+                        .ConfigureAwait(false);
+                    return StatusCodes.BadSessionClosed;
+                }
             }
 
             output.Clear();
@@ -1745,10 +2213,29 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await m_strategy
-                .DeleteGroupAsync(groupId, OptionalEpoch(input, 0), ct).ConfigureAwait(false);
+            long? expectedEpoch = OptionalEpoch(input, 0);
+            ServiceResult result = m_contextualDelete is not null
+                ? await m_contextualDelete.DeleteGroupAsync(groupId, expectedEpoch, context, ct)
+                    .ConfigureAwait(false)
+                : await m_strategy.DeleteGroupAsync(groupId, expectedEpoch, ct).ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
+        }
+
+        private ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? expectedEpoch,
+            ISystemContext context,
+            CancellationToken ct)
+        {
+            return m_contextualDelete is not null
+                ? m_contextualDelete.DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, expectedEpoch, context, ct)
+                : m_versionedStrategy!.DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, expectedEpoch, ct);
         }
 
         private async ValueTask<ServiceResult> OnDeleteResourceAsync(
@@ -1773,17 +2260,18 @@ namespace Opc.Ua.XRegistry.Server
                 ReferenceEquals(logicalResource, node);
             ServiceResult result = m_versionedStrategy is null
                 ? await m_strategy.DeleteResourceAsync(
-                        groupId,
-                        resourceId,
-                        expectedEpoch,
-                        ct)
+                    groupId,
+                    resourceId,
+                    expectedEpoch,
+                    ct)
                     .ConfigureAwait(false)
-                : await m_versionedStrategy.DeleteProjectedEntityAsync(
+                : await DeleteProjectedEntityAsync(
                         groupId,
                         resourceId,
                         versionId,
                         deleteLogicalResource,
                         expectedEpoch,
+                        context,
                         ct)
                     .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
@@ -1866,8 +2354,11 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             ServiceResult result = await m_strategy
-                .AddRegistryLabelAsync(GetString(input, 0) ?? string.Empty, GetString(input, 1) ?? string.Empty,
-                    OptionalEpoch(input, 2), ct)
+                .AddRegistryLabelAsync(
+                    GetString(input, 0) ?? string.Empty,
+                    GetString(input, 1) ?? string.Empty,
+                    OptionalEpoch(input, 2),
+                    ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -1902,8 +2393,12 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             ServiceResult result = await m_strategy
-                .AddGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
-                    GetString(input, 1) ?? string.Empty, OptionalEpoch(input, 2), ct)
+                .AddGroupLabelAsync(
+                    groupId,
+                    GetString(input, 0) ?? string.Empty,
+                    GetString(input, 1) ?? string.Empty,
+                    OptionalEpoch(input, 2),
+                    ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -1921,8 +2416,11 @@ namespace Opc.Ua.XRegistry.Server
                 return access;
             }
             ServiceResult result = await m_strategy
-                .RemoveGroupLabelAsync(groupId, GetString(input, 0) ?? string.Empty,
-                    OptionalEpoch(input, 1), ct)
+                .RemoveGroupLabelAsync(
+                    groupId,
+                    GetString(input, 0) ?? string.Empty,
+                    OptionalEpoch(input, 1),
+                    ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -1943,21 +2441,21 @@ namespace Opc.Ua.XRegistry.Server
             }
             ServiceResult result = m_versionedStrategy is null
                 ? await m_strategy.AddResourceLabelAsync(
-                        groupId,
-                        resourceId,
-                        GetString(input, 0) ?? string.Empty,
-                        GetString(input, 1) ?? string.Empty,
-                        OptionalEpoch(input, 2),
-                        ct)
+                    groupId,
+                    resourceId,
+                    GetString(input, 0) ?? string.Empty,
+                    GetString(input, 1) ?? string.Empty,
+                    OptionalEpoch(input, 2),
+                    ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.AddVersionLabelAsync(
-                        groupId,
-                        resourceId,
-                        versionId,
-                        GetString(input, 0) ?? string.Empty,
-                        GetString(input, 1) ?? string.Empty,
-                        OptionalEpoch(input, 2),
-                        ct)
+                    groupId,
+                    resourceId,
+                    versionId,
+                    GetString(input, 0) ?? string.Empty,
+                    GetString(input, 1) ?? string.Empty,
+                    OptionalEpoch(input, 2),
+                    ct)
                     .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -1978,19 +2476,19 @@ namespace Opc.Ua.XRegistry.Server
             }
             ServiceResult result = m_versionedStrategy is null
                 ? await m_strategy.RemoveResourceLabelAsync(
-                        groupId,
-                        resourceId,
-                        GetString(input, 0) ?? string.Empty,
-                        OptionalEpoch(input, 1),
-                        ct)
+                    groupId,
+                    resourceId,
+                    GetString(input, 0) ?? string.Empty,
+                    OptionalEpoch(input, 1),
+                    ct)
                     .ConfigureAwait(false)
                 : await m_versionedStrategy.RemoveVersionLabelAsync(
-                        groupId,
-                        resourceId,
-                        versionId,
-                        GetString(input, 0) ?? string.Empty,
-                        OptionalEpoch(input, 1),
-                        ct)
+                    groupId,
+                    resourceId,
+                    versionId,
+                    GetString(input, 0) ?? string.Empty,
+                    OptionalEpoch(input, 1),
+                    ct)
                     .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2013,12 +2511,12 @@ namespace Opc.Ua.XRegistry.Server
                 return StatusCodes.BadNotSupported;
             }
             ServiceResult result = await m_versionedStrategy.AddResourceMetaLabelAsync(
-                    groupId,
-                    resourceId,
-                    GetString(input, 0) ?? string.Empty,
-                    GetString(input, 1) ?? string.Empty,
-                    OptionalEpoch(input, 2),
-                    ct)
+                groupId,
+                resourceId,
+                GetString(input, 0) ?? string.Empty,
+                GetString(input, 1) ?? string.Empty,
+                OptionalEpoch(input, 2),
+                ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2041,11 +2539,11 @@ namespace Opc.Ua.XRegistry.Server
                 return StatusCodes.BadNotSupported;
             }
             ServiceResult result = await m_versionedStrategy.RemoveResourceMetaLabelAsync(
-                    groupId,
-                    resourceId,
-                    GetString(input, 0) ?? string.Empty,
-                    OptionalEpoch(input, 1),
-                    ct)
+                groupId,
+                resourceId,
+                GetString(input, 0) ?? string.Empty,
+                OptionalEpoch(input, 1),
+                ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2192,12 +2690,13 @@ namespace Opc.Ua.XRegistry.Server
             NodeId registryNodeId = m_registryNode!.NodeId;
             if (!previous.Labels.SequenceEqual(current.Labels))
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.RegistryUpdated,
-                    current.Xid,
-                    registryNodeId,
-                    current.Epoch,
-                    Changed: ["epoch", "labels", "modifiedat"]));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.RegistryUpdated,
+                        current.Xid,
+                        registryNodeId,
+                        current.Epoch,
+                        Changed: ["epoch", "labels", "modifiedat"]));
             }
 
             var oldGroups =
@@ -2212,20 +2711,23 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     foreach (XRegistryProjectionEventVersion version in resource.Versions)
                     {
-                        changes.Add(new XRegistryEventChange(
-                            XRegistryEventKind.VersionDeleted,
-                            version.Xid,
-                            VersionSourceNode(version, resource)));
+                        changes.Add(
+                            new XRegistryEventChange(
+                                XRegistryEventKind.VersionDeleted,
+                                version.Xid,
+                                VersionSourceNode(version, resource)));
                     }
-                    changes.Add(new XRegistryEventChange(
-                        XRegistryEventKind.ResourceDeleted,
-                        resource.Xid,
-                        ResourceSourceNode(resource)));
+                    changes.Add(
+                        new XRegistryEventChange(
+                            XRegistryEventKind.ResourceDeleted,
+                            resource.Xid,
+                            ResourceSourceNode(resource)));
                 }
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.GroupDeleted,
-                    oldGroup.Xid,
-                    GroupSourceNode(oldGroup)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.GroupDeleted,
+                        oldGroup.Xid,
+                        GroupSourceNode(oldGroup)));
                 AddRegistryCollectionUpdated(changes, current);
             }
 
@@ -2233,17 +2735,19 @@ namespace Opc.Ua.XRegistry.Server
             {
                 if (!oldGroups.TryGetValue(newGroup.GroupId, out XRegistryProjectionEventGroup? oldGroup))
                 {
-                    changes.Add(new XRegistryEventChange(
-                        XRegistryEventKind.GroupCreated,
-                        newGroup.Xid,
-                        GroupSourceNode(newGroup),
-                        newGroup.Epoch));
+                    changes.Add(
+                        new XRegistryEventChange(
+                            XRegistryEventKind.GroupCreated,
+                            newGroup.Xid,
+                            GroupSourceNode(newGroup),
+                            newGroup.Epoch));
                     if (DeprecatedFingerprint(newGroup) is not null)
                     {
-                        changes.Add(new XRegistryEventChange(
-                            XRegistryEventKind.GroupDeprecated,
-                            newGroup.Xid,
-                            GroupSourceNode(newGroup)));
+                        changes.Add(
+                            new XRegistryEventChange(
+                                XRegistryEventKind.GroupDeprecated,
+                                newGroup.Xid,
+                                GroupSourceNode(newGroup)));
                     }
                     AddRegistryCollectionUpdated(changes, current);
                     foreach (XRegistryProjectionEventResource resource in newGroup.Resources)
@@ -2275,17 +2779,18 @@ namespace Opc.Ua.XRegistry.Server
             string? previousDeprecated = DeprecatedFingerprint(previous);
             string? currentDeprecated = DeprecatedFingerprint(current);
             if (!string.Equals(
-                    previousDeprecated,
-                    currentDeprecated,
-                    StringComparison.Ordinal))
+                previousDeprecated,
+                currentDeprecated,
+                StringComparison.Ordinal))
             {
                 groupChanged.Add("deprecated");
-                changes.Add(new XRegistryEventChange(
-                    currentDeprecated is not null
-                        ? XRegistryEventKind.GroupDeprecated
-                        : XRegistryEventKind.GroupUndeprecated,
-                    current.Xid,
-                    GroupSourceNode(current)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        currentDeprecated is not null
+                            ? XRegistryEventKind.GroupDeprecated
+                            : XRegistryEventKind.GroupUndeprecated,
+                        current.Xid,
+                        GroupSourceNode(current)));
             }
 
             var oldResources =
@@ -2297,22 +2802,24 @@ namespace Opc.Ua.XRegistry.Server
             {
                 foreach (XRegistryProjectionEventVersion version in oldResource.Versions)
                 {
-                    changes.Add(new XRegistryEventChange(
-                        XRegistryEventKind.VersionDeleted,
-                        version.Xid,
-                        VersionSourceNode(version, oldResource)));
+                    changes.Add(
+                        new XRegistryEventChange(
+                            XRegistryEventKind.VersionDeleted,
+                            version.Xid,
+                            VersionSourceNode(version, oldResource)));
                 }
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.ResourceDeleted,
-                    oldResource.Xid,
-                    ResourceSourceNode(oldResource)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.ResourceDeleted,
+                        oldResource.Xid,
+                        ResourceSourceNode(oldResource)));
                 AddCollectionChanged(groupChanged, m_eventOptions!.ResourcesAttributeName);
             }
             foreach (XRegistryProjectionEventResource newResource in current.Resources)
             {
                 if (!oldResources.TryGetValue(
-                        newResource.ResourceId,
-                        out XRegistryProjectionEventResource? oldResource))
+                    newResource.ResourceId,
+                    out XRegistryProjectionEventResource? oldResource))
                 {
                     AddCreatedResource(changes, current, newResource);
                     AddCollectionChanged(groupChanged, m_eventOptions!.ResourcesAttributeName);
@@ -2324,12 +2831,13 @@ namespace Opc.Ua.XRegistry.Server
             }
             if (groupChanged.Count > 0)
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.GroupUpdated,
-                    current.Xid,
-                    GroupSourceNode(current),
-                    current.Epoch,
-                    Changed: [.. groupChanged]));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.GroupUpdated,
+                        current.Xid,
+                        GroupSourceNode(current),
+                        current.Epoch,
+                        Changed: [.. groupChanged]));
             }
         }
 
@@ -2338,26 +2846,29 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventGroup group,
             XRegistryProjectionEventResource resource)
         {
-            changes.Add(new XRegistryEventChange(
-                XRegistryEventKind.ResourceCreated,
-                resource.Xid,
-                ResourceSourceNode(resource),
-                resource.Epoch,
-                resource.MetaEpoch));
+            changes.Add(
+                new XRegistryEventChange(
+                    XRegistryEventKind.ResourceCreated,
+                    resource.Xid,
+                    ResourceSourceNode(resource),
+                    resource.Epoch,
+                    resource.MetaEpoch));
             if (DeprecatedFingerprint(resource) is not null)
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.ResourceDeprecated,
-                    resource.Xid,
-                    ResourceSourceNode(resource)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.ResourceDeprecated,
+                        resource.Xid,
+                        ResourceSourceNode(resource)));
             }
             foreach (XRegistryProjectionEventVersion version in resource.Versions)
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.VersionCreated,
-                    version.Xid,
-                    VersionSourceNode(version, resource),
-                    version.Epoch));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.VersionCreated,
+                        version.Xid,
+                        VersionSourceNode(version, resource),
+                        version.Epoch));
             }
         }
 
@@ -2372,9 +2883,9 @@ namespace Opc.Ua.XRegistry.Server
                 resourceChanged.Add("name");
             }
             if (!string.Equals(
-                    previous.Description,
-                    current.Description,
-                    StringComparison.Ordinal))
+                previous.Description,
+                current.Description,
+                StringComparison.Ordinal))
             {
                 resourceChanged.Add("description");
             }
@@ -2394,17 +2905,18 @@ namespace Opc.Ua.XRegistry.Server
             string? previousDeprecated = DeprecatedFingerprint(previous);
             string? currentDeprecated = DeprecatedFingerprint(current);
             if (!string.Equals(
-                    previousDeprecated,
-                    currentDeprecated,
-                    StringComparison.Ordinal))
+                previousDeprecated,
+                currentDeprecated,
+                StringComparison.Ordinal))
             {
                 resourceChanged.Add("meta.deprecated");
-                changes.Add(new XRegistryEventChange(
-                    currentDeprecated is not null
-                        ? XRegistryEventKind.ResourceDeprecated
-                        : XRegistryEventKind.ResourceUndeprecated,
-                    current.Xid,
-                    ResourceSourceNode(current)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        currentDeprecated is not null
+                            ? XRegistryEventKind.ResourceDeprecated
+                            : XRegistryEventKind.ResourceUndeprecated,
+                        current.Xid,
+                        ResourceSourceNode(current)));
             }
 
             var oldVersions =
@@ -2414,23 +2926,25 @@ namespace Opc.Ua.XRegistry.Server
             foreach (XRegistryProjectionEventVersion oldVersion in previous.Versions
                 .Where(version => !newVersions.ContainsKey(version.VersionId)))
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.VersionDeleted,
-                    oldVersion.Xid,
-                    VersionSourceNode(oldVersion, previous)));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.VersionDeleted,
+                        oldVersion.Xid,
+                        VersionSourceNode(oldVersion, previous)));
                 AddVersionCollectionChanged(resourceChanged);
             }
             foreach (XRegistryProjectionEventVersion newVersion in current.Versions)
             {
                 if (!oldVersions.TryGetValue(
-                        newVersion.VersionId,
-                        out XRegistryProjectionEventVersion? oldVersion))
+                    newVersion.VersionId,
+                    out XRegistryProjectionEventVersion? oldVersion))
                 {
-                    changes.Add(new XRegistryEventChange(
-                        XRegistryEventKind.VersionCreated,
-                        newVersion.Xid,
-                        VersionSourceNode(newVersion, current),
-                        newVersion.Epoch));
+                    changes.Add(
+                        new XRegistryEventChange(
+                            XRegistryEventKind.VersionCreated,
+                            newVersion.Xid,
+                            VersionSourceNode(newVersion, current),
+                            newVersion.Epoch));
                     AddVersionCollectionChanged(resourceChanged);
                     continue;
                 }
@@ -2452,16 +2966,17 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 if (versionChanged.Count > 0)
                 {
-                    changes.Add(new XRegistryEventChange(
-                        XRegistryEventKind.VersionUpdated,
-                        newVersion.Xid,
-                        VersionSourceNode(newVersion, current),
-                        newVersion.Epoch,
-                        Changed: [.. versionChanged]));
+                    changes.Add(
+                        new XRegistryEventChange(
+                            XRegistryEventKind.VersionUpdated,
+                            newVersion.Xid,
+                            VersionSourceNode(newVersion, current),
+                            newVersion.Epoch,
+                            Changed: [.. versionChanged]));
                     if (string.Equals(
-                            current.DefaultVersionId,
-                            newVersion.VersionId,
-                            StringComparison.Ordinal))
+                        current.DefaultVersionId,
+                        newVersion.VersionId,
+                        StringComparison.Ordinal))
                     {
                         resourceChanged.AddRange(versionChanged);
                     }
@@ -2469,9 +2984,9 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             if (!string.Equals(
-                    previous.DefaultVersionId,
-                    current.DefaultVersionId,
-                    StringComparison.Ordinal))
+                previous.DefaultVersionId,
+                current.DefaultVersionId,
+                StringComparison.Ordinal))
             {
                 resourceChanged.Add("meta.defaultversionid");
                 AddDefaultVersionAttributes(resourceChanged, previous, previous.DefaultVersionId);
@@ -2480,13 +2995,14 @@ namespace Opc.Ua.XRegistry.Server
 
             if (resourceChanged.Count > 0)
             {
-                changes.Add(new XRegistryEventChange(
-                    XRegistryEventKind.ResourceUpdated,
-                    current.Xid,
-                    ResourceSourceNode(current),
-                    current.Epoch,
-                    current.MetaEpoch,
-                    [.. resourceChanged]));
+                changes.Add(
+                    new XRegistryEventChange(
+                        XRegistryEventKind.ResourceUpdated,
+                        current.Xid,
+                        ResourceSourceNode(current),
+                        current.Epoch,
+                        current.MetaEpoch,
+                        [.. resourceChanged]));
             }
         }
 
@@ -2495,12 +3011,13 @@ namespace Opc.Ua.XRegistry.Server
             XRegistryProjectionEventSnapshot current)
         {
             string attribute = m_eventOptions!.GroupsAttributeName;
-            changes.Add(new XRegistryEventChange(
-                XRegistryEventKind.RegistryUpdated,
-                current.Xid,
-                m_registryNode!.NodeId,
-                current.Epoch,
-                Changed: [attribute, attribute + "count", "epoch", "modifiedat"]));
+            changes.Add(
+                new XRegistryEventChange(
+                    XRegistryEventKind.RegistryUpdated,
+                    current.Xid,
+                    m_registryNode!.NodeId,
+                    current.Epoch,
+                    Changed: [attribute, attribute + "count", "epoch", "modifiedat"]));
         }
 
         private List<XRegistryEventChange> RouteEventChanges(
@@ -2601,9 +3118,9 @@ namespace Opc.Ua.XRegistry.Server
                     return logicalRes.LogicalNode;
                 }
                 if (FindResourceEntry(
-                        groupEntry,
-                        owner.ResourceId,
-                        owner.DefaultVersionId) is { } resourceEntry)
+                    groupEntry,
+                    owner.ResourceId,
+                    owner.DefaultVersionId) is { } resourceEntry)
                 {
                     return resourceEntry.Node;
                 }
@@ -2625,8 +3142,8 @@ namespace Opc.Ua.XRegistry.Server
             }
             // In versioned mode, look in LogicalResources.
             if (group.LogicalResources.TryGetValue(
-                    resourceId,
-                    out LogicalResourceEntry? logical))
+                resourceId,
+                out LogicalResourceEntry? logical))
             {
                 if (!string.IsNullOrEmpty(versionId) &&
                     logical.Versions.TryGetValue(versionId!, out ResourceEntry? version))
@@ -2723,8 +3240,9 @@ namespace Opc.Ua.XRegistry.Server
         {
             return snapshot.Groups
                 .SelectMany(group => group.Resources)
-                .FirstOrDefault(resource =>
-                    string.Equals(resource.Xid, subject, StringComparison.Ordinal));
+                .FirstOrDefault(
+                    resource =>
+                        string.Equals(resource.Xid, subject, StringComparison.Ordinal));
         }
 
         private static XRegistryProjectionEventResource? FindVersionOwner(
@@ -2733,8 +3251,10 @@ namespace Opc.Ua.XRegistry.Server
         {
             return snapshot.Groups
                 .SelectMany(group => group.Resources)
-                .FirstOrDefault(resource => resource.Versions.Any(version =>
-                    string.Equals(version.Xid, subject, StringComparison.Ordinal)));
+                .FirstOrDefault(
+                    resource => resource.Versions.Any(
+                        version =>
+                            string.Equals(version.Xid, subject, StringComparison.Ordinal)));
         }
 
         private NodeId GroupSourceNode(XRegistryProjectionEventGroup group)
@@ -2782,10 +3302,11 @@ namespace Opc.Ua.XRegistry.Server
         {
             return [.. previous.Keys.Concat(current.Keys)
                 .Distinct(StringComparer.Ordinal)
-                .Where(key =>
-                    !previous.TryGetValue(key, out string? oldValue) ||
-                    !current.TryGetValue(key, out string? newValue) ||
-                    !string.Equals(oldValue, newValue, StringComparison.Ordinal))];
+                .Where(
+                    key =>
+                        !previous.TryGetValue(key, out string? oldValue) ||
+                        !current.TryGetValue(key, out string? newValue) ||
+                        !string.Equals(oldValue, newValue, StringComparison.Ordinal))];
         }
 
         private static string? DeprecatedFingerprint(XRegistryProjectionEventGroup group)
@@ -2838,8 +3359,9 @@ namespace Opc.Ua.XRegistry.Server
             string? versionId)
         {
             XRegistryProjectionEventVersion? version = resource.Versions
-                .FirstOrDefault(candidate =>
-                    string.Equals(candidate.VersionId, versionId, StringComparison.Ordinal));
+                .FirstOrDefault(
+                    candidate =>
+                        string.Equals(candidate.VersionId, versionId, StringComparison.Ordinal));
             if (version is not null)
             {
                 changed.Add("versionid");
@@ -2916,8 +3438,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// A file handle pinned by the logical Resource's file forwarding: the
         /// underlying forwarder/handle pair on the exact Version that was the
-        /// resolved default at Open time, that Version's node (used to mirror
-        /// FileType Properties back onto the logical Resource after Open/Close),
+        /// resolved default at Open time, that Version's node (used for Session cleanup),
         /// and the session that opened it (so a different session's Close cannot
         /// remove this pin before the underlying manager gets a chance to reject
         /// it — see <see cref="SessionIdOf"/>).
@@ -2968,7 +3489,7 @@ namespace Opc.Ua.XRegistry.Server
             /// Tracks file handles opened via the logical Resource's <c>Open</c>
             /// method, keyed by an engine-allocated synthetic handle unique within
             /// this logical Resource. Each entry pins the exact Version file-manager
-            /// (and its node, for FileType Property mirroring) that was the resolved
+            /// (and its node, for Session cleanup) that was the resolved
             /// default at <c>Open</c> time. A synthetic handle is required because
             /// every Version's own file manager allocates its underlying handles
             /// independently starting from 1, so two different Versions opened
@@ -2997,10 +3518,12 @@ namespace Opc.Ua.XRegistry.Server
         private readonly XRegistryProjectionContext m_context;
         private readonly IXRegistryProjectionStrategy m_strategy;
         private readonly IXRegistryVersionedProjectionStrategy? m_versionedStrategy;
+        private readonly IXRegistryProjectionContextualDelete? m_contextualDelete;
         private readonly IXRegistryProjectionGenerationProvider? m_generationProvider;
         private readonly XRegistryServerOptions? m_eventOptions;
         private readonly string m_registryNodeIdPath;
         private readonly SemaphoreSlim m_gate = new(1, 1);
+        private readonly Lock m_fileHandlesGate = new();
         private readonly Dictionary<string, GroupEntry> m_groups = new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, ResourceState> m_resourcesByXid = new(StringComparer.Ordinal);
         private readonly HashSet<ulong> m_reportedTransitions = [];

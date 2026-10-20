@@ -46,6 +46,9 @@ namespace Opc.Ua.Server.Tests.Fluent
     [Category("Fluent")]
     public sealed class MonitoredItemFluentTests
     {
+        /// <summary>
+        /// Verifies that a monitored-item pre-creation handler can reject a creation request.
+        /// </summary>
         [Test]
         public async Task PreCreationHandlerCanRefuseRequestsAsync()
         {
@@ -105,6 +108,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that custom monitored items participate in stack lifecycle callbacks and batch hooks.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomItemUsesStackLifecycleAndBatchHooksAsync(
@@ -196,6 +203,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that monitored polling follows active subscriber counts and the fastest requested sampling
+        /// interval.
+        /// </summary>
         [Test]
         public async Task PollWhileMonitoredTracksActiveItemsAndFastestIntervalAsync()
         {
@@ -285,6 +296,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(lastSubscribers, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that a monitored source releases its acquired resource when the last subscriber leaves.
+        /// </summary>
         [Test]
         public async Task AcquireWhileMonitoredReleasesOnLastSubscriberAsync()
         {
@@ -319,6 +333,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.That(released, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that shutdown releases acquired source resources even when a subscription is still active.
+        /// </summary>
         [Test]
         public async Task AcquireWhileMonitoredReleasesAtShutdownWithALiveSubscriptionAsync()
         {
@@ -346,6 +363,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 "a resource held by a live subscription must be released at shutdown");
         }
 
+        /// <summary>
+        /// Verifies that the last-subscriber callback receives a usable cancellation token during shutdown.
+        /// </summary>
         [Test]
         public async Task RawLastSubscriberReceivesUsableShutdownTokenAsync()
         {
@@ -458,6 +478,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             private readonly Action m_onRelease;
         }
 
+        /// <summary>
+        /// Verifies that first-subscriber callbacks can reenter monitored-item operations.
+        /// </summary>
         [Test]
         public async Task FirstSubscriberCanReenterMonitoringOperationsAsync()
         {
@@ -517,6 +540,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
         }
 
+        /// <summary>
+        /// Verifies that a failing custom monitored-item factory rolls back its registration.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomFactoryFailureRollsBackRegistrationAsync(
@@ -534,7 +561,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 },
                 useSamplingGroups).ConfigureAwait(false);
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await harness.CreateAsync(CreateRequest())
                     .ConfigureAwait(false));
             Assert.Multiple(() =>
@@ -544,6 +571,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             });
         }
 
+        /// <summary>
+        /// Verifies that a custom monitored item can request initial-value queuing.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task CustomItemCanQueueInitialValueAsync(
@@ -574,6 +605,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             await harness.DeleteAsync(item!).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a fatal initial read removes the custom monitored item and its registration.
+        /// </summary>
+        /// <param name="useSamplingGroups">Whether the test uses the sampling-group monitored-item manager.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task FatalInitialReadRollsBackCustomItemAsync(
@@ -605,6 +640,110 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(harness.OwnedMonitoredItemCount, Is.Zero);
                 Assert.That(harness.OwnedMonitoredNodeCount, Is.Zero);
             });
+        }
+
+        /// <summary>
+        /// Verifies that push factory rejects node read initialization without leaking items.
+        /// </summary>
+        /// <param name="useSamplingGroups">The use-sampling-groups flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PushFactoryRejectsNodeReadInitializationWithoutLeakingItems(bool useSamplingGroups)
+        {
+            var queue = new Mock<IDataChangeMonitoredItemQueue>();
+            var queues = new Mock<IMonitoredItemQueueFactory>();
+            queues.Setup(factory => factory.CreateDataChangeQueue(false, It.IsAny<uint>())).Returns(queue.Object);
+            using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
+                builder => builder.Node("Value").OnCreateMonitoredItem((context, token) =>
+                    new ValueTask<MonitoredItemCreateDecision>(MonitoredItemCreateDecision.Use(
+                        factory => factory.CreatePushMonitoredItem(), queueInitialValue: true))),
+                useSamplingGroups,
+                queues.Object).ConfigureAwait(false);
+
+            (ServiceResult result, IMonitoredItem? item) = await harness.CreateAsync(CreateRequest())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(item, Is.Null);
+            Assert.That(harness.OwnedMonitoredItemCount, Is.Zero);
+            Assert.That(harness.OwnedMonitoredNodeCount, Is.Zero);
+            queues.Verify(factory => factory.CreateDataChangeQueue(false, It.IsAny<uint>()), Times.Once);
+            queue.Verify(owned => owned.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that subscriber lifecycle rejects unknown attributes.
+        /// </summary>
+        /// <param name="attributeId">The attribute ID used by this test case.</param>
+        [TestCase(0u)]
+        [TestCase(28u)]
+        public async Task SubscriberLifecycleRejectsUnknownAttributes(uint attributeId)
+        {
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            {
+                using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
+                    builder => builder.Node("Value").OnFirstSubscriber(attributeId, (_, _, _) => default))
+                    .ConfigureAwait(false);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that subscriber lifecycle rejects mismatched first and last attributes.
+        /// </summary>
+        [Test]
+        public async Task SubscriberLifecycleRejectsMismatchedFirstAndLastAttributes()
+        {
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
+                    builder => builder.Node("Value")
+                        .OnFirstSubscriber(Attributes.Value, (_, _, _) => default)
+                        .OnLastSubscriber(Attributes.DisplayName, (_, _, _) => default)).ConfigureAwait(false);
+            });
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        /// <summary>
+        /// Verifies that push source mode survives stored item restoration.
+        /// </summary>
+        /// <param name="useSamplingGroups">The use-sampling-groups flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PushSourceModeSurvivesStoredItemRestoration(bool useSamplingGroups)
+        {
+            int reads = 0;
+            using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(
+                builder => builder.Node("Value")
+                    .OnCreateMonitoredItem((context, token) => new ValueTask<MonitoredItemCreateDecision>(
+                        MonitoredItemCreateDecision.Use(factory => factory.CreatePushMonitoredItem())))
+                    .OnRead((context, node, range, encoding, token) =>
+                    {
+                        reads++;
+                        return new ValueTask<AttributeReadResult>(
+                            new AttributeReadResult(ServiceResult.Good, new Variant(99), StatusCodes.Good, default));
+                    }),
+                useSamplingGroups).ConfigureAwait(false);
+            (ServiceResult result, IMonitoredItem? original) = await harness.CreateAsync(CreateRequest())
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(original, Is.TypeOf<MonitoredItem>());
+            IStoredMonitoredItem stored = ((MonitoredItem)original!).ToStorableMonitoredItem();
+            await harness.DeleteAsync(original).ConfigureAwait(false);
+            IMonitoredItem restored = await harness.RestoreAsync(stored).ConfigureAwait(false);
+            try
+            {
+                await harness.SetModeAsync(restored, MonitoringMode.Disabled).ConfigureAwait(false);
+                await harness.SetModeAsync(restored, MonitoringMode.Reporting).ConfigureAwait(false);
+                Assert.That(reads, Is.Zero, "Restoring a push source must not reinstate the unrelated Node read path.");
+                Assert.That(restored.IsReadyToPublish, Is.False,
+                    "Re-enabling must wait for the source, not manufacture a sampled initial value.");
+                ((IDataChangeMonitoredItem2)restored).QueueValue(new DataValue(new Variant(42)), ServiceResult.Good);
+                Assert.That(restored.IsReadyToPublish, Is.True);
+            }
+            finally
+            {
+                await harness.DeleteAsync(restored).ConfigureAwait(false);
+            }
         }
 
         private static MonitoredItemCreateRequest CreateRequest(
@@ -692,11 +831,13 @@ namespace Opc.Ua.Server.Tests.Fluent
             private MonitoredItemHarness(
                 TestMonitoredItemManager manager,
                 MonitoredItemQueueFactory queueFactory,
-                FakeTimeProvider time)
+                FakeTimeProvider time,
+                Mock<IServerInternal> server)
             {
                 Manager = manager;
                 m_queueFactory = queueFactory;
                 Time = time;
+                m_server = server;
             }
 
             public TestMonitoredItemManager Manager { get; }
@@ -707,20 +848,31 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public FakeTimeProvider Time { get; }
 
+            /// <summary>
+            /// Creates a harness hosting a node manager configured through the fluent builder.
+            /// </summary>
+            /// <param name="configure">The callback that configures the node manager builder.</param>
+            /// <param name="useSamplingGroups">The use-sampling-groups flag supplied by the caller.</param>
+            /// <param name="queues">The monitored item queue factory.</param>
             public static async ValueTask<MonitoredItemHarness> CreateAsync(
                 Action<INodeManagerBuilder> configure,
-                bool useSamplingGroups = false)
+                bool useSamplingGroups = false,
+                IMonitoredItemQueueFactory? queues = null)
             {
                 var time = new FakeTimeProvider();
                 Mock<IServerInternal> server =
                     CreateServer(time, out MonitoredItemQueueFactory queueFactory);
+                if (queues is not null)
+                {
+                    server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queues);
+                }
                 var manager = new TestMonitoredItemManager(
                     server.Object,
                     useSamplingGroups);
                 try
                 {
                     await manager.InitializeAsync(configure).ConfigureAwait(false);
-                    return new MonitoredItemHarness(manager, queueFactory, time);
+                    return new MonitoredItemHarness(manager, queueFactory, time, server);
                 }
                 catch
                 {
@@ -758,6 +910,27 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new MonitoredItemIdFactory()).ConfigureAwait(false);
 
                 return (errors[0], monitoredItems[0]);
+            }
+
+            /// <summary>
+            /// Restores a monitored item from its stored representation.
+            /// </summary>
+            /// <param name="stored">The stored monitored item.</param>
+            public async ValueTask<IMonitoredItem> RestoreAsync(IStoredMonitoredItem stored)
+            {
+                var items = new List<IMonitoredItem> { null! };
+                m_server.SetupGet(server => server.IsRunning).Returns(false);
+                try
+                {
+                    await Manager.RestoreMonitoredItemsAsync([stored], items, new UserIdentity()).ConfigureAwait(false);
+                    Assert.That(stored.IsRestored, Is.True);
+                    Assert.That(items[0], Is.Not.Null);
+                    return items[0];
+                }
+                finally
+                {
+                    m_server.SetupGet(server => server.IsRunning).Returns(true);
+                }
             }
 
             public async ValueTask<ServiceResult> ModifyAsync(IMonitoredItem item)
@@ -873,6 +1046,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             private readonly MonitoredItemQueueFactory m_queueFactory;
+            private readonly Mock<IServerInternal> m_server;
         }
 
         private sealed class TestMonitoredItemManager : FluentNodeManagerBase

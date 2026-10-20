@@ -22,6 +22,7 @@ to make remote file-system navigation feel like working with a local disk.
 | `UaPath` | `System.IO.Path` | Helpers for parsing, formatting, combining, and splitting OPC UA file paths. |
 | `FileSystemClientOptions` | n/a | Tuning knobs: `ChunkSize`, `MaxBufferedReadSize`, `PathCacheSize`, type-subtype filters. |
 | `TemporaryFileTransferClient` + `UaTemporaryWriteFile` | n/a | Separate surface for Part 5 §C.5 atomic temp-file transfers (`GenerateFileForRead/Write` + `CloseAndCommit`). |
+| `SessionFileHandle` | n/a | Opaque, generation-bound handle for bounded transfers that must not follow a replacement session. |
 
 ## Contents
 
@@ -33,6 +34,7 @@ to make remote file-system navigation feel like working with a local disk.
   - [Stream a large file](#stream-a-large-file)
   - [Create a directory tree and write a file](#create-a-directory-tree-and-write-a-file)
   - [Move and delete](#move-and-delete)
+  - [Use a file known by its NodeId](#use-a-file-known-by-its-nodeid)
 - [Path syntax](#path-syntax)
 - [Path resolution and caching](#path-resolution-and-caching)
 - [Type classification](#type-classification-filetype-vs-filedirectorytype)
@@ -41,6 +43,7 @@ to make remote file-system navigation feel like working with a local disk.
 - [Error mapping](#error-mapping)
 - [Move, copy, and delete semantics](#move-copy-and-delete-semantics)
 - [Temporary file transfer](#temporary-file-transfer-part-5-c5)
+- [Generation-bound transfers](#generation-bound-transfers)
 - [What lives where](#what-lives-where)
 - [Server-side file bindings](#server-side-file-bindings)
 - [See also](#see-also)
@@ -100,6 +103,30 @@ UaFileInfo file = await fs.GetFileAsync("/Drafts/v1.txt");
 await file.MoveToAsync("/Published/v1.txt");
 
 await fs.DeleteAsync("/Drafts", recursive: true);
+```
+
+### Use a file known by its NodeId
+
+A `FileType` NodeId can come from somewhere other than a path below the
+root, for example from a reference or a method result. Create the
+`UaFileInfo` directly instead of falling back to the raw `FileTypeClient`
+proxy:
+
+```csharp
+// The containing directory is known: every operation is available and
+// the path is the directory's path followed by the BrowseName.
+UaDirectoryInfo reports = await fs.GetDirectoryAsync("/Reports");
+var report = new UaFileInfo(reports, reportNodeId, new QualifiedName("summary.json"));
+await report.RefreshAsync();
+await report.DeleteAsync();
+
+// Only the NodeId is known: the file is detached. It can be refreshed,
+// opened, read and written, but DeleteAsync, MoveToAsync and CopyToAsync
+// throw InvalidOperationException, because those are methods of the
+// containing FileDirectoryType.
+var result = new UaFileInfo(fs, resultFileNodeId, new QualifiedName("result.bin"));
+byte[] bytes = await result.ReadAllBytesAsync();
+bool detached = result.IsDetached; // true; Parent is null
 ```
 
 ## Path syntax
@@ -299,6 +326,80 @@ implicit server rollback) — is sent to the server. The wrapped
 `Stream` cannot accidentally close the server handle; its `Dispose`
 is a no-op.
 
+`FileNodeId` and `Handle` expose the server-allocated identities for companion
+methods that exchange metadata for an open transfer, such as OPC 40083
+production datasets. They do not transfer lifecycle ownership: still commit
+or dispose the wrapper rather than closing the handle separately. Cleanup
+after a closed session uses the normal `BadSecureChannelClosed` protocol
+failure instead of dereferencing a missing channel.
+
+For a bounded generated-file download, `CopyToAsync` accepts a caller-owned
+writable stream and a non-negative byte limit:
+
+```csharp
+var temp = new TemporaryFileTransferClient(managedSession, transferObject);
+long copied = await temp.CopyToAsync(
+    generateOptions: default, destination, maxBytes: 64 * 1024 * 1024, ct);
+```
+
+With a `ManagedSession`, this operation captures one `SessionRequestContext`
+for generation, readiness polling, copying and cleanup. Recovery invalidates
+the operation instead of sending the old handle to a replacement session.
+An already-dispatched generation response is retained even if the caller
+cancels before it returns. A valid returned file node and handle are retained
+for cleanup before non-Good statuses or malformed response metadata are rejected.
+Close calls the standard `FileType.Close` declaration directly, without method
+discovery, using an independent five-second deadline. Transfer and cleanup
+failures are both reported when both occur.
+
+The destination remains open and may contain partial data on failure. An
+ordinary or custom session remains caller-owned; prevent its replacement during
+the transfer. The operation allows at most 1024 file reads of at most 64 KiB
+(or a smaller configured chunk size), including the end-of-file probe, and at
+most 64 generation-state reads.
+
+## Generation-bound transfers
+
+Use [`SessionRequestContext`](Sessions.md#generation-bound-client-requests) when
+retaining a remote file handle across calls. If the owning managed session
+recovers, the transfer fails rather than sending the old handle to its
+replacement.
+
+```csharp
+using Opc.Ua.Client;
+using Opc.Ua.Client.FileSystem;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+await using SessionFileHandle file = await context.OpenFileAsync(fileId, mode: 6, ct);
+long bytes = await file.WriteFromAsync(source, maxBytes: 64 * 1024 * 1024, ct: ct);
+CallMethodResult close = await file.CloseAsync(ct);
+```
+
+`SessionFileHandle` has no raw-handle constructor or import method and cannot be
+attached to another context. Use it sequentially like a stream and dispose it
+before the context. Disposal attempts Close only on the original session;
+cleanup failures are logged without replacing the transfer failure.
+
+For whole transfers, `context.UploadFromWithResultAsync` and
+`context.DownloadToStreamWithResultAsync` return the byte count and unmodified
+Close result, including a refused Close. They enforce chunk and total-byte
+bounds, continue after short nonempty reads, and leave the caller's stream open.
+
+Construct `TemporaryFileTransferClient(context.Session, transferId)` for
+generation-bound temporary transfers. Its context-taking generation overloads
+return `SessionFileHandle`; bounded `UploadFromAsync` and `DownloadToAsync`
+preserve the final method result. Upload returns the file ID, the
+completion-state-machine ID and the actual `CloseAndCommit` result.
+`IsCommitted` remains true if a successful commit has malformed output, so
+disposal does not close the consumed handle again.
+
+Ordinary Close is not an atomic commit or rollback. A known committed result
+is not replaced by late cancellation. Existing raw-handle helpers remain
+compatible, but keep Open/Generate, every chunk and Close/CloseAndUpdate or
+CloseAndCommit on the same captured session; do not recreate a proxy from the
+newly current connection.
+
 ## What lives where
 
 ```
@@ -314,6 +415,7 @@ src/Opc.Ua.Client/FileSystem/
 ├── UaFileInfo.cs                       # System.IO.FileInfo mirror
 ├── UaDirectoryInfo.cs                  # System.IO.DirectoryInfo mirror
 ├── UaFileStream.cs                     # System.IO.Stream mirror
+├── SessionFileHandle.cs                # opaque generation-bound transfer handle
 ├── TemporaryFileTransferClient.cs      # Part 5 §C.5 surface
 └── UaTemporaryWriteFile.cs             # commit/rollback wrapper
 ```
@@ -321,6 +423,17 @@ src/Opc.Ua.Client/FileSystem/
 Tests live under `tests/Opc.Ua.Client.Tests/FileSystem/`.
 
 ## Server-side file bindings
+
+`IFileTypeBinder` / `FileTypeBinder` binds an already-created `FileState` to
+bounded in-memory content and an optional asynchronous commit callback, without
+a separate file-system node manager. It shares `FileHandle` ownership/mode rules
+and the existing response-size calculation. Bindings allow at most 64 open
+handles, one writer, and independent reader snapshots. Temporary writers commit
+through `CommitAsync`; `commitOnClose` selects the ordinary FileType close lifecycle.
+Application commit callbacks run without holding the binding's operation gate, so
+publication can refresh other file bindings. Disposal cancels and drains an active
+commit before releasing its handles. [Machine Vision](Vision.md) uses this
+surface for its specialized transfers and recipe files.
 
 Both lazy `FileSystemNodeManager` nodes and materialized
 `FileDirectoryBinder` nodes protect their mounted root from deletion,
@@ -363,6 +476,15 @@ prevents a rejected erase request from truncating a file held by another
 opener. Failed or cancelled opens release their reservations. If a provider
 returns a stream after session closure or disposal, the system closes it
 instead of publishing it.
+Materialized `FileDirectoryBinder` bindings supplied with a `ServerSystemContext`
+attach to that server's session lifecycle on the first open. Explicit session
+closure and expiry release only that session's handles and pending reservations;
+other sessions keep their readers and positions. Late opens from a closing,
+expired, or removed session return `BadSessionClosed`. No historical session-ID
+list is retained. Binding disposal removes the lifecycle subscription, so the
+application must dispose the binding when its directory is removed or its node
+manager shuts down. A context without a server session manager has no automatic
+session lifecycle; such standalone bindings remain owned by their caller.
 `Read` and `Write` enforce the requested open mode even if the provider's
 stream supports both operations. `SetPosition` clamps positions beyond
 EOF to the current file length. `Writable` describes the provider/file

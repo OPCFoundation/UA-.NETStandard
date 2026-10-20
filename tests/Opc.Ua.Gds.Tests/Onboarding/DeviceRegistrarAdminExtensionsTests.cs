@@ -252,7 +252,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
         }
 
         [Test]
-        public void RegisterTicketsPropagatesCancellationToTicketStore()
+        public async Task RegisterTicketsPropagatesCancellationToTicketStore()
         {
             (_, DeviceRegistrarAdminState registrar) = CreateRegistrar();
             var store = new Mock<ITicketStore>(MockBehavior.Strict);
@@ -273,7 +273,7 @@ namespace Opc.Ua.Gds.Tests.Onboarding
             cts.Cancel();
             List<Variant> outputs = [Variant.Null];
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await registrar.RegisterTickets!.OnCallMethod2Async!(
                     new SystemContext(NUnitTelemetryContext.Create()),
                     registrar.RegisterTickets,

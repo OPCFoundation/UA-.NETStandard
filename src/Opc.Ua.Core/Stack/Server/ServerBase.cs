@@ -1014,7 +1014,7 @@ namespace Opc.Ua
         /// Optional session binding provider supplied by a direct host or its DI container.
         /// Set before startup. Managed servers supply their session manager by default.
         /// </summary>
-        public ISessionBindingProvider? SessionBindingProvider { get; set; }
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
@@ -1141,7 +1141,11 @@ namespace Opc.Ua
         /// <param name="endpointUri">The endpoint Uri.</param>
         /// <param name="endpoints">The description of the endpoints.</param>
         /// <param name="endpointConfiguration">The configuration of the endpoints.</param>
-        /// <param name="listener">The transport listener.</param>
+        /// <param name="listener">
+        /// The transport listener. The server takes ownership of it: an opened
+        /// listener is disposed when the server stops, and a listener that
+        /// fails to open is disposed before the error is rethrown.
+        /// </param>
         /// <param name="certificateValidator">The certificate validator for the transport.</param>
         /// <param name="ct">Cancellation token.</param>
         /// <exception cref="ServiceResultException"></exception>
@@ -1153,6 +1157,8 @@ namespace Opc.Ua
             ICertificateValidatorEx certificateValidator,
             CancellationToken ct = default)
         {
+            bool tracked = false;
+
             // create the stack listener.
             try
             {
@@ -1176,7 +1182,7 @@ namespace Opc.Ua
                     Factory = messageContext.Factory,
                     MaxChannelCount = 0,
                     ChunkReassemblyBudget = chunkReassemblyBudget,
-                    SessionBindingProvider = SessionBindingProvider ?? this as ISessionBindingProvider,
+                    SessionBindingProvider = SessionBindingProvider ?? this as IServerSessionBindingProvider,
                     ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
@@ -1195,6 +1201,7 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 TransportListeners.Add(listener);
+                tracked = true;
 
                 listener.ConnectionStatusChanged += OnConnectionStatusChanged;
             }
@@ -1203,6 +1210,24 @@ namespace Opc.Ua
                 if (m_logger.IsEnabled(LogLevel.Error))
                 {
                     m_logger.ServerBaseLogMessage5(e, endpointUri.Scheme);
+                }
+
+                // Only a listener in TransportListeners is disposed when the
+                // server stops. One that failed to open, e.g. because the port
+                // is taken, has no other owner.
+                if (!tracked)
+                {
+                    try
+                    {
+                        await listener.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception disposeError)
+                    {
+                        if (m_logger.IsEnabled(LogLevel.Error))
+                        {
+                            m_logger.ServerBaseLogMessage3(disposeError, listener.GetType().FullName);
+                        }
+                    }
                 }
                 throw;
             }
@@ -1817,13 +1842,47 @@ namespace Opc.Ua
             RequestHeader requestHeader,
             StringTable stringTable)
         {
-            return new ResponseHeader
-            {
-                Timestamp = DateTime.UtcNow,
-                RequestHandle = requestHeader.RequestHandle,
-                StringTable = stringTable.ToArrayOf()
-            };
+            // fill the default header of the response being built, if the caller offered it
+            ResponseHeader? responseHeader = t_responseHeaderToFill;
+            t_responseHeaderToFill = null;
+            responseHeader ??= new ResponseHeader();
+            responseHeader.Timestamp = DateTime.UtcNow;
+            responseHeader.RequestHandle = requestHeader.RequestHandle;
+            responseHeader.StringTable = stringTable.ToArrayOf();
+            return responseHeader;
         }
+
+        /// <summary>
+        /// Creates the response header through
+        /// <see cref="CreateResponse(RequestHeader, StringTable)"/>, letting its base
+        /// implementation fill <paramref name="responseHeaderToFill"/> instead of allocating
+        /// a header.
+        /// </summary>
+        /// <remarks>
+        /// <paramref name="responseHeaderToFill"/>, if not null, must be the untouched default
+        /// header of a response the caller just constructed and assigns the result to. The base
+        /// implementation takes it at most once; an override that does not call the base, or
+        /// creates another response header first, returns a header of its own, and the
+        /// default header is then replaced (or owned by that other response) as before.
+        /// </remarks>
+        internal ResponseHeader CreateResponse(
+            RequestHeader requestHeader,
+            StringTable stringTable,
+            ResponseHeader? responseHeaderToFill)
+        {
+            t_responseHeaderToFill = responseHeaderToFill;
+            try
+            {
+                return CreateResponse(requestHeader, stringTable);
+            }
+            finally
+            {
+                t_responseHeaderToFill = null;
+            }
+        }
+
+        [ThreadStatic]
+        private static ResponseHeader? t_responseHeaderToFill;
 
         /// <summary>
         /// Called when the server configuration is changed on disk.

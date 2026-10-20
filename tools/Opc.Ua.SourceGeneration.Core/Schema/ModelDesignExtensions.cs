@@ -485,6 +485,28 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format("global::{0}.Namespaces.{1}", ns.Prefix, ns.Name);
         }
 
+        /// <summary>
+        /// Returns the expression for a namespace URI in generated code: the
+        /// model's namespace constant when the model declares the namespace,
+        /// otherwise the URI as an escaped string literal.
+        /// </summary>
+        /// <remarks>
+        /// A namespace the model does not declare can still appear in
+        /// generated code: an inherited child keeps the browse namespace of
+        /// the model that declared it (DI below a Robotics subtype), and a
+        /// reference can target a node of a namespace the NodeSet lists only
+        /// in its NamespaceUris.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        public static string GetNamespaceUriAsCode(
+            this Namespace[] namespaces,
+            string namespaceUri)
+        {
+            return namespaces.GetConstantSymbolForNamespace(namespaceUri)
+                ?? namespaceUri.AsStringLiteral();
+        }
+
         public static bool IsOverriddenWithSameClass(
             this InstanceDesign instance,
             string targetNamespace,
@@ -511,6 +533,47 @@ namespace Opc.Ua.Schema.Model
             // GetNodeStateClassName never returns - it had no effect and this
             // is the behaviour the generated code has always had.)
             return x == y;
+        }
+
+        /// <summary>
+        /// Returns whether an override changes only the type argument of a
+        /// generic node state class, e.g. a <c>PropertyState&lt;ArrayOf&lt;A&gt;&gt;</c>
+        /// overridden as <c>PropertyState&lt;ArrayOf&lt;B&gt;&gt;</c> because the
+        /// subtype refines the DataType of the child to a subtype of
+        /// <c>A</c>.
+        /// </summary>
+        /// <remarks>
+        /// Two constructions of one generic class are unrelated types, so the
+        /// child of the supertype can neither be cast to nor assigned from the
+        /// class of the subtype.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="instance"/> is <c>null</c>.
+        /// </exception>
+        public static bool IsOverriddenWithRefinedGenericClass(
+            this InstanceDesign instance,
+            string targetNamespace,
+            Namespace[] namespaces)
+        {
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            if (!instance.IsOverridden())
+            {
+                return false;
+            }
+
+            string x = instance.GetMergedInstance().GetNodeStateClassName(targetNamespace, namespaces);
+            string y = instance.OveriddenNode.GetNodeStateClassName(targetNamespace, namespaces);
+            if (x == y)
+            {
+                return false;
+            }
+            int genericStart = x.IndexOf('<', StringComparison.Ordinal);
+            return genericStart > 0 &&
+                genericStart == y.IndexOf('<', StringComparison.Ordinal) &&
+                string.CompareOrdinal(x, 0, y, 0, genericStart) == 0;
         }
 
         private static bool IsIndeterminateType(this InstanceDesign instance)
@@ -3635,7 +3698,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "global::Opc.Ua.NodeId.Create({0}, {1}, {2})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace),
                 namespaceTableVariable);
         }
@@ -3680,7 +3743,7 @@ namespace Opc.Ua.Schema.Model
             return CoreUtils.Format(
                 "new global::Opc.Ua.ExpandedNodeId({0}, {1})",
                 identifier,
-                namespaces.GetConstantSymbolForNamespace(
+                namespaces.GetNamespaceUriAsCode(
                     node.SymbolicId.Namespace));
         }
 

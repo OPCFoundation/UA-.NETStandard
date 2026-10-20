@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Client;
 
 namespace Opc.Ua.XRegistry.Client
 {
@@ -56,6 +58,14 @@ namespace Opc.Ua.XRegistry.Client
         /// handle. The handle is the one returned by the group's <c>CreateResource</c> /
         /// <c>GetOrCreateResource</c> with <c>RequestFileOpen</c> set.
         /// </summary>
+        /// <remarks>
+        /// After successful writes, closing commits the resource using the caller's
+        /// cancellation token and the Session's normal request timeout. If writing
+        /// fails or is canceled, handle cleanup uses an independent five-second
+        /// budget. When writing and closing both fail, both errors
+        /// are preserved. A failed transfer is not replayed; callers must inspect
+        /// the server's state before deciding whether another upload is safe.
+        /// </remarks>
         /// <param name="resource">The resource proxy.</param>
         /// <param name="fileHandle">The open write handle.</param>
         /// <param name="document">The document bytes.</param>
@@ -79,18 +89,27 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
             }
 
-            try
+            var handle = new ResourceWriteHandle(resource, fileHandle, ct);
+            await using (handle.ConfigureAwait(false))
             {
-                for (int offset = 0; offset < document.Length; offset += chunkSize)
+                try
                 {
-                    int length = Math.Min(chunkSize, document.Length - offset);
-                    ByteString chunk = new(document.Slice(offset, length));
-                    await resource.WriteAsync(fileHandle, chunk, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    for (int offset = 0; offset < document.Length;)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        int length = Math.Min(chunkSize, document.Length - offset);
+                        ByteString chunk = new(document.Slice(offset, length));
+                        await resource.WriteAsync(fileHandle, chunk, ct).ConfigureAwait(false);
+                        offset += length;
+                    }
+                    ct.ThrowIfCancellationRequested();
                 }
-            }
-            finally
-            {
-                await resource.CloseAsync(fileHandle, CancellationToken.None).ConfigureAwait(false);
+                catch (Exception error) when (IsTransferFailure(error))
+                {
+                    handle.Failure = error;
+                    throw;
+                }
             }
         }
 
@@ -120,7 +139,7 @@ namespace Opc.Ua.XRegistry.Client
             uint fileHandle = await resource.OpenAsync(kReadMode, ct).ConfigureAwait(false);
             try
             {
-                var document = new System.IO.MemoryStream();
+                using var document = new MemoryStream();
                 while (true)
                 {
                     ByteString chunk = await resource.ReadAsync(fileHandle, chunkSize, ct)
@@ -135,10 +154,6 @@ namespace Opc.Ua.XRegistry.Client
 #else
                     document.Write(chunk.Span);
 #endif
-                    if (chunk.Length < chunkSize)
-                    {
-                        break;
-                    }
                 }
                 return ByteString.From(document.ToArray());
             }
@@ -148,6 +163,72 @@ namespace Opc.Ua.XRegistry.Client
             }
         }
 
+        /// <summary>
+        /// Streams an open resource write without buffering the document, then closes the handle.
+        /// </summary>
+        public static ValueTask<long> WriteDocumentAsync(
+            this ResourceTypeClient resource,
+            uint fileHandle,
+            Stream document,
+            long maxBytes,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return resource.WriteStreamAndCloseAsync(fileHandle, document, maxBytes, chunkSize, ct);
+        }
+
+        /// <summary>
+        /// Downloads resource content into a bounded destination without buffering the complete document.
+        /// </summary>
+        public static ValueTask<long> ReadDocumentAsync(
+            this ResourceTypeClient resource,
+            Stream destination,
+            long maxBytes,
+            int chunkSize = DefaultChunkSize,
+            CancellationToken ct = default)
+        {
+            return resource.DownloadToStreamAsync(destination, maxBytes, chunkSize, ct);
+        }
+
+        private static bool IsTransferFailure(Exception error)
+        {
+            return error is ServiceResultException or IOException or OperationCanceledException or
+                InvalidOperationException or ArgumentException or NotSupportedException or TimeoutException;
+        }
+
         private const byte kReadMode = 1;
+
+        /// <summary>
+        /// Commits successful writes or independently closes a handle after a transfer failure.
+        /// </summary>
+        private sealed class ResourceWriteHandle(
+            ResourceTypeClient resource,
+            uint handle,
+            CancellationToken cancellationToken) : IAsyncDisposable
+        {
+            /// <summary>
+            /// Gets or sets the failure that requires independent cleanup.
+            /// </summary>
+            public Exception? Failure { get; set; }
+
+            /// <inheritdoc />
+            public async ValueTask DisposeAsync()
+            {
+                using var cleanup = Failure is null
+                    ? null
+                    : new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    await resource.CloseAsync(handle, cleanup?.Token ?? cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception error) when (Failure is not null && IsTransferFailure(error))
+                {
+                    throw new AggregateException(
+                        "Writing and closing the resource document both failed.",
+                        Failure,
+                        error);
+                }
+            }
+        }
     }
 }

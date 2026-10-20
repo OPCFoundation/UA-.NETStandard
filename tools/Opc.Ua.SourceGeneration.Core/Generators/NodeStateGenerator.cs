@@ -769,7 +769,8 @@ namespace Opc.Ua.SourceGeneration
                     root.SymbolicId.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(root.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    root.SymbolicName.Namespace));
 
             switch (root)
             {
@@ -884,7 +885,7 @@ namespace Opc.Ua.SourceGeneration
             if (!instance.IsOverridden())
             {
                 if (!s_builtInMethodNames.Contains(instance.SymbolicName.Name) &&
-                    !instance.HidesBaseTypePlaceholder())
+                    !HidesInheritedPlaceholderHelper(instance))
                 {
                     context.Template.AddReplacement(Tokens.AccessorSymbol, "public");
                 }
@@ -908,6 +909,37 @@ namespace Opc.Ua.SourceGeneration
                     kNamespaceTableContextVariable));
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Tests the CLR helper signature rather than the qualified browse name: a placeholder
+        /// in a different wire namespace can still hide the same Add helper on a generated base class.
+        /// </summary>
+        private static bool HidesInheritedPlaceholderHelper(InstanceDesign instance)
+        {
+            if (instance.ModellingRule is not ModellingRule.MandatoryPlaceholder and
+                not ModellingRule.OptionalPlaceholder ||
+                instance.Parent is not TypeDesign declaringType)
+            {
+                return false;
+            }
+            for (TypeDesign? baseType = declaringType.BaseTypeNode; baseType != null; baseType = baseType.BaseTypeNode)
+            {
+                if (baseType.Children?.Items == null)
+                {
+                    continue;
+                }
+                foreach (InstanceDesign child in baseType.Children.Items)
+                {
+                    if (child.ModellingRule is
+                        ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder &&
+                        child.SymbolicName.Name == instance.SymbolicName.Name)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         private TemplateString? LoadTemplate_TypedVariableType(ILoadContext context)
@@ -1099,10 +1131,10 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            bool isMethodOverrideWithDifferentClass =
-                IsMethodOverrideWithDifferentClass(instance);
+            bool isOverrideWithUnrelatedClass =
+                IsOverrideWithUnrelatedClass(instance);
             if (node.IsNotExplicitlyDefined ||
-                (instance.IsOverridden() && !isMethodOverrideWithDifferentClass))
+                (instance.IsOverridden() && !isOverrideWithUnrelatedClass))
             {
                 return null;
             }
@@ -1134,7 +1166,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            if (isMethodOverrideWithDifferentClass)
+            if (isOverrideWithUnrelatedClass)
             {
                 instance = instance.GetMergedInstance();
             }
@@ -1545,7 +1577,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     return null;
                 }
-                if (instance is MethodDesign)
+                if (IsOverrideWithUnrelatedClass(instance))
                 {
                     return NodeStateTemplates.Property;
                 }
@@ -1746,26 +1778,10 @@ namespace Opc.Ua.SourceGeneration
                     instance.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(instance.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    instance.SymbolicName.Namespace));
 
             return context.Template.Render();
-        }
-
-        /// <summary>
-        /// Returns the expression for a browse name's namespace URI: the
-        /// model's namespace constant when the model declares the namespace,
-        /// otherwise the URI as a literal.
-        /// </summary>
-        /// <remarks>
-        /// An inherited child keeps the browse namespace of the model that
-        /// declared it, which can be one the consuming model only reaches
-        /// through a referenced assembly - DI below a Robotics subtype - and so
-        /// has no constant for.
-        /// </remarks>
-        private string GetNamespaceUriExpression(string namespaceUri)
-        {
-            return m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(namespaceUri)
-                ?? namespaceUri.AsStringLiteral();
         }
 
         private TemplateString? LoadTemplate_ListOfNodeStateInitializers(ILoadContext context)
@@ -1913,7 +1929,8 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.BrowseNameNamespaceUri,
-                GetNamespaceUriExpression(root.SymbolicName.Namespace));
+                m_context.ModelDesign.Namespaces.GetNamespaceUriAsCode(
+                    root.SymbolicName.Namespace));
             context.Template.AddReplacement(
                 Tokens.DescriptionValue,
                 GetDescriptionValue(root));
@@ -2030,8 +2047,18 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+            bool placeholder = reference.TargetNode is InstanceDesign
+            {
+                ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+            };
+            if (placeholder)
+            {
+                context.Out.WriteLine("if (!forInstance)");
+                context.Out.WriteLine("{");
+            }
             context.Out.WriteLine(
-                "state.AddReference({0}, {1}, {2});",
+                "{0}state.AddReference({1}, {2}, {3});",
+                placeholder ? "    " : string.Empty,
                 m_context.ModelDesign.GetNodeIdConstant(
                     reference.ReferenceTypeId,
                     "<ReferenceType>",
@@ -2040,7 +2067,112 @@ namespace Opc.Ua.SourceGeneration
                 reference.TargetNode.GetNodeIdAsCode(
                     m_context.ModelDesign.Namespaces,
                     kNamespaceTableContextVariable));
+            if (placeholder)
+            {
+                context.Out.WriteLine("}");
+            }
             return null;
+        }
+
+        /// <summary>
+        /// Whether <see cref="GeneratorOptions.EmitNodeSetNodesOnly"/> applies:
+        /// the option is set and the target model was read from a NodeSet2.
+        /// </summary>
+        private bool EmitsNodeSetNodesOnly =>
+            m_context.Options.EmitNodeSetNodesOnly &&
+            m_context.ModelDesign is ModelDesignValidator { IsSourceNodeSet: true };
+
+        /// <summary>
+        /// With <see cref="GeneratorOptions.EmitNodeSetNodesOnly"/>, a
+        /// predefined node of a NodeSet2 input gets only the children the
+        /// NodeSet2 declares: a child the generator derives from a supertype
+        /// or a type definition is not added to it.
+        /// <para>
+        /// The child factories of a type are also called by the
+        /// <c>CreateInstanceOf*</c> factories with <c>forInstance: true</c>, so
+        /// in a type the omitted child is still created when its parent is
+        /// created for an instance; only the factories of a predefined instance
+        /// leave it out unconditionally.
+        /// </para>
+        /// </summary>
+        private bool IsOmittedFromNodeSetAddressSpace(NodeToGenerate node)
+        {
+            return EmitsNodeSetNodesOnly &&
+                node.IsNotExplicitlyDefined &&
+                GetRoot(node).InstanceOf == null;
+        }
+
+        /// <summary>
+        /// Whether the predefined instance that <paramref name="node"/> belongs
+        /// to omits the undeclared nodes of its hierarchy, so that a reference
+        /// may only end in a node of the hierarchy that it creates. The
+        /// factories of a type keep their references: they are the ones the
+        /// <c>CreateInstanceOf*</c> factories reuse at run time.
+        /// </summary>
+        private bool OmitsUndeclaredHierarchyNodes(NodeToGenerate node)
+        {
+            return EmitsNodeSetNodesOnly &&
+                !node.RootIsTypeDefinition &&
+                GetRoot(node).InstanceOf == null;
+        }
+
+        /// <summary>
+        /// Whether the predefined instance that <paramref name="node"/> belongs
+        /// to creates the node at <paramref name="path"/> of its hierarchy: the
+        /// node is generated and neither it nor any of its ancestors is
+        /// omitted (see <see cref="IsOmittedFromNodeSetAddressSpace"/>).
+        /// </summary>
+        private static bool IsCreatedInNodeSetAddressSpace(NodeToGenerate node, string path)
+        {
+            NodeToGenerate root = GetRoot(node);
+            if (path == root.Path)
+            {
+                return true;
+            }
+
+            NodeToGenerate? target = FindDescendant(root, path);
+            if (target == null)
+            {
+                return false;
+            }
+
+            for (NodeToGenerate current = target;
+                current.Parent != null;
+                current = current.Parent)
+            {
+                if (current.IsNotExplicitlyDefined)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static NodeToGenerate? FindDescendant(NodeToGenerate node, string path)
+        {
+            foreach (NodeToGenerate child in node.AllChildren)
+            {
+                if (child.Path == path)
+                {
+                    return child;
+                }
+                NodeToGenerate? descendant = FindDescendant(child, path);
+                if (descendant != null)
+                {
+                    return descendant;
+                }
+            }
+            return null;
+        }
+
+        private static NodeToGenerate GetRoot(NodeToGenerate node)
+        {
+            NodeToGenerate root = node;
+            while (root.Parent != null)
+            {
+                root = root.Parent;
+            }
+            return root;
         }
 
         private TemplateString? LoadTemplate_ReplaceChild(ILoadContext context)
@@ -2048,6 +2180,17 @@ namespace Opc.Ua.SourceGeneration
             if (context.Target is not NodeToGenerate node ||
                 node.Design is not InstanceDesign instance ||
                 node.Design is ViewDesign)
+            {
+                return null;
+            }
+
+            // A predefined instance's factories only build that instance, and a
+            // factory's type-template block only runs for the predefined type
+            // node (forInstance: false), so neither creates the omitted child.
+            bool omittedFromNodeSet = IsOmittedFromNodeSetAddressSpace(node);
+            if (omittedFromNodeSet &&
+                (!node.RootIsTypeDefinition ||
+                    context.Token == Tokens.ListOfOptionalChildNodeStates))
             {
                 return null;
             }
@@ -2183,16 +2326,51 @@ namespace Opc.Ua.SourceGeneration
             string forInstanceVariableValue =
                 node.RootIsTypeDefinition ? "forInstance" :
                 node.Parent?.InstanceOf != null || node.Parent?.Parent == null ? "true" : "forInstance";
+            if (!omittedFromNodeSet)
+            {
+                EmitChildFactoryCall(
+                    context.Out,
+                    node,
+                    instance,
+                    effectiveRule,
+                    forInstanceVariableValue);
+                return null;
+            }
+
+            // An omitted child of a type is created for an instance only.
+            context.Out.WriteLine("if (forInstance)");
+            context.Out.WriteLine("{");
+            EmitChildFactoryCall(
+                new IndentedTemplateWriter(context.Out),
+                node,
+                instance,
+                effectiveRule,
+                forInstanceVariableValue);
+            context.Out.WriteLine("}");
+            return null;
+        }
+
+        /// <summary>
+        /// Emits the call that creates <paramref name="node"/> and adds it to
+        /// the <c>state</c> of its parent's factory.
+        /// </summary>
+        private void EmitChildFactoryCall(
+            ITemplateWriter output,
+            NodeToGenerate node,
+            InstanceDesign instance,
+            ModellingRule effectiveRule,
+            string forInstanceVariableValue)
+        {
             if (node.Parent != null && IsInAddressSpace(node.Parent))
             {
                 switch (node.Parent.Design)
                 {
                     case TypeDesign:
-                        context.Out.WriteLine(
+                        output.WriteLine(
                             "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                             instance.SymbolicId.Name,
                             forInstanceVariableValue);
-                        return null;
+                        return;
                     case InstanceDesign parentInstance:
                         if (HasFixedChildSlot(parentInstance.TypeDefinitionNode, instance.SymbolicName.Name) ||
                             IsBuiltInProperty(node))
@@ -2213,11 +2391,11 @@ namespace Opc.Ua.SourceGeneration
                                     case ModellingRule.Mandatory:
                                     case ModellingRule.Optional:
                                         EmitCreateOrReplaceChild(
-                                            context,
+                                            output,
                                             node,
                                             instance,
                                             forInstanceVariableValue);
-                                        return null;
+                                        return;
                                     case ModellingRule.OptionalPlaceholder:
                                     case ModellingRule.MandatoryPlaceholder:
                                         // TODO
@@ -2234,11 +2412,10 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            context.Out.WriteLine(
+            output.WriteLine(
                 "state.AddChild(Create{0}(context, state, forInstance: {1}));",
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);
-            return null;
         }
 
         /// <summary>
@@ -2256,7 +2433,7 @@ namespace Opc.Ua.SourceGeneration
         /// rather than the type-level placeholders.
         /// </summary>
         private void EmitCreateOrReplaceChild(
-            ILoadContext context,
+            ITemplateWriter output,
             NodeToGenerate node,
             InstanceDesign instance,
             string forInstanceVariableValue)
@@ -2268,7 +2445,7 @@ namespace Opc.Ua.SourceGeneration
                     string SingletonChildSymbolicId)> singletonChildren = FindSingletonChildren(node);
             if (singletonChildren.Count == 0)
             {
-                context.Out.WriteLine(
+                output.WriteLine(
                     "state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                         "forInstance: {2}), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
@@ -2282,45 +2459,45 @@ namespace Opc.Ua.SourceGeneration
             // materialising an actual well-known instance subtree. The
             // <paramref name="forInstance"/> gate keeps the type-template
             // emission path (forInstance: false) unchanged.
-            context.Out.WriteLine("if ({0} && parent != null)", forInstanceVariableValue);
-            context.Out.WriteLine("{");
+            output.WriteLine("if ({0} && parent != null)", forInstanceVariableValue);
+            output.WriteLine("{");
             for (int i = 0; i < singletonChildren.Count; i++)
             {
                 (NodeToGenerate singletonRoot, NodeToGenerate _, string singletonChildSymbolicId)
                     = singletonChildren[i];
                 string keyword = i == 0 ? "if" : "else if";
-                context.Out.WriteLine(
+                output.WriteLine(
                     "    {0} (parent.NodeId.Equals({1}))",
                     keyword,
                     singletonRoot.Design.GetNodeIdAsCode(
                         m_context.ModelDesign.Namespaces,
                         kNamespaceTableContextVariable));
-                context.Out.WriteLine("    {");
-                context.Out.WriteLine(
+                output.WriteLine("    {");
+                output.WriteLine(
                     "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                         "forInstance: true), assignInstanceNodeIds: false);",
                     instance.SymbolicName.Name,
                     singletonChildSymbolicId);
-                context.Out.WriteLine("    }");
+                output.WriteLine("    }");
             }
-            context.Out.WriteLine("    else");
-            context.Out.WriteLine("    {");
-            context.Out.WriteLine(
+            output.WriteLine("    else");
+            output.WriteLine("    {");
+            output.WriteLine(
                 "        state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                     "forInstance: true), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name);
-            context.Out.WriteLine("    }");
-            context.Out.WriteLine("}");
-            context.Out.WriteLine("else");
-            context.Out.WriteLine("{");
-            context.Out.WriteLine(
+            output.WriteLine("    }");
+            output.WriteLine("}");
+            output.WriteLine("else");
+            output.WriteLine("{");
+            output.WriteLine(
                 "    state.CreateOrReplace{0}(context, Create{1}(context, state, " +
                     "forInstance: {2}), assignInstanceNodeIds: false);",
                 instance.SymbolicName.Name,
                 instance.SymbolicId.Name,
                 forInstanceVariableValue);
-            context.Out.WriteLine("}");
+            output.WriteLine("}");
         }
 
         private bool WriteTemplate_RolePermissions(IWriteContext context)
@@ -2904,22 +3081,29 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.StateClassFactory,
                 "new global::Opc.Ua.BaseDataVariableTypeState");
 
-            context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
-                "baseState.WrappedValue = {0};",
-                node.DataTypeNode!.GetValueAsCode(
-                    node.ValueRank,
-                    node.DefaultValue,
-                    node.DecodedValue,
-                    true,
-                    m_context.ModelDesign.TargetNamespace.Value,
-                    m_context.ModelDesign.Namespaces,
-                    m_messageContext,
-                    () => AddXmlInitializerForComplexValue(
-                        node,
-                        node.DataTypeNode!,
-                        node.DefaultValue)!,
-                    node.DecodedValueNamespaceUris,
-                    kNamespaceTableContextVariable)));
+            if (IsNodeSetValueNull(node.NodeSetValueIsNull, node.DefaultValue, node.DecodedValue))
+            {
+                context.Template.AddReplacement(Tokens.ValueCode, kNullValueCode);
+            }
+            else
+            {
+                context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
+                    "baseState.WrappedValue = {0};",
+                    node.DataTypeNode!.GetValueAsCode(
+                        node.ValueRank,
+                        node.DefaultValue,
+                        node.DecodedValue,
+                        true,
+                        m_context.ModelDesign.TargetNamespace.Value,
+                        m_context.ModelDesign.Namespaces,
+                        m_messageContext,
+                        () => AddXmlInitializerForComplexValue(
+                            node,
+                            node.DataTypeNode!,
+                            node.DefaultValue)!,
+                        node.DecodedValueNamespaceUris,
+                        kNamespaceTableContextVariable)));
+            }
             string dataTypeId =
                 GetNodeIdConstantForDataType(node, m_context.ModelDesign.Namespaces);
             context.Template.AddReplacement(
@@ -3048,6 +3232,10 @@ namespace Opc.Ua.SourceGeneration
                     [arguments.ToList()],
                     WriteTemplate_ArgumentCollection);
             }
+            else if (IsNodeSetValueNull(node.NodeSetValueIsNull, node.DefaultValue, node.DecodedValue))
+            {
+                context.Template.AddReplacement(Tokens.ValueCode, kNullValueCode);
+            }
             else
             {
                 context.Template.AddReplacement(Tokens.ValueCode, CoreUtils.Format(
@@ -3068,6 +3256,20 @@ namespace Opc.Ua.SourceGeneration
                         kNamespaceTableContextVariable)));
             }
         }
+
+        /// <summary>
+        /// A Variable or VariableType imported from a NodeSet2 without a Value
+        /// has a null Value. Only a ModelDesign implies the DataType default.
+        /// </summary>
+        private static bool IsNodeSetValueNull(
+            bool nodeSetValueIsNull,
+            System.Xml.XmlElement? defaultValue,
+            object? decodedValue)
+        {
+            return nodeSetValueIsNull && defaultValue == null && decodedValue == null;
+        }
+
+        private const string kNullValueCode = "baseState.WrappedValue = global::Opc.Ua.Variant.Null;";
 
         private static Parameter[]? GetMethodArgumentParameters(NodeToGenerate node)
         {
@@ -4088,12 +4290,12 @@ namespace Opc.Ua.SourceGeneration
                 if (node.RootIsTypeDefinition &&
                     !current.ExplicitlyDefined &&
                     current.Inherited &&
-                    current.AdHocInstance)
+                    current.AdHocInstance &&
+                    effectiveRule != ModellingRule.Mandatory)
                 {
-                    // this assumes that ad-hoc instances are not more than one level deep.
-                    // i.e. a type defines folder and adds a few instances but does not
-                    // defined subfolders.
-                    // need a better way to identify when to suppress inherited adhoc instances.
+                    // Required descendants of generic containers such as DI ParameterSet
+                    // must also initialize derived instances. Keep this shallow-level
+                    // suppression only for non-mandatory inherited ad-hoc declarations.
                     if (!node.Path!.Contains(NodeDesign.PathChar, StringComparison.Ordinal))
                     {
                         continue;
@@ -4197,6 +4399,9 @@ namespace Opc.Ua.SourceGeneration
             }
             Hierarchy hierarchy = node.Hierarchy;
             NodeDesign? root = node.Design;
+            // A predefined instance of a NodeSet2 input does not create the
+            // nodes it omits, so no reference may end in one of them.
+            bool omitsUndeclaredNodes = OmitsUndeclaredHierarchyNodes(node);
             HashSet<ReferenceToGenerate> references = [];
             foreach (HierarchyReference reference in hierarchy.References)
             {
@@ -4226,15 +4431,6 @@ namespace Opc.Ua.SourceGeneration
                         root!.SymbolicId.Name,
                         reference.ReferenceType!.Name,
                         out NodeDesign? targetNode))
-                    {
-                        continue;
-                    }
-
-                    if (!node.RootIsTypeDefinition &&
-                        targetNode is InstanceDesign instance &&
-                        (instance.ModellingRule is
-                            ModellingRule.MandatoryPlaceholder or
-                            ModellingRule.OptionalPlaceholder))
                     {
                         continue;
                     }
@@ -4278,6 +4474,11 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
+                    if (omitsUndeclaredNodes &&
+                        !IsCreatedInNodeSetAddressSpace(node, reference.TargetPath!))
+                    {
+                        continue;
+                    }
                     references.Add(new ReferenceToGenerate(
                         target.Instance!,
                         reference.ReferenceType!,
@@ -4292,10 +4493,24 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
+                if (omitsUndeclaredNodes &&
+                    !IsCreatedInNodeSetAddressSpace(node, reference.SourcePath!))
+                {
+                    continue;
+                }
                 references.Add(new ReferenceToGenerate(
                     source.Instance!,
                     reference.ReferenceType!,
                     !isInverse));
+            }
+
+            // Apply the instance filter after resolving both identifier and hierarchy-path targets.
+            if (!node.RootIsTypeDefinition)
+            {
+                references.RemoveWhere(reference => reference.TargetNode is InstanceDesign
+                {
+                    ModellingRule: ModellingRule.MandatoryPlaceholder or ModellingRule.OptionalPlaceholder
+                });
             }
 
             // Inherited and declared designs can differ structurally while
@@ -4364,7 +4579,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
                 if (instance.IsOverridden() &&
-                    !IsMethodOverrideWithDifferentClass(instance))
+                    !IsOverrideWithUnrelatedClass(instance))
                 {
                     continue;
                 }
@@ -4375,17 +4590,27 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Returns whether a method overrides the supertype's method with
-        /// another method state class. The subtype then declares a field and a
-        /// property of its own that hide the supertype's, so it also has to
-        /// enumerate and remove the child itself: the supertype's field stays
-        /// empty.
+        /// Returns whether a child overrides the supertype's child with a node
+        /// state class the supertype's class cannot be cast to: a method with
+        /// another method state class, or a variable whose subtype refines the
+        /// DataType so that only the type argument of the generic state class
+        /// changes (<c>PropertyState&lt;ArrayOf&lt;A&gt;&gt;</c> overridden as
+        /// <c>PropertyState&lt;ArrayOf&lt;B&gt;&gt;</c>). The subtype then
+        /// declares a field and a property of its own that hide the
+        /// supertype's, so it also has to enumerate and remove the child
+        /// itself: the supertype's field stays empty.
         /// </summary>
-        private bool IsMethodOverrideWithDifferentClass(InstanceDesign instance)
+        private bool IsOverrideWithUnrelatedClass(InstanceDesign instance)
         {
-            return instance is MethodDesign &&
-                instance.IsOverridden() &&
-                !instance.IsOverriddenWithSameClass(
+            if (!instance.IsOverridden() ||
+                instance.IsOverriddenWithSameClass(
+                    m_context.ModelDesign.TargetNamespace.Value,
+                    m_context.ModelDesign.Namespaces))
+            {
+                return false;
+            }
+            return instance is MethodDesign ||
+                instance.IsOverriddenWithRefinedGenericClass(
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces);
         }

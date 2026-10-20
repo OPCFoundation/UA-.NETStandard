@@ -74,7 +74,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     telemetry, context, http, json, limit).ConfigureAwait(false);
                 if (excess > 0)
                 {
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     {
                         await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None).ConfigureAwait(false);
                     });
@@ -113,7 +113,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using HttpsTransportChannel channel = await CreateChannelAsync(
                 telemetry, context, http, json, 2048).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None).ConfigureAwait(false);
             });
@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using HttpsTransportChannel channel = await CreateChannelAsync(
                 telemetry, context, http, false, 1024).ConfigureAwait(false);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None).ConfigureAwait(false);
             });
@@ -186,12 +186,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Task completed = await Task.WhenAny(pending, Task.Delay(TimeSpan.FromSeconds(5)))
                         .ConfigureAwait(false);
                     Assert.That(completed, Is.SameAs(pending));
-                    Assert.CatchAsync<OperationCanceledException>(() => pending);
+                    await Assert.CatchAsync<OperationCanceledException>(() => pending);
                 }
                 else
                 {
                     time.Advance(TimeSpan.FromSeconds(1));
-                    ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     {
                         await pending.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     });
@@ -273,7 +273,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using var http = new HttpClient(handler);
             using HttpsTransportChannel channel = await CreateChannelAsync(
                 telemetry, context, http, false, 1024).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await channel.SendRequestAsync(new ReadRequest(), CancellationToken.None).ConfigureAwait(false);
             });

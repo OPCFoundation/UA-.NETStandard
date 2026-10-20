@@ -55,6 +55,7 @@ Central build configuration lives at the repository root and is imported by ever
 - `UA.slnx` — the solution containing all projects.
 - `Directory.Build.props` / `Directory.Build.targets` — global MSBuild properties and targets.
 - `Directory.Packages.props` — [Central Package Management](https://learn.microsoft.com/nuget/consume-packages/central-package-management): every NuGet version is declared here.
+- `roslyn.props` pins compiler APIs and runtime assemblies to supported analyzer hosts. `Directory.Build.targets` selects newer `System.Collections.Immutable` and `System.Reflection.Metadata` versions for test and profiling hosts that require them, without changing the analyzer closure.
 - `common.props` / `targets.props` — shared properties, analyzer settings, and the target-framework matrix.
 - `.editorconfig` — the authoritative code-style and analyzer-severity rules (enforced at build time).
 
@@ -78,6 +79,7 @@ Notes:
 
 - **Offline / restricted networks.** `NuGetAudit` is enabled and fails the build with `NU1900` when it cannot reach the audit service. If you build offline, pass `-p:NuGetAudit=false`.
 - **Source generators are consumed as project references.** Projects that use the in-repo generators reference `tools/Opc.Ua.SourceGeneration[.Stack]` with `OutputItemType=Analyzer`. MSBuild only hands the compiler the generator assembly itself, so `Directory.Build.targets` adds the generator's runtime closure (its output directory, minus the Roslyn host assemblies) as `Analyzer` items — the same payload the generator NuGet packages ship under `analyzers/dotnet/<roslyn>/cs`. Without it the generators cannot resolve their dependencies and fail to initialise with `CS8784`.
+- **Client member extensions are opt-in.** A client library can set `ModelSourceGeneratorClientAccessorsOnly` to generate typed variable accessors and placeholder enumerators over a referenced model, without checking in generated C# or duplicating model types. See [optional client member accessors](../tools/Opc.Ua.SourceGeneration/readme.md#optional-client-member-accessors) for the inputs and configuration.
 - **Analyzers and generators are shipped under a Roslyn-versioned analyzer folder.** `roslyn.props` pins the Roslyn API version, and each generator has a `*.Pack` project that ships it under `analyzers/dotnet/roslyn<major>.<minor>/cs`. See [Repository layout](#repository-layout) and the [support matrix](#supported-analyzer-and-source-generator-hosts). Because the repository's own projects consume that same build, **building this repository requires a Roslyn 5.x host** (the .NET 10 SDK or Visual Studio 2026).
 
 ## Running tests
@@ -91,6 +93,13 @@ dotnet test UA.slnx
 Conventions and requirements:
 
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
+- **Out-of-tree sample-test output.** When `--artifacts-path` places the WoT
+  aggregation tests outside the checkout, set `OPCUA_TEST_REPOSITORY_ROOT` to
+  the checkout containing `UA.slnx`. The sample fixtures read their original
+  repository assets there; no asset or assembly copying is needed. An invalid
+  configured root fails explicitly instead of falling back to another checkout.
+- **NUnit 5 async assertions.** Always await `Assert.ThrowsAsync`, `Assert.CatchAsync`, and `Assert.DoesNotThrowAsync`; these methods return tasks and no longer block until the assertion completes. The enclosing test or helper must return `Task`.
+- **Ordered NUnit fixtures.** Use `DependsOnTest` rather than the obsolete `Order` attribute. Existing sequencing-only dependencies use `AllowFailure = true` so one failed test does not suppress later tests. Filtering a dependent test also runs its prerequisites; dependency chains must not use fixture-level `Parallelizable`.
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
 - **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
@@ -316,6 +325,9 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 - **Add a new feature** — implement it in the right library, add unit and (for client/server/pubsub) integration tests, update or add a doc under `docs/`, and keep backward compatibility (see [Coding standards](#coding-standards-dos-and-donts)).
 - **Add a document** — put it in `docs/` and link it from [docs/README.md](README.md).
+  Describe the repository's current interfaces and behavior, not the implementation
+  history or whether a feature was already present. Version-to-version changes
+  belong in the migration guides and changelogs.
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
@@ -380,15 +392,22 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 
 Stable (public-release) versions are produced **only** from a canonical `release/<major>.<minor>` branch (e.g. `release/2.0`, `release/2.1`) — never from `master`, a tag, or any other branch — and only at the exact commit whose `version.json` carries the plain `<major>.<minor>.<patch>` version with no prerelease label (e.g. `2.0.0`). Patch numbers increase by exactly one per release on their line (`2.0.0` → `2.0.1` → `2.0.2`); a new minor line resets the patch to zero (`2.1.0`). See **[Release process](ReleaseProcess.md)** for the full branch/version model and the step-by-step procedure for cutting a release, shipping a patch or minor version, backporting a fix, and promoting a stable candidate.
 
-The XRegistry, WoT Connectivity, Vision, Robotics, Redundancy, Positioning,
+The XRegistry, WoT Connectivity, Robotics, CranesHoists, Redundancy, Positioning,
 OpenUSD, and AI package families remain preview packages even when
 the root version is stable. Their numeric version follows the root version:
 for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
 families (`N` a committed, manually curated number in `preview-version.props`
 that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
-same policy applies to the Robotics and Vision MCP extensions and the
-OpenUSD connector tools. The package validation manifest
+same policy applies to the Robotics MCP extension, the Vision.OpenUsd renderer,
+and the OpenUSD connector tools. All CranesHoists model/server/client/MCP
+packages and their Debug variants use that preview policy. The Vision,
+MachineVision, MachineTool (including bundled WMTP), and GMS model/client/server
+packages and their MCP packages follow the root version without a
+forced-preview override. The industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, AutoID, Device Integration, ISA-95 and Positioning), plus the WoT and
+xRegistry MCP extensions, also follow the root release channel. Development
+versions remain prereleases. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.
@@ -427,6 +446,20 @@ gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
 GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
+
+The WoT aggregation sample tests keep their complete companion-model corpus in a
+dedicated CI batch. That batch has a finite 240-minute combined build/test budget
+and a 65-minute inactivity limit; ordinary projects retain their 45-minute combined
+budget. The sample's full generation-replacement case includes two complete
+publications and must not be truncated to fit the ordinary project budget.
+The Server, WoT and Types integration projects also run separately, with a 90-minute
+combined budget. Server and WoT keep the 10-minute inactivity guard; Types uses
+30 minutes for complete instrumented companion-model conversions. Hosted cold builds
+have consumed 20-28 minutes before their healthy integration suites start;
+the larger finite budget prevents truncation without hiding an inactive test.
+The .NET Framework WoT profile reserves 150 combined minutes because its complete
+regeneration and server-integration run exceeded an hour after a 27-minute cold
+build. Its per-test inactivity guard remains unchanged.
 
 That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
 

@@ -104,10 +104,6 @@ namespace Opc.Ua.Types.Tests.State
             };
         }
 
-        // -----------------------------------------------------------------
-        // OnReadValueAsync (full)
-        // -----------------------------------------------------------------
-
         [Test]
         public async Task ReadAttributeAsyncRoutesValueReadsToFullAsyncSlot()
         {
@@ -135,58 +131,62 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(dv.SourceTimestamp, Is.EqualTo((DateTime)handlerTimestamp));
         }
 
+        /// <summary>
+        /// Verifies within a bounded wait that the node-instance lock is available
+        /// while the async handler is suspended.
+        /// </summary>
         [Test]
         public async Task ReadAttributeAsyncFullSlotReleasesNodeStateLockDuringAwait()
         {
             SystemContext ctx = CreateSystemContext();
             BaseDataVariableState v = CreateReadableVariable();
-            using var inHandlerGate = new ManualResetEventSlim(false);
-            using var releaseGate = new ManualResetEventSlim(false);
+            var inHandlerGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             v.OnReadValueAsync = async (c, n, range, encoding, ct) =>
             {
-                inHandlerGate.Set();
-                // Block on a worker thread that takes lock(this) to prove
-                // we are NOT holding it across the await.
-                releaseGate.Wait(TimeSpan.FromSeconds(5), ct);
-                await Task.Yield();
+                inHandlerGate.SetResult(true);
+                await releaseGate.Task.WaitAsync(ct).ConfigureAwait(false);
                 return new AttributeReadResult(
                     ServiceResult.Good, new Variant(7.0), StatusCodes.Good, DateTimeUtc.Now);
             };
 
             var dv = new DataValue();
-            ValueTask<(ServiceResult, DataValue)> readTask = v.ReadAttributeAsync(
-                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv);
-
-            Assert.That(inHandlerGate.Wait(TimeSpan.FromSeconds(5)), Is.True,
-                "handler did not start");
-
-            // Acquire lock(this) on a worker thread - this only succeeds
-            // if the read path released the lock before awaiting the
-            // handler.
-            bool lockAcquired = false;
-            var lockTask = Task.Run(() =>
+            Task<(ServiceResult, DataValue)> readTask = v.ReadAttributeAsync(
+                ctx, Attributes.Value, NumericRange.Null, QualifiedName.Null, dv).AsTask();
+            ServiceResult result;
+            try
             {
-#pragma warning disable CA2002
-                lock (v)
-#pragma warning restore CA2002
+                Assert.That(await inHandlerGate.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.True,
+                    "handler did not start");
+                Assert.That(readTask.IsCompleted, Is.False,
+                    "The read must remain suspended until the test releases the handler.");
+
+                bool lockAcquired = false;
+                var lockTask = Task.Run(() =>
                 {
-                    lockAcquired = true;
-                }
-            });
+#pragma warning disable CA2002
+                    lock (v)
+#pragma warning restore CA2002
+                    {
+                        lockAcquired = true;
+                    }
+                });
 
-            Assert.That(lockTask.Wait(TimeSpan.FromSeconds(5)), Is.True,
-                "lock(v) was not released during the async handler");
-            Assert.That(lockAcquired, Is.True);
-
-            releaseGate.Set();
-            (ServiceResult result, _) = await readTask.ConfigureAwait(false);
+                await lockTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(lockTask.Status, Is.EqualTo(TaskStatus.RanToCompletion),
+                    "lock(v) was not released during the async handler");
+                Assert.That(lockAcquired, Is.True);
+                Assert.That(readTask.IsCompleted, Is.False,
+                    "Lock acquisition must finish while the handler is still suspended.");
+            }
+            finally
+            {
+                releaseGate.TrySetResult(true);
+                (result, _) = await readTask.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
             Assert.That(ServiceResult.IsGood(result), Is.True);
         }
-
-        // -----------------------------------------------------------------
-        // OnSimpleReadValueAsync
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task ReadAttributeAsyncRoutesValueReadsToSimpleAsyncSlot()
@@ -227,10 +227,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadWaitingForInitialData));
         }
 
-        // -----------------------------------------------------------------
-        // Cancellation
-        // -----------------------------------------------------------------
-
+        /// <summary>
+        /// Verifies that caller cancellation reaches the full read hook and is reported as a bad service result.
+        /// </summary>
         [Test]
         public async Task ReadAttributeAsyncWrapsCancellationFromFullSlot()
         {
@@ -248,7 +247,7 @@ namespace Opc.Ua.Types.Tests.State
                         ServiceResult.Good, new Variant(0.0), StatusCodes.Good, DateTimeUtc.Now));
             };
 
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
             var dv = new DataValue();
             // The async hook contract mirrors the sync flow: exceptions
             // (including OperationCanceledException) are caught and surfaced
@@ -276,10 +275,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
             Assert.That(dv.StatusCode.Code, Is.EqualTo((uint)StatusCodes.BadUnexpectedError));
         }
-
-        // -----------------------------------------------------------------
-        // OnWriteValueAsync (full) - cache update on success
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task WriteAttributeAsyncRoutesValueWritesToFullAsyncSlot()
@@ -368,10 +363,14 @@ namespace Opc.Ua.Types.Tests.State
                 "An index-range write must only replace the addressed elements of the cached value.");
         }
 
+        /// <summary>
+        /// Verifies that an accepted slice invalidates an unusable cache while still reporting a value change.
+        /// </summary>
         [Test]
         public async Task WriteAttributeAsyncReportsChangeWhenCacheCannotAbsorbIndexRangeSlice()
         {
             SystemContext ctx = CreateSystemContext();
+            // The handler owns the data; the cached value was never assigned.
             var v = new BaseDataVariableState(null)
             {
                 NodeId = new NodeId("ArrNoCache", 0),
@@ -380,19 +379,18 @@ namespace Opc.Ua.Types.Tests.State
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.OneDimension,
                 // the write carries a status code and a source timestamp (Part 3 8.57).
-                AccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                AccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
-                    AccessLevels.TimestampWrite),
-                UserAccessLevel = (byte)(AccessLevels.CurrentReadOrWrite |
+                    AccessLevels.TimestampWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite |
                     AccessLevels.StatusWrite |
-                    AccessLevels.TimestampWrite)
+                    AccessLevels.TimestampWrite,
+                OnWriteValueAsync = (c, n, range, value, ct) =>
+                    new ValueTask<AttributeWriteResult>(
+                        new AttributeWriteResult(ServiceResult.Good))
             };
 
-            // the handler owns the data; the cached value was never assigned.
-            v.OnWriteValueAsync = (c, n, range, value, ct) =>
-                new ValueTask<AttributeWriteResult>(
-                    new AttributeWriteResult(ServiceResult.Good));
-            v.ClearChangeMasks(ctx, false);
+            await v.ClearChangeMasksAsync(ctx, false).ConfigureAwait(false);
 
             var sourceTimestamp = new DateTimeUtc(2024, 1, 2, 3, 4, 5);
             var dv = new DataValue(
@@ -408,13 +406,10 @@ namespace Opc.Ua.Types.Tests.State
                 "The slice must not be stored as the whole value.");
             Assert.That(v.ChangeMasks & NodeStateChangeMasks.Value, Is.EqualTo(NodeStateChangeMasks.Value),
                 "A successful handler write must still raise a value change.");
-            Assert.That(v.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
-            Assert.That(v.Timestamp, Is.EqualTo(sourceTimestamp));
+            Assert.That(v.StatusCode, Is.EqualTo(StatusCodes.BadWaitingForInitialData),
+                "An unmergeable slice invalidates the local cache until a fresh read supplies the whole value.");
+            Assert.That(v.Timestamp, Is.EqualTo(DateTimeUtc.MinValue));
         }
-
-        // -----------------------------------------------------------------
-        // OnSimpleWriteValueAsync
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task WriteAttributeAsyncRoutesValueWritesToSimpleAsyncSlot()
@@ -456,6 +451,9 @@ namespace Opc.Ua.Types.Tests.State
                 "The simple async write hook does not support index-range writes.");
         }
 
+        /// <summary>
+        /// Verifies that the synchronous simple hook rejects indexed writes before calling the handler.
+        /// </summary>
         [Test]
         public void WriteAttributeRejectsIndexRangeOnSimpleSyncHandler()
         {
@@ -464,7 +462,7 @@ namespace Opc.Ua.Types.Tests.State
             SystemContext ctx = CreateSystemContext();
             BaseDataVariableState v = CreateReadableVariable();
             bool called = false;
-            v.OnSimpleWriteValue = (ISystemContext _, NodeState _, ref Variant _) =>
+            v.OnSimpleWriteValue = (_, _, ref _) =>
             {
                 called = true;
                 return ServiceResult.Good;
@@ -479,10 +477,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
             Assert.That(called, Is.False);
         }
-
-        // -----------------------------------------------------------------
-        // Fallback to sync path when no async slot is set
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task ReadAttributeAsyncFallsBackToSyncWhenNoAsyncSlotSet()
@@ -536,10 +530,6 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(dv.WrappedValue.GetLocalizedText().Text, Is.EqualTo("Var"));
         }
-
-        // -----------------------------------------------------------------
-        // Access control
-        // -----------------------------------------------------------------
 
         [Test]
         public async Task ReadAttributeAsyncReturnsBadNotReadableForNoAccessLevel()

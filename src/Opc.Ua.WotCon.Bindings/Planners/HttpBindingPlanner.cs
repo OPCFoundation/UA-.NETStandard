@@ -89,6 +89,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         }
 
         /// <inheritdoc/>
+        /// <param name="form">The WoT affordance form.</param>
+        /// <param name="context">The WoT binding plan context.</param>
         public override WotBindingCompilation Compile(WotAffordanceForm form, WotBindingPlanContext context)
         {
             var diagnostics = new List<WotBindingDiagnostic>();
@@ -131,6 +133,18 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
+            if (!context.Codecs.TrySelect(payload.ContentType, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.UnsupportedContentType,
+                    $"No payload codec is registered for '{payload.ContentType}'.", form.Pointer("contentType")));
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            WotEventSelection? eventSelection = OpcUaBindingPlanner.ResolveEventSelection(form, context, diagnostics);
+            if (form.Kind == WotAffordanceKind.Event && eventSelection is null)
+            {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
             WotEndpointDescriptor endpoint = MakeEndpoint(uri);
             var addressing = new WotAddressingDescriptor(ToTransmittedUri(uri));
             ImmutableArray<WotCredentialReference> security =
@@ -145,7 +159,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     ImmutableDictionary<string, string>.Empty.Add("subprotocol", form.Subprotocol ?? string.Empty));
                 entries.Add(new WotCompiledForm(
                     Identity, form.Kind, form.AffordanceName, form.JsonPointer, capability, op,
-                    endpoint, addressing, operation, payload, security, Capability.IsExecutable));
+                    endpoint, addressing, operation, payload, security, Capability.IsExecutable,
+                    targetMapping: null, eventSelection, securityFloor: null));
             }
 
             if (entries.Count == 0)

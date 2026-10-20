@@ -86,13 +86,13 @@ namespace Opc.Ua.Aot.Tests
                 CancellationToken.None).ConfigureAwait(false);
 
             await Assert.That(StatusCode.IsGood(nsArray.StatusCode)).IsTrue();
-            await Assert.That(nsArray.WrappedValue.AsBoxedObject())
-                .IsNotNull();
+            await Assert.That(nsArray.WrappedValue.IsNull).IsFalse();
 
             // Verify through the session namespace table
             await Assert.That(fixture.Session.NamespaceUris.Count)
                 .IsGreaterThan(0);
-            string opcUaNamespace = fixture.Session.NamespaceUris.GetString(0);
+            string opcUaNamespace = fixture.Session.NamespaceUris.GetString(0) ??
+                throw new InvalidOperationException("The base namespace is missing.");
             await Assert.That(opcUaNamespace).Contains("opcfoundation.org");
         }
 

@@ -1459,11 +1459,11 @@ namespace Opc.Ua.Di.Tests
         }
 
         [Test]
-        public void SpeedOverrideCommandIsFailClosedByDefault()
+        public async Task SpeedOverrideCommandIsFailClosedByDefault()
         {
             var connector = new OpenUsdConnector(m_session!, new MockUsdSink());
             // Opt-in: with commands disabled (the default), actuation is refused.
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await connector.IssueCommandAsync(50.0, CancellationToken.None).ConfigureAwait(false));
         }
 

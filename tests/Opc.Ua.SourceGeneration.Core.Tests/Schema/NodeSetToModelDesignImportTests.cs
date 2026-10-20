@@ -1101,6 +1101,37 @@ namespace Opc.Ua.Schema.Model.Tests
                 "importing tens of thousands of instances must not be quadratic");
         }
 
+        /// <summary>
+        /// A child's CLR property must not have the enclosing node-state class name.
+        /// OPC 40100-1 ResultType declares precisely such a ResultState child.
+        /// </summary>
+        [Test]
+        public void ImportDisambiguatesChildFromEnclosingStateClass()
+        {
+            ModelDesign model = Import(
+                """
+                <UAObjectType NodeId="ns=1;i=1001" BrowseName="1:ResultType">
+                  <DisplayName>ResultType</DisplayName>
+                  <References>
+                    <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                    <Reference ReferenceType="HasComponent">ns=1;i=1002</Reference>
+                  </References>
+                </UAObjectType>
+                <UAObject NodeId="ns=1;i=1002" BrowseName="1:ResultState" ParentNodeId="ns=1;i=1001">
+                  <DisplayName>ResultState</DisplayName>
+                  <References>
+                    <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1001</Reference>
+                  </References>
+                </UAObject>
+                """,
+                out _);
+
+            var type = (ObjectTypeDesign)model.Items.Single(node => node.SymbolicName.Name == "ResultType");
+            Assert.That(type.ClassName, Is.EqualTo("ResultObject"));
+            Assert.That(type.Children.Items.Single().SymbolicName.Name, Is.EqualTo("ResultState"));
+        }
+
         private ModelDesign Import(
             string nodes,
             out NodeSetReaderSettings settings,

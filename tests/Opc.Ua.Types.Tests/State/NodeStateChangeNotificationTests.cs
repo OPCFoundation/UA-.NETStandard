@@ -49,6 +49,108 @@ namespace Opc.Ua.Types.Tests.State
     [Parallelizable]
     public class NodeStateChangeNotificationTests
     {
+        /// <summary>
+        /// Parent and alternate notifier paths share one visited set, but a later publication is not suppressed.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EventDiamondVisitsEachNodeOncePerPublicationAsync(bool synchronous)
+        {
+            SystemContext context = CreateSystemContext();
+            var root = new BaseObjectState(null);
+            var parent = new BaseObjectState(root);
+            var alternate = new BaseObjectState(root);
+            var source = new BaseObjectState(parent);
+            source.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, alternate);
+            var e = new BaseObjectState(null);
+            int roots = 0;
+            int parents = 0;
+            int alternates = 0;
+            int sources = 0;
+            root.EventReported += (_, _, _) => roots++;
+            parent.EventReported += (_, _, _) => parents++;
+            alternate.EventReported += (_, _, _) => alternates++;
+            source.EventReported += (_, _, _) => sources++;
+
+            for (int count = 0; count < 2; count++)
+            {
+                if (synchronous)
+                {
+                    source.ReportEvent(context, e);
+                }
+                else
+                {
+                    await source.ReportEventAsync(context, e).ConfigureAwait(false);
+                }
+            }
+
+            Assert.That(roots, Is.EqualTo(2));
+            Assert.That(parents, Is.EqualTo(2));
+            Assert.That(alternates, Is.EqualTo(2));
+            Assert.That(sources, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// An inverse notifier cycle terminates, and a failed callback does not poison the next publication.
+        /// </summary>
+        [Test]
+        public async Task EventCycleAndFailedSinkDoNotLeakPropagationScopeAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var root = new BaseObjectState(null);
+            var source = new BaseObjectState(root);
+            root.AddNotifier(context, ReferenceTypeIds.HasNotifier, true, source);
+            var e = new BaseObjectState(null);
+            root.OnReportEventAsync = static (_, _, _, _) => throw new InvalidOperationException("sink");
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await source.ReportEventAsync(context, e).ConfigureAwait(false));
+            int reports = 0;
+            root.OnReportEventAsync = (_, _, _, _) =>
+            {
+                reports++;
+                return default;
+            };
+
+            await source.ReportEventAsync(context, e).ConfigureAwait(false);
+
+            Assert.That(reports, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Concurrent top-level publications remain distinct even when an application reuses an event object.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentPublicationsDoNotShareTheirVisitedNodesAsync()
+        {
+            SystemContext context = CreateSystemContext();
+            var root = new BaseObjectState(null);
+            var source = new BaseObjectState(root);
+            var e = new BaseObjectState(null);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int reports = 0;
+            root.OnReportEventAsync = (_, _, _, _) =>
+            {
+                if (Interlocked.Increment(ref reports) == 2)
+                {
+                    entered.TrySetResult(true);
+                }
+                return new ValueTask(release.Task);
+            };
+            Task first = source.ReportEventAsync(context, e).AsTask();
+            Task second = source.ReportEventAsync(context, e).AsTask();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await Task.WhenAll(first, second).ConfigureAwait(false);
+            }
+            Assert.That(reports, Is.EqualTo(2));
+        }
+
         [OneTimeSetUp]
         protected void OneTimeSetUp()
         {

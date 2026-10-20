@@ -50,6 +50,15 @@
   <ItemGroup>
     <EmbeddedResource Include="Types\Utils\LocalizedData.txt" />
   </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.xml" />
+    <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.csv" />
+  </ItemGroup>
   <!-- Stack source generation -->
   <PropertyGroup>
     <StackSourceGeneratorMode>Stack</StackSourceGeneratorMode>

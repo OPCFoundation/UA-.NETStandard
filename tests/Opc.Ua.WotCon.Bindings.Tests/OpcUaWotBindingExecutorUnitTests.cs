@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -43,6 +45,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class OpcUaWotBindingExecutorUnitTests
     {
+        /// <summary>
+        /// Verifies that activation constructs an endpoint from host and port when no base URI is supplied.
+        /// </summary>
+        /// <param name="scheme">The security or addressing scheme selected by the test case.</param>
+        /// <param name="port">The endpoint port used by the test case.</param>
+        /// <param name="expected">The expected result for this test case.</param>
         [TestCase("opc.tcp", 4841, "opc.tcp://example.test:4841")]
         [TestCase("opc.tcp", 4840, "opc.tcp://example.test")]
         [TestCase("opc.https", 443, "opc.https://example.test")]
@@ -67,6 +75,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(capturedEndpoint, Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that activation preserves an explicitly supplied base URI.
+        /// </summary>
         [Test]
         public async Task ActivateAsyncPreservesExplicitBaseUriAsync()
         {
@@ -86,6 +97,130 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 async () => await executor.ActivateAsync(form, new WotExecutorContext()).ConfigureAwait(false),
                 Throws.InstanceOf<InvalidOperationException>());
             Assert.That(capturedEndpoint, Is.EqualTo("opc.tcp://actual.example:1111"));
+        }
+
+        /// <summary>
+        /// Verifies that compiled forms preserve the endpoint resource path.
+        /// </summary>
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/Pump/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/Pump/")]
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/Pump%20A/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/Pump%20A/")]
+        [TestCase(
+            "opc.tcp://example.test:4841/UA/line=west/?id=i%3D2258",
+            "opc.tcp://example.test:4841/UA/line=west/")]
+        [TestCase("opc.tcp://example.test:4841/?id=i%3D2258", "opc.tcp://example.test:4841")]
+        [TestCase("opc.tcp://example.test:4841/i=2258", "opc.tcp://example.test:4841")]
+        public void CompiledFormsPreserveTheEndpointResourcePath(string href, string expected)
+        {
+            string? capturedEndpoint = null;
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()],
+                [new OpcUaWotBindingExecutor(new OpcUaWotBindingOptions
+                {
+                    SessionFactory = (endpoint, _) =>
+                    {
+                        capturedEndpoint = endpoint;
+                        return ValueTask.FromException<ISession>(new InvalidOperationException("stop"));
+                    }
+                })]);
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Endpoint resource",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "{{href}}", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "endpoint-resource", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+            WotCompiledForm form = plan.CompiledForms.Single(
+                candidate => candidate.Operation == WoTBindingCapabilityEnum.ReadProperty);
+
+            Assert.That(
+                () => registry.OpenChannelAsync(form).AsTask(),
+                Throws.InstanceOf<InvalidOperationException>().With.Message.EqualTo("stop"));
+            Assert.That(capturedEndpoint, Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Verifies that relative forms resolve before selection and direct compilation.
+        /// </summary>
+        /// <param name="href">The form href, possibly relative to the document base.</param>
+        /// <param name="expectedEndpoint">The expected endpoint asserted by the test.</param>
+        [TestCase("?id=i%3D2258", "opc.tcp://example.test:4841/UA/Pump/")]
+        [TestCase("/?id=i%3D2258", "opc.tcp://example.test:4841")]
+        public void RelativeFormsResolveBeforeSelectionAndDirectCompilation(string href, string expectedEndpoint)
+        {
+            var planner = new OpcUaBindingPlanner();
+            var registry = new WotProtocolBinderRegistry([planner], []);
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Relative endpoint",
+                  "base": "opc.tcp://example.test:4841/UA/Pump/",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "{{href}}", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "relative-endpoint", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+
+            WotBindingPlan plan = registry.Prepare(request);
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1));
+            Assert.That(plan.CompiledForms[0].Endpoint.BaseUri, Is.EqualTo(expectedEndpoint));
+            Assert.That(plan.CompiledForms[0].Addressing.Target, Is.EqualTo("i=2258"));
+            Assert.That(request.Forms[0].FormElement.GetProperty("href").GetString(), Is.EqualTo(href));
+
+            WotBindingCompilation direct = planner.Compile(
+                request.Forms[0], request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+            Assert.That(direct.IsSupported, Is.True);
+            Assert.That(direct.Entries[0].Endpoint.BaseUri, Is.EqualTo(expectedEndpoint));
+        }
+
+        /// <summary>
+        /// Verifies that invalid base URI produces an address diagnostic.
+        /// </summary>
+        [Test]
+        public void InvalidBaseUriProducesAnAddressDiagnostic()
+        {
+            const string document = """
+                {
+                  "title": "Invalid base",
+                  "base": "not an absolute URI",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "forms": [{ "href": "?id=i%3D2258", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            var planner = new OpcUaBindingPlanner();
+            var registry = new WotProtocolBinderRegistry([planner], []);
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "invalid-base", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+
+            WotBindingPlan plan = registry.Prepare(request);
+            WotBindingCompilation direct = planner.Compile(
+                request.Forms[0], request.CreateContext(WotPayloadCodecRegistry.Default, WotBindingBounds.Default));
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.True);
+            Assert.That(direct.IsSupported, Is.False);
+            Assert.That(direct.Diagnostics.Any(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.True);
         }
 
         private static WotCompiledForm BuildForm(string scheme, int port, string baseUri)

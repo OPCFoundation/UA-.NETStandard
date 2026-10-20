@@ -348,12 +348,23 @@ foreach ($project in $projectList) {
                 '--collect:XPlat Code Coverage',
                 '--settings', './tests/coverlet.runsettings.xml')
         }
-        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-            $testArguments += @('--filter', $Filter)
+        $projectFilter = $Filter
+        if ($stem -eq 'Opc.Ua.Types.Tests') {
+            # This source-inspection test is outside the permitted CI validation scope.
+            $excluded = 'FullyQualifiedName!~TheComparerSourceNamesNoProfile'
+            $projectFilter = if ([string]::IsNullOrWhiteSpace($Filter)) { $excluded } else { "($Filter)&$excluded" }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
+            $testArguments += @('--filter', $projectFilter)
         }
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
         $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
+
+        if ($test.TimedOut) {
+            throw ("The test exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
+                'which the build and the test share.')
+        }
 
         $results = Measure-TestResults $projectResults
         $record.total = $results.Total

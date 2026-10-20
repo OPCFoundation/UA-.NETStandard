@@ -82,16 +82,17 @@ namespace Opc.Ua.AI.Tests
             AIDatasetSnapshot snapshot = await h.Client.Dataset(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.DatasetId, Is.EqualTo("ds-1"));
-                Assert.That(snapshot.Name, Is.EqualTo("training"));
-                Assert.That(snapshot.SourceKind, Is.EqualTo(DatasetSourceEnum.Synthetic));
-                Assert.That(snapshot.ArtifactUri, Is.EqualTo("https://blob/ds1"));
-                Assert.That(snapshot.ContentType, Is.EqualTo("application/json"));
-                Assert.That(snapshot.SizeBytes, Is.EqualTo(4096));
-                Assert.That(snapshot.SampleCount, Is.EqualTo(100));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.DatasetId, Is.EqualTo("ds-1"));
+                    Assert.That(snapshot.Name, Is.EqualTo("training"));
+                    Assert.That(snapshot.SourceKind, Is.EqualTo(DatasetSourceEnum.Synthetic));
+                    Assert.That(snapshot.ArtifactUri, Is.EqualTo("https://blob/ds1"));
+                    Assert.That(snapshot.ContentType, Is.EqualTo("application/json"));
+                    Assert.That(snapshot.SizeBytes, Is.EqualTo(4096));
+                    Assert.That(snapshot.SampleCount, Is.EqualTo(100));
+                });
         }
 
         [Test]
@@ -102,13 +103,14 @@ namespace Opc.Ua.AI.Tests
             AIDatasetSnapshot snapshot = await h.Client.Dataset(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.DatasetId, Is.Null);
-                Assert.That(snapshot.Name, Is.Null);
-                Assert.That(snapshot.SizeBytes, Is.Zero);
-                Assert.That(snapshot.SampleCount, Is.Zero);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.DatasetId, Is.Null);
+                    Assert.That(snapshot.Name, Is.Null);
+                    Assert.That(snapshot.SizeBytes, Is.Zero);
+                    Assert.That(snapshot.SampleCount, Is.Zero);
+                });
         }
 
         [Test]
@@ -144,13 +146,14 @@ namespace Opc.Ua.AI.Tests
             AIInferenceJobSnapshot snapshot = await h.Client.InferenceJob(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.JobId, Is.EqualTo("job-42"));
-                Assert.That(snapshot.ResponseContentType, Is.EqualTo("text/plain"));
-                Assert.That(snapshot.ResponsePayload.Length, Is.EqualTo(2));
-                Assert.That(snapshot.FinishReason, Is.EqualTo(FinishReasonEnum.Error));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.JobId, Is.EqualTo("job-42"));
+                    Assert.That(snapshot.ResponseContentType, Is.EqualTo("text/plain"));
+                    Assert.That(snapshot.ResponsePayload.Length, Is.EqualTo(2));
+                    Assert.That(snapshot.FinishReason, Is.EqualTo(FinishReasonEnum.Error));
+                });
         }
 
         [Test]
@@ -161,12 +164,13 @@ namespace Opc.Ua.AI.Tests
             AIInferenceJobSnapshot snapshot = await h.Client.InferenceJob(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.JobId, Is.Null);
-                Assert.That(snapshot.DeploymentId, Is.EqualTo(NodeId.Null));
-                Assert.That(snapshot.ModelUsed, Is.EqualTo(NodeId.Null));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.JobId, Is.Null);
+                    Assert.That(snapshot.DeploymentId, Is.EqualTo(NodeId.Null));
+                    Assert.That(snapshot.ModelUsed, Is.EqualTo(NodeId.Null));
+                });
         }
 
         [Test]
@@ -196,12 +200,13 @@ namespace Opc.Ua.AI.Tests
             AIEvaluationRunSnapshot snapshot = await h.Client.EvaluationRun(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.RunId, Is.EqualTo("run-7"));
-                Assert.That(snapshot.Passed, Is.True);
-                Assert.That(snapshot.ReportUri, Is.EqualTo("https://reports/7"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.RunId, Is.EqualTo("run-7"));
+                    Assert.That(snapshot.Passed, Is.True);
+                    Assert.That(snapshot.ReportUri, Is.EqualTo("https://reports/7"));
+                });
         }
 
         [Test]
@@ -212,12 +217,13 @@ namespace Opc.Ua.AI.Tests
             AIEvaluationRunSnapshot snapshot = await h.Client.EvaluationRun(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.RunId, Is.Null);
-                Assert.That(snapshot.Passed, Is.False);
-                Assert.That(snapshot.EvaluatedModelId, Is.EqualTo(NodeId.Null));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.RunId, Is.Null);
+                    Assert.That(snapshot.Passed, Is.False);
+                    Assert.That(snapshot.EvaluatedModelId, Is.EqualTo(NodeId.Null));
+                });
         }
 
         [Test]
@@ -252,12 +258,13 @@ namespace Opc.Ua.AI.Tests
             AILearningJobSnapshot snapshot = await h.Client.LearningJob(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.JobId, Is.EqualTo("learn-3"));
-                Assert.That(snapshot.State, Is.EqualTo(LearningJobStateEnum.Training));
-                Assert.That(snapshot.Progress, Is.EqualTo(0.75));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.JobId, Is.EqualTo("learn-3"));
+                    Assert.That(snapshot.State, Is.EqualTo(LearningJobStateEnum.Training));
+                    Assert.That(snapshot.Progress, Is.EqualTo(0.75));
+                });
         }
 
         [Test]
@@ -268,13 +275,14 @@ namespace Opc.Ua.AI.Tests
             AILearningJobSnapshot snapshot = await h.Client.LearningJob(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.JobId, Is.Null);
-                Assert.That(snapshot.Progress, Is.Zero);
-                Assert.That(snapshot.CandidateModelId, Is.EqualTo(NodeId.Null));
-                Assert.That(snapshot.TargetDeploymentId, Is.EqualTo(NodeId.Null));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.JobId, Is.Null);
+                    Assert.That(snapshot.Progress, Is.Zero);
+                    Assert.That(snapshot.CandidateModelId, Is.EqualTo(NodeId.Null));
+                    Assert.That(snapshot.TargetDeploymentId, Is.EqualTo(NodeId.Null));
+                });
         }
 
         [Test]
@@ -313,14 +321,15 @@ namespace Opc.Ua.AI.Tests
             AIModelSourceSnapshot snapshot = await h.Client.Source(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.SourceId, Is.EqualTo("src-1"));
-                Assert.That(snapshot.EndpointUri, Is.EqualTo("https://model-store.example.com"));
-                Assert.That(snapshot.ApiDialect, Is.EqualTo(ApiDialectEnum.OpenInferenceProtocol));
-                Assert.That(snapshot.AuthenticationKind, Is.EqualTo(AuthenticationKindEnum.BearerToken));
-                Assert.That(snapshot.CredentialReference, Is.EqualTo("vault://key1"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.SourceId, Is.EqualTo("src-1"));
+                    Assert.That(snapshot.EndpointUri, Is.EqualTo("https://model-store.example.com"));
+                    Assert.That(snapshot.ApiDialect, Is.EqualTo(ApiDialectEnum.OpenInferenceProtocol));
+                    Assert.That(snapshot.AuthenticationKind, Is.EqualTo(AuthenticationKindEnum.BearerToken));
+                    Assert.That(snapshot.CredentialReference, Is.EqualTo("vault://key1"));
+                });
         }
 
         [Test]
@@ -331,11 +340,12 @@ namespace Opc.Ua.AI.Tests
             AIModelSourceSnapshot snapshot = await h.Client.Source(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.SourceId, Is.Null);
-                Assert.That(snapshot.EndpointUri, Is.Null);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.SourceId, Is.Null);
+                    Assert.That(snapshot.EndpointUri, Is.Null);
+                });
         }
 
         [Test]
@@ -370,13 +380,14 @@ namespace Opc.Ua.AI.Tests
             AITransferSnapshot snapshot = await h.Client.Transfer(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.TransferId, Is.EqualTo("xfer-1"));
-                Assert.That(snapshot.State, Is.EqualTo(TransferStateEnum.Completed));
-                Assert.That(snapshot.BytesTransferred, Is.EqualTo(2048));
-                Assert.That(snapshot.ResponseContentType, Is.EqualTo("application/octet-stream"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.TransferId, Is.EqualTo("xfer-1"));
+                    Assert.That(snapshot.State, Is.EqualTo(TransferStateEnum.Completed));
+                    Assert.That(snapshot.BytesTransferred, Is.EqualTo(2048));
+                    Assert.That(snapshot.ResponseContentType, Is.EqualTo("application/octet-stream"));
+                });
         }
 
         [Test]
@@ -387,12 +398,13 @@ namespace Opc.Ua.AI.Tests
             AITransferSnapshot snapshot = await h.Client.Transfer(s_nodeId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.TransferId, Is.Null);
-                Assert.That(snapshot.BytesTransferred, Is.Zero);
-                Assert.That(snapshot.ModelUsed, Is.EqualTo(NodeId.Null));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.TransferId, Is.Null);
+                    Assert.That(snapshot.BytesTransferred, Is.Zero);
+                    Assert.That(snapshot.ModelUsed, Is.EqualTo(NodeId.Null));
+                });
         }
 
         [Test]
@@ -648,7 +660,8 @@ namespace Opc.Ua.AI.Tests
         {
             var h = new AISessionHarness();
             var resourceId = new NodeId(9000u, 3);
-            h.AddBrowse(h.ModelNodeId,
+            h.AddBrowse(
+                h.ModelNodeId,
                 [h.Ref(resourceId, "Weights", ObjectTypes.ModelResourceType)]);
 
             var entries = new List<AINodeEntry>();
@@ -675,13 +688,14 @@ namespace Opc.Ua.AI.Tests
             AIModelResourceSnapshot snapshot = await h.Client.Model(h.ModelNodeId)
                 .ReadResourceAsync(resId).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.ArtifactUri, Is.EqualTo("https://models/weights.bin"));
-                Assert.That(snapshot.ContentType, Is.EqualTo("application/octet-stream"));
-                Assert.That(snapshot.SizeBytes, Is.EqualTo(1048576));
-                Assert.That(snapshot.DigestAlgorithm, Is.EqualTo("SHA-256"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.ArtifactUri, Is.EqualTo("https://models/weights.bin"));
+                    Assert.That(snapshot.ContentType, Is.EqualTo("application/octet-stream"));
+                    Assert.That(snapshot.SizeBytes, Is.EqualTo(1048576));
+                    Assert.That(snapshot.DigestAlgorithm, Is.EqualTo("SHA-256"));
+                });
         }
 
         [Test]
@@ -704,20 +718,21 @@ namespace Opc.Ua.AI.Tests
             AIModelResourceSnapshot snapshot = await h.Client.Model(h.ModelNodeId)
                 .ReadResourceAsync(resId).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.ArtifactUri, Is.Null);
-                Assert.That(snapshot.ContentType, Is.Null);
-                Assert.That(snapshot.SizeBytes, Is.Zero);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.ArtifactUri, Is.Null);
+                    Assert.That(snapshot.ContentType, Is.Null);
+                    Assert.That(snapshot.SizeBytes, Is.Zero);
+                });
         }
 
         [Test]
-        public void ModelReadResourceAsyncWithNullNodeIdThrows()
+        public async Task ModelReadResourceAsyncWithNullNodeIdThrows()
         {
             var h = new AISessionHarness();
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await h.Client.Model(h.ModelNodeId)
                     .ReadResourceAsync(NodeId.Null).ConfigureAwait(false));
         }
@@ -740,14 +755,15 @@ namespace Opc.Ua.AI.Tests
             AIModelSnapshot snapshot = await h.Client.Model(modelId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.ModelId, Is.EqualTo("m-full"));
-                Assert.That(snapshot.Framework, Is.EqualTo("ONNX"));
-                Assert.That(snapshot.Format, Is.EqualTo("onnx"));
-                Assert.That(snapshot.License, Is.EqualTo("MIT"));
-                Assert.That(snapshot.DigestAlgorithm, Is.EqualTo("SHA-256"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.ModelId, Is.EqualTo("m-full"));
+                    Assert.That(snapshot.Framework, Is.EqualTo("ONNX"));
+                    Assert.That(snapshot.Format, Is.EqualTo("onnx"));
+                    Assert.That(snapshot.License, Is.EqualTo("MIT"));
+                    Assert.That(snapshot.DigestAlgorithm, Is.EqualTo("SHA-256"));
+                });
         }
 
         [Test]
@@ -768,22 +784,23 @@ namespace Opc.Ua.AI.Tests
                 (int)DeploymentStateEnum.Active);
             h.AddValueChild(depId, BrowseNames.DataJurisdiction, new NodeId(9403u, 3), "US");
             h.AddValueChild(depId, BrowseNames.EgressPermitted, new NodeId(9404u, 3), false);
-            h.AddValueChild(depId, BrowseNames.MaxInlinePayloadSize, new NodeId(9405u, 3), (ulong)8192);
+            h.AddValueChild(depId, BrowseNames.MaxInlinePayloadSize, new NodeId(9405u, 3), 8192u);
             h.AddValueChild(depId, BrowseNames.EndpointUri, new NodeId(9406u, 3), "https://ai.example.com/deploy");
 
             AIDeploymentSnapshot snapshot = await h.Client.Deployment(depId).ReadAsync()
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(snapshot.DeploymentId, Is.EqualTo("dep-full"));
-                Assert.That(snapshot.InferenceLocation, Is.EqualTo(InferenceLocationEnum.EdgeOffServer));
-                Assert.That(snapshot.State, Is.EqualTo(DeploymentStateEnum.Active));
-                Assert.That(snapshot.DataJurisdiction, Is.EqualTo("US"));
-                Assert.That(snapshot.EgressPermitted, Is.False);
-                Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo(8192));
-                Assert.That(snapshot.EndpointUri, Is.EqualTo("https://ai.example.com/deploy"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(snapshot.DeploymentId, Is.EqualTo("dep-full"));
+                    Assert.That(snapshot.InferenceLocation, Is.EqualTo(InferenceLocationEnum.EdgeOffServer));
+                    Assert.That(snapshot.State, Is.EqualTo(DeploymentStateEnum.Active));
+                    Assert.That(snapshot.DataJurisdiction, Is.EqualTo("US"));
+                    Assert.That(snapshot.EgressPermitted, Is.False);
+                    Assert.That(snapshot.MaxInlinePayloadSize, Is.EqualTo(8192));
+                    Assert.That(snapshot.EndpointUri, Is.EqualTo("https://ai.example.com/deploy"));
+                });
         }
     }
 }

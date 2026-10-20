@@ -83,7 +83,16 @@ namespace Opc.Ua.Server
                     "A lifecycle waiter can only be registered by an executing request.");
             }
 
-            uint requestId = currentRequestId.Value;
+            return EnterLifecycleWaiter(currentRequestId.Value);
+        }
+
+        /// <summary>
+        /// Registers the specified executing request for an opted-in NodeManager lifecycle operation.
+        /// </summary>
+        /// <param name="requestId">The identifier of the executing request.</param>
+        /// <returns>A scope that unregisters the request when the lifecycle operation exits.</returns>
+        internal RequestLifecycleWaiterScope EnterLifecycleWaiter(uint requestId)
+        {
             m_requestManager.EnterLifecycleWaiter(this, requestId);
             return new RequestLifecycleWaiterScope(this, requestId);
         }
@@ -106,9 +115,9 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">The request is no longer active.</exception>
         internal void EnterWaiterLocked(
             uint requestId,
-            IReadOnlyDictionary<uint, OperationContext> requests)
+            RequestTable<OperationContext> requests)
         {
-            if (!requests.ContainsKey(requestId))
+            if (!requests.GetEntries().Exists(request => request.RequestId == requestId))
             {
                 throw new InvalidOperationException(
                     "The lifecycle waiter request is no longer active.");

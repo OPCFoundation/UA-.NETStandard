@@ -50,7 +50,9 @@ env:
       {"image": "pumpserver", "project": "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "./samples/DI/PumpDeviceIntegrationServer/Dockerfile"},
       {"image": "redundantclient", "project": "samples/Redundancy/RedundantClient/RedundantClient.csproj", "dockerfile": "./samples/Redundancy/RedundantClient/Dockerfile"},
       {"image": "redundantpubsub", "project": "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj", "dockerfile": "./samples/Redundancy/RedundantPubSub/Dockerfile"},
-      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"},
+      {"image": "recyclingserver", "project": "samples/Recycling/RecyclingServer/RecyclingServer.csproj", "dockerfile": "./samples/Recycling/RecyclingServer/Dockerfile"},
+      {"image": "recyclingclient", "project": "samples/Recycling/RecyclingOperatorConsole/RecyclingOperatorConsole.csproj", "dockerfile": "./samples/Recycling/RecyclingOperatorConsole/Dockerfile"}
     ]
 
 jobs:
@@ -147,7 +149,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
 
     - name: Set Version
       shell: pwsh
@@ -217,7 +219,7 @@ jobs:
     - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
 
     - name: Set Version
       shell: pwsh

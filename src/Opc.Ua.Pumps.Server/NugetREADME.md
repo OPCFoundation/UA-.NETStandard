@@ -73,9 +73,29 @@ friends are available to servers that wire per-node callbacks directly.
 
 `AddPumps` claims the Device Integration address space, so it cannot be
 combined with `AddOpcUaDi` or another DI-owning registration. A server that
-already has a DI manager loads the model into it with
-`nodes.AddOpcUaPumps(context)` and configures it through
-`ConfigureDevicesFor<TNodeManager>()`.
+uses the stock Machinery owner composes Pumps additively:
+
+```csharp
+services.AddOpcUa().AddServer<StandardServer>(ConfigureServer)
+    .AddMachinery(options => options.Parts = MachineryParts.BuildingBlocks)
+    .AddPumpsToMachinery()
+    .ConfigurePumpsFor<MachineryNodeManager>(async (context, ct) =>
+    {
+        var pump = await context.Runtime.CreatePumpAsync(
+            new QualifiedName("FeedPump", context.Runtime.InstanceNamespaceIndex), ct);
+        pump.Measurements.SetAnalog(Opc.Ua.Pumps.BrowseNames.MassFlow, 12.5);
+    });
+```
+
+The shared `PumpsRuntime` preserves lazy groups and live updates, with all
+instances in the Machinery owner's application namespace. It can coexist with
+`AddScalesToMachinery()` and the AMB sidecar. For direct construction, supply
+`PumpsMachineryModelProvider` to `MachineryNodeManager` and call
+`owner.CreatePumpsRuntime()` after its address space is ready. The owner disposes
+the runtime on shutdown. Existing standalone APIs remain unchanged.
+
+See the [Pumps guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Pumps.md)
+for model ordering, service injection, asset registration and custom-owner lifetime.
 
 For the client side use `Opc.Ua.Pumps.Client`; the model and the shared
 snapshot contracts live in `Opc.Ua.Pumps`.

@@ -561,6 +561,294 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// A partially deleted subtree preserves monitoring for surviving descendants.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
+        public async Task PartialNodeDeletionRestoresSurvivingMonitoredItemsAsync(ManagerPath path, bool service)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var root = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("PartialRemoval", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("PartialRemoval", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                root.CreateAsPredefinedNode(owner.SystemContext);
+                var child = new BaseDataVariableState(root)
+                {
+                    NodeId = new NodeId("SurvivingChild", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("SurvivingChild", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    DataType = DataTypeIds.Int32,
+                    Value = 2
+                };
+                child.CreateAsPredefinedNode(owner.SystemContext);
+                root.AddChild(child);
+                await owner.AddNodeAsync(root).ConfigureAwait(false);
+                using MonitoredItem rootItem = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), root.NodeId, 2);
+                using MonitoredItem childItem = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), child.NodeId, 3);
+                var rootLifecycle = (IDetachableMonitoredItem)rootItem;
+                var childLifecycle = (IDetachableMonitoredItem)childItem;
+                rootLifecycle.Detach(server.Object);
+                childLifecycle.Detach(server.Object);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(rootItem).ConfigureAwait(false)), Is.True);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(childItem).ConfigureAwait(false)), Is.True);
+                var failure = new InvalidOperationException("Injected partial removal failure.");
+                owner.SetNodeRemovedCallback(removed =>
+                {
+                    if (ReferenceEquals(removed, root))
+                    {
+                        throw failure;
+                    }
+                });
+                await Assert.ThatAsync(async () =>
+                {
+                    if (service)
+                    {
+                        using var context = new OperationContext(rootItem);
+                        await owner.AsyncManager.DeleteNodeAsync(
+                            context, new DeleteNodesItem { NodeId = root.NodeId }).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await owner.DeleteNodeAsync(root.NodeId).ConfigureAwait(false);
+                    }
+                }, Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+
+                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(owner.ContainsNode(root.NodeId), Is.False);
+                    Assert.That(owner.ContainsNode(child.NodeId), Is.True);
+                    Assert.That(rootLifecycle.IsDeleted, Is.True);
+                    Assert.That(rootLifecycle.IsDetached, Is.True);
+                    Assert.That(childLifecycle.IsDeleted, Is.False);
+                    Assert.That(childLifecycle.IsDetached, Is.False);
+                    Assert.That(owner.Owns(childItem.NodeManager), Is.True);
+                    Assert.That(remaining, Has.Count.EqualTo(1));
+                    Assert.That(remaining[0], Is.SameAs(childItem));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Restoration failures do not hide the deletion failure or abandon other surviving items.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task PartialDeletionPreservesFailuresAndRestoresOtherItemsAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FailedRoot", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("FailedRoot", owner.NamespaceIndex)
+                };
+                root.CreateAsPredefinedNode(owner.SystemContext);
+                var value = new BaseDataVariableState(root)
+                {
+                    NodeId = new NodeId("SurvivingValue", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("SurvivingValue", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                value.CreateAsPredefinedNode(owner.SystemContext);
+                var events = new BaseObjectState(root)
+                {
+                    NodeId = new NodeId("SurvivingEvents", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("SurvivingEvents", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                events.CreateAsPredefinedNode(owner.SystemContext);
+                root.AddChild(value);
+                root.AddChild(events);
+                await owner.AddNodeAsync(root).ConfigureAwait(false);
+                using MonitoredItem valueItem = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), value.NodeId, 2);
+                using MonitoredItem eventItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), events.NodeId, 3);
+                var valueLifecycle = (IDetachableMonitoredItem)valueItem;
+                var eventLifecycle = (IDetachableMonitoredItem)eventItem;
+                valueLifecycle.Detach(server.Object);
+                eventLifecycle.Detach(server.Object);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(valueItem).ConfigureAwait(false)), Is.True);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(eventItem).ConfigureAwait(false)), Is.True);
+                var deletionFailure = new InvalidOperationException("Injected deletion failure.");
+                var restorationFailure = new InvalidOperationException("Injected restoration failure.");
+                bool restoring = false;
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (restoring && !unsubscribe)
+                    {
+                        throw restorationFailure;
+                    }
+                });
+                owner.SetNodeRemovedCallback(removed =>
+                {
+                    if (ReferenceEquals(removed, root))
+                    {
+                        restoring = true;
+                        throw deletionFailure;
+                    }
+                });
+                AggregateException? observed = null;
+                try
+                {
+                    await owner.DeleteNodeAsync(root.NodeId).ConfigureAwait(false);
+                }
+                catch (AggregateException failure)
+                {
+                    observed = failure;
+                }
+                owner.SetEventSubscriptionCallback(static _ => { });
+                Assert.That(observed, Is.Not.Null);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(observed!.Flatten().InnerExceptions, Does.Contain(deletionFailure));
+                    Assert.That(observed.Flatten().InnerExceptions, Does.Contain(restorationFailure));
+                    Assert.That(valueLifecycle.IsDetached, Is.False);
+                    Assert.That(valueLifecycle.IsDeleted, Is.False);
+                    Assert.That(owner.Owns(valueItem.NodeManager), Is.True);
+                    Assert.That(eventLifecycle.IsDeleted, Is.False);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A timed-out restoration does not consume the cleanup budget of the next surviving item.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        public async Task TimedOutRestorationDoesNotCancelFollowingItemsAsync(ManagerPath path)
+        {
+            var clock = new FakeTimeProvider();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory, clock);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("TimedOutRestoration", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("TimedOutRestoration", owner.NamespaceIndex)
+                };
+                root.CreateAsPredefinedNode(owner.SystemContext);
+                var first = new BaseObjectState(root)
+                {
+                    NodeId = new NodeId("FirstSurvivor", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("FirstSurvivor", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var second = new BaseObjectState(root)
+                {
+                    NodeId = new NodeId("SecondSurvivor", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("SecondSurvivor", owner.NamespaceIndex),
+                    ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                first.CreateAsPredefinedNode(owner.SystemContext);
+                second.CreateAsPredefinedNode(owner.SystemContext);
+                root.AddChild(first);
+                root.AddChild(second);
+                await owner.AddNodeAsync(root).ConfigureAwait(false);
+                using MonitoredItem firstItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), first.NodeId, 2);
+                using MonitoredItem secondItem = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), second.NodeId, 3);
+                var firstLifecycle = (IDetachableMonitoredItem)firstItem;
+                var secondLifecycle = (IDetachableMonitoredItem)secondItem;
+                firstLifecycle.Detach(server.Object);
+                secondLifecycle.Detach(server.Object);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(firstItem).ConfigureAwait(false)), Is.True);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AttachMonitoredItemAsync(secondItem).ConfigureAwait(false)), Is.True);
+
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                int restorationCalls = 0;
+                owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
+                {
+                    if (!unsubscribe && Interlocked.Increment(ref restorationCalls) == 1)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                };
+                var deletionFailure = new InvalidOperationException("Injected deletion failure.");
+                owner.SetNodeRemovedCallback(removed =>
+                {
+                    if (ReferenceEquals(removed, root))
+                    {
+                        throw deletionFailure;
+                    }
+                });
+                Task<bool> deletion = owner.DeleteNodeAsync(root.NodeId).AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    clock.Advance(TimeSpan.FromSeconds(5) - TimeSpan.FromTicks(1));
+                    Assert.That(deletion.IsCompleted, Is.False);
+                    clock.Advance(TimeSpan.FromTicks(1));
+                    await Assert.ThatAsync(
+                        () => deletion.WaitAsync(TimeSpan.FromSeconds(10)),
+                        Throws.TypeOf<AggregateException>().With.InnerException.SameAs(deletionFailure))
+                        .ConfigureAwait(false);
+
+                    IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
+                        .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(restorationCalls, Is.EqualTo(2));
+                        Assert.That(remaining, Has.Count.EqualTo(1));
+                        Assert.That(firstLifecycle.IsDetached, Is.Not.EqualTo(secondLifecycle.IsDetached));
+                        Assert.That(firstLifecycle.IsDeleted, Is.False);
+                        Assert.That(secondLifecycle.IsDeleted, Is.False);
+                    }
+                }
+                finally
+                {
+                    owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                    release.TrySetResult(true);
+                    try
+                    {
+                        await deletion.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    }
+                    catch (AggregateException failure) when (
+                        failure.Flatten().InnerExceptions.Contains(deletionFailure))
+                    {
+                    }
+                }
+            }
+        }
+
         [Test]
         public async Task DurableStartupFallbackCanBeDeletedAndLaterRecoveredAsync()
         {
@@ -800,7 +1088,7 @@ namespace Opc.Ua.Server.Tests
                 deletedItems: [],
                 isOwnedBySubscription: static _ => true);
 
-            ServiceResultException detachException = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException detachException = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await failedDetachTransition
                     .DetachCurrentAsync(CancellationToken.None)
                     .ConfigureAwait(false));
@@ -833,7 +1121,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false),
                 Is.Empty);
 
-            AggregateException rollbackException = Assert.ThrowsAsync<AggregateException>(
+            AggregateException rollbackException = await Assert.ThrowsAsync<AggregateException>(
                 async () => await rollbackTransition
                     .RollbackAsync(CancellationToken.None)
                     .ConfigureAwait(false));
@@ -927,6 +1215,86 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(replacement.AttachCount, Is.Zero);
                 Assert.That(current.RestoreCount, Is.Zero);
             });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void EventRegistrationRejectsConflictingInstancesWithoutRemovingTheOwner(bool anotherSource)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("EventOwner", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                BaseObjectState target = anotherSource ? new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ConflictingSource", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                } : source;
+                using MonitoredItem owner = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), source.NodeId);
+                using MonitoredItem conflicting = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), target.NodeId);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(owner));
+                (MonitoredNode2? registered, ServiceResult first) = manager.SubscribeToEvents(
+                    context, source, owner, unsubscribe: false);
+                MonitoredNode2 registeredNode = registered ??
+                    throw new AssertionException("The first event subscription did not register its monitored node.");
+
+                (_, ServiceResult rejected) = manager.SubscribeToEvents(
+                    context, target, conflicting, unsubscribe: false);
+                (_, ServiceResult rejectedCleanup) = manager.SubscribeToEvents(
+                    context, target, conflicting, unsubscribe: true);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                    Assert.That(rejectedCleanup.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                    Assert.That(manager.MonitoredItems[owner.Id], Is.SameAs(owner));
+                    Assert.That(registeredNode.EventMonitoredItems[owner.Id], Is.SameAs(owner));
+                });
+            }
+        }
+
+        [Test]
+        public void SharedEventRegistrationRemainsOwnedUntilItsLastRootUnsubscribes()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
+                var first = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FirstRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var second = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("SecondRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), ObjectIds.Server);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
+                Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(manager.SubscribeToEvents(context, second, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+
+                manager.SubscribeToEvents(context, first, item, true);
+                Assert.That(manager.MonitoredItems.TryGetValue(item.Id, out IMonitoredItem? remaining), Is.True);
+                Assert.That(remaining, Is.SameAs(item));
+
+                manager.SubscribeToEvents(context, second, item, true);
+                Assert.That(manager.MonitoredItems, Is.Empty);
+            }
         }
 
         [TestCase(false)]
@@ -1485,8 +1853,8 @@ namespace Opc.Ua.Server.Tests
                     release.TrySetResult(true);
                     if (failAttachment)
                     {
-                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
-                            async () => await original.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await original.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
                         Assert.That(error, Is.SameAs(failure));
                     }
                     else
@@ -1661,8 +2029,8 @@ namespace Opc.Ua.Server.Tests
                     release.TrySetResult(true);
                     if (compensateDetach)
                     {
-                        InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(
-                            async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))!;
+                        InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await transition.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false)))!;
                         Assert.That(error, Is.SameAs(failure));
                         clock.Advance(TimeSpan.FromTicks(1));
                         Assert.That(compensationToken.IsCancellationRequested, Is.False,
@@ -1956,7 +2324,8 @@ namespace Opc.Ua.Server.Tests
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             object managerHandle,
-            NodeId nodeId)
+            NodeId nodeId,
+            uint id = 2)
         {
             var identity = new Mock<IUserIdentity>();
             var session = new Mock<ISession>();
@@ -1973,7 +2342,7 @@ namespace Opc.Ua.Server.Tests
                 nodeManager,
                 managerHandle,
                 subscriptionId: 1,
-                id: 2,
+                id,
                 itemToMonitor: new ReadValueId
                 {
                     NodeId = nodeId,

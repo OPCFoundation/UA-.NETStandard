@@ -8,6 +8,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit" />
+    <PackageReference Include="MQTTnet.Server" Condition="'$(TargetFramework)' == 'net10.0'" />
     <PackageReference Include="NUnit.Console" />
     <PackageReference Include="NUnit.Analyzers">
       <PrivateAssets>all</PrivateAssets>
@@ -23,12 +24,54 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Opc.Ua.WotCon.Tests\Registry\RecordingLeasedResourceStore.cs"
+             Link="Mcp\WotCon\Support\RecordingLeasedResourceStore.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestHttpServer.cs"
+             Link="Mcp\WotCon\Support\TestHttpServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestModbusServer.cs"
+             Link="Mcp\WotCon\Support\TestModbusServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Server\Opc.Ua.AMB.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Machinery.Server\Opc.Ua.Machinery.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.ISA95.Server\Opc.Ua.ISA95.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Pumps.Server\Opc.Ua.Pumps.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Scales.Server\Opc.Ua.Scales.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Server\Opc.Ua.XRegistry.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.PubSub.Server\Opc.Ua.PubSub.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp\Opc.Ua.Mcp.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.Robotics\Opc.Ua.Mcp.Robotics.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.CranesHoists\Opc.Ua.Mcp.CranesHoists.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.MachineTool\Opc.Ua.Mcp.MachineTool.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.GMS\Opc.Ua.Mcp.GMS.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.Mcp.AutoID\Opc.Ua.Mcp.AutoID.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AutoID.Server\Opc.Ua.AutoID.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.GMS.Server\Opc.Ua.GMS.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.MachineTool.Server\Opc.Ua.MachineTool.Server.csproj"
+                      Condition="'$(TargetFramework)' == 'net10.0'" />
+    <ProjectReference Include="..\..\src\Opc.Ua.CranesHoists.Server\Opc.Ua.CranesHoists.Server.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Client\Opc.Ua.Robotics.Client.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />

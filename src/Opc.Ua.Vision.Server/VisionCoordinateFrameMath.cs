@@ -29,7 +29,7 @@
 
 using System;
 using System.Collections.Generic;
-using Opc.Ua.Vision;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Server
 {
@@ -96,7 +96,7 @@ namespace Opc.Ua.Vision.Server
                 FrameId = frameId ?? string.Empty,
                 Position = new double[] { 0.0, 0.0, 0.0 },
                 Orientation = new double[] { 0.0, 0.0, 0.0, 1.0 },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -120,29 +120,29 @@ namespace Opc.Ua.Vision.Server
 
             Span<double> rotated = stackalloc double[3];
             RotateVector(pq, cp, rotated);
-            double[] position = new double[]
-            {
+            double[] position =
+            [
                 pp[0] + rotated[0],
                 pp[1] + rotated[1],
                 pp[2] + rotated[2]
-            };
+            ];
 
             Span<double> composed = stackalloc double[4];
             MultiplyQuaternions(pq, cq, composed);
             NormalizeQuaternion(composed);
-            double[] orientation = new double[]
-            {
+            double[] orientation =
+            [
                 composed[0],
                 composed[1],
                 composed[2],
                 composed[3]
-            };
+            ];
             return new VisionPose3DDataType
             {
                 FrameId = parent.FrameId ?? string.Empty,
                 Position = position,
                 Orientation = orientation,
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -154,8 +154,8 @@ namespace Opc.Ua.Vision.Server
         {
             ReadOnlySpan<double> p = ExtractPosition(pose, nameof(pose));
             ReadOnlySpan<double> q = ExtractOrientation(pose, nameof(pose));
-            Span<double> qInv = stackalloc double[4] { -q[0], -q[1], -q[2], q[3] };
-            Span<double> negatedP = stackalloc double[3] { -p[0], -p[1], -p[2] };
+            Span<double> qInv = [-q[0], -q[1], -q[2], q[3]];
+            Span<double> negatedP = [-p[0], -p[1], -p[2]];
             Span<double> rotated = stackalloc double[3];
             RotateVector(qInv, negatedP, rotated);
             return new VisionPose3DDataType
@@ -163,7 +163,7 @@ namespace Opc.Ua.Vision.Server
                 FrameId = pose.FrameId ?? string.Empty,
                 Position = new double[] { rotated[0], rotated[1], rotated[2] },
                 Orientation = new double[] { qInv[0], qInv[1], qInv[2], qInv[3] },
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 
@@ -238,7 +238,7 @@ namespace Opc.Ua.Vision.Server
                 FrameId = targetFrameId,
                 Position = pose.Position,
                 Orientation = pose.Orientation,
-                Covariance = ArrayOf<double>.Empty
+                Covariance = []
             };
         }
 

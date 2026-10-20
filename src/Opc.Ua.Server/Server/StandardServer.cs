@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -1269,44 +1269,12 @@ namespace Opc.Ua.Server
 
             try
             {
-                // activate the session.
-                (bool identityChanged, serverNonce, ServiceResult activationStatus) = await ServerInternal.SessionManager.ActivateSessionAsync(
-                        context,
-                        requestHeader.AuthenticationToken,
-                        clientSignature,
-                        userIdentityToken,
-                        userTokenSignature,
-                        localeIds,
-                        requestLifetime.CancellationToken)
-                    .ConfigureAwait(false);
-
-                // The activation has committed and the session now expects the next
-                // request to be signed over serverNonce, which only this response
-                // carries (Part 4 5.7.3.1). The steps below are therefore best-effort:
-                // turning their failure into a fault would leave the client with a
-                // nonce the server no longer accepts. Only a session that was closed
-                // concurrently still fails the request with Bad_SessionClosed; its
-                // nonce is moot. The activation gate is already released, so a close
-                // can also start during the steps below; it is checked again after
-                // them.
+                (serverNonce, ServiceResult activationStatus) =
+                    ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                        ? await batchHost.DispatchSessionActivationAsync(
+                            context, ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
+                        : await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
-
-                if (identityChanged)
-                {
-                    try
-                    {
-                        // post-commit: not bound to the request token, a cancellation
-                        // could only abort the work while the client still gets Good.
-                        await ServerInternal.NodeManager.SessionActivatedAsync(
-                            context,
-                            session.Id,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception e)
-                    {
-                        m_logger.ActivateSessionPostCommitStepFailed(e, session.Id);
-                    }
-                }
 
                 AdditionalParametersType? parameters = null;
                 try
@@ -1406,6 +1374,33 @@ namespace Opc.Ua.Server
             finally
             {
                 OnRequestComplete(context);
+            }
+
+            async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> ActivateAndNotifyAsync()
+            {
+                (bool identityChanged, ByteString nonce, ServiceResult status) =
+                    await ServerInternal.SessionManager.ActivateSessionAsync(
+                        context,
+                        requestHeader.AuthenticationToken,
+                        clientSignature,
+                        userIdentityToken,
+                        userTokenSignature,
+                        localeIds,
+                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                ISession activatedSession = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
+                if (identityChanged)
+                {
+                    try
+                    {
+                        await ServerInternal.NodeManager.SessionActivatedAsync(
+                            context, activatedSession.Id, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        m_logger.ActivateSessionPostCommitStepFailed(e, activatedSession.Id);
+                    }
+                }
+                return (nonce, status);
             }
         }
 
@@ -1523,21 +1518,13 @@ namespace Opc.Ua.Server
                     m_logger,
                     "Session/CloseSession");
 
-                return new CloseSessionResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                };
+                var response = new CloseSessionResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
                 throw TranslateException(context, e);
             }
             finally
@@ -1568,21 +1555,13 @@ namespace Opc.Ua.Server
 
                 response = new CancelResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     CancelCount = cancelCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1621,24 +1600,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseResponse
+                var response = new BrowseResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1674,24 +1646,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new BrowseNextResponse
+                var response = new BrowseNextResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1732,23 +1697,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddNodesResponse
+                var response = new AddNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1796,23 +1755,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteNodesResponse
+                var response = new DeleteNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1860,23 +1813,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new AddReferencesResponse
+                var response = new AddReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1924,23 +1871,17 @@ namespace Opc.Ua.Server
                     auditStatus,
                     m_logger);
 
-                return new DeleteReferencesResponse
+                var response = new DeleteReferencesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     Results = results,
                     DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -2017,21 +1958,13 @@ namespace Opc.Ua.Server
 
                 response = new RegisterNodesResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     RegisteredNodeIds = registeredNodeIds
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2064,22 +1997,12 @@ namespace Opc.Ua.Server
 
                 ServerInternal.NodeManager.UnregisterNodes(context, nodesToUnregister);
 
-                response = new UnregisterNodesResponse
-                {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
-                };
+                response = new UnregisterNodesResponse();
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2118,24 +2041,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new TranslateBrowsePathsToNodeIdsResponse
+                var response = new TranslateBrowsePathsToNodeIdsResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2172,24 +2088,17 @@ namespace Opc.Ua.Server
                         nodesToRead,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new ReadResponse
+                var response = new ReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
@@ -2242,24 +2151,17 @@ namespace Opc.Ua.Server
                         requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new HistoryReadResponse
+                var response = new HistoryReadResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
@@ -2293,24 +2195,17 @@ namespace Opc.Ua.Server
                         .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new WriteResponse
+                var response = new WriteResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2344,24 +2239,17 @@ namespace Opc.Ua.Server
                         historyUpdateDetails,
                         requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                return new HistoryUpdateResponse
+                var response = new HistoryUpdateResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2447,21 +2335,13 @@ namespace Opc.Ua.Server
                     priority,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2495,21 +2375,13 @@ namespace Opc.Ua.Server
                     sendInitialValues,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2541,21 +2413,13 @@ namespace Opc.Ua.Server
                     subscriptionIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2591,21 +2455,13 @@ namespace Opc.Ua.Server
                     requestLifetime.ParkSink,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2638,21 +2494,13 @@ namespace Opc.Ua.Server
 
                 response = new RepublishResponse
                 {
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable),
                     NotificationMessage = notificationMessage
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2700,21 +2548,13 @@ namespace Opc.Ua.Server
                 {
                     RevisedPublishingInterval = revisedPublishingInterval,
                     RevisedLifetimeCount = revisedLifetimeCount,
-                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2754,21 +2594,13 @@ namespace Opc.Ua.Server
                 response = new SetPublishingModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2825,21 +2657,13 @@ namespace Opc.Ua.Server
                     AddResults = addResults,
                     AddDiagnosticInfos = addDiagnosticInfos,
                     RemoveResults = removeResults,
-                    RemoveDiagnosticInfos = removeDiagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    RemoveDiagnosticInfos = removeDiagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2877,21 +2701,13 @@ namespace Opc.Ua.Server
                     itemsToCreate,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                result.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                result.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return result;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2928,21 +2744,13 @@ namespace Opc.Ua.Server
                     itemsToModify,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2976,21 +2784,13 @@ namespace Opc.Ua.Server
                     monitoredItemIds,
                     requestLifetime.CancellationToken).ConfigureAwait(false);
 
-                response.ResponseHeader = CreateResponse(requestHeader, context.StringTable);
+                response.ResponseHeader = CreateResponse(requestHeader, context);
 
                 return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3034,24 +2834,17 @@ namespace Opc.Ua.Server
                     requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
 
-                return new SetMonitoringModeResponse
+                var response = new SetMonitoringModeResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3082,24 +2875,17 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
 
-                return new CallResponse
+                var response = new CallResponse
                 {
                     Results = results,
-                    DiagnosticInfos = diagnosticInfos,
-                    ResponseHeader = CreateResponse(requestHeader, context.StringTable)
+                    DiagnosticInfos = diagnosticInfos
                 };
+                response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                return response;
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3406,6 +3192,48 @@ namespace Opc.Ua.Server
             m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
+        /// Creates the response header with the diagnostic strings of the request.
+        /// </summary>
+        /// <remarks>
+        /// A request that wrote no diagnostic strings, which is nearly every request, has
+        /// no string table of its own (see <see cref="OperationContext.StringTable"/>); an
+        /// empty table of the thread stands in for it, so the response still carries an
+        /// empty string table. The table is taken from the thread for the call and given
+        /// back only if it is still empty when the call returns: an override of
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable)"/> that adds
+        /// strings to it, or throws, keeps it, and a response created during the call
+        /// (re-entrantly) gets a table of its own.
+        /// A service that just constructed its response passes the response's default
+        /// header as <paramref name="responseHeaderToFill"/>; the base implementation fills
+        /// it instead of allocating another header (see
+        /// <see cref="ServerBase.CreateResponse(RequestHeader, StringTable, ResponseHeader)"/>).
+        /// </remarks>
+        internal ResponseHeader CreateResponse(
+            RequestHeader? requestHeader,
+            OperationContext context,
+            ResponseHeader? responseHeaderToFill = null)
+        {
+            StringTable? strings = context.CreatedStringTable;
+            if (strings != null)
+            {
+                return CreateResponse(requestHeader!, strings, responseHeaderToFill);
+            }
+
+            strings = t_noStrings ?? new StringTable();
+            t_noStrings = null;
+            ResponseHeader responseHeader = CreateResponse(requestHeader!, strings, responseHeaderToFill);
+            if (strings.Count == 0)
+            {
+                t_noStrings = strings;
+            }
+
+            return responseHeader;
+        }
+
+        [ThreadStatic]
+        private static StringTable? t_noStrings;
+
+        /// <summary>
         /// Verifies that the request header is valid.
         /// </summary>
         /// <param name="requestHeader">The request header.</param>
@@ -3619,13 +3447,13 @@ namespace Opc.Ua.Server
 
             // Hand the validated request over to its execution scope. The context owns the scope
             // from here, so disposing the context completes the request.
-            context.AttachRequestScope(requestManager.EnterRequestScope(context));
+            requestManager.AttachRequestScope(context);
 
             // A close that started after the Session admitted this request, but before the
             // request was registered, did not see it when it aborted the Session's outstanding
             // requests (OPC 10000-4 5.7.2.1). The close marks the Session closing before it
             // sweeps the registered requests under the request manager lock, and registration
-            // takes the same lock, so a request the sweep missed sees the mark here.
+            // ends with a full fence, so a request the sweep missed sees the mark here.
             if (context.Session is ISession admittedSession &&
                 SessionTermination.IsClosingOrClaimed(admittedSession))
             {
@@ -3667,6 +3495,23 @@ namespace Opc.Ua.Server
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Counts a request that a service rejected after admission. A method of its own, so
+        /// that the service method allocates the closure only when it rejects a request.
+        /// </summary>
+        private void CountRejectedServiceRequest(StatusCode statusCode)
+        {
+            ServerInternal.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
@@ -4065,19 +3910,19 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.HasSession(string secureChannelId)
+        bool IServerSessionBindingProvider.HasSession(string secureChannelId)
         {
-            return (m_serverInternal?.SessionManager as ISessionBindingProvider)?
-                .HasSession(secureChannelId) ?? false;
+            return (m_serverInternal?.SessionManager as IServerSessionBindingProvider)?.HasSession(secureChannelId)
+                ?? false;
         }
 
         /// <inheritdoc/>
-        bool ISessionBindingProvider.TryGetSessionContext(
+        bool IServerSessionBindingProvider.TryGetSessionContext(
             NodeId authenticationToken,
             SecureChannelContext channelContext,
             [NotNullWhen(true)] out SessionBindingContext? context)
         {
-            if (m_serverInternal?.SessionManager is ISessionBindingProvider provider)
+            if (m_serverInternal?.SessionManager is IServerSessionBindingProvider provider)
             {
                 return provider.TryGetSessionContext(authenticationToken, channelContext, out context);
             }
@@ -4441,8 +4286,13 @@ namespace Opc.Ua.Server
                 lifecycle.PrepareForStartup();
             }
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            // The managers belong to the datastore once registered with it; until then a
+            // failed startup must release them itself.
+            ISessionManager? unregisteredSessionManager = null;
+            ISubscriptionManager? unregisteredSubscriptionManager = null;
             try
             {
+                ((NodeManagerLifecycle)NodeManagerLifecycle).BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -4580,6 +4430,7 @@ namespace Opc.Ua.Server
                 ISessionManager sessionManager = CreateSessionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSessionManager = sessionManager;
                 await sessionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
@@ -4621,11 +4472,14 @@ namespace Opc.Ua.Server
                 ISubscriptionManager subscriptionManager = CreateSubscriptionManager(
                     m_serverInternal,
                     configuration);
+                unregisteredSubscriptionManager = subscriptionManager;
                 await subscriptionManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                unregisteredSessionManager = null;
+                unregisteredSubscriptionManager = null;
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4720,6 +4574,9 @@ namespace Opc.Ua.Server
             catch (OperationCanceledException)
                 when (cancellationToken.IsCancellationRequested)
             {
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 throw;
@@ -4728,6 +4585,9 @@ namespace Opc.Ua.Server
             {
                 const string message = "Unexpected error starting application";
                 m_logger.Message(e, message);
+                await DisposeUnregisteredManagersAsync(
+                    unregisteredSessionManager,
+                    unregisteredSubscriptionManager).ConfigureAwait(false);
                 m_serverInternal?.Dispose();
                 m_serverInternal = null;
                 var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
@@ -4739,9 +4599,44 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
+            // Capture initial ownership before Running admits runtime registrations.
+            ArrayOf<IAsyncNodeManager> initialManagers = [.. m_serverInternal.NodeManager.AsyncNodeManagers];
             // set the server status as running, or NoConfiguration while the
             // application is in the application setup state (OPC 10000-12 G.2).
             SetServerState(StartupServerState);
+
+            try
+            {
+                await ((NodeManagerLifecycle)NodeManagerLifecycle)
+                    .CompleteStartupAsync(initialManagers, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                m_logger.Message(ex, "A NodeManager failed during startup readiness.");
+                Exception? cleanupFailure = null;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(ServerError))
+                    {
+                        cleanupFailure = new ServiceResultException(ServerError);
+                    }
+                }
+                catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
+                {
+                    cleanupFailure = cleanupException;
+                }
+                if (cleanupFailure is not null)
+                {
+                    var failure = new AggregateException(
+                        "NodeManager startup readiness and server cleanup failed.", ex, cleanupFailure);
+                    ServerError = new ServiceResult(failure);
+                    throw failure;
+                }
+                ServerError = new ServiceResult(ex);
+                throw;
+            }
 
             // all initialization is complete.
             m_logger.ServerStarted();
@@ -4757,6 +4652,9 @@ namespace Opc.Ua.Server
             // reject deleting a certificate still referenced by an
             // EndpointDescription (OPC UA Part 12 §7.10.7).
             m_serverInternal.SetServerEndpoints(GetEndpoints());
+
+            // Endpoint-dependent contributors cannot advertise security profiles during the earlier address-space pass.
+            await m_serverInternal.ConformanceUnitsManager.PublishAsync(cancellationToken).ConfigureAwait(false);
 
             OnServerStarted(m_serverInternal);
 
@@ -4788,6 +4686,56 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Releases the session and subscription managers that a failed startup
+        /// created but did not register with the datastore. The session manager
+        /// is shut down so its monitor stops; the subscription manager is only
+        /// disposed, so nothing is stored.
+        /// </summary>
+        private async ValueTask DisposeUnregisteredManagersAsync(
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager)
+        {
+            try
+            {
+                if (sessionManager != null)
+                {
+                    try
+                    {
+                        await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        sessionManager.Dispose();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+            }
+
+            try
+            {
+                if (subscriptionManager is IAsyncDisposable asyncSubscriptionManager)
+                {
+                    await asyncSubscriptionManager.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    subscriptionManager?.Dispose();
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+            }
+        }
+
+        /// <summary>
+        /// Registers a user-token authenticator immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="authenticator">The provider that authenticates user tokens.</param>
         internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
         {
             if (authenticator == null)
@@ -4804,6 +4752,10 @@ namespace Opc.Ua.Server
             m_preStartAuthenticators.Add(authenticator);
         }
 
+        /// <summary>
+        /// Registers an identity augmenter immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="augmenter">The provider that augments authenticated identities.</param>
         internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
         {
             if (augmenter == null)
@@ -5466,8 +5418,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When
@@ -5644,9 +5603,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Loads custom data types and refreshes the schema resolver when complex-type loading is enabled.
         /// </summary>
-        internal async ValueTask RefreshComplexTypesAsync(
+        /// <param name="server">The server whose custom data types are loaded.</param>
+        /// <param name="additionalNodeManager">An additional NodeManager to read types from, if any.</param>
+        /// <param name="publishResolver">Whether to publish the resolver on the server.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The refreshed resolver, or null when complex-type loading is disabled.</returns>
+        internal async ValueTask<IDataTypeDefinitionResolver?> RefreshComplexTypesAsync(
             IServerInternal server,
             IAsyncNodeManager? additionalNodeManager = null,
+            bool publishResolver = true,
             CancellationToken cancellationToken = default)
         {
             if (LoadComplexTypes)
@@ -5670,8 +5635,13 @@ namespace Opc.Ua.Server
                             additionalNodeManager,
                             cancellationToken)
                         .ConfigureAwait(false);
-                ComplexTypeResolverHolder?.SetResolver(resolver);
+                if (publishResolver)
+                {
+                    ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
+                return resolver;
             }
+            return null;
         }
 
         /// <inheritdoc/>
@@ -6220,5 +6190,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             NodeId sessionId);
+
+        /// <summary>
+        /// Logs a failure to release a manager created by a failed startup.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.StandardServer + 39, Level = LogLevel.Warning,
+            Message = "Server - releasing a manager created by the failed startup failed.")]
+        public static partial void ReleasingManagerOfFailedStartupFailed(this ILogger logger, Exception ex);
     }
 }

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
@@ -56,6 +57,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             return registry.Prepare(request);
         }
 
+        /// <summary>
+        /// Verifies that a Modbus property's target node mapping is retained in its compiled forms.
+        /// </summary>
         [Test]
         public void MapToNodeIdOnModbusPropertyPropagatesToCompiledEntries()
         {
@@ -71,6 +75,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.TargetMapping.TargetNodeId == "ns=2;s=Sensor1"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an HTTP property can author a target node mapping.
+        /// </summary>
         [Test]
         public void MapToNodeIdOnHttpPropertyIsAccepted()
         {
@@ -86,6 +93,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.TargetMapping.TargetNodeId == "ns=2;s=Temp"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an OPC UA property can author a target node mapping.
+        /// </summary>
         [Test]
         public void MapToNodeIdOnOpcUaPropertyIsAccepted()
         {
@@ -101,6 +111,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.TargetMapping.TargetNodeId == "ns=3;s=Mapped"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that map to type with field path on property is accepted.
+        /// </summary>
         [Test]
         public void MapToTypeWithFieldPathOnPropertyIsAccepted()
         {
@@ -108,17 +121,20 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 "t",
                     /*lang=json,strict*/
                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
-                "\"uav:mapToType\":\"ns=2;i=100\",\"uav:mapByFieldPath\":\"Value/SubField\"");
+                "\"uav:mapToType\":\"nsu=urn:test:mapped;i=100\",\"uav:mapByFieldPath\":\"/Value/SubField\"");
 
             WotBindingPlan plan = Prepare(document);
 
-            Assert.That(plan.FullySupported, Is.True);
+            Assert.That(plan.FullySupported, Is.True, string.Join("; ", plan.Diagnostics));
             Assert.That(plan.Diagnostics.Any(d => d.IsError), Is.False);
             WotCompiledForm entry = plan.CompiledForms[0];
-            Assert.That(entry.TargetMapping.TargetTypeNodeId, Is.EqualTo("ns=2;i=100"));
-            Assert.That(entry.TargetMapping.FieldPath, Is.EqualTo("Value/SubField"));
+            Assert.That(entry.TargetMapping.TargetTypeNodeId, Is.EqualTo("nsu=urn:test:mapped;i=100"));
+            Assert.That(entry.TargetMapping.FieldPath, Is.EqualTo("/Value/SubField"));
         }
 
+        /// <summary>
+        /// Verifies that a structured field path requires an authored target type mapping.
+        /// </summary>
         [Test]
         public void MapByFieldPathWithoutMapToTypeIsRejected()
         {
@@ -136,6 +152,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that map to node ID and map to type together are accepted.
+        /// </summary>
         [Test]
         public void MapToNodeIdAndMapToTypeTogetherAreAccepted()
         {
@@ -143,15 +162,43 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 "t",
                     /*lang=json,strict*/
                     "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}",
-                "\"uav:mapToNodeId\":\"ns=2;s=Target\",\"uav:mapToType\":\"ns=2;i=100\"");
+                "\"uav:mapToNodeId\":\"nsu=urn:test:mapped;s=Target\"," +
+                "\"uav:mapToType\":\"nsu=urn:test:mapped;i=100\"");
 
             WotBindingPlan plan = Prepare(document);
 
-            Assert.That(plan.FullySupported, Is.True);
-            Assert.That(plan.CompiledForms[0].TargetMapping.TargetNodeId, Is.EqualTo("ns=2;s=Target"));
-            Assert.That(plan.CompiledForms[0].TargetMapping.TargetTypeNodeId, Is.EqualTo("ns=2;i=100"));
+            Assert.That(plan.FullySupported, Is.True, string.Join("; ", plan.Diagnostics));
+            Assert.That(plan.CompiledForms[0].TargetMapping.TargetNodeId, Is.EqualTo("nsu=urn:test:mapped;s=Target"));
+            Assert.That(plan.CompiledForms[0].TargetMapping.TargetTypeNodeId, Is.EqualTo("nsu=urn:test:mapped;i=100"));
         }
 
+        /// <summary>
+        /// Verifies that persisted target type mappings reject session local namespace indexes.
+        /// </summary>
+        /// <param name="nodeTarget">The node-target flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void PersistedTargetTypeMappingsRejectSessionLocalNamespaceIndexes(bool nodeTarget)
+        {
+            string annotations = "\"uav:mapToType\":\"ns=2;i=100\"" +
+                (nodeTarget
+                    ? ",\"uav:mapToNodeId\":\"nsu=urn:test:mapped;s=Target\""
+                    : ",\"uav:mapByFieldPath\":\"/Value/SubField\"");
+            string document = WotBindingTestSupport.Property(
+                "t", /*lang=json,strict*/ "{\"href\":\"https://d/x\",\"contentType\":\"application/json\"}", annotations);
+
+            WotBindingPlan plan = Prepare(document);
+
+            Assert.That(plan.FullySupported, Is.False);
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError &&
+                diagnostic.Message.Contains("ns=2;i=100", StringComparison.Ordinal) &&
+                diagnostic.Message.Contains("session-local", StringComparison.Ordinal)), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that actions cannot author property target-node mappings.
+        /// </summary>
         [Test]
         public void MapToNodeIdOnActionIsRejected()
         {
@@ -169,6 +216,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that events cannot author property target-node mappings.
+        /// </summary>
         [Test]
         public void MapToNodeIdOnEventIsRejected()
         {
@@ -186,6 +236,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a field-path mapping on an action reports the property-only affordance error.
+        /// </summary>
         [Test]
         public void MapByFieldPathOnActionReportsOnlyPropertyAffordanceError()
         {
@@ -210,6 +263,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.EqualTo("/actions/run/uav:mapByFieldPath"));
         }
 
+        /// <summary>
+        /// Verifies that a target node mapping cannot be authored on an individual form.
+        /// </summary>
         [Test]
         public void MapToNodeIdAuthoredOnFormIsRejected()
         {
@@ -226,6 +282,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a target type mapping cannot be authored on an individual form.
+        /// </summary>
         [Test]
         public void MapToTypeAuthoredOnFormIsRejected()
         {
@@ -242,6 +301,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a property target node mapping must be a string.
+        /// </summary>
         [Test]
         public void NonStringMapToNodeIdOnPropertyIsRejected()
         {
@@ -259,6 +321,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a non-string target node mapping on a form is reported as form-level misuse.
+        /// </summary>
         [Test]
         public void NonStringMapToNodeIdOnFormIsRejectedAsFormMisuse()
         {
@@ -275,6 +340,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an empty target node mapping is rejected.
+        /// </summary>
         [Test]
         public void MapToNodeIdEmptyIsRejected()
         {
@@ -292,6 +360,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an empty target type mapping is rejected.
+        /// </summary>
         [Test]
         public void MapToTypeEmptyIsRejected()
         {
@@ -309,6 +380,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an empty structured field-path mapping is rejected.
+        /// </summary>
         [Test]
         public void MapByFieldPathEmptyIsRejected()
         {
@@ -326,6 +400,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that every compiled property operation retains the authored target node mapping.
+        /// </summary>
         [Test]
         public void MapToNodeIdPropagatesToEveryCompiledOperationEntry()
         {
@@ -341,6 +418,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.TargetMapping.TargetNodeId == "ns=2;s=Sensor1"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that compiled forms carry no target mapping when the affordance authors none.
+        /// </summary>
         [Test]
         public void NoMappingTermsAuthoredCompiledEntriesCarryEmptyTargetMapping()
         {
@@ -355,6 +435,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(plan.CompiledForms.All(f => f.TargetMapping.IsEmpty), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that form extraction reads target mapping terms from the enclosing affordance.
+        /// </summary>
         [Test]
         public void FormExtractorParsesTargetMappingFromAffordanceElement()
         {
@@ -368,6 +451,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(form.TargetMapping.FieldPath, Is.EqualTo("A/B"));
         }
 
+        /// <summary>
+        /// Verifies that form extraction leaves the target mapping empty when no terms are authored.
+        /// </summary>
         [Test]
         public void FormExtractorWithNoMappingTermsProducesEmptyTargetMapping()
         {
@@ -378,6 +464,9 @@ namespace Opc.Ua.WotCon.Tests.Binding
             Assert.That(form.TargetMapping.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that updating a compiled form target mapping creates a new instance.
+        /// </summary>
         [Test]
         public void CompiledFormWithTargetMappingReturnsNewInstanceWithUpdatedMapping()
         {

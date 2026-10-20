@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Tests;
@@ -287,6 +289,357 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(await factory.RestoreDataChangeQueueAsync(5).ConfigureAwait(false), Is.Null);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StagedRestoreWritesOnlyOnCommitAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+
+            restored.CommitRestore();
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(2));
+
+            Enqueue(restored, 3);
+            await factory.FlushAsync().ConfigureAwait(false);
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(3));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortedRestoreKeepsTheStoredQueueAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            restored.AbortRestore();
+            restored.CommitRestore();
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposingAStagedQueueKeepsTheStoredQueueAsync(bool eventQueue)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            // The queue is released before the restore was committed or aborted.
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortDuringADrainDropsTheWritesTheDrainTookAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // One write at a time, so that the write of the restored queue has not started when it is aborted.
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), null, telemetry, maxConcurrentWrites: 1);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            // The write of queue 1 holds the drain until queue 2 and the restored queue changed.
+            Gate first = kv.Hold(DataChangeKey(1));
+            Gate second = kv.Hold(DataChangeKey(2));
+            CreateMirroredQueue(factory, 1);
+            await first.WaitEnteredAsync().ConfigureAwait(false);
+            CreateMirroredQueue(factory, 2);
+            Enqueue(restored, 2);
+            first.Release();
+
+            // The next drain took both writes; the restore is aborted while it writes queue 2.
+            await second.WaitEnteredAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            second.Release();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+            Assert.That(await CountStoredDataChangeAsync(factory, 2).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortDuringAFailedDrainDoesNotRetryTheWritesTheDrainTookAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            // One write at a time, so that the write of the restored queue has not started when it is aborted.
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), null, telemetry, maxConcurrentWrites: 1);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+
+            Gate first = kv.Hold(DataChangeKey(1));
+            Gate second = kv.Hold(DataChangeKey(2));
+            Gate restoredWrite = kv.Hold(eventQueue ? EventKey(9) : DataChangeKey(9));
+            CreateMirroredQueue(factory, 1);
+            await first.WaitEnteredAsync().ConfigureAwait(false);
+            CreateMirroredQueue(factory, 2);
+            Enqueue(restored, 2);
+            first.Release();
+
+            // The drain fails to write queue 2 and the restored queue, which is aborted while it is written.
+            await second.WaitEnteredAsync().ConfigureAwait(false);
+            second.Fail(new IOException("store unavailable"));
+            await restoredWrite.WaitEnteredAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            restoredWrite.Fail(new IOException("store unavailable"));
+
+            // The retry writes queue 2 only.
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+            Assert.That(await CountStoredDataChangeAsync(factory, 2).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AbortDuringAStartedWriteLetsOnlyThatWriteCompleteAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            int writesBefore = kv.StartedWrites(key);
+
+            // The queue is not staged, so its change is written; the write is in progress when it is aborted.
+            Gate held = kv.Hold(key);
+            Enqueue(restored, 2);
+            await held.WaitEnteredAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            Enqueue(restored, 3);
+            ((IDisposable)restored).Dispose();
+            held.Release();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.StartedWrites(key) - writesBefore, Is.EqualTo(1), "no write starts after the abort");
+            Assert.That(
+                await CountStoredAsync(factory, eventQueue).ConfigureAwait(false),
+                Is.EqualTo(2),
+                "the write in progress completes");
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StagedQueueStartsNoWriteBeforeItsRestoreIsCommittedAsync(bool eventQueue)
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IRestorableMonitoredItemQueue restored = await StoreAndRestoreAsync(factory, eventQueue)
+                .ConfigureAwait(false);
+            string key = eventQueue ? EventKey(9) : DataChangeKey(9);
+            int writesBefore = kv.StartedWrites(key);
+
+            restored.BeginRestore();
+            Enqueue(restored, 2);
+            await factory.FlushAsync().ConfigureAwait(false);
+            restored.AbortRestore();
+            Enqueue(restored, 3);
+            ((IDisposable)restored).Dispose();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.StartedWrites(key), Is.EqualTo(writesBefore), "the staged queue starts no write");
+            Assert.That(await CountStoredAsync(factory, eventQueue).ConfigureAwait(false), Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task WritesOfDifferentQueuesOverlapAndTheWritesOfAQueueKeepTheirOrderAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+
+            // The write of queue 1 holds the drain until queues 2 and 3 changed.
+            Gate first = kv.Hold(DataChangeKey(1));
+            Gate second = kv.Hold(DataChangeKey(2));
+            Gate third = kv.Hold(DataChangeKey(3));
+            CreateMirroredQueue(factory, 1);
+            await first.WaitEnteredAsync().ConfigureAwait(false);
+            IDataChangeMonitoredItemQueue queue2 = CreateMirroredQueue(factory, 2);
+            CreateMirroredQueue(factory, 3);
+            first.Release();
+
+            // Both writes are in progress at once.
+            await second.WaitEnteredAsync().ConfigureAwait(false);
+            await third.WaitEnteredAsync().ConfigureAwait(false);
+
+            // The next change of queue 2 is written after the write in progress completed.
+            queue2.Enqueue(new DataValue(new Variant(22)), ServiceResult.Good);
+            third.Release();
+            await Task.Delay(100).ConfigureAwait(false);
+            second.Release();
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            Assert.That(kv.MaxConcurrentWritesOfAKey, Is.EqualTo(1), "the writes of a queue never overlap");
+            Assert.That(kv.StartedWrites(DataChangeKey(2)), Is.GreaterThanOrEqualTo(2));
+            IDataChangeMonitoredItemQueue? stored = await factory.RestoreDataChangeQueueAsync(2)
+                .ConfigureAwait(false);
+            ((IRestorableMonitoredItemQueue)stored!).AbortRestore();
+            Assert.That(stored.ItemsInQueue, Is.EqualTo(2), "the last change of queue 2 is stored last");
+            Assert.That(stored.Dequeue(out DataValue oldest, out _), Is.True);
+            Assert.That(stored.Dequeue(out DataValue newest, out _), Is.True);
+            Assert.That(oldest.WrappedValue, Is.EqualTo(new Variant(2)));
+            Assert.That(newest.WrappedValue, Is.EqualTo(new Variant(22)));
+        }
+
+        private static IDataChangeMonitoredItemQueue CreateMirroredQueue(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            uint monitoredItemId)
+        {
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, monitoredItemId);
+            queue.ResetQueue(5, false);
+            queue.Enqueue(new DataValue(new Variant((int)monitoredItemId)), ServiceResult.Good);
+            return queue;
+        }
+
+        private static async Task<int> CountStoredDataChangeAsync(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            uint monitoredItemId)
+        {
+            IDataChangeMonitoredItemQueue? stored = await factory.RestoreDataChangeQueueAsync(monitoredItemId)
+                .ConfigureAwait(false);
+            if (stored == null)
+            {
+                return 0;
+            }
+            ((IRestorableMonitoredItemQueue)stored).AbortRestore();
+            return stored.ItemsInQueue;
+        }
+
+        [Test]
+        public async Task RemovalWaitsForBothKeysWhenOneThrowsSynchronouslyAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new GatedSharedKeyValueStore(inner);
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var factory = new SharedKeyValueMonitoredItemQueueFactory(
+                kv, CreateContext(), telemetry: telemetry);
+            IDataChangeMonitoredItemQueue queue = factory.CreateDataChangeQueue(false, 5);
+            queue.ResetQueue(2, false);
+            queue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
+
+            // The removal of the data-change key is held; the removal of the event key throws at once.
+            Gate dataRemoval = kv.Hold(DataChangeKey(5));
+            kv.ThrowOnNextDelete(EventKey(5));
+            queue.Dispose();
+            Task flush = factory.FlushAsync().AsTask();
+            Task finished;
+            try
+            {
+                await dataRemoval.WaitEnteredAsync().ConfigureAwait(false);
+                finished = await Task.WhenAny(flush, Task.Delay(500)).ConfigureAwait(false);
+            }
+            finally
+            {
+                dataRemoval.Release();
+            }
+            await flush.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            Assert.That(finished, Is.Not.SameAs(flush), "the batch waits for the removal still in progress");
+        }
+
+        private static string DataChangeKey(uint monitoredItemId)
+        {
+            return "monitored-item-queue/data/" + monitoredItemId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static string EventKey(uint monitoredItemId)
+        {
+            return "monitored-item-queue/event/" + monitoredItemId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        private static async Task<IRestorableMonitoredItemQueue> StoreAndRestoreAsync(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            bool eventQueue)
+        {
+            if (eventQueue)
+            {
+                IEventMonitoredItemQueue queue = factory.CreateEventQueue(false, 9);
+                queue.SetQueueSize(5, false);
+                queue.Enqueue(new EventFieldList { ClientHandle = 1 });
+                await factory.FlushAsync().ConfigureAwait(false);
+                return (IRestorableMonitoredItemQueue)(await factory.RestoreEventQueueAsync(9)
+                    .ConfigureAwait(false))!;
+            }
+
+            IDataChangeMonitoredItemQueue dataChangeQueue = factory.CreateDataChangeQueue(false, 9);
+            dataChangeQueue.ResetQueue(5, false);
+            dataChangeQueue.Enqueue(new DataValue(new Variant(1)), ServiceResult.Good);
+            await factory.FlushAsync().ConfigureAwait(false);
+            return (IRestorableMonitoredItemQueue)(await factory.RestoreDataChangeQueueAsync(9)
+                .ConfigureAwait(false))!;
+        }
+
+        private static void Enqueue(IRestorableMonitoredItemQueue queue, int value)
+        {
+            if (queue is IEventMonitoredItemQueue eventQueue)
+            {
+                eventQueue.Enqueue(new EventFieldList { ClientHandle = (uint)value });
+                return;
+            }
+            ((IDataChangeMonitoredItemQueue)queue).Enqueue(new DataValue(new Variant(value)), ServiceResult.Good);
+        }
+
+        private static async Task<int> CountStoredAsync(
+            SharedKeyValueMonitoredItemQueueFactory factory,
+            bool eventQueue)
+        {
+            // A queue restored for reading only must not write back, so it is aborted.
+            if (eventQueue)
+            {
+                IEventMonitoredItemQueue? stored = await factory.RestoreEventQueueAsync(9).ConfigureAwait(false);
+                ((IRestorableMonitoredItemQueue)stored!).AbortRestore();
+                return stored.ItemsInQueue;
+            }
+            IDataChangeMonitoredItemQueue? storedValues = await factory.RestoreDataChangeQueueAsync(9)
+                .ConfigureAwait(false);
+            ((IRestorableMonitoredItemQueue)storedValues!).AbortRestore();
+            return storedValues.ItemsInQueue;
+        }
+
         [Test]
         public async Task CleanupRemovesStaleQueuesAsync()
         {
@@ -372,6 +725,196 @@ namespace Opc.Ua.Server.Tests.Redundancy
             var context = ServiceMessageContext.CreateEmpty(telemetry);
             context.NamespaceUris.GetIndexOrAppend("urn:test:queues");
             return context;
+        }
+
+        /// <summary>
+        /// Holds the next write of a key until the test releases or fails it.
+        /// </summary>
+        private sealed class Gate
+        {
+            public async Task WaitEnteredAsync()
+            {
+                Task completed = await Task.WhenAny(m_entered.Task, Task.Delay(TimeSpan.FromSeconds(30)))
+                    .ConfigureAwait(false);
+                Assert.That(completed, Is.SameAs(m_entered.Task), "the write reached the store");
+            }
+
+            public void Release()
+            {
+                m_released.TrySetResult(true);
+            }
+
+            public void Fail(Exception exception)
+            {
+                m_released.TrySetException(exception);
+            }
+
+            public async Task EnterAsync(CancellationToken ct)
+            {
+                m_entered.TrySetResult(true);
+
+                // A held write ends when the factory is disposed, so a failed test does not hang.
+                using CancellationTokenRegistration registration = ct.Register(() => m_released.TrySetCanceled());
+                await m_released.Task.ConfigureAwait(false);
+            }
+
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_released =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
+        /// A store whose writes of a held key wait for the test.
+        /// </summary>
+        private sealed class GatedSharedKeyValueStore : ISharedKeyValueStore
+        {
+            public GatedSharedKeyValueStore(ISharedKeyValueStore inner)
+            {
+                m_inner = inner;
+            }
+
+            public Gate Hold(string key)
+            {
+                var gate = new Gate();
+                lock (m_gates)
+                {
+                    m_gates[key] = gate;
+                }
+                return gate;
+            }
+
+            /// <summary>
+            /// The most writes of one key that were in progress at once.
+            /// </summary>
+            public int MaxConcurrentWritesOfAKey
+            {
+                get
+                {
+                    lock (m_gates)
+                    {
+                        return m_maxConcurrentWritesOfAKey;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The number of writes and removals of the key that started.
+            /// </summary>
+            public int StartedWrites(string key)
+            {
+                lock (m_gates)
+                {
+                    return m_started.TryGetValue(key, out int count) ? count : 0;
+                }
+            }
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, CancellationToken ct = default)
+            {
+                return m_inner.TryGetAsync(key, ct);
+            }
+
+            public async ValueTask SetAsync(string key, ByteString value, CancellationToken ct = default)
+            {
+                try
+                {
+                    await PassAsync(key, ct).ConfigureAwait(false);
+                    await m_inner.SetAsync(key, value, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Complete(key);
+                }
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                CancellationToken ct = default)
+            {
+                return m_inner.CompareAndSwapAsync(key, expected, value, ct);
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, CancellationToken ct = default)
+            {
+                lock (m_gates)
+                {
+                    if (m_throwSynchronously.Remove(key))
+                    {
+                        throw new IOException("store rejected the removal");
+                    }
+                }
+                return DeleteCoreAsync(key, ct);
+            }
+
+            /// <summary>
+            /// Makes the next removal of the key throw before it returns a task.
+            /// </summary>
+            public void ThrowOnNextDelete(string key)
+            {
+                lock (m_gates)
+                {
+                    m_throwSynchronously.Add(key);
+                }
+            }
+
+            private async ValueTask<bool> DeleteCoreAsync(string key, CancellationToken ct)
+            {
+                try
+                {
+                    await PassAsync(key, ct).ConfigureAwait(false);
+                    return await m_inner.DeleteAsync(key, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    Complete(key);
+                }
+            }
+
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                CancellationToken ct = default)
+            {
+                return m_inner.ScanAsync(keyPrefix, ct);
+            }
+
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(string keyPrefix, CancellationToken ct = default)
+            {
+                return m_inner.WatchAsync(keyPrefix, ct);
+            }
+
+            private Task PassAsync(string key, CancellationToken ct)
+            {
+                Gate? gate;
+                lock (m_gates)
+                {
+                    m_started[key] = (m_started.TryGetValue(key, out int started) ? started : 0) + 1;
+                    int inFlight = (m_inFlight.TryGetValue(key, out int count) ? count : 0) + 1;
+                    m_inFlight[key] = inFlight;
+                    m_maxConcurrentWritesOfAKey = Math.Max(m_maxConcurrentWritesOfAKey, inFlight);
+                    if (m_gates.TryGetValue(key, out gate))
+                    {
+                        m_gates.Remove(key);
+                    }
+                }
+                return gate?.EnterAsync(ct) ?? Task.CompletedTask;
+            }
+
+            private void Complete(string key)
+            {
+                lock (m_gates)
+                {
+                    m_inFlight[key]--;
+                }
+            }
+
+            private readonly ISharedKeyValueStore m_inner;
+            private readonly Dictionary<string, Gate> m_gates = [];
+            private readonly Dictionary<string, int> m_started = [];
+            private readonly Dictionary<string, int> m_inFlight = [];
+            private readonly HashSet<string> m_throwSynchronously = [];
+            private int m_maxConcurrentWritesOfAKey;
         }
 
         private sealed class HangingWriteSharedKeyValueStore : ISharedKeyValueStore, IAsyncDisposable

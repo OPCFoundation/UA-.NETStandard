@@ -113,10 +113,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task AMalformedDocumentDoesNotStopTheRefreshOfAnotherAsync()
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             var host = new FakeWotProjectionHost();
             using var coordinator = new WotMaterializationCoordinator(
-                registry, host, documentConverter: new WotNodeSetDocumentConverter());
+                registry, runtime.Observe(host.RecordCommitted), documentConverter: new WotNodeSetDocumentConverter())
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
             await StoreAsync(
                 registry, WotRegistryGroups.ThingModels, "tm-good",
                 WoTDocumentKindEnum.ThingModel, DataTypeModel()).ConfigureAwait(false);
@@ -143,6 +147,40 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     registry.Current
                         .FindResource(WotRegistryGroups.ThingModels, "tm-broken")!.LoadState,
                     Is.EqualTo(WoTLoadStateEnum.Failed));
+            });
+        }
+
+        /// <summary>
+        /// A readable document converts even when an unrelated sibling holds
+        /// bytes that are not a WoT document: native archive context is only
+        /// composed for documents that carry preserved native nodes.
+        /// </summary>
+        [Test]
+        public async Task AReadableDocumentConvertsDespiteAMalformedSiblingAsync()
+        {
+            using var registry = new WotRegistryService();
+            var contents = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            await StoreAsync(
+                registry, WotRegistryGroups.ThingModels, "tm-good",
+                WoTDocumentKindEnum.ThingModel, DataTypeModel(), contents).ConfigureAwait(false);
+            await StoreAsync(
+                registry, WotRegistryGroups.ThingModels, "tm-garbage",
+                WoTDocumentKindEnum.ThingModel, MalformedDataTypeModel(), contents)
+                .ConfigureAwait(false);
+            WotRegistrySnapshot snapshot = registry.Current;
+            WotResource garbage = snapshot.FindResource(WotRegistryGroups.ThingModels, "tm-garbage")!;
+            contents[garbage.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
+
+            WotConversionOutput good = await ConvertStoredAsync(
+                registry, contents, WotRegistryGroups.ThingModels, "tm-good").ConfigureAwait(false);
+            WotConversionOutput selected = await ConvertStoredAsync(
+                registry, contents, WotRegistryGroups.ThingModels, "tm-garbage").ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(good.Succeeded, Is.True, string.Join("; ", good.Errors));
+                Assert.That(selected.Succeeded, Is.False, "A selected malformed document still fails.");
+                Assert.That(selected.Errors, Is.Not.Empty);
             });
         }
 

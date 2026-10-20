@@ -38,10 +38,17 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
+using Opc.Ua.AMB.Client;
+using Opc.Ua.AMB.Server.Assets;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Hosting;
+using Opc.Ua.Machinery.Server;
 using Opc.Ua.PackML;
+using Opc.Ua.Pumps.Server;
+using Opc.Ua.Pumps.Server.Builders;
 using Opc.Ua.Scales.Client;
 using Opc.Ua.Scales.Server;
 using Opc.Ua.Scales.Server.Runtime;
@@ -56,12 +63,22 @@ namespace Opc.Ua.Scales.Tests
     /// session. This is the test that decides whether the two packages agree:
     /// everything else checks one side in isolation.
     /// </summary>
-    [TestFixture]
+    [TestFixture(false)]
+    [TestFixture(true)]
     [Category("Scales")]
     [Category("Hosting")]
     [NonParallelizable]
     public sealed class ScalesClientServerE2eTests
     {
+        /// <summary>
+        /// Selects standalone Scales or the shared Machinery/Pumps/Scales host.
+        /// </summary>
+        public ScalesClientServerE2eTests(bool composed)
+        {
+            m_composed = composed;
+        }
+
+        private readonly bool m_composed;
         private static string s_endpointUrl = string.Empty;
         private readonly Dictionary<string, ScaleHandle> m_scales = [];
         private ScaleSystemHandle? m_system;
@@ -69,93 +86,80 @@ namespace Opc.Ua.Scales.Tests
         private IHostedService m_host = null!;
         private ManagedSession m_session = null!;
         private ScalesClient m_client = null!;
+        private ClientFixture? m_clientFixture;
+        private ScalesRuntime m_runtime = null!;
+        private PumpsRuntime? m_pumps;
+        private IPumpBuilder? m_pump;
+        private IAssetHandle? m_scaleAsset;
+        private IAssetHandle? m_pumpAsset;
 
         [OneTimeSetUp]
         public async Task StartAsync()
         {
             var services = new ServiceCollection();
             services.AddLogging();
-            services.AddOpcUa()
-                .AddServer<StandardServer>(ConfigureServer)
-                .AddScales(options => options.ZeroSettingRange = 0.04)
-                .ConfigureScales(async context =>
-                {
-                    ScalesNodeManager manager = context.Manager;
-                    QualifiedName Name(string name) => new(name, manager.InstanceNamespaceIndex);
+            IOpcUaServerBuilder serverBuilder = services.AddOpcUa()
+                .AddServer<StandardServer>(ConfigureServer);
+            var configured = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-                    m_scales["Simple"] = await manager.CreateScaleAsync(
-                        Name("Simple"),
-                        ScaleKind.Simple,
-                        b =>
+            if (m_composed)
+            {
+                serverBuilder.AddMachinery(options =>
+                    {
+                        options.Parts = MachineryParts.BuildingBlocks;
+                        options.InstanceNamespaceUri = "urn:opcua:scales:composition:instances";
+                    })
+                    .AddScalesToMachinery(options => options.ZeroSettingRange = 0.04)
+                    .AddPumpsToMachinery()
+                    .AddAssetManagement()
+                    .ConfigurePumpsFor<MachineryNodeManager>(async (context, ct) =>
+                    {
+                        m_pumps = context.Runtime;
+                        m_pump = await m_pumps.CreatePumpAsync(
+                            new QualifiedName("FeedPump", m_pumps.InstanceNamespaceIndex), ct);
+                        m_pump.WithNameplate(new Pumps.PumpNameplate
                         {
-                            ScalesNodeManagerTests.FullScale(b, "Simple");
-                            b.WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
-                                .WithProductionPreset(p => p
-                                    .AllowSelection()
-                                    .AllowManagement()
-                                    .AddProduct("Apples", new LocalizedText("Apples"))
-                                    .AddProduct("Pears", new LocalizedText("Pears"))
-                                    .Select("Apples"));
-                        },
-                        context.CancellationToken);
-                    m_scales["Pieces"] = await manager.CreateScaleAsync(
-                        Name("Pieces"),
-                        ScaleKind.PieceCounting,
-                        b =>
-                        {
-                            ScalesNodeManagerTests.FullScale(b, "Pieces");
-                            b.WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
-                                .WithProductionPreset(p => p.AllowSelection().AddProduct("Screws", new LocalizedText("M4")).Select("Screws"));
-                        },
-                        context.CancellationToken);
-                    m_scales["Lab"] = await manager.CreateScaleAsync(
-                        Name("Lab"),
-                        ScaleKind.Laboratory,
-                        b => ScalesNodeManagerTests.FullScale(b, "Lab"),
-                        context.CancellationToken);
-                    m_scales["Truck"] = await manager.CreateScaleAsync(
-                        Name("Truck"),
-                        ScaleKind.Vehicle,
-                        b =>
-                        {
-                            ScalesNodeManagerTests.FullScale(b, "Truck");
-                            b.WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
-                                .WithProductionPreset(p => p.AddProduct("T1", new LocalizedText("Truck 1")));
-                        },
-                        context.CancellationToken);
-                    m_scales["Recipe"] = await manager.CreateScaleAsync(
-                        Name("Recipe"),
-                        ScaleKind.Recipe,
-                        b => ScalesNodeManagerTests.FullScale(b, "Recipe"),
-                        context.CancellationToken);
-                    m_scales["Hopper"] = await manager.CreateScaleAsync(
-                        Name("Hopper"),
-                        ScaleKind.LossInWeight,
-                        b => ScalesNodeManagerTests.FullScale(b, "Hopper"),
-                        context.CancellationToken);
-                    m_system = await manager.CreateScaleSystemAsync(
-                        Name("Line"),
-                        s => s
-                            .WithIdentification(ScalesNodeManagerTests.Identity("LINE"))
-                            .WithProductionOutput()
-                            .WithPackMLState()
-                            .AddScale("Checker", ScaleKind.Checkweigher, b =>
-                            {
-                                ScalesNodeManagerTests.FullScale(b, "Checker");
-                                b.AddFeederModule("Infeed", f => f
-                                    .WithIdentification(ScalesNodeManagerTests.Identity("F1"))
-                                    .WithFeederSpeed(0.2, 2.0, ScalesTestUnits.MetrePerSecond, 1.0));
-                            }),
-                        context.CancellationToken);
-                });
+                            NodeId = NodeId.Null,
+                            ProductInstanceUri = "urn:composition:pump:feed",
+                            Manufacturer = new LocalizedText("Contoso"),
+                            SerialNumber = "P-1"
+                        });
+                        m_pump.Measurements.SetAnalog(Pumps.BrowseNames.MassFlow, 2.5);
+                        m_pumpAsset = await context.GetRequiredService<IAssetManagement>().RegisterAssetAsync(
+                            context.Manager.TopologyElement(m_pump.Pump).Node,
+                            asset => asset.WithConfigurableAssetId("P-1"),
+                            ct);
+                    })
+                    .ConfigureScalesFor<MachineryNodeManager>(async (context, ct) =>
+                    {
+                        await ConfigureAsync(context.Runtime, ct);
+                        m_scaleAsset = await context.GetRequiredService<IAssetManagement>().RegisterAssetAsync(
+                            context.Manager.Device(m_scales["Simple"].Scale).Node,
+                            asset => asset.WithConfigurableAssetId("S-1"),
+                            ct);
+                    })
+                    .ConfigureScalesFor<MachineryNodeManager>((context, _) =>
+                    {
+                        Assert.That(context.Runtime, Is.SameAs(m_runtime),
+                            "successive configurators share the same runtime");
+                        configured.TrySetResult(true);
+                        return default;
+                    });
+            }
+            else
+            {
+                serverBuilder.AddScales(options => options.ZeroSettingRange = 0.04).ConfigureScales(
+                    async context =>
+                    {
+                        await ConfigureAsync(context.Manager.Runtime, context.CancellationToken);
+                        configured.TrySetResult(true);
+                    });
+            }
 
             m_provider = services.BuildServiceProvider();
             m_host = m_provider.GetServices<IHostedService>().Single();
             await m_host.StartAsync(CancellationToken.None);
-            // The hosted service boots the server and runs ConfigureScales in
-            // the background; the address space is complete once the last
-            // configurator statement - the scale system - has run.
-            for (int ii = 0; ii < 450 && m_system == null; ii++)
+            for (int ii = 0; ii < 450 && !configured.Task.IsCompleted; ii++)
             {
                 if (m_host is BackgroundService background && background.ExecuteTask is { IsFaulted: true } task)
                 {
@@ -163,10 +167,11 @@ namespace Opc.Ua.Scales.Tests
                 }
                 await Task.Delay(200);
             }
-            Assert.That(m_system, Is.Not.Null, "ConfigureScales completed");
+            Assert.That(configured.Task.IsCompleted, Is.True, "all companion configurators completed");
 
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            var clientFixture = new ClientFixture(telemetry);
+            m_clientFixture = new ClientFixture(telemetry);
+            ClientFixture clientFixture = m_clientFixture;
             await clientFixture.LoadClientConfigurationAsync(
                 System.IO.Path.Combine(TestContext.CurrentContext.WorkDirectory, nameof(ScalesClientServerE2eTests), "client-pki"));
             EndpointDescription? endpoint = await CoreClientUtils.SelectEndpointAsync(
@@ -190,6 +195,7 @@ namespace Opc.Ua.Scales.Tests
             {
                 await m_session.DisposeAsync();
             }
+            m_clientFixture?.Dispose();
             if (m_host != null)
             {
                 await m_host.StopAsync(CancellationToken.None);
@@ -201,6 +207,90 @@ namespace Opc.Ua.Scales.Tests
         }
 
         private NodeId Id(string scale) => m_scales[scale].NodeId;
+
+        /// <summary>
+        /// Builds the same runtime surface in standalone and composed hosts.
+        /// </summary>
+        private async ValueTask ConfigureAsync(ScalesRuntime manager, CancellationToken ct)
+        {
+            m_runtime = manager;
+            QualifiedName Name(string name) => new(name, manager.InstanceNamespaceIndex);
+
+            m_scales["Simple"] = await manager.CreateScaleAsync(
+                Name("Simple"),
+                ScaleKind.Simple,
+                b =>
+                {
+                    ScalesNodeManagerTests.FullScale(b, "Simple");
+                    b.WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                        .WithProductionPreset(p => p
+                            .AllowSelection()
+                            .AllowManagement()
+                            .AddProduct("Apples", new LocalizedText("Apples"))
+                            .AddProduct("Pears", new LocalizedText("Pears"))
+                            .Select("Apples"));
+                },
+                ct);
+            m_scales["Pieces"] = await manager.CreateScaleAsync(
+                Name("Pieces"),
+                ScaleKind.PieceCounting,
+                b =>
+                {
+                    ScalesNodeManagerTests.FullScale(b, "Pieces");
+                    b.WithAllowedEngineeringUnits(ScaleUnits.Kilogram, ScaleUnits.Gram)
+                        .WithProductionPreset(p => p
+                            .AllowSelection()
+                            .AddProduct("Screws", new LocalizedText("M4"))
+                            .Select("Screws"));
+                },
+                ct);
+            m_scales["Lab"] = await manager.CreateScaleAsync(
+                Name("Lab"),
+                ScaleKind.Laboratory,
+                b => ScalesNodeManagerTests.FullScale(b, "Lab"),
+                ct);
+            m_scales["Truck"] = await manager.CreateScaleAsync(
+                Name("Truck"),
+                ScaleKind.Vehicle,
+                b =>
+                {
+                    ScalesNodeManagerTests.FullScale(b, "Truck");
+                    b.WithWeighingRange(new WeighingRangeDefinition(0, 60000, 20, 20))
+                        .WithProductionPreset(p => p.AddProduct("T1", new LocalizedText("Truck 1")));
+                },
+                ct);
+            m_scales["Recipe"] = await manager.CreateScaleAsync(
+                Name("Recipe"),
+                ScaleKind.Recipe,
+                b =>
+                {
+                    ScalesNodeManagerTests.FullScale(b, "Recipe");
+                    b.WithRecipeFiles();
+                },
+                ct);
+            m_scales["Hopper"] = await manager.CreateScaleAsync(
+                Name("Hopper"),
+                ScaleKind.LossInWeight,
+                b => ScalesNodeManagerTests.FullScale(b, "Hopper"),
+                ct);
+            m_system = await manager.CreateScaleSystemAsync(
+                Name("Line"),
+                s => s
+                    .WithIdentification(ScalesNodeManagerTests.Identity("LINE"))
+                    .WithProductionOutput()
+                    .WithPackMLState()
+                    .AddScale("Checker", ScaleKind.Checkweigher, b =>
+                    {
+                        ScalesNodeManagerTests.FullScale(b, "Checker");
+                        b.AddFeederModule("Infeed", f => f
+                                .WithIdentification(ScalesNodeManagerTests.Identity("F1"))
+                                .WithFeederSpeed(0.2, 2.0, ScalesTestUnits.MetrePerSecond, 1.0))
+                            .AddPrinterModule("Labeler", p => p
+                                .WithIdentification(ScalesNodeManagerTests.Identity("PR1")))
+                            .AddWeighingModule("Bridge", w => ScalesNodeManagerTests.FullScale(w, "WM1"));
+                    }),
+                ct);
+        }
 
         [Test]
         public async Task ClientDiscoversEveryScaleOnceWithItsKindAsync()
@@ -220,6 +310,248 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(systemScales, Has.Count.EqualTo(1));
             Assert.That(systemScales[0].Kind, Is.EqualTo(ScaleKind.Checkweigher));
             Assert.That(await m_client.GetKindAsync(NodeId.Null), Is.Null);
+        }
+
+        [Test]
+        public async Task CompanionsShareOneOwnerAndAmbKeepsTheirNativeNodesAsync()
+        {
+            Assert.That(m_runtime.Manager.Server.NodeManager.AsyncNodeManagers.Count(
+                manager => manager is DiNodeManager), Is.EqualTo(1));
+            if (!m_composed)
+            {
+                Assert.That(m_runtime.Manager, Is.TypeOf<ScalesNodeManager>());
+                return;
+            }
+
+            var owner = (MachineryNodeManager)m_runtime.Manager;
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_pumps!.Manager, Is.SameAs(owner));
+                Assert.That(m_pump!.NodeId.NamespaceIndex, Is.EqualTo(owner.MachineryInstanceNamespaceIndex));
+                Assert.That(Id("Simple").NamespaceIndex, Is.EqualTo(owner.MachineryInstanceNamespaceIndex));
+                Assert.That(owner.FindPredefinedNode(m_pump.NodeId), Is.SameAs(m_pump.Pump));
+                Assert.That(owner.FindPredefinedNode(Id("Simple")), Is.SameAs(m_scales["Simple"].Scale));
+                Assert.That(m_provider.GetServices<DiAddressSpaceOwnership>().Single().OwnerName,
+                    Is.EqualTo("AddMachinery"));
+                Assert.That(m_pumpAsset!.IsRegistered, Is.True);
+                Assert.That(m_scaleAsset!.IsRegistered, Is.True);
+            });
+            string[] modelUris =
+            [
+                Di.Namespaces.OpcUaDi,
+                IA.Namespaces.IA,
+                Machinery.Namespaces.Machinery,
+                Pumps.Namespaces.Pumps,
+                PackML.Namespaces.PackML,
+                Namespaces.Scales
+            ];
+            foreach (string uri in modelUris)
+            {
+                Assert.That(owner.Server.NodeManager.AsyncNodeManagers.Count(manager =>
+                    manager.NamespaceUris != null && manager.NamespaceUris.Contains(uri)), Is.EqualTo(1), uri);
+            }
+
+            AmbClient assets = m_session.AssetManagement(NUnitTelemetryContext.Create());
+            ArrayOf<NodeId> discovered = await assets.DiscoverAssetsAsync();
+            Assert.That(discovered.ToArray(), Is.EquivalentTo(new[] { m_pump!.NodeId, Id("Simple") }));
+            Assert.That((await assets.ReadAssetAsync(m_pump.NodeId)).Identification.ProductInstanceUri,
+                Is.EqualTo("urn:composition:pump:feed"));
+            Assert.That((await assets.ReadAssetAsync(Id("Simple"))).Identification.ProductInstanceUri,
+                Is.EqualTo("urn:contoso:scale:Simple"));
+        }
+
+        [Test]
+        public async Task ClientUploadsAndReadsARecipeFileAsync()
+        {
+            RecipeController recipes = m_scales["Recipe"].Recipes!;
+            RecipeState recipe = recipes.AddRecipe("FileRoundTrip", new LocalizedText("File round trip"));
+            FileState file = recipe.RecipeFile!;
+            ByteString uploaded = default;
+            recipes.RecipeFileHandler = (_, content) =>
+            {
+                uploaded = content;
+                return ServiceResult.Good;
+            };
+            ByteString expected = ByteString.From(new byte[] { 7, 8, 9, 10 });
+            uint handle = 0;
+            try
+            {
+                ArrayOf<Variant> output = await m_session.CallAsync(
+                    file.NodeId, file.Open!.NodeId, CancellationToken.None, Variant.From((byte)6));
+                Assert.That(output[0].TryGetValue(out handle), Is.True);
+                await m_session.CallAsync(file.NodeId, file.Write!.NodeId, CancellationToken.None,
+                    Variant.From(handle), Variant.From(expected));
+                await m_session.CallAsync(
+                    file.NodeId, file.Close!.NodeId, CancellationToken.None, Variant.From(handle));
+                handle = 0;
+                Assert.That(uploaded, Is.EqualTo(expected));
+                Assert.That(recipes.ReadRecipeFile(recipe), Is.EqualTo(expected));
+
+                output = await m_session.CallAsync(
+                    file.NodeId, file.Open.NodeId, CancellationToken.None, Variant.From((byte)1));
+                Assert.That(output[0].TryGetValue(out handle), Is.True);
+                output = await m_session.CallAsync(file.NodeId, file.Read!.NodeId, CancellationToken.None,
+                    Variant.From(handle), Variant.From(32));
+                Assert.That(output[0].TryGetValue(out ByteString received), Is.True);
+                Assert.That(received, Is.EqualTo(expected));
+            }
+            finally
+            {
+                if (handle != 0)
+                {
+                    await m_session.CallAsync(
+                        file.NodeId, file.Close!.NodeId, CancellationToken.None, Variant.From(handle));
+                }
+                recipes.RecipeFileHandler = null;
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NestedModuleEventsReachSystemAndServerAsync(bool serverScope)
+        {
+            ScaleHandle checker = m_system!.Scales[0];
+            ScaleNotifications notifications = serverScope
+                ? checker.Modules[0].Notifications
+                : checker.WeighingModules[0].Notifications;
+            NodeId expectedSource = serverScope
+                ? checker.Modules[0].NodeId
+                : checker.WeighingModules[0].NodeId;
+            NodeId subscriptionSource = serverScope ? Opc.Ua.ObjectIds.Server : m_system.NodeId;
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var stopping = new CancellationTokenSource();
+            Task raiser = Task.Run(async () =>
+            {
+                while (!stopping.IsCancellationRequested)
+                {
+                    notifications.RaiseEvent(
+                        ScaleNotificationId.LabelFault, new LocalizedText("nested module"), EventSeverity.Low);
+                    await Task.Delay(200, CancellationToken.None);
+                }
+            });
+            ScaleNotificationInfo? received = null;
+            try
+            {
+                await foreach (ScaleNotificationInfo notification in m_client.ObserveNotificationsAsync(
+                    subscriptionSource, cancellationToken: timeout.Token))
+                {
+                    if (!notification.IsAlarm && notification.SourceNode == expectedSource)
+                    {
+                        received = notification;
+                        break;
+                    }
+                }
+            }
+            finally
+            {
+                stopping.Cancel();
+                await raiser;
+            }
+            Assert.That(received, Is.Not.Null);
+            Assert.That(received!.DefinedId, Is.EqualTo(ScaleNotificationId.LabelFault));
+        }
+
+        [Test]
+        public async Task ExistingServerSubscriptionReceivesEventsFromNewCompanionsAsync()
+        {
+            var filter = new EventFilter
+            {
+                SelectClauses =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(Opc.Ua.BrowseNames.SourceNode)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
+            ScaleHandle existing = m_scales["Hopper"];
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var stopping = new CancellationTokenSource();
+            Task signaler = Task.Run(async () =>
+            {
+                while (!stopping.IsCancellationRequested)
+                {
+                    existing.Notifications.RaiseEvent(
+                        ScaleNotificationId.LabelFault, new LocalizedText("ready"), EventSeverity.Low);
+                    await Task.Delay(100, CancellationToken.None);
+                }
+            });
+            ScaleHandle? lateScale = null;
+            IPumpBuilder? latePump = null;
+            var parent = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("LateCompanionParent", m_runtime.InstanceNamespaceIndex),
+                BrowseName = new QualifiedName("LateCompanionParent", m_runtime.InstanceNamespaceIndex),
+                DisplayName = new LocalizedText("Late companion parent"),
+                TypeDefinitionId = Opc.Ua.ObjectTypeIds.BaseObjectType
+            };
+            var sources = new HashSet<NodeId>();
+            try
+            {
+                await foreach (EventNotification notification in m_session.DefaultStreaming.SubscribeEventsAsync(
+                    Opc.Ua.ObjectIds.Server, filter, ct: timeout.Token))
+                {
+                    if (!notification.Fields[0].TryGetValue(out NodeId source))
+                    {
+                        continue;
+                    }
+                    if (lateScale == null)
+                    {
+                        if (source != existing.NodeId)
+                        {
+                            continue;
+                        }
+
+                        // Receiving the sentinel proves the server-wide monitored item already exists.
+                        stopping.Cancel();
+                        await signaler;
+                        await m_runtime.Manager.AddPredefinedNodeAsync(parent, timeout.Token);
+                        lateScale = await m_runtime.CreateScaleAsync(
+                            new QualifiedName("LateScale", m_runtime.InstanceNamespaceIndex), ScaleKind.Simple,
+                            builder => ScalesNodeManagerTests.FullScale(builder, "LATE"), parent, timeout.Token);
+                        Assert.That(m_runtime.Manager.Server.ServerObject.ReferenceExists(
+                            Opc.Ua.ReferenceTypeIds.HasNotifier, false, lateScale.NodeId), Is.True);
+                        lateScale.Notifications.RaiseEvent(
+                            ScaleNotificationId.LabelFault, new LocalizedText("late scale"), EventSeverity.Low);
+                        if (m_pumps != null)
+                        {
+                            latePump = await m_pumps.CreatePumpAsync(
+                                new QualifiedName("LatePump", m_pumps.InstanceNamespaceIndex), parent, timeout.Token);
+                            Assert.That(m_runtime.Manager.Server.ServerObject.ReferenceExists(
+                                Opc.Ua.ReferenceTypeIds.HasNotifier, false, latePump.NodeId), Is.True);
+                            var occurrence = new BaseEventState(null);
+                            occurrence.Initialize(m_pumps.SystemContext, latePump.Pump,
+                                EventSeverity.Low, new LocalizedText("late pump"));
+                            await latePump.Pump.ReportEventAsync(m_pumps.SystemContext, occurrence, timeout.Token);
+                        }
+                    }
+                    else if (source == lateScale.NodeId || (latePump != null && source == latePump.NodeId))
+                    {
+                        sources.Add(source);
+                        if (sources.Count == (m_composed ? 2 : 1))
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                stopping.Cancel();
+                await signaler;
+                if (lateScale != null)
+                {
+                    await m_runtime.Manager.DeleteNodeAsync(m_runtime.Manager.SystemContext, lateScale.NodeId);
+                }
+                if (latePump != null)
+                {
+                    await m_runtime.Manager.DeleteNodeAsync(m_runtime.Manager.SystemContext, latePump.NodeId);
+                }
+                await m_runtime.Manager.DeleteNodeAsync(m_runtime.Manager.SystemContext, parent.NodeId);
+            }
+            Assert.That(sources, Has.Count.EqualTo(m_composed ? 2 : 1));
         }
 
         [Test]
@@ -281,15 +613,15 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(registered!.Gross, Is.EqualTo(2.0).Within(1e-9));
             Assert.That(registered.WeightId, Is.Not.Null.And.Not.Empty);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SetZeroAsync(id));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SetZeroAsync(id));
             Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
             Assert.That(await m_client.ReadRegisteredWeightAsync(Id("Hopper")), Is.Not.Null);
             Assert.That(await m_client.TryReadCurrentWeightAsync(id), Is.Not.Null);
             Assert.That(await m_client.TryReadCurrentWeightAsync(m_system!.NodeId), Is.Null, "a scale system has no CurrentWeight");
-            ServiceResultException? notFound = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? notFound = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ReadCurrentWeightAsync(m_system.NodeId));
             Assert.That(notFound!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
-            ServiceResultException? missing = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? missing = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.InvokeAsync(id, BrowseNames.DischargeStart));
             Assert.That(missing!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
         }
@@ -317,10 +649,10 @@ namespace Opc.Ua.Scales.Tests
             await m_client.RemoveProductAsync(id, "Plums");
             Assert.That((await m_client.ReadProductsAsync(id)).Contains(p => p.ProductId == "Plums"), Is.False);
 
-            ServiceResultException? notFound = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? notFound = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.SelectProductAsync(id, "Nope"));
             Assert.That(notFound!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
-            Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SelectProductAsync(Id("Lab"), "x"));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SelectProductAsync(Id("Lab"), "x"));
             Assert.That(await m_client.ReadProductsAsync(Id("Lab")), Is.Empty);
         }
 
@@ -343,7 +675,7 @@ namespace Opc.Ua.Scales.Tests
             await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Reset);
             await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Abort);
             Assert.That(await m_client.ReadPackMLStateAsync(id), Is.EqualTo(PackMLStateNumbers.Aborted));
-            ServiceResultException? invalid = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? invalid = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Start));
             // The controller clears Executable on the methods whose cause is not
             // permitted, so the server rejects the call before it reaches the
@@ -392,7 +724,7 @@ namespace Opc.Ua.Scales.Tests
 
             ScaleHandle checker = m_system!.Scales[0];
             await m_client.SetFeederSpeedAsync(checker.Modules[0].NodeId, 1.5f, ScalesTestUnits.MetrePerSecond);
-            ServiceResultException? tooFast = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? tooFast = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.SetFeederSpeedAsync(checker.Modules[0].NodeId, 9f, ScalesTestUnits.MetrePerSecond));
             Assert.That(tooFast!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
             await m_client.InvokeAsync(m_system.NodeId, BrowseNames.ResetGlobalStatistics);
@@ -458,16 +790,23 @@ namespace Opc.Ua.Scales.Tests
                     await Task.Delay(200, CancellationToken.None);
                 }
             });
-            await foreach (ScaleNotificationInfo notification in m_client.ObserveNotificationsAsync(scale.NodeId, cancellationToken: timeout.Token))
+            try
             {
-                received.Add(notification);
-                if (received.Any(n => !n.IsAlarm) && received.Any(n => n.IsAlarm))
+                await foreach (ScaleNotificationInfo notification in m_client.ObserveNotificationsAsync(
+                    scale.NodeId, cancellationToken: timeout.Token))
                 {
-                    break;
+                    received.Add(notification);
+                    if (received.Any(n => !n.IsAlarm) && received.Any(n => n.IsAlarm))
+                    {
+                        break;
+                    }
                 }
             }
-            pump.Cancel();
-            await raiser;
+            finally
+            {
+                pump.Cancel();
+                await raiser;
+            }
 
             ScaleNotificationInfo @event = received.First(n => !n.IsAlarm);
             Assert.That(@event.DefinedId, Is.EqualTo(ScaleNotificationId.LabelFault));
@@ -509,16 +848,23 @@ namespace Opc.Ua.Scales.Tests
                 }
             });
             ScaleNotificationInfo? received = null;
-            await foreach (ScaleNotificationInfo notification in m_client.ObserveNotificationsAsync(checker.NodeId, cancellationToken: timeout.Token))
+            try
             {
-                if (!notification.IsAlarm)
+                await foreach (ScaleNotificationInfo notification in m_client.ObserveNotificationsAsync(
+                    checker.NodeId, cancellationToken: timeout.Token))
                 {
-                    received = notification;
-                    break;
+                    if (!notification.IsAlarm)
+                    {
+                        received = notification;
+                        break;
+                    }
                 }
             }
-            pump.Cancel();
-            await raiser;
+            finally
+            {
+                pump.Cancel();
+                await raiser;
+            }
 
             Assert.That(received, Is.Not.Null);
             Assert.That(received!.SourceNode, Is.EqualTo(checker.NodeId));
@@ -572,9 +918,10 @@ namespace Opc.Ua.Scales.Tests
         private static void ConfigureServer(OpcUaServerOptions options)
         {
             string applicationName = nameof(ScalesClientServerE2eTests);
+            // Leave room for ECC certificate filenames under deep net48 artifact paths.
             string testRoot = System.IO.Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                applicationName,
+                "scales",
                 Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;

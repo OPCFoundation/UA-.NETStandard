@@ -1,5 +1,5 @@
 /* ========================================================================
- * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
  *
@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua
 {
@@ -73,8 +74,6 @@ namespace Opc.Ua
             MaxMessageSize = DefaultEncodingLimits.MaxMessageSize;
             MaxEncodingNestingLevels = DefaultEncodingLimits.MaxEncodingNestingLevels;
             MaxDecoderRecoveries = DefaultEncodingLimits.MaxDecoderRecoveries;
-            NamespaceUris = new NamespaceTable();
-            ServerUris = new StringTable();
         }
 
         /// <summary>
@@ -148,33 +147,51 @@ namespace Opc.Ua
         public int MaxDecoderRecoveries { get; set; }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Read without a lock: every encoder and decoder of a server reads it, from
+        /// all request threads at once, and a lock around a reference read became a
+        /// waiting point once responses were encoded concurrently. The tables and
+        /// <see cref="MappingVersion"/> are published together, as one immutable
+        /// snapshot, so a reader that sees the version unchanged around reading a
+        /// table read the table of that version. Setters serialise on a lock.
+        /// </remarks>
         public NamespaceTable NamespaceUris
         {
-            get;
+            get => Volatile.Read(ref m_mapping).NamespaceUris;
             set
             {
-                if (value == null)
+                lock (m_mappingGate)
                 {
-                    field = new NamespaceTable();
-                    return;
+                    value ??= new NamespaceTable();
+                    MappingSnapshot current = m_mapping;
+                    if (!ReferenceEquals(current.NamespaceUris, value))
+                    {
+                        Volatile.Write(
+                            ref m_mapping,
+                            new MappingSnapshot(value, current.ServerUris, current.Version + 1));
+                    }
                 }
-                field = value;
             }
         }
 
         /// <inheritdoc/>
+        /// <remarks>Read without a lock; see <see cref="NamespaceUris"/>.</remarks>
         public StringTable ServerUris
         {
-            get;
+            get => Volatile.Read(ref m_mapping).ServerUris;
             set
             {
-                if (value == null)
+                lock (m_mappingGate)
                 {
-                    field = new StringTable();
-                    return;
+                    value ??= new StringTable();
+                    MappingSnapshot current = m_mapping;
+                    if (!ReferenceEquals(current.ServerUris, value))
+                    {
+                        Volatile.Write(
+                            ref m_mapping,
+                            new MappingSnapshot(current.NamespaceUris, value, current.Version + 1));
+                    }
                 }
-
-                field = value;
             }
         }
 
@@ -195,5 +212,32 @@ namespace Opc.Ua
                 field = value;
             }
         }
+
+        /// <summary>
+        /// Gets the monotonic version of the namespace/server table holders.
+        /// </summary>
+        internal long MappingVersion => Volatile.Read(ref m_mapping).Version;
+
+        /// <summary>
+        /// The namespace and server tables with the version they were published at.
+        /// </summary>
+        private sealed class MappingSnapshot
+        {
+            public MappingSnapshot(NamespaceTable namespaceUris, StringTable serverUris, long version)
+            {
+                NamespaceUris = namespaceUris;
+                ServerUris = serverUris;
+                Version = version;
+            }
+
+            public NamespaceTable NamespaceUris { get; }
+
+            public StringTable ServerUris { get; }
+
+            public long Version { get; }
+        }
+
+        private readonly Lock m_mappingGate = new();
+        private MappingSnapshot m_mapping = new(new NamespaceTable(), new StringTable(), 0);
     }
 }

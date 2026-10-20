@@ -28,9 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using ModelContextProtocol.Server;
 using Opc.Ua.Mcp.Tools;
+using Opc.Ua.PubSub.Eth.Channels;
+using Opc.Ua.PubSub.Udp.Dtls;
 
 namespace Opc.Ua.Mcp
 {
@@ -57,9 +63,39 @@ namespace Opc.Ua.Mcp
         /// </exception>
         public static IServiceCollection AddOpcUaMcpPubSub(this IServiceCollection services)
         {
-            ArgumentNullException.ThrowIfNull(services);
+            return services.AddOpcUaMcpPubSub(new McpPubSubOptions());
+        }
 
-            services.AddSingleton<PubSubRuntimeManager>();
+        /// <summary>
+        /// Registers bounded named applications, remote configuration, declarative adapters/bridges and SKS.
+        /// Host capability and target grants remain separate, default-deny decisions.
+        /// </summary>
+        public static IServiceCollection AddOpcUaMcpPubSub(
+            this IServiceCollection services, McpPubSubOptions options)
+        {
+            ArgumentNullException.ThrowIfNull(services);
+            ArgumentNullException.ThrowIfNull(options);
+            options.Validate();
+            services.TryAddSingleton(options);
+            services.AddOpcUaMcpSecretReferenceDefaults();
+            services.TryAddSingleton<PubSubRuntimeManager>();
+            services.TryAddSingleton<McpPubSubKeyReferences>();
+            services.TryAddSingleton<IMcpPubSubTransportProvider>(provider => new McpPubSubTransportProvider(
+                provider.GetRequiredService<IMcpOperationPolicy>(),
+                provider.GetRequiredService<McpNetworkPolicy>(),
+                provider.GetRequiredService<McpPubSubOptions>(),
+                provider.GetRequiredService<TimeProvider>(),
+                provider.GetService<IOptions<DtlsTransportOptions>>(),
+                provider.GetService<DtlsProfileRegistry>(),
+                provider.GetService<IDtlsContextFactory>(),
+                provider.GetService<IEthernetFrameChannelFactory>(),
+                provider.GetService<ApplicationConfiguration>()));
+            services.TryAddSingleton<McpPubSubRuntimeManager>();
+            services.TryAddTransient<PubSubApplicationTools>();
+            services.TryAddTransient<PubSubConfigurationTools>();
+            services.TryAddTransient<PubSubSecurityTools>();
+            services.TryAddTransient<PubSubAdapterTools>();
+            services.TryAddTransient<PubSubBridgeTools>();
             return services;
         }
 
@@ -87,30 +123,11 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
-            switch (toolProfile)
+            if (!Enum.IsDefined(toolProfile))
             {
-                case McpToolProfile.PubSub:
-                case McpToolProfile.Full:
-                    mcpServerBuilder
-                        .WithTools<PubSubActionTools>()
-                        .WithTools<PubSubDiscoveryTools>()
-                        .WithTools<PubSubRuntimeTools>();
-                    break;
-                case McpToolProfile.Core:
-                case McpToolProfile.Services:
-                case McpToolProfile.Administration:
-                case McpToolProfile.Diagnostics:
-                case McpToolProfile.Robotics:
-                case McpToolProfile.Vision:
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(
-                        nameof(toolProfile),
-                        toolProfile,
-                        "Unknown MCP tool profile.");
+                throw new ArgumentOutOfRangeException(nameof(toolProfile), toolProfile, "Unknown MCP tool profile.");
             }
-
-            return mcpServerBuilder;
+            return mcpServerBuilder.WithOpcUaPubSubTools(new McpToolProfileSet(toolProfile));
         }
 
         /// <summary>
@@ -121,8 +138,8 @@ namespace Opc.Ua.Mcp
         /// <remarks>
         /// This overload is the composition entry point a host uses when it
         /// wants the PubSub runtime tools alongside other bounded profiles.
-        /// The PubSub tools do not resolve a named OPC UA session, so this
-        /// method never touches <see cref="Tools.ConnectionTools"/>.
+        /// Legacy and named-runtime profiles do not add connection tools.
+        /// Configuration, bridge and security profiles include deduplicated connection tools for borrowed sessions.
         /// </remarks>
         /// <param name="mcpServerBuilder">The MCP server builder.</param>
         /// <param name="toolProfiles">The composed set of profiles.</param>
@@ -136,16 +153,106 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
 
-            if (!toolProfiles.Contains(McpToolProfile.PubSub) &&
-                !toolProfiles.Contains(McpToolProfile.Full))
+            bool full = toolProfiles.Contains(McpToolProfile.Full);
+            bool legacy = full || toolProfiles.Contains(McpToolProfile.PubSub);
+            bool runtime = full || toolProfiles.Contains(McpToolProfile.PubSubRuntime);
+            bool configuration = full || toolProfiles.Contains(McpToolProfile.PubSubConfiguration);
+            bool bridge = full || toolProfiles.Contains(McpToolProfile.PubSubBridge);
+            bool security = full || toolProfiles.Contains(McpToolProfile.PubSubSecurity);
+            if (!legacy && !runtime && !configuration && !bridge && !security)
             {
                 return mcpServerBuilder;
             }
-
-            return mcpServerBuilder
-                .WithTools<PubSubActionTools>()
-                .WithTools<PubSubDiscoveryTools>()
-                .WithTools<PubSubRuntimeTools>();
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
+            if (configuration || bridge || security)
+            {
+                mcpServerBuilder.WithOpcUaConnectionTools();
+            }
+            if (legacy && Mark<LegacyMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithTools<PubSubActionTools>()
+                    .WithTools<PubSubDiscoveryTools>().WithTools<PubSubRuntimeTools>();
+            }
+            int first = mcpServerBuilder.Services.Count;
+            if (Mark<FilterMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithRequestFilters(filters =>
+                    filters.AddListToolsFilter(PubSubMcpFilters.Catalogue));
+            }
+            if (runtime && Mark<RuntimeMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithTools<PubSubApplicationTools>(McpPubSubToolJson.Options);
+            }
+            if (configuration && Mark<ConfigurationMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithTools<PubSubConfigurationTools>(McpPubSubToolJson.Options);
+            }
+            if (bridge && Mark<BridgeMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithTools<PubSubBridgeTools>(McpPubSubToolJson.Options)
+                    .WithTools<PubSubAdapterTools>(McpPubSubToolJson.Options);
+            }
+            if (security && Mark<SecurityMarker>(mcpServerBuilder.Services))
+            {
+                mcpServerBuilder.WithTools<PubSubSecurityTools>(McpPubSubToolJson.Options);
+            }
+            for (int index = first; index < mcpServerBuilder.Services.Count; index++)
+            {
+                ServiceDescriptor descriptor = mcpServerBuilder.Services[index];
+                if (descriptor.ServiceType == typeof(McpServerTool) &&
+                    descriptor.ImplementationFactory is { } factory)
+                {
+                    mcpServerBuilder.Services[index] = ServiceDescriptor.Describe(typeof(McpServerTool),
+                        services => PubSubMcpFilters.Wrap((McpServerTool)factory(services)), descriptor.Lifetime);
+                }
+            }
+            return mcpServerBuilder;
         }
+
+        /// <summary>
+        /// Deduplicates registration across mixed single/composed calls.
+        /// </summary>
+        /// <typeparam name="T">The private registration marker.</typeparam>
+        private static bool Mark<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] T>(
+            IServiceCollection services) where T : class
+        {
+            if (services.Any(descriptor => descriptor.ServiceType == typeof(T)))
+            {
+                return false;
+            }
+            services.AddSingleton<T>();
+            return true;
+        }
+
+        /// <summary>
+        /// Marks legacy tools.
+        /// </summary>
+        private sealed class LegacyMarker;
+
+        /// <summary>
+        /// Marks runtime tools.
+        /// </summary>
+        private sealed class RuntimeMarker;
+
+        /// <summary>
+        /// Marks configuration tools.
+        /// </summary>
+        private sealed class ConfigurationMarker;
+
+        /// <summary>
+        /// Marks bridge tools.
+        /// </summary>
+        private sealed class BridgeMarker;
+
+        /// <summary>
+        /// Marks security tools.
+        /// </summary>
+        private sealed class SecurityMarker;
+
+        /// <summary>
+        /// Marks one catalogue filter.
+        /// </summary>
+        private sealed class FilterMarker;
     }
 }

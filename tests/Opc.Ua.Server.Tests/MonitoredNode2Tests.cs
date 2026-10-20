@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,6 +49,78 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MonitoredNode2Tests
     {
+        /// <summary>
+        /// A slow consumer applies asynchronous backpressure before retaining thousands of large snapshots.
+        /// </summary>
+        [Test]
+        public async Task LargeStateNotificationsBackpressureWithoutDroppingEnqueueTimeValuesAsync()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateRolePermissionsAsync(
+                It.IsAny<OperationContext>(), It.IsAny<NodeId>(), PermissionType.Read,
+                It.IsAny<CancellationToken>()))
+                .Returns(async (OperationContext _, NodeId _, PermissionType _, CancellationToken ct) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                });
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId(1, 1),
+                    DataType = DataTypeIds.ByteString,
+                    Value = new ByteString(new byte[256 * 1024]),
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+                Mock<IDataChangeMonitoredItem2> item = CreateDataChangeMonitoredItemMock(1, Attributes.Value);
+                var monitored = new MonitoredNode2(manager.Object, server.Object, node);
+                monitored.Add(item.Object);
+                var pending = new List<Task>();
+                try
+                {
+                    await monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    for (int index = 1; index <= 32; index++)
+                    {
+                        byte[] payload = new byte[256 * 1024];
+                        payload[0] = checked((byte)index);
+                        node.Value = new ByteString(payload);
+                        pending.Add(monitored.OnMonitoredNodeChangedAsync(
+                            server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).AsTask());
+                    }
+                    Assert.That(pending.Count(static task => task.Status == TaskStatus.RanToCompletion),
+                        Is.LessThanOrEqualTo(2),
+                        "A slow consumer must backpressure the next update, not retain a stale-state backlog.");
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await Task.WhenAll(pending).ConfigureAwait(false);
+                    await monitored.DisposeAsync().ConfigureAwait(false);
+                }
+                var delivered = new List<int>();
+                foreach (var invocation in item.Invocations.Where(static value => value.Method.Name == "QueueValue"))
+                {
+                    Assert.That(invocation.Arguments[0], Is.TypeOf<DataValue>());
+                    if (invocation.Arguments[0] is DataValue value &&
+                        value.WrappedValue.TryGetValue(out ByteString bytes))
+                    {
+                        Assert.That(bytes.Length, Is.EqualTo(256 * 1024));
+                        delivered.Add(bytes[0]);
+                    }
+                }
+                Assert.That(delivered, Is.EqualTo(Enumerable.Range(0, 33)),
+                    "Backpressure must preserve every enqueue-time payload and its ordering.");
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void DisposedMonitoredNodeReleasesPermissionNotificationsAndNodeCallbacks(bool eventOnly)
@@ -681,7 +754,7 @@ namespace Opc.Ua.Server.Tests
             // Extract the DataValue arguments from the recorded QueueValue invocations
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
 
             // Assert – every change was delivered, none dropped
@@ -769,7 +842,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – snapshots reflect the values at enqueue time (100, 200), not the final value (999)
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
             Assert.That(deliveredValues, Is.EqualTo(new object[] { 100, 200 }));
@@ -826,7 +899,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => (DataValue)i.Arguments[0])
+                .Select(i => (DataValue)i.Arguments[0]!)
                 .ToList();
 
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
@@ -1069,7 +1142,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queued = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0], (ServiceResult)i.Arguments[1]))
+                .Select(i => ((DataValue)i.Arguments[0]!, (ServiceResult)i.Arguments[1]!))
                 .ToList();
             Assert.That(queued, Has.Count.EqualTo(expectedCount));
             foreach ((DataValue value, ServiceResult error) in queued)
@@ -1158,7 +1231,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – both value changes must have been delivered
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
             Assert.That(deliveredValues, Is.EqualTo(new object[] { 10, 20 }));
@@ -1658,7 +1731,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(1));
             Assert.That(deliveredValues[0], Is.EqualTo(777));
@@ -1738,7 +1811,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(1));
             Assert.That(deliveredValues[0], Is.EqualTo(555));

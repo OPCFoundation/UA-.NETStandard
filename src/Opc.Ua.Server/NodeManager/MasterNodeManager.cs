@@ -49,6 +49,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The synchronous NodeManagers to add.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -61,6 +65,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The asynchronous NodeManagers to add.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -73,6 +81,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Initializes the object with default values.
         /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic NodeManager namespace URI, or <c>null</c>.</param>
+        /// <param name="additionalManagers">The asynchronous NodeManagers to add, or <c>null</c>.</param>
+        /// <param name="additionalSyncManagers">The synchronous NodeManagers to add, or <c>null</c>.</param>
         public MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
@@ -159,7 +172,12 @@ namespace Opc.Ua.Server
             }
 
             // Publish the initial manager and namespace routing snapshot.
-            m_nodeManagers.Initialize(namespaceManagers);
+            var factory = server.Factory as EncodeableFactory;
+            AcquireViewOwners(server.TypeTree, factory, out m_typeViewOwner, out m_factoryViewOwner);
+            m_nodeManagers.Initialize(
+                namespaceManagers,
+                server.TypeTree.CaptureSnapshot(out _, out _),
+                factory?.Fork());
 
             m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
         }
@@ -243,6 +261,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Decides whether this manager is the canonical publisher of the server's type and factory images.
+        /// A canonical manager owns both selectors; a secondary manager serves private captured images and
+        /// never owns, publishes into, or releases the shared tables.
+        /// </summary>
+        /// <param name="typeTree">The server type table.</param>
+        /// <param name="factory">The server factory, if it supports publication ownership.</param>
+        /// <param name="typeOwner">The acquired type table owner, or <c>null</c> for a secondary manager.</param>
+        /// <param name="factoryOwner">The acquired factory owner, or <c>null</c>.</param>
+        /// <exception cref="InvalidOperationException">The type table and factory ownership disagree.</exception>
+        private void AcquireViewOwners(
+            TypeTable typeTree,
+            EncodeableFactory? factory,
+            out TypeTable.ViewOwner? typeOwner,
+            out EncodeableFactory.ViewOwner? factoryOwner)
+        {
+            typeOwner = typeTree.TryAcquireViewOwner(() => m_nodeManagers.TypeTree);
+            factoryOwner = null;
+            if (factory is null)
+            {
+                return;
+            }
+            factoryOwner = factory.TryAcquireViewOwner(() => m_nodeManagers.Factory);
+            if ((typeOwner is null) == (factoryOwner is null))
+            {
+                return;
+            }
+            // Partial ownership: unwind whichever side was acquired. Nothing was published yet, so the
+            // selectors still resolve to the tables themselves and releasing them is lossless.
+            typeOwner?.Release(typeTree);
+            factoryOwner?.Release(factory);
+            typeOwner = null;
+            factoryOwner = null;
+            throw new InvalidOperationException(
+                "The type table and encodeable factory publication ownership are inconsistent.");
+        }
+
+        /// <summary>
         /// Drains and disposes owned node managers, collecting failures before releasing lifecycle resources.
         /// </summary>
         private async Task DisposeNodeManagersAsync()
@@ -253,6 +308,18 @@ namespace Opc.Ua.Server
             try
             {
                 List<IAsyncNodeManager> nodeManagers = [.. m_nodeManagers];
+                if (m_factoryViewOwner is not null)
+                {
+                    EncodeableFactory image = m_nodeManagers.Revision.Factory ??
+                        throw new InvalidOperationException("The server factory image is unavailable during disposal.");
+                    m_factoryViewOwner.Release(image);
+                }
+                if (m_typeViewOwner is not null)
+                {
+                    TypeTable image = m_nodeManagers.Revision.TypeTree ??
+                        throw new InvalidOperationException("The server type image is unavailable during disposal.");
+                    m_typeViewOwner.Release(image);
+                }
                 m_nodeManagers.Clear();
                 m_dynamicExternalReferences.Clear();
                 m_unpublishedRoutingPositions.Clear();
@@ -282,6 +349,7 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Release();
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
+                m_bindingSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -415,6 +483,7 @@ namespace Opc.Ua.Server
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             m_dynamicMutationSemaphore.Release();
 
+            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -458,6 +527,7 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
+            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
@@ -935,16 +1005,10 @@ namespace Opc.Ua.Server
             {
                 await shutdown.PrepareForShutdownAsync().ConfigureAwait(false);
             }
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
-                RemoveRetiredGenerationNotifications(nodeManager);
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
-            }
+            // The lifecycle owns this detached generation. Its deletion may remove
+            // dependent NodeManagers, so it must not serialize against their preparation.
+            await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
+            RemoveRetiredGenerationNotifications(nodeManager);
         }
 
         async ValueTask IDynamicNodeManagerHost.RemoveDestroyedExternalReferencesAsync(
@@ -1105,6 +1169,7 @@ namespace Opc.Ua.Server
             }
 
             RemoveRetiredGenerationNotifications(nodeManager);
+            m_nodeManagers.ReleaseReferences(nodeManager);
             m_unpublishedRoutingPositions.Remove(nodeManager);
             if (m_dynamicExternalReferences.Remove(nodeManager))
             {
@@ -1210,7 +1275,7 @@ namespace Opc.Ua.Server
             foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
                 using var eventContext = new OperationContext(monitoredItem);
-                await nodeManager
+                ServiceResult result = await nodeManager
                     .SubscribeToAllEventsAsync(
                         eventContext,
                         monitoredItem.SubscriptionId,
@@ -1218,6 +1283,10 @@ namespace Opc.Ua.Server
                         true,
                         ct)
                     .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
+                {
+                    throw new ServiceResultException(result);
+                }
                 lock (m_retiredGenerationNotificationsLock)
                 {
                     if (m_retiredGenerationNotifications.Contains(notifications))
@@ -1310,6 +1379,9 @@ namespace Opc.Ua.Server
                             notifications.DispatchState.Notifications = null;
                         }
                         if (notifications.DispatchState.Enabled &&
+                            notifications.DispatchState.BusinessEmissionsEnabled &&
+                            notifications.DispatchState.EmissionCutoffReservations == 0 &&
+                            notifications.DispatchState.CustomSourceCreations == 0 &&
                             notifications.DispatchState.ActiveDispatches == 0)
                         {
                             m_notificationDispatchStates.Remove(notifications.DispatchState);
@@ -1318,6 +1390,9 @@ namespace Opc.Ua.Server
                 }
                 m_notificationDispatchStates.RemoveAll(dispatchState =>
                     dispatchState.Enabled &&
+                    dispatchState.BusinessEmissionsEnabled &&
+                    dispatchState.EmissionCutoffReservations == 0 &&
+                    dispatchState.CustomSourceCreations == 0 &&
                     dispatchState.ActiveDispatches == 0 &&
                     dispatchState.References(nodeManager));
             }
@@ -1347,6 +1422,13 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
+        /// <summary>
+        /// Acquires notification dispatch leases for active managers and subscribed retired generations.
+        /// </summary>
+        /// <param name="activeNodeManagers">The node managers visible in the active generation.</param>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         internal NotificationDispatchLease[] GetAllEventNotificationDispatches(
             IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
             IEventMonitoredItem monitoredItem)
@@ -1374,6 +1456,11 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
+        /// <summary>
+        /// Acquires condition-refresh dispatch leases for active and relevant retired node-manager generations.
+        /// </summary>
+        /// <param name="activeNodeManagers">The node managers visible in the active generation.</param>
+        /// <param name="monitoredItems">The monitored items included in the operation.</param>
         internal NotificationDispatchLease[] GetConditionRefreshDispatches(
             IReadOnlyList<IAsyncNodeManager> activeNodeManagers,
             IList<IEventMonitoredItem> monitoredItems)
@@ -1419,6 +1506,12 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
+        /// <summary>
+        /// Acquires unsubscribe dispatch leases for active managers and retired generations retaining the item.
+        /// </summary>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
         internal NotificationDispatchLease[] GetAllEventUnsubscribeDispatches(
             IEventMonitoredItem monitoredItem)
         {
@@ -1446,6 +1539,13 @@ namespace Opc.Ua.Server
             return [.. dispatches];
         }
 
+        /// <summary>
+        /// Removes the unsubscribed item from the retained event subscriptions of the dispatched retired generations.
+        /// </summary>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
+        /// <param name="dispatches">The notification dispatch leases associated with the operation.</param>
         internal void CompleteRetiredAllEventUnsubscribe(
             IEventMonitoredItem monitoredItem,
             IReadOnlyList<NotificationDispatchLease> dispatches)
@@ -1469,6 +1569,13 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Removes the unsubscribed item from the retained event subscriptions of the dispatched retired generations.
+        /// </summary>
+        /// <param name="monitoredItem">
+        /// The monitored item whose source registration or subscription is being updated.
+        /// </param>
+        /// <param name="notifications">The retained event subscriptions of the retired generation.</param>
         internal void CompleteRetiredAllEventUnsubscribe(
             IEventMonitoredItem monitoredItem,
             RetiredGenerationNotifications notifications)
@@ -1571,6 +1678,9 @@ namespace Opc.Ua.Server
                     dispatchesDrained = dispatchState.DispatchesDrained;
                     dispatchState.DispatchesDrained = null;
                     if (dispatchState.Enabled &&
+                        dispatchState.BusinessEmissionsEnabled &&
+                        dispatchState.EmissionCutoffReservations == 0 &&
+                        dispatchState.CustomSourceCreations == 0 &&
                         !m_retiredGenerationNotifications.Any(notifications =>
                             ReferenceEquals(
                                 notifications.DispatchState,
@@ -1599,6 +1709,10 @@ namespace Opc.Ua.Server
             return dispatchState;
         }
 
+        /// <summary>
+        /// Releases all notification dispatch leases in the supplied collection.
+        /// </summary>
+        /// <param name="dispatches">The notification dispatch leases associated with the operation.</param>
         internal static void DisposeNotificationDispatches(
             IReadOnlyList<NotificationDispatchLease> dispatches)
         {
@@ -1613,7 +1727,8 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId> nodeIds)
         {
-            if (!Server.IsRunning)
+            // only items that are detached or marked deleted are recovered.
+            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
             {
                 return;
             }
@@ -1684,7 +1799,8 @@ namespace Opc.Ua.Server
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
-            if (!Server.IsRunning)
+            // only items that are detached or marked deleted are recovered.
+            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
             {
                 return;
             }
@@ -1708,6 +1824,12 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Detaches monitored items from their current owners and recovers them on the visible node manager.
+        /// </summary>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
+        /// <param name="monitoredItems">The monitored items included in the operation.</param>
+        /// <param name="cancellationToken">The token used to cancel the operation.</param>
         internal async ValueTask RecoverMonitoredItemsAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyList<IMonitoredItem> monitoredItems,
@@ -2485,6 +2607,9 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public IReadOnlyList<IAsyncNodeManager> AsyncNodeManagers => [.. m_nodeManagers];
 
+        /// <summary>
+        /// Gets the number of node managers whose shutdown has completed.
+        /// </summary>
         internal int ShutdownCompletedNodeManagerCount =>
             Volatile.Read(ref m_shutdownCompletedNodeManagerCount);
 
@@ -2498,8 +2623,18 @@ namespace Opc.Ua.Server
         internal IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
             => m_nodeManagers.NamespaceManagers;
 
+        /// <summary>
+        /// Retains a node-manager generation while an event notification or refresh is dispatched.
+        /// </summary>
         internal sealed class NotificationDispatchLease : IDisposable
         {
+            /// <summary>
+            /// Captures a dispatch owner, generation state, and the monitored items covered by the lease.
+            /// </summary>
+            /// <param name="owner">The master node manager responsible for releasing this dispatch lease.</param>
+            /// <param name="nodeManager">The node manager associated with the operation.</param>
+            /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
+            /// <param name="monitoredItems">The monitored items included in the operation.</param>
             public NotificationDispatchLease(
                 MasterNodeManager owner,
                 IAsyncNodeManager nodeManager,
@@ -2512,15 +2647,41 @@ namespace Opc.Ua.Server
                 MonitoredItems = monitoredItems;
             }
 
+            /// <summary>
+            /// Gets the node manager receiving the notification dispatch.
+            /// </summary>
             public IAsyncNodeManager NodeManager { get; }
 
+            /// <summary>
+            /// Gets the generation state retained by this dispatch lease.
+            /// </summary>
             public NotificationDispatchState DispatchState { get; }
 
+            /// <summary>
+            /// Gets the retired generation's retained notifications, if the generation has retired.
+            /// </summary>
             public RetiredGenerationNotifications? Notifications =>
                 DispatchState.Notifications;
 
+            /// <summary>
+            /// Gets the monitored items included in this dispatch.
+            /// </summary>
             public IEventMonitoredItem[] MonitoredItems { get; }
 
+            /// <summary>
+            /// Gets whether the lease still retains its dispatch owner.
+            /// </summary>
+            public bool IsActive => Volatile.Read(ref m_owner) is not null;
+
+            /// <summary>
+            /// Enters the source-emission scope for this dispatch, if the lease is still active.
+            /// </summary>
+            public SourceEmissionScope? EnterSourceEmission()
+            {
+                return m_owner?.EnterSourceEmission(this);
+            }
+
+            /// <inheritdoc />
             public void Dispose()
             {
                 Interlocked.Exchange(ref m_owner, null)?
@@ -2530,8 +2691,17 @@ namespace Opc.Ua.Server
             private MasterNodeManager? m_owner;
         }
 
+        /// <summary>
+        /// Retains event subscriptions and dispatch state for a retired node-manager generation.
+        /// </summary>
         internal sealed class RetiredGenerationNotifications
         {
+            /// <summary>
+            /// Captures the retired node manager, its dispatch state, and retained event subscriptions.
+            /// </summary>
+            /// <param name="nodeManager">The node manager associated with the operation.</param>
+            /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
+            /// <param name="eventMonitoredItems">The event subscriptions retained by the retired generation.</param>
             public RetiredGenerationNotifications(
                 IAsyncNodeManager nodeManager,
                 NotificationDispatchState dispatchState,
@@ -2542,39 +2712,97 @@ namespace Opc.Ua.Server
                 SubscribedEventMonitoredItems = eventMonitoredItems;
             }
 
+            /// <summary>
+            /// Gets the retired node manager that owns the retained subscriptions.
+            /// </summary>
             public IAsyncNodeManager NodeManager { get; }
 
+            /// <summary>
+            /// Gets the dispatch state shared with outstanding generation leases.
+            /// </summary>
             public NotificationDispatchState DispatchState { get; }
 
+            /// <summary>
+            /// Gets the event monitored items still subscribed to the retired generation.
+            /// </summary>
             public List<IEventMonitoredItem> SubscribedEventMonitoredItems { get; }
 
+            /// <summary>
+            /// Gets or sets whether the retired generation can receive notification dispatches.
+            /// </summary>
             public bool Enabled { get; set; } = true;
 
+            /// <summary>
+            /// Gets or sets whether event unsubscription can still be dispatched to the retired generation.
+            /// </summary>
             public bool AcceptEventDeletes { get; set; } = true;
 
         }
 
+        /// <summary>
+        /// Tracks dispatch lifetime and retirement state without strongly retaining the node manager.
+        /// </summary>
         internal sealed class NotificationDispatchState
         {
+            /// <summary>
+            /// Initializes dispatch state with a weak reference to the owning node manager.
+            /// </summary>
+            /// <param name="nodeManager">The node manager associated with the operation.</param>
             public NotificationDispatchState(IAsyncNodeManager nodeManager)
             {
                 m_nodeManager = new WeakReference<IAsyncNodeManager>(nodeManager);
             }
 
+            /// <summary>
+            /// Gets whether the owning node manager is still reachable.
+            /// </summary>
             public bool IsAlive => m_nodeManager.TryGetTarget(out _);
 
+            /// <summary>
+            /// Determines whether this state belongs to the supplied node-manager instance.
+            /// </summary>
+            /// <param name="nodeManager">The node manager associated with the operation.</param>
             public bool References(IAsyncNodeManager nodeManager)
             {
                 return m_nodeManager.TryGetTarget(out IAsyncNodeManager? candidate) &&
                     ReferenceEquals(candidate, nodeManager);
             }
 
+            /// <summary>
+            /// Gets or sets whether new dispatches are enabled for this generation.
+            /// </summary>
             public bool Enabled { get; set; } = true;
 
+            /// <summary>
+            /// Gets or sets a value indicating whether business source emissions may be admitted while dispatch
+            /// is active.
+            /// </summary>
+            public bool BusinessEmissionsEnabled { get; set; } = true;
+
+            /// <summary>
+            /// Gets or sets the number of outstanding source-emission cutoff reservations that block immediate
+            /// dispatch.
+            /// </summary>
+            public int EmissionCutoffReservations { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
+            /// </summary>
+            public int CustomSourceCreations { get; set; }
+
+            /// <summary>
+            /// Gets or sets the number of outstanding dispatch leases for this generation.
+            /// </summary>
             public int ActiveDispatches { get; set; }
 
+            /// <summary>
+            /// Gets or sets the completion signal for draining outstanding dispatch leases.
+            /// </summary>
             public TaskCompletionSource<bool>? DispatchesDrained { get; set; }
 
+            /// <summary>
+            /// Gets or sets the retained notifications when this generation is retired.
+            /// </summary>
             public RetiredGenerationNotifications? Notifications { get; set; }
 
             private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
@@ -2595,7 +2823,10 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
+        private readonly SemaphoreSlim m_bindingSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
+        private readonly TypeTable.ViewOwner? m_typeViewOwner;
+        private readonly EncodeableFactory.ViewOwner? m_factoryViewOwner;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);
         private int m_shutdownCompletedNodeManagerCount;
@@ -2708,10 +2939,21 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class MasterNodeManagerLog
     {
+        /// <summary>
+        /// Logs the number of node managers participating in startup.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 0, Level = LogLevel.Information,
             Message = "MasterNodeManager.Startup - NodeManagers={Count}")]
         public static partial void MasterNodeManagerStartupNodeManagersCount(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs an unexpected node-manager address-space creation failure.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 1, Level = LogLevel.Error,
             Message = "Unexpected error creating address space for NodeManager ={NodeManager}.")]
         public static partial void UnexpectedErrorCreatingAddressSpaceForNodeManager(
@@ -2719,6 +2961,12 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs an unexpected failure while a node manager adds references.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 2, Level = LogLevel.Error,
             Message = "Unexpected error adding references for NodeManager ={NodeManager}.")]
         public static partial void UnexpectedErrorAddingReferencesForNodeManagerNodeManager(
@@ -2726,6 +2974,12 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs an unexpected failure while notifying a node manager of session closure.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 3, Level = LogLevel.Error,
             Message = "Unexpected error closing session for NodeManager ={NodeManager}.")]
         public static partial void UnexpectedErrorClosingSessionForNodeManagerNodeManager(
@@ -2733,6 +2987,12 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs an unexpected failure while notifying a node manager of session activation.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 4, Level = LogLevel.Error,
             Message = "Unexpected error notifying node manager of session activation for NodeManager={NodeManager}.")]
         public static partial void UnexpectedErrorNotifyingNodeManagerOfSession(
@@ -2740,10 +3000,23 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs the number of node managers participating in shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 5, Level = LogLevel.Information,
             Message = "MasterNodeManager.Shutdown - NodeManagers={Count}")]
         public static partial void MasterNodeManagerShutdownNodeManagersCount(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs a bad status returned when mirroring an inverse reference to its owning node manager.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 6, Level = LogLevel.Warning,
             Message = "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on " +
                 "owning NodeManager: {Status}")]
@@ -2754,6 +3027,14 @@ namespace Opc.Ua.Server
             ExpandedNodeId target,
             StatusCode status);
 
+        /// <summary>
+        /// Logs an exception thrown when mirroring an inverse reference to its owning node manager.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 7, Level = LogLevel.Warning,
             Message = "AddReferences: failed to mirror inverse edge {RefType} from {Source} to {Target} on " +
                 "owning NodeManager.")]
@@ -2764,6 +3045,14 @@ namespace Opc.Ua.Server
             NodeId source,
             ExpandedNodeId target);
 
+        /// <summary>
+        /// Logs a bad status returned when mirroring an inverse reference deletion.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 8, Level = LogLevel.Warning,
             Message = "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} " +
                 "on owning NodeManager: {Status}")]
@@ -2774,6 +3063,14 @@ namespace Opc.Ua.Server
             ExpandedNodeId target,
             StatusCode status);
 
+        /// <summary>
+        /// Logs an exception thrown when mirroring an inverse reference deletion.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 9, Level = LogLevel.Warning,
             Message = "DeleteReferences: failed to mirror inverse delete {RefType} from {Source} to {Target} " +
                 "on owning NodeManager.")]
@@ -2784,28 +3081,59 @@ namespace Opc.Ua.Server
             NodeId source,
             ExpandedNodeId target);
 
+        /// <summary>
+        /// Logs the number of nodes submitted for registration.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 10, Level = LogLevel.Trace,
             Message = "MasterNodeManager.RegisterNodes - Count={Count}")]
         public static partial void MasterNodeManagerRegisterNodesCountCount(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs the number of nodes submitted for unregistration.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 11, Level = LogLevel.Trace,
             Message = "MasterNodeManager.UnregisterNodes - Count={Count}")]
         public static partial void MasterNodeManagerUnregisterNodesCountCount(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs an unexpected browse-path translation failure.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 12, Level = LogLevel.Error,
             Message = "Unexpected error translating browse path.")]
         public static partial void UnexpectedErrorTranslatingBrowsePath(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of node values submitted for reading.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 13, Level = LogLevel.Trace,
             Message = "MasterNodeManager.Read - Count={Count}")]
         public static partial void MasterNodeManagerReadCountCount(this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs failure of a node manager's asynchronous condition refresh.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 14, Level = LogLevel.Error,
             Message = "Error calling ConditionRefreshAsync on AsyncNodeManager.")]
         public static partial void ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs an exception thrown when a node manager subscribes to all events.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 15, Level = LogLevel.Error,
             Message = "NodeManager threw an exception subscribing to all events. NodeManager={NodeManager}")]
         public static partial void NodeManagerThrewAnExceptionSubscribingToAll(
@@ -2813,6 +3141,12 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs failure to populate a monitored item's initial queue.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="monitoredItemId">The identifier of the affected monitored item.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 16, Level = LogLevel.Error,
             Message = "Failed to pre-hydrate queue for monitored item with id {MonitoredItemId}")]
         public static partial void FailedToPreHydrateQueueForMonitored(
@@ -2820,6 +3154,12 @@ namespace Opc.Ua.Server
             Exception ex,
             uint monitoredItemId);
 
+        /// <summary>
+        /// Logs a node-manager exception during monitored-item transfer.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 23, Level = LogLevel.Error,
             Message = "NodeManager threw an exception transferring monitored items. NodeManager={NodeManager}")]
         public static partial void MonitoredItemTransferFailedForNodeManager(
@@ -2837,14 +3177,30 @@ namespace Opc.Ua.Server
             Exception ex,
             string nodeManager);
 
+        /// <summary>
+        /// Logs a failed node-management operation.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 25, Level = LogLevel.Error,
             Message = "NodeManager failed a node-management operation.")]
         public static partial void NodeManagementOperationFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs an authorization check in which the current user has no granted role.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 17, Level = LogLevel.Debug,
             Message = "Current user has no granted role.")]
         public static partial void CurrentUserHasNoGrantedRole(this ILogger logger);
 
+        /// <summary>
+        /// Logs a node permission check that the user's granted permissions do not satisfy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
+        /// <param name="requestedPermission">The permission required by the operation.</param>
+        /// <param name="userPermissions">The permissions granted to the current user.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 18, Level = LogLevel.Debug,
             Message = "Role permissions validation failed for node {NodeId}. Requested: {RequestedPermission}, " +
                 "User has: {UserPermissions}")]
@@ -2854,6 +3210,14 @@ namespace Opc.Ua.Server
             PermissionType requestedPermission,
             PermissionType userPermissions);
 
+        /// <summary>
+        /// Logs a bad status returned when rolling back an added reference.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 19, Level = LogLevel.Error,
             Message = "AddReferences: failed to roll back {RefType} from {Source} to {Target}: {Status}")]
         public static partial void AddReferencesRollbackFailed(
@@ -2863,6 +3227,14 @@ namespace Opc.Ua.Server
             ExpandedNodeId target,
             StatusCode status);
 
+        /// <summary>
+        /// Logs an exception thrown when rolling back an added reference.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 20, Level = LogLevel.Error,
             Message = "AddReferences: failed to roll back {RefType} from {Source} to {Target}.")]
         public static partial void AddReferencesRollbackFailed2(
@@ -2872,6 +3244,14 @@ namespace Opc.Ua.Server
             NodeId source,
             ExpandedNodeId target);
 
+        /// <summary>
+        /// Logs a bad status returned when restoring a deleted reference.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 21, Level = LogLevel.Error,
             Message = "DeleteReferences: failed to restore {RefType} from {Source} to {Target}: {Status}")]
         public static partial void DeleteReferencesRollbackFailed(
@@ -2881,6 +3261,14 @@ namespace Opc.Ua.Server
             ExpandedNodeId target,
             StatusCode status);
 
+        /// <summary>
+        /// Logs an exception thrown when restoring a deleted reference.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="refType">The reference type involved in the failed operation.</param>
+        /// <param name="source">The source node or reference source involved in the operation.</param>
+        /// <param name="target">The reference target involved in the failed operation.</param>
         [LoggerMessage(EventId = ServerEventIds.MasterNodeManager + 22, Level = LogLevel.Error,
             Message = "DeleteReferences: failed to restore {RefType} from {Source} to {Target}.")]
         public static partial void DeleteReferencesRollbackFailed2(

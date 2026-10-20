@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public void CreateMonitoredItemsDoesNotRejectClosingSession()
+        public async Task CreateMonitoredItemsDoesNotRejectClosingSession()
         {
             using ServerInternalData server = CreateServerInternalData();
             m_sessionMock.SetupGet(session => session.IsClosing).Returns(true);
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests
             // The subscription no longer gates monitored item operations on the
             // owning session's closing state; ownership and deletion are the only
             // guards. A closing session that still owns the subscription is allowed.
-            Assert.DoesNotThrowAsync(
+            await Assert.DoesNotThrowAsync(
                 async () => await subscription
                     .CreateMonitoredItemsAsync(
                         context,
@@ -256,11 +256,11 @@ namespace Opc.Ua.Server.Tests
             }
             if (outcome == "cancel")
             {
-                Assert.CatchAsync<OperationCanceledException>(async () => await creating.ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () => await creating.ConfigureAwait(false));
             }
             else
             {
-                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await creating.ConfigureAwait(false));
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
             }
@@ -285,7 +285,10 @@ namespace Opc.Ua.Server.Tests
                 SequenceNumber = 9,
                 NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })]
             };
-            queue.Enqueue([message], [], out _, out _);
+            queue.Enqueue([message], [], out _, out _, out NotificationMessageLease lease);
+
+            // the Publish response that carried the message was sent.
+            lease.Release();
             IStoredSubscription snapshot = subscription.ToStorableSubscription();
             Assert.That(snapshot.SentMessages[0], Is.Not.SameAs(message));
             queue.Clear();
@@ -1180,12 +1183,12 @@ namespace Opc.Ua.Server.Tests
             }
             else if (failure == "diagnostics-cancelled")
             {
-                Assert.ThrowsAsync<OperationCanceledException>(
+                await Assert.ThrowsAsync<OperationCanceledException>(
                     async () => await subscription.DeleteAsync(context).ConfigureAwait(false));
             }
             else
             {
-                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await subscription.DeleteAsync(context).ConfigureAwait(false));
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             }
@@ -1344,7 +1347,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void CreateSubscriptionRejectsAnImplementationNotDerivedFromSubscription()
+        public async Task CreateSubscriptionRejectsAnImplementationNotDerivedFromSubscription()
         {
             var impostor = new Mock<ISubscription>();
             using var manager = new NonPipelineSubscriptionManager(
@@ -1356,7 +1359,7 @@ namespace Opc.Ua.Server.Tests
                 impostor.Object);
             var context = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.CreateSubscriptionAsync(
                     context,
                     requestedPublishingInterval: 1000,
@@ -2665,14 +2668,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PrepareSessionTransferAsyncRejectsAnUnreservedSubscription()
+        public async Task PrepareSessionTransferAsyncRejectsAnUnreservedSubscription()
         {
             using Subscription subscription = CreateSubscription();
             var context = new OperationContext(
                 m_sessionMock.Object,
                 DiagnosticsMasks.None);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription
                         .PrepareSessionTransferAsync(
                             context,

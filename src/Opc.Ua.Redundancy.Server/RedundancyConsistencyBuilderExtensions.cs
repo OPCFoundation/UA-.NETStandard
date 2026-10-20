@@ -44,7 +44,8 @@ namespace Opc.Ua.Redundancy.Server
     {
         /// <summary>
         /// Registers the consistency-mode-appropriate <see cref="ISharedKeyValueStore"/>, the shared
-        /// <see cref="IRaftConsensus"/> replica, and (by default) a native <see cref="RaftLeaderElection"/>.
+        /// <see cref="IRaftConsensus"/> replica, the <see cref="IRaftSnapshotManager"/> of the store, and (by
+        /// default) a native <see cref="RaftLeaderElection"/>.
         /// </summary>
         /// <remarks>
         /// <para>
@@ -81,6 +82,13 @@ namespace Opc.Ua.Redundancy.Server
 
             builder.Services.TryAddSingleton(sp =>
                 CreateStore(sp, options));
+
+            // Snapshot management of the Raft state machine, injectable next to
+            // the store it manages (the Hybrid store delegates to its Raft store).
+            builder.Services.TryAddSingleton(sp =>
+                sp.GetRequiredService<ISharedKeyValueStore>() as IRaftSnapshotManager ??
+                throw new InvalidOperationException(
+                    "The registered ISharedKeyValueStore does not manage Raft snapshots."));
 
             if (options.UseRaftLeaderElection)
             {
@@ -120,7 +128,12 @@ namespace Opc.Ua.Redundancy.Server
 #pragma warning disable CA2000
             // The consensus replica is a container-owned singleton shared with
             // the leader election, so the store must not dispose it.
-            var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
+            var raftStore = new RaftSharedKeyValueStore(
+                consensus,
+                ownsConsensus: false,
+                commitTimeout: default,
+                compactionInterval: options.RaftCompactionInterval,
+                logger: CreateRaftStoreLogger(sp));
             if (options.Mode == RedundancyConsistencyMode.Strong)
             {
                 return raftStore;
@@ -134,6 +147,18 @@ namespace Opc.Ua.Redundancy.Server
                 AggregateStrongKeyPrefixes(sp, options),
                 ownsStores: true);
 #pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// The logger of a Raft store: from the registered <see cref="ITelemetryContext"/>, else from the
+        /// registered <see cref="ILoggerFactory"/>, else none.
+        /// </summary>
+        private static ILogger? CreateRaftStoreLogger(IServiceProvider sp)
+        {
+            ITelemetryContext? telemetry = sp.GetService<ITelemetryContext>();
+            return telemetry != null
+                ? telemetry.CreateLogger<RaftSharedKeyValueStore>()
+                : sp.GetService<ILoggerFactory>()?.CreateLogger<RaftSharedKeyValueStore>();
         }
 
         private static ArrayOf<string> AggregateStrongKeyPrefixes(

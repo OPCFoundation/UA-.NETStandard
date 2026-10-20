@@ -34,6 +34,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -62,6 +64,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private const string PumpsNamespace = "http://opcfoundation.org/UA/Pumps/";
         private const string PumpInstanceNamespace = "urn:opcfoundation.org:UA:WotAggregation:PumpInstance";
 
+        /// <summary>
+        /// Verifies that checked-in Thing Models match formatted converter output.
+        /// </summary>
         [Test]
         public void ThingModelsMatchFormattedConverterRegeneration()
         {
@@ -105,6 +110,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that the checked-in pump Thing Description matches formatted regeneration.
+        /// </summary>
         [Test]
         public void PumpThingDescriptionMatchesFormattedRegeneration()
         {
@@ -136,6 +144,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             TestContext.Out.WriteLine($"SamplePump.td.json: {regenerated.Length} bytes");
         }
 
+        /// <summary>
+        /// Verifies that checked-in pump asset projection documents match formatted regeneration.
+        /// </summary>
         [Test]
         public void PumpAssetProjectionDocumentsMatchFormattedRegeneration()
         {
@@ -154,6 +165,52 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump asset projection documents declare current plan headers.
+        /// </summary>
+        [Test]
+        public void PumpAssetProjectionDocumentsDeclareCurrentPlanHeaders()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            Assert.That(projections.Count, Is.EqualTo(s_assetProjectionDocuments.Length));
+            foreach (SampleDocument sample in projections)
+            {
+                using var document = WotDocument.Parse(sample.Json.Memory);
+                var diagnostics = new List<WotDiagnostic>();
+                WotProjection plan = WotProjection.Parse(document, diagnostics)!;
+                Assert.That(plan, Is.Not.Null, sample.Path);
+                Assert.That(diagnostics, Is.Empty, sample.Path);
+                Assert.That(plan.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription), sample.Path);
+                Assert.That(document.TypeTokens, Does.Not.Contain("Thing").And.Not.Contain("tm:ThingModel"), sample.Path);
+                if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
+                {
+                    Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
+                        Is.All.EqualTo(WotProjection.ContentType), sample.Path);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Regenerates the asset projection documents used by the aggregation samples.
+        /// </summary>
+        [Test]
+        [Explicit("Rewrites only the checked-in projection plans from the retained source documents.")]
+        public async Task WriteAssetProjectionDocuments()
+        {
+            ArrayOf<SampleDocument> projections =
+                WotAggregationDocumentGenerator.GenerateAssetProjectionDocuments(ReadPumpDocuments());
+            for (int index = 0; index < projections.Count; index++)
+            {
+                SampleDocument document = projections[index];
+                await WotAggregationDocumentGenerator.WriteBytesAsync(
+                    DocumentPath(document.Path), document.Json).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that manifest documents match regeneration of the complete aggregation document set.
+        /// </summary>
         [Test]
         public async Task ManifestDocumentsMatchCompleteAsyncRegeneration()
         {
@@ -180,6 +237,22 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(File.ReadAllBytes(DocumentPath("documents.json"))));
         }
 
+        /// <summary>
+        /// Regenerates the complete aggregation document set.
+        /// </summary>
+        [Test]
+        [Explicit("Rewrites the complete sample manifest and its generated documents.")]
+        public async Task WriteCompleteAggregationDocumentsAsync()
+        {
+            ArrayOf<SampleDocument> documents = await WotAggregationDocumentGenerator
+                .GenerateAggregationDocumentsAsync(RepositoryRoot).ConfigureAwait(false);
+            await WotAggregationDocumentGenerator.WriteDocumentsAsync(
+                DocumentPath(string.Empty), documents).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that checked-in JSON sample documents use indented serialization.
+        /// </summary>
         [Test]
         public void CheckedInJsonDocumentsUseIndentedSerialization()
         {
@@ -236,6 +309,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Append(StructuredExamplePath);
         }
 
+        /// <summary>
+        /// Verifies that manifest orders dependencies before dependents.
+        /// </summary>
         [Test]
         public void ManifestOrdersDependenciesBeforeDependents()
         {
@@ -259,10 +335,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         ? WoTDocumentKindEnum.ThingModel
                         : WoTDocumentKindEnum.ThingDescription),
                     resourceId);
-                string[] dependencies = document.GetProperty("dependsOn")
-                    .EnumerateArray().Select(dependency => dependency.GetString()!).ToArray();
-                string[] logicalDependencies = LogicalDependencies(
-                    json.RootElement, resourceId, resources.Keys).ToArray();
+                string[] dependencies = [.. document.GetProperty("dependsOn")
+                    .EnumerateArray().Select(dependency => dependency.GetString()!)];
+                string[] logicalDependencies = [.. LogicalDependencies(
+                    json.RootElement, resourceId, resources.Keys)];
                 Assert.That(
                     dependencies,
                     Is.SupersetOf(logicalDependencies),
@@ -289,12 +365,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
 
             string[] linkedDirectories = ["opc-ua-di", "opc-ua-machinery", "opc-ua-pumps", "sample-pump"];
-            string[] expectedPaths = linkedDirectories.SelectMany(directory =>
-                Directory.EnumerateFiles(DocumentPath(directory), "*.json", SearchOption.AllDirectories)
-                    .Select(path => path[(DocumentPath(string.Empty).TrimEnd('\\', '/').Length + 1)..]
-                        .Replace('\\', '/')))
-                .Concat(s_assetProjectionDocuments)
-                .ToArray();
+            string[] expectedPaths =
+            [
+                .. linkedDirectories.SelectMany(directory =>
+                                Directory.EnumerateFiles(DocumentPath(directory), "*.json", SearchOption.AllDirectories)
+                                    .Select(path => path[(DocumentPath(string.Empty).TrimEnd('\\', '/').Length + 1)..]
+                                        .Replace('\\', '/')))
+,
+                .. s_assetProjectionDocuments
+            ];
             Assert.That(
                 selected.ToList().Select(document => document.Path),
                 Is.EquivalentTo(expectedPaths));
@@ -312,23 +391,32 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump asset projection documents resolve to expected groups and members.
+        /// </summary>
         [Test]
         public async Task PumpAssetProjectionDocumentsResolveToExpectedGroupsAndMembers()
         {
             var resolver = new WotProjectionResolver(
-                new WotAggregationDocumentGenerator.SampleThingResolver(ReadManifestDocuments()),
+                new WotAggregationDocumentGenerator.SampleThingResolver(ReadSubstitutedManifestDocuments()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            using IDisposable allViewsScope = Assert.EnterMultipleScope();
 
             foreach (string pumpName in s_pumpAssetNames)
             {
-                using WotDocument asset = WotDocument.Parse(
+                using var asset = WotDocument.Parse(
                     File.ReadAllBytes(DocumentPath($"{pumpName}.Asset.td.json")),
                     WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
 
                 WotConversionResult<WotDocument> assetResult = await resolver
                     .ResolveAsync(asset).ConfigureAwait(false);
 
-                Assert.That(assetResult.Success, Is.True, pumpName);
+                Assert.That(
+                    assetResult.Success,
+                    Is.True,
+                    pumpName + Environment.NewLine + string.Join(
+                        Environment.NewLine,
+                        (assetResult.Diagnostics.ToArray() ?? Array.Empty<WotDiagnostic>()).Select(d => d.ToString())));
                 using WotDocument assetView = assetResult.Value!;
                 JsonElement root = assetView.RootElement;
                 Assert.That(TypeNames(root), Does.Not.Contain("uav:projection"));
@@ -359,7 +447,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     resolver,
                     $"{pumpName}.Members.td.json",
                     "properties",
-                    s_propertyBindings.Select(binding => binding.Name).ToArray()).ConfigureAwait(false);
+                    [.. s_propertyBindings.Select(binding => binding.Name)]).ConfigureAwait(false);
                 await AssertProjectionMembersAsync(
                     resolver,
                     $"{pumpName}.Members.td.json",
@@ -408,6 +496,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that members select the actual linked declarations by portable identity.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="rootResource">The root resource used by this test case.</param>
+        /// <param name="measurementResource">The measurement resource used by this test case.</param>
         [TestCase("Pump1", "sample-pump", "sample-pump-operational-measurements")]
         [TestCase("Pump2", "sample-pump-pump-2", "sample-pump-pump-2-operational-measurements")]
         public void MembersSelectTheActualLinkedDeclarationsByPortableIdentity(
@@ -428,7 +522,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             var selectedResources = new HashSet<string>(StringComparer.Ordinal);
             foreach ((string mapName, string[] names) in new[]
             {
-                ("properties", s_propertyBindings.Select(binding => binding.Name).ToArray()),
+                ("properties", [.. s_propertyBindings.Select(binding => binding.Name)]),
                 ("actions", s_managementMembers),
                 ("events", s_supervisionMembers)
             })
@@ -455,15 +549,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EquivalentTo(selectedResources));
         }
 
+        /// <summary>
+        /// Verifies that management projections compile with their condition events.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public async Task ManagementProjectionsCompileWithTheirConditionEvents(string pumpName)
         {
-            ArrayOf<SampleDocument> documents = ReadManifestDocuments().ToArrayOf(document => document with
-            {
-                Json = ByteString.From(Encoding.UTF8.GetBytes(
-                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
-            });
+            ArrayOf<SampleDocument> documents = ReadSubstitutedManifestDocuments();
             var thingResolver = new WotAggregationDocumentGenerator.SampleThingResolver(documents);
             var projectionResolver = new WotProjectionResolver(
                 thingResolver, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
@@ -498,7 +592,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .ConfigureAwait(false);
             var registry = new WotProtocolBinderRegistry(WotBuiltInBinders.CreateAll());
             WotBindingPlan plan = registry.Prepare(request);
-            Assert.That(plan.FullySupported, Is.True, pumpName);
+            Assert.That(plan.FullySupported, Is.True, pumpName + ": " + string.Join("; ", plan.Diagnostics));
             Assert.That(plan.CompiledForms.Count(form => form.AffordanceKind == BindingAffordanceKind.Property),
                 Is.EqualTo(4));
             Assert.That(plan.CompiledForms.Count(form => form.AffordanceKind == BindingAffordanceKind.Action),
@@ -511,6 +605,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Select(form => form.EventSelection!.Origin), Is.All.EqualTo(WotEventSelectionOrigin.Standard));
         }
 
+        /// <summary>
+        /// Verifies that each model document owns the namespaces it declares.
+        /// </summary>
         [Test]
         public void ModelDocumentsOwnTheirDeclaredNamespaces()
         {
@@ -558,6 +655,326 @@ namespace Opc.Ua.WotCon.Tests.Samples
             AssertConnectsToSuperType(generated, nonHierarchicalReferences, di.FileName);
         }
 
+        /// <summary>
+        /// A link whose authoritative facts live in sibling partitions validates
+        /// clean against the context of the partitions that share its namespace
+        /// table, and still conflicts when the readable reference is genuinely wrong.
+        /// </summary>
+        [Test]
+        public async Task LinkedNativeReferenceValidatesAgainstSiblingPartitionsAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            string directory = DocumentPath("opc-ua-di");
+            byte[] cpIdentifier = File.ReadAllBytes(Path.Combine(directory, "opc-ua-di-cpidentifier.json"));
+            string text = Encoding.UTF8.GetString(cpIdentifier);
+            const string target = "\"nsu=http://opcfoundation.org/UA/DI/;i=6247\"";
+            Assert.That(text, Does.Contain(target));
+            byte[] conflicting = Encoding.UTF8.GetBytes(text.Replace(
+                target, "\"nsu=http://opcfoundation.org/UA/DI/;i=6000\"", StringComparison.Ordinal));
+
+            var contexts = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                using WotDocument sibling = WotDocument.Parse(File.ReadAllBytes(path), options);
+                contexts.Add(sibling);
+            }
+
+            using WotDocument document = WotDocument.Parse(cpIdentifier, options);
+            using WotDocument wrong = WotDocument.Parse(conflicting, options);
+            WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContext = await WotNodeSetConverter
+                .ToNodeSetResultAsync(document, options, new ContextResolver(contexts)).ConfigureAwait(false);
+            WotConversionResult<UANodeSet> withContextConflict = await WotNodeSetConverter
+                .ToNodeSetResultAsync(wrong, options, new ContextResolver(contexts)).ConfigureAwait(false);
+
+            // Same namespace table, different model (publication date): its
+            // symmetric/forward references must not bless this model's claim.
+            const string publication = "\"publicationDate\": \"2025-11-15T00:00:00Z\"";
+            var foreign = new WotNodeSetConverter.ArchiveContextIndex(options);
+            WotDocument? foreignSibling = null;
+            foreach (string path in Directory.GetFiles(directory, "*.json"))
+            {
+                string siblingText = File.ReadAllText(path);
+                WotDocument parsed = WotDocument.Parse(Encoding.UTF8.GetBytes(siblingText.Replace(
+                    publication, "\"publicationDate\": \"2024-01-01T00:00:00Z\"", StringComparison.Ordinal)), options);
+                foreign.Add(parsed);
+                if (path.EndsWith("opc-ua-di-networktype.json", StringComparison.Ordinal))
+                {
+                    foreignSibling = parsed;
+                }
+                else
+                {
+                    parsed.Dispose();
+                }
+            }
+            using WotDocument? foreignNetworkType = foreignSibling;
+
+            var duplicated = new WotNodeSetConverter.ArchiveContextIndex(options);
+            duplicated.Add(document);
+            duplicated.Add(document);
+
+            // The same identity spelled differently is one identity, not two witnesses.
+            var respelled = new WotNodeSetConverter.ArchiveContextIndex(options);
+            respelled.Add(document);
+            using WotDocument variant = WotDocument.Parse(Encoding.UTF8.GetBytes(text.Replace(
+                "nsu=http://opcfoundation.org/UA/DI/;i=", "ns=1;i=", StringComparison.Ordinal)), options);
+            respelled.Add(variant);
+
+            var incomplete = new WotNodeSetConverter.ArchiveContextIndex(options);
+            incomplete.Add(document);
+            incomplete.MarkIncomplete("test bound");
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(foreignNetworkType, Is.Not.Null);
+            Assert.That(foreign.Find(foreignNetworkType!), Is.Not.Null, "The foreign model must restore on its own.");
+            Assert.That(
+                (await WotNodeSetConverter.ToNodeSetResultAsync(
+                    document, options, new ContextResolver(foreign)).ConfigureAwait(false))
+                    .Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A foreign model sharing the namespace table must not validate this claim.");
+            Assert.That(() => duplicated.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => respelled.Find(document), Throws.InvalidOperationException);
+            Assert.That(() => incomplete.Find(document), Throws.InvalidOperationException);
+            Assert.That(
+                alone.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True,
+                "A lone partition cannot see the reverse reference or symmetric ReferenceType.");
+            Assert.That(
+                withContext.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.False);
+            Assert.That(withContext.Success, Is.True);
+            Assert.That(
+                withContextConflict.Diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionConflict),
+                Is.True);
+        }
+
+        /// <summary>
+        /// Exhausting the resolver document or byte bound while composing the native
+        /// context fails the document that needs it explicitly, never with a partial
+        /// context, and cancellation propagates.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ExhaustedNativeContextBoundFailsExplicitlyAsync(bool documentBound)
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            int selectedLength = contents[resource.DefaultVersion!.DigestHex].Length;
+            long aggregate = contents.Values.Sum(c => (long)c.Length);
+            Assert.That(contents, Has.Count.GreaterThan(2));
+            Assert.That(aggregate, Is.GreaterThan(selectedLength));
+            if (documentBound)
+            {
+                options.MaxResolverDocuments = 2;
+            }
+            else
+            {
+                options.MaxResolverTotalBytes = selectedLength;
+            }
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput output = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(output.Succeeded, Is.False);
+            Assert.That(output.NodeSet, Is.Null);
+            Assert.That(
+                string.Join("; ", output.Errors),
+                Does.Contain("The captured sibling documents exceed the resolver budget."));
+            Assert.That(
+                async () => await new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options)
+                    .ConvertAsync(
+                        resource,
+                        contents[resource.DefaultVersion!.DigestHex],
+                        snapshot,
+                        contents,
+                        cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+
+        /// <summary>
+        /// A malformed sibling is only omitted from the native context. A document of
+        /// the model still converts, and the malformed document fails by itself.
+        /// </summary>
+        [Test]
+        public async Task MalformedSiblingIsOmittedFromNativeContextOnlyAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            (Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+                Dictionary<string, ByteString> contents) = await StoreDiPartitionsAsync().ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Registry.WotResource broken = FindResource(snapshot, "opc-ua-di-networktype");
+            contents[broken.DefaultVersion!.DigestHex] = ByteString.From(Encoding.UTF8.GetBytes("{not json"));
+            Opc.Ua.WotCon.Server.Registry.WotResource resource = FindResource(snapshot, "opc-ua-di-cpidentifier");
+            var converter = new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options);
+
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput selected = await converter.ConvertAsync(
+                broken,
+                contents[broken.DefaultVersion.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+            Opc.Ua.WotCon.Server.Materialization.WotConversionOutput other = await converter.ConvertAsync(
+                resource,
+                contents[resource.DefaultVersion!.DigestHex],
+                snapshot,
+                contents,
+                System.Threading.CancellationToken.None).ConfigureAwait(false);
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(selected.Succeeded, Is.False);
+            Assert.That(selected.Errors, Is.Not.Empty);
+            Assert.That(string.Join("; ", other.Errors), Does.Not.Contain("limit"));
+        }
+
+        /// <summary>
+        /// An archive that declares no model has no authoritative identity, so a set of them supplies
+        /// no cross-document context, while the same export with its model does.
+        /// </summary>
+        [Test]
+        public async Task UnmodelledNativeCarriersSupplyNoCrossDocumentAuthorityAsync()
+        {
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            options.PreservationMode = WotNodeSetPreservationMode.Always;
+            string source = RepositoryPath(Path.Combine(
+                "tests", "Opc.Ua.SourceGeneration.Core.Tests", "Resources", "Opc.Ua.Di.NodeSet2.xml"));
+            UANodeSet modelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            UANodeSet unmodelled = WotAggregationDocumentGenerator.ReadNodeSet(source);
+            unmodelled.Models = null;
+            using WotDocumentSet modelledSet = await ExportSetAsync(modelled, options).ConfigureAwait(false);
+            using WotDocumentSet unmodelledSet = await ExportSetAsync(unmodelled, options).ConfigureAwait(false);
+            var withModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var withoutModel = new WotNodeSetConverter.ArchiveContextIndex(options);
+            var empty = new WotNodeSetConverter.ArchiveContextIndex(options);
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList())
+            {
+                withModel.Add(entry.Document);
+            }
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                withoutModel.Add(entry.Document);
+            }
+
+            using IDisposable scope = Assert.EnterMultipleScope();
+            Assert.That(
+                modelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The modelled export must carry preserved native nodes.");
+            Assert.That(
+                unmodelledSet.Entries.ToList().Where(CarriesNative).ToList(),
+                Is.Not.Empty,
+                "The unmodelled export must carry preserved native nodes.");
+            foreach (WotDocumentSetEntry entry in modelledSet.Entries.ToList().Where(CarriesNative))
+            {
+                Assert.That(withModel.Find(entry.Document), Is.Not.Null, entry.Href);
+            }
+            foreach (WotDocumentSetEntry entry in unmodelledSet.Entries.ToList())
+            {
+                Assert.That(withoutModel.Find(entry.Document), Is.Null, entry.Href);
+                WotConversionResult<UANodeSet> alone = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(empty))
+                    .ConfigureAwait(false);
+                WotConversionResult<UANodeSet> viaIndex = await WotNodeSetConverter
+                    .ToNodeSetResultAsync(entry.Document, options, new ContextResolver(withoutModel))
+                    .ConfigureAwait(false);
+                Assert.That(viaIndex.Success, Is.EqualTo(alone.Success), entry.Href);
+                Assert.That(Describe(viaIndex), Is.EqualTo(Describe(alone)), entry.Href);
+            }
+        }
+
+        private static bool CarriesNative(WotDocumentSetEntry entry)
+        {
+            return entry.Document.TryGetEnvelope(out _) || entry.Document.TryGetNativeProjection(out _);
+        }
+
+        private static string[] Describe(WotConversionResult<UANodeSet> result)
+        {
+            return [.. result.Diagnostics.Select(d =>
+                $"{d.Severity}|{d.Code}|{d.Location?.JsonPointer}|{d.Location?.NodeId}|{d.Message}")];
+        }
+        private static async Task<WotDocumentSet> ExportSetAsync(UANodeSet source, WotNodeSetConverterOptions options)
+        {
+            WotConversionResult<WotDocumentSet> result = await WotNodeSetConverter.FromNodeSetDocumentsAsync(
+                source, "opc-ua-di", "OPC UA Device Integration", options).ConfigureAwait(false);
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics.Select(d => d.Message)));
+            return result.Value!;
+        }
+
+        private static Opc.Ua.WotCon.Server.Registry.WotResource FindResource(
+            Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot snapshot,
+            string resourceId)
+        {
+            return snapshot.AllResources().Single(
+                r => string.Equals(r.ResourceId, resourceId, StringComparison.Ordinal));
+        }
+
+        private static async Task<(Opc.Ua.WotCon.Server.Registry.WotRegistrySnapshot,
+            Dictionary<string, ByteString>)> StoreDiPartitionsAsync()
+        {
+            using var registry = new Opc.Ua.WotCon.Server.Registry.WotRegistryService();
+            var contents = new Dictionary<string, ByteString>(StringComparer.Ordinal);
+            foreach (string path in Directory.GetFiles(DocumentPath("opc-ua-di"), "*.json"))
+            {
+                byte[] bytes = File.ReadAllBytes(path);
+                bool model = Encoding.UTF8.GetString(bytes).Contains("tm:ThingModel", StringComparison.Ordinal);
+                ByteString content = ByteString.From(bytes);
+                contents[Opc.Ua.WotCon.Server.Registry.WotContentDigest.ToHex(
+                    Opc.Ua.WotCon.Server.Registry.WotContentDigest.Compute(content))] = content;
+                await registry.UpsertResourceAsync(new Opc.Ua.WotCon.Server.Registry.WotUpsertResourceRequest
+                {
+                    GroupId = model
+                        ? Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingModels
+                        : Opc.Ua.WotCon.Server.Registry.WotRegistryGroups.ThingDescriptions,
+                    ResourceId = Path.GetFileNameWithoutExtension(path),
+                    Kind = model ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                    Content = content
+                }).ConfigureAwait(false);
+            }
+            return (registry.Current, contents);
+        }
+
+        /// <summary>
+        /// A resolver that supplies a native archive context and resolves no external references.
+        /// </summary>
+        private sealed class ContextResolver : IWotThingResolver, IWotArchiveContextProvider
+        {
+            /// <summary>
+            /// Creates the resolver over a context index.
+            /// </summary>
+            /// <param name="contexts">The index that supplies the native contexts.</param>
+            public ContextResolver(WotNodeSetConverter.ArchiveContextIndex contexts)
+            {
+                m_contexts = contexts;
+            }
+
+            /// <inheritdoc/>
+            public UANodeSet? GetArchiveContext(WotDocument document)
+            {
+                return m_contexts.Find(document);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference,
+                WotResolutionContext context,
+                System.Threading.CancellationToken cancellationToken)
+            {
+                return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+
+            private readonly WotNodeSetConverter.ArchiveContextIndex m_contexts;
+        }
+
         private static void AssertConnectsToSuperType(
             UANodeSet nodeSet,
             string expectedSuperType,
@@ -586,6 +1003,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 $"{origin}: ConnectsTo is symmetric.");
         }
 
+        /// <summary>
+        /// Verifies that companion and pump node sets round trip without change.
+        /// </summary>
         [Test]
         public void CompanionAndPumpNodeSetsRoundTripWithoutChange()
         {
@@ -604,10 +1024,73 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     report.Diagnostics.Any(
                         diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
                     Is.False,
-                    source);
+                    source + ": " + string.Join("; ", report.Diagnostics));
             }
         }
 
+        /// <summary>
+        /// Verifies that the checked-in native Pumps partitions restore the complete source Pumps NodeSet.
+        /// </summary>
+        [Test]
+        public async Task NativePumpsPartitionsRestoreTheSourceNodeSetWithoutChangeAsync()
+        {
+            const int expectedNodeCount = 9624;
+            const int expectedPartitionCount = 339;
+            string root = RepositoryPath(string.Empty);
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(RepositoryPath(
+                Path.Combine("samples", "DI", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml")));
+            SampleDocument[] partitions = [.. WotAggregationDocumentGenerator
+                .ReadManifestDocuments(DocumentPath(string.Empty).TrimEnd('\\', '/'))
+                .ToList()
+                .Where(document => document.Path.StartsWith("opc-ua-pumps/", StringComparison.Ordinal))];
+            WotNodeSetConverterOptions options = WotAggregationDocumentGenerator.CreateLargeDocumentOptions();
+            IWotNodeResolver resolver = WotAggregationDocumentGenerator.CreateCompanionNodeResolver(root);
+            var entries = new List<WotDocumentSetEntry>();
+            try
+            {
+                foreach (SampleDocument partition in partitions)
+                {
+                    entries.Add(new WotDocumentSetEntry(
+                        partition.ResourceId, WotDocument.Parse(partition.Json.ToArray(), options)));
+                }
+                using var set = new WotDocumentSet("opc-ua-pumps", entries.ToArrayOf());
+                entries.Clear();
+
+                WotConversionResult<UANodeSet> restored = await WotNodeSetConverter.ToNodeSetAsync(
+                    set, options, resolver).ConfigureAwait(false);
+
+                Assert.That(partitions, Has.Length.EqualTo(expectedPartitionCount));
+                Assert.That(
+                    Directory.EnumerateFiles(
+                        DocumentPath("opc-ua-pumps"), "*.json", SearchOption.AllDirectories).Count(),
+                    Is.EqualTo(expectedPartitionCount));
+                Assert.That(restored.Success, Is.True, string.Join("; ", restored.Diagnostics));
+                Assert.That(
+                    restored.Diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.False,
+                    string.Join("; ", restored.Diagnostics));
+                Assert.That(source.Items, Has.Length.EqualTo(expectedNodeCount));
+                Assert.That(restored.Value!.Items, Has.Length.EqualTo(expectedNodeCount));
+                NodeSetComparisonResult comparison = WotNodeSetConverter.CompareDocumentSet(
+                    source, restored.Value, options);
+                Assert.That(
+                    comparison.AreEquivalent,
+                    Is.True,
+                    string.Join("; ", comparison.Differences.Take(20)));
+            }
+            finally
+            {
+                foreach (WotDocumentSetEntry entry in entries)
+                {
+                    entry.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that pump NodeSet has required model dependencies and type definition.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetHasRequiredModelDependenciesAndTypeDefinition(string pumpName)
@@ -629,13 +1112,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(TypeDefinition(pump), Is.EqualTo($"ns=1;s={pumpName}.Type"));
         }
 
+        /// <summary>
+        /// Verifies that pump node set roots the pump under the objects folder.
+        /// </summary>
         [Test]
         public void PumpNodeSetRootsThePumpUnderTheObjectsFolder()
         {
             UANodeSet nodeSet = ReadPumpNodeSet();
-            UANode[] roots = nodeSet.Items!.Where(node => node.References?.Any(reference =>
-                reference.ReferenceType == "i=35" && !reference.IsForward && reference.Value == "i=85")
-                == true).ToArray();
+            UANode[] roots = [.. nodeSet.Items!.Where(node => node.References?.Any(reference =>
+                reference.ReferenceType == "i=35" && !reference.IsForward && reference.Value == "i=85") ==
+                true)];
             Assert.That(
                 roots.Select(node => node.NodeId),
                 Is.EquivalentTo(s_pumpRootNodeIds));
@@ -644,12 +1130,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(root, Is.TypeOf<UAObject>(), root.NodeId);
                 Assert.That(
                     root.References!.Count(reference => reference.ReferenceType == "i=35" &&
-                        !reference.IsForward && reference.Value == "i=85"),
+                        !reference.IsForward &&
+                        reference.Value == "i=85"),
                     Is.EqualTo(1),
                     root.NodeId);
             }
         }
 
+        /// <summary>
+        /// Verifies that pump NodeSet has stable required hierarchy.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetHasStableRequiredHierarchy(string pumpName)
@@ -682,6 +1173,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that cloning a pump preserves its complete graph without introducing references to another pump.
+        /// </summary>
         [Test]
         public void PumpNodeSetClonesTheCompleteGraphWithoutCrossPumpReferences()
         {
@@ -714,6 +1208,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump node set preserves property data types and identity values.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="serialNumber">The serial number used by this test case.</param>
         [TestCase("Pump1", "SN-001")]
         [TestCase("Pump2", "SN-002")]
         public void PumpNodeSetPreservesPropertyDataTypesAndIdentityValues(string pumpName, string serialNumber)
@@ -727,10 +1226,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(variable.ValueRank, Is.EqualTo(-1), binding.Name);
             }
 
-            XElement manufacturer = XElement.Parse(
+            var manufacturer = XElement.Parse(
                 FindNode<UAVariable>(nodeSet, $"ns=1;s={pumpName}.Identification.Manufacturer").Value!.OuterXml);
             Assert.That(
-                manufacturer.Element(XName.Get("Text", global::Opc.Ua.Namespaces.OpcUaXsd))!.Value,
+                manufacturer.Element(XName.Get("Text", Ua.Namespaces.OpcUaXsd))!.Value,
                 Is.EqualTo("SimPump Corp"));
             Assert.That(
                 FindNode<UAVariable>(nodeSet, $"ns=1;s={pumpName}.Identification.SerialNumber").Value!.InnerText,
@@ -747,6 +1246,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump node set declares owned controls alarm types and condition arguments.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpNodeSetDeclaresOwnedControlsAlarmTypesAndConditionArguments(string pumpName)
@@ -823,7 +1326,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     name);
                 Assert.That(
                     input.References!.Count(reference => !reference.IsForward &&
-                        ResolveAlias(nodeSet, reference.ReferenceType) == "i=46" && reference.Value == nodeId),
+                        ResolveAlias(nodeSet, reference.ReferenceType) == "i=46" &&
+                        reference.Value == nodeId),
                     Is.EqualTo(1),
                     name);
                 Assert.That(ResolveAlias(nodeSet, input.DataType), Is.EqualTo("i=296"), name);
@@ -832,7 +1336,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(TypeDefinition(input), Is.EqualTo("i=68"), name);
                 XElement arguments = xml.Root!.Elements().Single(element =>
                     (string?)element.Attribute("NodeId") == nodeId + ".InputArguments");
-                XElement[] entries = arguments.Descendants(types + "Argument").ToArray();
+                XElement[] entries = [.. arguments.Descendants(types + "Argument")];
                 Assert.That(
                     entries.Select(argument => argument.Element(types + "Name")!.Value),
                     Is.EqualTo(s_conditionArgumentNames),
@@ -858,6 +1362,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump NodeSet uses qualified parent node IDs.
+        /// </summary>
         [Test]
         public void PumpNodeSetUsesQualifiedParentNodeIds()
         {
@@ -875,6 +1382,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump analog measurements carry engineering unit metadata.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpAnalogMeasurementsCarryEngineeringUnitMetadata(string pumpName)
@@ -915,10 +1426,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump mappings use both endpoint placeholders and portable OPC UA forms.
+        /// </summary>
         [Test]
-        public void PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
+        public async Task PumpMappingsUseBothEndpointPlaceholdersAndPortableOpcUaForms()
         {
             ArrayOf<SampleDocument> documents = ReadPumpDocuments();
+            // The complete linked set validates the readable claims that the partition-local reads below omit.
+            UANodeSet linkedSet = await WotAggregationDocumentGenerator
+                .ReadPumpDocumentSetAsync(ReadSubstitutedManifestDocuments().Filter(document =>
+                    document.Path.StartsWith("sample-pump/", StringComparison.Ordinal))).ConfigureAwait(false);
+            Assert.That(linkedSet.Items, Is.Not.Null.And.Not.Empty);
             var placeholders = new HashSet<string>(StringComparer.Ordinal);
             foreach (string pumpName in s_pumpAssetNames)
             {
@@ -971,6 +1490,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that linked pump identities and running states retain their source schemas.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="serialNumber">The serial number used by this test case.</param>
         [TestCase("Pump1", "SN-001")]
         [TestCase("Pump2", "SN-002")]
         public void LinkedPumpIdentitiesAndRunningStatesRetainTheirSourceSchemas(
@@ -993,9 +1517,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         "LocalizedText must not be constrained to a plain string that cannot retain its locale.");
                     UAVariable variable = FindNode<UAVariable>(
                         ReadPumpNodeSet(), $"ns=1;s={pumpName}.Identification.{name}");
-                    XElement value = XElement.Parse(variable.Value!.OuterXml);
+                    var value = XElement.Parse(variable.Value!.OuterXml);
                     Assert.That(
-                        value.Element(XName.Get("Text", global::Opc.Ua.Namespaces.OpcUaXsd))!.Value,
+                        value.Element(XName.Get("Text", Ua.Namespaces.OpcUaXsd))!.Value,
                         Is.EqualTo(expected));
                 }
                 else
@@ -1023,6 +1547,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that live alarm signals are not constrained to their initial value.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="path">The qualified browse path identifying the captured event field.</param>
         [TestCase("Pump1", "Events.SupervisionProcessFluid.Cavitation")]
         [TestCase("Pump1", "Events.SupervisionPumpOperation.MotorOverheat")]
         [TestCase("Pump2", "Events.SupervisionProcessFluid.Cavitation")]
@@ -1038,6 +1567,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Does.Contain("readproperty").And.Contain("observeproperty"));
         }
 
+        /// <summary>
+        /// Verifies that pump controls have one form owned by exactly one source.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpControlsHaveOneFormOwnedByExactlyOneSource(string pumpName)
@@ -1067,6 +1600,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump condition actions use occurrence arguments and their same document event.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public void PumpConditionActionsUseOccurrenceArgumentsAndTheirSameDocumentEvent(string pumpName)
@@ -1109,6 +1646,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EquivalentTo(s_managementMembers.Select(name => LocalNodeId(pumpName, name))));
         }
 
+        /// <summary>
+        /// Verifies that pump alarms select every declared field against namespace zero.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
         [TestCase("Pump1")]
         [TestCase("Pump2")]
         public async Task PumpAlarmsSelectEveryDeclaredFieldAgainstNamespaceZero(string pumpName)
@@ -1142,7 +1683,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(definition.GetProperty("uav:id").GetString(), Is.EqualTo("i=2915"));
                 JsonElement data = definition.GetProperty("data");
                 AssertAlarmDataSchema(data, alarm);
-                string[] expectedPaths = SchemaLeafPaths(data).Select(ToEventBrowsePath).ToArray();
+                string[] expectedPaths = [.. SchemaLeafPaths(data).Select(ToEventBrowsePath)];
                 Assert.That(
                     selection.EnumerateArray().Select(clause => clause.GetProperty("uav:browsePath").GetString()),
                     Is.EquivalentTo(expectedPaths.Select(path => path.Length == 0
@@ -1176,10 +1717,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that pump mappings compile after endpoint substitution.
+        /// </summary>
         [Test]
         public async Task PumpMappingsCompileAfterEndpointSubstitution()
         {
-            ArrayOf<SampleDocument> documents = ReadPumpDocuments()
+            var documents = ReadPumpDocuments()
                 .ToArrayOf(document => document with
                 {
                     Json = ByteString.From(Encoding.UTF8.GetBytes(
@@ -1228,10 +1772,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
             foreach (string pumpName in s_pumpAssetNames)
             {
-                WotCompiledForm[] properties = compiled.Where(form =>
+                WotCompiledForm[] properties = [.. compiled.Where(form =>
                     form.AffordanceKind == BindingAffordanceKind.Property &&
                     form.TargetMapping.TargetNodeId!.StartsWith(
-                        LocalNodeId(pumpName, string.Empty) + ".", StringComparison.Ordinal)).ToArray();
+                        LocalNodeId(pumpName, string.Empty) + ".", StringComparison.Ordinal))];
                 Assert.That(
                     properties.Where(form => form.OpToken == "readproperty")
                         .Select(form => form.TargetMapping.TargetNodeId),
@@ -1261,6 +1805,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Select(form => form.OpToken), Is.All.EqualTo("subscribeevent"));
         }
 
+        /// <summary>
+        /// Verifies that structured mapping example is dedicated and compiles after endpoint substitution.
+        /// </summary>
         [Test]
         public void StructuredMappingExampleIsDedicatedAndCompilesAfterEndpointSubstitution()
         {
@@ -1287,6 +1834,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             get
             {
+                string? configured = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+                if (!string.IsNullOrEmpty(configured))
+                {
+                    string root = Path.GetFullPath(configured);
+                    return File.Exists(Path.Combine(root, "UA.slnx"))
+                        ? root
+                        : throw new DirectoryNotFoundException(
+                            "OPCUA_TEST_REPOSITORY_ROOT does not identify a repository containing UA.slnx.");
+                }
                 DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
                 while (directory is not null &&
                     !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
@@ -1316,6 +1872,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return WotAggregationDocumentGenerator.ReadManifestDocuments(DocumentPath(string.Empty));
         }
 
+        private static ArrayOf<SampleDocument> ReadSubstitutedManifestDocuments()
+        {
+            return SubstituteEndpoints(ReadManifestDocuments());
+        }
+
         private static ArrayOf<SampleDocument> ReadPumpDocuments()
         {
             return ReadManifestDocuments().Filter(document =>
@@ -1328,7 +1889,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string mapName,
             string[] expectedMembers)
         {
-            using WotDocument document = WotDocument.Parse(
+            using var document = WotDocument.Parse(
                 File.ReadAllBytes(DocumentPath(fileName)),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document)
@@ -1337,20 +1898,112 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(result.Success, Is.True, fileName);
             using WotDocument view = result.Value!;
             JsonElement map = view.RootElement.GetProperty(mapName);
-            Assert.That(PropertyNames(map), Is.EquivalentTo(expectedMembers), fileName);
-            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
             string pumpName = fileName[..fileName.IndexOf('.', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> sources = ReadPumpDocuments();
-            foreach (JsonProperty member in map.EnumerateObject())
+            ArrayOf<SampleDocument> sources = ReadSubstitutedManifestDocuments().Filter(candidate =>
+                candidate.Path.StartsWith("sample-pump/", StringComparison.Ordinal));
+
+            // A selected property that declares uav:unitProperty carries its unit property into the view as a
+            // supporting dependency, so the declared units are expected alongside the selected members.
+            var expectedSupport = new List<(string Id, Affordance Declaration)>();
+            if (mapName == "properties")
+            {
+                foreach (string selected in expectedMembers)
+                {
+                    string selectedPath = s_propertyBindings.Single(binding => binding.Name == selected).LocalPath;
+                    Affordance selectedDeclaration = FindAffordance(
+                        sources, mapName, LocalNodeId(pumpName, selectedPath));
+                    if (selectedDeclaration.Value.TryGetProperty("uav:unitProperty", out JsonElement unitPointer))
+                    {
+                        string unitId = LocalNodeId(pumpName, selectedPath + ".EngineeringUnits");
+                        Assert.That(unitPointer.GetString(), Does.StartWith("/properties/"), selected);
+                        expectedSupport.Add((unitId, FindAffordance(sources, mapName, unitId)));
+                    }
+                }
+            }
+
+            var membersNameById = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (expectedSupport.Count > 0 && fileName != $"{pumpName}.Members.td.json")
+            {
+                using WotDocument membersDocument = WotDocument.Parse(
+                    File.ReadAllBytes(DocumentPath($"{pumpName}.Members.td.json")),
+                    WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+                WotConversionResult<WotDocument> membersResult = await resolver.ResolveAsync(membersDocument)
+                    .ConfigureAwait(false);
+                Assert.That(membersResult.Success, Is.True, pumpName + " members");
+                using WotDocument membersView = membersResult.Value!;
+                foreach (JsonProperty entry in membersView.RootElement.GetProperty("properties").EnumerateObject())
+                {
+                    string entryId = entry.Value.GetProperty("uav:id").GetString()!;
+                    Assert.That(membersNameById.TryAdd(entryId, entry.Name), Is.True,
+                        "duplicate members-view identity " + entryId);
+                }
+            }
+
+            using IDisposable multipleScope = Assert.EnterMultipleScope();
+            Assert.That(
+                PropertyNames(map).Where(name => expectedMembers.Contains(name)),
+                Is.EquivalentTo(expectedMembers),
+                fileName);
+            Assert.That(
+                map.EnumerateObject()
+                    .Where(entry => !expectedMembers.Contains(entry.Name))
+                    .Select(entry => entry.Value.GetProperty("uav:id").GetString()),
+                Is.EquivalentTo(expectedSupport.Select(support => support.Id)),
+                fileName + " supporting members");
+            Assert.That(TypeNames(view.RootElement), Does.Not.Contain("uav:projection"), fileName);
+            foreach ((string supportId, Affordance supportDeclaration) in expectedSupport)
+            {
+                JsonProperty[] carried = map.EnumerateObject().Where(entry =>
+                    entry.Value.TryGetProperty("uav:id", out JsonElement id) && id.GetString() == supportId)
+                    .ToArray();
+                Assert.That(carried, Has.Length.EqualTo(1), fileName + " carried " + supportId);
+                if (carried.Length != 1)
+                {
+                    continue;
+                }
+                JsonProperty support = carried[0];
+                string supportReference = fileName == $"{pumpName}.Members.td.json"
+                    ? supportDeclaration.ResourceId + "#" + supportDeclaration.Pointer
+                    : membersNameById.TryGetValue(supportId, out string? membersName)
+                        ? $"{pumpName.ToLowerInvariant()}-members#/properties/{EscapePointer(membersName)}"
+                        : "<unmatched>";
+                Assert.That(
+                    support.Value.GetProperty("uav:resolvedFrom").GetString(),
+                    Is.EqualTo(supportReference),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:mapToType").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:mapToType").GetString()),
+                    support.Name);
+                Assert.That(
+                    support.Value.GetProperty("uav:browseName").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("uav:browseName").GetString()),
+                    support.Name);
+                AssertJsonEquivalent(
+                    support.Value.TryGetProperty("uav:engineeringUnits", out JsonElement carriedUnits)
+                        ? carriedUnits
+                        : null,
+                    supportDeclaration.Value.TryGetProperty(
+                        "uav:engineeringUnits", out JsonElement declaredUnits) ? declaredUnits : null,
+                    support.Name + " uav:engineeringUnits");
+                Assert.That(
+                    support.Value.GetProperty("type").GetString(),
+                    Is.EqualTo(supportDeclaration.Value.GetProperty("type").GetString()),
+                    support.Name);
+                AssertJsonEquivalent(
+                    support.Value.GetProperty("uav:componentOf"),
+                    supportDeclaration.Value.GetProperty("uav:componentOf"),
+                    support.Name + " uav:componentOf");
+            }
+            foreach (JsonProperty member in map.EnumerateObject().Where(entry => expectedMembers.Contains(entry.Name)))
             {
                 string localPath = mapName == "properties"
                     ? s_propertyBindings.Single(binding => binding.Name == member.Name).LocalPath
                     : member.Name;
                 string localId = LocalNodeId(pumpName, localPath);
                 Affordance declaration = FindAffordance(sources, mapName, localId);
-                string reference = fileName == $"{pumpName}.Members.td.json"
-                    ? declaration.ResourceId + "#" + declaration.Pointer
-                    : $"{pumpName.ToLowerInvariant()}-members#/{mapName}/{EscapePointer(member.Name)}";
+                string reference = document.RootElement.GetProperty(mapName).GetProperty(member.Name)
+                    .GetProperty("tm:ref").GetString()!;
                 Assert.That(
                     member.Value.GetProperty("uav:resolvedFrom").GetString(),
                     Is.EqualTo(reference),
@@ -1377,10 +2030,25 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         Is.EqualTo(localId), member.Name);
                     Assert.That(member.Value.GetProperty("uav:mapToType").GetString(),
                         Is.EqualTo(declaration.Value.GetProperty("uav:mapToType").GetString()), member.Name);
+                    if (declaration.Value.TryGetProperty("uav:unitProperty", out _))
+                    {
+                        string unitId = LocalNodeId(pumpName, localPath + ".EngineeringUnits");
+                        string unitReference = member.Value.GetProperty("uav:unitProperty").GetString()!;
+                        Assert.That(unitReference, Does.StartWith("/properties/"), member.Name);
+                        Assert.That(
+                            map.TryGetProperty(unitReference["/properties/".Length..], out JsonElement unitMember),
+                            Is.True,
+                            member.Name + " unit reference " + unitReference);
+                        Assert.That(
+                            unitMember.ValueKind == JsonValueKind.Object &&
+                            unitMember.GetProperty("uav:id").GetString() == unitId,
+                            Is.True,
+                            member.Name + " unit identity");
+                    }
                     if (declaration.Value.TryGetProperty("const", out JsonElement constant))
                     {
-                        Assert.That(member.Value.GetProperty("const").GetRawText(),
-                            Is.EqualTo(constant.GetRawText()), member.Name);
+                        AssertJsonEquivalent(member.Value.GetProperty("const"), constant, member.Name + " const");
+
                     }
                 }
                 else
@@ -1389,7 +2057,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }
                 if (mapName == "actions" &&
                     (member.Name.EndsWith("Acknowledge", StringComparison.Ordinal) ||
-                    member.Name.EndsWith("Confirm", StringComparison.Ordinal)))
+                        member.Name.EndsWith("Confirm", StringComparison.Ordinal)))
                 {
                     string eventName = member.Value.GetProperty("uav:actsOn").GetString()!;
                     Assert.That(eventName,
@@ -1420,7 +2088,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     .Select(affordance => affordance.Value.GetProperty("uav:id").GetString()!));
             }
             bool found = identities.Any(mentions.Contains);
-            if (!found && root.TryGetProperty("uav:browseName", out JsonElement browseName) &&
+            if (!found &&
+                root.TryGetProperty("uav:browseName", out JsonElement browseName) &&
                 root.TryGetProperty("uav:id", out JsonElement typeId) &&
                 typeId.GetString() is string portableTypeId &&
                 ExpandedNodeId.TryParse(portableTypeId, out ExpandedNodeId expanded))
@@ -1436,7 +2105,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 if (source.TryGetProperty("@context", out JsonElement context))
                 {
                     JsonElement[] contexts = context.ValueKind == JsonValueKind.Array
-                        ? context.EnumerateArray().ToArray()
+                        ? [.. context.EnumerateArray()]
                         : [context];
                     foreach (JsonElement entry in contexts.Where(entry => entry.ValueKind == JsonValueKind.Object))
                     {
@@ -1565,6 +2234,20 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        private static void AssertJsonEquivalent(JsonElement? actual, JsonElement? expected, string message)
+        {
+            Assert.That(actual.HasValue, Is.EqualTo(expected.HasValue), message + " presence");
+            if (actual.HasValue && expected.HasValue)
+            {
+                Assert.That(
+                    JsonNode.DeepEquals(
+                        JsonNode.Parse(actual.Value.GetRawText()),
+                        JsonNode.Parse(expected.Value.GetRawText())),
+                    Is.True,
+                    message + Environment.NewLine + actual.Value.GetRawText() + Environment.NewLine +
+                    expected.Value.GetRawText());
+            }
+        }
         private static Affordance FindAffordance(
             ArrayOf<SampleDocument> documents,
             string mapName,
@@ -1573,10 +2256,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
             // A pump raises the alarms its own type declares, so the type's
             // Thing Model states the same EventType as the pump's Thing
             // Description; the pump's is the one that is bound.
-            Affordance[] matches = ReadAffordances(documents, mapName).Where(affordance =>
+            Affordance[] matches = [.. ReadAffordances(documents, mapName).Where(affordance =>
                 !TypeNames(affordance.Root).Contains("tm:ThingModel") &&
                 affordance.Value.TryGetProperty("uav:id", out JsonElement id) &&
-                id.GetString() == nodeId).ToArray();
+                id.GetString() == nodeId)];
             Assert.That(matches, Has.Length.EqualTo(1), $"{mapName}: {nodeId}");
             return matches[0];
         }
@@ -1660,14 +2343,13 @@ namespace Opc.Ua.WotCon.Tests.Samples
             using var document = WotDocument.Parse(
                 Encoding.UTF8.GetBytes(property.Root.GetRawText()),
                 WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
-            UANodeSet nodes = WotNodeSetConverter.ToNodeSet(
-                document, WotAggregationDocumentGenerator.CreateLargeDocumentOptions());
+            UANodeSet nodes = WotAggregationDocumentGenerator.ReadOwnedPartition(document, property.ResourceId);
             var namespaces = new NamespaceTable();
             foreach (string uri in nodes.NamespaceUris ?? [])
             {
                 namespaces.Append(uri);
             }
-            NodeId id = ExpandedNodeId.ToNodeId(
+            var id = ExpandedNodeId.ToNodeId(
                 ExpandedNodeId.Parse(property.Value.GetProperty("uav:id").GetString()!), namespaces);
             Assert.That(
                 nodes.Items!.OfType<UAVariable>().Count(node => node.NodeId == id.ToString()),
@@ -1759,10 +2441,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static XElement[] PumpXmlNodes(XDocument document, string pumpName)
         {
             string prefix = "ns=1;s=" + pumpName;
-            return document.Root!.Elements().Where(element =>
+            return [.. document.Root!.Elements().Where(element =>
                 (string?)element.Attribute("NodeId") == prefix ||
-                ((string?)element.Attribute("NodeId"))?.StartsWith(prefix + ".", StringComparison.Ordinal) == true)
-                .ToArray();
+                ((string?)element.Attribute("NodeId"))?.StartsWith(prefix + ".", StringComparison.Ordinal) == true)];
         }
 
         private static string? ResolveAlias(UANodeSet nodeSet, string? value)
@@ -1786,6 +2467,15 @@ namespace Opc.Ua.WotCon.Tests.Samples
             return source == "SourceA" ? "${SOURCE_A_ENDPOINT}" : "${SOURCE_B_ENDPOINT}";
         }
 
+        private static ArrayOf<SampleDocument> SubstituteEndpoints(ArrayOf<SampleDocument> documents)
+        {
+            return documents.ToArrayOf(document => document with
+            {
+                Json = ByteString.From(Encoding.UTF8.GetBytes(
+                    SubstituteEndpoints(Encoding.UTF8.GetString(document.Json.ToArray()))))
+            });
+        }
+
         private static string SubstituteEndpoints(string json)
         {
             return json.Replace("${SOURCE_A_ENDPOINT}", "opc.tcp://source-a:4840", StringComparison.Ordinal)
@@ -1799,7 +2489,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string[] StringValues(JsonElement array)
         {
-            return array.EnumerateArray().Select(value => value.GetString()!).ToArray();
+            return [.. array.EnumerateArray().Select(value => value.GetString()!)];
         }
 
         private static T FindNode<T>(UANodeSet nodeSet, string nodeId)

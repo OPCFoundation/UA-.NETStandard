@@ -1,5 +1,11 @@
 # OPC UA for Machinery (OPC 40001)
 
+Released [Machine Vision (OPC 40100-1/-2)](Vision.md) composes into this
+manager through `AddVisionToMachinery()` and `ConfigureVisionFor<MachineryNodeManager>()`.
+This reuses the existing DI/Machinery owner; do not register a second asset-owning Vision manager.
+[AutoID readers (OPC 30010)](AutoID.md#coexisting-with-a-server-that-already-owns-di) compose
+the same way through `AddAutoIdToMachinery()` and `ConfigureAutoIdFor<MachineryNodeManager>()`.
+
 The `Opc.Ua.Machinery*` packages implement the OPC 40001 specification series —
 the building blocks every machine shares, plus the four specialised parts that
 production equipment adds depending on its use case.
@@ -22,9 +28,10 @@ production equipment adds depending on its use case.
 - [Abstract event types](#abstract-event-types)
 - [State machines are server-driven](#state-machines-are-server-driven)
 - [Client](#client)
+  - [Bounded, evidenced inspection](#bounded-evidenced-inspection)
 - [Conformance matrix](#conformance-matrix)
-- [Model sources, identifier tables and repairs](#model-sources-identifier-tables-and-repairs)
-- [Generator gaps found while adding these models](#generator-gaps-found-while-adding-these-models)
+- [Model sources and identifier tables](#model-sources-and-identifier-tables)
+- [Cross-assembly generator behavior](#cross-assembly-generator-behavior)
 
 ## Library layout
 
@@ -73,17 +80,16 @@ the building blocks are AddIn instances (`Identification`, `Monitoring`,
 
 ## Dependency specifications
 
-Adding OPC 40001 pulled in three specifications the repository did not have, and
-moved a fourth out of `Opc.Ua.Robotics`:
+The Machinery models compose types from these companion specifications:
 
 | Package | Specification | Why |
 | --- | --- | --- |
-| `Opc.Ua.IA` | OPC 10000-200 Industrial Automation | 40001-1 types `MonitoringType.Status.Stacklight` with IA's `BasicStacklightType`. IA used to be generated inside `Opc.Ua.Robotics`; two assemblies generating the same model URI under the same C# prefix collide at the consumer, so it moved to its own package and Robotics now references it. The generated types keep living in the `Opc.Ua.IA` namespace and `AddOpcUaIA` is unchanged. |
+| `Opc.Ua.IA` | OPC 10000-200 Industrial Automation | 40001-1 types `MonitoringType.Status.Stacklight` with IA's `BasicStacklightType`. Machinery and Robotics reference this shared model package, avoiding duplicate producers for the same model URI and C# prefix. Its generated types use the `Opc.Ua.IA` namespace and `AddOpcUaIA` registration. |
 | `Opc.Ua.PADIM` | OPC 30081 PADIM + the IRDI dictionary | 40001-2 derives `ProcessValueType` / `ProcessValueVariableType` from PADIM's `AnalogSignalType` / `AnalogSignalVariableType`. IRDI ships in the same assembly because PADIM references it several hundred times and is unusable without it. |
 | `Opc.Ua.ECM` | OPC 34100 Energy Consumption Management | 40001-4's energy carriers are instances of ECM's `EnergyMeasurementValueType`. |
-| `Opc.Ua.ISA95` *(existing)* | OPC 10031-4 ISA-95 Job Control V2 | 40001-3's `JobManagementType` composes the Job Control V2 receiver and response provider. |
+| `Opc.Ua.ISA95` | OPC 10031-4 ISA-95 Job Control V2 | 40001-3's `JobManagementType` composes the Job Control V2 receiver and response provider. |
 
-The resulting reference graph:
+The model reference graph:
 
 ```
 Opc.Ua.Core
@@ -175,9 +181,10 @@ await foreach (MachineEntry machine in machinery.EnumerateMachinesAsync(ct))
 }
 ```
 
-Every accessor returns `null` rather than throwing when a machine does not
-publish the block: OPC 40001-1 makes nearly everything optional, so a client
-that insists on a block would work against one vendor and fail against the next.
+With the constructor that takes no options, optional-block accessors return
+`null` when a machine does not publish the block: OPC 40001-1 makes nearly
+everything optional, so a client that insists on a block would work against
+one vendor and fail against the next.
 
 ## Server hosting model
 
@@ -231,9 +238,74 @@ builder.ConfigureMachineryFor<PumpNodeManager>(async machinery =>
 specification created — an OPC 40223 `PumpState`, an OPC 40223-style
 `GeneratorSetState` — so the vendor model keeps its own type definition and
 still answers the Machinery browse paths. The custom manager only has to expose
-an `IMachineryNodeIdFactory`; `MachineryNodeManager` implements it, and a
-custom manager implements it with a thread-safe allocator for the configured
-instance namespace.
+an `IMachineryNodeIdFactory` or the shared DI `ICompanionNodeIdFactory`;
+`MachineryNodeManager` implements both. A custom manager supplies a thread-safe
+allocator for the configured instance namespace. The Robotics allocator marker
+also derives from the shared marker, allowing both families to reuse one owner
+when their required models are loaded and their instance namespaces agree.
+The optional `ICompanionNodeIdReservationOwner` capability releases temporary
+reservations through the actual allocator on success or rollback; both stock
+managers implement this capability separately from their allocator markers.
+
+When a companion already declares its nameplate, bind it with
+`machine.WithIdentification(existingIdentification, configure)` instead of
+creating another base add-in. Derived machine identification and nested
+component identification are both supported. The type, parent, browse name,
+NodeId and reference type remain intact, and `MachineryBuildingBlocks` points
+at that same node. Required identification values are validated before the
+existing nameplate is changed; machine and component requirements remain
+distinct.
+
+### Bindings on an externally registered root
+
+When Robotics owns a companion root under `DeviceSet`, do not also call
+`AddMachine(root).BuildAsync()`: that adopts the root as a Machinery-owned
+machine. Instead enlist shared bindings in the Robotics registration:
+
+```csharp
+system.WithRegistrationParticipant(machineryContext.BindMachine(
+    craneState,
+    machine => machine.WithIdentification(craneState.Identification!, identity =>
+    {
+        identity.Manufacturer = new LocalizedText("Example manufacturer");
+        identity.SerialNumber = "CR-1";
+        identity.ProductInstanceUri = "urn:example:crane:CR-1";
+    })));
+```
+
+`system` is the builder supplied to `AddMotionDeviceSystemAsync<TState>`.
+Both contexts must use the same node manager and application namespace.
+The binding callback runs before publication and reuses the normal Machinery
+writer; it must not call `BuildAsync` or change the root's identity.
+Robotics validates and registers the entire subtree once. Machinery adds
+`Machines` organizing references without changing the root's `DeviceSet`
+parent or `HasComponent` reference. Facets commit only after every participant
+has bound successfully. Failure or cancellation releases the participant's
+references, resources and reservations, while only the registration owner
+removes its own attempted tree.
+
+The DI-level `ICompanionRegistrationParticipant` is single-use. Its
+`PrepareAsync` and `BindAsync` phases may fail; `Commit` must not perform I/O
+or throw. The owner disposes participants in reverse order on every path.
+Committed Machinery bindings use the existing node-attachment lifetime,
+including on an existing Robotics manager: deleting the root or stopping the
+manager releases its bindings without a second owner or manager-wide registry.
+
+For either an ordinary machine builder or an enlisted one,
+`WithRegistrationBinding(async (state, context, cancellationToken) => resource)`
+defers an asynchronous binding until after indexing. The returned
+`IAsyncDisposable` is owned by the transaction: a later failure disposes it,
+and success transfers it to the existing machine lifetime. If configuration
+throws before an ordinary `BuildAsync` is called, await `builder.AbortAsync()`
+to release the unused name and allocations. Aborting cannot remove a
+registered machine and permanently closes that builder.
+
+For ordinary machine builders, successful registration groups the owned
+resources behind the exact root node. Deleting that root awaits reverse-order
+cleanup without touching another machine's resources. Manager shutdown joins
+any pending cleanup and releases remaining roots; a removed root does not
+retain an ever-growing entry in the coordinator. This uses the manager's
+actual asynchronous node-removal hook, not a value change-mask callback.
 
 ## Builder reference
 
@@ -241,6 +313,13 @@ instance namespace.
 
 Every block is attached to its machinery item with `HasAddIn`, which is what
 OPC 40001-1 uses — not `HasComponent`.
+
+For a companion-created or vendor-derived Components AddIn,
+`machine.WithComponents(existingComponents, configure)` reuses the existing
+`MachineComponentsState`. Its parent, qualified name, NodeId, reference and
+type definition are preserved. The node must be a descendant of this machine,
+derive from `MachineComponentsType`, and retain a `HasAddIn` reference or
+subtype. Existing child names are reserved rather than silently replaced.
 
 | Call | What it adds |
 | --- | --- |
@@ -313,6 +392,28 @@ await oilTemperature.SetValueAsync(70.0);   // percentage, both alarms
 await oilTemperature.SetSetpointAsync(55);  // deviation alarm
 ```
 
+For acquired data, `SetValueAsync(in DataValue, cancellationToken)` preserves
+the original numeric scalar type, quality and acquisition timestamp. An
+unavailable sample can carry `Variant.Null` with a bad status; it is not
+converted into a fresh zero or used to clear the last alarm. Incompatible
+payloads and canceled updates leave the previous sample unchanged. The
+percentage value carries the same quality and source time. Convenience
+double-valued updates use an injected `TimeProvider`, or `TimeProvider.System`
+when no provider is registered.
+
+`MachineryProcessValue.Sample` returns the full signal `DataValue` on the client,
+including uncertain or bad quality and both service timestamps. It complements
+the numeric `Value` projection rather than silently normalizing a
+failed or unavailable reading.
+
+`machine.WithProcessValue(existingProcessValue, configure)` adopts a
+companion-derived descendant without replacing either its object or signal.
+The signal must already use the standard `ProcessValueVariableType` subtype
+and keep its PADIM-qualified `AnalogSignal` browse name. A companion builder
+selects that permitted subtype when constructing the instance; an incompatible
+existing signal is rejected rather than replaced. Nested descendants are
+supported and remain under their declared parent.
+
 `WithLimitAlarm()` and `WithDeviationAlarm()` do more than create the objects
 the model declares. Each one mirrors the limits onto the alarm — absolute
 limits from `WithLimits`, deviations from `WithDeviationLimits` — points the
@@ -338,17 +439,13 @@ builder puts the richer type there and the limits become reachable. The
 generated factory alone would leave the PADIM type in place and
 `WithLimits(...)` would have nowhere to write.
 
-Substituting the subtype costs one repair. Two PADIM members the derived types
-inherit used to come out of the generator without their reference type — and,
-for `EngineeringUnits`, without its namespace-0 browse name — when
-`ProcessValueVariableType` is instantiated on its own, which is exactly the path
-the substitution takes. A node whose `ReferenceTypeId` is null is in the node
-tree but produces no reference in a filtered Browse, so no client ever sees it:
-`SignalTag` is mandatory on PADIM's `AnalogSignalType`, and `EngineeringUnits`
-is where every Data Access client reads the unit — and what the
-`0:Data Access AnalogUnitType` unit of the OPC 40001-2 base facet rests on.
-The generator carries both through the dependency payload now; see
-[Generator gaps](#generator-gaps-found-while-adding-these-models).
+The generated subtype preserves inherited reference types and browse-name
+namespaces, including when `ProcessValueVariableType` is instantiated directly.
+`SignalTag` is a mandatory PA-DIM property, and `EngineeringUnits` is a
+namespace-0 property used by Data Access clients and the
+`0:Data Access AnalogUnitType` unit of the OPC 40001-2 base facet.
+These attributes travel through the cross-assembly dependency payload; see
+[Cross-assembly generator behavior](#cross-assembly-generator-behavior).
 
 ### OPC 40001-3 job management
 
@@ -373,6 +470,15 @@ through a machine.
 When no provider is supplied explicitly the builder resolves
 `IIsa95JobOrderReceiverV2` from the application services, so
 `AddInMemoryIsa95JobControlProvider()` is enough for a demo server.
+
+Companion models can bind an already-declared job-management child with
+`machine.WithJobManagement(existingJobManagement, configure)`. This overload
+preserves the child's identity and validates **both** the receiver and response
+provider before publishing the machine. Explicit per-machine providers never
+borrow another instance's catalog from the container. The
+`WithJobManagement(configure)` overload uses receiver-only provider validation;
+choose the companion overload when complete response handling is
+required.
 
 `MachineryEndToEndTests.JobControlPausesResumesAndRevokesStartThroughAMachineAsync`
 drives `Pause`, `Resume` and `RevokeStart` through a machine over `opc.tcp`,
@@ -469,6 +575,39 @@ All five methods of `ResultManagementType` are optional; the builder publishes
 `AcknowledgeResults` and `ReleaseResultHandle` once a store is bound, and the
 `ResultTransfer` object only when downloads are enabled.
 
+For a companion-declared subtype, use
+`machine.WithResultManagement(existingResultManagement, configure)` instead of
+creating a second base add-in. The existing descendant keeps its parent, browse
+name, NodeId, type definition and reference type, while the shared runtime
+supplies queries, metadata handles, publication and file-transfer lifetime.
+Foreign descendants and duplicate bindings are rejected. Stores are validated
+before the machine is published, and method nodes are staged before indexing.
+
+`results.WithResultsFolder(count, createResult)` accepts a typed result-variable
+factory, and `results.WithResultReadyEvents(eventTypeId, createEvent)` selects a
+derived result-ready event factory. The event factory receives the result being
+published; any specialized result child it creates is retained. Abstract event
+declarations stay unchanged: the runtime registers a concrete subtype in the
+application namespace. These overloads are extensions in
+`Opc.Ua.Machinery.Server.Builders`, so they require no additional members on
+builder-interface implementations.
+
+The `WithResultReadyEvents(eventTypeIds, createEvent)` overload accepts one to
+sixteen distinct declared result-event bases. A factory can select a different
+configured base for each result, such as a companion's intermediate-result
+event instead of its final-result event. Every selected base gets a concrete
+application subtype; unconfigured or unrelated types are rejected.
+
+`WithResultProjection(prepareProjection)` captures validated immutable
+companion fields and sample metadata once per publication, before storage.
+It returns a synchronous assignment-only projection over the supplied result
+variable. The shared writer applies that projection after setting the standard
+result fields and before issuing change notifications, including the result
+inside events. A fixed ring retains the projection with its result when slots
+shift, so acquisition time, quality and derived fields do not depend on the
+backing store still retaining an old entry. Projection assignments must not
+perform I/O or recursively publish results.
+
 #### Bringing your own store
 
 Substitute a real store by implementing
@@ -523,10 +662,9 @@ An invalid filter is refused with `Bad_ContentFilterInvalid`, an `orderedBy`
 path that names no field with `Bad_InvalidArgument`.
 
 The query reads the candidates through `GetResultIdsAsync(0)` and
-`GetResultByIdAsync`, so a custom store is filtered and ordered without
-implementing anything new. The `timeout` argument of the three getters is the
-client's hint for how long it will need the data (§6.4); it is not a deadline
-for the call.
+`GetResultByIdAsync`, so filtering and ordering require no additional custom-store
+methods. The `timeout` argument of the three getters is the client's hint for
+how long it will need the data (§6.4); it is not a deadline for the call.
 
 #### Downloads, and the refused write side
 
@@ -538,10 +676,14 @@ it and closes it.
 serves it in the shape `SoftwareUpdateFileTransferManager` uses for DI
 software uploads: one transient `FileState` per handle, the handle bound to
 the session that opened it, a cap on concurrent handles, and a timeout after
-which an abandoned handle is reclaimed. Reclaiming is swept at the start of
-each `GenerateFileForRead` rather than driven by a per-object timer, so an
-abandoned handle survives until the next download — where it costs nothing
-but a transient node.
+which an inactive handle is reclaimed. Pending generations also consume the
+cap. Inactivity for a still-live session is swept at the next
+`GenerateFileForRead`; session termination and shutdown are independently
+awaited. A successful `CloseSession`, including `deleteSubscriptions=false`,
+waits for that owner's pending generation or rollback, transient-node deletion
+and capacity release. Other sessions retain their own handles. Providers and
+registration callbacks must honor cancellation or complete; cleanup does not
+abandon an unbounded late operation.
 
 `GenerateFileForWrite` and `CloseAndCommit` are mandatory on every
 `TemporaryFileTransferType` (OPC 10000-20 §4.4.1), so a `ResultTransfer`
@@ -560,12 +702,19 @@ the machine: the newest result lands in the first slot and the others shift
 down, so a client can subscribe to a slot once and keep receiving results, and
 the server never adds or deletes nodes while it runs.
 
+Before a slot receives its first result, its value and structured parts are
+genuinely null. Model-default XML is not a published result and is not exposed
+as one. A present Good-null slot has no ResultId to inspect or download; clients
+can keep monitoring the same slot until the publisher fills it.
+
 `GetLatestResult`, `GetResultById` and `GetResultIdListFiltered` each return a
 `ResultHandle` that pins what they handed out until the client calls
 `ReleaseResultHandle`. The handle is bound to the calling session, and
-releasing one twice is refused.
+releasing one twice is refused. Closing or expiring the session reclaims only
+its metadata handles. A late store response cannot pin additional metadata for an
+ended session, and removal of the bound machine releases the lifecycle hook.
 
-Because the payload is materialised from the store synchronously,
+Because the payload is materialised from the store before the method returns,
 `GenerateFileForRead` returns `NodeId.Null` for `completionStateMachine` — the
 value OPC 10000-5 defines for "no completion state machine".
 
@@ -686,9 +835,174 @@ type the table declares — `Duration` in milliseconds, the series' own
 enumerations as `JobExecutionMode` / `JobResult`, and `Overproduction` from
 where Table 1 puts it, below `PlannedOrderQuantity` — and keep every
 parameter as received in `Parameters`. A parameter with the wrong type counts
-as not carried. Optional fields of the generated ISA-95 structures, such as
-`JobOrderParameters` and `Subparameters`, only reach the wire when their
-`EncodingMask` bit is set.
+as not carried in these convenience projections. Optional fields of the
+generated ISA-95 structures, such as `JobOrderParameters` and `Subparameters`,
+only reach the wire when their `EncodingMask` bit is set.
+
+### Bounded, evidenced inspection
+
+The two-argument constructor and `session.Machinery(telemetry)` use tolerant
+reads. For inspection that must not confuse an unreadable value with an absent
+building block, opt into strict reads:
+
+```csharp
+MachineryClient machinery = session.Machinery(telemetry, new MachineryClientOptions
+{
+    MaximumBrowseReferences = 1024,
+    MaximumBrowsePages = 128,
+    MaximumReadArrayItems = 1024
+});
+
+// Discovery reads identities, not every machine's details.
+await foreach (MachineEntry machine in machinery.EnumerateMachinesAsync(ct))
+{
+    Console.WriteLine($"{machine.NodeId}: {machine.DisplayName}");
+}
+
+// Read details only for a selected machine.
+MachineIdentification? identification =
+    await machinery.ReadIdentificationAsync(selectedMachineId, ct);
+if (identification is not null)
+{
+    foreach (MachineryReadValue field in identification.Values)
+    {
+        Console.WriteLine(field.IsAbsent
+            ? $"{field.BrowsePath}: not published"
+            : $"{field.SourceNodeId}: {field.Value.WrappedValue}, " +
+              $"{field.Value.StatusCode}, source={field.Value.SourceTimestamp}, " +
+              $"server={field.Value.ServerTimestamp}");
+    }
+}
+
+MachineryStateSnapshot? state = await machinery.ReadItemStateAsync(selectedMachineId, ct);
+MachineryReadValue health = await machinery.ReadDeviceHealthValueAsync(selectedMachineId, ct);
+```
+
+The same immutable options can be passed to
+`new MachineryClient(session, telemetry, options)`,
+`new MachineryClientFactory(sessionFactory, telemetry, options)` or
+`AddMachineryClient(options)` on the client builder. Each construction
+path validates positive limits and copies the options. The session is borrowed,
+never closed or disposed.
+
+Strict reads require Good service, operation and value statuses, exact response
+and diagnostic counts, and one complete **local** translation target.
+Ambiguous, remote, incomplete or unknown-namespace targets fail without changing
+the namespace table. Only an optional path's `BadNoMatch` denotes absence;
+missing mandatory fields, denied reads, Uncertain quality, wrong wire types and
+malformed responses are errors, not null/default values. A published Good-null
+value is present (`IsAbsent == false`). Scalar UInt32 fields reject a
+StatusCode payload even though `Variant.TryGetValue(out uint)` can accept it.
+
+`MachineryReadException` derives from `ServiceResultException`: its `StatusCode`
+preserves the actual non-Good status, or describes a type/shape/limit failure.
+`ReadValue` identifies the offending source and qualified path and retains the
+original DataValue when one was returned, including both timestamps and
+picoseconds. Translation failures and requests without a returned value instead
+carry synthetic status evidence. The failure's status does not overwrite an
+original Good DataValue when the payload has the wrong type.
+
+| Inspection | Evidence API |
+| --- | --- |
+| Identification, operation/lifetime counters, equipment, process values, meters and measurements | Records expose `ArrayOf<MachineryReadValue> Values`; tolerant reads leave this empty |
+| Item state and operation mode | `ReadItemStateAsync` / `ReadOperationModeAsync` return `MachineryStateSnapshot` with the compatible `State`, `Values`, optional `CurrentStateNumber`, `LastTransitionNumber` and `TransitionTime` |
+| Health | `ReadDeviceHealthValueAsync` returns one `MachineryReadValue`; `ReadDeviceHealthAsync` retains its enum projection |
+| Published job lists | `ReadJobOrdersSnapshotAsync` / `ReadJobResponsesSnapshotAsync` return typed arrays plus original list evidence |
+| Published result identities | `EnumeratePublishedResultsAsync` does not read result content |
+| Selected published result | `ReadPublishedResultAsync(resultVariableId, ct)` returns `MachineryResultSnapshot` without downloading a file or requesting a result URI |
+| Explicit multi-result inspection | `ReadPublishedResultSnapshotsAsync` reads one variable per consumed iteration; stopping enumeration prevents further value reads |
+
+Evidence-specific APIs use strict reads, with default limits when the client
+is constructed without options. Enum, array and `FiniteStateSnapshot` APIs
+provide convenience projections; use the evidence APIs to distinguish absent,
+empty and Good-null values.
+Each result owns its evidence: overlapping calls do not share mutable
+last-read state.
+
+Browse limits are checked **during** Browse/BrowseNext traversal, before
+accumulating a page or deduplicating identities. Duplicate references and empty
+pages count. Process-value discovery shares its budget across the machine and
+Monitoring roots. Continuation points are opaque and may remain unchanged while
+pages advance; the page and reference budgets still bound the traversal.
+Exceeding a budget fails with `BadEncodingLimitsExceeded`, never silently
+truncates a result. Outstanding points are released using an independent
+five-second deadline that also bounds an unresponsive release call. Standard
+empty release responses and validated per-point responses are accepted.
+If traversal and cleanup both fail,
+`AggregateException` preserves the primary failure first.
+
+Bounded browsing and selected-result downloads capture one authenticated
+`ManagedSession` generation for their service calls and cleanup. Result-path
+resolution is part of that same download scope. Recovery invalidates the scope
+instead of forwarding an old continuation point, resolved target or handle to
+a replacement session. Ordinary borrowed sessions are checked for a changed
+SessionId; callers must not independently retarget their transport or identity
+while an operation is running.
+
+Strict lifetime counters and a present `EquipmentLife` require `StartValue`
+and `LimitValue`. Their scalar `Number` fields accept floating-point and integer
+values; `WarningValues` accepts either a scalar Number or a one-dimensional
+numeric array. The `ArrayOf<double>` warning projection is populated
+only for Double arrays; other valid forms remain unmodified in `Values`.
+Operation durations retain their Double-only wire contract.
+
+Strict meters require `ApplicationTag`, while a published Good-null tag remains
+present. Measurements are checked against their published `DataType` and
+`ValueRank`, including the ECM `AcPeDataType` and `AcPpDataType` structures.
+Properties such as IA `StartTime` remain in `Values` rather than being reported
+as numeric measurements; StartTime must carry a DateTime. Clients constructed
+without options use tolerant projections.
+
+`MaximumReadArrayItems` bounds decoded arrays and the aggregate modeled array
+items in each job-list or result snapshot, including nested parameter arrays.
+OPC 40001-2 permits Number arrays for AnalogSignal and Setpoint; strict reads
+retain those bounded arrays in `Values`, with a null scalar convenience
+projection. Scalar numeric projections can lose integer precision; the original
+Variant remains authoritative. These limits **do not bound transport decoding
+or opaque vendor ExtensionObject bodies**. Configure the session's message,
+array, string and ByteString quotas as well.
+
+Missing optional model namespaces and building blocks remain normal absence.
+Where a value-level evidence API reports a missing namespace,
+`MissingNamespaceUri` names it without inventing an index. A published model
+missing a required dependency is a failure.
+
+In strict mode, `ReadJobResponseParametersAsync` inspects only the published
+response list without invoking response-request methods. An
+absent catalog or unlisted order therefore returns null; multiple matching
+responses fail explicitly. Static `FromJobOrder` / `FromJobResponse` projections
+use tolerant extraction. Generated proxies, the `Topology` client, event
+subscriptions, job commands and result-file transfers have their own contracts;
+these options do not harden those separate surfaces.
+`EnumerateEquipmentAsync` is a detailed equipment reader, not an
+identity-only browse.
+
+### Job endpoints and streamed results
+
+`GetJobManagementEndpointsAsync` returns the machine's actual job roles:
+
+```csharp
+MachineryJobManagementEndpoints endpoints =
+    await client.GetJobManagementEndpointsAsync(machineId, ct);
+if (!endpoints.JobResponseProviderId.IsNull)
+{
+    var responses = new Opc.Ua.ISA95.JobControl.V2.ISA95JobResponseProviderObjectTypeClient(
+        client.Session, endpoints.JobResponseProviderId, client.Telemetry);
+    var response = await responses.RequestJobResponseByJobOrderIDAsync("job-1", ct);
+}
+```
+
+Missing roles are `NodeId.Null`; Machinery defines no response receiver.
+The three-role `JobManagementAsync` helper returns null when the order receiver
+is absent. Otherwise it uses that receiver for the undefined response-receiver
+role and as a fallback for a missing response provider. Use the actual
+role-specific endpoint when that distinction matters. ISA-95 return codes are
+UInt64 bitmaps; only `1` means success, independently of the UA service status.
+
+`DownloadResultAsync(machine, resultId, destination, ct)` streams through
+`TemporaryFileTransferClient` and leaves the destination open. The ByteString
+overload shares that implementation. Advanced callers can use
+`OpenResultStreamAsync` and must asynchronously dispose its `UaFileStream`.
 
 ## Conformance matrix
 
@@ -815,7 +1129,9 @@ materialised and wired. The base-server units each facet also inherits —
 address space, view, attribute, method and event subscription — are the stack's
 to report and already appear in `base.ServerProfiles`.
 
-## Model sources, identifier tables and repairs
+<a id="model-sources-identifier-tables-and-repairs"></a>
+
+## Model sources and identifier tables
 
 Every NodeSet is vendored unmodified from
 [OPCFoundation/UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset) (branch
@@ -849,8 +1165,8 @@ caught instead of quietly disappearing from the generated API.
 
 `Model/*.Upstream.NodeIds.csv` is the OPC Foundation's publication unmodified
 and is deliberately kept out of `<AdditionalFiles>`, so the two can be diffed to
-review exactly what the derivation changed — the convention `src/Opc.Ua.ISA95`
-established.
+compare the published and derived mappings, following the convention used by
+`src/Opc.Ua.ISA95`.
 
 ### Why the published tables need deriving
 
@@ -873,83 +1189,55 @@ reads both: **ECM** publishes its table as `Opc.Ua.ECM.NodeSet2.csv` rather than
 than symbolic names. **IRDI** has no published table at all and therefore
 carries no drift guard.
 
-No numeric id or node class disagreed with its NodeSet in any of the nine
-models, so no NodeSet needed a normative repair of the kind `docs/ISA95.md`
-documents for OPC-10030.
+The numeric ids and node classes agree with the NodeSets in all nine models.
+The vendored NodeSets therefore require no normative corrections.
 
-## Generator gaps found while adding these models
+<a id="generator-gaps-found-while-adding-these-models"></a>
 
-Three defects in the cross-assembly dependency machinery only surfaced once a
-model consumed a dependency through a referenced assembly's payload rather
-than through `<AdditionalFiles>`. All three are now fixed in the generator.
-They are worth knowing about when adding the next companion specification.
+## Cross-assembly generator behavior
 
-**A VariableType's data type restriction was not carried.** `DependencyNode`
-recorded base type, numeric id, abstractness, data type fields and children, but
-never a VariableType's own `DataType` / `ValueRank`. A consumer that typed a
-variable with such a VariableType resolved a null `DataTypeNode`, and
-`ModelDesignExtensions.GetNodeStateClassName` dereferenced it — a bare
-`NullReferenceException` surfaced as `MODELGEN003`. OPC 40001-1's
-`EquipmentLife` and `<LifetimeVariable>`, typed by DI's `LifetimeVariableType`,
-are the first nodes in this repository to hit it. This is what the reduced
-Machinery NodeSet copies in the samples were working around.
+Models consumed through referenced assemblies carry their type and member
+metadata in dependency payloads. The generator preserves the following
+relationships when composing Machinery with DI, ECM and PA-DIM.
 
-The payload now carries the restriction behind a new node flag, so payloads
-written before the change stay readable, and `GetNodeStateClassName` throws a
-message naming the variable and its type rather than a bare null dereference if
-a gap ever remains.
+**VariableType data type restrictions.** `DependencyNode` carries a
+VariableType's `DataType` and `ValueRank` alongside its base type, numeric id,
+abstractness, fields and children. Consumers use these restrictions when
+resolving variables such as OPC 40001-1's `EquipmentLife` and
+`<LifetimeVariable>`, both typed by DI's `LifetimeVariableType`.
 
-**A method declaration was not chained to its method state.** When a payload
-child carried both a method-state identity and a declaration identity, the
-consumer replaced the method-state node with the declaration node without
-linking the two. `ResolveMethodStateIdentity` then stopped at the declaration —
-whose symbolic id is the composed `OwnerType_Method` — and a consumer that
-re-declares an inherited method emitted a reference to an
-`OwnerType_MethodMethodState` class the producer never generated. OPC 34100 ECM
-re-declaring the DI `LockingServices` methods is the first model to hit it.
+An optional node flag identifies the restriction metadata; payloads without
+that flag remain readable. If required type metadata cannot be resolved,
+`GetNodeStateClassName` reports the variable and its type in the error message.
 
-**An inherited child lost its reference type and its browse-name namespace.**
-`DependencyChild` carried the child's browse name as a bare string and no
-reference type, so when a derived type in a consuming model was instantiated
-*on its own*, the generator emitted the inherited child with
-`ReferenceTypeId = NodeId.Null` and the browse name qualified with the
-declaring model's namespace. Both were wrong, and the first was not cosmetic: a
-node with a null reference type is in the node tree but produces no reference
-in a filtered Browse, so no client ever saw it.
+**Method-state and declaration identities.** When a dependency child carries
+both identities, the consumer links the declaration to its method-state node.
+`ResolveMethodStateIdentity` follows that relationship to select the
+producer's generated method-state class. This supports inherited method
+re-declarations, including the DI `LockingServices` methods on OPC 34100 ECM.
 
-Two OPC 40001-2 members were affected, both inherited from OPC 30081 PA-DIM:
+**Inherited reference types and browse-name namespaces.** `DependencyChild`
+carries `BrowseNameNamespace`, `ReferenceTypeName` and
+`ReferenceTypeNamespace`. Directly instantiated derived types and nested
+instances use the same inherited attributes. For example, the OPC 40001-2
+members inherited from PA-DIM have these attributes:
 
-| Member | Reference type | Browse name |
+| Member | Reference type | Browse-name namespace |
 | --- | --- | --- |
-| `ProcessValueType.SignalTag` | lost | correct (`3:SignalTag`) |
-| `ProcessValueVariableType.EngineeringUnits` | lost | wrong (PA-DIM, should be namespace 0) |
+| `ProcessValueType.SignalTag` | `HasProperty` | PA-DIM |
+| `ProcessValueVariableType.EngineeringUnits` | `HasProperty` | OPC UA (namespace 0) |
 
-The same member reached the other way — `ProcessValueType.AnalogSignal`'s
-`EngineeringUnits`, generated as a grandchild of the object type — was correct,
-which is what made the inconsistency visible. `SignalTag` is mandatory, and
-`EngineeringUnits` in namespace 0 is where a Data Access client reads the unit,
-so both matter for the OPC 40001-2 base facet.
+The producer records a browse namespace only when it differs from the
+declaring model and a reference type only when it differs from the member
+kind's default. Per-child flag bits identify the optional metadata.
+`MaterialiseDependencyChild` assigns the carried reference type when present,
+or the same kind default that `ImportInstance` applies to locally declared
+instances. Payloads without the optional metadata use those defaults.
 
-`DependencyChild` now carries a `BrowseNameNamespace` and a
-`ReferenceTypeName` / `ReferenceTypeNamespace`, behind two flag bits in the
-per-child flag byte, the way the VariableType restriction was added — so a
-payload written before the change stays readable. The producer records a browse
-namespace only when it differs from the declaring model and a reference type
-only when it departs from the kind default, which keeps the payload byte-identical
-for the ordinary case. The consumer (`MaterialiseDependencyChild`) now always
-assigns a reference type: the carried one when present, otherwise the same kind
-default `ImportInstance` applies to a locally declared instance. That last part
-matters — it means a model still consuming an older prebuilt payload is fixed
-too, not only one rebuilt against the new generator.
-
-The former stop-gap `ProcessValueBuilder.RepairInheritedPadimMembers` is gone;
-what remains of it is `ApplyDefaultSignalTag`, which was never a workaround but
-the OPC 30081 default value for a mandatory tag. Only the in-process tests
-missed the defect; the end-to-end test over `opc.tcp` is what surfaced it,
-because a filtered Browse is where a null reference type finally shows, and
-`MachineryProcessValueTests
-.TheSignalKeepsThePadimBrowseNameAndTheNarrowerTypeAsync` pins all four
-attributes.
+`ApplyDefaultSignalTag` supplies the OPC 30081 default value for the mandatory
+tag. The `opc.tcp` end-to-end tests exercise filtered browsing, and
+`MachineryProcessValueTests.TheSignalKeepsThePadimBrowseNameAndTheNarrowerTypeAsync`
+checks the inherited attributes.
 
 ## See also
 

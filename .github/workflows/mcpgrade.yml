@@ -38,7 +38,7 @@ jobs:
     - name: Setup .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.0.401'
+        dotnet-version: '10.0.402'
 
     - name: Setup Node.js
       uses: actions/setup-node@v7
@@ -50,6 +50,11 @@ jobs:
       run: >
         ./tools/Opc.Ua.Mcp/Test-McpGrade.ps1
         -ResultsDirectory '${{ runner.temp }}/mcpgrade-results'
+        -IncludePrivilegedCatalogues
+        -AdditionalProfiles @('wot', 'xregistry', 'wot-documents', 'wot,xregistry,wot-documents',
+          'gds', 'certificates', 'credentials', 'onboarding', 'roles', 'users', 'files', 'alarms',
+          'history', 'schemas', 'pubsub-runtime', 'pubsub-configuration', 'pubsub-bridge',
+          'pubsub-security', 'wot-runtime')
 
     - name: Upload grading reports
       if: ${{ always() }}

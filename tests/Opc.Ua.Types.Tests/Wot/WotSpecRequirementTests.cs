@@ -43,7 +43,7 @@ namespace Opc.Ua.Types.Tests.Wot
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The specification's own ledgers mark 97 requirements
+    /// The specification's own ledgers mark requirements
     /// <c>pendingStackTests</c> - it cannot name a test in a repository it does
     /// not build. The checked-in ledger names them, and this fixture is what
     /// makes the naming worth anything: every mapping that names this assembly
@@ -120,6 +120,25 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
+        /// <summary>
+        /// Verifies that target specific evidence names only declared runnable frameworks.
+        /// Runtime evidence owned by the runtime change is declared under the planned block until it lands.
+        /// </summary>
+        [Test]
+        public void TargetSpecificEvidenceNamesOnlyDeclaredRunnableFrameworks()
+        {
+            Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
+            string[] scoped = WotSpecRequirementLedger.Load(assembly)
+                .SelectMany(requirement => requirement.Tests).Distinct()
+                .Where(test => WotSpecRequirementLedger.ReadTargetFrameworks(assembly, test).Count != 0)
+                .ToArray();
+            Assert.That(scoped, Is.EqualTo(s_targetSpecificTests));
+            foreach (string test in scoped)
+            {
+                Assert.That(WotSpecRequirementLedger.ReadTargetFrameworks(assembly, test),
+                    Is.EqualTo(s_modernFrameworks));
+            }
+        }
         /// <summary>
         /// The ledger covers exactly the requirements the specification marked
         /// pending, so an entry cannot be quietly dropped and the count cannot
@@ -475,19 +494,126 @@ namespace Opc.Ua.Types.Tests.Wot
         [
             "Opc.Ua.Types.Tests",
             "Opc.Ua.WotCon.Tests",
-            "Opc.Ua.WotCon.Bindings.Tests"
+            "Opc.Ua.WotCon.Bindings.Tests",
+            "Opc.Ua.Server.Tests"
         ];
+        private static readonly string[] s_targetSpecificTests = [];
+        private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
 
         /// <summary>
         /// The requirements this stack does not yet prove, in ascending order.
         /// Each carries its reason in the ledger.
         /// </summary>
         /// <remarks>
-        /// The list is empty, and asserting an empty list is the point: every
-        /// requirement the specification left to this stack now names evidence,
-        /// so re-opening a gap has to be written down here before it is
-        /// accepted.
+        /// Deferred validation, excluded policy evidence and unproved optional
+        /// or deployment behavior stay explicit rather than becoming evidence
+        /// merely because a test class exists.
         /// </remarks>
-        private static readonly string[] s_unprovedRequirements = [];
+        private static readonly string[] s_unprovedRequirements =
+        [
+            "sec-applied-atomicity-observation#001",
+            "sec-applied-atomicity-observation#002",
+            "sec-applied-atomicity-observation#003",
+            "sec-automatic-and-explicit-refresh-idempotence#002",
+            "sec-automatic-and-explicit-refresh-idempotence#007",
+            "sec-concurrency-and-generation-behaviour#002",
+            "sec-concurrency-and-generation-behaviour#003",
+            "sec-concurrency-and-generation-behaviour#004",
+            "sec-concurrency-and-generation-behaviour#005",
+            "sec-dependency-snapshots-and-target-pins#001",
+            "sec-dependency-snapshots-and-target-pins#002",
+            "sec-dependency-snapshots-and-target-pins#003",
+            "sec-dependency-snapshots-and-target-pins#004",
+            "sec-dependency-snapshots-and-target-pins#005",
+            "sec-dependency-snapshots-and-target-pins#006",
+            "sec-dependency-snapshots-and-target-pins#007",
+            "sec-dependency-snapshots-and-target-pins#008",
+            "sec-dependency-snapshots-and-target-pins#009",
+            "sec-dependency-snapshots-and-target-pins#010",
+            "sec-dependency-snapshots-and-target-pins#011",
+            "sec-document-identifiers-and-names#004",
+            "sec-document-identifiers-and-names#005",
+            "sec-document-identifiers-and-names#006",
+            "sec-document-identifiers-and-names#007",
+            "sec-document-identifiers-and-names#008",
+            "sec-document-identifiers-and-names#009",
+            "sec-document-identifiers-and-names#010",
+            "sec-document-identifiers-and-names#011",
+            "sec-document-identifiers-and-names#012",
+            "sec-document-identifiers-and-names#013",
+            "sec-documents-wotdocumenttype-thingdescriptionfiletype-thingmodelfiletype#001",
+            "sec-events-and-change-notifications-normative#005",
+            "sec-events-and-change-notifications-normative#006",
+            "sec-events-and-change-notifications-normative#007",
+            "sec-events-and-change-notifications-normative#008",
+            "sec-events-and-change-notifications-normative#009",
+            "sec-events-and-the-notifier-chain#001",
+            "sec-federated-origin-identity#001",
+            "sec-federated-origin-identity#002",
+            "sec-federated-origin-identity#003",
+            "sec-federated-origin-identity#004",
+            "sec-federated-origin-identity#005",
+            "sec-federated-origin-identity#006",
+            "sec-federated-origin-identity#007",
+            "sec-federated-origin-identity#008",
+            "sec-federated-origin-identity#009",
+            "sec-model-change-events-and-nodeversion-correlation#001",
+            "sec-model-change-events-and-nodeversion-correlation#002",
+            "sec-model-change-events-and-nodeversion-correlation#003",
+            "sec-model-change-events-and-nodeversion-correlation#004",
+            "sec-model-change-events-and-nodeversion-correlation#005",
+            "sec-model-change-events-and-nodeversion-correlation#006",
+            "sec-model-change-events-and-nodeversion-correlation#007",
+            "sec-projection-documents#006",
+            "sec-projection-documents#009",
+            "sec-projection-documents#010",
+            "sec-projection-documents#011",
+            "sec-projection-documents#012",
+            "sec-projection-documents#013",
+            "sec-projection-documents#014",
+            "sec-projection-documents#015",
+            "sec-projection-documents#016",
+            "sec-projection-documents#017",
+            "sec-projection-documents#018",
+            "sec-projection-documents#019",
+            "sec-projection-documents#020",
+            "sec-projection-documents#021",
+            "sec-projection-documents#022",
+            "sec-projection-documents#023",
+            "sec-projection-documents#024",
+            "sec-projection-documents#025",
+            "sec-security-normative#002",
+            "sec-security-normative#003",
+            "sec-security-normative#004",
+            "sec-security-normative#005",
+            "sec-security-normative#006",
+            "sec-security-normative#007",
+            "sec-semantic-change-events-optional#001",
+            "sec-semantic-change-events-optional#002",
+            "sec-shadow-prepare-switch-and-retirement#004",
+            "sec-shadow-prepare-switch-and-retirement#005",
+            "sec-shadow-prepare-switch-and-retirement#014",
+            "sec-shadow-prepare-switch-and-retirement#015",
+            "sec-typed-provisioning-behavior#001",
+            "sec-typed-provisioning-behavior#002",
+            "sec-typed-provisioning-behavior#003",
+            "sec-typed-provisioning-behavior#004",
+            "sec-typed-provisioning-behavior#005",
+            "sec-typed-provisioning-behavior#006",
+            "sec-typed-provisioning-behavior#007",
+            "sec-typed-provisioning-behavior#008",
+            "sec-typed-provisioning-behavior#009",
+            "sec-typed-provisioning-behavior#010",
+            "sec-typed-provisioning-behavior#011",
+            "sec-typed-provisioning-behavior#012",
+            "sec-typed-provisioning-behavior#013",
+            "sec-typed-provisioning-behavior#014",
+            "sec-typed-provisioning-behavior#015",
+            "sec-typed-provisioning-behavior#016",
+            "sec-typed-provisioning-behavior#017",
+            "sec-typed-provisioning-behavior#018",
+            "sec-typed-provisioning-behavior#019",
+            "sec-validation-planning-and-apply-algorithm#001"
+        ];
     }
 }

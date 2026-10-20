@@ -129,7 +129,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             await a.AcquireTransactionOwnershipAsync(Session("s1"));
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await b.AcquireTransactionOwnershipAsync(Session("s2")));
             Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTransactionPending));
             Assert.That(b.HoldsLease, Is.False);
@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await using DistributedPushConfigurationTransactionCoordinator a =
                 new(null, store, options, m_telemetry, time, new FixedLeaderElection(false), startRenewLoop: false);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await a.AcquireTransactionOwnershipAsync(Session("s1")));
             Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadTransactionPending));
             Assert.That(a.HoldsLease, Is.False);
@@ -407,7 +407,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Create(store, "A", time, leaderElection: new FixedLeaderElection(false));
 
             // A non-leader is refused and must not reserve ownership.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await a.AcquireTransactionOwnershipAsync(Session("s1")));
             Assert.That(a.HoldsLease, Is.False);
 
@@ -447,7 +447,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             await a.AcquireTransactionOwnershipAsync(Session("s1"));
 
             // B is refused because A holds a live lease; it must not reserve.
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await b.AcquireTransactionOwnershipAsync(Session("s2")));
             Assert.That(b.HoldsLease, Is.False);
 
@@ -481,7 +481,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await a.AcquireTransactionOwnershipAsync(Session("s1"), cts.Token));
             Assert.That(a.HoldsLease, Is.False);
 
@@ -521,7 +521,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             // the rejected standby must never acquire it (no starvation).
             for (int i = 0; i < 8; i++)
             {
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await standby.AcquireTransactionOwnershipAsync(Session("s-standby")));
                 Assert.That(standby.HoldsLease, Is.False);
 

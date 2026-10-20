@@ -588,6 +588,8 @@ namespace Opc.Ua.Client.Subscriptions
                 m_stateControl.Set();
             }
 
+            OnPublishStateChanged(PublishState.Transferred);
+
             // Recover the messages the server still holds for this
             // subscription. Doing this here rather than waiting for the next
             // publish response ensures the notifications are also recovered on

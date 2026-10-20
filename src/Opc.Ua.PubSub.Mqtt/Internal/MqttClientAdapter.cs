@@ -115,6 +115,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 throw new ArgumentNullException(nameof(options));
             }
             ThrowIfDisposed();
+            m_maxInboundPayload = options.MaxNetworkMessageSize > 0 ? options.MaxNetworkMessageSize : 65535;
 
             MqttEndpoint endpoint = MqttEndpointParser.Parse(options.Endpoint);
             MqttClientOptionsBuilder builder = ConfigureBrokerTransport(new MqttClientOptionsBuilder(), endpoint)
@@ -122,6 +123,17 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 .WithCleanSession(options.CleanSession)
                 .WithProtocolVersion(MapProtocolVersion(options.ProtocolVersion))
                 .WithTimeout(options.ConnectTimeout);
+
+#if NET8_0_OR_GREATER
+            if (options.GetStreamProvider() is { } streamProvider)
+            {
+                if (endpoint.Uri.Scheme is MqttEndpointParser.WsScheme or MqttEndpointParser.WssScheme)
+                {
+                    throw new NotSupportedException("A TCP stream provider cannot authorize a WebSocket transport.");
+                }
+                builder = builder.WithStreamProvider(streamProvider);
+            }
+#endif
 
             if (!string.IsNullOrEmpty(options.ClientId))
             {
@@ -144,6 +156,12 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
 
             MqttClientOptions mqttOptions = builder.Build();
+#if NET8_0_OR_GREATER
+            if (options.GetTopicPolicy() is not null)
+            {
+                mqttOptions.MaximumPacketSize = (uint)m_maxInboundPayload;
+            }
+#endif
             ApplyEnhancedAuthentication(mqttOptions, options);
             if (!string.IsNullOrEmpty(options.WillTopic))
             {
@@ -400,6 +418,10 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 MqttApplicationMessage app = args.ApplicationMessage;
 #if NET8_0_OR_GREATER
                 ReadOnlySequence<byte> sequence = app.Payload;
+                if (sequence.Length > m_maxInboundPayload)
+                {
+                    return Task.CompletedTask;
+                }
                 byte[] payloadCopy;
                 if (sequence.IsEmpty)
                 {
@@ -412,6 +434,10 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 }
 #else
                 ArraySegment<byte> segment = app.PayloadSegment;
+                if (segment.Count > m_maxInboundPayload)
+                {
+                    return Task.CompletedTask;
+                }
                 byte[] payloadCopy = new byte[segment.Count];
                 if (segment.Count > 0 && segment.Array is not null)
                 {
@@ -442,6 +468,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
             return Task.CompletedTask;
         }
+
+        private int m_maxInboundPayload = 65535;
 
         private Task OnConnectedAsync(MqttClientConnectedEventArgs args)
         {
@@ -654,5 +682,4 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             Message = "Failed to deliver inbound MQTT message.")]
         public static partial void FailedToDeliverInboundMqttMessage(this ILogger logger, Exception exception);
     }
-
 }

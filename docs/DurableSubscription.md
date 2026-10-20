@@ -38,6 +38,54 @@ Typically the following porting steps are necessary:
   server restarts. After restoring a subscription, the store must also provide
   persistent queues to its monitored items. Register the store by overriding
   `StandardServer.CreateSubscriptionStore`.
+- Report a store that cannot read its subscriptions from
+  `RestoreSubscriptionsAsync`, either by throwing or by returning
+  `RestoreSubscriptionResult.Success = false`; return `Success = true` with no
+  subscriptions when nothing was stored. Keep the stored subscriptions and the
+  queue snapshots of their monitored items until
+  `OnSubscriptionRestoreCompleteAsync` is called: the server calls it only
+  after it has recreated every stored subscription, so a store that deletes
+  its data while reading it loses the subscriptions when the restore fails.
+- A failed restore fails `SubscriptionManager.RestoreSubscriptionsAsync` and
+  with it the server startup: a store failure surfaces as a
+  `ServiceResultException` (`BadInternalError`), stored subscriptions that
+  cannot be recreated as an `AggregateException`. To start anyway, set
+  `SubscriptionManager.ContinueOnRestoreFailure` to `true` in an override of
+  `StandardServer.CreateSubscriptionManager`; failures are then logged as
+  errors and warnings, and the subscriptions concerned are lost. A restore that
+  fails or is cancelled deletes the subscriptions it already recreated without
+  storing them; it keeps the stored contents of their monitored item queues and
+  resets what it set on the stored subscriptions and monitored items the store
+  returned, so the store may return the same objects to a retry. A server
+  startup that fails releases its session and subscription managers, so the
+  restore can be retried by starting again.
+- A queue whose contents are kept in storage while the server runs, and which
+  disposing removes from that storage, should implement
+  `IRestorableMonitoredItemQueue`. While
+  `SubscriptionManager.RestoreSubscriptionsAsync` restores the subscriptions it
+  calls `BeginRestore` before it changes such a queue of a restored monitored
+  item; the queue must then not write to its storage. When every stored
+  subscription was restored and the store was told so, the server calls
+  `CommitRestore`, and the queue writes its current contents once and resumes
+  writing. The restore can no longer be rolled back then, so `CommitRestore`
+  must not throw: a queue that cannot write handles the failure itself, e.g.
+  logs it and writes on its next change; the server logs an exception it throws
+  and commits the other queues. When the restore
+  fails or is cancelled the server calls `AbortRestore` and disposes the queue;
+  the queue must drop every write it has not started, never start a write
+  again, and not remove its stored contents on dispose, because the retry reads
+  them again. A write already in progress when `AbortRestore` is called cannot
+  be recalled and may complete; a queue staged by `BeginRestore` starts no
+  write before `CommitRestore`, so its stored contents stay exactly as they
+  were. A queue
+  disposed after `BeginRestore` but before `CommitRestore`, e.g. because a node
+  manager failed to create its monitored item, must keep its stored contents as
+  well. The mirrored queues of `SharedKeyValueMonitoredItemQueueFactory`
+  implement it.
+  Only the base `SubscriptionManager.RestoreSubscriptionsAsync` stages queues:
+  a monitored item restored outside of it, e.g. by calling
+  `Subscription.RestoreAsync` or the restoring `MonitoredItem` constructor
+  directly, writes its queue to storage at once, as before.
 - If you implement a custom `INodeManager` or override
   `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
   the `MonitoredItem` constructor. When you check queue length for a durable

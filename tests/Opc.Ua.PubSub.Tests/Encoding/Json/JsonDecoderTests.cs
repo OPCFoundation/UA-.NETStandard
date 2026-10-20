@@ -190,7 +190,7 @@ namespace OpcUaPubSubJsonTests
         public async Task TryDecodeAsync_NullContext_ThrowsAsync()
         {
             var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await decoder.TryDecodeAsync(
                     new ReadOnlyMemory<byte>([1, 2, 3]),
                     null!).ConfigureAwait(false));

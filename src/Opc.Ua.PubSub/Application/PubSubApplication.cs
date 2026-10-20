@@ -108,16 +108,28 @@ namespace Opc.Ua.PubSub.Application
         private readonly Dictionary<NodeId, (string ConnectionName, string GroupName)>
             m_groupRefs = [];
 
-        private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string WriterName)> m_writerRefs = [];
+        private readonly Dictionary<
+            NodeId,
+            (
+                string ConnectionName,
+                string GroupName,
+                string WriterName)> m_writerRefs = [];
 
-        private readonly Dictionary<NodeId, (string ConnectionName,
-            string GroupName, string ReaderName)> m_readerRefs = [];
+        private readonly Dictionary<
+            NodeId,
+            (
+                string ConnectionName,
+                string GroupName,
+                string ReaderName)> m_readerRefs = [];
 
         private readonly Dictionary<NodeId, string> m_publishedDataSetRefs = [];
 
-        private readonly List<(PubSubActionTarget Target, IPubSubActionHandler Handler,
-            bool AllowUnsecured, PubSubResponseAddressPolicy? ResponseAddressPolicy)>
+        private readonly List<
+            (
+                PubSubActionTarget Target,
+                IPubSubActionHandler Handler,
+                bool AllowUnsecured,
+                PubSubResponseAddressPolicy? ResponseAddressPolicy)>
             m_actionHandlers = [];
 
         private readonly Dictionary<PubSubStateMachine, string> m_runtimeStateIds = [];
@@ -383,7 +395,11 @@ namespace Opc.Ua.PubSub.Application
             ConfigurationVersion = ResolveConfigurationVersion(snapshot);
 
             var validator = new PubSubConfigurationValidator(
-                m_factories.Select(factory => factory.TransportProfileUri));
+                m_factories.Select(factory => factory.TransportProfileUri))
+            {
+                RegisteredSecurityGroupIds = m_securityWrapperResolver is IPubSubSecurityKeyProviderCatalog catalog
+                    ? catalog.SecurityGroupIds : default
+            };
             PubSubConfigurationValidationResult result =
                 validator.Validate(snapshot.Configuration);
             result.ThrowIfInvalid();
@@ -472,10 +488,11 @@ namespace Opc.Ua.PubSub.Application
                                 continue;
                             }
 
-                            writers.Add(new DataSetWriter(
-                                writerConfig,
-                                publishedDataSet,
-                                m_telemetry));
+                            writers.Add(
+                                new DataSetWriter(
+                                    writerConfig,
+                                    publishedDataSet,
+                                    m_telemetry));
                         }
                     }
 
@@ -489,13 +506,14 @@ namespace Opc.Ua.PubSub.Application
                             : TimeSpan.FromSeconds(30),
                         TimeSpan.Zero,
                         TimeSpan.Zero);
-                    writerGroups.Add(new WriterGroup(
-                        writerGroupConfig,
-                        writers,
-                        schedule,
-                        m_scheduler,
-                        m_telemetry,
-                        m_timeProvider));
+                    writerGroups.Add(
+                        new WriterGroup(
+                            writerGroupConfig,
+                            writers,
+                            schedule,
+                            m_scheduler,
+                            m_telemetry,
+                            m_timeProvider));
                 }
             }
 
@@ -512,20 +530,22 @@ namespace Opc.Ua.PubSub.Application
                         {
                             ISubscribedDataSetSink sink = ResolveSubscribedDataSetSink(
                                 readerConfig.Name ?? string.Empty);
-                            readers.Add(new DataSetReader(
-                                readerConfig,
-                                sink,
-                                m_telemetry,
-                                m_timeProvider));
+                            readers.Add(
+                                new DataSetReader(
+                                    readerConfig,
+                                    sink,
+                                    m_telemetry,
+                                    m_timeProvider));
                         }
                     }
 
-                    readerGroups.Add(new ReaderGroup(
-                        readerGroupConfig,
-                        readers,
-                        m_telemetry,
-                        m_scheduler,
-                        Diagnostics));
+                    readerGroups.Add(
+                        new ReaderGroup(
+                            readerGroupConfig,
+                            readers,
+                            m_telemetry,
+                            m_scheduler,
+                            Diagnostics));
                 }
             }
 
@@ -538,17 +558,17 @@ namespace Opc.Ua.PubSub.Application
             if (requiresSecurity && securityContext is null)
             {
                 throw new PubSubConfigurationException(
-                [
-                    new PubSubConfigurationIssue(
-                        PubSubConfigurationIssueSeverity.Error,
-                        "PSC1401",
-                        $"Connection '{connectionConfig.Name}' is configured for " +
-                        $"SecurityMode {requiredSecurityMode} but no security wrapper " +
-                        "could be resolved (missing key provider, policy or resolver). " +
-                        "Refusing to start in the clear.",
-                        $"Connections[{connectionConfig.Name}]",
-                        "8.3")
-                ]);
+                    [
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            "PSC1401",
+                            $"Connection '{connectionConfig.Name}' is configured for " +
+                            $"SecurityMode {requiredSecurityMode} but no security wrapper " +
+                            "could be resolved (missing key provider, policy or resolver). " +
+                            "Refusing to start in the clear.",
+                            $"Connections[{connectionConfig.Name}]",
+                            "8.3")
+                    ]);
             }
             int maxMessageSize =
                 m_maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
@@ -917,7 +937,10 @@ namespace Opc.Ua.PubSub.Application
                     string.Equals(connections[i].Name, target.ConnectionName, StringComparison.Ordinal))
                 {
                     connections[i].RegisterActionHandler(
-                        target, handler, allowUnsecured, responseAddressPolicy);
+                        target,
+                        handler,
+                        allowUnsecured,
+                        responseAddressPolicy);
                 }
             }
         }
@@ -1508,10 +1531,11 @@ namespace Opc.Ua.PubSub.Application
                         {
                             List<DataSetWriterDataType> writers =
                                 CloneDataSetWriters(writerGroups[writerGroupIndex]);
-                            int removedCount = writers.RemoveAll(writer =>
-                                StringComparer.Ordinal.Equals(
-                                    writer.DataSetName,
-                                    publishedDataSetName));
+                            int removedCount = writers.RemoveAll(
+                                writer =>
+                                    StringComparer.Ordinal.Equals(
+                                        writer.DataSetName,
+                                        publishedDataSetName));
                             if (removedCount > 0)
                             {
                                 writerGroups[writerGroupIndex].DataSetWriters = [.. writers];
@@ -1905,7 +1929,8 @@ namespace Opc.Ua.PubSub.Application
         }
 
         private async ValueTask<TResult> ApplyMutationAsync<TResult>(
-            Func<PubSubConfigurationDataType,
+            Func<
+                PubSubConfigurationDataType,
                 (PubSubConfigurationDataType Configuration, TResult Result, bool HasChanges)>
                 mutator,
             CancellationToken cancellationToken)
@@ -1929,7 +1954,8 @@ namespace Opc.Ua.PubSub.Application
 
                 PubSubConfigurationDataType previousConfiguration =
                     GetConfiguration();
-                (PubSubConfigurationDataType configuration,
+                (
+                    PubSubConfigurationDataType configuration,
                     TResult result,
                     bool hasChanges) = mutator(previousConfiguration);
                 if (!hasChanges)
@@ -2325,8 +2351,9 @@ namespace Opc.Ua.PubSub.Application
             string name,
             Func<T, string?> nameSelector)
         {
-            return items.FindIndex(item =>
-                StringComparer.Ordinal.Equals(nameSelector(item), name));
+            return items.FindIndex(
+                item =>
+                    StringComparer.Ordinal.Equals(nameSelector(item), name));
         }
 
         private static bool RemoveByName<T>(
@@ -2527,7 +2554,11 @@ namespace Opc.Ua.PubSub.Application
             var snapshot =
                 PubSubConfigurationSnapshot.Create(configuration, m_timeProvider);
             var validator = new PubSubConfigurationValidator(
-                m_factories.Select(factory => factory.TransportProfileUri));
+                m_factories.Select(factory => factory.TransportProfileUri))
+            {
+                RegisteredSecurityGroupIds = m_securityWrapperResolver is IPubSubSecurityKeyProviderCatalog catalog
+                    ? catalog.SecurityGroupIds : default
+            };
             PubSubConfigurationValidationResult validationResult =
                 validator.Validate(snapshot.Configuration);
             validationResult.ThrowIfInvalid();
@@ -2723,86 +2754,114 @@ namespace Opc.Ua.PubSub.Diagnostics
     /// </summary>
     internal static partial class PubSubApplicationLog
     {
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 0, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 0,
+            Level = LogLevel.Warning,
             Message = "Skipping connection '{Name}' — no transport factory for {Profile}.")]
         public static partial void SkippingConnectionNoTransportFactory(
             this ILogger logger,
             string? name,
             string? profile);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 1, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 1,
+            Level = LogLevel.Warning,
             Message = "DataSetWriter '{Writer}' references unknown PublishedDataSet '{Pds}'; skipping.")]
         public static partial void DataSetWriterReferencesUnknownPublishedDataSet(
             this ILogger logger,
             string? writer,
             string pds);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 2, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 2,
+            Level = LogLevel.Error,
             Message = "Failed to enable connection '{Name}'.")]
         public static partial void FailedToEnableConnection(
             this ILogger logger,
             Exception exception,
             string name);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 3, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 3,
+            Level = LogLevel.Error,
             Message = "Failed to start metadata publisher.")]
         public static partial void FailedToStartMetadataPublisher(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 4, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 4,
+            Level = LogLevel.Warning,
             Message = "Failed to dispose metadata publisher.")]
         public static partial void FailedToDisposeMetadataPublisher(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 5, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 5,
+            Level = LogLevel.Error,
             Message = "Failed to disable connection '{Name}'.")]
         public static partial void FailedToDisableConnection(
             this ILogger logger,
             Exception exception,
             string name);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 6, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 6,
+            Level = LogLevel.Error,
             Message = "Failed to stop PubSub activation coordinator.")]
         public static partial void FailedToStopPubSubActivationCoordinator(this ILogger logger, Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 7, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 7,
+            Level = LogLevel.Debug,
             Message = "Failed to restore PubSub state for {ComponentId}.")]
         public static partial void FailedToRestorePubSubState(
             this ILogger logger,
             Exception exception,
             string componentId);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 8, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 8,
+            Level = LogLevel.Debug,
             Message = "Failed to persist PubSub state for {ComponentId}.")]
         public static partial void FailedToPersistPubSubState(
             this ILogger logger,
             Exception exception,
             string componentId);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 9, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 9,
+            Level = LogLevel.Debug,
             Message = "Failed to dispose old connection '{Name}' during configuration replacement.")]
         public static partial void FailedToDisposeOldConnectionDuringConfigurationReplacement(
             this ILogger logger,
             Exception exception,
             string name);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 10, Level = LogLevel.Error,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 10,
+            Level = LogLevel.Error,
             Message = "PubSubApplication ConfigurationChanged handler threw.")]
         public static partial void PubSubApplicationConfigurationChangedHandlerThrew(
             this ILogger logger,
             Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 11, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 11,
+            Level = LogLevel.Debug,
             Message = "Failed to restore PubSub configuration version.")]
         public static partial void FailedToRestorePubSubConfigurationVersion(
             this ILogger logger,
             Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 12, Level = LogLevel.Debug,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 12,
+            Level = LogLevel.Debug,
             Message = "Failed to persist initial PubSub configuration version.")]
         public static partial void FailedToPersistInitialPubSubConfigurationVersion(
             this ILogger logger,
             Exception exception);
 
-        [LoggerMessage(EventId = PubSubEventIds.PubSubApplication + 13, Level = LogLevel.Warning,
+        [LoggerMessage(
+            EventId = PubSubEventIds.PubSubApplication + 13,
+            Level = LogLevel.Warning,
             Message = "Failed to announce WriterGroup configuration change for {Connection}/{WriterGroup}.")]
         public static partial void FailedToAnnounceWriterGroupConfigurationChange(
             this ILogger logger,
@@ -2810,5 +2869,4 @@ namespace Opc.Ua.PubSub.Diagnostics
             string connection,
             string? writerGroup);
     }
-
 }

@@ -191,11 +191,18 @@ namespace Opc.Ua.Security.Pkcs11
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Writing a certificate to a token is a provisioning operation, not
-        /// something an OPC UA application does at run time, and a private key
-        /// offered here can never be accepted. The attempt is recorded and the
-        /// call succeeds so that a trust list update does not fail purely because
-        /// the store is hardware backed.
+        /// The certificate is written to the token as a certificate object. Its
+        /// CKA_ID is the one of the key on the token that the certificate
+        /// belongs to, found through a certificate on the token with the same
+        /// public key or through the public value of the key, so that
+        /// <see cref="LoadPrivateKeyAsync"/> pairs a renewed certificate with
+        /// the key it was issued for. A certificate the token already holds is
+        /// not written again.
+        /// <para>
+        /// A private key offered here is never written: a token does not accept
+        /// key material it did not generate. Only the certificate is stored and
+        /// the attempt is counted in <see cref="RejectedPrivateKeyWrites"/>.
+        /// </para>
         /// </remarks>
         public Task AddAsync(
             Certificate certificate,
@@ -216,6 +223,8 @@ namespace Opc.Ua.Security.Pkcs11
                     m_options?.TokenLabel ?? "<any>");
             }
 
+            Add(certificate);
+
             return Task.CompletedTask;
         }
 
@@ -229,15 +238,34 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <inheritdoc/>
-        /// <exception cref="NotSupportedException">
-        /// Always thrown. Objects are removed from a token with the vendor's
-        /// provisioning tools.
-        /// </exception>
+        /// <remarks>
+        /// Destroys the certificate objects with the thumbprint. The key a
+        /// certificate belongs to stays on the token.
+        /// </remarks>
         public Task<bool> DeleteAsync(string thumbprint, CancellationToken ct = default)
         {
-            throw new NotSupportedException(
-                "Objects cannot be deleted from a PKCS#11 token through this store. " +
-                "Use the token vendor's provisioning tools.");
+            if (string.IsNullOrEmpty(thumbprint))
+            {
+                return Task.FromResult(false);
+            }
+
+            int destroyed = GetToken().DestroyCertificates(encoded =>
+            {
+                using Certificate candidate = Certificate.FromRawData(encoded);
+                return string.Equals(
+                    candidate.Thumbprint,
+                    thumbprint,
+                    StringComparison.OrdinalIgnoreCase);
+            });
+
+            if (destroyed > 0)
+            {
+                m_logger.Pkcs11CertificateStoreLog3(
+                    thumbprint,
+                    m_options?.TokenLabel ?? "<any>");
+            }
+
+            return Task.FromResult(destroyed > 0);
         }
 
         /// <inheritdoc/>
@@ -263,6 +291,238 @@ namespace Opc.Ua.Security.Pkcs11
         {
             return Task.FromResult(
                 LoadPrivateKey(thumbprint, subjectName, applicationUri, certificateType));
+        }
+
+        private void Add(Certificate certificate)
+        {
+            Pkcs11Token token = GetToken();
+            byte[] encoded = certificate.RawData;
+            IReadOnlyList<KeyValuePair<byte[], byte[]?>> onToken = token.FindCertificatesWithIds();
+
+            foreach (KeyValuePair<byte[], byte[]?> entry in onToken)
+            {
+                if (entry.Key.AsSpan().SequenceEqual(encoded))
+                {
+                    return;
+                }
+            }
+
+            token.CreateCertificate(
+                encoded,
+                SelectObjectId(token, certificate, onToken),
+                m_options?.ObjectLabel ?? certificate.Subject,
+                certificate.SubjectName.RawData,
+                certificate.IssuerName.RawData,
+                EncodeSerialNumber(certificate.GetSerialNumber()));
+
+            m_logger.Pkcs11CertificateStoreLog2(
+                certificate.Thumbprint,
+                m_options?.TokenLabel ?? "<any>");
+        }
+
+        /// <summary>
+        /// Selects the CKA_ID for a certificate written to the token: the id
+        /// the options select objects by, else the id of the key the
+        /// certificate belongs to, else the SHA-1 hash of the public key, the
+        /// usual CKA_ID of an object without a key on the token.
+        /// </summary>
+        private byte[] SelectObjectId(
+            Pkcs11Token token,
+            Certificate certificate,
+            IReadOnlyList<KeyValuePair<byte[], byte[]?>> onToken)
+        {
+            if (m_options != null && !m_options.ObjectId.IsNull && m_options.ObjectId.Length > 0)
+            {
+                return m_options.ObjectId.ToArray();
+            }
+
+            byte[] publicKey = certificate.PublicKey.EncodedKeyValue.RawData;
+
+            foreach (KeyValuePair<byte[], byte[]?> entry in onToken)
+            {
+                if (entry.Value is not { Length: > 0 } candidateId)
+                {
+                    continue;
+                }
+
+                using Certificate candidate = Certificate.FromRawData(entry.Key);
+
+                if (HasSamePublicKey(candidate, certificate))
+                {
+                    return candidateId;
+                }
+            }
+
+            byte[]? keyId = FindKeyId(token, certificate);
+
+            if (keyId != null)
+            {
+                return keyId;
+            }
+
+#pragma warning disable CA5350 // SHA-1 is the conventional CKA_ID, not a security function here.
+#if NET6_0_OR_GREATER
+            return SHA1.HashData(publicKey);
+#else
+            using SHA1 sha1 = SHA1.Create();
+            return sha1.ComputeHash(publicKey);
+#endif
+#pragma warning restore CA5350
+        }
+
+        /// <summary>
+        /// Whether two certificates carry the same public key: the key
+        /// algorithm, its encoded parameters (for an EC key the curve) and the
+        /// encoded key value must all be equal.
+        /// </summary>
+        private static bool HasSamePublicKey(Certificate a, Certificate b)
+        {
+            if (!string.Equals(a.PublicKey.Oid.Value, b.PublicKey.Oid.Value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            // A key algorithm without parameters compares as empty parameters.
+            byte[]? parametersA = a.PublicKey.EncodedParameters?.RawData;
+            byte[]? parametersB = b.PublicKey.EncodedParameters?.RawData;
+            return parametersA.AsSpan().SequenceEqual(parametersB.AsSpan()) &&
+                a.PublicKey.EncodedKeyValue.RawData.AsSpan()
+                    .SequenceEqual(b.PublicKey.EncodedKeyValue.RawData);
+        }
+
+        /// <summary>
+        /// Finds the CKA_ID of the key on the token the certificate belongs
+        /// to: an RSA key with the same modulus and public exponent, or an EC
+        /// key with the same point on the same curve.
+        /// </summary>
+        private static byte[]? FindKeyId(Pkcs11Token token, Certificate certificate)
+        {
+            List<byte[]> ids = FindKeyIds(token, certificate);
+
+            return ids.Count > 0 ? ids[0] : null;
+        }
+
+        /// <summary>
+        /// Finds the distinct CKA_IDs of every key object on the token that
+        /// carries the certificate's public key: an RSA key with the same
+        /// modulus and public exponent (private key objects first), or an EC
+        /// key with the same point on the same curve.
+        /// </summary>
+        private static List<byte[]> FindKeyIds(Pkcs11Token token, Certificate certificate)
+        {
+            var ids = new List<byte[]>();
+
+            using (RSA? rsa = certificate.GetRSAPublicKey())
+            {
+                if (rsa != null)
+                {
+                    RSAParameters rsaParameters = rsa.ExportParameters(false);
+                    (CKA, byte[])[] rsaMatch =
+                    [
+                        (CKA.CKA_MODULUS, rsaParameters.Modulus!),
+                        (CKA.CKA_PUBLIC_EXPONENT, rsaParameters.Exponent!)
+                    ];
+
+                    AddDistinct(ids, token.FindKeyIds(CKO.CKO_PRIVATE_KEY, CKK.CKK_RSA, rsaMatch));
+                    AddDistinct(ids, token.FindKeyIds(CKO.CKO_PUBLIC_KEY, CKK.CKK_RSA, rsaMatch));
+                    return ids;
+                }
+            }
+
+            using ECDsa? ecdsa = certificate.GetECDsaPublicKey();
+
+            if (ecdsa == null)
+            {
+                return ids;
+            }
+
+            ECParameters parameters = ecdsa.ExportParameters(false);
+            byte[] point = new byte[1 + parameters.Q.X!.Length + parameters.Q.Y!.Length];
+            point[0] = 0x04;
+            parameters.Q.X.CopyTo(point, 1);
+            parameters.Q.Y.CopyTo(point, 1 + parameters.Q.X.Length);
+
+            // CKA_EC_PARAMS holds the DER encoded curve, the same encoding as
+            // the parameters of the certificate's public key. Without them the
+            // curve is unknown, so no key on the token can be matched.
+            byte[]? curve = certificate.PublicKey.EncodedParameters?.RawData;
+            if (curve == null || curve.Length == 0)
+            {
+                return ids;
+            }
+
+            // CKA_EC_POINT holds the DER encoded OCTET STRING; some modules
+            // store the bare point instead.
+            AddDistinct(ids, token.FindKeyIds(
+                CKO.CKO_PUBLIC_KEY,
+                CKK.CKK_EC,
+                (CKA.CKA_EC_POINT, EncodeOctetString(point)),
+                (CKA.CKA_EC_PARAMS, curve)));
+            AddDistinct(ids, token.FindKeyIds(
+                CKO.CKO_PUBLIC_KEY,
+                CKK.CKK_EC,
+                (CKA.CKA_EC_POINT, point),
+                (CKA.CKA_EC_PARAMS, curve)));
+            return ids;
+        }
+
+        private static void AddDistinct(List<byte[]> ids, List<byte[]> found)
+        {
+            foreach (byte[] id in found)
+            {
+                if (!ids.Exists(known => known.AsSpan().SequenceEqual(id)))
+                {
+                    ids.Add(id);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Encodes a serial number, as returned little endian by
+        /// <see cref="Certificate.GetSerialNumber"/>, as the DER INTEGER that
+        /// CKA_SERIAL_NUMBER holds.
+        /// </summary>
+        private static byte[] EncodeSerialNumber(byte[] littleEndian)
+        {
+            int length = littleEndian.Length;
+            bool pad = length == 0 || (littleEndian[length - 1] & 0x80) != 0;
+            byte[] content = new byte[length + (pad ? 1 : 0)];
+
+            for (int ii = 0; ii < length; ii++)
+            {
+                content[content.Length - 1 - ii] = littleEndian[ii];
+            }
+
+            return EncodeTagged(0x02, content);
+        }
+
+        private static byte[] EncodeOctetString(byte[] value)
+        {
+            return EncodeTagged(0x04, value);
+        }
+
+        private static byte[] EncodeTagged(byte tag, byte[] content)
+        {
+            var encoded = new List<byte>(content.Length + 4) { tag };
+
+            if (content.Length < 0x80)
+            {
+                encoded.Add((byte)content.Length);
+            }
+            else if (content.Length <= 0xFF)
+            {
+                encoded.Add(0x81);
+                encoded.Add((byte)content.Length);
+            }
+            else
+            {
+                encoded.Add(0x82);
+                encoded.Add((byte)(content.Length >> 8));
+                encoded.Add((byte)content.Length);
+            }
+
+            encoded.AddRange(content);
+            return [.. encoded];
         }
 
         private CertificateCollection FindByThumbprint(string thumbprint)
@@ -317,18 +577,23 @@ namespace Opc.Ua.Security.Pkcs11
 
             Pkcs11Token token = GetToken();
 
-            foreach (KeyValuePair<byte[], byte[]> entry in token.FindCertificatesWithIds())
+            foreach (KeyValuePair<byte[], byte[]?> entry in token.FindCertificatesWithIds())
             {
                 Certificate candidate = Certificate.FromRawData(entry.Key);
 
                 try
                 {
-                    if (!Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
+                    // A certificate whose CKA_ID cannot be read cannot be linked
+                    // to its key.
+                    if (entry.Value == null ||
+                        !Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
                     {
                         continue;
                     }
 
-                    Certificate? withKey = AttachKey(token, candidate, entry.Value);
+                    Certificate? withKey = entry.Value.Length > 0
+                        ? AttachKey(token, candidate, entry.Value, provePossession: false)
+                        : AttachKeyWithoutId(token, candidate);
 
                     if (withKey != null)
                     {
@@ -338,6 +603,29 @@ namespace Opc.Ua.Security.Pkcs11
                 finally
                 {
                     candidate.Dispose();
+                }
+            }
+
+            // The object id filter excludes every certificate without a CKA_ID
+            // from the search above; such a certificate is paired only by proof
+            // of possession with a key the filters select.
+            if (!token.Options.ObjectId.IsNull && token.Options.ObjectId.Length > 0)
+            {
+                foreach (byte[] encoded in token.FindCertificatesWithoutId())
+                {
+                    using Certificate candidate = Certificate.FromRawData(encoded);
+
+                    if (!Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
+                    {
+                        continue;
+                    }
+
+                    Certificate? withKey = AttachKeyWithoutId(token, candidate);
+
+                    if (withKey != null)
+                    {
+                        return withKey;
+                    }
                 }
             }
 
@@ -423,10 +711,62 @@ namespace Opc.Ua.Security.Pkcs11
             return Opc.Ua.CertificateIdentifier.ValidateCertificateType(candidate, certificateType);
         }
 
+        /// <summary>
+        /// Whether the options select the objects of the token by CKA_LABEL or CKA_ID.
+        /// </summary>
+        private static bool HasObjectFilter(Pkcs11TokenOptions options)
+        {
+            return !string.IsNullOrEmpty(options.ObjectLabel) ||
+                (!options.ObjectId.IsNull && options.ObjectId.Length > 0);
+        }
+
+        /// <summary>
+        /// Attaches a key to a copy of a certificate without a CKA_ID. Only a key
+        /// that signs a challenge the certificate's public key verifies is
+        /// attached: neither the CKA_ID of a key object that carries the
+        /// certificate's public key nor the configured object label or id
+        /// establishes the pairing alone, because several keys may share them
+        /// and an id may be stale. The candidates are the keys of each CKA_ID
+        /// whose key object carries the certificate's public key, then the keys
+        /// the configured object filters select; without a filter, only the former.
+        /// </summary>
+        private static Certificate? AttachKeyWithoutId(Pkcs11Token token, Certificate certificate)
+        {
+            foreach (byte[] keyId in FindKeyIds(token, certificate))
+            {
+                Certificate? withKey = AttachKey(token, certificate, keyId, provePossession: true);
+
+                if (withKey != null)
+                {
+                    return withKey;
+                }
+            }
+
+            return HasObjectFilter(token.Options)
+                ? AttachKey(token, certificate, [], provePossession: true)
+                : null;
+        }
+
+        /// <summary>
+        /// Attaches the private key with the CKA_ID to a copy of the certificate.
+        /// </summary>
+        /// <param name="token">The token holding the key.</param>
+        /// <param name="certificate">The certificate.</param>
+        /// <param name="ckaId">
+        /// The CKA_ID of the key, or an empty value for the key the object filters select.
+        /// </param>
+        /// <param name="provePossession">
+        /// Whether the key must sign a challenge that the public key of the
+        /// certificate verifies, because nothing else links it to the certificate.
+        /// Every key the CKA_ID or the filters select is tried; otherwise the
+        /// first one is attached.
+        /// </param>
+        /// <returns>The certificate with its key, or <c>null</c> when there is none.</returns>
         private static Certificate? AttachKey(
             Pkcs11Token token,
             Certificate certificate,
-            byte[] ckaId)
+            byte[] ckaId,
+            bool provePossession)
         {
             using X509Certificate2 x509 = certificate.AsX509Certificate2();
 
@@ -437,12 +777,21 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 if (publicRsa != null)
                 {
-                    IObjectHandle? handle = token.FindPrivateKey(CKK.CKK_RSA, ckaId);
+                    RSAParameters parameters = publicRsa.ExportParameters(false);
 
-                    return handle == null
-                        ? null
-                        : certificate.CopyWithDetachedPrivateKey(
-                            new Pkcs11Rsa(token, handle, publicRsa.ExportParameters(false)));
+                    foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_RSA, ckaId, provePossession))
+                    {
+                        var rsa = new Pkcs11Rsa(token, handle, parameters);
+
+                        if (!provePossession || SignsFor(rsa))
+                        {
+                            return certificate.CopyWithDetachedPrivateKey(rsa);
+                        }
+
+                        rsa.Dispose();
+                    }
+
+                    return null;
                 }
             }
 
@@ -450,16 +799,113 @@ namespace Opc.Ua.Security.Pkcs11
 
             if (publicEcdsa != null)
             {
-                IObjectHandle? handle = token.FindPrivateKey(CKK.CKK_EC, ckaId);
+                ECParameters parameters = publicEcdsa.ExportParameters(false);
 
-                return handle == null
-                    ? null
-                    : certificate.CopyWithDetachedPrivateKey(
-                        new Pkcs11ECDsa(token, handle, publicEcdsa.ExportParameters(false)));
+                foreach (IObjectHandle handle in CandidateKeys(token, CKK.CKK_EC, ckaId, provePossession))
+                {
+                    var ecdsa = new Pkcs11ECDsa(token, handle, parameters);
+
+                    if (!provePossession || SignsFor(ecdsa))
+                    {
+                        return certificate.CopyWithDetachedPrivateKey(ecdsa);
+                    }
+
+                    ecdsa.Dispose();
+                }
             }
 #pragma warning restore CA2000
 
             return null;
+        }
+
+        /// <summary>
+        /// The keys to try: every key the CKA_ID or the filters select when
+        /// possession is proven, else the first one.
+        /// </summary>
+        private static List<IObjectHandle> CandidateKeys(
+            Pkcs11Token token,
+            CKK keyType,
+            byte[] ckaId,
+            bool provePossession)
+        {
+            if (provePossession)
+            {
+                return token.FindPrivateKeys(keyType, ckaId);
+            }
+
+            IObjectHandle? first = token.FindPrivateKey(keyType, ckaId);
+            return first == null ? [] : [first];
+        }
+
+        /// <summary>
+        /// Whether the RSA key on the token signs a random challenge that the
+        /// certificate's public key verifies, with PKCS#1 v1.5 or, for a key the
+        /// token permits only for PSS, with PSS. A key the token refuses to sign
+        /// with does not.
+        /// </summary>
+        private static bool SignsFor(Pkcs11Rsa key)
+        {
+            byte[] challenge = CreateChallenge();
+
+            foreach (RSASignaturePadding padding in s_challengePaddings)
+            {
+                try
+                {
+                    byte[] signature = key.SignHash(challenge, HashAlgorithmName.SHA256, padding);
+
+                    // Pkcs11Rsa verifies with the public key it was created from,
+                    // which is the certificate's.
+                    return key.VerifyHash(challenge, signature, HashAlgorithmName.SHA256, padding);
+                }
+                catch (Pkcs11Exception)
+                {
+                    // The token refused the mechanism for this key; it may permit the next one.
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the EC key on the token signs a random challenge that the
+        /// certificate's public key verifies. A key the token refuses to sign
+        /// with does not.
+        /// </summary>
+        private static bool SignsFor(Pkcs11ECDsa key)
+        {
+            byte[] challenge = CreateChallenge();
+
+            try
+            {
+                byte[] signature = key.SignHash(challenge);
+
+                // Pkcs11ECDsa verifies with the public key it was created from,
+                // which is the certificate's.
+                return key.VerifyHash(challenge, signature);
+            }
+            catch (Pkcs11Exception)
+            {
+                return false;
+            }
+        }
+
+        private static readonly RSASignaturePadding[] s_challengePaddings =
+        [
+            RSASignaturePadding.Pkcs1,
+            RSASignaturePadding.Pss
+        ];
+
+        /// <summary>
+        /// A random value with the length of a SHA-256 hash.
+        /// </summary>
+        private static byte[] CreateChallenge()
+        {
+            byte[] challenge = new byte[32];
+            using (var random = RandomNumberGenerator.Create())
+            {
+                random.GetBytes(challenge);
+            }
+            return challenge;
         }
 
         private Pkcs11Token GetToken()
@@ -518,6 +964,24 @@ namespace Opc.Ua.Security.Pkcs11
                 "PKCS#11 token '{TokenLabel}'. A token does not accept key material it did not " +
                 "generate; the public certificate is unaffected.")]
         public static partial void Pkcs11CertificateStoreLog1(
+            this ILogger logger,
+            string thumbprint,
+            string tokenLabel);
+
+        [LoggerMessage(
+            EventId = SecurityPkcs11EventIds.Pkcs11CertificateStore + 2,
+            Level = LogLevel.Information,
+            Message = "Wrote certificate {Thumbprint} to the PKCS#11 token '{TokenLabel}'.")]
+        public static partial void Pkcs11CertificateStoreLog2(
+            this ILogger logger,
+            string thumbprint,
+            string tokenLabel);
+
+        [LoggerMessage(
+            EventId = SecurityPkcs11EventIds.Pkcs11CertificateStore + 3,
+            Level = LogLevel.Information,
+            Message = "Deleted certificate {Thumbprint} from the PKCS#11 token '{TokenLabel}'.")]
+        public static partial void Pkcs11CertificateStoreLog3(
             this ILogger logger,
             string thumbprint,
             string tokenLabel);

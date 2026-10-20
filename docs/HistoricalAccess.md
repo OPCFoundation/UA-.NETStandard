@@ -630,7 +630,60 @@ Pagination rules:
 1. On the first page, the framework passes a default (empty) token.
 2. On subsequent pages, the framework passes back the exact `NextToken` from the previous page.
 3. To indicate "no more pages", return a page with a default (empty) `NextToken`. `IsFinal` becomes true automatically.
-4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is serialised to the wire as the OPC UA continuation point and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
+
+The default Session cache retains a history continuation while it is saved or
+being used by a request. Each resumed read uses the original provider, source,
+query, timestamp selection, index range, data encoding and event filter. The
+server checks the calling Session's current permissions on every page. For
+Annotations reads, it also remembers the requested Property separately from
+the provider's source Variable.
+
+Clients use the continuation identifier returned by the latest response.
+Completion is indicated by an empty continuation identifier, not by the number
+of returned values. A provider can finish with an empty page if its next read
+finds no additional data. This follows the termination rule in
+[Part 4, 5.11.3.2, Table 50](https://reference.opcfoundation.org/specs/OPC-10000-4/5.11.3.2):
+the response has no continuation point when no further work needs continuation.
+[Part 11, 6.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.3)
+also permits zero values with a continuation point when acquisition is not
+finished. Clients therefore check both the operation status and the returned
+continuation identifier, rather than treating an empty values array as failure
+or as completion by itself.
+
+When a source participates in dynamic NodeManager retirement, paginated providers additionally
+implement `IHistorianContinuationDependencies`. Its `TryGetContinuationDependencies` method
+returns an `ArrayOf<NodeId>` containing all additional local Nodes needed by this token and
+every successor page. The server records which NodeManager instance serves
+each declared Node when it creates the first continuation. Later pages use
+those same instances, even after a replacement model starts serving new
+requests. Returning `true` with an empty array means that no additional
+NodeManager is needed. Returning `false` rejects pagination with
+`BadNotSupported` and no partial result. Declare all dependencies, not only
+those needed for the next page. Register or construct the provider normally.
+There is no separate continuation registry.
+
+`InMemoryHistorianProvider` implements this interface. A custom provider needs
+it for paginated reads from dynamically managed Nodes, but not for unpaged reads
+or sources outside the dynamic lifecycle. Use the continuation cache supplied
+by `Session` for dynamic pagination. The dispatcher rejects a replacement cache
+with `BadNotSupported` before saving a dynamic continuation or returning partial
+data. Implementing `ISessionHistoryContinuationPointLifecycle` alone does not
+enable a replacement cache: that interface reports retained NodeManagers, but
+does not restore the original request's routing and type information.
+
+During graceful retirement, the server keeps the source and dependency
+NodeManagers alive until the final page, release, eviction, failed or cancelled
+read, or Session teardown releases the continuation. Immediate retirement
+invalidates its identifier. See
+[NodeManager continuation points](NodeManagers.md#continuation-points).
+
+Replicated history continuation records let a standby identify and remove
+records belonging to the original Session. They do not contain the live
+provider, source Node or NodeManager instance that executed the read.
+A standby therefore returns `BadContinuationPointInvalid` for such a record.
+The client starts a new HistoryRead against the standby instead of resuming
+the old provider cursor.
 
 Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
 state unchanged until it has durably saved a fresh successor. Provider,
@@ -702,9 +755,8 @@ The HistoryUpdate service uses per-value best-effort updates even when the provi
 are persisted. This preserves the one-result-per-value contract of Part 4 §5.11.5.2 and the Insert/Replace status
 semantics of Part 11 §6.9.2. OPC UA has no client flag for requesting an atomic HistoryUpdate.
 
-**Behavior change:** implementing the transaction interface no longer implicitly makes service requests atomic.
-Applications that require all-or-nothing updates can call `InsertAtomicAsync`, `ReplaceAtomicAsync`, or
-`UpdateAtomicAsync` explicitly on the provider. Those methods retain their existing contract:
+Applications that require all-or-nothing updates call `InsertAtomicAsync`,
+`ReplaceAtomicAsync`, or `UpdateAtomicAsync` explicitly on the provider:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
@@ -998,9 +1050,33 @@ HistoryClient historian = session.Historian();
 // Or explicit:
 HistoryClient historian = new HistoryClient(session, new HistoryClientOptions
 {
-    // optional knobs (default page size, timeout, etc.)
+    MaxDecodedPageItems = 1000, // 0 preserves the legacy unbounded page size
+    BindSessionGeneration = true // requires a stack ManagedSession
 });
 ```
+
+### Bounded pages and session lifetime
+
+Set `HistoryClientOptions.MaxDecodedPageItems` to bound each decoded raw,
+modified or event page. An oversized page fails with
+`BadEncodingLimitsExceeded` before yielding any item. Both arrays of a modified
+page are checked before modified-value copies are made. Zero preserves the
+legacy unbounded behavior. This is not a wire decoder quota: configure transport
+message and array limits separately.
+
+`BindSessionGeneration = true` keeps each enumeration and its continuation
+cleanup on the original server session. Recovery invalidates the enumeration
+instead of sending its old continuation point to a replacement.
+
+If you must resolve or check the target before starting the read, capture
+[`SessionRequestContext`](Sessions.md#generation-bound-client-requests) first
+and construct `HistoryClient(context.Session, options)`. Keep that context alive
+across all `MoveNextAsync` and `DisposeAsync` calls, and dispose the cursor
+before the context.
+
+Early disposal and cancellation release the last known continuation point on
+the original session when possible; a replacement never receives the old point.
+Cleanup failures are logged without discarding the original read failure.
 
 ### Reads — `IAsyncEnumerable<T>` with automatic continuation handling
 
@@ -1302,7 +1378,7 @@ The bundled `InMemoryHistorianProvider` implements the interface and acquires it
 
 When at least one provider is registered, `Server.ServerCapabilities.HistoryServerCapabilities` is populated as the union of every provider's `GetCapabilitiesAsync(NodeId.Null, …)`. Clients can read this through normal `Read` requests or via `session.Historian().Session.ReadValueAsync(...)`.
 
-The rollup runs both when the capabilities node is freshly created by `DiagnosticsNodeManager` and when it was loaded from the predefined nodeset XML — so a stock server picks up the registered providers' capability set on every startup, without further wiring.
+The rollup runs both when the capabilities node is freshly created by `DiagnosticsNodeManager` and when it was loaded from the predefined nodeset XML — so the default server picks up the registered providers' capability set on every startup, without further wiring.
 
 ## Auditing
 

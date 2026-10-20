@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests
     // CA1001: NUnit test fixture: per-test instance lifecycle is managed by NUnit;
     // ApplicationConfiguration disposal is handled by the configuration manager pipeline.
 #pragma warning disable CA1001
-    public class AsyncCustomNodeManagerTests
+    public partial class AsyncCustomNodeManagerTests
 #pragma warning restore CA1001
     {
         private Mock<IServerInternal> m_mockServer;
@@ -1148,6 +1148,530 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Service deletion uses the node's pre-removal eligibility in strict and compatibility modes.
+        /// </summary>
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        public async Task ServiceDeleteNodePreservesEligibilityAsync(bool versioned, bool requireNodeVersion)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            manager.RequireNodeVersionForModelChange = requireNodeVersion;
+            var node = new BaseObjectState(null);
+            if (versioned)
+            {
+                manager.EnableModelChangeTrackingFor(node);
+            }
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ServiceDeletedNode", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            m_mockServer.Invocations.Clear();
+
+            await DeleteTestNodeAsync(manager, id, true).ConfigureAwait(false);
+
+            Assert.That(manager.Find(id), Is.Null);
+            bool expected = versioned || !requireNodeVersion;
+            m_mockServer.Verify(value => value.ReportEvent(It.Is<IFilterTarget>(
+                target => target is GeneralModelChangeEventState)), expected ? Times.Once() : Times.Never());
+            if (expected)
+            {
+                Assert.That(GetReportedDeletionChanges()[0].Affected, Is.EqualTo(id));
+            }
+        }
+
+        /// <summary>
+        /// Foreign endpoints of either direction and reference kind are reported only after requested cleanup.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, false)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, false)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        [TestCase(true, true, true)]
+        public async Task ServiceDeleteNodeReportsForeignReferenceOnlyWhenRequestedAsync(
+            bool deleteTargetReferences,
+            bool isInverse,
+            bool hierarchical)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var typeTree = (TypeTable)m_mockServer.Object.TypeTree;
+            typeTree.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+            typeTree.AddSubtype(ReferenceTypeIds.HierarchicalReferences, ReferenceTypeIds.References);
+            typeTree.AddSubtype(ReferenceTypeIds.Organizes, ReferenceTypeIds.HierarchicalReferences);
+            typeTree.AddSubtype(ReferenceTypeIds.NonHierarchicalReferences, ReferenceTypeIds.References);
+            typeTree.AddSubtype(ReferenceTypeIds.HasCause, ReferenceTypeIds.NonHierarchicalReferences);
+            NodeId referenceTypeId = hierarchical ? ReferenceTypeIds.Organizes : ReferenceTypeIds.HasCause;
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ForeignReferenceSource", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            var foreignTarget = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ForeignTarget", m_namespaceTable.GetIndexOrAppend("urn:test:foreign-node-manager"))
+            };
+            Assert.That(manager.Find(foreignTarget.NodeId), Is.Null);
+            node.AddReference(referenceTypeId, isInverse, foreignTarget.NodeId);
+            foreignTarget.AddReference(referenceTypeId, !isInverse, id);
+            m_mockMasterNodeManager.Setup(value => value.RemoveReferencesAsync(
+                    It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
+                .Returns<List<LocalReference>, CancellationToken>((references, _) =>
+                {
+                    foreach (LocalReference reference in references)
+                    {
+                        if (reference.SourceId == foreignTarget.NodeId)
+                        {
+                            foreignTarget.RemoveReference(
+                                reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+                        }
+                    }
+                    return default;
+                });
+            m_mockServer.Invocations.Clear();
+            m_mockMasterNodeManager.Invocations.Clear();
+            using var context = new OperationContext(
+                new RequestHeader(), null!, RequestType.DeleteNodes, RequestLifetime.None, m_mockSession.Object);
+
+            ServiceResult result = await manager.DeleteNodeAsync(
+                context, new DeleteNodesItem
+                {
+                    NodeId = id,
+                    DeleteTargetReferences = deleteTargetReferences
+                }).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(manager.Find(id), Is.Null);
+            m_mockMasterNodeManager.Verify(value => value.RemoveReferencesAsync(
+                It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()),
+                deleteTargetReferences ? Times.Once() : Times.Never());
+            Assert.That(foreignTarget.ReferenceExists(referenceTypeId, !isInverse, id),
+                Is.EqualTo(!deleteTargetReferences));
+            bool foreignReferenceReported = false;
+            bool deletionReported = false;
+            foreach (ModelChangeStructureDataType change in GetReportedDeletionChanges())
+            {
+                if (change.Affected == foreignTarget.NodeId)
+                {
+                    foreignReferenceReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+                }
+                if (change.Affected == id)
+                {
+                    deletionReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+                }
+            }
+            Assert.That(deletionReported, Is.True);
+            Assert.That(foreignReferenceReported, Is.EqualTo(deleteTargetReferences));
+        }
+
+        /// <summary>
+        /// Failed foreign cleanup does not announce unconfirmed reference removals.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ServiceDeleteNodeDoesNotReportForeignReferenceAfterCleanupFailureAsync(bool isInverse)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("FailedForeignCleanup", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            var foreignId = new NodeId(
+                "ForeignTarget", m_namespaceTable.GetIndexOrAppend("urn:test:foreign-node-manager"));
+            node.AddReference(ReferenceTypeIds.HasCause, isInverse, foreignId);
+            var failure = new InvalidOperationException("Injected foreign reference cleanup failure.");
+            m_mockMasterNodeManager.Setup(value => value.RemoveReferencesAsync(
+                It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>())).Throws(failure);
+            m_mockServer.Invocations.Clear();
+
+            await Assert.ThatAsync(
+                async () => await DeleteTestNodeAsync(manager, id, true).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+
+            Assert.That(manager.Find(id), Is.Null);
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(id));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+        }
+
+        /// <summary>
+        /// Foreign cleanup status failures propagate without announcing retained references.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(false, 2)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [TestCase(true, 2)]
+        public async Task DeleteNodeChecksForeignReferenceCleanupStatusAsync(bool service, int statusIndex)
+        {
+            StatusCode cleanupStatus = statusIndex switch
+            {
+                0 => StatusCodes.Good,
+                1 => StatusCodes.BadNotSupported,
+                _ => StatusCodes.BadUnexpectedError
+            };
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(!service || manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ForeignCleanupStatus", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            const string ForeignNamespaceUri = "urn:test:foreign-cleanup-status";
+            var foreignTarget = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("ForeignTarget", m_namespaceTable.GetIndexOrAppend(ForeignNamespaceUri))
+            };
+            node.AddReference(ReferenceTypeIds.HasCause, false, foreignTarget.NodeId);
+            foreignTarget.AddReference(ReferenceTypeIds.HasCause, true, id);
+            var foreignManager = new Mock<IAsyncNodeManager>();
+            foreignManager.Setup(value => value.NamespaceUris).Returns([ForeignNamespaceUri]);
+            foreignManager.Setup(value => value.GetManagerHandleAsync(
+                    foreignTarget.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<object>(foreignTarget));
+            foreignManager.Setup(value => value.DeleteReferenceAsync(
+                    foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (StatusCode.IsGood(cleanupStatus))
+                    {
+                        foreignTarget.RemoveReference(ReferenceTypeIds.HasCause, true, id);
+                    }
+                    return new ValueTask<ServiceResult>(new ServiceResult(cleanupStatus));
+                });
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            using var master = new MasterNodeManager(
+                m_mockServer.Object, m_configuration, null, [foreignManager.Object]);
+            m_mockServer.Setup(value => value.NodeManager).Returns(master);
+            m_mockServer.Invocations.Clear();
+
+            if (StatusCode.IsGood(cleanupStatus))
+            {
+                await DeleteTestNodeAsync(manager, id, service).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    async () => await DeleteTestNodeAsync(manager, id, service).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(cleanupStatus))
+                    .ConfigureAwait(false);
+            }
+
+            Assert.That(manager.Find(id), Is.Null);
+            bool cleanupSucceeded = StatusCode.IsGood(cleanupStatus);
+            Assert.That(foreignTarget.ReferenceExists(ReferenceTypeIds.HasCause, true, id),
+                Is.EqualTo(!cleanupSucceeded));
+            foreignManager.Verify(value => value.DeleteReferenceAsync(
+                foreignTarget, ReferenceTypeIds.HasCause, true, id, false, It.IsAny<CancellationToken>()),
+                Times.Once());
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(cleanupSucceeded ? 2 : 1));
+            bool deletionReported = false;
+            bool foreignReferenceReported = false;
+            foreach (ModelChangeStructureDataType change in changes)
+            {
+                if (change.Affected == id)
+                {
+                    deletionReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+                }
+                if (change.Affected == foreignTarget.NodeId)
+                {
+                    foreignReferenceReported = true;
+                    Assert.That(change.Verb,
+                        Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+                }
+            }
+            Assert.That(deletionReported, Is.True);
+            Assert.That(foreignReferenceReported, Is.EqualTo(cleanupSucceeded));
+        }
+
+        /// <summary>
+        /// Internal and legacy deletion report foreign non-hierarchical endpoints after successful cleanup.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeleteNodeReportsForeignNonHierarchicalReferenceAsync(bool isInverse)
+        {
+            using ITestNodeManager manager = CreateManager();
+            var node = new BaseObjectState(null);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("ForeignCleanup", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            var foreignId = new NodeId(
+                "ForeignTarget", m_namespaceTable.GetIndexOrAppend("urn:test:foreign-node-manager"));
+            node.AddReference(ReferenceTypeIds.HasCause, isInverse, foreignId);
+            m_mockServer.Invocations.Clear();
+
+            await DeleteTestNodeAsync(manager, id, false).ConfigureAwait(false);
+
+            Assert.That(manager.Find(id), Is.Null);
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(foreignId));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+        }
+
+        /// <summary>
+        /// Absolute targets are not part of local reference cleanup or deletion reporting.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeleteNodeDoesNotReportAbsoluteReferenceTargetsAsync(bool isInverse)
+        {
+            using ITestNodeManager manager = CreateManager();
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("RemoteReferenceSource", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            node.AddReference(ReferenceTypeIds.HasCause, isInverse, new ExpandedNodeId("Remote", "urn:test:remote", 1));
+            m_mockServer.Invocations.Clear();
+
+            await DeleteTestNodeAsync(manager, id, false).ConfigureAwait(false);
+
+            Assert.That(manager.Find(id), Is.Null);
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(id));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+        }
+
+        /// <summary>
+        /// Committed reference removals are reported even when cleanup fails or is cancelled.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task DeleteNodeReportsCommittedChangesAfterCleanupFailureAsync(bool service, bool cancellation)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires asynchronous cleanup.");
+            var asynchronous = (TestableAsyncCustomNodeManager)manager;
+            var parent = new BaseObjectState(null);
+            PropertyState<string> version = manager.EnableModelChangeTrackingFor(parent);
+            NodeId parentId = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("TrackedParent", manager.NamespaceIndexes[0]), parent).ConfigureAwait(false);
+            var child = new BaseObjectState(null);
+            NodeId childId = await manager.CreateNodeAsync(
+                manager.SystemContext, parentId, ReferenceTypeIds.HasComponent,
+                new QualifiedName("DeletedChild", manager.NamespaceIndexes[0]), child).ConfigureAwait(false);
+            child.AddReference(
+                ReferenceTypeIds.Organizes, false, new NodeId("ExternalTarget", manager.NamespaceIndexes[0]));
+            string before = version.Value;
+            using var request = new CancellationTokenSource();
+            var failure = new InvalidOperationException("Injected reference cleanup failure.");
+            m_mockMasterNodeManager.Setup(value => value.RemoveReferencesAsync(
+                    It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
+                .Returns<List<LocalReference>, CancellationToken>((_, token) =>
+                {
+                    if (cancellation)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        return default;
+                    }
+                    throw failure;
+                });
+            if (cancellation)
+            {
+                asynchronous.NodeRemovedCallback = (removed, _) =>
+                {
+                    if (ReferenceEquals(removed, child))
+                    {
+                        request.Cancel();
+                    }
+                    return default;
+                };
+            }
+            m_mockServer.Invocations.Clear();
+
+            await Assert.ThatAsync(
+                async () => await DeleteTestNodeAsync(manager, childId, service, request.Token).ConfigureAwait(false),
+                cancellation
+                    ? Throws.InstanceOf<OperationCanceledException>()
+                    : Throws.TypeOf<InvalidOperationException>().And.SameAs(failure))
+                .ConfigureAwait(false);
+
+            Assert.That(manager.Find(childId), Is.Null);
+            Assert.That(version.Value, Is.Not.EqualTo(before));
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(parentId));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.ReferenceDeleted));
+        }
+
+        /// <summary>
+        /// A partial deletion reports removed nodes, not descendants that remain registered.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodeReportsOnlyCommittedSubtreeRemovalsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            var root = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(root);
+            NodeId rootId = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("RemovedRoot", manager.NamespaceIndexes[0]), root).ConfigureAwait(false);
+            var child = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(child);
+            NodeId childId = await manager.CreateNodeAsync(
+                manager.SystemContext, rootId, ReferenceTypeIds.HasComponent,
+                new QualifiedName("SurvivingChild", manager.NamespaceIndexes[0]), child).ConfigureAwait(false);
+            var failure = new InvalidOperationException("Injected root removal failure.");
+            SetDeletionFailureCallback(manager, root, failure);
+            m_mockServer.Invocations.Clear();
+
+            await Assert.ThatAsync(
+                async () => await manager.DeleteNodeAsync(manager.SystemContext, rootId).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+
+            Assert.That(manager.Find(rootId), Is.Null);
+            Assert.That(manager.Find(childId), Is.SameAs(child));
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(rootId));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+        }
+
+        /// <summary>
+        /// Versioned descendants remain eligible when their deleted root has no NodeVersion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DeleteUnversionedRootReportsVersionedDescendantAsync(bool service)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(!service || manager is TestableAsyncCustomNodeManager, "Requires node-management services.");
+            var root = new BaseObjectState(null);
+            NodeId rootId = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("UnversionedRoot", manager.NamespaceIndexes[0]), root).ConfigureAwait(false);
+            var child = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(child);
+            NodeId childId = await manager.CreateNodeAsync(
+                manager.SystemContext, rootId, ReferenceTypeIds.HasComponent,
+                new QualifiedName("VersionedChild", manager.NamespaceIndexes[0]), child).ConfigureAwait(false);
+            m_mockServer.Invocations.Clear();
+
+            await DeleteTestNodeAsync(manager, rootId, service).ConfigureAwait(false);
+
+            ArrayOf<ModelChangeStructureDataType> changes = GetReportedDeletionChanges();
+            Assert.That(changes.Count, Is.EqualTo(1));
+            Assert.That(changes[0].Affected, Is.EqualTo(childId));
+            Assert.That(changes[0].Verb, Is.EqualTo((byte)Opc.Ua.Server.NodeManager.ModelChangeVerbs.NodeDeleted));
+        }
+
+        /// <summary>
+        /// Cancellation before removal does not announce an uncommitted deletion.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancelledNodeDeletionDoesNotReportUncommittedChangesAsync(bool service)
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(manager is TestableAsyncCustomNodeManager, "Requires cancellable deletion.");
+            var node = new BaseObjectState(null);
+            PropertyState<string> version = manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("RetainedNode", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            string before = version.Value;
+            m_mockServer.Invocations.Clear();
+
+            await Assert.ThatAsync(
+                async () => await DeleteTestNodeAsync(
+                    manager, id, service, new CancellationToken(true)).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+            Assert.That(manager.Find(id), Is.SameAs(node));
+            Assert.That(version.Value, Is.EqualTo(before));
+            Assert.That(GetReportedDeletionChanges().Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Neither the deletion failure nor a concurrent reporting failure is lost.
+        /// </summary>
+        [Test]
+        public async Task DeleteNodePreservesDeletionAndReportingFailuresAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            var node = new BaseObjectState(null);
+            manager.EnableModelChangeTrackingFor(node);
+            NodeId id = await manager.CreateNodeAsync(
+                manager.SystemContext, default, ReferenceTypeIds.Organizes,
+                new QualifiedName("FailingNode", manager.NamespaceIndexes[0]), node).ConfigureAwait(false);
+            var deletionFailure = new InvalidOperationException("Injected deletion failure.");
+            var reportingFailure = new InvalidOperationException("Injected reporting failure.");
+            SetDeletionFailureCallback(manager, node, deletionFailure);
+            m_mockServer.Setup(value => value.ReportEvent(It.IsAny<IFilterTarget>())).Throws(reportingFailure);
+
+            await Assert.ThatAsync(
+                async () => await manager.DeleteNodeAsync(manager.SystemContext, id).ConfigureAwait(false),
+                Throws.TypeOf<AggregateException>()
+                    .With.Property(nameof(AggregateException.InnerExceptions))
+                    .EquivalentTo(new[] { deletionFailure, reportingFailure })).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Deletion preserves the node's pre-removal model-change eligibility.
+        /// </summary>
+        [TestCase(false, true, false)]
+        [TestCase(true, true, true)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        public async Task DeleteNodePreservesModelChangeEligibilityAsync(
+            bool hasNodeVersion,
+            bool requireNodeVersion,
+            bool expectEvent)
+        {
+            using ITestNodeManager manager = CreateManager();
+            manager.RequireNodeVersionForModelChange = requireNodeVersion;
+            var node = new BaseObjectState(null);
+            if (hasNodeVersion)
+            {
+                manager.EnableModelChangeTrackingFor(node);
+            }
+
+            NodeId nodeId = await manager.CreateNodeAsync(
+                manager.SystemContext,
+                default,
+                ReferenceTypeIds.Organizes,
+                new QualifiedName("DeletedObject", manager.NamespaceIndexes[0]),
+                node).ConfigureAwait(false);
+            m_mockServer.Invocations.Clear();
+
+            bool deleted = await manager.DeleteNodeAsync(
+                manager.SystemContext,
+                nodeId).ConfigureAwait(false);
+
+            Assert.That(deleted, Is.True);
+            m_mockServer.Verify(
+                server => server.ReportEvent(It.Is<IFilterTarget>(target => target is GeneralModelChangeEventState)),
+                expectEvent ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
         /// An external write to NodeVersion fires a BaseModelChangeEvent
         /// (Part 5 §9.32.5). The framework-driven bump from
         /// <c>EmitModelChange</c> is suppressed by the re-entrancy guard.
@@ -1906,7 +2430,7 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = BrowseResultMask.All
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.BrowseAsync(
                     new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
                     continuationPoint,
@@ -4319,7 +4843,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 20);
             variable.ThrowOnRead = true;
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await ModifySingleMonitoredItemAsync(
                     manager,
                     monitoredItem,
@@ -4733,7 +5257,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueValue(live, ServiceResult.Good);
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await modification.ConfigureAwait(false));
             calculator.Verify(
                 value => value.QueueRawValue(
@@ -4818,7 +5342,7 @@ namespace Opc.Ua.Server.Tests
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await modification.ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -4877,7 +5401,7 @@ namespace Opc.Ua.Server.Tests
             samplingGroupManager.ResetCounts();
             samplingGroupManager.ThrowOnModify = true;
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await ModifySingleMonitoredItemAsync(
                     manager,
                     monitoredItem,
@@ -4997,7 +5521,7 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good);
             page.SetResult(new HistorianPage<HistoricalDataValue>([]));
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await modification.ConfigureAwait(false));
 
             monitoredItem.QueueValue(
@@ -10288,16 +10812,79 @@ namespace Opc.Ua.Server.Tests
             return monitoredItem;
         }
 
-        private ITestNodeManager CreateManager()
+        /// <summary>
+        /// Creates the selected manager implementation, optionally enabling asynchronous legacy method dispatch.
+        /// </summary>
+        /// <param name="asynchronousLegacyCall">Whether the legacy manager opts into asynchronous method calls.</param>
+        private ArrayOf<ModelChangeStructureDataType> GetReportedDeletionChanges()
+        {
+            var changes = new List<ModelChangeStructureDataType>();
+            foreach (GeneralModelChangeEventState change in m_mockServer.Invocations
+                .Where(invocation => invocation.Method.Name == nameof(IServerInternal.ReportEvent))
+                .SelectMany(invocation => invocation.Arguments.OfType<GeneralModelChangeEventState>()))
+            {
+                foreach (ModelChangeStructureDataType entry in change.Changes!.Value)
+                {
+                    changes.Add(entry);
+                }
+            }
+            return [.. changes];
+        }
+
+        private static void SetDeletionFailureCallback(
+            ITestNodeManager manager, NodeState node, Exception failure)
+        {
+            void OnRemoved(NodeState removed)
+            {
+                if (ReferenceEquals(removed, node))
+                {
+                    throw failure;
+                }
+            }
+            if (manager is TestableAsyncCustomNodeManager asynchronous)
+            {
+                asynchronous.NodeRemovedCallback = (removed, _) =>
+                {
+                    OnRemoved(removed);
+                    return default;
+                };
+            }
+            else
+            {
+                ((TestableCustomNodeManager2)manager.SyncNodeManager).NodeRemovedCallback = OnRemoved;
+            }
+        }
+
+        private static async ValueTask DeleteTestNodeAsync(
+            ITestNodeManager manager, NodeId nodeId, bool service, CancellationToken cancellationToken = default)
+        {
+            if (service)
+            {
+                using var context = new OperationContext(
+                    new RequestHeader(), null!, RequestType.DeleteNodes, RequestLifetime.None, Mock.Of<ISession>());
+                ServiceResult result = await manager.DeleteNodeAsync(
+                    context, new DeleteNodesItem { NodeId = nodeId, DeleteTargetReferences = true }, cancellationToken)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+            }
+            else
+            {
+                Assert.That(await manager.DeleteNodeAsync(
+                    manager.SystemContext, nodeId, cancellationToken).ConfigureAwait(false), Is.True);
+            }
+        }
+
+        private ITestNodeManager CreateManager(bool asynchronousLegacyCall = false)
         {
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
-                var cnm2 = new TestableCustomNodeManager2(
-                    m_mockServer.Object,
-                    m_configuration,
-                    m_useSamplingGroups,
-                    m_mockLogger.Object,
-                    m_testNamespaceUri);
+                TestableCustomNodeManager2 cnm2 = asynchronousLegacyCall
+                    ? new AsyncCallTestNodeManager(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri)
+                    : new TestableCustomNodeManager2(
+                        m_mockServer.Object, m_configuration, m_useSamplingGroups,
+                        m_mockLogger.Object, m_testNamespaceUri);
                 var adapter = new AsyncNodeManagerAdapter(cnm2);
                 var adapterWrapper = new TestableCustomNodeManager2Adapter(cnm2, adapter);
                 SetupMasterNodeManager(adapterWrapper);

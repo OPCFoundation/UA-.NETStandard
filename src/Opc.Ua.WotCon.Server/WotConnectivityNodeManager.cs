@@ -122,6 +122,15 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Registers a materialized asset interaction and its argument children.
+        /// </summary>
+        /// <param name="node">The base instance state.</param>
+        internal void AddAssetInteractionNode(BaseInstanceState node)
+        {
+            AddPredefinedNodeSynchronously(node);
+        }
+
+        /// <summary>
         /// Removes an EventType previously registered by
         /// <see cref="AddEventTypeNode"/>, together with the field properties
         /// registered beneath it.
@@ -171,8 +180,63 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Allocates the node identifier of an asset node in the asset namespace.
+        /// </summary>
+        /// <param name="assetName">The asset name.</param>
+        internal NodeId AllocateAssetNodeId(string assetName)
+        {
+            return new NodeId($"Assets/{assetName}", AssetNamespaceIndex);
+        }
+
+        /// <summary>
+        /// Determines whether a reference is the local inverse Organizes link to the asset management object.
+        /// </summary>
+        /// <param name="reference">The reference to check against the requested view or asset parent.</param>
+        internal bool IsAssetParentReference(IReference reference)
+        {
+            return reference.IsInverse &&
+                reference.ReferenceTypeId == Ua.ReferenceTypeIds.Organizes &&
+                reference.TargetId.ServerIndex == 0 &&
+                m_managementObject is not null &&
+                ExpandedNodeId.ToNodeId(reference.TargetId, SystemContext.NamespaceUris) == m_managementObject.NodeId;
+        }
+
+        /// <summary>
+        /// Builds an unpublished asset and its fixed child hierarchy.
+        /// </summary>
+        /// <param name="assetName">The asset name.</param>
+        internal IWoTAssetState CreateAssetNode(string assetName)
+        {
+            var asset = new IWoTAssetState(null)
+            {
+                NodeId = AllocateAssetNodeId(assetName),
+                SymbolicName = assetName,
+                BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
+                DisplayName = new LocalizedText(assetName),
+                ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
+            };
+            asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
+            asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
+                ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
+
+            if (asset.WoTFile != null)
+            {
+                asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
+                asset.WoTFile.BrowseName = new QualifiedName(BrowseNames.WoTFile, WotConNamespaceIndex);
+                asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
+                AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
+                asset.WoTFile.CloseAndUpdate?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                    MethodIds.WoTAssetFileType_CloseAndUpdate, Server.NamespaceUris);
+            }
+            return asset;
+        }
+
+        /// <summary>
         /// Creates an asset object below the management node.
         /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="assetName">The asset name.</param>
         internal async ValueTask<AssetEntry> CreateAssetNodeAsync(
             string assetName,
             CancellationToken ct)
@@ -180,27 +244,7 @@ namespace Opc.Ua.WotCon.Server
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                var asset = new IWoTAssetState(m_managementObject)
-                {
-                    NodeId = new NodeId($"Assets/{assetName}", AssetNamespaceIndex),
-                    SymbolicName = assetName,
-                    BrowseName = new QualifiedName(assetName, AssetNamespaceIndex),
-                    DisplayName = new LocalizedText(assetName),
-                    ReferenceTypeId = Ua.ReferenceTypeIds.Organizes,
-                    TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType
-                };
-                asset.Create(SystemContext, asset.NodeId, asset.BrowseName, asset.DisplayName, true);
-                asset.AddReference(Ua.ReferenceTypeIds.HasInterface, isInverse: false,
-                    ExpandedNodeId.ToNodeId(ObjectTypeIds.IWoTAssetType, Server.NamespaceUris));
-
-                if (asset.WoTFile != null)
-                {
-                    asset.WoTFile.NodeId = new NodeId($"Assets/{assetName}/File", AssetNamespaceIndex);
-                    asset.WoTFile.BrowseName = new QualifiedName("WoTFile", AssetNamespaceIndex);
-                    asset.WoTFile.DisplayName = new LocalizedText("WoTFile");
-                    AssignChildNodeIds(asset.WoTFile, $"Assets/{assetName}/File");
-                }
-
+                IWoTAssetState asset = CreateAssetNode(assetName);
                 m_managementObject!.AddChild(asset);
                 m_managementObject.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: false, asset.NodeId);
                 asset.AddReference(Ua.ReferenceTypeIds.Organizes, isInverse: true, m_managementObject.NodeId);
@@ -272,7 +316,12 @@ namespace Opc.Ua.WotCon.Server
             return new ValueTask<NodeState>(predefinedNode);
         }
 
+        /// <summary>
+        /// Does any initialization required before the address space can be used.
+        /// </summary>
         /// <inheritdoc/>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="externalReferences">The external references.</param>
         public override async ValueTask CreateAddressSpaceAsync(
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
@@ -280,23 +329,35 @@ namespace Opc.Ua.WotCon.Server
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
             // Reload any persisted assets so they survive restarts.
-            await foreach ((string name, ThingDescription td) in
-                m_registry.EnumeratePersistedAsync(cancellationToken).ConfigureAwait(false))
+            await m_registry.RestorePendingDeletionsAsync(cancellationToken).ConfigureAwait(false);
+            await foreach ((string name, ThingDescription td, ByteString content) in
+                m_registry.EnumeratePersistedDocumentsAsync(cancellationToken).ConfigureAwait(false))
             {
-                (ServiceResult create, NodeId assetId) = await m_registry
-                    .CreateAssetAsync(name, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(create))
+                ServiceResult restored = await m_registry
+                    .RestoreAssetAsync(name, td, content, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(restored))
                 {
-                    m_logger.RestoringAssetFailed(name, create);
-                    continue;
-                }
-                AssetEntry? entry = m_registry.FindByNodeId(assetId);
-                if (entry != null)
-                {
-                    await m_registry.RebuildAsync(entry, td, persistOnSuccess: false, cancellationToken)
-                        .ConfigureAwait(false);
+                    m_logger.RestoringAssetFailed(name, restored);
                 }
             }
+        }
+
+        /// <summary>
+        /// Called when a session is closed.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="context">The operation context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">The delete-subscriptions flag supplied by the caller.</param>
+        public override ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            m_registry.CloseSession(sessionId);
+            return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -487,6 +548,17 @@ namespace Opc.Ua.WotCon.Server
                 .AddCreateAssetForEndpoint(SystemContext, c => c.OnCallAsync = OnCreateAssetForEndpointAsync)
                 .AddConnectionTest(SystemContext, c => c.OnCallAsync = OnConnectionTestAsync)
                 .AddSupportedWoTBindings(SystemContext, c => c.Value = new ArrayOf<string>(bindings.ToArray()));
+
+            management.CreateAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAsset, Server.NamespaceUris);
+            management.DeleteAsset?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DeleteAsset, Server.NamespaceUris);
+            management.DiscoverAssets?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_DiscoverAssets, Server.NamespaceUris);
+            management.CreateAssetForEndpoint?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_CreateAssetForEndpoint, Server.NamespaceUris);
+            management.ConnectionTest?.MethodDeclarationId = ExpandedNodeId.ToNodeId(
+                MethodIds.WoTAssetConnectionManagementType_ConnectionTest, Server.NamespaceUris);
         }
 
         private void ApplyConfiguration(ISystemContext context, WoTAssetConnectionManagementState management)
@@ -547,7 +619,7 @@ namespace Opc.Ua.WotCon.Server
         {
             EnforceManagementAccess(context, "DeleteAsset");
             ServiceResult status = await m_registry
-                .DeleteAssetAsync(assetId, cancellationToken).ConfigureAwait(false);
+                .DeleteAssetAsync(assetId, cancellationToken, context.GetOperationContext()).ConfigureAwait(false);
             return new DeleteAssetWoTAssetConnectionManagementTypeMethodStateResult { ServiceResult = status };
         }
 
@@ -700,12 +772,28 @@ namespace Opc.Ua.WotCon.Server
         private WoTAssetConnectionManagementState? m_managementObject;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for WoT connectivity node manager.
+    /// </summary>
     internal static partial class WotConnectivityNodeManagerLog
     {
+        /// <summary>
+        /// Logs failure to restore an asset.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 0, Level = LogLevel.Warning,
             Message = "Restoring asset {AssetName} failed: {Status}")]
         public static partial void RestoringAssetFailed(this ILogger logger, string assetName, ServiceResult status);
 
+        /// <summary>
+        /// Logs failure to subscribe to an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 1, Level = LogLevel.Warning,
             Message = "Subscribe failed for asset {AssetName} property {Property}")]
         public static partial void SubscribeFailed(
@@ -714,6 +802,13 @@ namespace Opc.Ua.WotCon.Server
             string assetName,
             string property);
 
+        /// <summary>
+        /// Logs failure to unsubscribe from an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 2, Level = LogLevel.Warning,
             Message = "Unsubscribe failed for asset {AssetName} property {Property}")]
         public static partial void UnsubscribeFailed(
@@ -722,6 +817,13 @@ namespace Opc.Ua.WotCon.Server
             string assetName,
             string property);
 
+        /// <summary>
+        /// Logs a management call denied because the channel security mode is below the required minimum.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="operation">The name of the management operation being authorized.</param>
+        /// <param name="actual">The observed value reported by the operation.</param>
+        /// <param name="required">The minimum security requirement or expected input for the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 3, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: channel security mode {Actual} below " +
                 "required {Required}.")]
@@ -731,6 +833,12 @@ namespace Opc.Ua.WotCon.Server
             MessageSecurityMode actual,
             MessageSecurityMode required);
 
+        /// <summary>
+        /// Logs a management call denied because anonymous identity is not permitted.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="operation">The name of the management operation being authorized.</param>
+        /// <param name="tokenType">The token type of the calling identity.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 4, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: anonymous identity not permitted " +
                 "(token type {TokenType}).")]
@@ -739,6 +847,14 @@ namespace Opc.Ua.WotCon.Server
             string operation,
             UserTokenType tokenType);
 
+        /// <summary>
+        /// Logs a management call denied because the identity lacks a required role.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="operation">The name of the management operation being authorized.</param>
+        /// <param name="tokenType">The token type of the calling identity.</param>
+        /// <param name="requiredRole">The role required to authorize the management call.</param>
+        /// <param name="grantedRoles">The roles granted to the calling identity.</param>
         [LoggerMessage(EventId = WotConServerEventIds.WotConnectivityNodeManager + 5, Level = LogLevel.Warning,
             Message = "WoT management call {Operation} denied: identity {TokenType} lacks required " +
                 "role {RequiredRole} (granted: {GrantedRoles}).")]

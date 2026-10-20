@@ -32,6 +32,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.Metrics;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading;
@@ -60,6 +61,225 @@ namespace Opc.Ua.Core.Tests.Stack.Client
     {
         private static readonly ICertificateFactory s_factory = DefaultCertificateFactory.Instance;
         private static readonly int[] s_firstTwoReconnectAttempts = [0, 1];
+
+        /// <summary>
+        /// Verifies failures before transport creation release store-backed certificate handles and chains.
+        /// </summary>
+        /// <param name="failure">The validation failure to trigger.</param>
+        /// <param name="includeChain">Whether the caller transfers a certificate chain as well.</param>
+        [Test]
+        [NonParallelizable]
+        public async Task EarlyCreateFailureReleasesStorePrivateKeyReferencesAsync(
+            [Values("endpoint", "context", "disposed")] string failure,
+            [Values] bool includeChain)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string storePath = Path.Combine(Path.GetTempPath(), "opcua-channel-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                await using var provider = new CertificateManager(telemetry);
+                using Certificate certificate = await LoadStoredCertificateAsync(
+                    provider, storePath, "early-failure", telemetry).ConfigureAwait(false);
+                var settings = new ConcurrentQueue<TransportChannelSettings>();
+                await using ClientChannelManager manager = CreateSut(
+                    certificate, new TestCertificateChangeSource(), settings);
+                Certificate transferred = certificate.AddRef();
+                CertificateCollection? chain = includeChain ? [certificate] : null;
+                try
+                {
+                    var endpoint = new ConfiguredEndpoint
+                    {
+                        Configuration = new EndpointConfiguration()
+                    };
+                    IServiceMessageContext context = ServiceMessageContext.Create(telemetry);
+                    if (failure == "disposed")
+                    {
+                        await manager.DisposeAsync().ConfigureAwait(false);
+                    }
+
+                    async Task CreateAsync()
+                    {
+                        await manager.CreateChannelAsync(
+                            failure == "endpoint" ? null! : endpoint,
+                            failure == "context" ? null! : context,
+                            transferred,
+                            chain).ConfigureAwait(false);
+                    }
+                    if (failure == "disposed")
+                    {
+                        await Assert.ThatAsync(CreateAsync, Throws.InstanceOf<ObjectDisposedException>())
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Assert.ThatAsync(CreateAsync, Throws.InstanceOf<ArgumentNullException>()
+                            .With.Property(nameof(ArgumentNullException.ParamName)).EqualTo(failure))
+                            .ConfigureAwait(false);
+                    }
+                    Assert.That(settings, Is.Empty);
+                    AssertStoredPrivateKeyWorks(certificate);
+
+                    certificate.Dispose();
+                    await provider.DisposeAsync().ConfigureAwait(false);
+                    Assert.That(() => certificate.AddRef().Dispose(), Throws.InstanceOf<ObjectDisposedException>(),
+                        "No transferred handle may keep the store-loaded private key alive after validation fails.");
+                }
+                finally
+                {
+                    chain?.Dispose();
+                    transferred.Dispose();
+                    DisposeOpenedCertificates(settings);
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(storePath))
+                {
+                    Directory.Delete(storePath, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies store-loaded keys survive failed opens and rotation, then retire at manager disposal.
+        /// </summary>
+        /// <param name="transportOwnsSettings">Whether the transport disposes the supplied client handles.</param>
+        /// <param name="includeChain">Whether each publication includes a leaf certificate chain.</param>
+        /// <param name="reverse">Whether the initial opens use a reverse-connect waiting connection.</param>
+        [Test]
+        [NonParallelizable]
+        public async Task StorePrivateKeysSurviveOpenFailureRotationAndDisposeAsync(
+            [Values] bool transportOwnsSettings,
+            [Values] bool includeChain,
+            [Values] bool reverse)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string storePath = Path.Combine(Path.GetTempPath(), "opcua-channel-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                await using var provider = new CertificateManager(telemetry);
+                using Certificate original = await LoadStoredCertificateAsync(
+                    provider, storePath, "original", telemetry).ConfigureAwait(false);
+                using Certificate replacement = await LoadStoredCertificateAsync(
+                    provider, storePath, "replacement", telemetry).ConfigureAwait(false);
+                var settings = new ConcurrentQueue<TransportChannelSettings>();
+                bool failOpen = true;
+                var bindings = new Mock<ITransportChannelBindings>();
+                bindings.Setup(value => value.Create(It.IsAny<string>(), It.IsAny<ITelemetryContext>()))
+                    .Returns(() =>
+                    {
+                        TransportChannelSettings? ownedSettings = null;
+                        var transport = new Mock<IChannel>();
+                        ValueTask Open(TransportChannelSettings opened)
+                        {
+                            ownedSettings = opened;
+                            settings.Enqueue(opened);
+                            AssertStoredPrivateKeyWorks(opened.ClientCertificate!);
+                            return failOpen
+                                ? new ValueTask(Task.FromException(
+                                    new ServiceResultException(StatusCodes.BadCommunicationError)))
+                                : default;
+                        }
+                        transport.Setup(value => value.OpenAsync(
+                                It.IsAny<Uri>(), It.IsAny<TransportChannelSettings>(), It.IsAny<CancellationToken>()))
+                            .Returns<Uri, TransportChannelSettings, CancellationToken>((_, opened, _) => Open(opened));
+                        transport.Setup(value => value.OpenAsync(
+                                It.IsAny<ITransportWaitingConnection>(),
+                                It.IsAny<TransportChannelSettings>(), It.IsAny<CancellationToken>()))
+                            .Returns<ITransportWaitingConnection, TransportChannelSettings, CancellationToken>(
+                                (_, opened, _) => Open(opened));
+                        transport.Setup(value => value.CloseAsync(It.IsAny<CancellationToken>()))
+                            .Returns(default(ValueTask));
+                        transport.Setup(value => value.Dispose()).Callback(() =>
+                        {
+                            if (transportOwnsSettings && ownedSettings != null)
+                            {
+                                DisposeOpenedCertificates(ownedSettings);
+                            }
+                        });
+                        return transport.Object;
+                    });
+                await using var manager = new ClientChannelManager(
+                    new ApplicationConfiguration(telemetry), telemetry, bindings.Object,
+                    new ImmediateReconnectPolicy());
+                var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost:4840",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    TransportProfileUri = Profiles.UaTcpTransport
+                }, new EndpointConfiguration());
+                var participant = new TestParticipant("store-backed", endpoint);
+                Task<IManagedTransportChannel> GetAsync()
+                {
+                    return reverse
+                        ? manager.GetAsync(participant, new Mock<ITransportWaitingConnection>().Object).AsTask()
+                        : manager.GetAsync(participant).AsTask();
+                }
+                try
+                {
+                    manager.UpdateClientCertificate(
+                        original.AddRef(), includeChain ? [original] : null);
+                    ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(GetAsync))!;
+                    Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
+                    AssertStoredPrivateKeyWorks(original);
+                    failOpen = false;
+                    using IManagedTransportChannel lease = await GetAsync().ConfigureAwait(false);
+                    Assert.That(lease.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(settings, Has.Count.EqualTo(2));
+                    TransportChannelSettings installed = settings.Last();
+                    Assert.That(installed.ClientCertificate, Is.Not.SameAs(original));
+                    Assert.That(installed.ClientCertificateChain != null, Is.EqualTo(includeChain));
+
+                    manager.UpdateClientCertificate(
+                        replacement.AddRef(), includeChain ? [replacement] : null);
+                    AssertStoredPrivateKeyWorks(installed.ClientCertificate!);
+                    if (reverse)
+                    {
+                        // Reverse recovery requires another waiting connection rather than reconnecting the old one.
+                        await lease.CloseAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await manager.ReconnectAsync(lease).ConfigureAwait(false);
+                    }
+                    using IManagedTransportChannel current = reverse
+                        ? await GetAsync().ConfigureAwait(false)
+                        : lease;
+                    Assert.That(current.State, Is.EqualTo(ChannelState.Ready));
+                    Assert.That(settings.Last().ClientCertificate!.Thumbprint, Is.EqualTo(replacement.Thumbprint));
+                    AssertStoredPrivateKeyWorks(settings.Last().ClientCertificate!);
+
+                    await manager.DisposeAsync().ConfigureAwait(false);
+                    Assert.That(current.State, Is.EqualTo(ChannelState.Closed));
+                    Assert.That(manager.GetChannelDiagnostics(), Is.Empty);
+                    AssertStoredPrivateKeyWorks(original);
+                    AssertStoredPrivateKeyWorks(replacement);
+                    original.Dispose();
+                    replacement.Dispose();
+                    await provider.DisposeAsync().ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(() => original.AddRef().Dispose(), Throws.InstanceOf<ObjectDisposedException>(),
+                            "The original key must retire without relying on transport settings cleanup.");
+                        Assert.That(() => replacement.AddRef().Dispose(), Throws.InstanceOf<ObjectDisposedException>(),
+                            "The replacement key must retire without relying on transport settings cleanup.");
+                    });
+                }
+                finally
+                {
+                    await manager.DisposeAsync().ConfigureAwait(false);
+                    DisposeOpenedCertificates(settings);
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(storePath))
+                {
+                    Directory.Delete(storePath, recursive: true);
+                }
+            }
+        }
 
         [TestCase(false)]
         [TestCase(true)]
@@ -679,6 +899,49 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             }
         }
 
+        /// <summary>
+        /// Persists a generated certificate and resolves its private key through the real store-backed provider.
+        /// </summary>
+        /// <param name="provider">The certificate manager whose provider resolves the stored private key.</param>
+        /// <param name="storePath">The isolated directory certificate store.</param>
+        /// <param name="name">The subject distinguishing this certificate.</param>
+        /// <param name="telemetry">The telemetry passed to the certificate store.</param>
+        /// <returns>A caller-owned store-loaded certificate with its private key.</returns>
+        /// <exception cref="InvalidOperationException">The stored private key could not be resolved.</exception>
+        private static async Task<Certificate> LoadStoredCertificateAsync(
+            CertificateManager provider,
+            string storePath,
+            string name,
+            ITelemetryContext telemetry)
+        {
+            using Certificate created = s_factory.CreateCertificate($"CN=channel-{name}").CreateForRSA();
+            await created.AddToStoreAsync(
+                CertificateStoreType.Directory, storePath, password: null, telemetry).ConfigureAwait(false);
+            return await provider.CertificateProvider.GetPrivateKeyCertificateAsync(new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = storePath,
+                Thumbprint = created.Thumbprint
+            }).ConfigureAwait(false) ??
+                throw new InvalidOperationException("The stored private key was not resolved.");
+        }
+
+        /// <summary>
+        /// Signs and verifies a SHA-256 digest using the store-loaded RSA key.
+        /// </summary>
+        /// <param name="certificate">The certificate whose private key must remain usable.</param>
+        /// <exception cref="InvalidOperationException">The certificate has no RSA private or public key.</exception>
+        private static void AssertStoredPrivateKeyWorks(Certificate certificate)
+        {
+            using RSA key = certificate.GetRSAPrivateKey() ?? throw new InvalidOperationException("No private key.");
+            using RSA verifier = certificate.GetRSAPublicKey() ??
+                throw new InvalidOperationException("No public key.");
+            byte[] hash = new byte[32];
+            byte[] signature = key.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(
+                verifier.VerifyHash(hash, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1), Is.True);
+        }
+
         private static ClientChannelManager CreateSut(
             Certificate applicationCertificate,
             TestCertificateChangeSource changes,
@@ -777,10 +1040,19 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             while (openSettings.TryDequeue(out TransportChannelSettings? opened))
             {
-                opened.ServerCertificate?.Dispose();
-                opened.ClientCertificate?.Dispose();
-                opened.ClientCertificateChain?.Dispose();
+                DisposeOpenedCertificates(opened);
             }
+        }
+
+        /// <summary>
+        /// Releases one transport's certificate handles in dependency order.
+        /// </summary>
+        /// <param name="opened">The settings whose handles are no longer needed.</param>
+        private static void DisposeOpenedCertificates(TransportChannelSettings opened)
+        {
+            opened.ServerCertificate?.Dispose();
+            opened.ClientCertificateChain?.Dispose();
+            opened.ClientCertificate?.Dispose();
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;

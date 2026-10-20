@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// (which are owned by other NodeManagers) with forward-only references and
     /// creates no affordance Node of its own.
     /// </summary>
-    internal sealed class WotProjectionViewNodeManager : AsyncCustomNodeManager
+    internal sealed partial class WotProjectionViewNodeManager : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes a new projection-view NodeManager.
@@ -108,6 +108,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (omissions is null)
             {
                 throw new ArgumentNullException(nameof(omissions));
+            }
+            (object? existingHandle, IAsyncNodeManager? existingOwner) = await Server.NodeManager
+                .GetManagerHandleAsync(request.ViewNodeId, cancellationToken).ConfigureAwait(false);
+            if (existingHandle is not null &&
+                (!ReferenceEquals(existingOwner, this) || Find(request.ViewNodeId) is not ViewState))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdExists, "A View cannot replace a node with another owner or role.");
+            }
+            if (!IsNodeIdInNamespace(request.ViewNodeId))
+            {
+                string namespaceUri = Server.NamespaceUris.GetString(request.ViewNodeId.NamespaceIndex)
+                    ?? throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "The authored View namespace is not registered.");
+                var namespaces = new List<string>(NamespaceUris) { namespaceUri };
+                SetNamespaces(namespaces.ToArray());
+                Server.NodeManager.RegisterNamespaceManager(namespaceUri, this);
             }
             if (Find(request.ViewNodeId) is not null)
             {
@@ -305,10 +322,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var unresolved = new HashSet<NodeId>();
             foreach (NodeId candidate in candidates)
             {
-                (object? handle, IAsyncNodeManager? _) = await Server.NodeManager
-                    .GetManagerHandleAsync(candidate, cancellationToken)
-                    .ConfigureAwait(false);
-                if (handle is null)
+                bool materialized;
+                if (Server.NodeManager is MasterNodeManager master)
+                {
+                    materialized = await master.IsNodeMaterializedAsync(candidate, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    (object? handle, IAsyncNodeManager? _) = await Server.NodeManager
+                        .GetManagerHandleAsync(candidate, cancellationToken)
+                        .ConfigureAwait(false);
+                    materialized = handle is not null;
+                }
+                if (!materialized)
                 {
                     unresolved.Add(candidate);
                     omissions.Add(

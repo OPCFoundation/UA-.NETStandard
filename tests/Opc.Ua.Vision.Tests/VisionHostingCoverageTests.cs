@@ -36,6 +36,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Vision.Perception;
 using Opc.Ua.Vision.Server;
 using Opc.Ua.Vision.Server.Hosting;
 
@@ -65,9 +66,9 @@ namespace Opc.Ua.Vision.Tests
                 .AddVisionMediaProvider<StubMediaProvider>("Sensor1");
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionMediaProviderRegistration? registration = provider
                 .GetServices<VisionMediaProviderRegistration>().FirstOrDefault();
-            var concrete = provider.GetService<StubMediaProvider>();
+            StubMediaProvider? concrete = provider.GetService<StubMediaProvider>();
 
             Assert.Multiple(() =>
             {
@@ -113,9 +114,9 @@ namespace Opc.Ua.Vision.Tests
                 .AddVisionInferenceProvider<StubInferenceProvider>("Pipeline1");
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionInferenceProviderRegistration? registration = provider
                 .GetServices<VisionInferenceProviderRegistration>().FirstOrDefault();
-            var concrete = provider.GetService<StubInferenceProvider>();
+            StubInferenceProvider? concrete = provider.GetService<StubInferenceProvider>();
 
             Assert.Multiple(() =>
             {
@@ -138,7 +139,7 @@ namespace Opc.Ua.Vision.Tests
                 .AddVisionInferenceProvider<StubInferenceProvider>("Pipeline1", onServer: false);
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionInferenceProviderRegistration registration = provider
                 .GetServices<VisionInferenceProviderRegistration>().First();
 
             Assert.That(registration.OnServer, Is.False);
@@ -177,9 +178,9 @@ namespace Opc.Ua.Vision.Tests
                 .AddVisionFeedbackSink<StubFeedbackSink>("Pipeline1");
 
             using ServiceProvider provider = services.BuildServiceProvider();
-            var registration = provider
+            VisionFeedbackSinkRegistration? registration = provider
                 .GetServices<VisionFeedbackSinkRegistration>().FirstOrDefault();
-            var concrete = provider.GetService<StubFeedbackSink>();
+            StubFeedbackSink? concrete = provider.GetService<StubFeedbackSink>();
 
             Assert.Multiple(() =>
             {
@@ -226,7 +227,8 @@ namespace Opc.Ua.Vision.Tests
                 .GetRequiredService<VisionNodeManagerFactory>();
             VisionHostedNodeManagerFactory hosted = provider
                 .GetRequiredService<VisionHostedNodeManagerFactory>();
-            var registrations = provider.GetServices<OpcUaServerNodeManagerRegistration>();
+            IEnumerable<OpcUaServerNodeManagerRegistration> registrations =
+                provider.GetServices<OpcUaServerNodeManagerRegistration>();
 
             Assert.Multiple(() =>
             {

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -92,6 +93,16 @@ namespace Opc.Ua.Client
     internal sealed class AsyncReaderWriterLock : IDisposable
     {
         /// <summary>
+        /// Creates the lock.
+        /// </summary>
+        public AsyncReaderWriterLock()
+        {
+#if !NET6_0_OR_GREATER
+            m_releaseReader = ReleaseReader;
+#endif
+        }
+
+        /// <summary>
         /// Optional asynchronous operation that completes before a reader
         /// acquires the lock.
         /// </summary>
@@ -137,6 +148,94 @@ namespace Opc.Ua.Client
             }
             return new Releaser(this, isWriter: false);
         }
+
+        /// <summary>
+        /// Acquires a reader lock without waiting when no writer holds or
+        /// waits for the lock. Does not run <see cref="BeforeReaderLockAsync"/>;
+        /// the caller checks the precondition it stands for. Release with
+        /// <see cref="ExitReader"/> or <see cref="ExitReaderOnCompletion{T}"/>.
+        /// </summary>
+        /// <returns>True if the reader lock was acquired.</returns>
+        public bool TryEnterReader()
+        {
+            if (!m_writer.Wait(0))
+            {
+                return false;
+            }
+            try
+            {
+                lock (m_state)
+                {
+                    m_activeReaders++;
+                }
+            }
+            finally
+            {
+                m_writer.Release();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Releases a reader lock acquired with <see cref="TryEnterReader"/>.
+        /// </summary>
+        public void ExitReader()
+        {
+            ReleaseReader();
+        }
+
+        /// <summary>
+        /// Releases a reader lock acquired with <see cref="TryEnterReader"/>
+        /// when <paramref name="operation"/> completes, and returns a value
+        /// task for the same result.
+        /// </summary>
+        /// <remarks>
+        /// The lock is free again by the time an awaiter of the returned task
+        /// resumes, as with a <c>using</c> block around the awaited operation.
+        /// On .NET 6 and later the returned task awaits the operation in a pooled
+        /// state machine, the only continuation of the operation, so this
+        /// allocates nothing in the steady state; the returned task must be
+        /// awaited once, like any value task. Otherwise the release is the first
+        /// continuation registered on the operation's task and the caller's await
+        /// the second, which allocates the task's continuation list; only if the
+        /// task completes while the release is being registered does it run on
+        /// the thread pool, shortly after.
+        /// </remarks>
+        /// <typeparam name="T">The result of the operation.</typeparam>
+        public ValueTask<T> ExitReaderOnCompletion<T>(ValueTask<T> operation)
+        {
+            if (operation.IsCompleted)
+            {
+                ReleaseReader();
+                return operation;
+            }
+#if NET6_0_OR_GREATER
+            return ExitReaderAfterAsync(operation);
+#else
+            Task<T> task = operation.AsTask();
+            task.ConfigureAwait(false).GetAwaiter().UnsafeOnCompleted(m_releaseReader);
+            return new ValueTask<T>(task);
+#endif
+        }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Awaits <paramref name="operation"/> and releases the reader lock.
+        /// </summary>
+        /// <typeparam name="T">The result of the operation.</typeparam>
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+        private async ValueTask<T> ExitReaderAfterAsync<T>(ValueTask<T> operation)
+        {
+            try
+            {
+                return await operation.ConfigureAwait(false);
+            }
+            finally
+            {
+                ReleaseReader();
+            }
+        }
+#endif
 
         /// <summary>
         /// Asynchronously acquires the writer lock. Excludes both
@@ -320,6 +419,9 @@ namespace Opc.Ua.Client
             }
         }
 
+#if !NET6_0_OR_GREATER
+        private readonly Action m_releaseReader;
+#endif
         private bool m_isDisposed;
         private readonly SemaphoreSlim m_writer = new(1, 1);
         private readonly Lock m_state = new();

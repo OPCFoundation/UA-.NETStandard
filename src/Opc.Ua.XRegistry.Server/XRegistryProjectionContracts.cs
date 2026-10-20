@@ -176,6 +176,24 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional capability for abandoning a Session's projected file handles without committing writes.
+    /// </summary>
+    /// <remarks>
+    /// Discard only the specified Session's handles and staged buffers. Other Sessions and persisted
+    /// content remain unchanged. Repeated discard is safe. An explicit Close already committing may
+    /// finish and must retain its reservation until completion.
+    /// </remarks>
+    public interface IXRegistryProjectedResourceSessionDiscard
+    {
+        /// <summary>
+        /// Discards all unclosed handles belonging to the specified Session, without invoking Close.
+        /// </summary>
+        /// <param name="sessionId">The Session whose handles are abandoned.</param>
+        /// <param name="ct">Cancels cleanup before it begins.</param>
+        ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections whose <see cref="IXRegistryProjectedResourceFile"/>
     /// can service Open/Read/Write/Close/GetPosition/SetPosition calls arriving through a
     /// <em>different</em> FileState (the logical Resource's inherited FileType members) while
@@ -233,6 +251,30 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional asynchronous Open for file providers that must complete asynchronous preparation
+    /// before a handle is returned.
+    /// Subsequent operations use the same handle table as the synchronous forwarding capability.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedResourceFileHandleForwarder :
+        IXRegistryProjectedResourceFileHandleForwarder
+    {
+        /// <summary>
+        /// Opens and fully initializes a handle before it is returned to the caller.
+        /// </summary>
+        /// <param name="context">The system context of the calling Session.</param>
+        /// <param name="method">The FileType Open method being forwarded.</param>
+        /// <param name="objectId">The projected file object being opened.</param>
+        /// <param name="mode">The requested OPC UA file open mode flags.</param>
+        /// <param name="cancellationToken">Cancels the open before the handle is returned.</param>
+        ValueTask<OpenMethodStateResult> ForwardOpenAsync(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            CancellationToken cancellationToken);
+    }
+
+    /// <summary>
     /// Optional additive capability for projections that can atomically claim
     /// an existing content-less resource for its first write.
     /// </summary>
@@ -246,6 +288,21 @@ namespace Opc.Ua.XRegistry.Server
         ServiceResult TryOpenContentlessWriteHandle(
             ISystemContext context,
             out uint fileHandle);
+    }
+
+    /// <summary>
+    /// Optional asynchronous contentless-Version claim for providers that need asynchronous preparation.
+    /// </summary>
+    public interface IXRegistryAsyncProjectedContentlessResourceFile : IXRegistryProjectedContentlessResourceFile
+    {
+        /// <summary>
+        /// Reserves a writer only while the exact Version is contentless, after any provider preparation.
+        /// </summary>
+        /// <param name="context">The system context of the calling Session.</param>
+        /// <param name="cancellationToken">Cancels the claim before a writer is reserved.</param>
+        ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken);
     }
 
     /// <summary>
@@ -548,6 +605,46 @@ namespace Opc.Ua.XRegistry.Server
     }
 
     /// <summary>
+    /// Optional strategy capability for projections whose delete path needs the executing
+    /// request. The engine prefers these members over the context-free strategy deletes and
+    /// passes the same system context the management method received.
+    /// </summary>
+    public interface IXRegistryProjectionContextualDelete
+    {
+        /// <summary>
+        /// Deletes a group on behalf of the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="epoch">The expected epoch of the group, if any.</param>
+        /// <param name="context">The system context of the executing request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        ValueTask<ServiceResult> DeleteGroupAsync(
+            string groupId,
+            long? epoch,
+            ISystemContext? context,
+            CancellationToken ct);
+
+        /// <summary>
+        /// Deletes a projected Version or logical Resource on behalf of the executing request.
+        /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The Version ID.</param>
+        /// <param name="deleteLogicalResource">Whether the logical Resource is deleted.</param>
+        /// <param name="epoch">The expected epoch of the entity, if any.</param>
+        /// <param name="context">The system context of the executing request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? epoch,
+            ISystemContext? context,
+            CancellationToken ct);
+    }
+
+    /// <summary>
     /// Additive strategy contract for projections that materialize one file per Version.
     /// </summary>
     public interface IXRegistryVersionedProjectionStrategy : IXRegistryProjectionStrategy
@@ -698,5 +795,14 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets optional generic xRegistry event configuration.
         /// </summary>
         public XRegistryServerOptions? EventOptions { get; }
+
+        /// <summary>
+        /// Gets an optional dispatcher that orders current-state reconciliation
+        /// with the host's domain notifications. The operation uses the generation
+        /// captured before dispatch, not later state. Immutable supplied transitions
+        /// remain ordered by their caller.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            ProjectionDispatcher { get; init; }
     }
 }

@@ -37,8 +37,8 @@ using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.Streaming;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Vision.Tests
 {
@@ -58,30 +58,30 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadExtrinsicCalibrationReturnsSnapshotWithMountFramesAndTransform()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
             var pose = new VisionPose3DDataType
             {
                 FrameId = "flange",
                 Position = new double[] { 0.10, 0.20, 0.30 },
                 Orientation = new double[] { 0.0, 0.0, 0.0, 1.0 }
             };
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.CalibrationId,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.CalibrationId,
                 new(2700u, 3), "ex-1");
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.PerformedAt,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.PerformedAt,
                 new(2701u, 3), new DateTimeUtc(new DateTime(2024, 6, 1, 12, 0, 0, DateTimeKind.Utc)));
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.Valid,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.Valid,
                 new(2702u, 3), true);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.ResidualError,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.ResidualError,
                 new(2703u, 3), 0.08);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.Method,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.Method,
                 new(2704u, 3), "HandEye-Tsai");
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.Mount,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.Mount,
                 new(2705u, 3), (int)VisionCalibrationMountEnum.EyeInHand);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.SourceFrame,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.SourceFrame,
                 new(2706u, 3), harness.SensorNodeId);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.TargetFrame,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.TargetFrame,
                 new(2707u, 3), harness.FrameNodeId);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.Transform,
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.Transform,
                 new(2708u, 3), Variant.FromStructure(pose));
 
             VisionSensorClient sensor = harness.Client.Sensor(harness.SensorNodeId);
@@ -108,8 +108,8 @@ namespace Opc.Ua.Vision.Tests
         public async Task ReadExtrinsicCalibrationLeavesOptionalMembersDefaultWhenTheyResolveToNull()
         {
             var harness = new VisionSessionHarness();
-            harness.AddSensor(ObjectTypes.ImageSensorType);
-            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, BrowseNames.CalibrationId,
+            harness.AddSensor(Perception.ObjectTypes.ImageSensorType);
+            harness.AddValueChild(harness.ExtrinsicCalibrationNodeId, Perception.BrowseNames.CalibrationId,
                 new(2710u, 3), "ex-min");
             // No PerformedAt/Valid/ResidualError/Method/Mount/Frames/Transform bindings.
             // BrowsePathResults for those names must come back BadNoMatch, so the ArrayOf<NodeId>
@@ -155,7 +155,7 @@ namespace Opc.Ua.Vision.Tests
                 TargetFrameId = new NodeId(2u, 3),
                 Transform = pose
             };
-            var right = left with { };
+            VisionExtrinsicCalibrationSnapshot right = left with { };
 
             Assert.Multiple(() =>
             {
@@ -193,15 +193,15 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveDetectionsAsyncThrowsBadNotFoundWhenResultDoesNotExposeDetections()
+        public async Task ObserveDetectionsAsyncThrowsBadNotFoundWhenResultDoesNotExposeDetections()
         {
             var harness = new VisionSessionHarness();
-            var streaming = new Mock<IStreamingSubscription>().Object;
+            IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                await foreach (var _ in reader.ObserveDetectionsAsync(streaming)
+                await foreach (VisionDetectionResultSnapshot? _ in reader.ObserveDetectionsAsync(streaming)
                     .ConfigureAwait(false))
                 {
                 }
@@ -211,15 +211,15 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveInspectionAsyncThrowsBadNotFoundWhenResultDoesNotExposeCharacteristics()
+        public async Task ObserveInspectionAsyncThrowsBadNotFoundWhenResultDoesNotExposeCharacteristics()
         {
             var harness = new VisionSessionHarness();
-            var streaming = new Mock<IStreamingSubscription>().Object;
+            IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                await foreach (var _ in reader.ObserveInspectionAsync(streaming)
+                await foreach (VisionInspectionResultSnapshot? _ in reader.ObserveInspectionAsync(streaming)
                     .ConfigureAwait(false))
                 {
                 }
@@ -229,15 +229,15 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
-        public void ObserveSegmentationAsyncThrowsBadNotFoundWhenResultDoesNotExposeMask()
+        public async Task ObserveSegmentationAsyncThrowsBadNotFoundWhenResultDoesNotExposeMask()
         {
             var harness = new VisionSessionHarness();
-            var streaming = new Mock<IStreamingSubscription>().Object;
+            IStreamingSubscription streaming = new Mock<IStreamingSubscription>().Object;
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
 
-            var ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                await foreach (var _ in reader.ObserveSegmentationAsync(streaming)
+                await foreach (VisionSegmentationResultSnapshot? _ in reader.ObserveSegmentationAsync(streaming)
                     .ConfigureAwait(false))
                 {
                 }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ObserveDetectionsAsyncCompletesGracefullyWhenSubscribeCompletesWithNoNotifications()
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.ResultNodeId, BrowseNames.Detections,
+            harness.AddValueChild(harness.ResultNodeId, Perception.BrowseNames.Detections,
                 new(3210u, 3), new Variant(ArrayOf<ExtensionObject>.Empty));
 
             IReadOnlyList<NodeId>? monitored = null;
@@ -258,10 +258,10 @@ namespace Opc.Ua.Vision.Tests
             streaming
                 .Setup(s => s.SubscribeDataChangesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
+                    It.IsAny<Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<IReadOnlyList<NodeId>,
-                    Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
+                    Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
                     CancellationToken>((ids, _, ct) =>
                 {
                     monitored = ids;
@@ -270,7 +270,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             int received = 0;
-            await foreach (var _ in reader.ObserveDetectionsAsync(streaming.Object)
+            await foreach (VisionDetectionResultSnapshot? _ in reader.ObserveDetectionsAsync(streaming.Object)
                 .ConfigureAwait(false))
             {
                 received++;
@@ -292,7 +292,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ObserveInspectionAsyncCompletesGracefullyWhenSubscribeCompletesWithNoNotifications()
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.ResultNodeId, BrowseNames.Characteristics,
+            harness.AddValueChild(harness.ResultNodeId, Perception.BrowseNames.Characteristics,
                 new(3220u, 3), new Variant(ArrayOf<ExtensionObject>.Empty));
 
             IReadOnlyList<NodeId>? monitored = null;
@@ -300,10 +300,10 @@ namespace Opc.Ua.Vision.Tests
             streaming
                 .Setup(s => s.SubscribeDataChangesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
+                    It.IsAny<Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<IReadOnlyList<NodeId>,
-                    Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
+                    Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
                     CancellationToken>((ids, _, ct) =>
                 {
                     monitored = ids;
@@ -312,7 +312,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             int received = 0;
-            await foreach (var _ in reader.ObserveInspectionAsync(streaming.Object)
+            await foreach (VisionInspectionResultSnapshot? _ in reader.ObserveInspectionAsync(streaming.Object)
                 .ConfigureAwait(false))
             {
                 received++;
@@ -327,7 +327,7 @@ namespace Opc.Ua.Vision.Tests
         public async Task ObserveSegmentationAsyncCompletesGracefullyWhenSubscribeCompletesWithNoNotifications()
         {
             var harness = new VisionSessionHarness();
-            harness.AddValueChild(harness.ResultNodeId, BrowseNames.Mask,
+            harness.AddValueChild(harness.ResultNodeId, Perception.BrowseNames.Mask,
                 new(3230u, 3), new Variant(ByteString.Empty));
 
             IReadOnlyList<NodeId>? monitored = null;
@@ -335,10 +335,10 @@ namespace Opc.Ua.Vision.Tests
             streaming
                 .Setup(s => s.SubscribeDataChangesAsync(
                     It.IsAny<IReadOnlyList<NodeId>>(),
-                    It.IsAny<Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
+                    It.IsAny<Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<IReadOnlyList<NodeId>,
-                    Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
+                    Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions?,
                     CancellationToken>((ids, _, ct) =>
                 {
                     monitored = ids;
@@ -347,7 +347,7 @@ namespace Opc.Ua.Vision.Tests
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             int received = 0;
-            await foreach (var _ in reader.ObserveSegmentationAsync(streaming.Object)
+            await foreach (VisionSegmentationResultSnapshot? _ in reader.ObserveSegmentationAsync(streaming.Object)
                 .ConfigureAwait(false))
             {
                 received++;
@@ -364,7 +364,7 @@ namespace Opc.Ua.Vision.Tests
             var harness = new VisionSessionHarness();
             var session = new VisionStreamSessionDataType
             {
-                SessionToken = new ByteString(new byte[] { 42, 43 }),
+                SessionToken = new ByteString("*+"u8.ToArray()),
                 Uri = "rtsp://cam.local/live",
                 Protocol = VisionStreamProtocolEnum.Rtsp,
                 ExpiresAt = new DateTimeUtc(new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc))
@@ -384,7 +384,7 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(result, Is.Not.Null);
                 Assert.That(result.Uri, Is.EqualTo("rtsp://cam.local/live"));
                 Assert.That(result.Protocol, Is.EqualTo(VisionStreamProtocolEnum.Rtsp));
-                Assert.That(result.SessionToken.ToArray(), Is.EqualTo(new byte[] { 42, 43 }),
+                Assert.That(result.SessionToken.ToArray(), Is.EqualTo("*+"u8.ToArray()),
                     "the token bytes must survive the round-trip through the proxy layer");
             });
         }
@@ -401,7 +401,7 @@ namespace Opc.Ua.Vision.Tests
                 Width = 640,
                 Height = 480
             };
-            harness.AddValueChild(harness.ClipEndpointNodeId, BrowseNames.LatestClipMetadata,
+            harness.AddValueChild(harness.ClipEndpointNodeId, Perception.BrowseNames.LatestClipMetadata,
                 new(2401u, 3), Variant.FromStructure(metadata));
 
             VisionMediaClient media = harness.Client.Media(harness.MediaNodeId);
@@ -445,16 +445,16 @@ namespace Opc.Ua.Vision.Tests
         {
             using var cts = new CancellationTokenSource();
             cts.Cancel();
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
             CancellationToken observedToken = default;
             int invocations = 0;
-            Func<CancellationToken, Task<ManagedSession>> sessionFactory = ct =>
+            Task<ManagedSession> sessionFactory(CancellationToken ct)
             {
                 Interlocked.Increment(ref invocations);
                 observedToken = ct;
                 ct.ThrowIfCancellationRequested();
                 return Task.FromResult<ManagedSession>(null!);
-            };
+            }
             var factory = new VisionClientFactory(sessionFactory, telemetry);
 
             Assert.That(
@@ -472,7 +472,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void VisionClientFactoryConstructorRejectsNullSessionFactory()
         {
-            var telemetry = new Mock<ITelemetryContext>().Object;
+            ITelemetryContext telemetry = new Mock<ITelemetryContext>().Object;
 
             Assert.That(() => new VisionClientFactory(null!, telemetry),
                 Throws.InstanceOf<ArgumentNullException>()
@@ -482,8 +482,7 @@ namespace Opc.Ua.Vision.Tests
         [Test]
         public void VisionClientFactoryConstructorRejectsNullTelemetry()
         {
-            Func<CancellationToken, Task<ManagedSession>> sessionFactory =
-                _ => Task.FromResult<ManagedSession>(null!);
+            static Task<ManagedSession> sessionFactory(CancellationToken _) => Task.FromResult<ManagedSession>(null!);
 
             Assert.That(() => new VisionClientFactory(sessionFactory, null!),
                 Throws.InstanceOf<ArgumentNullException>()

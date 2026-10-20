@@ -235,6 +235,63 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.Target.Token.Secret, Is.EqualTo(harness.Peer.Token.Secret));
         }
 
+        /// <summary>
+        /// A response still queued for the dropped transport when a reconnect activates the
+        /// new token is not secured with that token and sent: the reconnect detaches the old
+        /// transport first, so the writer drops it without numbering it, and the
+        /// OpenSecureChannel response is the first message on the new transport.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        public async Task AResponseQueuedForTheDroppedTransportIsNotSecuredWithTheNewTokenAsync(string policyUri)
+        {
+            if (!AssertPolicyAvailability(policyUri))
+            {
+                return;
+            }
+            using var harness = new HandoffHarness(policyUri);
+            await harness.OpenAsync().ConfigureAwait(false);
+            int sentOnOld = harness.OldTransport.SentCount;
+
+            // the writer sends one response on the old transport, and the next waits behind it.
+            harness.OldTransport.HoldSends();
+            harness.Target.SendResponseForTest(70, new ReadResponse());
+            Assert.That(
+                SpinWait.SpinUntil(() => harness.OldTransport.SentCount > sentOnOld, TimeSpan.FromSeconds(10)),
+                Is.True);
+            harness.Target.SendResponseForTest(71, new ReadResponse());
+
+            // the writer goes on once the reconnect has activated the new token.
+            Action<ChannelToken?, ChannelToken?>? activated = harness.Target.TokenActivatedCallback;
+            bool armed = true;
+            harness.Target.TokenActivatedCallback = (current, previous) =>
+            {
+                activated?.Invoke(current, previous);
+                if (armed)
+                {
+                    armed = false;
+                    harness.OldTransport.ReleaseSends();
+                    Assert.That(
+                        SpinWait.SpinUntil(() => !harness.Target.HasPendingWritesForTest, TimeSpan.FromSeconds(10)),
+                        Is.True);
+                }
+            };
+
+            await harness.RenewAsync().ConfigureAwait(false);
+
+            Assert.That(harness.HandoffError, Is.Null);
+            Assert.That(armed, Is.False, "the token was not activated.");
+            Assert.That(
+                harness.OldTransport.SentCount,
+                Is.EqualTo(sentOnOld + 1),
+                "the response queued for the dropped transport was sent with the new token.");
+            await harness.Peer.CompleteOpenAsync(
+                await harness.NewTransport.ReadAsync(harness.CancellationToken).ConfigureAwait(false),
+                renew: true,
+                reconnect: true).ConfigureAwait(false);
+            await harness.AssertEncryptedReadAsync(harness.NewTransport).ConfigureAwait(false);
+        }
+
         [TestCase(SecurityPolicies.ECC_nistP256, false)]
         [TestCase(SecurityPolicies.ECC_nistP256, true)]
         [TestCase(SecurityPolicies.RSA_DH_AesGcm, false)]
@@ -535,8 +592,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ArraySegment<byte> chunk = await harness.Peer.CreateOpenAsync(false).ConfigureAwait(false);
             var truncated = new ArraySegment<byte>(chunk.Array!, chunk.Offset, chunk.Count - 1);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await harness.Target.ReadOpenBodyLengthAsync(truncated).ConfigureAwait(false))!;
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await harness.Target.ReadOpenBodyLengthAsync(truncated).ConfigureAwait(false)))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
@@ -999,6 +1056,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(VerifySequenceNumber(sequenceNumber, "ReceivedBeforeReconnect"), Is.True);
             }
 
+            /// <summary>
+            /// Queues a response for the writer on the transport the channel has now.
+            /// </summary>
+            public void SendResponseForTest(uint requestId, IServiceResponse response)
+            {
+                EncodedSymmetricMessage encoded = EncodeSymmetricMessage(
+                    TcpMessageType.Message, requestId, response, false, out _);
+                Assert.That(BeginWriteSymmetricMessage(encoded, null), Is.True);
+            }
+
+            public bool HasPendingWritesForTest => HasPendingWrites;
+
             protected internal override void StartReceiveLoop()
             {
                 if (FailReceiveStart)
@@ -1146,10 +1215,29 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 throw new NotSupportedException();
             }
 
-            public ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
             {
                 Interlocked.Increment(ref m_sentCount);
-                return m_sent.Writer.WriteAsync(chunk.ToArray().ToByteString(), ct);
+                ByteString sent = chunk.ToArray().ToByteString();
+                TaskCompletionSource<bool>? hold = Volatile.Read(ref m_hold);
+                if (hold != null)
+                {
+                    await hold.Task.ConfigureAwait(false);
+                }
+                await m_sent.Writer.WriteAsync(sent, ct).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Holds every send that starts from now on until <see cref="ReleaseSends"/>.
+            /// </summary>
+            public void HoldSends()
+            {
+                Volatile.Write(ref m_hold, new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+            }
+
+            public void ReleaseSends()
+            {
+                Interlocked.Exchange(ref m_hold, null)?.TrySetResult(true);
             }
 
             public async ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
@@ -1187,6 +1275,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
 
             private readonly Channel<ByteString> m_sent = Channel.CreateUnbounded<ByteString>();
+            private TaskCompletionSource<bool>? m_hold;
             private int m_closed;
             private int m_sentCount;
         }

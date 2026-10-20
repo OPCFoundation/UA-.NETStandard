@@ -162,8 +162,8 @@ namespace Opc.Ua.Machinery.Tests
                 NewMachine("Unbound-Job-Machine").WithJobManagement();
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("job-order receiver"));
         }
 
@@ -371,8 +371,8 @@ namespace Opc.Ua.Machinery.Tests
             };
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await StoreAsync(jobManagement!, jobOrder))!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await StoreAsync(jobManagement!, jobOrder)))!;
             Assert.That(exception.Message, Does.Contain("PlannedSetupTime"));
             Assert.That(exception.Message, Does.Contain("Duration"));
 
@@ -642,7 +642,7 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         [Test]
-        public void AResourceFolderWithoutAMainMeteringPointIsRefused()
+        public async Task AResourceFolderWithoutAMainMeteringPointIsRefused()
         {
             ushort energyNamespaceIndex = NamespaceIndex(
                 Opc.Ua.Machinery.Energy.Namespaces.MachineryEnergy);
@@ -667,8 +667,8 @@ namespace Opc.Ua.Machinery.Tests
                 }));
 
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
-                    async () => await builder.BuildAsync())!;
+                (await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await builder.BuildAsync()))!;
             Assert.That(exception.Message, Does.Contain("Main metering point"));
             Assert.That(exception.Message, Does.Contain("Steam"));
         }
@@ -867,13 +867,13 @@ namespace Opc.Ua.Machinery.Tests
             // ResultId alone is what every other result test publishes; the
             // unit needs six more fields on top of it.
             ServiceResultException exception =
-                Assert.ThrowsAsync<ServiceResultException>(
+                (await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await machine.Results!.PublishAsync(
                         new MachineryResult(
                             new ResultDataType
                             {
                                 ResultMetaData = new ResultMetaDataType { ResultId = "R-thin" }
-                            })))!;
+                            }))))!;
 
             Assert.That(exception.Message, Does.Contain("PredefinedResultMetaData"));
             Assert.That(exception.Message, Does.Contain("ExternalRecipeId"));
@@ -1137,6 +1137,36 @@ namespace Opc.Ua.Machinery.Tests
             // The abstract type stays abstract; only the derived one is new.
             NodeState? declared = m_fixture.Manager.FindPredefinedNode(concrete.SuperTypeId);
             Assert.That(((BaseObjectTypeState)declared!).IsAbstract, Is.True);
+        }
+
+        [Test]
+        public async Task EmptyResultSlotsHaveNoModelDefaultValueAsync()
+        {
+            ResultManagementState? management = null;
+            IMachineHandle<BaseObjectState> machine = await NewMachine("Empty-Results")
+                .WithResultManagement(results =>
+                {
+                    management = results.State;
+                    results.WithInMemoryStore(4).WithResultsFolder(publishedResults: 2);
+                })
+                .BuildAsync();
+            var slots = new List<BaseInstanceState>();
+            management!.Results!.GetChildren(m_fixture!.Manager.SystemContext, slots);
+            Assert.That(slots, Has.Count.EqualTo(2));
+            foreach (BaseInstanceState instance in slots)
+            {
+                var slot = (ResultState)instance;
+                Assert.That(slot.WrappedValue.IsNull, Is.True, "An empty slot must not expose model-default XML.");
+                Assert.That(slot.ResultMetaData!.WrappedValue.IsNull, Is.True);
+                if (slot.ResultContent is { } content)
+                {
+                    Assert.That(content.WrappedValue.IsNull, Is.True);
+                }
+            }
+            await machine.Results!.PublishAsync(new MachineryResult(
+                new ResultDataType { ResultMetaData = new ResultMetaDataType { ResultId = "first-result" } }));
+            Assert.That(((ResultState)slots[0]).Value!.ResultMetaData!.ResultId, Is.EqualTo("first-result"));
+            Assert.That(((ResultState)slots[1]).WrappedValue.IsNull, Is.True);
         }
 
         [Test]

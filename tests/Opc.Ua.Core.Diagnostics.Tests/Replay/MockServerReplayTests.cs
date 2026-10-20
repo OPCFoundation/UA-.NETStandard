@@ -67,7 +67,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                     using var cts = new CancellationTokenSource();
                     cts.Cancel();
 
-                    Exception? exception = Assert.CatchAsync(async () =>
+                    Exception? exception = await Assert.CatchAsync(async () =>
                         await replay.StartAsync("opc.tcp", null, cts.Token).ConfigureAwait(false));
 
                     Assert.That(exception, Is.InstanceOf<OperationCanceledException>());
@@ -91,7 +91,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 };
                 await using (replay.ConfigureAwait(false))
                 {
-                    PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+                    PcapDiagnosticsException? exception = await Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                         await replay.StartAsync("opc.tcp", null, CancellationToken.None).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);
@@ -149,7 +149,7 @@ namespace Opc.Ua.Pcap.Tests.Replay
                 var replay = new MockServerReplay(source);
                 await using (replay.ConfigureAwait(false))
                 {
-                    PcapDiagnosticsException? exception = Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
+                    PcapDiagnosticsException? exception = await Assert.ThrowsAsync<PcapDiagnosticsException>(async () =>
                         await replay.StartAsync("opc.tcp", null, CancellationToken.None).ConfigureAwait(false));
 
                     Assert.That(exception, Is.Not.Null);

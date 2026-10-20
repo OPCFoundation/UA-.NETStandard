@@ -32,7 +32,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
+using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.Subscriptions.Tests
@@ -225,10 +227,13 @@ namespace Opc.Ua.Subscriptions.Tests
             }
         }
 
-        [Test]
-        public async Task SimpleTriggerAddLinkAfterCreationAsync()
+        /// <summary>
+        /// A link added after item creation reports both items even when Publish splits their notifications.
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(1u)]
+        public async Task SimpleTriggerAddLinkAfterCreationAsync(uint maxNotificationsPerPublish)
         {
-            // Create both items first, then SetTriggering
             NodeId nodeA = VariableIds.Server_ServerStatus_CurrentTime;
             NodeId nodeB = ToNodeId(Constants.ScalarStaticInt32);
 
@@ -244,6 +249,11 @@ namespace Opc.Ua.Subscriptions.Tests
             // Items exist but no triggering link yet
             await ConsumeAllNotificationsAsync().ConfigureAwait(false);
 
+            ModifySubscriptionResponse modifyResp = await Session.ModifySubscriptionAsync(
+                null, m_subscriptionId, 100, 100, 10, maxNotificationsPerPublish, 0, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(modifyResp.ResponseHeader.ServiceResult), Is.True);
+
             // Now add the link
             SetTriggeringResponse trigResp =
                 await SetTriggerAsync(idA, [idB]).ConfigureAwait(false);
@@ -255,10 +265,106 @@ namespace Opc.Ua.Subscriptions.Tests
             await WriteValueAsync(nodeB,
                 UnsecureRandom.Shared.Next(1, 10000)).ConfigureAwait(false);
 
-            // A fires (CurrentTime), should trigger B
-            PublishResponse pubResp = await PublishAndWaitAsync().ConfigureAwait(false);
-            HashSet<uint> handles = CollectNotifiedHandles(pubResp);
-            Assert.That(handles, Does.Contain(1u));
+            // A and its linked item can arrive in different Publish responses.
+            HashSet<uint> handles = await PublishUntilHandlesObservedAsync([1u, 2u]).ConfigureAwait(false);
+            Assert.That(handles, Does.Contain(1u), "The trigger item must report.");
+            Assert.That(handles, Does.Contain(2u), "The newly linked sampling item must report after its trigger.");
+        }
+
+        /// <summary>
+        /// Transient publish failures do not discard handles already collected or prevent subsequent delivery.
+        /// </summary>
+        [TestCaseSource(nameof(s_transientPublishErrors))]
+        public async Task PublishCollectionRetriesTransientErrorsWithoutLosingHandlesAsync(StatusCode statusCode)
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            session.SetupSequence(value => value.PublishAsync(
+                null, It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CreatePublishResponse(1))
+                .ThrowsAsync(new ServiceResultException(statusCode))
+                .ReturnsAsync(CreatePublishResponse(2));
+
+            ISession connectedSession = Session;
+            try
+            {
+                Session = session.Object;
+                HashSet<uint> handles = await PublishUntilHandlesObservedAsync(
+                    [1u, 2u], initialDelayMs: 0).ConfigureAwait(false);
+                Assert.That(handles, Is.EquivalentTo(new uint[] { 1, 2 }));
+                session.Verify(value => value.PublishAsync(
+                    null, It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(), It.IsAny<CancellationToken>()),
+                    Times.Exactly(3));
+            }
+            finally
+            {
+                Session = connectedSession;
+            }
+        }
+
+        /// <summary>
+        /// Non-transient publish failures remain visible rather than becoming a partial successful collection.
+        /// </summary>
+        [TestCaseSource(nameof(s_nonTransientPublishErrors))]
+        public async Task PublishCollectionPropagatesNonTransientErrors(StatusCode statusCode)
+        {
+            var error = new ServiceResultException(statusCode);
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            session.SetupSequence(value => value.PublishAsync(
+                null, It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CreatePublishResponse(1))
+                .ThrowsAsync(error);
+
+            ISession connectedSession = Session;
+            try
+            {
+                Session = session.Object;
+                ServiceResultException? thrown = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await PublishUntilHandlesObservedAsync([1u, 2u], initialDelayMs: 0).ConfigureAwait(false));
+                Assert.That(thrown, Is.SameAs(error));
+                session.Verify(value => value.PublishAsync(
+                    null, It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(), It.IsAny<CancellationToken>()),
+                    Times.Exactly(2));
+            }
+            finally
+            {
+                Session = connectedSession;
+            }
+        }
+
+        /// <summary>
+        /// Repeated transient failures preserve partial results until the shared retry budget is exhausted.
+        /// </summary>
+        [Test]
+        public async Task PublishCollectionRetainsPartialResultsUntilTheRetryWindowExpiresAsync()
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            int attempts = 0;
+            CancellationToken publishToken = default;
+            session.Setup(value => value.PublishAsync(
+                null, It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader? _, ArrayOf<SubscriptionAcknowledgement> _, CancellationToken ct) =>
+                {
+                    publishToken = ct;
+                    return ++attempts == 1
+                        ? new ValueTask<PublishResponse>(CreatePublishResponse(1))
+                        : new ValueTask<PublishResponse>(
+                            Task.FromException<PublishResponse>(new ServiceResultException(StatusCodes.BadTimeout)));
+                });
+
+            ISession connectedSession = Session;
+            try
+            {
+                Session = session.Object;
+                HashSet<uint> handles = await PublishUntilHandlesObservedAsync(
+                    [1u, 2u], timeoutMs: 500, initialDelayMs: 0).ConfigureAwait(false);
+                Assert.That(handles, Is.EquivalentTo(new uint[] { 1 }));
+                Assert.That(publishToken.IsCancellationRequested, Is.True,
+                    "Returning partial results must mean that the retry budget was exhausted.");
+            }
+            finally
+            {
+                Session = connectedSession;
+            }
         }
 
         [Test]
@@ -847,7 +953,7 @@ namespace Opc.Ua.Subscriptions.Tests
             uint idB = createResp.Results[0].MonitoredItemId;
 
             // Invalid triggering item ID
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, m_subscriptionId, 999999u,
                         default,
@@ -1046,7 +1152,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             uint idA = createResp.Results[0].MonitoredItemId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, 999999u, idA,
                         new uint[] { idA }.ToArrayOf(),
@@ -1067,7 +1173,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             uint idB = createResp.Results[0].MonitoredItemId;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, m_subscriptionId, 999999u,
                         new uint[] { idB }.ToArrayOf(),
@@ -1149,7 +1255,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 CancellationToken.None).ConfigureAwait(false);
             m_subscriptionId = 0;
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.SetTriggeringAsync(
                         null, deletedSubId, idA,
                         new uint[] { idA }.ToArrayOf(),
@@ -2437,6 +2543,23 @@ namespace Opc.Ua.Subscriptions.Tests
                 "String trigger should report.");
         }
 
+        private static PublishResponse CreatePublishResponse(uint clientHandle)
+        {
+            return new PublishResponse
+            {
+                NotificationMessage = new NotificationMessage
+                {
+                    NotificationData =
+                    [
+                        new ExtensionObject(new DataChangeNotification
+                        {
+                            MonitoredItems = [new MonitoredItemNotification { ClientHandle = clientHandle }]
+                        })
+                    ]
+                }
+            };
+        }
+
         private MonitoredItemCreateRequest CreateItemRequest(
             NodeId nodeId,
             uint clientHandle,
@@ -2607,8 +2730,10 @@ namespace Opc.Ua.Subscriptions.Tests
         /// has been observed at least once, or <paramref name="timeoutMs"/>
         /// expires. Aggregates handles across publishes to absorb the natural
         /// race between writes and the server's sampling-timer cycle on slow
-        /// CI runners.
+        /// CI runners. After the initial delay, one cancellation budget bounds
+        /// Publish calls and backoff while transient failures are retried.
         /// </summary>
+        /// <exception cref="ServiceResultException">A non-transient publish failure.</exception>
         private async Task<HashSet<uint>> PublishUntilHandlesObservedAsync(
             uint[] expectedHandles,
             int timeoutMs = 5000,
@@ -2616,27 +2741,36 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             await Task.Delay(initialDelayMs).ConfigureAwait(false);
             var collected = new HashSet<uint>();
-            int deadline = Environment.TickCount + timeoutMs;
-            while (Environment.TickCount < deadline)
+            using var timeout = new CancellationTokenSource(timeoutMs);
+            try
             {
-                PublishResponse pub;
-                try
+                while (!timeout.IsCancellationRequested)
                 {
-                    pub = await Session.PublishWithTimeoutAsync().ConfigureAwait(false);
+                    try
+                    {
+                        PublishResponse pub = await Session.PublishAsync(null, default, timeout.Token)
+                            .ConfigureAwait(false);
+                        foreach (uint h in CollectNotifiedHandles(pub))
+                        {
+                            collected.Add(h);
+                        }
+                        if (expectedHandles.All(collected.Contains))
+                        {
+                            return collected;
+                        }
+                    }
+                    catch (ServiceResultException error) when (
+                        ReconnectPolicy.IsServerBusySignal(error.StatusCode) ||
+                        error.StatusCode == StatusCodes.BadRequestInterrupted)
+                    {
+                        // Back off below without resetting the overall retry budget.
+                    }
+                    await Task.Delay(200, timeout.Token).ConfigureAwait(false);
                 }
-                catch (ServiceResultException)
-                {
-                    break;
-                }
-                foreach (uint h in CollectNotifiedHandles(pub))
-                {
-                    collected.Add(h);
-                }
-                if (expectedHandles.All(collected.Contains))
-                {
-                    return collected;
-                }
-                await Task.Delay(200).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+            {
+                // An exhausted collection window returns the handles observed so far.
             }
             return collected;
         }
@@ -2675,5 +2809,23 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         private uint m_subscriptionId;
+        private static readonly StatusCode[] s_transientPublishErrors =
+        [
+            StatusCodes.BadTimeout,
+            StatusCodes.BadRequestTimeout,
+            StatusCodes.BadRequestInterrupted,
+            StatusCodes.BadTooManyPublishRequests,
+            StatusCodes.BadTooManyOperations,
+            StatusCodes.BadTooManySessions,
+            StatusCodes.BadServerTooBusy,
+            StatusCodes.BadTcpServerTooBusy
+        ];
+        private static readonly StatusCode[] s_nonTransientPublishErrors =
+        [
+            StatusCodes.BadUserAccessDenied,
+            StatusCodes.BadSessionIdInvalid,
+            StatusCodes.BadSubscriptionIdInvalid,
+            StatusCodes.BadNoSubscription
+        ];
     }
 }

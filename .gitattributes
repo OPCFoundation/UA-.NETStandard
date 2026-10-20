@@ -28,6 +28,13 @@ samples/WotCon/AggregationClient/Documents/SamplePump.NodeSet2.xml text eol=lf
 # upstream bytes on every platform.
 src/Opc.Ua.AMB/Model/Opc.Ua.AMB.NodeSet2.xml text eol=lf
 
+# The OPC 30010 AutoID NodeSet and identifier table are vendored unmodified and their
+# SHA-256 hashes are pinned in src/Opc.Ua.AutoID/Model/provenance.json and
+# tests/Opc.Ua.AutoID.Tests/AutoIdModelAssetTests.cs, so the checked-out bytes must be
+# the upstream bytes on every platform.
+src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeSet2.xml text eol=lf
+src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeIds.csv text eol=lf
+
 # Denote all files that should not have line endings normalized, should not be
 # merged, and should not show in a textual diff.
 *.docm binary
@@ -46,6 +53,23 @@ src/Opc.Ua.AMB/Model/Opc.Ua.AMB.NodeSet2.xml text eol=lf
 # Preserve official NodeSet artifacts byte-for-byte.
 src/Opc.Ua.Positioning/Model/*.csv binary
 src/Opc.Ua.Positioning/Model/*.xml binary
+
+# Preserve the release-pinned Machine Vision inputs and their provenance hashes.
+src/Opc.Ua.Vision/Model/Opc.Ua.MachineVision*.NodeSet2.xml -text
+src/Opc.Ua.Vision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
+src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.NodeSet2.xml -text
+src/Opc.Ua.MachineVision/Model/Opc.Ua.MachineVision*.Upstream.NodeIds.csv -text
+
+# Preserve pinned plastics/rubber inputs and the reproducibly authored common model.
+# Their upstream license banners include trailing spaces covered by the byte-level hashes.
+# TODO: revisit the whitespace exception if upstream republishes these inputs without it.
+src/Opc.Ua.PlasticsRubber/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/Basis/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.Extrusion/*/Model/*.NodeIds.csv -text whitespace=cr-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeSet2.xml -text whitespace=-blank-at-eol
+src/Opc.Ua.PlasticsRubber/GranulateDrying/Model/*.NodeIds.csv -text whitespace=cr-at-eol
 
 # Fuzz seed corpora, crash/timeout/slow reproducers and the vendored original
 # fork messages are exact byte sequences, not documents. Line-ending translation

@@ -70,6 +70,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task RaftCompactionIntervalReachesTheRaftStoreAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(options =>
+                {
+                    options.Mode = RedundancyConsistencyMode.Strong;
+                    options.RaftCompactionInterval = 5;
+                });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            Assert.That(created, Is.True);
+
+            // A consensus without snapshots cannot compact: the interval reaches the store, which refuses it.
+            var refusing = new ServiceCollection();
+            refusing.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(options =>
+                {
+                    options.Mode = RedundancyConsistencyMode.Strong;
+                    options.RaftConsensusFactory = _ => new InProcessRaftConsensus();
+                    options.RaftCompactionInterval = 5;
+                });
+            await using ServiceProvider refusingProvider = refusing.BuildServiceProvider();
+            Assert.That(() => refusingProvider.GetRequiredService<ISharedKeyValueStore>(), Throws.ArgumentException);
+        }
+
+        [Test]
         public async Task EventualModeRegistersHybridStoreAsync()
         {
             var services = new ServiceCollection();
@@ -87,6 +116,54 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             Assert.That(created, Is.True);
             Assert.That(found, Is.True);
+        }
+
+        [Test]
+        public async Task StrongModeRegistersTheStoreAsRaftSnapshotManagerAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(RedundancyConsistencyMode.Strong);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+            IRaftSnapshotManager snapshots = provider.GetRequiredService<IRaftSnapshotManager>();
+            await store.SetAsync("lease/a", ByteString.From(new byte[] { 1 }));
+            RaftKeyValueSnapshot snapshot = await snapshots.CreateSnapshotAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshots, Is.SameAs(store));
+                Assert.That(snapshot.LastIncludedCommand, Is.GreaterThanOrEqualTo(2));
+                Assert.That(snapshot.Data.IsEmpty, Is.False);
+            });
+        }
+
+        [Test]
+        public async Task EventualModeRegistersTheHybridStoreAsRaftSnapshotManagerAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency();
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+            IRaftSnapshotManager snapshots = provider.GetRequiredService<IRaftSnapshotManager>();
+            await store.SetAsync("lease/a", ByteString.From(new byte[] { 1 }));
+            await store.SetAsync("node/1", ByteString.From(new byte[] { 2 }));
+            RaftKeyValueSnapshot snapshot = await snapshots.CreateSnapshotAsync();
+
+            await using var restored = new RaftSharedKeyValueStore();
+            await restored.RestoreSnapshotAsync(snapshot.Data);
+            (bool strongFound, _) = await restored.TryGetAsync("lease/a");
+            (bool bulkFound, _) = await restored.TryGetAsync("node/1");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshots, Is.SameAs(store));
+                Assert.That(strongFound, Is.True, "the snapshot holds the strong keyspace");
+                Assert.That(bulkFound, Is.False, "the bulk keyspace is replicated by the CRDT store");
+            });
         }
 
         [Test]

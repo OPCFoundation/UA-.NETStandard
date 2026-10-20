@@ -51,8 +51,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <remarks>
         /// The manager owns the Device Integration namespace, so this cannot
         /// be combined with <c>AddOpcUaDi</c> or any other DI-owning
-        /// registration on the same server. A server that needs both should
-        /// load the Pumps model into its existing manager instead.
+        /// registration on the same server. Use <c>AddPumpsToMachinery</c> to reuse
+        /// the stock Machinery owner and the same <see cref="PumpsRuntime"/>.
         /// </remarks>
         /// <param name="builder">The server builder.</param>
         /// <param name="configure">Configures the Pumps options.</param>

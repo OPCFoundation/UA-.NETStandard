@@ -223,21 +223,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(envelopes, Is.Empty);
         }
 
+        /// <summary>
+        /// An empty flush does not replicate data or prevent later writes from being mirrored.
+        /// </summary>
         [Test]
-        public async Task FlushBeforeStoreCausesNoReplicationAsync()
+        public async Task EmptyFlushDoesNotReplicateOrPreventSubsequentWritesAsync()
         {
             using var kv = new InMemorySharedKeyValueStore();
             await using SharedKeyValueSubscriptionStore primary = CreateStore(kv);
             await using SharedKeyValueSubscriptionStore backup = CreateStore(kv);
             var sessionId = new NodeId(Guid.NewGuid(), 1);
+            Guid continuationPointId = Guid.NewGuid();
 
             await primary.FlushAsync().ConfigureAwait(false);
-            primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, Guid.NewGuid()));
-
             ArrayOf<ContinuationPointEnvelope> envelopes =
                 await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
-
             Assert.That(envelopes, Is.Empty);
+
+            primary.StoreContinuationPoint(CreateBrowseEnvelope(sessionId, continuationPointId));
+            await primary.FlushAsync().ConfigureAwait(false);
+            envelopes = await backup.LoadContinuationPointsAsync(sessionId).ConfigureAwait(false);
+
+            Assert.That(envelopes, Has.Count.EqualTo(1));
+            Assert.That(envelopes[0].Id, Is.EqualTo(continuationPointId));
+            Assert.That(envelopes[0].OwnerSessionId, Is.EqualTo(sessionId));
         }
 
         private static SharedKeyValueSubscriptionStore CreateStore(InMemorySharedKeyValueStore kv)
@@ -270,7 +279,10 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             var server = new Mock<IServerInternal>();
             server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
-            server.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());
+            var namespaceUris = new NamespaceTable();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
             var nodeManagerFactory = new Mock<IMainNodeManagerFactory>();
             var configurationNodeManager = new Mock<IConfigurationNodeManager>();
             configurationNodeManager.Setup(n => n.NamespaceUris).Returns([]);

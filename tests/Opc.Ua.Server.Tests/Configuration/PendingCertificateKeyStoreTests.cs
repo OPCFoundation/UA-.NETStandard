@@ -236,12 +236,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void InMemoryStoreSaveWithNullContextThrowsArgumentNullException()
+        public async Task InMemoryStoreSaveWithNullContextThrowsArgumentNullException()
         {
             var store = new InMemoryPendingCertificateKeyStore();
             using Certificate cert = CreateTestCertificateWithKey();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await store.SaveAsync(null!, cert, CancellationToken.None).ConfigureAwait(false));
         }
 

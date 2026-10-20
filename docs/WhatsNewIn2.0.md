@@ -52,6 +52,13 @@ classic `Session` remains available for applications that own that lifecycle.
 The V2 subscription API adds options-based callbacks, triggering relationships,
 automatic partitioning, and `IAsyncEnumerable` streams for short-lived monitoring.
 Typed helpers cover history, alarms, files, and model-change tracking.
+Opt-in [session-less invocation](SessionlessInvocation.md) supports the service
+sets permitted by OPC 10000-4 without creating a Session; subscriptions still
+require one. HTTPS and WebSocket [OpenAPI mappings](OpenApi.md) also support
+web-facing integration.
+[Generation-bound session clients](SessionBindings.md) capture a transport/session
+generation and namespace mappings. An invalidated binding fails instead of
+silently retargeting requests after a reconnect.
 See [Sessions](Sessions.md), [Subscriptions](Subscriptions.md),
 [File System Client](FileSystemClient.md), and [Model Change Tracking](ModelChangeTracking.md).
 
@@ -61,6 +68,10 @@ ModelDesign and NodeSet2 inputs generate node-manager scaffolding, state types,
 and typed ObjectType client proxies. POCO annotations generate `IEncodeable`
 implementations, and model dependencies can be registered across assemblies.
 Models that change independently of the binary can instead be loaded at runtime.
+Fluent [complete Method results](NodeManagers.md#complete-method-results-and-diagnostic-forwarding)
+carry operation diagnostics, ordered input-argument results and output values.
+Forwarded diagnostics are resolved into the receiving response's string table,
+subject to diagnostic requests and authorization.
 See [Node Managers](NodeManagers.md), [Source-Generated Data Types](SourceGeneratedDataTypes.md),
 [Model Dependencies](ModelDependencies.md), and [Runtime NodeSets](RuntimeNodeSets.md).
 
@@ -87,6 +98,10 @@ and [Rate Limiting](RateLimiting.md).
 Request cancellation follows the request lifetime, while `TimeProvider` enables
 controlled clocks and timers for testing. Existing synchronous compatibility APIs
 do not make blocking waits appropriate in new asynchronous handlers.
+Dynamic node removal can await
+[final-value publication](NodeManagers.md#final-value-publication-before-node-removal)
+through the existing subscription engine. The boundary is inclusion in the
+server's Publish response, not a client transport acknowledgment.
 See [Async Server Support](AsyncServerSupport.md) and [Node Managers](NodeManagers.md).
 
 ### Native AOT
@@ -124,14 +139,20 @@ domain-specific companions and draft extensions.
 | Domain | Specification or status | Guide |
 | --- | --- | --- |
 | Device composition and software updates | OPC 10000-100 (Devices) | [Device Integration](DeviceIntegration.md) and [Software Update](SoftwareUpdate.md) |
+| Asset discovery, health, maintenance, documentation and location | OPC 10000-110 (Asset Management Basics) | [Asset Management Basics](AMB.md) |
 | Machines, job management, process values, energy and result transfer | OPC 40001-1/-2/-3/-4/-101 (Machinery), with OPC 34100 (Energy Consumption Management) and OPC 30081 (PA-DIM) | [Machinery](Machinery.md) |
+| Machine monitoring, tools, production and wireless peripherals | OPC 40501-1 (MachineTool) and OPC 40505 (WMTP); both models share the MachineTool packages | [MachineTool and WMTP](MachineTool.md) |
+| Geometric measurement systems, qualification and results | OPC 40210 (GMS); the undefined upstream production-statistics CU prevents claiming the complete Production facet | [GMS](GMS.md) |
+| Crane systems, loads, protection observations and limit requests | OPC 40020-1 (Cranes and Hoists); preview packages, with equipment behavior supplied by providers | [Cranes and Hoists](CranesHoists.md) |
 | Pumps, compressors and vacuum pumps | OPC 40223 (Pumps and Vacuum Pumps) | [Pumps](Pumps.md) |
+| RFID, OCR, optical and RTLS readers, scan results and events | OPC 30010 (AutoID Devices); model, server, client, MCP tools and sample | [AutoID Devices](AutoID.md) |
 | Scales and scale systems | OPC 40200 (Weighing Technology), with OPC 30050 (PackML) | [Scales](Scales.md) |
 | Motion-device systems and controllers | OPC 40010-1 (Robotics), over OPC 10000-200 (Industrial Automation, its own `Opc.Ua.IA` package) | [Robotics](Robotics.md) |
 | Task-level robot commands | Robot Intent (draft) | [Robot Intent](Robotics.md#robot-intent) |
 | Manufacturing resources and job control | OPC 10030 (ISA-95 Common Model) and OPC 10031-4 (Job Control V1/V2) | [ISA-95](ISA95.md) |
 | Relative and geographic positioning | OPC 10000-210 (RSL) and OPC 10000-211 (GPOS) | [Positioning](Positioning.md) |
-| Perception, media, and feedback | Vision (draft) | [Vision](Vision.md) |
+| Machine Vision control, recipes, configuration, results and assets | Released OPC 40100-1 and OPC 40100-2 | [Machine Vision](Vision.md) |
+| Perception, media, inference and feedback | Vision Perception (draft); distinct from the released Machine Vision models | [Perception](Vision.md#perception-model) |
 | Model catalogues, deployments, and inference | AI Model Management and Inference (draft) | [AI Model Management](AI.md) |
 | Resource registration, versioning, and federation | xRegistry abstract base model (draft) | [xRegistry](XRegistry.md) |
 | Scene bindings and address-space materialization | OpenUSD Bindings and OpenUSD Scene (both draft) | [OpenUSD](OpenUsd.md) |
@@ -144,6 +165,9 @@ Draft entries are identified by model name rather than an unverified specificati
 number; their namespace URIs and NodeIds remain provisional. The guides describe
 provider requirements and supported operations. Model coverage does not imply
 complete runtime implementation or certification for every specification.
+Package channel and model maturity are independent: a released specification
+can ship in a preview-only package. The [release policy](ReleaseProcess.md#terms)
+defines the package families that remain preview-only.
 
 ### Security and certificates
 
@@ -177,6 +201,9 @@ A fluent builder and dependency-injection extensions compose PubSub applications
 from separate runtime, transport, and server-integration packages. UADP and JSON
 encoding, discovery, retained metadata, runtime configuration, diagnostics, and
 Security Key Service integration support publisher/subscriber workflows.
+UDP/DTLS, Ethernet, MQTT and Kafka transports use their corresponding packages;
+the Kafka package supplies the Part 14 broker mapping rather than requiring an
+application-specific transport implementation.
 Transport and cryptographic capabilities remain platform-dependent; in particular,
 the DTLS Curve25519 / Curve448 profiles are not registered.
 See [PubSub](PubSub.md) for supported profiles, transports, and examples.
@@ -193,6 +220,14 @@ and [Kubernetes](Kubernetes.md) for configuration and deployment constraints.
 ### Tooling and diagnostics
 
 The MCP server exposes client operations and packet-capture tools to agents.
+Bounded companion profiles include MachineTool with WMTP, GMS, CranesHoists,
+Vision, Robotics, AMB, Machinery, Scales, Pumps, AutoID, Device Integration, ISA-95 and
+Positioning. They compose over named sessions without duplicating connection
+tools. Dedicated profiles also cover WoT/xRegistry documents, GDS,
+reference-only credentials, roles/users, files, alarms, history and schemas.
+Live WoT and PubSub workflows require explicit host capabilities and operation
+or network grants; selecting a catalogue is not permission to execute it.
+The adapters reuse the stack's typed client workflows.
 `ITelemetryContext` supplies application logging, metrics, and tracing, with
 audit and redaction support. A migration analyzer and code fixer assist with
 mechanical API updates.

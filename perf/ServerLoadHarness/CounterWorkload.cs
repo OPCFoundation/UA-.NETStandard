@@ -34,6 +34,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Perf.ServerLoadHarness
 {
@@ -64,6 +65,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         public override async Task SetupAsync()
         {
             ushort namespaceIndex = (ushort)m_session.NamespaceUris.GetIndex(CounterNodeManager.Namespace);
+            if (m_session is ManagedSession managed)
+            {
+                await SetupManagedAsync(managed, namespaceIndex).ConfigureAwait(false);
+                return;
+            }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
             var subscription = new Subscription(m_session.DefaultSubscription)
             {
@@ -156,6 +162,121 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 (below == 0 && missing == 0 ? "PASS" : "FAIL");
         }
 
+        private async Task SetupManagedAsync(ManagedSession session, ushort namespaceIndex)
+        {
+            var setup = new SubscriptionSetup();
+            V2.ISubscription subscription = session.AddSubscription(
+                new NotificationHandler(this, setup),
+                new V2.SubscriptionOptions
+                {
+                    PublishingInterval = TimeSpan.FromMilliseconds(m_publishingInterval),
+                    PublishingEnabled = true,
+                    KeepAliveCount = 10,
+                    LifetimeCount = 10000,
+                    MaxNotificationsPerPublish = 0
+                });
+            for (int i = 0; i < m_latestValue.Length; i++)
+            {
+                if (!subscription.TryAddMonitoredItem(
+                    i.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    new V2.MonitoredItems.MonitoredItemOptions
+                    {
+                        StartNodeId = new NodeId((uint)i + 1, namespaceIndex),
+                        AttributeId = Attributes.Value,
+                        MonitoringMode = MonitoringMode.Reporting,
+                        SamplingInterval = TimeSpan.FromMilliseconds(m_samplingInterval),
+                        TimestampsToReturn = TimestampsToReturn.Neither,
+                        QueueSize = 1,
+                        DiscardOldest = true
+                    },
+                    out V2.MonitoredItems.IMonitoredItem? item) || item == null)
+                {
+                    throw new InvalidOperationException($"Could not add counter item {i}.");
+                }
+                // notifications can arrive while items are still being added
+                lock (m_lock)
+                {
+                    m_indexByItem[item] = i;
+                }
+            }
+            var time = Stopwatch.StartNew();
+            await setup.WaitForReadyAsync(subscription, default).ConfigureAwait(false);
+            Console.WriteLine(FormattableString.Invariant(
+                $"counters: {m_latestValue.Length} items (V2), sampling {m_samplingInterval} ms, ") +
+                FormattableString.Invariant($"publishing {m_publishingInterval} ms; setup {time.ElapsedMilliseconds} ms"));
+        }
+
+        /// <summary>
+        /// V2 engine handler; updates the counters like the classic fast callback.
+        /// </summary>
+        private sealed class NotificationHandler : V2.ISubscriptionNotificationHandler
+        {
+            public NotificationHandler(CounterWorkload owner, SubscriptionSetup setup)
+            {
+                m_owner = owner;
+                m_setup = setup;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.DataValueChange> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                long now = Stopwatch.GetTimestamp();
+                lock (m_owner.m_lock)
+                {
+                    foreach (V2.DataValueChange change in notification.Span)
+                    {
+                        if (change.MonitoredItem != null &&
+                            m_owner.m_indexByItem.TryGetValue(change.MonitoredItem, out int index) &&
+                            change.Value.WrappedValue.TryGetValue(out ulong value))
+                        {
+                            m_owner.m_latestValue[index] = value;
+                            m_owner.m_latestTicks[index] = now;
+                        }
+                    }
+                }
+                Interlocked.Add(ref m_owner.m_notifications, notification.Length);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.EventNotification> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                V2.PublishState publishStateMask)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                V2.ISubscription subscription,
+                V2.SubscriptionState state,
+                V2.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                m_setup.OnStateChanged(state);
+                return ValueTask.CompletedTask;
+            }
+
+            private readonly CounterWorkload m_owner;
+            private readonly SubscriptionSetup m_setup;
+        }
+
         private void OnDataChange(Subscription subscription, DataChangeNotification notification, ArrayOf<string> stringTable)
         {
             long now = Stopwatch.GetTimestamp();
@@ -178,6 +299,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly int m_samplingInterval;
         private readonly int m_publishingInterval;
         private readonly Dictionary<uint, int> m_indexByHandle = [];
+        private readonly Dictionary<V2.MonitoredItems.IMonitoredItem, int> m_indexByItem =
+            new(System.Collections.Generic.ReferenceEqualityComparer.Instance);
         private readonly ulong[] m_latestValue;
         private readonly long[] m_latestTicks;
         private readonly ulong[] m_startValue;

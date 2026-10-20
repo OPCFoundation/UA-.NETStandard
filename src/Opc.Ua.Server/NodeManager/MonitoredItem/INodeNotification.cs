@@ -36,7 +36,15 @@ namespace Opc.Ua.Server
     /// </summary>
     internal interface INodeNotification
     {
+        /// <summary>
+        /// Gets the system context captured for processing the notification.
+        /// </summary>
         ISystemContext Context { get; }
+
+        /// <summary>
+        /// Gets the source emission for <c>INodeNotification</c>.
+        /// </summary>
+        MasterNodeManager.NotificationDispatchLease? SourceEmission { get; }
     }
 
     /// <summary>
@@ -44,8 +52,22 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class DataChangeSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
+        /// </summary>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the identifier of the node whose changes were captured.
+        /// </summary>
         public NodeId NodeId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the node-state changes represented by this snapshot.
+        /// </summary>
         public NodeStateChangeMasks Changes { get; set; }
 
         /// <summary>
@@ -61,8 +83,31 @@ namespace Opc.Ua.Server
         /// subscriber, keyed by monitored item id. Only captured when the reporter was denied
         /// reading a value whose user access level depends on the user, so a subscriber that may
         /// read it receives the value of this change rather than a later one.
+        /// Session and identity attribution prevent a later attachment or transfer from inheriting
+        /// a value captured for a different owner.
         /// </summary>
-        public Dictionary<uint, DataValue>? SubscriberValueSnapshots { get; set; }
+        public Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
+            SubscriberValueSnapshots { get; set; }
+    }
+
+    /// <summary>
+    /// Marks a change that reached a cut-off source so the items it would have reached are
+    /// retired in channel order, after the snapshots captured before the cutoff.
+    /// </summary>
+    internal sealed class CutOffRetirementNotification : INodeNotification
+    {
+        /// <inheritdoc cref="INodeNotification.Context"/>
+        public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets the source emission, which a cut-off retirement never holds.
+        /// </summary>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+
+        /// <summary>
+        /// Gets or sets the change masks of the cut-off change.
+        /// </summary>
+        public NodeStateChangeMasks Changes { get; set; }
     }
 
     /// <summary>
@@ -70,7 +115,17 @@ namespace Opc.Ua.Server
     /// </summary>
     internal class EventSnapshot : INodeNotification
     {
+        /// <inheritdoc cref="INodeNotification.Context"/>
         public ISystemContext Context { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the source emission for <c>EventSnapshot</c>.
+        /// </summary>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+
+        /// <summary>
+        /// Gets or sets the captured event fields used when evaluating event filters.
+        /// </summary>
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
     }
 }

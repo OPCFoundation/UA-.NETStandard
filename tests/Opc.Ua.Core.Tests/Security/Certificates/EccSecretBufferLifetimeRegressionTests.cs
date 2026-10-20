@@ -160,16 +160,16 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 else if (outcome == "cipher")
                 {
-                    Assert.ThrowsAsync<CryptographicException>(async () => await decryptor.DecryptAsync(
+                    await Assert.ThrowsAsync<CryptographicException>(async () => await decryptor.DecryptAsync(
                         DateTime.UtcNow.AddHours(-1), s_nonce, buffer, offset, encoded.Length, context.Telemetry)
                         .ConfigureAwait(false));
                 }
                 else
                 {
-                    ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
                         async () => await decryptor.DecryptAsync(
                             DateTime.UtcNow.AddHours(-1), outcome == "nonce" ? s_wrongNonce : s_nonce,
-                            buffer, offset, encoded.Length, context.Telemetry).ConfigureAwait(false))!;
+                            buffer, offset, encoded.Length, context.Telemetry).ConfigureAwait(false)))!;
                     Assert.That(exception.StatusCode,
                         Is.EqualTo(outcome == "nonce" ? StatusCodes.BadNonceInvalid : StatusCodes.BadDecodingError));
                 }

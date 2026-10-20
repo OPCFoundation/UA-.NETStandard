@@ -36,8 +36,8 @@ using Opc.Ua.Client;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Robotics.Client.Intent;
 using Opc.Ua.RobotIntent;
-using Opc.Ua.Vision;
 using Opc.Ua.Vision.Client;
+using Opc.Ua.Vision.Perception;
 
 namespace Opc.Ua.Mcp
 {
@@ -183,12 +183,9 @@ namespace Opc.Ua.Mcp
 #pragma warning restore RCS1214
             }
 
-            VisionDetectionSummary? summary = result.DetectionSummary;
-            if (summary is null)
-            {
+            VisionDetectionSummary? summary = result.DetectionSummary ??
                 throw new InvalidOperationException(string.Create(CultureInfo.InvariantCulture,
                     $"The Vision result '{result.ResultId}' carries no detection summary."));
-            }
 
             if (summary.TotalDetections <= summary.Items.Count)
             {

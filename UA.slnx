@@ -11,6 +11,13 @@
     <Project Path="samples/Robotics/BinPickingClient/BinPickingClient.csproj" />
     <Project Path="samples/Vision/VisualInspectionCell/VisualInspectionCell.csproj" />
     <Project Path="samples/Vision/VisualInspectionAgent/VisualInspectionAgent.csproj" />
+    <Project Path="samples/Vision/MachineVisionServer/MachineVisionServer.csproj" />
+    <Project Path="samples/Vision/MachineVisionClient/MachineVisionClient.csproj" />
+    <Project Path="samples/CompanionSuite/CompanionSuite.csproj" />
+    <Project Path="samples/GMS/GmsClient/GmsClient.csproj" />
+    <Project Path="samples/GMS/GmsServer/GmsServer.csproj" />
+    <Project Path="samples/MachineTool/MachineToolClient/MachineToolClient.csproj" />
+    <Project Path="samples/MachineTool/MachineToolServer/MachineToolServer.csproj" />
     <Project Path="samples/Quickstarts.Servers/Quickstarts.Servers.csproj" />
   </Folder>
   <Folder Name="/samples/AI/">
@@ -21,6 +28,10 @@
     <Project Path="samples/AMB/AmbServer/AmbServer.csproj" />
     <Project Path="samples/AMB/AmbClient/AmbClient.csproj" />
   </Folder>
+  <Folder Name="/samples/CranesHoists/">
+    <Project Path="samples/CranesHoists/CranesHoistsClient/CranesHoistsClient.csproj" />
+    <Project Path="samples/CranesHoists/CranesHoistsServer/CranesHoistsServer.csproj" />
+  </Folder>
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
@@ -30,6 +41,10 @@
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
+  </Folder>
+  <Folder Name="/samples/AutoID/">
+    <Project Path="samples/AutoID/AutoIdServer/AutoIdServer.csproj" />
+    <Project Path="samples/AutoID/AutoIdClient/AutoIdClient.csproj" />
   </Folder>
   <Folder Name="/samples/Machinery/">
     <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
@@ -60,6 +75,11 @@
   </Folder>
   <Folder Name="/samples/PubSub/">
     <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Recycling/">
+    <Project Path="samples/Recycling/Recycling.Client/Recycling.Client.csproj" />
+    <Project Path="samples/Recycling/RecyclingOperatorConsole/RecyclingOperatorConsole.csproj" />
+    <Project Path="samples/Recycling/RecyclingServer/RecyclingServer.csproj" />
   </Folder>
   <Folder Name="/samples/Redundancy/">
     <Project Path="samples/Redundancy/RedundantClient/RedundantClient.csproj" />
@@ -133,9 +153,15 @@
     <Project Path="src/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
     <Project Path="src/Opc.Ua.Client/Opc.Ua.Client.csproj" />
     <Project Path="src/Opc.Ua.Configuration/Opc.Ua.Configuration.csproj" />
+    <Project Path="src/Opc.Ua.CranesHoists.Client/Opc.Ua.CranesHoists.Client.csproj" />
+    <Project Path="src/Opc.Ua.CranesHoists.Server/Opc.Ua.CranesHoists.Server.csproj" />
+    <Project Path="src/Opc.Ua.CranesHoists/Opc.Ua.CranesHoists.csproj" />
     <Project Path="src/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
     <Project Path="src/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
     <Project Path="src/Opc.Ua.Di/Opc.Ua.Di.csproj" />
+    <Project Path="src/Opc.Ua.GMS.Client/Opc.Ua.GMS.Client.csproj" />
+    <Project Path="src/Opc.Ua.GMS.Server/Opc.Ua.GMS.Server.csproj" />
+    <Project Path="src/Opc.Ua.GMS/Opc.Ua.GMS.csproj" />
     <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
     <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
     <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
@@ -151,6 +177,9 @@
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber.Client/Opc.Ua.PlasticsRubber.Client.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber.Server/Opc.Ua.PlasticsRubber.Server.csproj" />
+    <Project Path="src/Opc.Ua.PlasticsRubber/Opc.Ua.PlasticsRubber.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
     <Project Path="src/Opc.Ua.Pumps/Opc.Ua.Pumps.csproj" />
@@ -162,14 +191,26 @@
     <Project Path="src/Opc.Ua.AMB/Opc.Ua.AMB.csproj" />
     <Project Path="src/Opc.Ua.AMB.Client/Opc.Ua.AMB.Client.csproj" />
     <Project Path="src/Opc.Ua.AMB.Server/Opc.Ua.AMB.Server.csproj" />
+    <Project Path="src/Opc.Ua.AutoID/Opc.Ua.AutoID.csproj" />
+    <Project Path="src/Opc.Ua.AutoID.Client/Opc.Ua.AutoID.Client.csproj" />
+    <Project Path="src/Opc.Ua.AutoID.Server/Opc.Ua.AutoID.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision/Opc.Ua.Vision.csproj" />
     <Project Path="src/Opc.Ua.Vision.Client/Opc.Ua.Vision.Client.csproj" />
     <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision/Opc.Ua.MachineVision.csproj" />
+    <Project Path="src/Opc.Ua.MachineTool.Client/Opc.Ua.MachineTool.Client.csproj" />
+    <Project Path="src/Opc.Ua.MachineTool.Server/Opc.Ua.MachineTool.Server.csproj" />
+    <Project Path="src/Opc.Ua.MachineTool/Opc.Ua.MachineTool.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Client/Opc.Ua.MachineVision.Client.csproj" />
+    <Project Path="src/Opc.Ua.MachineVision.Server/Opc.Ua.MachineVision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion.Client/Opc.Ua.Extrusion.Client.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion.Server/Opc.Ua.Extrusion.Server.csproj" />
+    <Project Path="src/Opc.Ua.Extrusion/Opc.Ua.Extrusion.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
@@ -318,6 +359,8 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Recycling.Samples.Tests/Opc.Ua.Recycling.Samples.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Recycling.Operator.Tests/Opc.Ua.Recycling.Operator.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.Client.Tests/Opc.Ua.Redundancy.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
@@ -328,6 +371,7 @@
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.CranesHoists.Tests/Opc.Ua.CranesHoists.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
@@ -337,7 +381,9 @@
     <Project Path="tests/Opc.Ua.Vision.Intent.Tests/Opc.Ua.Vision.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Diagnostics.Tests/Opc.Ua.Core.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Bindings.Https.WebApi.Tests/Opc.Ua.Bindings.Https.WebApi.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Extrusion.Tests/Opc.Ua.Extrusion.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.GMS.Tests/Opc.Ua.GMS.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />
@@ -359,10 +405,14 @@
     <Project Path="tests/Opc.Ua.PubSub.Schema.Tests/Opc.Ua.PubSub.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Datasets.Tests/Opc.Ua.PlasticsRubber.Datasets.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Runtime.Tests/Opc.Ua.PlasticsRubber.Runtime.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.PlasticsRubber.Tests/Opc.Ua.PlasticsRubber.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AutoID.Tests/Opc.Ua.AutoID.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
@@ -375,6 +425,7 @@
     <Project Path="tests/Opc.Ua.SourceGeneration.Core.Tests/Opc.Ua.SourceGeneration.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.SourceGeneration.Stack.Tests/Opc.Ua.SourceGeneration.Stack.Tests.csproj" />
     <Project Path="tests/Opc.Ua.SourceGeneration.Tests/Opc.Ua.SourceGeneration.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.MachineTool.Tests/Opc.Ua.MachineTool.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Core.Tests/Opc.Ua.MigrationAnalyzer.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.MigrationAnalyzer.Tests/Opc.Ua.MigrationAnalyzer.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj" />
@@ -391,12 +442,28 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.AutoID/Opc.Ua.Mcp.AutoID.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.CranesHoists/Opc.Ua.Mcp.CranesHoists.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Di/Opc.Ua.Mcp.Di.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.GMS/Opc.Ua.Mcp.GMS.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.ISA95/Opc.Ua.Mcp.ISA95.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Machinery/Opc.Ua.Mcp.Machinery.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.MachineTool/Opc.Ua.Mcp.MachineTool.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Positioning/Opc.Ua.Mcp.Positioning.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Pumps/Opc.Ua.Mcp.Pumps.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Robotics/Opc.Ua.Mcp.Robotics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Scales/Opc.Ua.Mcp.Scales.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.WotCon/Opc.Ua.Mcp.WotCon.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.XRegistry/Opc.Ua.Mcp.XRegistry.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Schema/Opc.Ua.Mcp.Schema.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Gds/Opc.Ua.Mcp.Gds.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Workflows/Opc.Ua.Mcp.Workflows.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />
   </Folder>

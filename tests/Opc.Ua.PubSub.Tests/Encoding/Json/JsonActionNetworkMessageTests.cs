@@ -237,7 +237,7 @@ namespace OpcUaPubSubJsonTests
 
         [Test]
         [TestSpec("7.2.5.6.1")]
-        public void EncodeMissingMessagesRejects()
+        public async Task EncodeMissingMessagesRejects()
         {
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var msg = new PubSubJsonActionNetworkMessage
@@ -247,7 +247,7 @@ namespace OpcUaPubSubJsonTests
             };
             var encoder = new PubSubJsonEncoder();
 
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await encoder.EncodeAsync(msg, ctx).ConfigureAwait(false));
         }
 

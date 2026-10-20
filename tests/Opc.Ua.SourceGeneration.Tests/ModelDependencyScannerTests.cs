@@ -495,6 +495,11 @@ namespace Opc.Ua.SourceGeneration
                     Is.Empty);
                 Assert.That(normalResult.GeneratedSources, Is.Empty,
                     "Normal duplicate suppression should select the payload-bearing producer.");
+                Assert.That(normalDiagnostics.Single(diagnostic => diagnostic.Id == "MODELGEN012" &&
+                    diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains(DemoModelUri, StringComparison.Ordinal))
+                    .GetMessage(CultureInfo.InvariantCulture),
+                    Does.Contain("selected 'ProducerWithoutAccessors' and ignored 'TransitiveReexport'"),
+                    "A conflicting transitive declaration must still report the selection.");
             });
 
             (GeneratorRunResult accessorResult, _, ImmutableArray<Diagnostic> accessorDiagnostics) =
@@ -508,6 +513,162 @@ namespace Opc.Ua.SourceGeneration
                     accessorDiagnostics.Where(d => d.Severity == DiagnosticSeverity.Error),
                     Is.Empty);
                 Assert.That(accessorResult.GeneratedSources, Has.Length.EqualTo(1));
+            });
+        }
+
+        /// <summary>
+        /// A matching payloadless dependency describes the canonical producer rather than a second owner.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MatchingTransitiveMetadataDoesNotReportAProducerCollision(bool reverseReferences)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation producer = CreateModelMetadataAssembly("Producer", "DemoModel", "1.0", payload);
+            CSharpCompilation dependency = CreateModelMetadataAssembly(
+                "TransitiveConsumer", "DemoModel", "1.0", null!);
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                reverseReferences ? dependency : producer,
+                additionalReferences: [(reverseReferences ? producer : dependency).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Assert.That(diagnostics, Is.Empty, string.Join(Environment.NewLine, diagnostics));
+            Assert.That(result.GeneratedSources, Is.Empty, "The referenced producer still owns the model.");
+        }
+
+        /// <summary>
+        /// Distinct payload-bearing producers remain diagnosed and are selected independently of reference order.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ActualProducerCollisionsRemainDiagnosedDeterministically(bool equalVersion, bool reverseReferences)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation first = CreateModelMetadataAssembly("AProducer", "DemoModel", "1.0", payload);
+            CSharpCompilation second = CreateModelMetadataAssembly(
+                "ZProducer", "DemoModel", equalVersion ? "1.0" : "2.0", payload);
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                reverseReferences ? second : first,
+                additionalReferences: [(reverseReferences ? first : second).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Assert.That(diagnostics, Has.Length.EqualTo(1), string.Join(Environment.NewLine, diagnostics));
+            string winner = equalVersion ? "AProducer" : "ZProducer";
+            string loser = equalVersion ? "ZProducer" : "AProducer";
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics[0].Id, Is.EqualTo("MODELGEN012"));
+                Assert.That(diagnostics[0].Severity, Is.EqualTo(DiagnosticSeverity.Info));
+                Assert.That(diagnostics[0].GetMessage(CultureInfo.InvariantCulture),
+                    Is.EqualTo($"Multiple referenced assemblies provide model URI '{DemoModelUri}'; " +
+                        $"selected '{winner}' and ignored '{loser}'"));
+                Assert.That(result.GeneratedSources, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A conflicting dependency prefix or version is not mistaken for an identical transitive declaration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ConflictingTransitiveMetadataStillReportsAConflict(bool differentPrefix)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation producer = CreateModelMetadataAssembly("Producer", "DemoModel", "1.0", payload);
+            CSharpCompilation dependency = CreateModelMetadataAssembly(
+                "ConflictingDependency", differentPrefix ? "Other.Model" : "DemoModel",
+                differentPrefix ? "1.0" : "2.0", null!);
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                producer, additionalReferences: [dependency.ToMetadataReference()], fluentAccessorsOnly: false);
+
+            Assert.That(diagnostics, Has.Length.EqualTo(1), string.Join(Environment.NewLine, diagnostics));
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics[0].Id, Is.EqualTo("MODELGEN012"));
+                Assert.That(diagnostics[0].GetMessage(CultureInfo.InvariantCulture),
+                    Is.EqualTo($"Multiple referenced assemblies provide model URI '{DemoModelUri}'; " +
+                        "selected 'Producer' and ignored 'ConflictingDependency'"));
+                Assert.That(result.GeneratedSources, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A matching transitive declaration does not compete with the assembly that supplies the model.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void MatchingTransitiveReexportDoesNotReportDuplicateProducer(bool reexportFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation producer = CreateModelMetadataAssembly(
+                "SelfProducer", "DemoModel", "1.0", payload);
+            CSharpCompilation reexport = CreateModelMetadataAssembly(
+                "TransitiveReexport", "DemoModel", "1.0", null!);
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                reexportFirst ? reexport : producer,
+                additionalReferences: [(reexportFirst ? producer : reexport).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics.Where(diagnostic => diagnostic.Id != "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty,
+                    "The payload-bearing producer must still suppress duplicate model generation.");
+            });
+        }
+
+        /// <summary>
+        /// Selecting among actual model producers still reports the chosen and rejected versions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void DistinctModelProducersStillReportVersionSelection(bool newestFirst)
+        {
+            string payload = new ModelDependencyV1
+            {
+                ModelUri = DemoModelUri,
+                FluentAccessorsEmitted = false
+            }.ToBase64Payload();
+            CSharpCompilation older = CreateModelMetadataAssembly(
+                "OlderProducer", "DemoModel", "1.0", payload);
+            CSharpCompilation newer = CreateModelMetadataAssembly(
+                "NewerProducer", "DemoModel", "2.0", payload);
+
+            (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) = RunFluentAccessorsOnly(
+                newestFirst ? newer : older,
+                additionalReferences: [(newestFirst ? older : newer).ToMetadataReference()],
+                fluentAccessorsOnly: false);
+
+            Diagnostic selection = diagnostics.Single(diagnostic => diagnostic.Id == "MODELGEN012");
+            Assert.Multiple(() =>
+            {
+                Assert.That(selection.GetMessage(CultureInfo.InvariantCulture),
+                    Does.Contain("selected 'NewerProducer' and ignored 'OlderProducer'"));
+                Assert.That(diagnostics.Where(diagnostic =>
+                    diagnostic.Id is not "MODELGEN012" and not "MODELGEN013"), Is.Empty,
+                    string.Join(Environment.NewLine, diagnostics));
+                Assert.That(result.GeneratedSources, Is.Empty);
             });
         }
 

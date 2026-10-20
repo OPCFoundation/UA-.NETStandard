@@ -29,7 +29,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using ModelContextProtocol.Server;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 
 namespace Opc.Ua.Mcp
@@ -46,6 +46,7 @@ namespace Opc.Ua.Mcp
         {
             ArgumentNullException.ThrowIfNull(services);
 
+            services.TryAddSingleton(TimeProvider.System);
             services.AddSingleton<VisionClientAccessor>();
             return services;
         }
@@ -78,7 +79,8 @@ namespace Opc.Ua.Mcp
                         .WithTools<VisionSeeingTools>()
                         .WithTools<VisionInferenceTools>()
                         .WithTools<VisionFeedbackTools>()
-                        .WithTools<VisionGeometryTools>();
+                        .WithTools<VisionGeometryTools>()
+                        .WithTools<VisionMachineTools>();
 
                     if (toolProfile == McpToolProfile.Vision)
                     {
@@ -86,7 +88,7 @@ namespace Opc.Ua.Mcp
                         // tools can open one, so the bounded vision catalogue has to carry them to
                         // be usable at all. Full already gets them from the core package, so adding
                         // them there would register the same tools twice.
-                        mcpServerBuilder.WithTools<ConnectionTools>();
+                        mcpServerBuilder.WithOpcUaConnectionTools();
                     }
 
                     break;
@@ -96,6 +98,21 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
+                case McpToolProfile.Wot:
+                case McpToolProfile.XRegistry:
+                case McpToolProfile.WotDocuments:
+                case McpToolProfile.MachineTool:
+                case McpToolProfile.Gms:
+                case McpToolProfile.CranesHoists:
+                case McpToolProfile.AutoId:
+                case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
@@ -116,7 +133,7 @@ namespace Opc.Ua.Mcp
         /// wants the Vision tools alongside the tools of another bounded
         /// profile - <see cref="McpToolProfile.Robotics"/>, for a vision-guided
         /// pick-and-place agent, for example. It never registers
-        /// <see cref="Tools.ConnectionTools"/> directly; the
+        /// <see cref="ConnectionTools"/> directly; the
         /// <c>McpToolProfileSet</c> overload of <c>WithOpcUaCoreTools</c> owns
         /// that registration and deduplicates it across every package that
         /// contributes to the same MCP server.
@@ -147,7 +164,8 @@ namespace Opc.Ua.Mcp
                 .WithTools<VisionSeeingTools>()
                 .WithTools<VisionInferenceTools>()
                 .WithTools<VisionFeedbackTools>()
-                .WithTools<VisionGeometryTools>();
+                .WithTools<VisionGeometryTools>()
+                .WithTools<VisionMachineTools>();
         }
     }
 }

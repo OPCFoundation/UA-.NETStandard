@@ -73,6 +73,61 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
+        /// <summary>
+        /// Records the token the queue passes to <see cref="CallAsync"/>, optionally declaring that
+        /// it links its scheduled token itself, as endpoint requests do.
+        /// </summary>
+        private class TokenRecordingRequest : IEndpointIncomingRequest
+        {
+            public TaskCompletionSource<CancellationToken> Called { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            public TaskCompletionSource<bool> Release { get; } = new();
+            public IServiceRequest Request => null!;
+            public SecureChannelContext SecureChannelContext => null!;
+
+            public ValueTask CallAsync(CancellationToken cancellationToken = default)
+            {
+                Called.TrySetResult(cancellationToken);
+                return new ValueTask(Release.Task);
+            }
+
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            {
+                Release.TrySetResult(true);
+            }
+        }
+
+        private sealed class SelfLinkingRequest(CancellationToken scheduled) :
+            TokenRecordingRequest, ILinksScheduledCancellation
+        {
+            public CancellationToken ScheduledCancellationToken { get; } = scheduled;
+        }
+
+        /// <summary>
+        /// The queue links the scheduled token into the handler's token unless the request links
+        /// it itself, so endpoint requests do not pay for a second linked token source.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScheduledTokenIsLinkedOnlyWhenTheRequestDoesNotLinkItAsync(bool selfLinking)
+        {
+            using var server = new TestServer();
+            server.ReplaceRequestQueue(1, 2, 10);
+            using var transport = new CancellationTokenSource();
+            TokenRecordingRequest request = selfLinking
+                ? new SelfLinkingRequest(transport.Token)
+                : new TokenRecordingRequest();
+
+            server.ScheduleIncomingRequest(request, transport.Token);
+            CancellationToken passed = await request.Called.Task
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            transport.Cancel();
+
+            Assert.That(passed.IsCancellationRequested, Is.EqualTo(!selfLinking));
+            Assert.That(passed.CanBeCanceled, Is.True, "the server's stop token is always passed");
+            request.Release.TrySetResult(true);
+        }
+
         private sealed class ParkableTestRequest : IParkableIncomingRequest
         {
             public TaskCompletionSource<bool> ProcessingStarted { get; } = new TaskCompletionSource<bool>();

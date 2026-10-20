@@ -164,7 +164,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(100)]
         [TestCase(900, 100u, 100u, 10000u, 3600u, 14_400_000u, TestName = "Test Lifetime Over Maximum")]
         [TestCase(900, 100u, 100u, 0u, 3600u, 14_400_000u, TestName = "Test Lifetime Zero")]
         [TestCase(1200, 100u, 100u, 1u, 1u, 3000u, TestName = "Test Lifetime One")]
@@ -218,7 +217,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(110)]
         [TestCase(0u, 1u, 1u, false, TestName = "QueueSize 0")]
         [TestCase(101u, 101u, 102u, false, TestName = "QueueSize over standard subscripion limit")]
         [TestCase(9999u, 1000u, 1000u, false, TestName = "QueueSize over durable limit")]
@@ -237,6 +235,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             10000u,
             true,
             TestName = "QueueSize over durable limit, Event MI")]
+        [DependsOnTest(nameof(TestLifetimeAsync), AllowFailure = true)]
         public async Task TestRevisedQueueSizeAsync(
             uint queueSize,
             uint expectedRevisedQueueSize,
@@ -289,7 +288,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
         }
 
         [Test]
-        [Order(160)]
+        [DependsOnTest(nameof(TestRevisedQueueSizeAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableFailsWhenMIExistsAsync()
         {
             using var subscription = new TestableSubscription(Session.DefaultSubscription)
@@ -321,14 +320,14 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             ArrayOf<MonitoredItem> result = await subscription.CreateItemsAsync().ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(result[0].Status.Error), Is.True);
 
-            Assert.ThrowsAsync<ServiceResultException>(() =>
+            await Assert.ThrowsAsync<ServiceResultException>(() =>
                 Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
 
             Assert.That(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false), Is.True);
         }
 
         [Test]
-        [Order(180)]
+        [DependsOnTest(nameof(SetSubscriptionDurableFailsWhenMIExistsAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableFailsWhenSubscriptionDoesNotExistAsync()
         {
             using var subscription = new TestableSubscription(Session.DefaultSubscription)
@@ -345,15 +344,15 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
 
             Assert.That(await Session.RemoveSubscriptionAsync(subscription).ConfigureAwait(false), Is.True);
 
-            Assert.ThrowsAsync<ServiceResultException>(() =>
+            await Assert.ThrowsAsync<ServiceResultException>(() =>
                 Session.CallAsync(ObjectIds.Server, MethodIds.Server_SetSubscriptionDurable, default, id, 1));
         }
 
         [Test]
-        [Order(200)]
         [TestCase(false, false, TestName = "Validate Session Close")]
         [TestCase(true, false, TestName = "Validate Transfer")]
         [TestCase(true, true, TestName = "Restart of Server")]
+        [DependsOnTest(nameof(SetSubscriptionDurableFailsWhenSubscriptionDoesNotExistAsync), AllowFailure = true)]
         public async Task TestSessionTransferAsync(bool setSubscriptionDurable, bool restartServer)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))

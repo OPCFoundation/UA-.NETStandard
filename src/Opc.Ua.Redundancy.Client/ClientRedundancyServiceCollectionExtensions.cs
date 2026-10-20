@@ -88,7 +88,7 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="RaftLeaderElection"/> for a client replica set, both sharing one <see cref="IRaftConsensus"/>
         /// replica. Unlike <see cref="AddCrdtClientSharedStore"/>, the linearizable store gives the promoted follower
         /// a consistent view of the leader's session secrets, and the election decides the primary client without a
-        /// separate leader-election registration.
+        /// separate leader-election registration. The store's <see cref="IRaftSnapshotManager"/> is registered too.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="consensusFactory">
@@ -102,6 +102,32 @@ namespace Opc.Ua.Redundancy.Client
             Func<IServiceProvider, IRaftConsensus>? consensusFactory = null
         )
         {
+            return services.AddRaftClientSharedStore(consensusFactory, compactionInterval: 0);
+        }
+
+        /// <summary>
+        /// Registers a strongly-consistent (Raft-backed) <see cref="ISharedKeyValueStore"/> and a native
+        /// <see cref="RaftLeaderElection"/> as <see cref="AddRaftClientSharedStore(IServiceCollection, Func{IServiceProvider, IRaftConsensus}?)"/>
+        /// does, whose store bounds the Raft log: after every <paramref name="compactionInterval"/> applied commands
+        /// it snapshots its state into the consensus engine, which discards the log behind the snapshot.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="consensusFactory">
+        /// Optional factory for the Raft consensus replica. When <c>null</c>, a single-node
+        /// <see cref="DefaultRaftConsensus"/> is used.
+        /// </param>
+        /// <param name="compactionInterval">
+        /// The number of applied commands between snapshots; zero never compacts. A positive value needs a
+        /// consensus that implements <see cref="IRaftSnapshotConsensus"/>.
+        /// </param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddRaftClientSharedStore(
+            this IServiceCollection services,
+            Func<IServiceProvider, IRaftConsensus>? consensusFactory,
+            int compactionInterval
+        )
+        {
             if (services == null)
             {
                 throw new ArgumentNullException(nameof(services));
@@ -111,8 +137,12 @@ namespace Opc.Ua.Redundancy.Client
 
             services.TryAddSingleton<ISharedKeyValueStore>(sp => new RaftSharedKeyValueStore(
                 sp.GetRequiredService<IRaftConsensus>(),
-                ownsConsensus: false
+                ownsConsensus: false,
+                commitTimeout: default,
+                compactionInterval: compactionInterval,
+                logger: CreateRaftStoreLogger(sp)
             ));
+            AddRaftSnapshotManager(services);
 
             services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
                 sp.GetRequiredService<IRaftConsensus>(),
@@ -127,7 +157,8 @@ namespace Opc.Ua.Redundancy.Client
         /// <see cref="RaftLeaderElection"/> for a client replica set:
         /// <see cref="RedundancyConsistencyMode.Strong"/> uses a <see cref="RaftSharedKeyValueStore"/>;
         /// <see cref="RedundancyConsistencyMode.Eventual"/> uses a <see cref="HybridSharedKeyValueStore"/> over a CRDT
-        /// bulk store (gossiped on <paramref name="replicatedTransportFactory"/>) and a Raft strong store.
+        /// bulk store (gossiped on <paramref name="replicatedTransportFactory"/>) and a Raft strong store. The store's
+        /// <see cref="IRaftSnapshotManager"/> is registered too.
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="mode">The consistency model.</param>
@@ -151,6 +182,48 @@ namespace Opc.Ua.Redundancy.Client
             Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory = null
         )
         {
+            return services.AddRedundantClientSharedStore(
+                mode,
+                replicaId,
+                replicatedTransportFactory,
+                raftConsensusFactory,
+                raftCompactionInterval: 0);
+        }
+
+        /// <summary>
+        /// Registers the consistency-mode-appropriate <see cref="ISharedKeyValueStore"/> and a native
+        /// <see cref="RaftLeaderElection"/> as
+        /// <see cref="AddRedundantClientSharedStore(IServiceCollection, RedundancyConsistencyMode, ReplicaId, Func{IServiceProvider, ITransport}?, Func{IServiceProvider, IRaftConsensus}?)"/>
+        /// does, whose Raft store bounds the Raft log: after every <paramref name="raftCompactionInterval"/> applied
+        /// commands it snapshots its state into the consensus engine, which discards the log behind the snapshot.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="mode">The consistency model.</param>
+        /// <param name="replicaId">This client's stable CRDT identity (used in eventual mode).</param>
+        /// <param name="replicatedTransportFactory">
+        /// The CRDT gossip transport factory; required for <see cref="RedundancyConsistencyMode.Eventual"/>.
+        /// </param>
+        /// <param name="raftConsensusFactory">
+        /// Optional Raft consensus replica factory (defaults to a single-node <see cref="DefaultRaftConsensus"/>).
+        /// </param>
+        /// <param name="raftCompactionInterval">
+        /// The number of applied commands between snapshots; zero never compacts. A positive value needs a
+        /// consensus that implements <see cref="IRaftSnapshotConsensus"/>.
+        /// </param>
+        /// <returns>The same <see cref="IServiceCollection"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="services"/> is <c>null</c>, or <paramref name="replicatedTransportFactory"/> is <c>null</c> in
+        /// eventual mode.
+        /// </exception>
+        public static IServiceCollection AddRedundantClientSharedStore(
+            this IServiceCollection services,
+            RedundancyConsistencyMode mode,
+            ReplicaId replicaId,
+            Func<IServiceProvider, ITransport>? replicatedTransportFactory,
+            Func<IServiceProvider, IRaftConsensus>? raftConsensusFactory,
+            int raftCompactionInterval
+        )
+        {
             if (services == null)
             {
                 throw new ArgumentNullException(nameof(services));
@@ -165,7 +238,9 @@ namespace Opc.Ua.Redundancy.Client
 
             services.TryAddSingleton(sp => raftConsensusFactory?.Invoke(sp) ?? DefaultRaftConsensus.CreateSingleNode());
 
-            services.TryAddSingleton(sp => CreateClientStore(sp, mode, replicaId, replicatedTransportFactory));
+            services.TryAddSingleton(sp => CreateClientStore(
+                sp, mode, replicaId, replicatedTransportFactory, raftCompactionInterval));
+            AddRaftSnapshotManager(services);
 
             services.TryAddSingleton<ILeaderElection>(sp => new RaftLeaderElection(
                 sp.GetRequiredService<IRaftConsensus>(),
@@ -239,11 +314,25 @@ namespace Opc.Ua.Redundancy.Client
             return services;
         }
 
+        /// <summary>
+        /// Registers the snapshot management of the Raft state machine, injectable next to the store it manages (the
+        /// Hybrid store delegates to its Raft store).
+        /// </summary>
+        private static void AddRaftSnapshotManager(IServiceCollection services)
+        {
+            services.TryAddSingleton(sp =>
+                sp.GetRequiredService<ISharedKeyValueStore>() as IRaftSnapshotManager ??
+                throw new InvalidOperationException(
+                    "The registered ISharedKeyValueStore does not manage Raft snapshots."
+                ));
+        }
+
         private static ISharedKeyValueStore CreateClientStore(
             IServiceProvider sp,
             RedundancyConsistencyMode mode,
             ReplicaId replicaId,
-            Func<IServiceProvider, ITransport>? replicatedTransportFactory
+            Func<IServiceProvider, ITransport>? replicatedTransportFactory,
+            int raftCompactionInterval
         )
         {
             IRaftConsensus consensus = sp.GetRequiredService<IRaftConsensus>();
@@ -252,7 +341,12 @@ namespace Opc.Ua.Redundancy.Client
             // transfers to the returned ISharedKeyValueStore (the Hybrid owns the
             // Raft + CRDT stores via ownsStores: true) and to the container.
 #pragma warning disable CA2000
-            var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
+            var raftStore = new RaftSharedKeyValueStore(
+                consensus,
+                ownsConsensus: false,
+                commitTimeout: default,
+                compactionInterval: raftCompactionInterval,
+                logger: CreateRaftStoreLogger(sp));
             if (mode == RedundancyConsistencyMode.Strong)
             {
                 return raftStore;
@@ -266,6 +360,18 @@ namespace Opc.Ua.Redundancy.Client
             );
             return new HybridSharedKeyValueStore(replicatedStore, raftStore, default, ownsStores: true);
 #pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// The logger of a Raft store: from the registered <see cref="ITelemetryContext"/>, else from the
+        /// registered <see cref="ILoggerFactory"/>, else none.
+        /// </summary>
+        private static ILogger? CreateRaftStoreLogger(IServiceProvider sp)
+        {
+            ITelemetryContext? telemetry = sp.GetService<ITelemetryContext>();
+            return telemetry != null
+                ? telemetry.CreateLogger<RaftSharedKeyValueStore>()
+                : sp.GetService<ILoggerFactory>()?.CreateLogger<RaftSharedKeyValueStore>();
         }
 
         /// <summary>

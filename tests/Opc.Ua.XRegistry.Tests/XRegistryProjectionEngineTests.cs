@@ -31,7 +31,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -50,15 +52,223 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryProjectionEngineTests
     {
+        /// <summary>
+        /// Records the process and runtime identities used by XRegistry projection tests.
+        /// </summary>
+        [SetUp]
+        public void RecordProjectionExecutionRuntime()
+        {
+            using Process process = Process.GetCurrentProcess();
+            TestContext.Out.WriteLine(
+                $"WOT-R34-XREG-RUNTIME;pid={process.Id};framework={RuntimeInformation.FrameworkDescription};" +
+                $"clr={Environment.Version};entry={typeof(XRegistryProjectionEngineTests).Assembly.Location};" +
+                $"core={typeof(object).Assembly.Location}");
+        }
+
+        /// <summary>
+        /// Verifies that current projection reconciliation uses the optional dispatcher.
+        /// </summary>
+        [Test]
+        public async Task CurrentProjectionReconciliationUsesTheOptionalDispatcher()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                calls++;
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                Assert.That(harness.Added.OfType<GroupState>(), Is.Empty);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that supplied projection transitions do not reenter the dispatcher.
+        /// </summary>
+        [Test]
+        public async Task SuppliedProjectionTransitionsDoNotReenterTheDispatcher()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: (_, _) =>
+                throw new InvalidOperationException("An already ordered transition must not dispatch again."));
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
+            await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+        }
+
+        /// <summary>
+        /// Verifies that dispatched reconciliation cannot observe later snapshot removal.
+        /// </summary>
+        [Test]
+        public async Task DispatchedReconciliationCannotObserveLaterSnapshotRemoval()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas",
+                    [new TestResource("schemas", "pump"), new TestResource("schemas", "sensor")])]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            var pumpId = new NodeId("TestRegistry/groups/schemas/resources/pump", 1);
+            ResourceState pump = harness.Added.OfType<ResourceState>().Single(node => node.NodeId == pumpId);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(2);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                harness.Strategy.Snapshot = new TestSnapshot(
+                    [new TestGroup("schemas", [new TestResource("schemas", "sensor")])]);
+                harness.Strategy.EventSnapshot = EmptyEventSnapshot(3);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Not.Contain(pumpId),
+                    "An earlier dispatched operation must not apply a later removal ahead of pending notifications.");
+                Assert.That(engine.EventSourceFor("/groups/schemas/resources/pump"), Is.SameAs(pump));
+
+                await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Contain(pumpId));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// A failed or canceled generation cannot publish an epoch that an older successful retry would lower.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedReconciliationDoesNotPublishAnEpochBeforeAnOlderGenerationAsync(bool cancel)
+        {
+            bool rejectGroup = false;
+            uint? observedEpoch = null;
+            RegistryState? registry = null;
+            using var cancellation = new CancellationTokenSource();
+            ProjectionHarness harness = ProjectionHarness.Create(
+                onAdd: (node, ct) =>
+                {
+                    if (rejectGroup && node is GroupState)
+                    {
+                        observedEpoch = registry!.Epoch!.Value;
+                        if (cancel)
+                        {
+                            cancellation.Cancel();
+                            ct.ThrowIfCancellationRequested();
+                        }
+                        throw new InvalidOperationException("Projection registration failed.");
+                    }
+                    return default;
+                });
+            registry = harness.Registry;
+            using XRegistryProjectionEngine engine = harness.Engine;
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+            await engine.AttachAsync(registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot([new TestGroup("failed", [])]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(5);
+            rejectGroup = true;
+
+            if (cancel)
+            {
+                await Assert.ThatAsync(
+                    async () => await engine.ReconcileProjectionAsync(cancellation.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    async () => await engine.ReconcileProjectionAsync(cancellation.Token).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+            }
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        observedEpoch,
+                        Is.EqualTo(1u),
+                        "In-progress work must expose the last completed epoch.");
+                    Assert.That(registry.Epoch!.Value, Is.EqualTo(1u), "Failed work must not publish its generation.");
+                });
+
+            rejectGroup = false;
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(4);
+            await engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(registry.Epoch!.Value, Is.EqualTo(4u));
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(3);
+            await engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(registry.Epoch.Value, Is.EqualTo(4u));
+        }
+
+        /// <summary>
+        /// Verifies that registry epoch is indexed and tracks only current projection generations.
+        /// </summary>
+        [Test]
+        public async Task RegistryEpochIsIndexedAndTracksOnlyCurrentProjectionGenerations()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create();
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(harness.Registry.Epoch, Is.Not.Null);
+            Assert.That(harness.Added, Does.Contain(harness.Registry.Epoch));
+            Assert.That(harness.Registry.Epoch!.Value, Is.EqualTo(1u));
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(5);
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(4);
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
+        }
+
+        /// <summary>
+        /// Verifies that reconcile creates stable group and resource node IDs.
+        /// </summary>
         [Test]
         public async Task ReconcileCreatesStableGroupAndResourceNodeIdsAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create();
             harness.Strategy.Snapshot = new TestSnapshot(
                 [
-                    new TestGroup("schemas", [
-                        new TestResource("schemas", "pump")
-                    ])
+                    new TestGroup(
+                        "schemas",
+                        [
+                            new TestResource("schemas", "pump")
+                        ])
                 ]);
 
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
@@ -66,28 +276,69 @@ namespace Opc.Ua.XRegistry.Tests
 
             var group = (GroupState?)harness.Added.Single(n => n is GroupState);
             var resource = (ResourceState?)harness.Added.Single(n => n is ResourceState);
-            Assert.Multiple(() =>
-            {
-                Assert.That(group, Is.Not.Null);
-                Assert.That(group!.NodeId, Is.EqualTo(new NodeId("TestRegistry/groups/schemas", 1)));
-                Assert.That(resource, Is.Not.Null);
-                Assert.That(resource!.NodeId,
-                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
-                Assert.That(resource.VersionId!.Value, Is.EqualTo("v1"));
-                Assert.That(harness.Engine.EventSourceFor("/groups/schemas/resources/pump"),
-                    Is.SameAs(resource));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(group, Is.Not.Null);
+                    Assert.That(group!.NodeId, Is.EqualTo(new NodeId("TestRegistry/groups/schemas", 1)));
+                    Assert.That(resource, Is.Not.Null);
+                    Assert.That(
+                        resource!.NodeId,
+                        Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+                    Assert.That(resource.VersionId!.Value, Is.EqualTo("v1"));
+                    Assert.That(
+                        harness.Engine.EventSourceFor("/groups/schemas/resources/pump"),
+                        Is.SameAs(resource));
+                });
         }
 
+        /// <summary>
+        /// Verifies that session discard reports unsupported for an existing provider without the optional capability.
+        /// </summary>
+        [Test]
+        public async Task SessionDiscardReportsUnsupportedForAnExistingProviderWithoutTheOptionalCapability()
+        {
+            var strategy = new ContentlessClaimStrategy();
+            var harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await engine.DiscardSessionAsync(new NodeId("closing-session", 1))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadNotSupported)).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that session discard rejects a <see langword="null"/> session ID.
+        /// </summary>
+        [Test]
+        public async Task SessionDiscardRejectsANullSessionId()
+        {
+            var harness = ProjectionHarness.Create();
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await engine.DiscardSessionAsync(NodeId.Null).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that reconcile removes nodes that left the snapshot.
+        /// </summary>
         [Test]
         public async Task ReconcileRemovesNodesThatLeftTheSnapshotAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create();
             harness.Strategy.Snapshot = new TestSnapshot(
                 [
-                    new TestGroup("schemas", [
-                        new TestResource("schemas", "pump")
-                    ])
+                    new TestGroup(
+                        "schemas",
+                        [
+                            new TestResource("schemas", "pump")
+                        ])
                 ]);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -99,6 +350,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Deleted, Does.Contain(new NodeId("TestRegistry/groups/schemas", 1)));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile is silent initially and suppresses duplicate snapshots.
+        /// </summary>
         [Test]
         public async Task EventReconcileIsSilentInitiallyAndSuppressesDuplicateSnapshotsAsync()
         {
@@ -110,49 +364,61 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Events, Is.Empty);
 
             harness.Strategy.Snapshot = new TestSnapshot(
-            [
-                new TestGroup("schemas", [new TestResource("schemas", "pump")])
-            ]);
+                [
+                    new TestGroup("schemas", [new TestResource("schemas", "pump")])
+                ]);
             harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(RegistryUpdatedEventState),
-                typeof(GroupCreatedEventState),
-                typeof(ResourceCreatedEventState),
-                typeof(VersionCreatedEventState)
-            }));
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.OfType<GroupCreatedEventState>()
-                    .Single().SourceNode!.Value,
-                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas", 1)));
-                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
-                    .Single().SourceNode!.Value,
-                    Is.EqualTo(new NodeId(
-                        "TestRegistry/groups/schemas/resources/pump",
-                        1)));
-                Assert.That(harness.Events.OfType<VersionCreatedEventState>()
-                    .Single().SourceNode!.Value,
-                    Is.EqualTo(new NodeId(
-                        "TestRegistry/groups/schemas/resources/pump",
-                        1)));
-            });
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(RegistryUpdatedEventState),
+                        typeof(GroupCreatedEventState),
+                        typeof(ResourceCreatedEventState),
+                        typeof(VersionCreatedEventState)
+                    }));
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Events.OfType<GroupCreatedEventState>()
+                            .Single().SourceNode!.Value,
+                        Is.EqualTo(new NodeId("TestRegistry/groups/schemas", 1)));
+                    Assert.That(
+                        harness.Events.OfType<ResourceCreatedEventState>()
+                            .Single().SourceNode!.Value,
+                        Is.EqualTo(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/pump",
+                                1)));
+                    Assert.That(
+                        harness.Events.OfType<VersionCreatedEventState>()
+                            .Single().SourceNode!.Value,
+                        Is.EqualTo(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/pump",
+                                1)));
+                });
             int count = harness.Events.Count;
 
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(harness.Events, Has.Count.EqualTo(count));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile detects out-of-band version update once.
+        /// </summary>
         [Test]
         public async Task EventReconcileDetectsOutOfBandVersionUpdateOnceAsync()
         {
             ProjectionHarness harness = ProjectionHarness.Create(eventsEnabled: true);
             harness.Strategy.Snapshot = new TestSnapshot(
-            [
-                new TestGroup("schemas", [new TestResource("schemas", "pump")])
-            ]);
+                [
+                    new TestGroup("schemas", [new TestResource("schemas", "pump")])
+                ]);
             harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
@@ -160,32 +426,44 @@ namespace Opc.Ua.XRegistry.Tests
             harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 3, versionEpoch: 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(ResourceUpdatedEventState),
-                typeof(VersionUpdatedEventState)
-            }));
-            Assert.That(harness.Events.Select(evt => evt.SourceNode!.Value).Distinct().Single(),
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(ResourceUpdatedEventState),
+                        typeof(VersionUpdatedEventState)
+                    }));
+            Assert.That(
+                harness.Events.Select(evt => evt.SourceNode!.Value).Distinct().Single(),
                 Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
         }
 
+        /// <summary>
+        /// Verifies that six-parameter projection context constructor remains available.
+        /// </summary>
         [Test]
         public void SixParameterProjectionContextConstructorRemainsAvailable()
         {
             Type contextType = typeof(XRegistryProjectionContext);
             Assert.That(
                 contextType.GetConstructor(
-                [
-                    typeof(ISystemContext),
-                    typeof(NamespaceTable),
-                    typeof(ushort),
-                    typeof(Func<NodeState, CancellationToken, ValueTask>),
-                    typeof(Func<NodeId, CancellationToken, ValueTask>),
-                    typeof(Func<ISystemContext, string, ServiceResult>)
-                ]),
+                    [
+                        typeof(ISystemContext),
+                        typeof(NamespaceTable),
+                        typeof(ushort),
+                        typeof(Func<NodeState, CancellationToken, ValueTask>),
+                        typeof(Func<NodeId, CancellationToken, ValueTask>),
+                        typeof(Func<ISystemContext, string, ServiceResult>)
+                    ]),
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that version-aware create honors explicit and assigned version IDs.
+        /// </summary>
+        /// <param name="requestedVersionId">The version identifier requested by the test case.</param>
+        /// <param name="expectedVersionId">The version identifier expected by the test case.</param>
         [TestCase("v7", "v7")]
         [TestCase("", "generated-1")]
         public async Task VersionAwareCreateHonorsExplicitAndAssignedVersionIdsAsync(
@@ -215,31 +493,37 @@ namespace Opc.Ua.XRegistry.Tests
                 output,
                 CancellationToken.None).ConfigureAwait(false);
             await harness.Engine.ReconcileAsync(
-                    new XRegistryProjectionGeneration(
-                        strategy.Snapshot,
-                        strategy.EventSnapshot),
-                    previousEvents,
-                    CancellationToken.None)
+                new XRegistryProjectionGeneration(
+                    strategy.Snapshot,
+                    strategy.EventSnapshot),
+                previousEvents,
+                CancellationToken.None)
                 .ConfigureAwait(false);
 
             NodeId expectedNodeId = new(
                 $"TestRegistry/groups/schemas/resources/pump/versions/{expectedVersionId}",
                 1);
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(output[0].TryGetValue(out NodeId nodeId) ? nodeId : NodeId.Null,
-                    Is.EqualTo(expectedNodeId));
-                Assert.That(output[1].TryGetValue(out string versionId) ? versionId : string.Empty,
-                    Is.EqualTo(expectedVersionId));
-                Assert.That(harness.Added.Any(node => node.NodeId == expectedNodeId), Is.True);
-                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    typeof(ResourceCreatedEventState),
-                    typeof(VersionCreatedEventState),
-                    typeof(GroupUpdatedEventState)
-                }));
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(
+                        output[0].TryGetValue(out NodeId nodeId) ? nodeId : NodeId.Null,
+                        Is.EqualTo(expectedNodeId));
+                    Assert.That(
+                        output[1].TryGetValue(out string versionId) ? versionId : string.Empty,
+                        Is.EqualTo(expectedVersionId));
+                    Assert.That(harness.Added.Any(node => node.NodeId == expectedNodeId), Is.True);
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(
+                            new[]
+                            {
+                                typeof(ResourceCreatedEventState),
+                                typeof(VersionCreatedEventState),
+                                typeof(GroupUpdatedEventState)
+                            }));
+                });
 
             harness.Events.Clear();
             var updated = new VersionedTestResource(
@@ -254,18 +538,28 @@ namespace Opc.Ua.XRegistry.Tests
                 expectedVersionId,
                 versionEpoch: 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    typeof(VersionUpdatedEventState),
-                    typeof(ResourceUpdatedEventState)
-                }));
-                Assert.That(harness.Events.Any(evt =>
-                    evt is ResourceCreatedEventState or VersionCreatedEventState), Is.False);
-            });
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(
+                            new[]
+                            {
+                                typeof(VersionUpdatedEventState),
+                                typeof(ResourceUpdatedEventState)
+                            }));
+                    Assert.That(
+                        harness.Events.Any(
+                            evt =>
+                                evt is ResourceCreatedEventState or VersionCreatedEventState),
+                        Is.False);
+                });
         }
 
+        /// <summary>
+        /// Verifies that duplicate create can atomically claim only a contentless version.
+        /// </summary>
         [Test]
         public async Task DuplicateCreateCanAtomicallyClaimOnlyAContentlessVersionAsync()
         {
@@ -308,20 +602,80 @@ namespace Opc.Ua.XRegistry.Tests
                 output,
                 CancellationToken.None).ConfigureAwait(false);
 
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(ServiceResult.IsGood(claimed), Is.True);
+                    Assert.That(
+                        claimedNodeId,
+                        Is.EqualTo(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                                1)));
+                    Assert.That(claimedFileHandle, Is.EqualTo(42));
+                    Assert.That(strategy.File.ContentlessOpenCount, Is.EqualTo(2));
+                    Assert.That(filled.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+                });
+        }
+
+        /// <summary>
+        /// An asynchronous contentless Open that completes Good after its Session started closing
+        /// must not hand out the handle: the provider handle is closed exactly once and the call
+        /// reports BadSessionClosed.
+        /// </summary>
+        [Test]
+        public async Task AsyncContentlessOpenRacingSessionCloseReleasesHandleAsync()
+        {
+            var strategy = new AsyncContentlessClaimStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+            var sessionId = new NodeId("closing-session", 1);
+            bool closing = false;
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.IsClosing).Returns(() => closing);
+            ServerSystemContext context = harness.Context.Copy(
+                new Opc.Ua.Server.OperationContext(session.Object, DiagnosticsMasks.None));
+            context.SessionId = sessionId;
+            using var cts = new CancellationTokenSource();
+            var output = new List<Variant>();
+
+            Task<ServiceResult> create = group.CreateResource!.OnCallMethod2Async!(
+                context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant("v1"),
+                    new Variant(true)
+                ],
+                output,
+                cts.Token).AsTask();
+            await Task.WhenAny(strategy.File.Entered, create).ConfigureAwait(false);
+            Assert.That(strategy.File.Entered.IsCompleted, Is.True);
+
+            closing = true;
+            await harness.Engine.DiscardSessionAsync(sessionId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(strategy.File.Discards, Is.EqualTo(new[] { sessionId }));
+            Assert.That(create.IsCompleted, Is.False);
+            strategy.File.Release();
+            ServiceResult result = await create.ConfigureAwait(false);
+
             Assert.Multiple(() =>
             {
-                Assert.That(ServiceResult.IsGood(claimed), Is.True);
-                Assert.That(
-                    claimedNodeId,
-                    Is.EqualTo(new NodeId(
-                        "TestRegistry/groups/schemas/resources/pump/versions/v1",
-                        1)));
-                Assert.That(claimedFileHandle, Is.EqualTo(42));
-                Assert.That(strategy.File.ContentlessOpenCount, Is.EqualTo(2));
-                Assert.That(filled.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(output, Is.Empty);
+                Assert.That(strategy.File.Closes, Has.Count.EqualTo(1));
+                Assert.That(strategy.File.Closes[0].Handle, Is.EqualTo(AsyncContentlessResourceFile.ClaimedHandle));
+                Assert.That(strategy.File.Closes[0].Token.CanBeCanceled, Is.False);
             });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes logical role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesLogicalRoleAndEpochToAtomicStrategyAsync()
         {
@@ -345,24 +699,123 @@ namespace Opc.Ua.XRegistry.Tests
                 v1,
                 23).ConfigureAwait(false);
 
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(v1.BrowseName.Name, Is.EqualTo("v1"));
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    "pump",
+                                    "v1",
+                                    23,
+                                    false,
+                                    ProjectedDeleteTarget.Version)
+                            }));
+                    Assert.That(strategy.ResourceDeletes, Is.Empty);
+                });
+        }
+
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for version and logical delete.
+        /// </summary>
+        [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForVersionAndLogicalDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult version = await InvokeDeleteAsync(harness, FindVersionNode(harness, "v2"), 23)
+                .ConfigureAwait(false);
+            ServiceResult logical = await InvokeDeleteAsync(harness, FindLogicalResourceNode(harness, "pump"), 17)
+                .ConfigureAwait(false);
+
             Assert.Multiple(() =>
             {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(v1.BrowseName.Name, Is.EqualTo("v1"));
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
-                {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v1",
-                        23,
-                        false,
-                        ProjectedDeleteTarget.Version)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
+                Assert.That(ServiceResult.IsGood(version), Is.True);
+                Assert.That(ServiceResult.IsGood(logical), Is.True);
+                Assert.That(strategy.EntityDeletes, Has.Count.EqualTo(2));
+                Assert.That(strategy.EntityDeletes[0].VersionId, Is.EqualTo("v2"));
+                Assert.That(strategy.EntityDeletes[0].Logical, Is.False);
+                Assert.That(strategy.EntityDeletes[0].Epoch, Is.EqualTo(23));
+                Assert.That(strategy.EntityDeletes[0].Context, Is.SameAs(harness.Context));
+                Assert.That(strategy.EntityDeletes[1].Logical, Is.True);
+                Assert.That(strategy.EntityDeletes[1].Epoch, Is.EqualTo(17));
+                Assert.That(strategy.EntityDeletes[1].Context, Is.SameAs(harness.Context));
             });
         }
 
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for group delete.
+        /// </summary>
+        [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForGroupDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Has.Count.EqualTo(1));
+                Assert.That(strategy.GroupDeletes[0].GroupId, Is.EqualTo("schemas"));
+                Assert.That(strategy.GroupDeletes[0].Epoch, Is.EqualTo(5));
+                Assert.That(strategy.GroupDeletes[0].Context, Is.SameAs(harness.Context));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that legacy context-free strategy still receives group delete.
+        /// </summary>
+        [Test]
+        public async Task LegacyContextFreeStrategyStillReceivesGroupDeleteAsync()
+        {
+            var strategy = new LegacyGroupDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Is.EqualTo(new[] { ("schemas", (long?)5) }));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that versioned delete uses logical role without event metadata.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalRoleWithoutEventMetadataAsync()
         {
@@ -387,22 +840,29 @@ namespace Opc.Ua.XRegistry.Tests
                 logical,
                 17).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        string.Empty,
-                        17,
-                        true,
-                        ProjectedDeleteTarget.Resource)
-                }));
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    "pump",
+                                    string.Empty,
+                                    17,
+                                    true,
+                                    ProjectedDeleteTarget.Resource)
+                            }));
+                });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes version role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesVersionRoleAndEpochToAtomicStrategyAsync()
         {
@@ -424,24 +884,31 @@ namespace Opc.Ua.XRegistry.Tests
                 v2,
                 23).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v2",
-                        23,
-                        false,
-                        ProjectedDeleteTarget.Version)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    "pump",
+                                    "v2",
+                                    23,
+                                    false,
+                                    ProjectedDeleteTarget.Version)
+                            }));
+                    Assert.That(strategy.ResourceDeletes, Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses logical XID mapping when browse names collide.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalXidMappingWhenBrowseNamesCollideAsync()
         {
@@ -477,33 +944,40 @@ namespace Opc.Ua.XRegistry.Tests
                 logical,
                 17).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(logical.BrowseName.Name, Is.EqualTo(ResourceId));
-                Assert.That(exactVersion.BrowseName.Name, Is.EqualTo("v2"));
-                Assert.That(ServiceResult.IsGood(versionResult), Is.True);
-                Assert.That(ServiceResult.IsGood(logicalResult), Is.True);
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        ResourceId,
-                        "v2",
-                        23,
-                        false,
-                        ProjectedDeleteTarget.Version),
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        ResourceId,
-                        string.Empty,
-                        17,
-                        true,
-                        ProjectedDeleteTarget.Resource)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
+                    Assert.That(logical.BrowseName.Name, Is.EqualTo(ResourceId));
+                    Assert.That(exactVersion.BrowseName.Name, Is.EqualTo("v2"));
+                    Assert.That(ServiceResult.IsGood(versionResult), Is.True);
+                    Assert.That(ServiceResult.IsGood(logicalResult), Is.True);
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    ResourceId,
+                                    "v2",
+                                    23,
+                                    false,
+                                    ProjectedDeleteTarget.Version),
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    ResourceId,
+                                    string.Empty,
+                                    17,
+                                    true,
+                                    ProjectedDeleteTarget.Resource)
+                            }));
+                    Assert.That(strategy.ResourceDeletes, Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes stale non-default role and service rejects.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesStaleNonDefaultRoleAndServiceRejectsAsync()
         {
@@ -531,24 +1005,31 @@ namespace Opc.Ua.XRegistry.Tests
             ServiceResult result = await InvokeDeleteAsync(harness, v2, 31)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(FindVersionNode(harness, "v2"), Is.SameAs(v2));
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v2",
-                        31,
-                        false,
-                        ProjectedDeleteTarget.Version)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(FindVersionNode(harness, "v2"), Is.SameAs(v2));
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    "pump",
+                                    "v2",
+                                    31,
+                                    false,
+                                    ProjectedDeleteTarget.Version)
+                            }));
+                    Assert.That(strategy.ResourceDeletes, Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses reconciled logical role for new default.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesReconciledLogicalRoleForNewDefaultAsync()
         {
@@ -579,34 +1060,41 @@ namespace Opc.Ua.XRegistry.Tests
             ServiceResult result = await InvokeDeleteAsync(harness, v2, 31)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                // BrowseName is always the VersionId in the new hierarchy.
-                Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
-                Assert.That(strategy.ProjectedDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ProjectedDeleteInvocation(
-                        "schemas",
-                        "pump",
-                        "v2",
-                        31,
-                        false,
-                        ProjectedDeleteTarget.Version)
-                }));
-                Assert.That(strategy.ResourceDeletes, Is.Empty);
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    // BrowseName is always the VersionId in the new hierarchy.
+                    Assert.That(v2.BrowseName.Name, Is.EqualTo("v2"));
+                    Assert.That(
+                        strategy.ProjectedDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ProjectedDeleteInvocation(
+                                    "schemas",
+                                    "pump",
+                                    "v2",
+                                    31,
+                                    false,
+                                    ProjectedDeleteTarget.Version)
+                            }));
+                    Assert.That(strategy.ResourceDeletes, Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that delete on non-versioned resource still uses logical resource route.
+        /// </summary>
         [Test]
         public async Task DeleteOnNonVersionedResourceStillUsesLogicalResourceRouteAsync()
         {
             var strategy = new RecordingTestStrategy
             {
                 Snapshot = new TestSnapshot(
-                [
-                    new TestGroup("schemas", [new TestResource("schemas", "pump")])
-                ])
+                    [
+                        new TestGroup("schemas", [new TestResource("schemas", "pump")])
+                    ])
             };
             ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
@@ -617,16 +1105,23 @@ namespace Opc.Ua.XRegistry.Tests
                 harness.Added.OfType<ResourceState>().Single(),
                 37).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(ServiceResult.IsGood(result), Is.True);
-                Assert.That(strategy.ResourceDeletes, Is.EqualTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    new ResourceDeleteInvocation("schemas", "pump", 37)
-                }));
-            });
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(
+                        strategy.ResourceDeletes,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                new ResourceDeleteInvocation("schemas", "pump", 37)
+                            }));
+                });
         }
 
+        /// <summary>
+        /// Verifies that generation capture cannot mix projection and event snapshots.
+        /// </summary>
         [Test]
         public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
         {
@@ -641,33 +1136,46 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
 
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Added.Any(node =>
-                    node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/a", 1)),
-                    Is.True);
-                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
-                    .Single().Subject!.Value,
-                    Is.EqualTo("/groups/schemas/resources/a"));
-                Assert.That(harness.Events.Any(evt =>
-                    evt is XRegistryEventState xregistry &&
-                    xregistry.Subject!.Value.EndsWith("/b", StringComparison.Ordinal)),
-                    Is.False);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Added.Any(
+                            node =>
+                                node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/a", 1)),
+                        Is.True);
+                    Assert.That(
+                        harness.Events.OfType<ResourceCreatedEventState>()
+                            .Single().Subject!.Value,
+                        Is.EqualTo("/groups/schemas/resources/a"));
+                    Assert.That(
+                        harness.Events.Any(
+                            evt =>
+                                evt is XRegistryEventState xregistry &&
+                                xregistry.Subject!.Value.EndsWith("/b", StringComparison.Ordinal)),
+                        Is.False);
+                });
 
             harness.Events.Clear();
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Added.Any(node =>
-                    node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/b", 1)),
-                    Is.True);
-                Assert.That(harness.Events.OfType<ResourceCreatedEventState>()
-                    .Single().Subject!.Value,
-                    Is.EqualTo("/groups/schemas/resources/b"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Added.Any(
+                            node =>
+                                node.NodeId == new NodeId("TestRegistry/groups/schemas/resources/b", 1)),
+                        Is.True);
+                    Assert.That(
+                        harness.Events.OfType<ResourceCreatedEventState>()
+                            .Single().Subject!.Value,
+                        Is.EqualTo("/groups/schemas/resources/b"));
+                });
         }
 
+        /// <summary>
+        /// Verifies that supplied projection transitions emit intermediate creation and deletion events.
+        /// </summary>
         [Test]
         public async Task SuppliedTransitionsEmitIntermediateCreateAndDeleteAsync()
         {
@@ -677,40 +1185,47 @@ namespace Opc.Ua.XRegistry.Tests
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            (IXRegistryProjectionSnapshot createdProjection,
+            (
+                IXRegistryProjectionSnapshot createdProjection,
                 XRegistryProjectionEventSnapshot createdEvents) =
                 GenerationWithResource("queued", 1);
             await harness.Engine.ReconcileAsync(
-                    new XRegistryProjectionGeneration(createdProjection, createdEvents),
-                    EmptyEventSnapshot(0),
-                    CancellationToken.None)
+                new XRegistryProjectionGeneration(createdProjection, createdEvents),
+                EmptyEventSnapshot(0),
+                CancellationToken.None)
                 .ConfigureAwait(false);
             XRegistryProjectionEventSnapshot deletedEvents = EmptyEventSnapshot(2);
             await harness.Engine.ReconcileAsync(
-                    new XRegistryProjectionGeneration(new TestSnapshot([]), deletedEvents),
-                    createdEvents,
-                    CancellationToken.None)
+                new XRegistryProjectionGeneration(new TestSnapshot([]), deletedEvents),
+                createdEvents,
+                CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    harness.Events
-                        .Where(evt => evt is ResourceCreatedEventState or ResourceDeletedEventState)
-                        .Select(evt => evt.GetType()),
-                    Is.EqualTo(new[]
-                    {
-                        typeof(ResourceCreatedEventState),
-                        typeof(ResourceDeletedEventState)
-                    }));
-                Assert.That(
-                    harness.Deleted,
-                    Does.Contain(new NodeId(
-                        "TestRegistry/groups/schemas/resources/queued",
-                        1)));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Events
+                            .Where(evt => evt is ResourceCreatedEventState or ResourceDeletedEventState)
+                            .Select(evt => evt.GetType()),
+                        Is.EqualTo(
+                            new[]
+                            {
+                                typeof(ResourceCreatedEventState),
+                                typeof(ResourceDeletedEventState)
+                            }));
+                    Assert.That(
+                        harness.Deleted,
+                        Does.Contain(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/queued",
+                                1)));
+                });
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated group emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedGroupEmitsSpecializedLifecycleEventAsync()
         {
@@ -724,18 +1239,25 @@ namespace Opc.Ua.XRegistry.Tests
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=legacy", 1);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    typeof(RegistryUpdatedEventState),
-                    typeof(GroupCreatedEventState),
-                    typeof(GroupDeprecatedEventState)
-                }));
-                Assert.That(harness.Events.OfType<GroupUpdatedEventState>(), Is.Empty);
-            });
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(
+                            new[]
+                            {
+                                typeof(RegistryUpdatedEventState),
+                                typeof(GroupCreatedEventState),
+                                typeof(GroupDeprecatedEventState)
+                            }));
+                    Assert.That(harness.Events.OfType<GroupUpdatedEventState>(), Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that creating normal group does not emit group deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalGroupDoesNotEmitGroupDeprecatedAsync()
         {
@@ -749,13 +1271,19 @@ namespace Opc.Ua.XRegistry.Tests
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup(null, 1);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(RegistryUpdatedEventState),
-                typeof(GroupCreatedEventState)
-            }));
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(RegistryUpdatedEventState),
+                        typeof(GroupCreatedEventState)
+                    }));
         }
 
+        /// <summary>
+        /// Verifies that projection-only reconcile leaves fifo transitions as event authority.
+        /// </summary>
         [Test]
         public async Task ProjectionOnlyReconcileLeavesFifoTransitionsAsEventAuthorityAsync()
         {
@@ -765,10 +1293,12 @@ namespace Opc.Ua.XRegistry.Tests
             await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
                 .ConfigureAwait(false);
 
-            (IXRegistryProjectionSnapshot firstProjection,
+            (
+                IXRegistryProjectionSnapshot firstProjection,
                 XRegistryProjectionEventSnapshot firstEvents) =
                 GenerationWithResources(1, "a");
-            (IXRegistryProjectionSnapshot secondProjection,
+            (
+                IXRegistryProjectionSnapshot secondProjection,
                 XRegistryProjectionEventSnapshot secondEvents) =
                 GenerationWithResources(2, "a", "b");
             harness.Strategy.Snapshot = secondProjection;
@@ -777,41 +1307,47 @@ namespace Opc.Ua.XRegistry.Tests
             await harness.Engine.ReconcileProjectionAsync(CancellationToken.None)
                 .ConfigureAwait(false);
             await harness.Engine.ReconcileAsync(
-                    new XRegistryProjectionGeneration(firstProjection, firstEvents),
-                    EmptyEventSnapshot(0),
-                    CancellationToken.None)
+                new XRegistryProjectionGeneration(firstProjection, firstEvents),
+                EmptyEventSnapshot(0),
+                CancellationToken.None)
                 .ConfigureAwait(false);
             await harness.Engine.ReconcileAsync(
-                    new XRegistryProjectionGeneration(secondProjection, secondEvents),
-                    firstEvents,
-                    CancellationToken.None)
+                new XRegistryProjectionGeneration(secondProjection, secondEvents),
+                firstEvents,
+                CancellationToken.None)
                 .ConfigureAwait(false);
 
             string[] created = harness.Events
                 .OfType<ResourceCreatedEventState>()
                 .Select(evt => evt.Subject!.Value)
                 .ToArray();
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    created,
-                    Is.EqualTo(s_expectedCreatedResourceSubjects));
-                Assert.That(
-                    created.Count(subject =>
-                        string.Equals(
-                            subject,
-                            "/groups/schemas/resources/b",
-                            StringComparison.Ordinal)),
-                    Is.EqualTo(1));
-                Assert.That(
-                    harness.Added.Any(node =>
-                        node.NodeId == new NodeId(
-                            "TestRegistry/groups/schemas/resources/b",
-                            1)),
-                    Is.True);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        created,
+                        Is.EqualTo(s_expectedCreatedResourceSubjects));
+                    Assert.That(
+                        created.Count(
+                            subject =>
+                                string.Equals(
+                                    subject,
+                                    "/groups/schemas/resources/b",
+                                    StringComparison.Ordinal)),
+                        Is.EqualTo(1));
+                    Assert.That(
+                        harness.Added.Any(
+                            node =>
+                                node.NodeId == new NodeId(
+                                    "TestRegistry/groups/schemas/resources/b",
+                                    1)),
+                        Is.True);
+                });
         }
 
+        /// <summary>
+        /// Verifies that changing deprecation metadata emits both specialized lifecycle and update events.
+        /// </summary>
         [Test]
         public async Task DeprecatedObjectValueChangesEmitSpecializedAndUpdatedEventsAsync()
         {
@@ -823,31 +1359,43 @@ namespace Opc.Ua.XRegistry.Tests
 
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=a", 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(GroupDeprecatedEventState),
-                typeof(GroupUpdatedEventState)
-            }));
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(GroupDeprecatedEventState),
+                        typeof(GroupUpdatedEventState)
+                    }));
 
             harness.Events.Clear();
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup("reason=b", 3);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(GroupDeprecatedEventState),
-                typeof(GroupUpdatedEventState)
-            }));
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(GroupDeprecatedEventState),
+                        typeof(GroupUpdatedEventState)
+                    }));
 
             harness.Events.Clear();
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedGroup(null, 4);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(GroupUndeprecatedEventState),
-                typeof(GroupUpdatedEventState)
-            }));
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(GroupUndeprecatedEventState),
+                        typeof(GroupUpdatedEventState)
+                    }));
         }
 
+        /// <summary>
+        /// Verifies that resource deprecated object uses create change and removal errata.
+        /// </summary>
         [Test]
         public async Task ResourceDeprecatedObjectUsesCreateChangeAndRemovalErrataAsync()
         {
@@ -870,16 +1418,20 @@ namespace Opc.Ua.XRegistry.Tests
                     value,
                     (uint)(2 + (value == "reason=b" ? 1 : value is null ? 2 : 0)));
                 await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-                Assert.Multiple(() =>
-                {
-                    Assert.That(harness.Events.Any(evt => evt.GetType() == specialized), Is.True);
-                    ResourceUpdatedEventState updated =
-                        harness.Events.OfType<ResourceUpdatedEventState>().Single();
-                    Assert.That(updated.Changed!.Value.ToArray(), Does.Contain("meta.deprecated"));
-                });
+                Assert.Multiple(
+                    () =>
+                    {
+                        Assert.That(harness.Events.Any(evt => evt.GetType() == specialized), Is.True);
+                        ResourceUpdatedEventState updated =
+                            harness.Events.OfType<ResourceUpdatedEventState>().Single();
+                        Assert.That(updated.Changed!.Value.ToArray(), Does.Contain("meta.deprecated"));
+                    });
             }
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated resource emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedResourceEmitsSpecializedLifecycleEventAsync()
         {
@@ -894,19 +1446,26 @@ namespace Opc.Ua.XRegistry.Tests
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource("reason=legacy", 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
+            Assert.Multiple(
+                () =>
                 {
-                    typeof(ResourceCreatedEventState),
-                    typeof(VersionCreatedEventState),
-                    typeof(ResourceDeprecatedEventState),
-                    typeof(GroupUpdatedEventState)
-                }));
-                Assert.That(harness.Events.OfType<ResourceUpdatedEventState>(), Is.Empty);
-            });
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(
+                            new[]
+                            {
+                                typeof(ResourceCreatedEventState),
+                                typeof(VersionCreatedEventState),
+                                typeof(ResourceDeprecatedEventState),
+                                typeof(GroupUpdatedEventState)
+                            }));
+                    Assert.That(harness.Events.OfType<ResourceUpdatedEventState>(), Is.Empty);
+                });
         }
 
+        /// <summary>
+        /// Verifies that creating normal resource does not emit resource deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalResourceDoesNotEmitResourceDeprecatedAsync()
         {
@@ -921,14 +1480,20 @@ namespace Opc.Ua.XRegistry.Tests
             harness.Strategy.EventSnapshot = SnapshotWithDeprecatedResource(null, 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(harness.Events.Select(evt => evt.GetType()), Is.EquivalentTo(new[]
-            {
-                typeof(ResourceCreatedEventState),
-                typeof(VersionCreatedEventState),
-                typeof(GroupUpdatedEventState)
-            }));
+            Assert.That(
+                harness.Events.Select(evt => evt.GetType()),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        typeof(ResourceCreatedEventState),
+                        typeof(VersionCreatedEventState),
+                        typeof(GroupUpdatedEventState)
+                    }));
         }
 
+        /// <summary>
+        /// Verifies that resource name change includes canonical name and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameChangeIncludesCanonicalNameAndMetaEpochAsync()
         {
@@ -940,6 +1505,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource description change includes canonical description and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceDescriptionChangeIncludesCanonicalDescriptionAndMetaEpochAsync()
         {
@@ -951,6 +1519,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource name and description change includes both and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameAndDescriptionChangeIncludesBothAndMetaEpochAsync()
         {
@@ -962,6 +1533,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameAndDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that version sources meta and default switch are diffed independently.
+        /// </summary>
         [Test]
         public async Task VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync()
         {
@@ -979,16 +1553,19 @@ namespace Opc.Ua.XRegistry.Tests
             strategy.Snapshot = VersionedProjectionSnapshot("v2");
             strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()),
-                    Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
-                Assert.That(
-                    harness.Events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(new NodeId(
-                        "TestRegistry/groups/schemas/resources/pump/versions/v2",
-                        1)));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
+                    Assert.That(
+                        harness.Events.OfType<ResourceUpdatedEventState>().Single().SourceNode!.Value,
+                        Is.EqualTo(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/pump/versions/v2",
+                                1)));
+                });
 
             harness.Events.Clear();
             strategy.EventSnapshot = VersionedEventSnapshot(
@@ -996,15 +1573,17 @@ namespace Opc.Ua.XRegistry.Tests
                 3,
                 WotLabels().Add("owner", "plant-1"));
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()),
-                    Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
-                Assert.That(
-                    harness.Events.OfType<ResourceUpdatedEventState>()
-                        .Single().Changed!.Value.ToArray(),
-                    Does.Contain("meta.labels"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(new[] { typeof(ResourceUpdatedEventState) }));
+                    Assert.That(
+                        harness.Events.OfType<ResourceUpdatedEventState>()
+                            .Single().Changed!.Value.ToArray(),
+                        Does.Contain("meta.labels"));
+                });
 
             harness.Events.Clear();
             strategy.EventSnapshot = VersionedEventSnapshot(
@@ -1013,18 +1592,24 @@ namespace Opc.Ua.XRegistry.Tests
                 WotLabels().Add("owner", "plant-1"),
                 v1Epoch: 2);
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events.Select(evt => evt.GetType()),
-                    Is.EquivalentTo(new[] { typeof(VersionUpdatedEventState) }));
-                Assert.That(
-                    harness.Events.OfType<VersionUpdatedEventState>().Single().SourceNode!.Value,
-                    Is.EqualTo(new NodeId(
-                        "TestRegistry/groups/schemas/resources/pump/versions/v1",
-                        1)));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(
+                        harness.Events.Select(evt => evt.GetType()),
+                        Is.EquivalentTo(new[] { typeof(VersionUpdatedEventState) }));
+                    Assert.That(
+                        harness.Events.OfType<VersionUpdatedEventState>().Single().SourceNode!.Value,
+                        Is.EqualTo(
+                            new NodeId(
+                                "TestRegistry/groups/schemas/resources/pump/versions/v1",
+                                1)));
+                });
         }
 
+        /// <summary>
+        /// Verifies that default switch includes all present version attributes without version update.
+        /// </summary>
         [Test]
         public async Task DefaultSwitchIncludesAllPresentVersionAttributesWithoutVersionUpdateAsync()
         {
@@ -1067,14 +1652,18 @@ namespace Opc.Ua.XRegistry.Tests
 
             ResourceUpdatedEventState updated =
                 harness.Events.OfType<ResourceUpdatedEventState>().Single();
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events, Has.Count.EqualTo(1));
-                Assert.That(harness.Events[0], Is.SameAs(updated));
-                Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(s_defaultSwitchChanged));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(harness.Events, Has.Count.EqualTo(1));
+                    Assert.That(harness.Events[0], Is.SameAs(updated));
+                    Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(s_defaultSwitchChanged));
+                });
         }
 
+        /// <summary>
+        /// Verifies that logical resource event source is mapped when generic events are disabled.
+        /// </summary>
         [Test]
         public async Task LogicalResourceEventSourceIsMappedWhenGenericEventsAreDisabled()
         {
@@ -1096,9 +1685,10 @@ namespace Opc.Ua.XRegistry.Tests
             // stable resource path, not at a version path.
             Assert.That(
                 source.NodeId,
-                Is.EqualTo(new NodeId(
-                    "TestRegistry/groups/schemas/resources/pump",
-                    1)));
+                Is.EqualTo(
+                    new NodeId(
+                        "TestRegistry/groups/schemas/resources/pump",
+                        1)));
         }
 
         /// <summary>
@@ -1127,24 +1717,25 @@ namespace Opc.Ua.XRegistry.Tests
             // The Versions folder is a child of the logical node, not a separate Added entry.
             ResourceVersionsState? versionsFolder = logicalNode.Versions;
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(versionsFolder, Is.Not.Null);
-                // Three distinct NodeIds.
-                Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionNode.NodeId));
-                Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionsFolder!.NodeId));
-                Assert.That(versionNode.NodeId, Is.Not.EqualTo(versionsFolder.NodeId));
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(versionsFolder, Is.Not.Null);
+                    // Three distinct NodeIds.
+                    Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionNode.NodeId));
+                    Assert.That(logicalNode.NodeId, Is.Not.EqualTo(versionsFolder!.NodeId));
+                    Assert.That(versionNode.NodeId, Is.Not.EqualTo(versionsFolder.NodeId));
 
-                // Distinct BrowseNames.
-                Assert.That(logicalNode.BrowseName.Name, Is.EqualTo("pump"));
-                Assert.That(versionNode.BrowseName.Name, Is.EqualTo("v1"));
-                Assert.That(versionsFolder.BrowseName.Name, Is.EqualTo("Versions"));
+                    // Distinct BrowseNames.
+                    Assert.That(logicalNode.BrowseName.Name, Is.EqualTo("pump"));
+                    Assert.That(versionNode.BrowseName.Name, Is.EqualTo("v1"));
+                    Assert.That(versionsFolder.BrowseName.Name, Is.EqualTo("Versions"));
 
-                // Distinct Xids.
-                string logicalXid = logicalNode.Xid?.Value ?? string.Empty;
-                string versionXid = versionNode.Xid?.Value ?? string.Empty;
-                Assert.That(logicalXid, Is.Not.EqualTo(versionXid));
-            });
+                    // Distinct Xids.
+                    string logicalXid = logicalNode.Xid?.Value ?? string.Empty;
+                    string versionXid = versionNode.Xid?.Value ?? string.Empty;
+                    Assert.That(logicalXid, Is.Not.EqualTo(versionXid));
+                });
         }
 
         /// <summary>
@@ -1179,16 +1770,17 @@ namespace Opc.Ua.XRegistry.Tests
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
             ResourceState logicalAfter = FindLogicalResourceNode(harness, "pump");
-            Assert.Multiple(() =>
-            {
-                // Logical Resource NodeId is stable.
-                Assert.That(logicalAfter.NodeId, Is.EqualTo(logicalNodeIdBefore));
-                // No VersionUpdated events emitted for the switch itself (only
-                // ResourceUpdated).
-                Assert.That(
-                    harness.Events.OfType<VersionUpdatedEventState>().Count(),
-                    Is.Zero);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    // Logical Resource NodeId is stable.
+                    Assert.That(logicalAfter.NodeId, Is.EqualTo(logicalNodeIdBefore));
+                    // No VersionUpdated events emitted for the switch itself (only
+                    // ResourceUpdated).
+                    Assert.That(
+                        harness.Events.OfType<VersionUpdatedEventState>().Count(),
+                        Is.Zero);
+                });
         }
 
         /// <summary>
@@ -1217,12 +1809,13 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState v1Node = FindVersionNode(harness, "v1");
             ResourceState v2Node = FindVersionNode(harness, "v2");
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(logicalNode.Delete?.OnCallMethod2Async, Is.Not.Null);
-                Assert.That(v1Node.Delete?.OnCallMethod2Async, Is.Not.Null);
-                Assert.That(v2Node.Delete?.OnCallMethod2Async, Is.Not.Null);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(logicalNode.Delete?.OnCallMethod2Async, Is.Not.Null);
+                    Assert.That(v1Node.Delete?.OnCallMethod2Async, Is.Not.Null);
+                    Assert.That(v2Node.Delete?.OnCallMethod2Async, Is.Not.Null);
+                });
 
             // Deleting non-default v2 Version uses Version-delete path.
             ServiceResult v2DeleteResult = await InvokeDeleteAsync(harness, v2Node, 0)
@@ -1259,15 +1852,16 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
 
             // The logical node's Open handler should be wired.
-            Assert.Multiple(() =>
-            {
-                Assert.That(logicalNode.Open?.OnCall, Is.Not.Null);
-                Assert.That(logicalNode.Close?.OnCallAsync, Is.Not.Null);
-                Assert.That(logicalNode.Read?.OnCallAsync, Is.Not.Null);
-                Assert.That(logicalNode.Write?.OnCall, Is.Not.Null);
-                Assert.That(logicalNode.GetPosition?.OnCall, Is.Not.Null);
-                Assert.That(logicalNode.SetPosition?.OnCall, Is.Not.Null);
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(logicalNode.Open?.OnCall, Is.Not.Null);
+                    Assert.That(logicalNode.Close?.OnCallAsync, Is.Not.Null);
+                    Assert.That(logicalNode.Read?.OnCallAsync, Is.Not.Null);
+                    Assert.That(logicalNode.Write?.OnCall, Is.Not.Null);
+                    Assert.That(logicalNode.GetPosition?.OnCall, Is.Not.Null);
+                    Assert.That(logicalNode.SetPosition?.OnCall, Is.Not.Null);
+                });
         }
 
         private delegate ServiceResult ForwardOpenCallback(
@@ -1287,25 +1881,28 @@ namespace Opc.Ua.XRegistry.Tests
             Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
                 file.As<IXRegistryProjectedResourceFileHandleForwarder>();
             forwarder
-                .Setup(f => f.ForwardOpen(
-                    It.IsAny<ISystemContext>(),
-                    It.IsAny<MethodState>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<byte>(),
-                    ref It.Ref<uint>.IsAny))
-                .Returns(new ForwardOpenCallback(
-                    (ISystemContext c, MethodState m, NodeId o, byte mode, ref uint h) =>
-                    {
-                        h = underlyingOpenHandle;
-                        return ServiceResult.Good;
-                    }));
+                .Setup(
+                    f => f.ForwardOpen(
+                        It.IsAny<ISystemContext>(),
+                        It.IsAny<MethodState>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<byte>(),
+                        ref It.Ref<uint>.IsAny))
+                .Returns(
+                    new ForwardOpenCallback(
+                        (ISystemContext c, MethodState m, NodeId o, byte mode, ref uint h) =>
+                        {
+                            h = underlyingOpenHandle;
+                            return ServiceResult.Good;
+                        }));
             forwarder
-                .Setup(f => f.ForwardCloseAsync(
-                    It.IsAny<ISystemContext>(),
-                    It.IsAny<MethodState>(),
-                    It.IsAny<NodeId>(),
-                    It.IsAny<uint>(),
-                    It.IsAny<CancellationToken>()))
+                .Setup(
+                    f => f.ForwardCloseAsync(
+                        It.IsAny<ISystemContext>(),
+                        It.IsAny<MethodState>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<uint>(),
+                        It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
             return forwarder;
         }
@@ -1351,7 +1948,11 @@ namespace Opc.Ua.XRegistry.Tests
             // Open while v1 is default -> forwards to fileV1, underlying handle 1.
             uint handle1 = 0;
             ServiceResult open1 = logicalNode.Open!.OnCall!.Invoke(
-                harness.Context, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle1);
+                harness.Context,
+                logicalNode.Open,
+                logicalNode.NodeId,
+                TestWriteEraseMode,
+                ref handle1);
             Assert.That(ServiceResult.IsGood(open1), Is.True);
 
             // Switch the default to v2.
@@ -1362,7 +1963,11 @@ namespace Opc.Ua.XRegistry.Tests
             // Open again -> forwards to fileV2, ALSO underlying handle 1.
             uint handle2 = 0;
             ServiceResult open2 = logicalNode.Open!.OnCall!.Invoke(
-                harness.Context, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle2);
+                harness.Context,
+                logicalNode.Open,
+                logicalNode.NodeId,
+                TestWriteEraseMode,
+                ref handle2);
             Assert.That(ServiceResult.IsGood(open2), Is.True);
 
             // The engine must allocate distinct synthetic handles even though
@@ -1372,30 +1977,58 @@ namespace Opc.Ua.XRegistry.Tests
             // Closing the FIRST handle must close fileV1 with its OWN
             // underlying handle (1), and must not touch fileV2 at all.
             CloseMethodStateResult close1 = await logicalNode.Close!.OnCallAsync!(
-                    harness.Context, logicalNode.Close, logicalNode.NodeId, handle1, CancellationToken.None)
+                harness.Context,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle1,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(close1.ServiceResult), Is.True);
 
-            forwarderV1.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                1u, It.IsAny<CancellationToken>()), Times.Once);
-            forwarderV2.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Never);
+            forwarderV1.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    1u,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            forwarderV2.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
 
             // Closing the SECOND handle must close fileV2 with its own
             // underlying handle (1); fileV1 must still show exactly one close.
             CloseMethodStateResult close2 = await logicalNode.Close!.OnCallAsync!(
-                    harness.Context, logicalNode.Close, logicalNode.NodeId, handle2, CancellationToken.None)
+                harness.Context,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle2,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(close2.ServiceResult), Is.True);
 
-            forwarderV2.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                1u, It.IsAny<CancellationToken>()), Times.Once);
-            forwarderV1.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Once);
+            forwarderV2.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    1u,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+            forwarderV1.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
         }
 
         /// <summary>
@@ -1430,65 +2063,70 @@ namespace Opc.Ua.XRegistry.Tests
             using var cts = new CancellationTokenSource();
             var exceptions = new ConcurrentBag<Exception>();
 
-            Task reconcileLoop = Task.Run(async () =>
-            {
-                try
+            Task reconcileLoop = Task.Run(
+                async () =>
                 {
-                    bool toggle = false;
-                    uint epoch = 1;
-                    while (!cts.IsCancellationRequested)
+                    try
                     {
-                        toggle = !toggle;
-                        epoch++;
-                        string defaultId = toggle ? "v2" : "v1";
-                        strategy.Snapshot = VersionedProjectionSnapshot(defaultId);
-                        strategy.EventSnapshot = VersionedEventSnapshot(defaultId, epoch, WotLabels());
-                        await harness.Engine.ReconcileAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    exceptions.Add(ex);
-                }
-            });
-
-            Task[] openLoops = Enumerable.Range(0, 4).Select(_ => Task.Run(async () =>
-            {
-                try
-                {
-                    while (!cts.IsCancellationRequested)
-                    {
-                        uint handle = 0;
-                        ServiceResult result = logicalNode.Open!.OnCall!.Invoke(
-                            harness.Context,
-                            logicalNode.Open,
-                            logicalNode.NodeId,
-                            TestReadMode,
-                            ref handle);
-                        if (ServiceResult.IsGood(result))
+                        bool toggle = false;
+                        uint epoch = 1;
+                        while (!cts.IsCancellationRequested)
                         {
-                            await logicalNode.Close!.OnCallAsync!(
-                                    harness.Context,
-                                    logicalNode.Close,
-                                    logicalNode.NodeId,
-                                    handle,
-                                    CancellationToken.None)
+                            toggle = !toggle;
+                            epoch++;
+                            string defaultId = toggle ? "v2" : "v1";
+                            strategy.Snapshot = VersionedProjectionSnapshot(defaultId);
+                            strategy.EventSnapshot = VersionedEventSnapshot(defaultId, epoch, WotLabels());
+                            await harness.Engine.ReconcileAsync(CancellationToken.None)
                                 .ConfigureAwait(false);
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    exceptions.Add(ex);
-                }
-            })).ToArray();
+                    catch (Exception ex)
+                    {
+                        exceptions.Add(ex);
+                    }
+                });
+
+            Task[] openLoops = Enumerable.Range(0, 4).Select(
+                _ => Task.Run(
+                    async () =>
+                    {
+                        try
+                        {
+                            while (!cts.IsCancellationRequested)
+                            {
+                                uint handle = 0;
+                                ServiceResult result = logicalNode.Open!.OnCall!.Invoke(
+                                    harness.Context,
+                                    logicalNode.Open,
+                                    logicalNode.NodeId,
+                                    TestReadMode,
+                                    ref handle);
+                                if (ServiceResult.IsGood(result))
+                                {
+                                    await logicalNode.Close!.OnCallAsync!(
+                                        harness.Context,
+                                        logicalNode.Close,
+                                        logicalNode.NodeId,
+                                        handle,
+                                        CancellationToken.None)
+                                        .ConfigureAwait(false);
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            exceptions.Add(ex);
+                        }
+                    })).ToArray();
 
             await Task.Delay(300).ConfigureAwait(false);
             cts.Cancel();
             await Task.WhenAll(openLoops.Append(reconcileLoop)).ConfigureAwait(false);
 
-            Assert.That(exceptions, Is.Empty,
+            Assert.That(
+                exceptions,
+                Is.Empty,
                 () => string.Join(Environment.NewLine, exceptions.Select(e => e.ToString())));
         }
 
@@ -1502,8 +2140,12 @@ namespace Opc.Ua.XRegistry.Tests
         /// slot) afterwards using the same handle, and a further close
         /// attempt must then correctly report the handle as gone.
         /// </summary>
-        [Test]
-        public async Task CrossSessionCloseCannotStrandLegitimateOwnerHandleAsync()
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task CrossSessionCloseCannotStrandLegitimateOwnerHandleAsync(
+            bool ownerHasSession,
+            bool otherHasSession)
         {
             Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
                 CreateForwarderMock(underlyingOpenHandle: 1);
@@ -1520,47 +2162,75 @@ namespace Opc.Ua.XRegistry.Tests
             ResourceState logicalNode = FindLogicalResourceNode(harness, "pump");
 
             var ownerContext = (ServerSystemContext)harness.Context.Copy();
-            ownerContext.SessionId = new NodeId("owner-session", 1);
+            ownerContext.SessionId = ownerHasSession ? new NodeId("owner-session", 1) : NodeId.Null;
             var attackerContext = (ServerSystemContext)harness.Context.Copy();
-            attackerContext.SessionId = new NodeId("attacker-session", 1);
+            attackerContext.SessionId = otherHasSession ? new NodeId("attacker-session", 1) : NodeId.Null;
 
             uint handle = 0;
             ServiceResult open = logicalNode.Open!.OnCall!.Invoke(
-                ownerContext, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle);
+                ownerContext,
+                logicalNode.Open,
+                logicalNode.NodeId,
+                TestWriteEraseMode,
+                ref handle);
             Assert.That(ServiceResult.IsGood(open), Is.True);
 
             // A different session guesses/replays the same synthetic handle.
             CloseMethodStateResult attackerClose = await logicalNode.Close!.OnCallAsync!(
-                    attackerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                attackerContext,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(
-                attackerClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                attackerClose.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadUserAccessDenied));
 
             // The malicious attempt must never have reached the underlying
             // manager's Close at all — the pin must still be intact.
-            forwarder.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                It.IsAny<uint>(), It.IsAny<CancellationToken>()), Times.Never);
+            forwarder.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
 
             // The rightful owner must still be able to close (and thereby
             // release the writer slot) using the SAME handle afterwards.
             CloseMethodStateResult ownerClose = await logicalNode.Close!.OnCallAsync!(
-                    ownerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                ownerContext,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(ownerClose.ServiceResult), Is.True);
 
-            forwarder.Verify(f => f.ForwardCloseAsync(
-                It.IsAny<ISystemContext>(), It.IsAny<MethodState>(), It.IsAny<NodeId>(),
-                1u, It.IsAny<CancellationToken>()), Times.Once);
+            forwarder.Verify(
+                f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    1u,
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
 
             // The handle is now fully released at our layer too: a further
             // close attempt (even by the owner) reports "unknown handle"
             // rather than silently succeeding or hitting a stale pin.
             CloseMethodStateResult secondClose = await logicalNode.Close!.OnCallAsync!(
-                    ownerContext, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                ownerContext,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle,
+                CancellationToken.None)
                 .ConfigureAwait(false);
             Assert.That(
-                secondClose.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                secondClose.ServiceResult.StatusCode,
+                Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
         /// <summary>
@@ -1597,28 +2267,38 @@ namespace Opc.Ua.XRegistry.Tests
 
             uint handle = 0;
             ServiceResult open = logicalNode.Open!.OnCall!.Invoke(
-                harness.Context, logicalNode.Open, logicalNode.NodeId, TestWriteEraseMode, ref handle);
+                harness.Context,
+                logicalNode.Open,
+                logicalNode.NodeId,
+                TestWriteEraseMode,
+                ref handle);
             Assert.That(ServiceResult.IsGood(open), Is.True);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(notifications, Has.Count.EqualTo(1));
-                Assert.That(notifications[0].HasFlag(NodeStateChangeMasks.Value), Is.True);
-                // The mask must actually be cleared, not merely observed once
-                // and left dirty for the child.
-                Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(notifications, Has.Count.EqualTo(1));
+                    Assert.That(notifications[0].HasFlag(NodeStateChangeMasks.Value), Is.True);
+                    // The mask must actually be cleared, not merely observed once
+                    // and left dirty for the child.
+                    Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                });
 
             v1Node.Size.Value = 777UL;
             await logicalNode.Close!.OnCallAsync!(
-                    harness.Context, logicalNode.Close, logicalNode.NodeId, handle, CancellationToken.None)
+                harness.Context,
+                logicalNode.Close,
+                logicalNode.NodeId,
+                handle,
+                CancellationToken.None)
                 .ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(notifications, Has.Count.EqualTo(2));
-                Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(notifications, Has.Count.EqualTo(2));
+                    Assert.That(logicalNode.Size.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+                });
         }
 
         /// <summary>
@@ -1660,13 +2340,14 @@ namespace Opc.Ua.XRegistry.Tests
             // current FileType Property values onto the logical Resource.
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(logicalNode.Size!.Value, Is.EqualTo(12345UL));
-                Assert.That(logicalNode.Writable!.Value, Is.True);
-                Assert.That(logicalNode.UserWritable!.Value, Is.True);
-                Assert.That(logicalNode.OpenCount!.Value, Is.EqualTo((ushort)2));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(logicalNode.Size!.Value, Is.EqualTo(12345UL));
+                    Assert.That(logicalNode.Writable!.Value, Is.True);
+                    Assert.That(logicalNode.UserWritable!.Value, Is.True);
+                    Assert.That(logicalNode.OpenCount!.Value, Is.EqualTo((ushort)2));
+                });
         }
 
         /// <summary>
@@ -1689,15 +2370,24 @@ namespace Opc.Ua.XRegistry.Tests
             var strategy = new VersionedTestStrategy
             {
                 Snapshot = new TestSnapshot(
-                [
-                    new TestGroup("schemas",
                     [
-                        new VersionedTestResource(
-                            "schemas", "pump", "v1", isDefaultVersion: true, labels: v1Labels),
-                        new VersionedTestResource(
-                            "schemas", "pump", "v2", isDefaultVersion: false, labels: v2Labels)
-                    ])
-                ]),
+                        new TestGroup(
+                            "schemas",
+                            [
+                                new VersionedTestResource(
+                                    "schemas",
+                                    "pump",
+                                    "v1",
+                                    isDefaultVersion: true,
+                                    labels: v1Labels),
+                                new VersionedTestResource(
+                                    "schemas",
+                                    "pump",
+                                    "v2",
+                                    isDefaultVersion: false,
+                                    labels: v2Labels)
+                            ])
+                    ]),
                 EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
             };
             ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
@@ -1711,15 +2401,24 @@ namespace Opc.Ua.XRegistry.Tests
             // Switch default to v2: the logical Resource's Labels must now
             // reflect v2's labels, not v1's.
             strategy.Snapshot = new TestSnapshot(
-            [
-                new TestGroup("schemas",
                 [
-                    new VersionedTestResource(
-                        "schemas", "pump", "v1", isDefaultVersion: false, labels: v1Labels),
-                    new VersionedTestResource(
-                        "schemas", "pump", "v2", isDefaultVersion: true, labels: v2Labels)
-                ])
-            ]);
+                    new TestGroup(
+                        "schemas",
+                        [
+                            new VersionedTestResource(
+                                "schemas",
+                                "pump",
+                                "v1",
+                                isDefaultVersion: false,
+                                labels: v1Labels),
+                            new VersionedTestResource(
+                                "schemas",
+                                "pump",
+                                "v2",
+                                isDefaultVersion: true,
+                                labels: v2Labels)
+                        ])
+                ]);
             strategy.EventSnapshot = VersionedEventSnapshot("v2", 2, WotLabels());
             await harness.Engine.ReconcileAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -1761,12 +2460,13 @@ namespace Opc.Ua.XRegistry.Tests
                 .ConfigureAwait(false);
             Assert.That(ServiceResult.IsGood(second), Is.True);
 
-            Assert.Multiple(() =>
-            {
-                Assert.That(strategy.AddVersionLabelCalls, Has.Count.EqualTo(2));
-                Assert.That(strategy.AddVersionLabelCalls[0].VersionId, Is.EqualTo("v1"));
-                Assert.That(strategy.AddVersionLabelCalls[1].VersionId, Is.EqualTo("v2"));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(strategy.AddVersionLabelCalls, Has.Count.EqualTo(2));
+                    Assert.That(strategy.AddVersionLabelCalls[0].VersionId, Is.EqualTo("v1"));
+                    Assert.That(strategy.AddVersionLabelCalls[1].VersionId, Is.EqualTo("v2"));
+                });
         }
 
         private static ValueTask<ServiceResult> AddAttributeAsync(
@@ -1793,8 +2493,8 @@ namespace Opc.Ua.XRegistry.Tests
             labels.GetChildren(harness.Context, children);
             return children
                 .OfType<PropertyState<string>>()
-                .FirstOrDefault(p => string.Equals(p.BrowseName.Name, key, StringComparison.Ordinal))
-                ?.Value;
+                .FirstOrDefault(p => string.Equals(p.BrowseName.Name, key, StringComparison.Ordinal))?
+                .Value;
         }
 
         /// <summary>
@@ -1806,27 +2506,34 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase("0.6.0-preview.1", true)]
         [TestCase("", false)]
         public void ModelVersionDetectionReturnsCorrectResult(
-            string version, bool expected)
+            string version,
+            bool expected)
         {
             bool result = Client.XRegistryClient.IsVersionAtLeast(version, 0, 6, 0);
             Assert.That(result, Is.EqualTo(expected));
         }
 
         private static TestSnapshot VersionedProjectionSnapshotTwoVersions(
-            string v1, string v2, string defaultVersionId)
+            string v1,
+            string v2,
+            string defaultVersionId)
         {
             return new TestSnapshot(
                 [
-                    new TestGroup("schemas",
-                    [
-                        new VersionedTestResource("schemas", "pump", v1, v1 == defaultVersionId, 1),
-                        new VersionedTestResource("schemas", "pump", v2, v2 == defaultVersionId, 1)
-                    ])
+                    new TestGroup(
+                        "schemas",
+                        [
+                            new VersionedTestResource("schemas", "pump", v1, v1 == defaultVersionId, 1),
+                            new VersionedTestResource("schemas", "pump", v2, v2 == defaultVersionId, 1)
+                        ])
                 ]);
         }
 
         private static XRegistryProjectionEventSnapshot VersionedEventSnapshotTwoVersions(
-            string v1, string v2, string defaultVersionId, uint epoch)
+            string v1,
+            string v2,
+            string defaultVersionId,
+            uint epoch)
         {
             var labels = WotLabels();
             return new XRegistryProjectionEventSnapshot(
@@ -1915,8 +2622,9 @@ namespace Opc.Ua.XRegistry.Tests
             // a ResourceVersionsState to avoid matching the logical Resource node.
             List<ResourceState> candidates = harness.Added
                 .OfType<ResourceState>()
-                .Where(node =>
-                    string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal))
+                .Where(
+                    node =>
+                        string.Equals(node.VersionId?.Value, versionId, StringComparison.Ordinal))
                 .ToList();
 
             ResourceState? versionChild = candidates
@@ -1930,9 +2638,10 @@ namespace Opc.Ua.XRegistry.Tests
         {
             return harness.Added
                 .OfType<ResourceState>()
-                .Single(node =>
-                    string.Equals(node.BrowseName.Name, resourceId, StringComparison.Ordinal) &&
-                    node.Parent is not ResourceVersionsState);
+                .Single(
+                    node =>
+                        string.Equals(node.BrowseName.Name, resourceId, StringComparison.Ordinal) &&
+                        node.Parent is not ResourceVersionsState);
         }
 
         private static async Task AssertResourceTextChangeAsync(
@@ -1962,14 +2671,15 @@ namespace Opc.Ua.XRegistry.Tests
 
             ResourceUpdatedEventState updated =
                 harness.Events.OfType<ResourceUpdatedEventState>().Single();
-            Assert.Multiple(() =>
-            {
-                Assert.That(harness.Events, Has.Count.EqualTo(1));
-                Assert.That(harness.Events[0], Is.SameAs(updated));
-                Assert.That(updated.Epoch!.Value, Is.EqualTo(7u));
-                Assert.That(updated.MetaEpoch!.Value, Is.EqualTo(4u));
-                Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(expectedChanged));
-            });
+            Assert.Multiple(
+                () =>
+                {
+                    Assert.That(harness.Events, Has.Count.EqualTo(1));
+                    Assert.That(harness.Events[0], Is.SameAs(updated));
+                    Assert.That(updated.Epoch!.Value, Is.EqualTo(7u));
+                    Assert.That(updated.MetaEpoch!.Value, Is.EqualTo(4u));
+                    Assert.That(updated.Changed!.Value.ToArray(), Is.EqualTo(expectedChanged));
+                });
         }
 
         private static XRegistryProjectionEventSnapshot SnapshotWithResource(
@@ -2100,23 +2810,24 @@ namespace Opc.Ua.XRegistry.Tests
                         epoch,
                         ImmutableSortedDictionary<string, string>.Empty,
                         false,
-                        resourceIds.Select(resourceId =>
-                            new XRegistryProjectionEventResource(
-                                "schemas",
-                                resourceId,
-                                $"/groups/schemas/resources/{resourceId}",
-                                1,
-                                1,
-                                ImmutableSortedDictionary<string, string>.Empty,
-                                false,
-                                "v1",
-                                [
-                                    new XRegistryProjectionEventVersion(
-                                        "v1",
-                                        $"/groups/schemas/resources/{resourceId}/versions/v1",
-                                        1,
-                                        ImmutableSortedDictionary<string, string>.Empty)
-                                ])
+                        resourceIds.Select(
+                            resourceId =>
+                                new XRegistryProjectionEventResource(
+                                    "schemas",
+                                    resourceId,
+                                    $"/groups/schemas/resources/{resourceId}",
+                                    1,
+                                    1,
+                                    ImmutableSortedDictionary<string, string>.Empty,
+                                    false,
+                                    "v1",
+                                    [
+                                        new XRegistryProjectionEventVersion(
+                                            "v1",
+                                            $"/groups/schemas/resources/{resourceId}/versions/v1",
+                                            1,
+                                            ImmutableSortedDictionary<string, string>.Empty)
+                                    ])
                         ).ToImmutableArray())
                 ]);
             return (projection, events);
@@ -2199,22 +2910,22 @@ namespace Opc.Ua.XRegistry.Tests
             string resourceId = "pump")
         {
             return new TestSnapshot(
-            [
-                new TestGroup(
-                    "schemas",
-                    [
-                        new VersionedTestResource(
-                            "schemas",
-                            resourceId,
-                            "v1",
-                            defaultVersionId == "v1"),
-                        new VersionedTestResource(
-                            "schemas",
-                            resourceId,
-                            "v2",
-                            defaultVersionId == "v2")
-                    ])
-            ]);
+                [
+                    new TestGroup(
+                        "schemas",
+                        [
+                            new VersionedTestResource(
+                                "schemas",
+                                resourceId,
+                                "v1",
+                                defaultVersionId == "v1"),
+                            new VersionedTestResource(
+                                "schemas",
+                                resourceId,
+                                "v2",
+                                defaultVersionId == "v2")
+                        ])
+                ]);
         }
 
         private static XRegistryProjectionEventSnapshot VersionedEventSnapshot(
@@ -2387,7 +3098,9 @@ namespace Opc.Ua.XRegistry.Tests
 
             public static ProjectionHarness Create(
                 bool eventsEnabled = false,
-                TestStrategy? suppliedStrategy = null)
+                TestStrategy? suppliedStrategy = null,
+                Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>? projectionDispatcher = null,
+                Func<NodeState, CancellationToken, ValueTask>? onAdd = null)
             {
                 Mock<IServerInternal> server =
                     XRegistryServerTestHarness.CreateServer(XRegistryWellKnown.XRegistryNamespaceUri);
@@ -2420,7 +3133,7 @@ namespace Opc.Ua.XRegistry.Tests
                     (node, ct) =>
                     {
                         added.Add(node);
-                        return default;
+                        return onAdd?.Invoke(node, ct) ?? default;
                     },
                     (nodeId, ct) =>
                     {
@@ -2434,7 +3147,10 @@ namespace Opc.Ua.XRegistry.Tests
                             EventsEnabled = true,
                             EventSourceUrl = "https://registry.example.test"
                         }
-                        : null);
+                        : null)
+                {
+                    ProjectionDispatcher = projectionDispatcher
+                };
                 return new ProjectionHarness(
                     new XRegistryProjectionEngine(projectionContext, strategy, "TestRegistry"),
                     context,
@@ -2452,6 +3168,7 @@ namespace Opc.Ua.XRegistry.Tests
             IXRegistryProjectionGenerationProvider
         {
             public IXRegistryProjectionSnapshot Snapshot { get; set; } = new TestSnapshot([]);
+
             public XRegistryProjectionEventSnapshot EventSnapshot { get; set; } =
                 EmptyEventSnapshot(0);
 
@@ -2526,7 +3243,7 @@ namespace Opc.Ua.XRegistry.Tests
                     (new TestResource(groupId, resourceId), true));
             }
 
-            public ValueTask<ServiceResult> DeleteGroupAsync(
+            public virtual ValueTask<ServiceResult> DeleteGroupAsync(
                 string groupId,
                 long? epoch,
                 CancellationToken ct)
@@ -2604,13 +3321,15 @@ namespace Opc.Ua.XRegistry.Tests
         private sealed class AdvancingGenerationStrategy : TestStrategy
         {
             public AdvancingGenerationStrategy(
-                params (IXRegistryProjectionSnapshot Projection,
+                params (
+                    IXRegistryProjectionSnapshot Projection,
                     XRegistryProjectionEventSnapshot Events)[] generations)
             {
                 m_generations = new Queue<XRegistryProjectionGeneration>(
-                    generations.Select(generation => new XRegistryProjectionGeneration(
-                        generation.Projection,
-                        generation.Events)));
+                    generations.Select(
+                        generation => new XRegistryProjectionGeneration(
+                            generation.Projection,
+                            generation.Events)));
             }
 
             public override XRegistryProjectionGeneration CaptureProjectionGeneration()
@@ -2626,7 +3345,8 @@ namespace Opc.Ua.XRegistry.Tests
             IXRegistryVersionedProjectionStrategy
         {
             public Func<ResourceState, IXRegistryProjectionResource, IXRegistryProjectedResourceFile?>?
-                FileFactory { get; set; }
+                FileFactory
+            { get; set; }
 
             public override IXRegistryProjectedResourceFile? CreateResourceFile(
                 ResourceState node,
@@ -2818,6 +3538,71 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        private sealed class ContextualDeleteTestStrategy :
+            VersionedTestStrategy,
+            IXRegistryProjectionContextualDelete
+        {
+            public List<(string GroupId, long? Epoch, ISystemContext? Context)> GroupDeletes { get; } = [];
+            public List<(string ResourceId, string VersionId, bool Logical, long? Epoch, ISystemContext? Context)>
+                EntityDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free group delete must not be used.");
+            }
+
+            public override ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free entity delete must not be used.");
+            }
+
+            public ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                EntityDeletes.Add((resourceId, versionId, deleteLogicalResource, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class LegacyGroupDeleteTestStrategy : VersionedTestStrategy
+        {
+            public List<(string GroupId, long? Epoch)> GroupDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
         private sealed class RecordingVersionedTestStrategy : VersionedTestStrategy
         {
             public string CurrentDefaultVersionId { get; set; } = "v1";
@@ -2827,10 +3612,14 @@ namespace Opc.Ua.XRegistry.Tests
             public bool OmitEventMetadata { get; set; }
             public List<ProjectedDeleteInvocation> ProjectedDeletes { get; } = [];
             public List<ResourceDeleteInvocation> ResourceDeletes { get; } = [];
+
             public List<(string GroupId, string ResourceId, string VersionId, string Key, string Value, long? Epoch)>
-                AddVersionLabelCalls { get; } = [];
+                AddVersionLabelCalls
+            { get; } = [];
+
             public List<(string GroupId, string ResourceId, string VersionId, string Key, long? Epoch)>
-                RemoveVersionLabelCalls { get; } = [];
+                RemoveVersionLabelCalls
+            { get; } = [];
 
             public override XRegistryProjectionGeneration CaptureProjectionGeneration()
             {
@@ -2943,11 +3732,11 @@ namespace Opc.Ua.XRegistry.Tests
             public ContentlessClaimStrategy()
             {
                 Snapshot = new TestSnapshot(
-                [
-                    new TestGroup(
-                        "schemas",
-                        [new VersionedTestResource("schemas", "pump", "v1")])
-                ]);
+                    [
+                        new TestGroup(
+                            "schemas",
+                            [new VersionedTestResource("schemas", "pump", "v1")])
+                    ]);
             }
 
             public ContentlessResourceFile File { get; } = new();
@@ -2967,6 +3756,146 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 return new ValueTask<IXRegistryProjectionResource?>(
                     (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        private sealed class AsyncContentlessClaimStrategy : VersionedTestStrategy
+        {
+            public AsyncContentlessClaimStrategy()
+            {
+                Snapshot = new TestSnapshot(
+                [
+                    new TestGroup(
+                        "schemas",
+                        [new VersionedTestResource("schemas", "pump", "v1")])
+                ]);
+            }
+
+            public AsyncContentlessResourceFile File { get; } = new();
+
+            public override IXRegistryProjectedResourceFile CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                return File;
+            }
+
+            public override ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                CancellationToken ct)
+            {
+                return new ValueTask<IXRegistryProjectionResource?>(
+                    (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        /// <summary>
+        /// Contentless provider whose asynchronous claim is held open by the test until
+        /// <see cref="Release"/> is called, and which records every forwarded Close.
+        /// </summary>
+        private sealed class AsyncContentlessResourceFile :
+            IXRegistryProjectedResourceFile,
+            IXRegistryAsyncProjectedContentlessResourceFile,
+            IXRegistryProjectedResourceFileHandleForwarder,
+            IXRegistryProjectedResourceSessionDiscard
+        {
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public const uint ClaimedHandle = 77;
+
+            public Task Entered => m_entered.Task;
+
+            public List<(uint Handle, CancellationToken Token)> Closes { get; } = [];
+
+            public List<NodeId> Discards { get; } = [];
+
+            public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+            {
+                Discards.Add(sessionId);
+                return default;
+            }
+
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public ServiceResult TryOpenWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult TryOpenContentlessWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public async ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                m_entered.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                return new OpenMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    FileHandle = ClaimedHandle
+                };
+            }
+
+            public ServiceResult ForwardOpen(
+                ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ValueTask<ServiceResult> ForwardCloseAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, CancellationToken cancellationToken)
+            {
+                Closes.Add((fileHandle, cancellationToken));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, int length, CancellationToken cancellationToken)
+            {
+                return new ValueTask<(ServiceResult, ByteString)>(
+                    (StatusCodes.BadNotSupported, ByteString.Empty));
+            }
+
+            public ServiceResult ForwardWrite(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ByteString data)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardGetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ref ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardSetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public void ApplyResource(IXRegistryProjectionResource resource)
+            {
+            }
+
+            public void Dispose()
+            {
             }
         }
 
@@ -3029,6 +3958,7 @@ namespace Opc.Ua.XRegistry.Tests
             public string Name => GroupId;
             public string Description => string.Empty;
             public long Epoch => 1;
+
             public ImmutableSortedDictionary<string, string> Labels { get; }
                 = ImmutableSortedDictionary<string, string>.Empty;
 
@@ -3054,6 +3984,7 @@ namespace Opc.Ua.XRegistry.Tests
             public long Epoch => 1;
             public DateTime CreatedAt => new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             public DateTime ModifiedAt => new(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc);
+
             public ImmutableSortedDictionary<string, string> Labels { get; }
                 = ImmutableSortedDictionary<string, string>.Empty;
         }
@@ -3081,8 +4012,10 @@ namespace Opc.Ua.XRegistry.Tests
             public string GroupId { get; }
             public string ResourceId { get; }
             public string VersionId { get; }
+
             public string Xid =>
                 $"/groups/{GroupId}/resources/{ResourceId}/versions/{VersionId}";
+
             public string Name => ResourceId;
             public string Description => string.Empty;
             public string Format => "json";
@@ -3092,8 +4025,10 @@ namespace Opc.Ua.XRegistry.Tests
             public DateTime ModifiedAt => s_unixEpoch;
             public ImmutableSortedDictionary<string, string> Labels { get; }
             public long MetaEpoch => 1;
+
             public ImmutableSortedDictionary<string, string> MetaLabels { get; } =
                 ImmutableSortedDictionary<string, string>.Empty;
+
             public DateTime MetaCreatedAt => s_unixEpoch;
             public DateTime MetaModifiedAt => s_unixEpoch;
             public bool IsDefaultVersion { get; }

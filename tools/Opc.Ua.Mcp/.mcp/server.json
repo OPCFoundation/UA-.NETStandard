@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/mcp-server.json",
   "name": "opcua-mcp",
   "displayName": "OPC UA MCP Server",
-  "description": "Exposes OPC UA Part 4 service calls as MCP tools, enabling AI assistants to connect to OPC UA servers, browse address spaces, read/write values, call methods, manage subscriptions, and more. The tool catalog is profile-based (core/services/administration/pubsub/diagnostics/full); the default 'full' profile registers every tool, while bounded profiles expose only the subset relevant to that workflow.",
+  "description": "OPC UA Part 4 services and typed companion tools, including Robotics, Vision, AMB, Machinery, Scales, Pumps, AutoID, Device Integration, ISA-95, Positioning, WoT and xRegistry. Select bounded, composable catalogs with --profile. WoT document inspection, validation, binding planning and NodeSet conversion require no UA connection; remote dependencies require an explicit host allowlist. The default 'full' profile includes every catalog. Mutations preserve server permissions and results; file transfers require a host-configured root.",
   "version": "1.0.0",
   "publisher": "OPC Foundation",
   "license": "MIT",

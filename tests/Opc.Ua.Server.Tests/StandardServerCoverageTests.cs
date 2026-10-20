@@ -192,11 +192,11 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
+        public async Task ValidateRequestInScopeThrowsWhenNotStartedAsync()
         {
             using TestableStandardServer server = CreateServer();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await server
                     .ValidateRequestInScopePublicAsync()
                     .ConfigureAwait(false));
@@ -204,7 +204,6 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadServerHalted));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -305,16 +304,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void InitializeServiceHostsThrowsForUnregisteredScheme()
+        public async Task InitializeServiceHostsThrowsForUnregisteredScheme()
         {
             using TestableStandardServer server = CreateServer();
             ApplicationConfiguration configuration = CreateConfiguration(
                 "opc.https://localhost:62540/TestServer");
             var registry = new DefaultTransportBindingRegistry();
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
+            InvalidOperationException ex = (await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await server.InitializeAndDiscardServiceHostsAsync(configuration, registry)
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(ex.Message, Does.Contain("opc.https"));
             Assert.That(ex.Message, Does.Contain("AddHttpsTransport"));

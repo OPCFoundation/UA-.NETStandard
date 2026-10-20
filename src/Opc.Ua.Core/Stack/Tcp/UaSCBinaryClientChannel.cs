@@ -180,7 +180,15 @@ namespace Opc.Ua.Bindings
                 m_handshakeTimer = null;
                 m_requestedToken?.Dispose();
                 m_requestedToken = null;
-                m_requests?.Clear();
+                DisposeTimeoutTimer();
+
+                // the operations have no timers of their own: without the
+                // channel's timer a pending operation would wait forever.
+                foreach (KeyValuePair<uint, WriteOperation> operation in m_requests.ToArray())
+                {
+                    operation.Value.Fault(StatusCodes.BadSecureChannelClosed);
+                }
+                m_requests.Clear();
                 m_handshakeOperation?.Dispose();
                 m_handshakeOperation = null;
                 ServerCertificate?.Dispose();
@@ -197,7 +205,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
@@ -323,7 +331,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = InternalClose(timeout);
 
             // wait for the close to succeed.
@@ -350,6 +358,14 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <remarks>
+        /// The state machine of a request is pooled, so the returned task must be awaited
+        /// once, like any value task.
+        /// </remarks>
+#if NET6_0_OR_GREATER
+        [System.Runtime.CompilerServices.AsyncMethodBuilder(
+            typeof(System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request,
             int timeout,
@@ -365,9 +381,13 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
-            using (Gate.Enter())
+
+            // a request that waits for the gate (another request or a response is being
+            // processed) must not block its thread: a blocking wait spins first, and with
+            // many concurrent requests on one channel the spinning took a fifth of the CPU.
+            using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
                 // Queue the operation while connecting and it will be played once connected.
                 if (State == TcpChannelState.Connecting)
@@ -398,7 +418,7 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.WaitForCompletionAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -951,9 +971,11 @@ namespace Opc.Ua.Bindings
             int bytesWritten,
             ServiceResult result)
         {
-            using (Gate.Enter())
+            // Only a failed write needs the gate. Successful writes are reported
+            // inline by the writer and must not wait for it.
+            if (state is WriteOperation operation && ServiceResult.IsBad(result))
             {
-                if (state is WriteOperation operation && ServiceResult.IsBad(result))
+                using (Gate.Enter())
                 {
                     operation.Fault(result);
                     ForceReconnectCore(result);
@@ -1410,10 +1432,21 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         private IServiceResponse ParseResponse(BufferCollection chunksToProcess)
         {
-            using var responseStream = new ArraySegmentStream(chunksToProcess);
-            return BinaryDecoder.DecodeMessage<IServiceResponse>(
-                responseStream,
-                Quotas.MessageContext) ??
+            IServiceResponse? response;
+            if (chunksToProcess.Count == 1)
+            {
+                // a response in one chunk, which most are, is decoded from that chunk's
+                // buffer without a stream over the chunk list, as the server decodes requests.
+                response = DecodeMessage<IServiceResponse>(chunksToProcess[0], Quotas.MessageContext);
+            }
+            else
+            {
+                using var responseStream = new ArraySegmentStream(chunksToProcess);
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    responseStream,
+                    Quotas.MessageContext);
+            }
+            return response ??
                 throw ServiceResultException.Create(
                     StatusCodes.BadStructureMissing,
                     "Could not parse response body.");
@@ -1657,17 +1690,134 @@ namespace Opc.Ua.Bindings
             {
                 requestId = Utils.IncrementIdentifier(ref m_lastRequestId);
             }
-            var operation = new WriteOperation(timeout, callback, state, m_logger, TimeProvider)
+            long deadline = long.MaxValue;
+            if (timeout is > 0 and not int.MaxValue)
+            {
+                deadline = TimeProvider.GetTimestamp() +
+                    (timeout * TimeProvider.TimestampFrequency / 1000);
+            }
+            var operation = new WriteOperation(callback, state, m_logger, TimeProvider, deadline)
             {
                 RequestId = requestId
             };
-            if (!m_requests.TryAdd(operation.RequestId, operation))
+            lock (m_timeoutLock)
             {
-                throw ServiceResultException.Unexpected(
-                    "Could not add request {0} to list of pending operations.",
-                    operation.RequestId);
+                // Dispose fails the operations it finds after it stopped the timer;
+                // an operation added later would neither be failed nor time out.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "The channel is disposed.");
+                }
+                if (!m_requests.TryAdd(operation.RequestId, operation))
+                {
+                    throw ServiceResultException.Unexpected(
+                        "Could not add request {0} to list of pending operations.",
+                        operation.RequestId);
+                }
+                // added first, so that a scan that starts after the deadline is
+                // scheduled finds the operation.
+                if (deadline != long.MaxValue)
+                {
+                    ScheduleTimeoutScanLocked(deadline);
+                }
             }
             return operation;
+        }
+
+        /// <summary>
+        /// Arms the timeout timer for <paramref name="deadline"/> unless it is
+        /// already armed for an earlier or the same time. One timer per channel
+        /// times out all pending operations instead of a timer per operation;
+        /// with equal timeouts a new deadline is never the earliest, so a
+        /// request usually only reads the scheduled time.
+        /// </summary>
+        private void ScheduleTimeoutScan(long deadline)
+        {
+            lock (m_timeoutLock)
+            {
+                ScheduleTimeoutScanLocked(deadline);
+            }
+        }
+
+        /// <summary>
+        /// <see cref="ScheduleTimeoutScan"/> with <see cref="m_timeoutLock"/> held.
+        /// </summary>
+        private void ScheduleTimeoutScanLocked(long deadline)
+        {
+            if (deadline >= m_nextTimeoutScan)
+            {
+                return;
+            }
+            m_nextTimeoutScan = deadline;
+
+            // rounded up: a timer that fires early finds nothing expired.
+            TimeSpan dueTime = TimeProvider.GetElapsedTime(TimeProvider.GetTimestamp(), deadline);
+            dueTime = dueTime > TimeSpan.Zero
+                ? TimeSpan.FromMilliseconds(Math.Ceiling(dueTime.TotalMilliseconds))
+                : TimeSpan.Zero;
+
+            if (m_timeoutTimer == null)
+            {
+                m_timeoutTimer = TimeProvider.CreateTimer(
+                    static state => ((UaSCUaBinaryClientChannel)state!).OnTimeoutScan(),
+                    this,
+                    dueTime,
+                    Timeout.InfiniteTimeSpan);
+            }
+            else
+            {
+                m_timeoutTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+            }
+        }
+
+        /// <summary>
+        /// Times out the pending operations whose deadline has passed and arms
+        /// the timer for the earliest remaining deadline.
+        /// </summary>
+        private void OnTimeoutScan()
+        {
+            lock (m_timeoutLock)
+            {
+                // disposed.
+                if (m_nextTimeoutScan == long.MinValue)
+                {
+                    return;
+                }
+                // an operation added from here on schedules its own deadline.
+                m_nextTimeoutScan = long.MaxValue;
+            }
+
+            long now = TimeProvider.GetTimestamp();
+            long next = long.MaxValue;
+            foreach (KeyValuePair<uint, WriteOperation> entry in m_requests)
+            {
+                WriteOperation operation = entry.Value;
+                if (!operation.TimeOutIfExpired(now) && operation.TimeoutDeadline < next)
+                {
+                    next = operation.TimeoutDeadline;
+                }
+            }
+
+            if (next != long.MaxValue)
+            {
+                ScheduleTimeoutScan(next);
+            }
+        }
+
+        /// <summary>
+        /// Stops the timeout timer for good. Operations are no longer added from
+        /// here on, so the ones pending afterwards are all the channel holds.
+        /// </summary>
+        private void DisposeTimeoutTimer()
+        {
+            lock (m_timeoutLock)
+            {
+                m_nextTimeoutScan = long.MinValue;
+                m_timeoutTimer?.Dispose();
+                m_timeoutTimer = null;
+            }
         }
 
         /// <summary>
@@ -1911,6 +2061,7 @@ namespace Opc.Ua.Bindings
             }
 
             BufferCollection? chunksToProcess = null;
+            ArraySegment<byte> singleChunk = default;
             try
             {
                 // check for an abort.
@@ -1940,11 +2091,18 @@ namespace Opc.Ua.Bindings
                     return true;
                 }
 
-                // get the chunks to process.
-                chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
-
-                // get response.
-                operation.MessageBody = ParseResponse(chunksToProcess);
+                // get response: a response in one chunk, which most are, is decoded
+                // from that chunk without a collection of the chunks.
+                if (IsSingleChunkMessage(messageBody, isServerContext: false))
+                {
+                    singleChunk = messageBody;
+                    operation.MessageBody = DecodeMessage<IServiceResponse>(singleChunk, Quotas.MessageContext);
+                }
+                else
+                {
+                    chunksToProcess = GetSavedChunks(requestId, messageBody, false, gateHeld: false);
+                    operation.MessageBody = ParseResponse(chunksToProcess);
+                }
 
                 if (operation.MessageBody == null)
                 {
@@ -1973,6 +2131,7 @@ namespace Opc.Ua.Bindings
             finally
             {
                 chunksToProcess?.Release(BufferManager, "ProcessResponseMessage");
+                ReturnBuffer(singleChunk, "ProcessResponseMessage");
             }
         }
 
@@ -1983,6 +2142,9 @@ namespace Opc.Ua.Bindings
         private WriteOperation? m_handshakeOperation;
         private ChannelToken? m_requestedToken;
         private ITimer? m_handshakeTimer;
+        private readonly Lock m_timeoutLock = new();
+        private ITimer? m_timeoutTimer;
+        private long m_nextTimeoutScan = long.MaxValue;
         private bool m_reconnecting;
         private int m_waitBetweenReconnects;
         private readonly IUaSCByteTransportFactory m_transportFactory;
@@ -1992,6 +2154,15 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The activity source for service calls, resolved once: the
+        /// GetActivitySource extension walks the stack to find the calling
+        /// assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource => m_activitySource ??= m_telemetry.GetActivitySource();
+
+        private ActivitySource? m_activitySource;
         private readonly ITelemetryContext m_telemetry;
         private byte[]? m_oscRequestSignature;
         private readonly MessageSecurityMode m_requestedSecurityMode;

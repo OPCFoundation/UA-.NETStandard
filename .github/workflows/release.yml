@@ -68,7 +68,7 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: '10.0.401'
+          dotnet-version: '10.0.402'
 
       - name: Validate selected publish run
         id: source
@@ -319,6 +319,7 @@ jobs:
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
+          . ./.azurepipelines/package-version-policy.ps1
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $packages = @(Get-ChildItem promotion -Filter '*.nupkg' -File |
               Where-Object {
@@ -339,9 +340,7 @@ jobs:
                       }
 
                       $id = [string]$metadata.package.metadata.id
-                      -not $id.EndsWith(
-                          '.Debug',
-                          [StringComparison]::OrdinalIgnoreCase)
+                      -not (Test-DebugPackageId -PackageId $id)
                   }
                   finally {
                       $archive.Dispose()

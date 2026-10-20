@@ -45,7 +45,7 @@ namespace Opc.Ua.Client
     /// publish pipeline as a drop-in replacement for the
     /// classic fire-and-forget engine.
     /// </summary>
-    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine
+    public sealed class DefaultSubscriptionEngine : ISubscriptionEngine, IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the
@@ -183,6 +183,16 @@ namespace Opc.Ua.Client
                     .AsTask()
                     .GetAwaiter()
                     .GetResult();
+                m_disposed = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask DisposeAsync()
+        {
+            if (!m_disposed)
+            {
+                await m_manager.DisposeAsync().ConfigureAwait(false);
                 m_disposed = true;
             }
         }
@@ -602,12 +612,28 @@ namespace Opc.Ua.Client
                 IMonitoredItemContext context,
                 ITelemetryContext telemetry)
             {
+                // One logger for all items of the subscription instead of
+                // one per item; the logger is stateless.
+                ItemLogger? itemLogger = Volatile.Read(ref m_itemLogger);
+                if (itemLogger == null ||
+                    !ReferenceEquals(itemLogger.Telemetry, telemetry))
+                {
+                    itemLogger = new ItemLogger(telemetry,
+                        telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    Volatile.Write(ref m_itemLogger, itemLogger);
+                }
                 return new DefaultMonitoredItem(
                     context,
                     name,
                     options,
-                    telemetry.LoggerFactory.CreateLogger<DefaultMonitoredItem>());
+                    itemLogger.Logger);
             }
+
+            private sealed record class ItemLogger(
+                ITelemetryContext Telemetry,
+                ILogger Logger);
+
+            private ItemLogger? m_itemLogger;
         }
 
         /// <summary>

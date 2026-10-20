@@ -24,6 +24,7 @@ choose between them.
 | `ManagedSessionFactory` | `ManagedSession` | inherited from `ManagedSession` | inherited from `ManagedSession` | drop-in `ISessionFactory` that yields managed sessions |
 | `ChannelManagerSessionFactory` | raw `Session` | channel-level reconnect through `IClientChannelManager` | classic engine | raw sessions that share channels and coordinate transport reconnect centrally |
 | `ManagedSessionBuilder` | `ManagedSession` | inherited from `ManagedSession` | configurable via `UseSubscriptionEngine` | fluent / DI scenarios |
+| `SessionRequestContext` | borrowed session view | rejects stale dispatch instead of reconnecting | not a subscription/reconnect facade | generation-sensitive remote handles, cursors and target classifications |
 | `IClientChannelManager` | `IManagedTransportChannel` leases (shared) | channel-level reconnect, coalesced and notified to participants | n/a (channel-only) | central transport-channel sharing & reconnect for sessions / discovery clients |
 
 Everything below explains how these pieces fit together.
@@ -43,6 +44,8 @@ Everything below explains how these pieces fit together.
   - [`ManagedSessionFactory`](#managedsessionfactory)
   - [`ManagedSessionBuilder`](#managedsessionbuilder)
   - [Reconnect semantics on `ManagedSession`](#reconnect-semantics-on-managedsession)
+  - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
+  - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
@@ -184,7 +187,12 @@ is the original reconnect helper that ships with `Session`. It implements
 the timer-driven retry loop, picks between
 `Session.ReconnectAsync` and `ISessionFactory.RecreateAsync`, handles
 endpoint refreshes when the server certificate changes, and cooperates
-with `ReverseConnectManager`.
+with `ReverseConnectManager`. Refresh updates endpoint metadata, but reconnect
+requires the same message-security mode and security policy as the configured
+endpoint. If discovery no longer offers that exact combination, reconnect fails
+instead of selecting another security configuration. Network redundancy skips
+incompatible alternate endpoints and continues searching the configured list
+for a matching endpoint.
 
 ```csharp
 using var handler = new SessionReconnectHandler(
@@ -259,6 +267,11 @@ an `ISession` facade that wraps a raw `Session` and adds:
   unavailable, and invalidates a peer's cached endpoint after failed failover.
   Certificate-validation reconnect failures refresh endpoint discovery before
   recreating the session; normal certificate trust validation still applies.
+  Refresh preserves the active endpoint's message-security mode and
+  security-policy URI. A new server certificate can therefore be accepted only
+  through the existing certificate-validation rules, not by changing the
+  channel's security configuration. An application can add its own checks;
+  see [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint).
 - A **service gate** (`m_serviceLock`) that pauses caller-issued service
   calls (Read/Write/Browse/Call/...) for the duration of a reconnect or
   failover, so consumers see one transparent retry rather than a torn
@@ -391,7 +404,10 @@ connection state machine transitions `Connected → Reconnecting` and:
 4. If the redundancy handler is enabled and the active server is
    unreachable, it consults
    `IServerRedundancyHandler.GetNextEndpointAsync` and recreates the
-   session against the failover endpoint.
+   session against a failover endpoint with the same message-security mode
+   and security-policy URI. Targets with a different mode or policy are
+   skipped before opening their channels; recovery continues to the next
+   configured endpoint.
 5. On success, transitions `Reconnecting → Connected` and releases the
    service gate, replaying any deferred calls.
 6. If the retry budget and failover are exhausted after an established
@@ -423,6 +439,144 @@ is consumed by the initial connection attempt only. Supplying that connection
 without a manager supports a single connection, not automatic recovery: later
 attempts fail with `BadSecureChannelClosed` through the configured reconnect
 policy. They never fall back to opening an outbound connection.
+
+`ConfiguredEndpoint.UpdateBeforeConnect` controls whether endpoint discovery
+refreshes the configured endpoint before connecting. It does not authorize
+automatic security-policy changes and does not disable discovery needed during
+recovery. Reconnect and failover preserve the selected security mode and policy;
+if the server or failover target no longer offers them, the connection attempt
+fails visibly. To use a different policy, explicitly reconfigure and establish a
+new connection rather than relying on automatic reconnect to negotiate one.
+
+### Validating a rediscovered endpoint
+
+When a reconnect is rejected with a status that requires the endpoint to be
+refreshed (for example `BadCertificateInvalid` after the server replaced its
+certificate), `ManagedSession` reads the endpoint again from the server's
+discovery endpoint and recreates the session against it. Discovery runs before
+the new secure channel exists, so its answer is not authenticated. The
+rediscovered endpoint is therefore read into a detached copy and checked in two
+steps before it replaces the endpoint in use:
+
+1. **Security configuration (always).** The rediscovered endpoint must keep the
+   message-security mode and security-policy URI of the endpoint in use, as
+   described above. A change fails the reconnect attempt with
+   `BadSecurityModeRejected` or `BadSecurityPolicyRejected`; the validator
+   below is not called.
+2. **Application validator (optional).** A registered
+   `RediscoveredEndpointValidator` receives the endpoint in use and the
+   rediscovered one and returns `ServiceResult.Good` to accept it. Use it for
+   checks the client cannot make on its own, such as pinning the server
+   certificate; it does not need to repeat the security-configuration check.
+
+The check is fail-closed: the rediscovered endpoint replaces the endpoint in
+use only after both steps passed, so sessions sharing a `ConfiguredEndpoint`
+never see an endpoint that was not accepted. A failed refresh, a changed
+security configuration, a validator result that is not Good, an exception or a
+cancellation keeps the endpoint in use and fails the reconnect attempt, which
+the reconnect policy then retries. A Bad validator result is reported as it
+is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
+
+Each `ManagedSession` works on its own copy of the `ConfiguredEndpoint` it was
+created with, taken when it connects, and on a copy of a failover or alternate
+endpoint once it switches to it. The session adopts a switch target before it
+connects and keeps it when the switch fails, so a later retry recreates on that
+target; the session then works on that copy and publishes accepted rediscovered
+endpoints to the endpoint it was copied from. Reconnects, recreates and
+failovers use the copy the session adopted, and both steps above compare
+against it, so it is always the endpoint the session itself accepted. An
+accepted rediscovered endpoint is published to the endpoint the copy was taken
+from, so other consumers of it see the update, but no session reads it back:
+another session sharing that endpoint keeps working on, and validating against,
+its own copy. When a session switches back to an endpoint it used before and
+that endpoint changed since, another session published the change; it is
+checked in both steps above against what this session accepted for that
+endpoint before the session adopts it, and a change that is not accepted is not
+taken over. `ManagedSession.ConfiguredEndpoint` returns the copy once the
+session is connected.
+
+```csharp
+RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
+{
+    if (rediscovered.ServerCertificate != current.ServerCertificate)
+    {
+        // A renewed server certificate is still validated by the certificate
+        // validator when the channel opens; reject here only when the
+        // application pins the certificate. A rediscovered endpoint without
+        // a certificate is rejected as well.
+        return new ValueTask<ServiceResult>(
+            new ServiceResult(StatusCodes.BadCertificateInvalid));
+    }
+    return new ValueTask<ServiceResult>(ServiceResult.Good);
+};
+
+// Fluent API: installed before the session connects.
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .WithRediscoveredEndpointValidator(pinCertificate)
+    .ConnectAsync(ct);
+
+// Options snapshot passed to ManagedSession.CreateAsync.
+var options = new ManagedSessionOptions
+{
+    Endpoint = endpoint,
+    ValidateRediscoveredEndpoint = pinCertificate
+};
+
+// Dependency injection: a registered validator is applied to every managed
+// session that IManagedSessionFactory connects, unless the session options
+// carry their own.
+services.AddSingleton(pinCertificate);
+```
+
+Setting `ManagedSession.ValidateRediscoveredEndpoint` on a connected session
+also works, but only covers reconnects that start afterwards; prefer one of
+the paths above.
+
+### Generation-bound client requests
+
+Use `SessionRequestContext` when several calls must use the **same server
+session**, such as continuing a history read, writing an open file, or acting on
+a target you have already checked. A `ManagedSession` can reconnect between
+those calls. Without a context, an old file handle or continuation point could
+be sent to the replacement session.
+
+Capture a context from your existing `ManagedSession` and pass `context.Session`
+to the clients or generated proxies used by the whole operation:
+
+```csharp
+using Opc.Ua.Client;
+
+await using SessionRequestContext context =
+    await SessionRequestContext.CaptureAsync(managedSession, ct);
+
+ISession requestSession = context.Session;
+// Use requestSession for target lookup and every subsequent call in this operation.
+```
+
+The context borrows the connection; it does not connect or reconnect for you.
+Keep it alive until resources opened through it have been cleaned up. Disposing
+it releases its local resources, not the owning session.
+
+If recovery starts or the captured session becomes stale, later calls fail with
+`BadSessionIdInvalid` instead of following the replacement. `Invalidated` lets you
+stop work that depends on that session. Start a new context and obtain fresh
+handles before starting another operation.
+
+The context does not make a sequence atomic or retry failed calls. Late
+cancellation does not replace a returned mutation result; a lost response can
+mean the mutation committed, so inspect the server before retrying. Changes to the
+server's address space or permissions still need your application's normal
+handling.
+
+Capture requires the stack's `ManagedSession` and a supported transport;
+unsupported custom sessions or managed transports return `BadNotSupported`.
+For ordinary independent calls, continue using the managed session directly.
+
+See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
+[historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
+[role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the
+corresponding client APIs.
 
 ### Closing a `ManagedSession`
 
@@ -1367,8 +1521,8 @@ Pick the entry point that best matches your call site:
 ## Server session lifecycle
 
 Channel and security-policy association failures are rejected before
-authentication-failure accounting. Requests from another channel cannot
-lock out the application owning an unactivated session; genuine invalid
+authentication-failure accounting. A request from a different channel cannot
+lock out the application that owns an unactivated session; genuine invalid
 signatures and identity credentials still count toward that application's
 lockout threshold.
 
@@ -1382,6 +1536,16 @@ continuation remains caller-owned until its mirror write and local
 admission succeed. If the session closes during persistence, the late
 mirror entry is removed and `BadSessionClosed` is returned without
 transferring or disposing the caller's resource twice.
+
+Activating an unknown server session restores it first. The flow is:
+
+1. The activation enters binding admission.
+2. Admission is suspended while the restore provider runs, so activations for
+   other tokens and unrelated session creation can continue. Activations that
+   use the same token share one pending restore.
+3. Admission is reacquired.
+4. The restored session is validated and its security checks run.
+5. The session is activated and binding notifications are sent.
 
 Replacing or resetting a session's ephemeral user-token key retires the
 previous key. A key already borrowed by credential decryption remains

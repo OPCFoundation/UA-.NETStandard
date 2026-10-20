@@ -54,7 +54,8 @@ Which security policies actually work depends on the mechanisms your token imple
 ## Limitations
 
 - Revocation lists are not held on a token. Point the trusted issuer store at a directory store.
-- Objects are provisioned and removed with the token vendor's tools, not through this store.
+- Keys are provisioned and removed with the token vendor's tools, not through this store. Certificates are: `AddAsync` writes a certificate object (`CKO_CERTIFICATE`) to the token, and `DeleteAsync` destroys the certificate objects of a thumbprint while the key objects stay on the token. A written certificate gets the `CKA_ID` that `Pkcs11TokenOptions.ObjectId` selects objects by, else the `CKA_ID` of the key it belongs to — an RSA key with the same modulus and public exponent, or an EC key with the same point on the same curve — so a renewed certificate is paired with its key again; a certificate without a key on the token gets the SHA-1 hash of its public key as `CKA_ID`.
+- `LoadPrivateKeyAsync` pairs a certificate with the private key of the same `CKA_ID`. A certificate without a `CKA_ID` gets a key only after the key has signed a random challenge that the certificate's public key verifies (PKCS#1 v1.5, or PSS for an RSA key the token permits only for PSS). The candidates are the keys with the `CKA_ID` of the key object that carries the certificate's public key, then the keys `Pkcs11TokenOptions.ObjectLabel` or `ObjectId` selects; without such a filter, only the former.
 - A private key offered to `AddAsync` is refused and logged: a token does not import key material it did not generate.
 - The token's validation status is reported as **uncertified** unless you assert one, because nothing in the PKCS#11 interface reports a FIPS certificate. See the crypto provider documentation for how this is audited.
 

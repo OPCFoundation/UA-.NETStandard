@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(TrustListMasks.TrustedCertificates)]
         [TestCase(TrustListMasks.IssuerCertificates)]
-        public void ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)
+        public async Task ScopedResolverFailureDoesNotFallBackToDirectory(TrustListMasks mask)
         {
             TrustListState node = CreateNode();
             CertificateStoreIdentifier identifier = mask == TrustListMasks.TrustedCertificates
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server.Tests
                 resolver.Object);
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
 
-            IOException actual = Assert.ThrowsAsync<IOException>(async () =>
+            IOException actual = await Assert.ThrowsAsync<IOException>(async () =>
                 await node.OpenWithMasks!.OnCallAsync!(context, node.OpenWithMasks, node.NodeId,
                     (uint)mask, CancellationToken.None).ConfigureAwait(false));
 
@@ -2112,6 +2112,111 @@ namespace Opc.Ua.Server.Tests
             ServiceResult removeWithCopy = node.RemoveCertificate.OnCall(
                 context, node.RemoveCertificate, node.NodeId, rootCa.Thumbprint, true);
             Assert.That(ServiceResult.IsGood(removeWithCopy), Is.True, removeWithCopy.ToString());
+        }
+
+        [Test]
+        public async Task ValidateNewTrustListAsyncCanBeCalledBeforeApplyingATrustListAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Prevalidated CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Prevalidated Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            ServiceResult accepted = await trustList.ValidateNewTrustListAsync(
+                [caCert],
+                [leaf],
+                [],
+                [],
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+            ServiceResult missingIssuer = await trustList.ValidateNewTrustListAsync(
+                ArrayOf<Certificate>.Null,
+                [leaf],
+                ArrayOf<X509CRL>.Null,
+                ArrayOf<X509CRL>.Null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+            ServiceResult notACa = await trustList.ValidateNewTrustListAsync(
+                [leaf],
+                ArrayOf<Certificate>.Null,
+                ArrayOf<X509CRL>.Null,
+                ArrayOf<X509CRL>.Null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            await Assert.MultipleAsync(async () =>
+            {
+                Assert.That(ServiceResult.IsGood(accepted), Is.True, accepted.ToString());
+                Assert.That(missingIssuer.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(notACa.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                // The validation takes its own references: the caller's
+                // certificates are still usable afterwards.
+                Assert.That(leaf.RawData, Has.Length.GreaterThan(0));
+                Assert.That(caCert.Subject, Does.Contain("Prevalidated CA"));
+                await Assert.ThrowsAsync<ArgumentNullException>(
+                    async () => await trustList.ValidateNewTrustListAsync(
+                        [], [], [], [], null!, CancellationToken.None).ConfigureAwait(false));
+            });
+        }
+
+        [Test]
+        public async Task ValidateNewTrustListAsyncValidatesRetainedCertificatesAsync()
+        {
+            TrustListState node = CreateNode();
+            TrustList trustList = CreateTrustList(node);
+
+            using Certificate caCert = CertificateBuilder
+                .Create("CN=TrustList Retained CA")
+                .SetCAConstraint()
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using Certificate leaf = CertificateBuilder
+                .Create("CN=TrustList Retained Leaf")
+                .SetIssuer(caCert)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            using (ICertificateStore trustedStore = m_trustedStore.OpenStore(m_telemetry))
+            {
+                await trustedStore.AddAsync(leaf).ConfigureAwait(false);
+            }
+            using (ICertificateStore issuerStore = m_issuerStore.OpenStore(m_telemetry))
+            {
+                await issuerStore.AddAsync(caCert).ConfigureAwait(false);
+            }
+
+            // Keeping both stores and only replacing the issuer CRLs keeps a
+            // valid TrustList.
+            ServiceResult crlsOnly = await trustList.ValidateNewTrustListAsync(
+                ArrayOf<Certificate>.Null,
+                ArrayOf<Certificate>.Null,
+                [],
+                ArrayOf<X509CRL>.Null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+            // Clearing the issuers while the trusted store is retained leaves
+            // the retained leaf without its issuer.
+            ServiceResult issuersCleared = await trustList.ValidateNewTrustListAsync(
+                [],
+                ArrayOf<Certificate>.Null,
+                ArrayOf<X509CRL>.Null,
+                ArrayOf<X509CRL>.Null,
+                new SecurityConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(crlsOnly), Is.True, crlsOnly.ToString());
+                Assert.That(issuersCleared.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+                Assert.That(issuersCleared.ToString(), Does.Contain("Retained Leaf"));
+            });
         }
 
         [Test]

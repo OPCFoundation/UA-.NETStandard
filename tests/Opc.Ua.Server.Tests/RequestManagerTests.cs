@@ -28,8 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -513,6 +515,172 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancelRequestsAllowsCallbacksToCompleteAndAdmitRequests(bool admitReplacement)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var replacementLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime);
+            OperationContext second = CreateOperationContext(42, secondLifetime);
+            OperationContext other = CreateOperationContext(99, otherLifetime);
+            OperationContext replacement = CreateOperationContext(42, replacementLifetime);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            m_requestManager.RequestReceived(other);
+            var cancelled = new List<uint>();
+            var statuses = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, status) =>
+            {
+                cancelled.Add(id);
+                statuses.Add(status.Code);
+            };
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(() =>
+            {
+                m_requestManager.RequestCompleted(first);
+                if (admitReplacement)
+                {
+                    m_requestManager.RequestReceived(replacement);
+                }
+            });
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(
+                () => m_requestManager.RequestCompleted(second));
+
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint count);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(count, Is.EqualTo(2U));
+                Assert.That(cancelled, Is.EquivalentTo(new[] { first.RequestId, second.RequestId }));
+                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(first.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(second.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+                Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            });
+
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint remaining);
+            Assert.That(remaining, Is.EqualTo(admitReplacement ? 1U : 0U));
+            Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.EqualTo(admitReplacement));
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TimerExpiryAllowsCallbacksToCompleteAndAdmitRequests(bool admitReplacement)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            using var otherLifetime = new RequestLifetime();
+            using var replacementLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime, 100);
+            OperationContext second = CreateOperationContext(43, secondLifetime, 100);
+            OperationContext other = CreateOperationContext(99, otherLifetime);
+            OperationContext replacement = CreateOperationContext(44, replacementLifetime, 60_000);
+            DateTime latestDeadline = first.OperationDeadline > second.OperationDeadline
+                ? first.OperationDeadline : second.OperationDeadline;
+            var clock = new FakeTimeProvider(new DateTimeOffset(latestDeadline).AddSeconds(1));
+            Assert.That(replacement.OperationDeadline, Is.GreaterThan(clock.GetUtcNow().UtcDateTime.AddSeconds(1)));
+            m_requestManager.Dispose();
+            m_requestManager = new RequestManager(m_mockServer.Object, clock);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            m_requestManager.RequestReceived(other);
+            var cancelled = new List<uint>();
+            var statuses = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, status) =>
+            {
+                cancelled.Add(id);
+                statuses.Add(status.Code);
+            };
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(() =>
+            {
+                m_requestManager.RequestCompleted(first);
+                if (admitReplacement)
+                {
+                    m_requestManager.RequestReceived(replacement);
+                }
+            });
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(
+                () => m_requestManager.RequestCompleted(second));
+
+            clock.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(cancelled, Is.EquivalentTo(new[] { first.RequestId, second.RequestId }));
+                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadTimeout));
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+                Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.False);
+            });
+            if (!admitReplacement)
+            {
+                m_requestManager.RequestReceived(replacement);
+            }
+            clock.Advance(replacement.OperationDeadline - clock.GetUtcNow().UtcDateTime + TimeSpan.FromSeconds(1));
+
+            Assert.That(replacementLifetime.CancellationToken.IsCancellationRequested, Is.True);
+            Assert.That(cancelled, Is.EquivalentTo(
+                new[] { first.RequestId, second.RequestId, replacement.RequestId }));
+            Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CancellationSkipsRequestsCompletedByAnotherCallback(bool expire)
+        {
+            using var firstLifetime = new RequestLifetime();
+            using var secondLifetime = new RequestLifetime();
+            OperationContext first = CreateOperationContext(42, firstLifetime, 100);
+            OperationContext second = CreateOperationContext(42, secondLifetime, 100);
+            DateTime latestDeadline = first.OperationDeadline > second.OperationDeadline
+                ? first.OperationDeadline : second.OperationDeadline;
+            var clock = new FakeTimeProvider(new DateTimeOffset(latestDeadline).AddSeconds(1));
+            m_requestManager.Dispose();
+            m_requestManager = new RequestManager(m_mockServer.Object, clock);
+            m_requestManager.RequestReceived(first);
+            m_requestManager.RequestReceived(second);
+            var cancelled = new List<uint>();
+            m_requestManager.RequestCancelled += (_, id, _) => cancelled.Add(id);
+            using CancellationTokenRegistration firstCallback = firstLifetime.CancellationToken.Register(CompleteBoth);
+            using CancellationTokenRegistration secondCallback = secondLifetime.CancellationToken.Register(CompleteBoth);
+
+            uint count = 0;
+            if (expire)
+            {
+                clock.Advance(TimeSpan.FromSeconds(1));
+            }
+            else
+            {
+                m_requestManager.CancelRequests(first.SessionId, 42, out count);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstLifetime.CancellationToken.IsCancellationRequested ^
+                    secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
+                Assert.That(cancelled, Has.Count.EqualTo(1));
+                if (!expire)
+                {
+                    Assert.That(count, Is.EqualTo(1U));
+                }
+            });
+            m_requestManager.CancelRequests(first.SessionId, 42, out uint remaining);
+            Assert.That(remaining, Is.Zero);
+
+            void CompleteBoth()
+            {
+                m_requestManager.RequestCompleted(first);
+                m_requestManager.RequestCompleted(second);
+            }
+        }
+
         [Test]
         public void RequestCompletedRemovesRequestAndCompletesLifetime()
         {
@@ -732,6 +900,28 @@ namespace Opc.Ua.Server.Tests
                 requestLifetime.TryCancel(StatusCodes.BadTimeout),
                 Is.True,
                 "Without the lifecycle extension, the drain must not resnapshot promoted requests.");
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task ReusedValidationScopesAreAwaitedUnderTheirNewIdAsync()
+        {
+            // disposed scopes are reused: every round is awaited by a drain that starts while it
+            // is open, and a drain that started before it does not wait for it.
+            for (int round = 0; round < 64; round++)
+            {
+                IDisposable earlier = m_requestManager.EnterValidationScope();
+                Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False, $"round {round}");
+                earlier.Dispose();
+                await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
+
+                IDisposable later = m_requestManager.EnterValidationScope();
+                Task next = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+                Assert.That(next.IsCompleted, Is.False, $"round {round}");
+                later.Dispose();
+                await AssertCompletesWithinTimeoutAsync(next).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -1179,6 +1369,192 @@ namespace Opc.Ua.Server.Tests
 
             m_requestManager.RequestCompleted(outerContext);
             m_requestManager.RequestCompleted(innerContext);
+        }
+
+        /// <summary>
+        /// Requests and validation scopes are registered and completed without the request
+        /// manager lock. A drain that snapshots them concurrently must still be released by every
+        /// completion it waits for, or it would run into its two-minute timeout.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task DrainsRacingLockFreeRegistrationAndCompletionAlwaysCompleteAsync()
+        {
+            using var stop = new CancellationTokenSource();
+            int completed = 0;
+            var churn = new Task[4];
+            for (int worker = 0; worker < churn.Length; worker++)
+            {
+                churn[worker] = Task.Run(() =>
+                {
+                    uint handle = 0;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        IDisposable validation = m_requestManager.EnterValidationScope();
+                        using var lifetime = new RequestLifetime();
+                        OperationContext context = CreateOperationContext(++handle, lifetime, 60000);
+                        m_requestManager.RequestReceived(context);
+                        validation.Dispose();
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
+                        m_requestManager.RequestCompleted(context);
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+                        Interlocked.Increment(ref completed);
+                    }
+                });
+            }
+
+            try
+            {
+                // the drains must race the churn, so wait until it is running
+                using var started = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                while (Volatile.Read(ref completed) < 1000)
+                {
+                    await Task.Delay(1, started.Token).ConfigureAwait(false);
+                }
+                for (int ii = 0; ii < 200; ii++)
+                {
+                    await m_requestManager.WaitForCurrentRequestsAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+                await Task.WhenAll(churn).ConfigureAwait(false);
+            }
+
+            Assert.That(completed, Is.GreaterThan(0));
+            await AssertCompletesWithinTimeoutAsync(m_requestManager.WaitForCurrentRequestsAsync().AsTask())
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A request attached inside its service dispatch scope is tracked until its context is
+        /// disposed, completes exactly once however often the context is disposed, and its id
+        /// reaches the lifecycle extension through the dispatch scope.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task AttachedRequestCompletesOnceWhenItsContextIsDisposedAsync()
+        {
+            using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
+            using var lifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(90, lifetime, 60000);
+
+            m_requestManager.AttachRequestScope(context);
+
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+            Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+            Assert.That(waiter.IsCompleted, Is.False);
+
+            context.Dispose();
+            context.Dispose();
+
+            await AssertCompletesWithinTimeoutAsync(waiter).ConfigureAwait(false);
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+            Assert.That(lifetime.TryCancel(StatusCodes.BadTimeout), Is.False);
+
+            // a later request with the same handle is not completed by the earlier context.
+            using var nextLifetime = new RequestLifetime();
+            OperationContext next = CreateOperationContext(90, nextLifetime, 60000);
+            m_requestManager.AttachRequestScope(next);
+            context.Dispose();
+            Assert.That(m_requestManager.IsExecutingRequest(next), Is.True);
+            next.Dispose();
+            Assert.That(m_requestManager.IsExecutingRequest(next), Is.False);
+        }
+
+        /// <summary>
+        /// Attaching a request scope requires a context.
+        /// </summary>
+        [Test]
+        public void AttachRequestScopeRejectsANullContext()
+        {
+            Assert.That(() => m_requestManager.AttachRequestScope(null!), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// A request attached outside a service dispatch scope sets the ambient request id for
+        /// its execution and restores the previous one when its context is disposed.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public void AttachedRequestOutsideADispatchScopeRestoresTheAmbientRequestId()
+        {
+            uint? before = m_requestManager.GetCurrentRequestIdForLifecycleExtension();
+            using var lifetime = new RequestLifetime();
+            OperationContext context = CreateOperationContext(91, lifetime, 60000);
+
+            m_requestManager.AttachRequestScope(context);
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+
+            context.Dispose();
+            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(before));
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+        }
+
+        /// <summary>
+        /// Requests attached without a scope object and completed by disposing their contexts,
+        /// concurrently from two threads and racing cancellation and drains, each complete
+        /// exactly once and leave nothing tracked.
+        /// </summary>
+        [Test]
+        [Category("NodeManagerLifecycle")]
+        public async Task AttachedRequestsRacingDisposeCancelAndDrainsLeaveNothingTrackedAsync()
+        {
+            using var stop = new CancellationTokenSource();
+            int completed = 0;
+            var churn = new Task[4];
+            for (int worker = 0; worker < churn.Length; worker++)
+            {
+                uint firstHandle = (uint)(worker * 1_000_000);
+                churn[worker] = Task.Run(async () =>
+                {
+                    uint handle = firstHandle;
+                    while (!stop.IsCancellationRequested)
+                    {
+                        using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
+                        IDisposable validation = m_requestManager.EnterValidationScope();
+                        using var lifetime = new RequestLifetime();
+                        OperationContext context = CreateOperationContext(++handle, lifetime, 60000);
+                        m_requestManager.AttachRequestScope(context);
+                        validation.Dispose();
+                        if ((handle & 3) == 0)
+                        {
+                            m_requestManager.CancelRequests(context.SessionId, handle, out _);
+                        }
+                        Task other = Task.Run(context.Dispose);
+                        context.Dispose();
+                        await other.ConfigureAwait(false);
+                        Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
+                        Interlocked.Increment(ref completed);
+                    }
+                });
+            }
+
+            try
+            {
+                using var started = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                while (Volatile.Read(ref completed) < 1000)
+                {
+                    await Task.Delay(1, started.Token).ConfigureAwait(false);
+                }
+                for (int ii = 0; ii < 100; ii++)
+                {
+                    await m_requestManager.WaitForCurrentRequestsAsync().AsTask()
+                        .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                stop.Cancel();
+                await Task.WhenAll(churn).ConfigureAwait(false);
+            }
+
+            Assert.That(completed, Is.GreaterThan(0));
+            await AssertCompletesWithinTimeoutAsync(m_requestManager.WaitForCurrentRequestsAsync().AsTask())
+                .ConfigureAwait(false);
         }
 
         private static OperationContext CreateOperationContext(

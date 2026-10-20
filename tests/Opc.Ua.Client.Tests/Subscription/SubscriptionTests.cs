@@ -961,7 +961,7 @@ namespace Opc.Ua.Client.Subscriptions
                 async Task act() => await sut.ConditionRefreshAsync(CancellationToken.None).ConfigureAwait(false);
 
                 // Assert
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await act().ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
@@ -1051,6 +1051,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Retired messages never reach replacement acknowledgements, and captured acknowledgements stay stable.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
         public async Task DeleteAndResetRetireQueuedMessagesBeforeReplacementAsync(bool delete)
@@ -1074,7 +1077,17 @@ namespace Opc.Ua.Client.Subscriptions
             var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var barrier = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var freshData = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFresh = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var freshAcknowledged = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var received = new ConcurrentQueue<uint>();
+            m_completion.OnQueueAsync = (acknowledgement, _) =>
+            {
+                if (acknowledgement.SubscriptionId == 22 && acknowledgement.SequenceNumber == 1)
+                {
+                    freshAcknowledged.TrySetResult(true);
+                }
+                return default;
+            };
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 10);
             await using (sut.ConfigureAwait(false))
@@ -1090,6 +1103,7 @@ namespace Opc.Ua.Client.Subscriptions
                     if (sequenceNumber == 1)
                     {
                         freshData.TrySetResult(true);
+                        await releaseFresh.Task.ConfigureAwait(false);
                     }
                 };
                 sut.OnKeepAliveAsync = () =>
@@ -1119,15 +1133,33 @@ namespace Opc.Ua.Client.Subscriptions
                     await barrier.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
+                    List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1));
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
+                        "Notification dispatch precedes acknowledgement enqueue.");
+                    releaseFresh.TrySetResult(true);
+                    await freshAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1),
+                        "A captured acknowledgement snapshot must not change when the worker enqueues another ack.");
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
-                    Assert.That(m_completion.QueuedAcks, Has.None.Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement.SequenceNumber == 5000));
+                    List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
+                    Assert.That(acknowledgements, Has.Count.EqualTo(2));
+                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 10 &&
+                            acknowledgement.SequenceNumber == 4999));
+                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 22 &&
+                            acknowledgement.SequenceNumber == 1));
+                    Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
+                        acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
                 }
                 finally
                 {
                     releaseFirst.TrySetResult(true);
+                    releaseFresh.TrySetResult(true);
                 }
             }
         }
@@ -1852,7 +1884,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.SetMessageStateForTest(17, 19, [11, 13]);
 
                 ServiceResultException exception =
-                    Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await Assert.ThrowsAsync<ServiceResultException>(async () =>
                         await sut.RecreateAsync(default).ConfigureAwait(false));
 
                 Assert.That(exception.StatusCode,
@@ -2080,6 +2112,55 @@ namespace Opc.Ua.Client.Subscriptions
                 // Assert
                 Assert.That(success, Is.True);
                 Assert.That(sut.MonitoredItems.Items, Does.Not.Contain(monitoredItem));
+            }
+        }
+
+        /// <summary>
+        /// An initiated transfer has its own confirmation callback; a failed handle rebind must not claim success.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InitiatedTransferReportsOnlySuccessfulHandleRebindAsync(bool succeeds)
+        {
+            m_mockSubscriptionServices.Setup(service => service.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] });
+            m_mockMonitoredItemServices.Setup(service => service.CreateMonitoredItemsAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<uint>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<MonitoredItemCreateRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateMonitoredItemsResponse
+                {
+                    Results =
+                    [
+                        new MonitoredItemCreateResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            MonitoredItemId = 9,
+                            RevisedSamplingInterval = 1000,
+                            RevisedQueueSize = 17
+                        }
+                    ]
+                });
+            var subscription = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 2);
+            await using (subscription.ConfigureAwait(false))
+            {
+                Assert.That(subscription.MonitoredItems.TryAdd("known",
+                    OptionsFactory.Create<MonitoredItems.MonitoredItemOptions>(), out IMonitoredItem? item), Is.True);
+                Assert.That(item!.Created, Is.True);
+                SetupGetMonitoredItemsResult(succeeds ? StatusCodes.BadMethodInvalid : StatusCodes.BadTimeout);
+                subscription.ResetPublishStateForTest();
+
+                bool transferred = await subscription.TryCompleteTransferAsync([], CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(transferred, Is.EqualTo(succeeds));
+                Assert.That(subscription.LastPublishState & PublishState.Transferred,
+                    Is.EqualTo(succeeds ? PublishState.Transferred : PublishState.None));
+                m_mockNotificationDataHandler.Verify(handler => handler.OnSubscriptionStateChangedAsync(
+                    subscription, It.IsAny<SubscriptionState>(),
+                    It.Is<PublishState>(state => (state & PublishState.Transferred) != 0)),
+                    succeeds ? Times.Once() : Times.Never());
             }
         }
 

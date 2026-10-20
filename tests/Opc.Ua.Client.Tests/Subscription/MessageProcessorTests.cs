@@ -84,11 +84,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// entirely if that assertion were ever loosened.
         /// </summary>
         [Test]
-        public void WaitForQueuedAckAsyncShouldThrowWhenTheAckNeverArrives()
+        public async Task WaitForQueuedAckAsyncShouldThrowWhenTheAckNeverArrives()
         {
             var queue = new FakeMessageAckQueue();
 
-            TimeoutException ex = Assert.ThrowsAsync<TimeoutException>(
+            TimeoutException ex = await Assert.ThrowsAsync<TimeoutException>(
                 async () => await queue.WaitForQueuedAckAsync(1, 200).ConfigureAwait(false));
 
             Assert.That(ex.Message, Does.Contain("only 0 arrived"));
@@ -1363,7 +1363,12 @@ namespace Opc.Ua.Client.Subscriptions
                     [], []).ConfigureAwait(false);
                 await WaitForLastSeqNumberAsync(sut, 10).ConfigureAwait(false);
                 await m_completion.WaitForQueuedAckAsync(2).ConfigureAwait(false);
-                m_completion.QueuedAcks.Clear();
+                List<SubscriptionAcknowledgement> beforePruning = m_completion.QueuedAcks;
+                Assert.That(m_completion.DropPendingForSubscription(sut.Id), Is.EqualTo(2));
+                Assert.That(m_completion.QueuedAcks, Is.Empty);
+                Assert.That(beforePruning.Select(acknowledgement => acknowledgement.SequenceNumber),
+                    Is.EqualTo(new uint[] { 9, 10 }),
+                    "Pruning the queue must not clear an acknowledgement snapshot already held by the test.");
 
                 await sut.RecoverTransferredMessagesAsync([9, 10, 11], default)
                     .ConfigureAwait(false);
@@ -1595,7 +1600,7 @@ namespace Opc.Ua.Client.Subscriptions
                     sut.Block.Release();
                     blockHeld = false;
 
-                    Assert.ThrowsAsync<OperationCanceledException>(
+                    await Assert.ThrowsAsync<OperationCanceledException>(
                         async () => await recoverTask.ConfigureAwait(false));
                     Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(10));
                     Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));

@@ -63,39 +63,66 @@ namespace Opc.Ua.Machinery.Client
             NodeId machine,
             CancellationToken cancellationToken = default)
         {
-            if (!TryGetNamespaceIndex(
-                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs,
-                out ushort jobsNamespaceIndex))
-            {
-                return null;
-            }
-            NodeId control = await ResolvePathAsync(
-                machine,
-                cancellationToken,
-                new QualifiedName(JobsBrowseNames.JobManagement, jobsNamespaceIndex),
-                new QualifiedName(JobsBrowseNames.JobOrderControl, jobsNamespaceIndex))
+            MachineryJobManagementEndpoints endpoints = await GetJobManagementEndpointsAsync(
+                machine, cancellationToken)
                 .ConfigureAwait(false);
+            NodeId control = endpoints.JobOrderReceiverId;
             if (control.IsNull)
             {
                 return null;
             }
-            NodeId results = await ResolvePathAsync(
-                machine,
-                cancellationToken,
-                new QualifiedName(JobsBrowseNames.JobManagement, jobsNamespaceIndex),
-                new QualifiedName(JobsBrowseNames.JobOrderResults, jobsNamespaceIndex))
-                .ConfigureAwait(false);
+            NodeId results = endpoints.JobResponseProviderId;
 
-            // OPC 40001-3 composes only the receiver and the response
-            // provider; there is no response receiver below a machine, so the
-            // receiver NodeId stands in for it and the corresponding client
-            // methods are simply never called.
+            // Preserve the legacy three-role client's fallback identifiers.
+            // New callers should use GetJobManagementEndpointsAsync and per-role
+            // ISA-95 proxies instead: Machinery does not define a response receiver.
             return new Isa95JobControlV2Client(
                 Session,
                 control,
                 results.IsNull ? control : results,
                 control,
                 Telemetry);
+        }
+
+        /// <summary>
+        /// Resolves the actual OPC 40001-3 job-management endpoints without
+        /// substituting another role when an optional endpoint is absent.
+        /// </summary>
+        /// <remarks>
+        /// Absent objects have <see cref="NodeId.Null"/> identifiers. Machinery
+        /// composes an ISA-95 V2 order receiver and response provider, but no
+        /// response receiver. Use the returned identifiers with the corresponding
+        /// generated ISA-95 role proxies.
+        /// </remarks>
+        /// <param name="machine">The machine to inspect.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        public async ValueTask<MachineryJobManagementEndpoints> GetJobManagementEndpointsAsync(
+            NodeId machine,
+            CancellationToken cancellationToken = default)
+        {
+            if (!TryGetNamespaceIndex(
+                Opc.Ua.Machinery.Jobs.Namespaces.MachineryJobs,
+                out ushort jobsNamespaceIndex))
+            {
+                return new MachineryJobManagementEndpoints(default, default, default);
+            }
+            NodeId management = await ResolveChildAsync(
+                machine,
+                new QualifiedName(JobsBrowseNames.JobManagement, jobsNamespaceIndex),
+                cancellationToken).ConfigureAwait(false);
+            if (management.IsNull)
+            {
+                return new MachineryJobManagementEndpoints(default, default, default);
+            }
+            NodeId receiver = await ResolveChildAsync(
+                management,
+                new QualifiedName(JobsBrowseNames.JobOrderControl, jobsNamespaceIndex),
+                cancellationToken).ConfigureAwait(false);
+            NodeId provider = await ResolveChildAsync(
+                management,
+                new QualifiedName(JobsBrowseNames.JobOrderResults, jobsNamespaceIndex),
+                cancellationToken).ConfigureAwait(false);
+            return new MachineryJobManagementEndpoints(management, receiver, provider);
         }
 
         /// <summary>
@@ -162,6 +189,49 @@ namespace Opc.Ua.Machinery.Client
             string resultId,
             CancellationToken cancellationToken = default)
         {
+            using var buffer = new MemoryStream();
+            await DownloadResultAsync(machine, resultId, buffer, cancellationToken).ConfigureAwait(false);
+            return new ByteString(buffer.ToArray());
+        }
+
+        /// <summary>
+        /// Downloads a result into a caller-owned writable stream without
+        /// buffering the whole payload in memory.
+        /// </summary>
+        /// <param name="machine">The machine that produced the result.</param>
+        /// <param name="resultId">The result identifier.</param>
+        /// <param name="destination">The writable stream, which remains open.</param>
+        /// <param name="cancellationToken">Cancels the download.</param>
+        public async ValueTask DownloadResultAsync(
+            NodeId machine,
+            string resultId,
+            Stream destination,
+            CancellationToken cancellationToken = default)
+        {
+            destination = destination ?? throw new ArgumentNullException(nameof(destination));
+            if (!destination.CanWrite)
+            {
+                throw new ArgumentException("The destination must be writable.", nameof(destination));
+            }
+            UaFileStream stream = await OpenResultStreamAsync(machine, resultId, cancellationToken)
+                .ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable _ = stream.ConfigureAwait(false);
+            await stream.CopyToAsync(destination, DownloadChunkSize, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Opens the standard temporary-file result transfer for incremental
+        /// reading. The caller must asynchronously dispose the returned stream.
+        /// </summary>
+        /// <param name="machine">The machine that produced the result.</param>
+        /// <param name="resultId">The result identifier.</param>
+        /// <param name="cancellationToken">Cancels opening the transfer.</param>
+        /// <returns>The open, caller-owned result stream.</returns>
+        public async ValueTask<UaFileStream> OpenResultStreamAsync(
+            NodeId machine,
+            string resultId,
+            CancellationToken cancellationToken = default)
+        {
             if (string.IsNullOrEmpty(resultId))
             {
                 throw new ArgumentException(
@@ -193,20 +263,11 @@ namespace Opc.Ua.Machinery.Client
 
             var client = new TemporaryFileTransferClient(Session, transfer);
             var options = new ResultTransferOptionsDataType { ResultId = resultId };
-            UaFileStream stream = await client
+            return await client
                 .GenerateFileForReadAsync(
                     Variant.FromStructure(options),
                     cancellationToken)
                 .ConfigureAwait(false);
-            await using ConfiguredAsyncDisposable _ = stream.ConfigureAwait(false);
-
-            using var buffer = new MemoryStream();
-            // The three-argument overload is the one netstandard2.0 and the
-            // .NET Framework targets have; the two-argument cancellable one is
-            // net5.0 and later only.
-            await stream.CopyToAsync(buffer, DownloadChunkSize, cancellationToken)
-                .ConfigureAwait(false);
-            return new ByteString(buffer.ToArray());
         }
     }
 }

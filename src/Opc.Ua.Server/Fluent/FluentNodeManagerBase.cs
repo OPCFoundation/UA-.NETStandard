@@ -61,7 +61,7 @@ namespace Opc.Ua.Server.Fluent
     /// generated code only.
     /// </para>
     /// </remarks>
-    public abstract class FluentNodeManagerBase : AsyncCustomNodeManager
+    public abstract partial class FluentNodeManagerBase : AsyncCustomNodeManager
     {
         /// <summary>
         /// Initializes the node manager.
@@ -336,6 +336,10 @@ namespace Opc.Ua.Server.Fluent
             return null;
         }
 
+        /// <summary>
+        /// Finds the virtual-node family that owns a node, rejecting matches on multiple attached builders.
+        /// </summary>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         internal VirtualNodeRegistration? FindVirtualNodeRegistration(
             NodeId nodeId)
         {
@@ -620,11 +624,47 @@ namespace Opc.Ua.Server.Fluent
         public override async ValueTask DeleteAddressSpaceAsync(
             CancellationToken cancellationToken = default)
         {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            List<Exception> failures = await ReleaseNodeBehaviorsAsync().ConfigureAwait(false);
+            try
+            {
+                await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            ThrowNodeBehaviorReleaseFailures(failures);
+        }
+
+        /// <summary>
+        /// Releases committed behaviors when an aborted startup disposes the manager without normal shutdown.
+        /// </summary>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            StopNodeResourceAdmission();
+            List<Exception> failures = await ReleaseNodeBehaviorsAsync().ConfigureAwait(false);
+            failures.AddRange(await ReleaseOwnedNodeResourcesAsync().ConfigureAwait(false));
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            ThrowNodeBehaviorReleaseFailures(failures);
+        }
+
+        /// <summary>
+        /// Drains each activation before clearing nodes, retaining pending entries for concurrent teardown callers.
+        /// </summary>
+        private async ValueTask<List<Exception>> ReleaseNodeBehaviorsAsync()
+        {
             List<NodeBehaviorActivation> activations;
             lock (m_behaviorActivationsLock)
             {
                 activations = [.. m_behaviorActivations];
-                m_behaviorActivations.Clear();
             }
 
             var failures = new List<Exception>();
@@ -643,19 +683,23 @@ namespace Opc.Ua.Server.Fluent
                 {
                     failures.Add(ex);
                 }
+                finally
+                {
+                    lock (m_behaviorActivationsLock)
+                    {
+                        m_behaviorActivations.Remove(activations[i]);
+                    }
+                }
             }
 
-            try
-            {
-                await base
-                    .DeleteAddressSpaceAsync(cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OutOfMemoryException)
-            {
-                failures.Add(ex);
-            }
+            return failures;
+        }
 
+        /// <summary>
+        /// Preserves all release failures after every owned resource has had a cleanup attempt.
+        /// </summary>
+        private static void ThrowNodeBehaviorReleaseFailures(List<Exception> failures)
+        {
             if (failures.Count == 1)
             {
                 System.Runtime.ExceptionServices.ExceptionDispatchInfo
@@ -1071,7 +1115,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Signals the registry whenever a notifier's monitored-events
+        /// Reconciles the registry whenever a notifier's monitored-events
         /// ref-count flips so the reconcile loop can start or stop the
         /// matching iterator. Subclasses that further override
         /// <see cref="AsyncCustomNodeManager.OnSubscribeToEventsAsync"/>
@@ -1092,7 +1136,7 @@ namespace Opc.Ua.Server.Fluent
 
             if (unsubscribe)
             {
-                EventSources.SignalReconcile();
+                await EventSources.WaitUntilReconciledAsync(monitoredNode.Node).ConfigureAwait(false);
             }
             else if (nonNullMonitoredNode.Node != null)
             {
@@ -1280,10 +1324,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnCreatedAsync(
+                await MonitoredSources.OnAttachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1302,10 +1347,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnDeletedAsync(
+                await MonitoredSources.OnDetachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1427,19 +1473,14 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Cancels every running iterator and waits (bounded by each
-        /// source's
-        /// <see cref="EventPublishOptions.CancellationTimeout"/>) before
-        /// invoking the base disposer. Subclasses that further override
-        /// <c>Dispose</c> must call <c>base.Dispose(disposing)</c>.
+        /// Signals running iterators without blocking; async disposal drains their owned resources.
+        /// Subclasses that further override <c>Dispose</c> must call <c>base.Dispose(disposing)</c>.
         /// </summary>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                // Signal-only: real release runs in DeleteAddressSpaceAsync, which
-                // MasterNodeManager.ShutdownAsync invokes before it disposes managers.
-                // Blocking here would sit under a sync-over-async dispose.
+                // Awaited release also runs during async disposal when startup never reached normal shutdown.
                 SignalNodeBehaviorShutdown();
                 MonitoredSources.Dispose();
                 Simulations.Dispose();
@@ -1505,8 +1546,17 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for fluent node manager base.
+    /// </summary>
     internal static partial class FluentNodeManagerBaseLog
     {
+        /// <summary>
+        /// Logs failure to resolve a virtual node.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.FluentNodeManager + 0, Level = LogLevel.Warning,
             Message = "Virtual node resolution failed for {NodeId}.")]
         public static partial void VirtualNodeResolutionFailed(this ILogger logger, Exception exception, NodeId nodeId);

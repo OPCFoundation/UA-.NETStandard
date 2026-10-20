@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
+    <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <RootNamespace>Opc.Ua.Recycling.Samples.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Recycling.Operator.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Recycling\RecyclingServer\RecyclingServer.csproj" />
+    <ProjectReference Include="..\..\samples\Recycling\Recycling.Client\Recycling.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.AMB.Client\Opc.Ua.AMB.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
+    <!-- Native executable smoke remains a net10.0 profile; managed protocol tests run on all three targets. -->
+    <Compile Remove="NativeRecyclingSmokeTests.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\samples\Recycling\RecyclingServer\scenarios\*.json"
+             Link="Scenarios\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
