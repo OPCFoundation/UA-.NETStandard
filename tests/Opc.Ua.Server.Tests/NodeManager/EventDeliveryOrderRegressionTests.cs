@@ -387,6 +387,104 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// When the budget of a consumer that keeps up runs out, the items it has not
+        /// queued yet are split, while the delivery to an item it queued itself still
+        /// waits for its permission check. The next event and a notification fence wait for
+        /// that delivery as well as for the ranges, and every item gets every event once,
+        /// in order.
+        /// </summary>
+        [Test]
+        public async Task BudgetHandoffWaitsForTheItemsQueuedBeforeTheSplitAsync()
+        {
+            const int itemCount = 100;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            IFilterTarget[] events = CreateEvents(2);
+            var entered = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int blocked = 0;
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    // the first delivery of the first event is queued by the consumer itself.
+                    if (ReferenceEquals(target, events[0]) && Interlocked.Exchange(ref blocked, 1) == 0)
+                    {
+                        entered.TrySetResult(item.Id);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+
+            // one tick per reading at a thousand ticks per second: the budget of a
+            // millisecond runs out after the second item the consumer queued itself.
+            var clock = new SteppingTimeProvider();
+            using var monitored = new MonitoredNode2(
+                manager.Object, new Mock<IServerInternal>().Object, node, false, clock)
+            {
+                MinItemsPerEventDeliveryRange = 8
+            };
+            ConcurrentQueue<int>[] queues = AddRecordingItems(monitored, itemCount, events, null);
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            Task fence;
+            int[][] beforeRelease;
+            uint blockedItem;
+            long readings;
+            try
+            {
+                // no other notification waits, so the consumer starts on its own.
+                await monitored.OnReportEventAsync(context, node, events[0]).ConfigureAwait(false);
+                blockedItem = await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                bool othersQueued = SpinWait.SpinUntil(
+                    () => queues.Sum(queue => queue.Count) >= itemCount - 1,
+                    TimeSpan.FromSeconds(10));
+                Assert.That(othersQueued, Is.True, "the other items got the first event");
+                readings = clock.Readings;
+
+                await monitored.OnReportEventAsync(context, node, events[1]).ConfigureAwait(false);
+                fence = monitored.WaitForPendingNotificationsAsync(CancellationToken.None).AsTask();
+
+                // give a wrongly started second event or fence time to complete.
+                await Task.Delay(100).ConfigureAwait(false);
+                beforeRelease = [.. queues.Select(queue => queue.ToArray())];
+                Assert.That(fence.IsCompleted, Is.False, "the fence waits for the blocked delivery");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await fence.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            // the consumer read the clock once to start and once per item it queued
+            // itself, so it split the event after a few items instead of queueing all.
+            Assert.That(readings, Is.LessThan(10), "split after the budget ran out");
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                int[] expectedBefore = ii + 1 == blockedItem ? [] : s_firstEvent;
+                Assert.That(beforeRelease[ii], Is.EqualTo(expectedBefore), $"item {ii + 1} before release");
+                Assert.That(queues[ii].ToArray(), Is.EqualTo(s_twoEvents), $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// A clock that advances one tick, a millisecond, each time it is read.
+        /// </summary>
+        private sealed class SteppingTimeProvider : TimeProvider
+        {
+            public long Readings => Interlocked.Read(ref m_ticks);
+
+            public override long TimestampFrequency => 1000;
+
+            public override long GetTimestamp()
+            {
+                return Interlocked.Increment(ref m_ticks);
+            }
+
+            private long m_ticks;
+        }
+
         private static IFilterTarget[] CreateEvents(int count)
         {
             var events = new IFilterTarget[count];

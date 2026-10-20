@@ -709,7 +709,8 @@ namespace Opc.Ua.Server
                     {
                         StartEventDeliveries(m_eventBatch[0], next, next + 1, ref pending, cancellationToken);
                         next++;
-                        if (m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
+                        if (cancellationToken.IsCancellationRequested ||
+                            m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
                         {
                             break;
                         }
@@ -853,9 +854,10 @@ namespace Opc.Ua.Server
             int end,
             CancellationToken cancellationToken)
         {
+            // every range gets at least the minimum number of items.
             int ranges = Math.Min(
                 MaxEventDeliveryRanges,
-                (end - start + m_minItemsPerEventDeliveryRange - 1) / m_minItemsPerEventDeliveryRange);
+                (end - start) / m_minItemsPerEventDeliveryRange);
             if (ranges <= 1)
             {
                 return DeliverEventsAsync(events, start, end, cancellationToken);
@@ -951,7 +953,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <remarks>
         /// A delivery that waits for an asynchronous permission check is added to
-        /// <paramref name="pending"/>, and the next item is not held up by it.
+        /// <paramref name="pending"/>, and the next item is not held up by it. A canceled
+        /// delivery is added, too, so that the caller sees the cancellation only once it
+        /// joined every delivery it started.
         /// </remarks>
         private void StartEventDeliveries(
             EventDelivery delivery,
@@ -962,13 +966,16 @@ namespace Opc.Ua.Server
         {
             for (int ii = start; ii < end; ii++)
             {
-                Task task = StartEventDelivery(delivery, ii, cancellationToken);
-                if (task.IsCompleted)
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    // rethrows the cancellation of the consumer.
-                    task.GetAwaiter().GetResult();
+                    // the caller joins the deliveries started so far before it sees the
+                    // cancellation, so no delivery outlives the batch.
+                    (pending ??= []).Add(Task.FromCanceled(cancellationToken));
+                    return;
                 }
-                else
+
+                Task task = StartEventDelivery(delivery, ii, cancellationToken);
+                if (task.Status != TaskStatus.RanToCompletion)
                 {
                     (pending ??= []).Add(task);
                 }
