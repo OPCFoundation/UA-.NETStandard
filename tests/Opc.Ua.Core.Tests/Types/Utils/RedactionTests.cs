@@ -30,6 +30,8 @@
 using NUnit.Framework;
 using Opc.Ua.Redaction;
 
+#pragma warning disable CS0618 // Tests the obsolete redaction API
+
 namespace Opc.Ua.Core.Tests.Types.UtilsTests
 {
     [TestFixture]

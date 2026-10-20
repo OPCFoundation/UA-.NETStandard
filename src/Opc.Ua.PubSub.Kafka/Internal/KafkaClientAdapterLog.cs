@@ -29,6 +29,7 @@
 
 using System;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Kafka.Internal
 {
@@ -41,7 +42,7 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             Message = "Kafka adapter connected to {BootstrapServers} (protocol={Protocol}).")]
         public static partial void KafkaAdapterConnected(
             this ILogger logger,
-            string bootstrapServers,
+            [NetworkAddress] string bootstrapServers,
             KafkaSecurityProtocol protocol);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.KafkaClientAdapter + 1, Level = LogLevel.Debug,

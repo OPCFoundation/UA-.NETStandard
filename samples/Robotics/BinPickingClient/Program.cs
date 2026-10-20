@@ -93,6 +93,7 @@ namespace BinPickingClient
             // works. Errors go to stderr so stdout stays clean for MCP stdio transport.
             LogLevel minimumLevel = options.Verbose ? LogLevel.Debug : LogLevel.Information;
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
+                .EnableOpcUaRedaction()
                 .SetMinimumLevel(minimumLevel)
                 .AddFilter(level => level >= minimumLevel)
                 .AddConsole(console => console.LogToStandardErrorThreshold = LogLevel.Trace));
@@ -595,6 +596,7 @@ namespace BinPickingClient
         private static void ConfigureMcpLogging(ILoggingBuilder logging, bool useStdioTransport)
         {
             logging.ClearProviders();
+            logging.EnableOpcUaRedaction();
             logging.SetMinimumLevel(LogLevel.Information);
             logging.AddSimpleConsole(options =>
             {

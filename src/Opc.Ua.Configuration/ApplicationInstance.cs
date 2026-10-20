@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Configuration
             }
             catch (Exception e)
             {
-                m_logger.CouldNotAddCertificateToTrustedPeerStore(Redact.Create(e));
+                m_logger.CouldNotAddCertificateToTrustedPeerStore(e.Message);
             }
         }
 
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 2, Level = LogLevel.Information,
             Message = "Check certificate: {Certificate}")]
-        public static partial void CheckCertificate(this ILogger logger, Certificate certificate);
+        public static partial void CheckCertificate(this ILogger logger, [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 3, Level = LogLevel.Warning,
             Message = "Application Instance certificate auto creation is disabled.")]
@@ -1283,11 +1283,14 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 4, Level = LogLevel.Information,
             Message = "Loading application configuration file. {FilePath}")]
-        public static partial void LoadingApplicationConfigurationFile(this ILogger logger, string filePath);
+        public static partial void LoadingApplicationConfigurationFile(this ILogger logger, [FilePath] string filePath);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 5, Level = LogLevel.Error,
             Message = "Could not load configuration file. {FilePath}")]
-        public static partial void CouldNotLoadConfigurationFile(this ILogger logger, Exception e, string filePath);
+        public static partial void CouldNotLoadConfigurationFile(
+            this ILogger logger,
+            Exception e,
+            [FilePath] string filePath);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 6, Level = LogLevel.Information,
             Message = "Loading application from stream.")]
@@ -1299,7 +1302,9 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 8, Level = LogLevel.Information,
             Message = "Check application instance certificate {Certificate}.")]
-        public static partial void CheckApplicationInstanceCertificate(this ILogger logger, Certificate certificate);
+        public static partial void CheckApplicationInstanceCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 9, Level = LogLevel.Warning,
             Message = "Application Certificate Validation suppressed {ErrorMessage}")]
@@ -1311,8 +1316,8 @@ namespace Opc.Ua.Configuration
             Message = "Certificate {Certificate} validated for ApplicationUri: {ApplicationUri}")]
         public static partial void CertificateValidatedForApplicationUri(
             this ILogger logger,
-            Certificate certificate,
-            string? applicationUri);
+            [ApplicationIdentity] Certificate certificate,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 11, Level = LogLevel.Information,
             Message = "Check domains in certificate.")]
@@ -1324,7 +1329,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 13, Level = LogLevel.Information,
             Message = " {ServerDomainName}")]
-        public static partial void ServerDomainName(this ILogger logger, string serverDomainName);
+        public static partial void ServerDomainName(this ILogger logger, [NetworkAddress] string serverDomainName);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 14, Level = LogLevel.Information,
             Message = "Certificate Domain names:")]
@@ -1332,7 +1337,7 @@ namespace Opc.Ua.Configuration
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 15, Level = LogLevel.Information,
             Message = " {ClientDomainName}")]
-        public static partial void ClientDomainName(this ILogger logger, string clientDomainName);
+        public static partial void ClientDomainName(this ILogger logger, [NetworkAddress] string clientDomainName);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 16, Level = LogLevel.Information,
             Message = "Creating application instance certificate.")]
@@ -1342,38 +1347,40 @@ namespace Opc.Ua.Configuration
             Message = "Certificate {Certificate} created for RSA with key size {KeySize} bits.")]
         public static partial void CertificateCreatedForRsa(
             this ILogger logger,
-            Certificate certificate,
+            [ApplicationIdentity] Certificate certificate,
             ushort keySize);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 18, Level = LogLevel.Information,
             Message = "Certificate {Certificate} created for {Curve}.")]
         public static partial void CertificateCreatedForCurve(
             this ILogger logger,
-            Certificate certificate,
+            [ApplicationIdentity] Certificate certificate,
             string? curve);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 19, Level = LogLevel.Information,
             Message = "Certificate {Certificate} created for {ApplicationUri}.")]
         public static partial void CertificateCreatedForApplicationUri(
             this ILogger logger,
-            Certificate certificate,
-            string? applicationUri);
+            [ApplicationIdentity] Certificate certificate,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 20, Level = LogLevel.Information,
             Message = "Deleting application instance certificate {Certificate} and private key.")]
-        public static partial void DeletingApplicationInstanceCertificate(this ILogger logger, Certificate certificate);
+        public static partial void DeletingApplicationInstanceCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 21, Level = LogLevel.Information,
             Message = "Application Instance Certificate [{Thumbprint}] deleted from trusted store.")]
         public static partial void ApplicationInstanceCertificateDeletedFromTrustedStore(
             this ILogger logger,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 22, Level = LogLevel.Information,
             Message = "Application certificate {Certificate} and private key deleted.")]
         public static partial void ApplicationCertificateAndPrivateKeyDeleted(
             this ILogger logger,
-            Certificate certificate);
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 23, Level = LogLevel.Warning,
             Message = "Trusted peer store not specified.")]
@@ -1387,11 +1394,13 @@ namespace Opc.Ua.Configuration
             Message = "Adding application certificate {Certificate} to trusted peer store.")]
         public static partial void AddingApplicationCertificateToTrustedPeerStore(
             this ILogger logger,
-            Certificate certificate);
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 26, Level = LogLevel.Information,
             Message = "Delete Certificate {Certificate} from trusted store.")]
-        public static partial void DeleteCertificateFromTrustedStore(this ILogger logger, Certificate certificate);
+        public static partial void DeleteCertificateFromTrustedStore(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 27, Level = LogLevel.Information,
             Message = "Added application certificate to trusted peer store.")]
@@ -1401,10 +1410,10 @@ namespace Opc.Ua.Configuration
             Message = "Could not add certificate to trusted peer store: {ErrorMessage}")]
         public static partial void CouldNotAddCertificateToTrustedPeerStore(
             this ILogger logger,
-            RedactionWrapper<Exception> errorMessage);
+            [SensitiveText] string errorMessage);
 
         [LoggerMessage(EventId = ConfigurationEventIds.ApplicationInstance + 29, Level = LogLevel.Error,
             Message = "Approve Message prompt: {Message} -> Rejected")]
-        public static partial void ApproveMessagePromptRejected(this ILogger logger, string message);
+        public static partial void ApproveMessagePromptRejected(this ILogger logger, [SensitiveText] string message);
     }
 }

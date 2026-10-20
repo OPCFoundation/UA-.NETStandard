@@ -36,6 +36,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 // TODO: RCS1256 — needs polyfill for net48
@@ -3363,7 +3364,7 @@ namespace Opc.Ua.Server
             Message = "Client {ClientKey} is locked out. Remaining lockout time: {RemainingSeconds} seconds.")]
         public static partial void ClientClientKeyIsLockedOutRemainingLockout(
             this ILogger logger,
-            string? clientKey,
+            [SensitiveText] string? clientKey,
             long remainingSeconds);
 
         [LoggerMessage(EventId = ServerEventIds.SessionManager + 1, Level = LogLevel.Debug,
@@ -3402,7 +3403,7 @@ namespace Opc.Ua.Server
                 "attempts. Lockout expires in {RemainingSeconds} seconds.")]
         public static partial void ClientClientKeyHasBeenLockedOutAfter(
             this ILogger logger,
-            string? clientKey,
+            [SensitiveText] string? clientKey,
             int failedAttempts,
             long remainingSeconds);
 

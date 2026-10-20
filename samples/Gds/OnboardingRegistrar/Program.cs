@@ -47,6 +47,7 @@ try
 {
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
     builder.Logging.ClearProviders();
+    builder.Logging.EnableOpcUaRedaction();
     builder.Logging.AddConsole();
 
     int port = int.TryParse(builder.Configuration["port"], out int configuredPort)

@@ -27,11 +27,17 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
     /// Helper class for redacting sensitive data.
     /// </summary>
+    [Obsolete(
+        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
+        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
+        "See docs/Diagnostics.md.")]
     public static class Redact
     {
         /// <summary>

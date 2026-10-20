@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -2782,7 +2783,7 @@ namespace Opc.Ua.Client.Subscriptions
             this ILogger logger,
             int handle,
             uint id,
-            string message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 24, Level = LogLevel.Debug,
             Message = "PUBLISH Worker #{Handle}-{Id} - Transport unavailable ({Status}); " +

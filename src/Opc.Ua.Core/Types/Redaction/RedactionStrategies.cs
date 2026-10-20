@@ -45,6 +45,10 @@ namespace Opc.Ua.Redaction
     /// The redaction is off by default and can be enabled by implementing <see cref="IRedactionStrategy"/>
     /// and setting it via <see cref="SetStrategy(IRedactionStrategy)"/>.
     /// </remarks>
+    [Obsolete(
+        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
+        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
+        "See docs/Diagnostics.md.")]
     public static class RedactionStrategies
     {
         private static readonly IRedactionStrategy s_fallbackStrategy

@@ -45,6 +45,7 @@ try
 {
     HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
     builder.Logging.ClearProviders();
+    builder.Logging.EnableOpcUaRedaction();
     builder.Logging.AddConsole();
     builder.Logging.SetMinimumLevel(LogLevel.Error);
 

@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Server.RuntimeNodeSet
@@ -637,6 +638,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.RuntimeNodeSetNodeManagerFactory + 0, Level = LogLevel.Information,
             Message = "RuntimeNodeSet: parsing source '{Source}'.")]
-        public static partial void RuntimeNodeSetParsingSourceSource(this ILogger logger, string? source);
+        public static partial void RuntimeNodeSetParsingSourceSource(
+            this ILogger logger,
+            [FilePath] string? source);
     }
 }

@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Gds.Server.Identity
@@ -231,8 +232,8 @@ namespace Opc.Ua.Gds.Server.Identity
             Message = "ApplicationSelfAdmin denied for {AppUri}: channel certificate {Thumbprint} is revoked.")]
         public static partial void ApplicationSelfAdminDeniedRevoked(
             this ILogger logger,
-            string appUri,
-            string thumbprint);
+            [ApplicationIdentity] string appUri,
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(
             EventId = GdsServerCommonEventIds.GdsApplicationSelfAdminProvider + 1,
@@ -240,7 +241,7 @@ namespace Opc.Ua.Gds.Server.Identity
             Message = "ApplicationSelfAdmin granted to {AppUri} (cert thumbprint {Thumbprint}).")]
         public static partial void ApplicationSelfAdminGranted(
             this ILogger logger,
-            string? appUri,
-            string? thumbprint);
+            [ApplicationIdentity] string? appUri,
+            [ApplicationIdentity] string? thumbprint);
     }
 }

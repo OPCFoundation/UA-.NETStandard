@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -723,7 +724,10 @@ namespace Opc.Ua.Bindings
     {
         [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 0, Level = LogLevel.Debug,
             Message = "WebSocket connect to {Url} failed.")]
-        public static partial void WebSocketConnectFailed(this ILogger logger, Exception exception, Uri url);
+        public static partial void WebSocketConnectFailed(
+            this ILogger logger,
+            Exception exception,
+            [NetworkAddress] Uri url);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.WebSocketByteTransportBase + 1, Level = LogLevel.Error,
             Message = "WebSocketClientByteTransport: failed to validate server TLS certificate.")]

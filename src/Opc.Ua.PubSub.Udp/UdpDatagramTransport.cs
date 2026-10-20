@@ -41,6 +41,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Udp
 {
@@ -1340,7 +1341,7 @@ namespace Opc.Ua.PubSub.Udp
         public static partial void UdpTransportOpened(
             this ILogger logger,
             string? connection,
-            UdpEndpoint endpoint,
+            [NetworkAddress] UdpEndpoint endpoint,
             PubSubTransportDirection direction);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 1, Level = LogLevel.Debug,
@@ -1371,7 +1372,7 @@ namespace Opc.Ua.PubSub.Udp
             this ILogger logger,
             Exception exception,
             string? connection,
-            string endpoint);
+            [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 5, Level = LogLevel.Warning,
             Message = "UDP receive on connection '{Connection}' raised {Code}; continuing.")]
@@ -1469,7 +1470,7 @@ namespace Opc.Ua.PubSub.Udp
             this ILogger logger,
             Exception exception,
             string? connection,
-            string endpoint);
+            [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 19, Level = LogLevel.Debug,
             Message = "Setting the multicast send interface failed for connection '{Connection}'.")]

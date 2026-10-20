@@ -36,6 +36,11 @@ namespace Opc.Ua.Types.Redaction
     /// <summary>
     /// Sample implementation of the redaction strategy.
     /// </summary>
+#pragma warning disable CS0618 // Implements the obsolete IRedactionStrategy
+    [Obsolete(
+        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
+        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
+        "See docs/Diagnostics.md.")]
     public class SimpleRedactionStrategy : IRedactionStrategy
     {
         private const int kDefaultMinLength = 8;
@@ -150,3 +155,4 @@ namespace Opc.Ua.Types.Redaction
         }
     }
 }
+#pragma warning restore CS0618

@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.AliasNames;
 
@@ -1219,11 +1220,15 @@ namespace Opc.Ua.Server
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 5, Level = LogLevel.Information,
             Message = "Delete application certificate {Thumbprint}")]
-        public static partial void DeleteApplicationCertificate(this ILogger logger, string? thumbprint);
+        public static partial void DeleteApplicationCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] string? thumbprint);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 6, Level = LogLevel.Information,
             Message = "Add application certificate {Certificate}")]
-        public static partial void AddApplicationCertificate(this ILogger logger, Certificate? certificate);
+        public static partial void AddApplicationCertificate(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 7, Level = LogLevel.Warning,
             Message = "Restored the previous application certificate for {Type} after " +
@@ -1261,7 +1266,7 @@ namespace Opc.Ua.Server
         public static partial void FailedToRemoveStagedIssuerCertificate(
             this ILogger logger,
             Exception ex,
-            string thumbprint,
+            [ApplicationIdentity] string thumbprint,
             NodeId group);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 12, Level = LogLevel.Error,
@@ -1270,26 +1275,28 @@ namespace Opc.Ua.Server
         public static partial void FailedToVerifyIntegrityAgainstTrustList(
             this ILogger logger,
             Exception ex,
-            Certificate? certificate);
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 13, Level = LogLevel.Error,
             Message = "Failed to verify integrity of the new certificate {Certificate} and the issuer list.")]
         public static partial void FailedToVerifyIntegrityAndIssuerList(
             this ILogger logger,
             Exception ex,
-            Certificate? certificate);
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 14, Level = LogLevel.Information,
             Message = "Staged self-signed certificate {Subject} for {Group}/{Type}.")]
         public static partial void StagedSelfSignedCertificate(
             this ILogger logger,
-            string subject,
+            [ApplicationIdentity] string subject,
             NodeId group,
             NodeId type);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 15, Level = LogLevel.Information,
             Message = "Create signing request {Certificate}")]
-        public static partial void CreateSigningRequest(this ILogger logger, Certificate certificate);
+        public static partial void CreateSigningRequest(
+            this ILogger logger,
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = ServerEventIds.ConfigurationNodeManager + 16, Level = LogLevel.Warning,
             Message = "Certificate-alarm re-evaluation after ApplyChanges commit failed.")]

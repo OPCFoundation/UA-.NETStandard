@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -3027,7 +3028,7 @@ namespace Opc.Ua.Bindings
             Message = "Sender Certificate {Certificate}")]
         public static partial void UaSCChannelLog2(
             this ILogger logger,
-            Certificate? certificate);
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryChannel + 3, Level = LogLevel.Error,
             Message = "ChannelId {ChannelId}: {Context} - Duplicate sequence number: {SequenceNumber} " +

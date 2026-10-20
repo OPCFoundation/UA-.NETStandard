@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security;
 using Opc.Ua.Security.Certificates;
 
@@ -2122,13 +2123,15 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal static partial class TcpServerChannelLog
     {
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 0, Level = LogLevel.Information,
             Message = "{Channel} TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void TcpServerLog0(
             this ILogger logger,
             string channel,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 1, Level = LogLevel.Debug,
             Message = "ChannelId {Id}: ProcessHelloMessage")]
@@ -2149,15 +2152,17 @@ namespace Opc.Ua.Bindings
             Exception? exception,
             uint id);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 5, Level = LogLevel.Information,
             Message = "{Channel} ReconnectToExistingChannel Transport={RemoteEndpoint}, " +
                 "ChannelId={ChannelId}, TokenId={TokenId}")]
         public static partial void TcpServerLog5(
             this ILogger logger,
             string channel,
-            System.Net.EndPoint? remoteEndpoint,
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 6, Level = LogLevel.Error,
             Message = "Error raising StatusChanged event.")]
@@ -2192,6 +2197,7 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception? exception);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 11, Level = LogLevel.Information,
             Message = "{Channel} ProcessCloseSecureChannelRequest success, ChannelId={ChannelId}, " +
                 "TokenId={TokenId}, Transport={RemoteEndpoint}")]
@@ -2200,7 +2206,8 @@ namespace Opc.Ua.Bindings
             string channel,
             uint? channelId,
             uint? tokenId,
-            System.Net.EndPoint? remoteEndpoint);
+            [NetworkAddress] System.Net.EndPoint? remoteEndpoint);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 12, Level = LogLevel.Information,
             Message = "ChannelId {Id}: Server Current Token #{CurrentToken}, Revoked Token #{PreviousToken}.")]

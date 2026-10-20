@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Gds.Client
 {
@@ -1112,7 +1113,7 @@ namespace Opc.Ua.Gds.Client
 
         [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 2, Level = LogLevel.Information,
             Message = "Connected to {EndpointUrl}.")]
-        public static partial void ConnectedToEndpoint(this ILogger logger, string? endpointUrl);
+        public static partial void ConnectedToEndpoint(this ILogger logger, [NetworkAddress] string? endpointUrl);
 
         [LoggerMessage(EventId = GdsClientCommonEventIds.GdsClientConnection + 3, Level = LogLevel.Error,
             Message = "Subscriber threw in ServerStatusChanged handler.")]

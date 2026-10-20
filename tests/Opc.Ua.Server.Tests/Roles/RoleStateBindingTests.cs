@@ -1325,12 +1325,14 @@ namespace Opc.Ua.Server.Tests.Roles
                 Assert.That(m_nodeManager.FindPredefinedNode<NodeState>(failedId), Is.Null);
                 RecordedLogRecord failure = logger.Records.ToList().Single(
                     record => record.EventId.Id == ServerEventIds.RoleStateBinding + 5 &&
-                        record.Properties["RoleId"] is NodeId roleId &&
-                        roleId == failedId);
+                        record.Properties["RoleId"] is string roleId &&
+                        roleId == failedId.ToString(null, System.Globalization.CultureInfo.InvariantCulture));
                 Assert.That(failure.LogLevel, Is.EqualTo(LogLevel.Warning));
                 Assert.That(failure.Exception, Is.TypeOf<InvalidOperationException>());
                 Assert.That(failure.Exception!.Message, Is.EqualTo("NodeId allocation failed."));
-                Assert.That(failure.Properties["RoleId"], Is.EqualTo(failedId));
+                Assert.That(
+                    failure.Properties["RoleId"],
+                    Is.EqualTo(failedId.ToString(null, System.Globalization.CultureInfo.InvariantCulture)));
 
                 m_nodeManager.SystemContext.NodeIdFactory = originalFactory;
                 Task recovered = ObserveRoleLog(logger, ServerEventIds.RoleStateBinding + 2, count: 2);

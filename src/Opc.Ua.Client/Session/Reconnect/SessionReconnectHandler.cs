@@ -444,7 +444,7 @@ namespace Opc.Ua.Client
             }
             catch (Exception exception)
             {
-                m_logger.UnexpectedErrorDuringReconnectMessage(Redact.Create(exception));
+                m_logger.UnexpectedErrorDuringReconnectMessage(exception.Message);
             }
 
             // schedule the next reconnect.
@@ -638,18 +638,18 @@ namespace Opc.Ua.Client
                     {
                         m_reconnectPeriod = m_baseReconnectPeriod;
                     }
-                    m_logger.CouldNotReconnectFailedSecurityCheck(Redact.Create(sre));
+                    m_logger.CouldNotReconnectFailedSecurityCheck(sre.Message);
                 }
                 else
                 {
-                    m_logger.CouldNotReconnectSessionRequestEndpoint(Redact.Create(sre));
+                    m_logger.CouldNotReconnectSessionRequestEndpoint(sre.Message);
                 }
                 m_updateFromServer = true;
                 return false;
             }
             catch (Exception exception)
             {
-                m_logger.CouldNotReconnectSessionErrorMessage(Redact.Create(exception));
+                m_logger.CouldNotReconnectSessionErrorMessage(exception.Message);
                 return false;
             }
         }
@@ -755,7 +755,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 2, Level = LogLevel.Error,
             Message = "Unexpected error during reconnect: {Message}")]
-        public static partial void UnexpectedErrorDuringReconnectMessage(this ILogger logger, RedactionWrapper<Exception> message);
+        public static partial void UnexpectedErrorDuringReconnectMessage(
+            this ILogger logger,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 3, Level = LogLevel.Information,
             Message = "Reconnect period is {ReconnectPeriod} ms, {Elapsed} ms elapsed in reconnect.")]
@@ -780,7 +782,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 7, Level = LogLevel.Information,
             Message = "Reconnect failed due to security check. Request endpoint update from server. {Message}")]
-        public static partial void ReconnectFailedSecurityCheckRequestEndpoint(this ILogger logger, string message);
+        public static partial void ReconnectFailedSecurityCheckRequestEndpoint(
+            this ILogger logger,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 8, Level = LogLevel.Error,
             Message = "Reconnect failed.")]
@@ -791,24 +795,26 @@ namespace Opc.Ua.Client
                 " {Message}")]
         public static partial void CouldNotReconnectFailedSecurityCheck(
             this ILogger logger,
-            RedactionWrapper<ServiceResultException> message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 10, Level = LogLevel.Error,
             Message = "Could not reconnect the Session. Request endpoint update from server. {Message}")]
         public static partial void CouldNotReconnectSessionRequestEndpoint(
             this ILogger logger,
-            RedactionWrapper<ServiceResultException> message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 11, Level = LogLevel.Error,
             Message = "Could not reconnect the Session. {ErrorMessage}")]
-        public static partial void CouldNotReconnectSessionErrorMessage(this ILogger logger, RedactionWrapper<Exception> errorMessage);
+        public static partial void CouldNotReconnectSessionErrorMessage(
+            this ILogger logger,
+            [SensitiveText] string errorMessage);
 
         [LoggerMessage(EventId = ClientEventIds.SessionReconnectHandler + 12, Level = LogLevel.Error,
             Message = "Original endpoint security configuration not available; refusing to change security. " +
                 "{Message}")]
         public static partial void RequiredEndpointSecurityConfigurationNotAvailable(
             this ILogger logger,
-            string message);
+            [SensitiveText] string message);
     }
 
 }

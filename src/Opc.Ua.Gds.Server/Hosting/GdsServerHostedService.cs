@@ -42,6 +42,7 @@ using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 using Opc.Ua.Server.UserDatabase;
@@ -794,7 +795,7 @@ namespace Opc.Ua.Gds.Server.Hosting
     {
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 0, Level = LogLevel.Information,
             Message = "GDS server listening at {Endpoint}.")]
-        public static partial void GdsServerListening(this ILogger logger, string endpoint);
+        public static partial void GdsServerListening(this ILogger logger, [NetworkAddress] string endpoint);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.GdsServerHostedService + 1, Level = LogLevel.Information,
             Message = "Stopping GDS server...")]

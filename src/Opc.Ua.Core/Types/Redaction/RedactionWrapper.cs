@@ -27,12 +27,18 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
     /// Wraps the supplied value and applies the redaction strategy when converting to string.
     /// </summary>
     /// <typeparam name="T">Type of the supplied value.</typeparam>
+    [Obsolete(
+        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
+        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
+        "See docs/Diagnostics.md.")]
     public class RedactionWrapper<T>
     {
         private readonly T m_value;

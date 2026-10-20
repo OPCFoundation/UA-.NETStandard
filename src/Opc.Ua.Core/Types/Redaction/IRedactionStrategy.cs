@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
@@ -36,6 +38,10 @@ namespace Opc.Ua.Redaction
     /// Use redaction to hide sensitive data in log messages, exception messages, etc.
     /// To set your redaction strategy see <see cref="RedactionStrategies"/>.
     /// </remarks>
+    [Obsolete(
+        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
+        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
+        "See docs/Diagnostics.md.")]
     public interface IRedactionStrategy
     {
         /// <summary>

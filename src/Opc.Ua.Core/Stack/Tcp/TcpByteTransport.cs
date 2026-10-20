@@ -36,6 +36,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Bindings
 {
@@ -760,8 +761,8 @@ namespace Opc.Ua.Bindings
         public static partial void TcpByteTransportLogMessage0(
             this ILogger logger,
             Exception? exception,
-            string? idnHost,
-            int port);
+            [NetworkAddress] string? idnHost,
+            [NetworkAddress] int port);
 
         [LoggerMessage(EventId = CoreEventIds.TcpByteTransport + 1, Level = LogLevel.Debug,
             Message = "Unexpected error closing socket.")]
