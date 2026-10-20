@@ -40,7 +40,7 @@ namespace Opc.Ua.Bindings
     /// Stores the results of an asynchronous operation.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable
+    public class ChannelAsyncOperation<T> : IAsyncResult, IDisposable, IValueTaskSource
     {
         /// <summary>
         /// Initializes the object with a callback
@@ -60,14 +60,8 @@ namespace Opc.Ua.Bindings
             object? asyncState,
             ILogger logger,
             TimeProvider? timeProvider)
+            : this(callback, asyncState, logger, timeProvider, long.MaxValue)
         {
-            m_callback = callback;
-            m_asyncState = asyncState;
-            m_synchronous = false;
-            m_completed = false;
-            m_logger = logger;
-            m_timeProvider = timeProvider ?? TimeProvider.System;
-
             if (timeout is > 0 and not int.MaxValue)
             {
                 m_timer = m_timeProvider.CreateTimer(
@@ -76,6 +70,58 @@ namespace Opc.Ua.Bindings
                     TimeSpan.FromMilliseconds(timeout),
                     Timeout.InfiniteTimeSpan);
             }
+        }
+
+        /// <summary>
+        /// Initializes the object without a timer of its own: the owner times
+        /// the operation out with <see cref="TimeOutIfExpired"/> once
+        /// <paramref name="timeoutDeadline"/> has passed.
+        /// </summary>
+        /// <param name="callback">Called when the operation completes.</param>
+        /// <param name="asyncState">The state passed to the callback.</param>
+        /// <param name="logger">Logs errors of the callback.</param>
+        /// <param name="timeProvider">The clock of the deadline.</param>
+        /// <param name="timeoutDeadline">
+        /// The <see cref="TimeProvider.GetTimestamp"/> at which the operation
+        /// times out, or <see cref="long.MaxValue"/> for none.
+        /// </param>
+        private protected ChannelAsyncOperation(
+            AsyncCallback? callback,
+            object? asyncState,
+            ILogger logger,
+            TimeProvider? timeProvider,
+            long timeoutDeadline)
+        {
+            m_callback = callback;
+            m_asyncState = asyncState;
+            m_synchronous = false;
+            m_completed = false;
+            m_logger = logger;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
+            TimeoutDeadline = timeoutDeadline;
+            m_waitCore.RunContinuationsAsynchronously = true;
+        }
+
+        /// <summary>
+        /// The timestamp at which the owner times the operation out, or
+        /// <see cref="long.MaxValue"/> when the operation has a timer of its
+        /// own or no timeout.
+        /// </summary>
+        internal long TimeoutDeadline { get; }
+
+        /// <summary>
+        /// Completes the operation with BadRequestTimeout if
+        /// <see cref="TimeoutDeadline"/> is at or before <paramref name="now"/>.
+        /// </summary>
+        /// <returns><see langword="true"/> if the deadline has passed.</returns>
+        internal bool TimeOutIfExpired(long now)
+        {
+            if (now < TimeoutDeadline)
+            {
+                return false;
+            }
+            InternalComplete(false, new ServiceResult(StatusCodes.BadRequestTimeout));
+            return true;
         }
 
         /// <summary>
@@ -116,7 +162,10 @@ namespace Opc.Ua.Bindings
                     }
 
                     // like the cancelled task above: the wait is interrupted.
-                    m_waiter?.TrySetResult(false);
+                    if (m_waiting)
+                    {
+                        TrySetWaitResult(false);
+                    }
                 }
             }
         }
@@ -345,7 +394,8 @@ namespace Opc.Ua.Bindings
         /// throwing on error, but without allocating tasks for the wait.
         /// </summary>
         /// <remarks>
-        /// Only one wait at a time is supported. The continuation runs on the thread
+        /// The operation is waited for at most once: it is the source of the returned
+        /// value task, so a wait allocates nothing. The continuation runs on the thread
         /// pool, never on the thread that completes the operation.
         /// </remarks>
         /// <param name="ct">Ends the wait with BadRequestInterrupted.</param>
@@ -356,7 +406,6 @@ namespace Opc.Ua.Bindings
         /// </exception>
         internal ValueTask WaitForCompletionAsync(CancellationToken ct)
         {
-            CompletionWaiter waiter;
             lock (m_lock)
             {
                 if (m_completed)
@@ -365,18 +414,78 @@ namespace Opc.Ua.Bindings
                         ? default
                         : new ValueTask(Task.FromException(new ServiceResultException(m_error)));
                 }
-                waiter = new CompletionWaiter(this);
-                m_waiter = waiter;
+                m_waiting = true;
             }
 
             if (ct.CanBeCanceled)
             {
                 // Runs the callback inline if the token is already cancelled.
-                waiter.Registration = ct.Register(
-                    static state => ((CompletionWaiter)state!).TrySetResult(false),
-                    waiter);
+                m_waitRegistration = ct.Register(
+                    static state => ((ChannelAsyncOperation<T>)state!).TrySetWaitResult(false),
+                    this);
             }
-            return new ValueTask(waiter, waiter.Version);
+            return new ValueTask(this, m_waitCore.Version);
+        }
+
+        /// <summary>
+        /// Ends the wait of <see cref="WaitForCompletionAsync"/> once: with
+        /// <see langword="true"/> when the operation completed, with
+        /// <see langword="false"/> when the wait was interrupted. Later calls
+        /// are ignored.
+        /// </summary>
+        private void TrySetWaitResult(bool completed)
+        {
+            if (Interlocked.Exchange(ref m_waitResultSet, 1) == 0)
+            {
+                m_waitCore.SetResult(completed);
+            }
+        }
+
+        /// <inheritdoc/>
+        void IValueTaskSource.GetResult(short token)
+        {
+            bool completed;
+            try
+            {
+                completed = m_waitCore.GetResult(token);
+            }
+            finally
+            {
+                m_waitRegistration.Dispose();
+                lock (m_lock)
+                {
+                    m_waiting = false;
+                }
+            }
+
+            if (!completed)
+            {
+                throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
+            }
+
+            lock (m_lock)
+            {
+                if (m_error != null)
+                {
+                    throw new ServiceResultException(m_error);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        ValueTaskSourceStatus IValueTaskSource.GetStatus(short token)
+        {
+            return m_waitCore.GetStatus(token);
+        }
+
+        /// <inheritdoc/>
+        void IValueTaskSource.OnCompleted(
+            Action<object?> continuation,
+            object? state,
+            short token,
+            ValueTaskSourceOnCompletedFlags flags)
+        {
+            m_waitCore.OnCompleted(continuation, state, token, flags);
         }
 
         /// <summary>
@@ -492,7 +601,10 @@ namespace Opc.Ua.Bindings
 
                 m_tcs?.TrySetResult(true);
 
-                m_waiter?.TrySetResult(true);
+                if (m_waiting)
+                {
+                    TrySetWaitResult(true);
+                }
             }
 
             AsyncCallback? callback = m_callback;
@@ -564,90 +676,10 @@ namespace Opc.Ua.Bindings
         private ServiceResult? m_error;
         private ITimer? m_timer;
         private Dictionary<string, object>? m_properties;
-        private CompletionWaiter? m_waiter;
-
-        /// <summary>
-        /// Completes the wait of <see cref="WaitForCompletionAsync"/>: with
-        /// <see langword="true"/> when the operation completed, with
-        /// <see langword="false"/> when the wait was interrupted.
-        /// </summary>
-        private sealed class CompletionWaiter : IValueTaskSource
-        {
-            public CompletionWaiter(ChannelAsyncOperation<T> owner)
-            {
-                m_owner = owner;
-                m_core.RunContinuationsAsynchronously = true;
-            }
-
-            /// <summary>
-            /// The cancellation registration, disposed when the result is read.
-            /// </summary>
-            public CancellationTokenRegistration Registration { get; set; }
-
-            public short Version => m_core.Version;
-
-            /// <summary>
-            /// Sets the result once; later calls are ignored.
-            /// </summary>
-            public void TrySetResult(bool completed)
-            {
-                if (Interlocked.Exchange(ref m_resultSet, 1) == 0)
-                {
-                    m_core.SetResult(completed);
-                }
-            }
-
-            public void GetResult(short token)
-            {
-                bool completed;
-                try
-                {
-                    completed = m_core.GetResult(token);
-                }
-                finally
-                {
-                    Registration.Dispose();
-                    lock (m_owner.m_lock)
-                    {
-                        if (ReferenceEquals(m_owner.m_waiter, this))
-                        {
-                            m_owner.m_waiter = null;
-                        }
-                    }
-                }
-
-                if (!completed)
-                {
-                    throw new ServiceResultException(StatusCodes.BadRequestInterrupted);
-                }
-
-                lock (m_owner.m_lock)
-                {
-                    if (m_owner.m_error != null)
-                    {
-                        throw new ServiceResultException(m_owner.m_error);
-                    }
-                }
-            }
-
-            public ValueTaskSourceStatus GetStatus(short token)
-            {
-                return m_core.GetStatus(token);
-            }
-
-            public void OnCompleted(
-                Action<object?> continuation,
-                object? state,
-                short token,
-                ValueTaskSourceOnCompletedFlags flags)
-            {
-                m_core.OnCompleted(continuation, state, token, flags);
-            }
-
-            private readonly ChannelAsyncOperation<T> m_owner;
-            private ManualResetValueTaskSourceCore<bool> m_core;
-            private int m_resultSet;
-        }
+        private bool m_waiting;
+        private ManualResetValueTaskSourceCore<bool> m_waitCore;
+        private CancellationTokenRegistration m_waitRegistration;
+        private int m_waitResultSet;
     }
 
     /// <summary>
