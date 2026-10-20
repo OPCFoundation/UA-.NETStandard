@@ -2130,6 +2130,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
+                        using var emission = dispatch.EnterSourceEmission();
                         await dispatch.NodeManager
                             .ConditionRefreshAsync(
                                 context,
@@ -4505,13 +4506,27 @@ namespace Opc.Ua.Server
         }
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for node manager service dispatcher.
+    /// </summary>
     internal static partial class NodeManagerServiceDispatcherLog
     {
+        /// <summary>
+        /// Logs a browse-target resolution failure while remaining references continue to be processed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="targetId">The identifier of the reference target that could not be resolved.</param>
         [LoggerMessage(EventId = ServerEventIds.NodeManagerServiceDispatcher, Level = LogLevel.Warning,
             Message = "Could not resolve browse target {TargetId}; continuing with the remaining references.")]
         public static partial void BrowseReferenceTargetFailed(
             this ILogger logger, Exception exception, ExpandedNodeId targetId);
 
+        /// <summary>
+        /// Logs failure to release a continuation point from an unsuccessful history-read request.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
         [LoggerMessage(EventId = ServerEventIds.NodeManagerServiceDispatcher + 1, Level = LogLevel.Warning,
             Message = "Could not release a history continuation point of a failed HistoryRead request.")]
         public static partial void HistoryContinuationReleaseFailed(

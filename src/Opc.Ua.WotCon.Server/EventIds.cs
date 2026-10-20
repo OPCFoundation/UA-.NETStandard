@@ -43,10 +43,49 @@ namespace Opc.Ua
     /// </remarks>
     internal static class WotConServerEventIds
     {
+        /// <summary>
+        /// The first event identifier reserved for asset-registry log messages.
+        /// </summary>
         public const int AssetRegistry = 0;
+
+        /// <summary>
+        /// The first event identifier reserved for asset FileType log messages.
+        /// </summary>
         public const int WotAssetFileManager = 40;
+
+        /// <summary>
+        /// The first event identifier reserved for connectivity node-manager log messages.
+        /// </summary>
         public const int WotConnectivityNodeManager = 50;
+
+        /// <summary>
+        /// The first event identifier reserved for registry node-manager log messages.
+        /// </summary>
         public const int WotRegistryNodeManager = 60;
+
+        /// <summary>
+        /// The first event identifier reserved for projection-view log messages.
+        /// </summary>
         public const int WotProjectionViewNodeManager = 70;
+
+        /// <summary>
+        /// The WoT observed property source used by <c>WotConServerEventIds</c>.
+        /// </summary>
+        public const int WotObservedPropertySource = 80;
+
+        /// <summary>
+        /// The WoT structured property observation used by <c>WotConServerEventIds</c>.
+        /// </summary>
+        public const int WotStructuredPropertyObservation = 90;
+
+        /// <summary>
+        /// The WoT projection binding runtime used by <c>WotConServerEventIds</c>.
+        /// </summary>
+        public const int WotProjectionBindingRuntime = 100;
+
+        /// <summary>
+        /// The WoT registry projection used by <c>WotConServerEventIds</c>.
+        /// </summary>
+        public const int WotRegistryProjection = 110;
     }
 }

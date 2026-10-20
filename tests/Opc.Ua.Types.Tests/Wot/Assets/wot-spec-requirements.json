@@ -1153,7 +1153,7 @@
       "tests": [
         "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ValidationFailureEventDeliversValidationOutcomeThroughNotifierChain",
         "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.RefreshCompletedEventDeliversPopulatedSummaryFieldsThroughNotifierChain",
-        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.ResourceEventDeliversPopulatedIdentityFieldsThroughNotifierChain"
+        "Opc.Ua.WotCon.Tests.RuntimeNodeSet.WotRegistryEventIntegrationTests.SuccessfulActivationRetainsInternalIdentityWithoutAnAbstractWireEvent"
       ]
     },
     {
@@ -1487,7 +1487,7 @@
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunDoesNotCommit",
         "Opc.Ua.WotCon.Tests.Materialization.WotMaterializationCoordinatorTests.DryRunRetirementDoesNotTearDownProjection",
-        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateValidDocumentReportsSuccess"
+        "Opc.Ua.WotCon.Tests.Registry.WotRegistryServiceCrudTests.ValidateSyntaxReportsUnperformedPolicies"
       ]
     },
     {
@@ -2938,7 +2938,7 @@
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [
         "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolveByXidFindsResource",
-        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.ResolvePrefersTmOverTd"
+        "Opc.Ua.WotCon.Tests.Materialization.WotDependencyGraphExtendedTests.AmbiguousDocumentIdentityRequiresAnExactResourceReference"
       ]
     }
   ],
