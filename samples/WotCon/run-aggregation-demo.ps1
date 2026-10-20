@@ -43,7 +43,7 @@ param(
     [int]$SourceBPort = 62552,
 
     [ValidateRange(1, 3600)]
-    [int]$ClientTimeoutSeconds = 480,
+    [int]$ClientTimeoutSeconds = 1200,
 
     [switch]$Keep,
 
@@ -62,7 +62,7 @@ $flatTagProgram = Join-Path $here "FlatTagServer\$outputDirectory\FlatTagServer$
 $aggregationProgram = Join-Path $here "AggregationServer\$outputDirectory\AggregationServer$extension"
 $clientProgram = Join-Path $here "AggregationClient\$outputDirectory\AggregationClient$extension"
 $documentsDirectory = Join-Path $here 'AggregationClient\Documents'
-$runRoot = Join-Path ([IO.Path]::GetTempPath()) "opcua-wot-aggregation-demo-$PID-$([Guid]::NewGuid().ToString('N'))"
+$runRoot = Join-Path $here "bin\opcua-wot-aggregation-demo-$PID-$([Guid]::NewGuid().ToString('N'))"
 $sourceAPki = Join-Path $runRoot 'source-a-pki'
 $sourceBPki = Join-Path $runRoot 'source-b-pki'
 $aggregationPki = Join-Path $runRoot 'aggregation-pki'
@@ -234,7 +234,8 @@ try {
         @(
             '--port', "$AggregationPort",
             '--applicationName', "WotAggregationServer-$PID",
-            '--pkiRoot', "`"$aggregationPki`""
+            '--pkiRoot', "`"$aggregationPki`"",
+            '--storageFolder', "`"$(Join-Path $runRoot 'aggregation-registry')`""
         ) `
         $aggregationOut `
         $aggregationErr
