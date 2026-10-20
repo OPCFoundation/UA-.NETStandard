@@ -791,8 +791,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(output.NodeSet, Is.Null);
             Assert.That(
                 string.Join("; ", output.Errors),
-                Does.Contain("The native document context is incomplete")
-                    .And.Contain("resolver document or byte limit"));
+                Does.Contain("The captured sibling documents exceed the resolver budget."));
             Assert.That(
                 async () => await new Opc.Ua.WotCon.Server.Materialization.WotNodeSetDocumentConverter(options)
                     .ConvertAsync(
@@ -2003,7 +2002,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     : member.Name;
                 string localId = LocalNodeId(pumpName, localPath);
                 Affordance declaration = FindAffordance(sources, mapName, localId);
-                string reference = declaration.ResourceId + "#" + declaration.Pointer;
+                string reference = document.RootElement.GetProperty(mapName).GetProperty(member.Name)
+                    .GetProperty("tm:ref").GetString()!;
                 Assert.That(
                     member.Value.GetProperty("uav:resolvedFrom").GetString(),
                     Is.EqualTo(reference),

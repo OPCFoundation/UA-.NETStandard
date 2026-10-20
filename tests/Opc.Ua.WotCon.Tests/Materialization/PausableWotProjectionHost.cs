@@ -57,6 +57,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         public ConcurrentQueue<WotProjectionDocument> Documents { get; } = new();
 
+        /// <summary>
+        /// Gets or sets the callback run before a prepared publication reaches its durable decision.
+        /// </summary>
+        public Action? BeforeCommit { get; set; }
+
+        /// <summary>
+        /// Gets or sets the callback run after the native publication commits.
+        /// </summary>
+        public Action? AfterCommit { get; set; }
+
+        /// <summary>
+        /// Gets the number of prepared publications disposed by the invocation.
+        /// </summary>
+        public int DisposedPublications { get; private set; }
+
         /// <inheritdoc />
         public IWotProjectionPublicationCapture CapturePublication()
         {
@@ -244,7 +259,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 owner.RecordNewDocuments(changes);
                 await owner.WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
-                return await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false);
+                return new Prepared(
+                    await inner.PrepareAsync(changes, views, cancellationToken).ConfigureAwait(false), owner);
             }
 
             /// <inheritdoc/>
@@ -275,6 +291,50 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public ValueTask DisposeAsync()
             {
                 return inner.DisposeAsync();
+            }
+        }
+
+        /// <summary>
+        /// Injects a predecision conflict while retaining the real native publication and cleanup.
+        /// </summary>
+        private sealed class Prepared(
+            IWotPreparedProjectionPublication inner,
+            PausableWotProjectionHost owner) : IWotPreparedProjectionPublication
+        {
+            /// <inheritdoc />
+            public ArrayOf<WotProjectionHandle> Projections => inner.Projections;
+
+            /// <inheritdoc />
+            public WotPreparedViewGraphState? ViewGraph => inner.ViewGraph;
+
+            /// <inheritdoc />
+            public bool IsCommitted => inner.IsCommitted;
+
+            /// <inheritdoc />
+            public Exception? CleanupFailure => inner.CleanupFailure;
+
+            /// <inheritdoc />
+            public void BindReadImages(ArrayOf<INodeManagerReadImage> images)
+            {
+                inner.BindReadImages(images);
+            }
+
+            /// <inheritdoc />
+            public async ValueTask CommitAsync(
+                Func<CancellationToken, ValueTask> decideAsync,
+                Action publishCommittedState,
+                CancellationToken cancellationToken = default)
+            {
+                owner.BeforeCommit?.Invoke();
+                await inner.CommitAsync(decideAsync, publishCommittedState, cancellationToken).ConfigureAwait(false);
+                owner.AfterCommit?.Invoke();
+            }
+
+            /// <inheritdoc />
+            public async ValueTask DisposeAsync()
+            {
+                await inner.DisposeAsync().ConfigureAwait(false);
+                owner.DisposedPublications++;
             }
         }
 

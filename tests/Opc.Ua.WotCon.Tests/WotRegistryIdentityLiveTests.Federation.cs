@@ -42,6 +42,7 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Client;
 using Opc.Ua.XRegistry.Server;
@@ -863,12 +864,15 @@ namespace Opc.Ua.WotCon.Tests
             WotMaterializationCoordinator? coordinator = null;
             WotRegistryService? restoredRegistry = null;
             FileWotRegistryStore? relocatedStore = null;
+            PreparedWotTestStorage? relocatedStorage = null;
             try
             {
                 server = await fixture.StartAsync(Path.Combine(m_root, "fb")).ConfigureAwait(false);
                 Assert.That(fixture.Config.ApplicationUri, Is.EqualTo(target.ServerUri));
                 server.CurrentInstance.NamespaceUris.Append("urn:federation:before-registry");
-                relocatedStore = new FileWotRegistryStore(Path.Combine(m_root, "relocated-registry"));
+                relocatedStorage = new PreparedWotTestStorage(
+                    Path.Combine(m_root, "relocated-registry"));
+                relocatedStore = relocatedStorage.OpenStore();
                 await relocatedStore.LoadAsync(ct).ConfigureAwait(false);
                 WotRegistrySnapshot snapshot = await m_store.LoadAsync(ct).ConfigureAwait(false);
                 foreach (WotResource resource in snapshot.AllResources())
@@ -924,6 +928,7 @@ namespace Opc.Ua.WotCon.Tests
                 coordinator?.Dispose();
                 restoredRegistry?.Dispose();
                 relocatedStore?.Dispose();
+                relocatedStorage?.Dispose();
                 server?.Dispose();
             }
         }

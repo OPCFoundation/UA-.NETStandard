@@ -145,9 +145,28 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotRefreshResult result;
                 try
                 {
-                    result = await RefreshPreparedUnitAsync(
-                        unitCapture, snapshot, start, unit, includeSkipped,
-                        publication, registryPublication, preview, cancellationToken, mutation).ConfigureAwait(false);
+                    for (int attempt = 0; ; attempt++)
+                    {
+                        bool decisionStarted = false;
+                        try
+                        {
+                            result = await RefreshPreparedUnitAsync(
+                                unitCapture, snapshot, start, unit, includeSkipped,
+                                publication, registryPublication, preview, cancellationToken, mutation,
+                                () => decisionStarted = true)
+                                .ConfigureAwait(false);
+                            break;
+                        }
+                        catch (InvalidOperationException failure) when (
+                            !decisionStarted && attempt < 2 &&
+                            string.Equals(
+                                failure.Message,
+                                "Serving references changed during batch preparation.",
+                                StringComparison.Ordinal))
+                        {
+                            await Task.Yield();
+                        }
+                    }
                 }
                 catch (WotRegistryCommitNotCommittedException failure) when (
                     rows.Any(row => row.Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning))
@@ -273,7 +292,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IWotRegistryPublication? registryPublication,
             PublicationCapture? preview,
             CancellationToken cancellationToken,
-            WotRegistryMutationImage? mutation = null)
+            WotRegistryMutationImage? mutation = null,
+            Action? beforeDecision = null)
         {
             if (m_sourceHost is not IWotPreparedProjectionHost { SupportsPreparedPublication: true } host ||
                 m_registry is not IWotPreparedRegistryPublicationService { SupportsPreparedPublication: true } registry)
@@ -348,6 +368,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotRegistryCommitDurabilityUncertainException? warning = null;
                 async ValueTask DecideAsync(CancellationToken token)
                 {
+                    beforeDecision?.Invoke();
                     try
                     {
                         await metadata.DecideAsync(token).ConfigureAwait(false);
@@ -516,6 +537,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 await prepared.CommitAsync(
                     async token =>
                     {
+                        beforeDecision?.Invoke();
                         try
                         {
                             await metadata.DecideAsync(token).ConfigureAwait(false);

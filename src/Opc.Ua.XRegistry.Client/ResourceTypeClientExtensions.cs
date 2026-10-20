@@ -59,9 +59,11 @@ namespace Opc.Ua.XRegistry.Client
         /// <c>GetOrCreateResource</c> with <c>RequestFileOpen</c> set.
         /// </summary>
         /// <remarks>
-        /// Closing uses a fresh five-second cancellation budget even if writing
-        /// was canceled. When writing and closing both fail, both errors are
-        /// preserved. A failed transfer is not replayed; callers must inspect
+        /// After successful writes, closing commits the resource using the caller's
+        /// cancellation token and the Session's normal request timeout. If writing
+        /// fails or is canceled, handle cleanup uses an independent five-second
+        /// budget. When writing and closing both fail, both errors
+        /// are preserved. A failed transfer is not replayed; callers must inspect
         /// the server's state before deciding whether another upload is safe.
         /// </remarks>
         /// <param name="resource">The resource proxy.</param>
@@ -87,7 +89,7 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
             }
 
-            var handle = new ResourceWriteHandle(resource, fileHandle);
+            var handle = new ResourceWriteHandle(resource, fileHandle, ct);
             await using (handle.ConfigureAwait(false))
             {
                 try
@@ -196,16 +198,28 @@ namespace Opc.Ua.XRegistry.Client
 
         private const byte kReadMode = 1;
 
-        private sealed class ResourceWriteHandle(ResourceTypeClient resource, uint handle) : IAsyncDisposable
+        /// <summary>
+        /// Commits successful writes or independently closes a handle after a transfer failure.
+        /// </summary>
+        private sealed class ResourceWriteHandle(
+            ResourceTypeClient resource,
+            uint handle,
+            CancellationToken cancellationToken) : IAsyncDisposable
         {
+            /// <summary>
+            /// Gets or sets the failure that requires independent cleanup.
+            /// </summary>
             public Exception? Failure { get; set; }
 
+            /// <inheritdoc />
             public async ValueTask DisposeAsync()
             {
-                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var cleanup = Failure is null
+                    ? null
+                    : new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 try
                 {
-                    await resource.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
+                    await resource.CloseAsync(handle, cleanup?.Token ?? cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception error) when (Failure is not null && IsTransferFailure(error))
                 {

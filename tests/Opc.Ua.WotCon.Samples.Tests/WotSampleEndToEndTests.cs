@@ -962,9 +962,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
                 references.ToArray()!
                     .Select(reference => ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
                 Is.EquivalentTo(names.Select(name =>
-                    new NodeId($"{pumpName}.Operational.Measurements.{name}", namespaceIndex)).Concat(
-                    names.Where(name => name != "NumberOfStarts").Select(name => new NodeId(
-                        $"{pumpName}.Operational.Measurements.{name}.EngineeringUnits", namespaceIndex)))));
+                    new NodeId($"{pumpName}.Operational.Measurements.{name}", namespaceIndex))));
         }
 
         private static void AssertOrganizedIds(

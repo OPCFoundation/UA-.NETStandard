@@ -256,7 +256,15 @@ namespace Opc.Ua.WotCon.Server
             /// Gets the cancellation token for <c>ResourcePreparation</c>.
             /// </summary>
             public CancellationToken CancellationToken => m_transactionCancellation.Token;
-            public bool SessionClosed => m_reservation?.SessionClosedToken.IsCancellationRequested == true;
+
+            /// <summary>
+            /// Gets whether Session closure caused cancellation, including the interval before reservation discard.
+            /// </summary>
+            public bool SessionClosed => m_reservation?.SessionClosedToken.IsCancellationRequested == true ||
+                m_context is SessionSystemContext
+                {
+                    OperationContext: Ua.Server.OperationContext { Session.IsClosing: true }
+                };
 
             /// <summary>
             /// Prepares the resource write by reserving it in the projection engine.

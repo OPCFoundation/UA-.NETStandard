@@ -75,6 +75,12 @@ committed warnings. An indeterminate decision fences mutation until recovery.
 Conflicting lifecycle operations fail `BadServerTooBusy` before effects;
 callbacks must not synchronously wait on a mutation excluded by their invocation.
 
+If serving references change during batch preparation, the coordinator disposes
+the uncommitted candidates and rebuilds that unit, with at most three attempts.
+Only that exact conflict before the durable decision is retried; unrelated
+failures and failures after the decision are not replayed. Exhausted conflicts
+are reported without publishing a partial unit.
+
 | Requested atomicity | Initial publication unit |
 | --- | --- |
 | PerResource | One selected activation Resource |

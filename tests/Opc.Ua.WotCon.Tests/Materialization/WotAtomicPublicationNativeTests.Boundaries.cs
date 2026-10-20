@@ -44,6 +44,124 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotAtomicPublicationNativeTests
     {
         /// <summary>
+        /// Verifies bounded conflict retries rebuild and dispose native candidates without publishing a failed attempt.
+        /// </summary>
+        /// <param name="conflicts">The number of predecision conflicts injected before success.</param>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task PredecisionReferenceConflictsRetryOnlyWithinThePublicationBudget(int conflicts)
+        {
+            WotResource resource = await AddAsync("conflict").ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            int attempts = 0;
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
+            {
+                BeforeCommit = () =>
+                {
+                    Assert.That(m_registry.Current, Is.SameAs(before));
+                    if (++attempts <= conflicts)
+                    {
+                        throw new InvalidOperationException("Serving references changed during batch preparation.");
+                    }
+                }
+            };
+            using var coordinator = new WotMaterializationCoordinator(
+                m_registry, host, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
+            };
+            if (conflicts < 3)
+            {
+                WotRefreshResult result = await coordinator.RefreshAsync(HandoffRequest("reference-conflict"))
+                    .ConfigureAwait(false);
+
+                Assert.That(result.NewGeneration, Is.EqualTo(1u));
+                Assert.That(result.Summary.Succeeded, Is.EqualTo(1u));
+                Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(1u));
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                await Assert.ThatAsync(async () => await coordinator.RefreshAsync(HandoffRequest("reference-conflict"))
+                    .ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()
+                    .With.Message.EqualTo("Serving references changed during batch preparation.")).ConfigureAwait(false);
+
+                Assert.That(coordinator.Generation, Is.Zero);
+                Assert.That(m_registry.Current, Is.SameAs(before));
+                Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
+            Assert.That(attempts, Is.EqualTo(Math.Min(conflicts + 1, 3)));
+            Assert.That(host.DisposedPublications, Is.EqualTo(attempts));
+        }
+
+        /// <summary>
+        /// Verifies that an unrelated publication error is propagated immediately without retry.
+        /// </summary>
+        [Test]
+        public async Task UnrelatedPredecisionFailuresAreNotRetried()
+        {
+            await AddAsync("unrelated").ConfigureAwait(false);
+            WotRegistrySnapshot before = m_registry.Current;
+            var failure = new InvalidOperationException("Unrelated publication failure.");
+            int attempts = 0;
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
+            {
+                BeforeCommit = () =>
+                {
+                    attempts++;
+                    throw failure;
+                }
+            };
+            using var coordinator = new WotMaterializationCoordinator(
+                m_registry, host, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
+            };
+
+            await Assert.ThatAsync(async () => await coordinator.RefreshAsync(HandoffRequest("unrelated-failure"))
+                .ConfigureAwait(false), Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(host.DisposedPublications, Is.EqualTo(1));
+            Assert.That(coordinator.Generation, Is.Zero);
+            Assert.That(m_registry.Current, Is.SameAs(before));
+        }
+
+        /// <summary>
+        /// Verifies that a conflict-shaped error after the decision cannot cause a committed publication to replay.
+        /// </summary>
+        [Test]
+        public async Task ReferenceConflictAfterDecisionIsNotRetried()
+        {
+            WotResource resource = await AddAsync("committed").ConfigureAwait(false);
+            var failure = new InvalidOperationException("Serving references changed during batch preparation.");
+            int attempts = 0;
+            var host = new PausableWotProjectionHost(new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle))
+            {
+                BeforeCommit = () => attempts++,
+                AfterCommit = () => throw failure
+            };
+            using var coordinator = new WotMaterializationCoordinator(
+                m_registry, host, documentConverter: m_converter)
+            {
+                ServerNamespaceUris = m_server.CurrentInstance.NamespaceUris
+            };
+
+            await Assert.ThatAsync(async () => await coordinator.RefreshAsync(HandoffRequest("committed-conflict"))
+                .ConfigureAwait(false), Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+
+            Assert.That(attempts, Is.EqualTo(1));
+            Assert.That(host.DisposedPublications, Is.EqualTo(1));
+            Assert.That(coordinator.Generation, Is.EqualTo(1u));
+            Assert.That(m_registry.Current.RefreshGeneration, Is.EqualTo(1u));
+            Assert.That((await ReadNodeClassAsync(Root(resource)).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
         /// Verifies that native reference scc coactivates but ordering cycle cannot publish.
         /// </summary>
         /// <param name="ordering">The ordering flag for this test case.</param>

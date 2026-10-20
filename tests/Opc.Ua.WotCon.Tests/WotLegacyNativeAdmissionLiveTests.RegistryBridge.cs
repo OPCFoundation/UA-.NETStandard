@@ -38,6 +38,7 @@ using Opc.Ua.Server;
 using Opc.Ua.WotCon.Client;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
 
 namespace Opc.Ua.WotCon.Tests
 {
@@ -57,7 +58,8 @@ namespace Opc.Ua.WotCon.Tests
             await using Fixture fixture = await Fixture.CreateAsync();
             string directory = Path.Combine(fixture.Options.ThingDescriptionStorageFolder!, "registry");
             bool interrupt = false;
-            using var store = new FileWotRegistryStore(directory, directorySyncFailureInjector: null,
+            using var preparedStorage = new PreparedWotTestStorage(directory);
+            using var store = preparedStorage.OpenStore(
                 manifestReplace: (source, destination, backup) =>
                 {
                     if (interrupt)

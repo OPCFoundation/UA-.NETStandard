@@ -42,6 +42,7 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
 
@@ -97,7 +98,8 @@ namespace Opc.Ua.WotCon.Tests
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_store = new FileWotRegistryStore(Path.Combine(m_pkiRoot, "registry"));
+            m_preparedStorage = new PreparedWotTestStorage(Path.Combine(m_pkiRoot, "registry"));
+            m_store = m_preparedStorage.OpenStore();
             m_registry = new WotRegistryService(m_store, options.Bounds, options.IdentityBindings);
             m_projectionHost = new PausableWotProjectionHost(
                 new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
@@ -137,6 +139,7 @@ namespace Opc.Ua.WotCon.Tests
                 m_coordinator?.Dispose();
                 m_registry?.Dispose();
                 m_store?.Dispose();
+                m_preparedStorage?.Dispose();
                 m_server?.Dispose();
 
                 if (m_serverFixture != null)
@@ -335,6 +338,7 @@ namespace Opc.Ua.WotCon.Tests
         private ISession m_session = null!;
         private ITelemetryContext m_telemetry = null!;
         private FileWotRegistryStore m_store = null!;
+        private PreparedWotTestStorage m_preparedStorage = null!;
         private WotRegistryService m_registry = null!;
         private WotMaterializationCoordinator m_coordinator = null!;
         private PausableWotProjectionHost m_projectionHost = null!;

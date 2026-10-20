@@ -57,6 +57,7 @@ namespace Opc.Ua.WotCon.Tests
     [Category("Integration")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
+    [Platform("Win")]
     [NonParallelizable]
     public sealed class WotRegistryLeaseRecoveryLiveTests
     {

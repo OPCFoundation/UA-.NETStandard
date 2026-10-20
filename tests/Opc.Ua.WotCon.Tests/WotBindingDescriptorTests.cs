@@ -50,6 +50,7 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.WotCon.Tests.Support;
 using Quickstarts.ReferenceServer;
 using ClientSession = Opc.Ua.Client.ISession;
@@ -872,12 +873,14 @@ namespace Opc.Ua.WotCon.Tests
             };
             ReferenceServer? server = null;
             FileWotRegistryStore? store = null;
+            PreparedWotTestStorage? preparedStorage = null;
             WotRegistryService? registry = null;
             WotMaterializationCoordinator? coordinator = null;
             try
             {
                 server = await fixture.StartAsync(directory).ConfigureAwait(false);
-                store = new FileWotRegistryStore(Path.Combine(directory, "registry"));
+                preparedStorage = new PreparedWotTestStorage(Path.Combine(directory, "registry"));
+                store = preparedStorage.OpenStore();
                 registry = new WotRegistryService(store);
                 IWotBinderRegistry binders = registeredBinders ?? new WotProtocolBinderRegistry([new MemoryWotBinder()],
                     executable ? [new MemoryWotBindingExecutor(new MemoryWotStore())] : null);
@@ -920,10 +923,17 @@ namespace Opc.Ua.WotCon.Tests
                             }
                             finally
                             {
-                                store?.Dispose();
-                                if (Directory.Exists(directory))
+                                try
                                 {
-                                    Directory.Delete(directory, recursive: true);
+                                    store?.Dispose();
+                                }
+                                finally
+                                {
+                                    preparedStorage?.Dispose();
+                                    if (Directory.Exists(directory))
+                                    {
+                                        Directory.Delete(directory, recursive: true);
+                                    }
                                 }
                             }
                         }
